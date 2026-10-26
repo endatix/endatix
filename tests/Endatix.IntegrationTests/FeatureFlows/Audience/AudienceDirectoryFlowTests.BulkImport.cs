@@ -164,6 +164,34 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task A_chunk_retry_after_the_check_starts_is_refused_and_the_file_stays_whole()
+    {
+        // Arrange — the retry has loaded the import as uploading and is held before it replaces its chunk.
+        IntegrationTestWorld world = await WorldAsync();
+        AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
+        long formId = await api.CreateFormAsync();
+        List<string[]> rows = [.. Enumerable.Range(1, 1_200).Select(n => new[] { $"p{n}@example.com" })];
+        BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
+        using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
+        using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ChunkRangeRead());
+        Task<HttpResponseMessage> retry = api.SendChunkAsync(import, 0, rows);
+        await held.Reached.WaitAsync(ImportWait, api.CancellationToken);
+
+        // Act — the last chunk starts the Check while that retry is still in flight.
+        using HttpResponseMessage last = await api.SendChunkAsync(import, 1, rows);
+        JsonElement finished = await api.WaitForImportAsync(import, "checked");
+        held.Release();
+        using HttpResponseMessage again = await retry;
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, last.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal("checked", finished.GetProperty("status").GetString());
+        Assert.Equal(1_200, finished.GetProperty("checkedRowCount").GetInt32());
+    }
+
+    [Fact]
     public async Task A_chunk_sent_twice_is_stored_once_and_a_second_import_on_the_form_is_a_conflict()
     {
         // Arrange — two chunks; the first is sent twice before the second completes the file.
@@ -232,6 +260,10 @@ public sealed partial class AudienceDirectoryFlowTests
         row.BeginCheck();
         await db.SaveChangesAsync();
     }
+
+    /// <summary>The read of other chunks' row numbers, before a chunk is replaced.</summary>
+    [GeneratedRegex("""["\[]ImportChunks["\]]""", RegexOptions.IgnoreCase)]
+    private static partial Regex ChunkRangeRead();
 
     /// <summary>The save of one chunk's Check counts.</summary>
     [GeneratedRegex("""UPDATE\s+["\[]?audience["\]]?\.["\[]Imports["\]].*["\[]CheckedRowCount["\]]\s*=""", RegexOptions.Singleline)]

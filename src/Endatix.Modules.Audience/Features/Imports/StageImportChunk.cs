@@ -4,6 +4,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.Imports;
 
@@ -126,8 +127,38 @@ internal sealed class StageImportChunkHandler(
             return Result<ImportViewDto>.Invalid(new ValidationError(range));
         }
 
+        return await ReplaceWhileUploadingAsync(import, request, cancellationToken);
+    }
+
+    /// <summary>Replaces the chunk only while the import is still uploading; a check that won the race answers 409.</summary>
+    private async Task<Result<ImportViewDto>?> ReplaceWhileUploadingAsync(
+        AudienceImport import,
+        StageImportChunkCommand request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await ((DbContext)db).Database.BeginTransactionAsync(cancellationToken);
+        if (!await HoldUploadingAsync(import, cancellationToken))
+        {
+            return Result<ImportViewDto>.Conflict("The import is no longer uploading; it takes no more rows.");
+        }
+
         await ReplaceAsync(import, request, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return null;
+    }
+
+    /// <summary>Locks the import row if it is still uploading. The lock lasts until the replace commits.</summary>
+    private async Task<bool> HoldUploadingAsync(AudienceImport import, CancellationToken cancellationToken)
+    {
+        int held = await db.AudienceImports
+            .Where(row => row.Id == import.Id
+                && row.TenantId == import.TenantId
+                && row.Status == AudienceImportStatusCodes.Uploading)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(row => row.Status, AudienceImportStatusCodes.Uploading),
+                cancellationToken);
+        return held == 1;
     }
 
     private async Task ReplaceAsync(AudienceImport import, StageImportChunkCommand request, CancellationToken cancellationToken)
