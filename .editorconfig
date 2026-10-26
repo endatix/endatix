@@ -244,14 +244,17 @@ dotnet_naming_style.internal_error_style.required_suffix = ____INTERNAL_ERROR___
 # https://docs.microsoft.com/dotnet/standard/design-guidelines/index
 ##########################################
 
-# All public/protected/protected_internal constant fields must be PascalCase
-# https://docs.microsoft.com/dotnet/standard/design-guidelines/field
+# Const fields are UPPER_SNAKE (ONE_UNFINISHED_PER_FORM). The existing corpus stays.
+# scripts/check-const-names.py fails a diff that adds any other shape. Severity is none
+# so a format run does not rename the corpus.
+dotnet_naming_style.const_upper_style.capitalization = all_upper
+dotnet_naming_style.const_upper_style.word_separator = _
 dotnet_naming_symbols.public_protected_constant_fields_group.applicable_accessibilities = public, protected, protected_internal, internal, private
 dotnet_naming_symbols.public_protected_constant_fields_group.required_modifiers         = const
 dotnet_naming_symbols.public_protected_constant_fields_group.applicable_kinds           = field
-dotnet_naming_rule.public_protected_constant_fields_must_be_pascal_case_rule.symbols    = public_protected_constant_fields_group
-dotnet_naming_rule.public_protected_constant_fields_must_be_pascal_case_rule.style      = pascal_case_style
-dotnet_naming_rule.public_protected_constant_fields_must_be_pascal_case_rule.severity   = warning
+dotnet_naming_rule.const_fields_must_be_upper_snake_rule.symbols  = public_protected_constant_fields_group
+dotnet_naming_rule.const_fields_must_be_upper_snake_rule.style    = const_upper_style
+dotnet_naming_rule.const_fields_must_be_upper_snake_rule.severity = none
 
 # All public/protected/protected_internal static readonly fields must be PascalCase
 # https://docs.microsoft.com/dotnet/standard/design-guidelines/field

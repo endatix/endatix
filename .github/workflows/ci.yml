@@ -50,6 +50,24 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Const names on added lines
+        env:
+          CHECK_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 scripts/check-const-names.test.py
+          base=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            base="${{ github.event.before }}"
+          fi
+          if [ -z "$base" ]; then
+            exit 0
+          fi
+          git -c http.extraheader="AUTHORIZATION: bearer ${CHECK_TOKEN}" \
+            fetch --no-tags --depth=1 origin "$base"
+          git diff --unified=0 FETCH_HEAD HEAD -- '*.cs' | python3 scripts/check-const-names.py
       - name: 📦 Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
