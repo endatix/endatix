@@ -58,7 +58,6 @@ internal static class ImportView
         CancellationToken cancellationToken)
     {
         IReadOnlyList<int> missing = await MissingChunksAsync(source.Db, import, cancellationToken);
-        List<ImportRejectionDto> rejections = await FirstRejections(source.Db, import).ToListAsync(cancellationToken);
         return new ImportViewDto(
             import.Id,
             import.Status,
@@ -70,7 +69,7 @@ internal static class ImportView
             import.CheckedRowCount,
             CheckOf(import),
             WrittenOf(import),
-            rejections,
+            await FirstRejections(source.Db, import).ToListAsync(cancellationToken),
             OutcomeOf(import, source.RunsInBackground));
     }
 

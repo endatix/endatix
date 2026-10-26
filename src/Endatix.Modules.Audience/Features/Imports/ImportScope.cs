@@ -178,12 +178,9 @@ internal sealed class ImportScope
         ExistingAudience.LoadAsync(new AudienceQuery(Db, TargetOf(import), cancellationToken), rows);
 
     /// <summary>Stages the rows' Participants, clearing what the import's options clear.</summary>
-    public async Task<ImportTally> StageAsync(
-        AudienceImport import,
-        IReadOnlyList<ImportRow> rows,
-        CsvColumnMap map,
-        CancellationToken cancellationToken)
+    public async Task<ImportTally> StageAsync(AcceptedRows accepted, CancellationToken cancellationToken)
     {
+        (AudienceImport import, CsvColumnMap map, IReadOnlyList<ImportRow> rows) = accepted;
         ExistingAudience existing = await ExistingAsync(import, rows, cancellationToken);
         MatchKey? matchKey = MatchKeyProperty.In(map.PropertiesById.Values, import.IdentifierKind!);
         ImportTarget target = TargetOf(import) with { Clears = ImportClears.Of(map, import.Options, matchKey) };
@@ -235,6 +232,9 @@ internal sealed class ImportScope
         return Result.Invalid(new ValidationError(reason));
     }
 }
+
+/// <summary>One write batch's accepted rows, and the mapping they were read with.</summary>
+internal sealed record AcceptedRows(AudienceImport Import, CsvColumnMap Map, IReadOnlyList<ImportRow> Rows);
 
 /// <summary>One chunk of a Check, and the reader the whole Check shares.</summary>
 internal sealed record ChunkCheck(

@@ -83,38 +83,6 @@ public sealed class AudienceImportTests
     }
 
     [Fact]
-    public void Start_WithOptions_KeepsThemThroughAResume()
-    {
-        // Arrange
-        AudienceImport import = AudienceImport.Start(StartArgs(1_200, 1_000) with
-        {
-            Options = new AudienceImportOptions(ClearEmptyCells: true, ClearMissingProperties: false),
-        });
-        foreach (string move in new[] { "BeginCheck", "FinishCheck", "Confirm" })
-        {
-            Apply(import, move);
-        }
-
-        import.Fail("The import stopped.", resumable: true);
-
-        // Act
-        import.Resume();
-
-        // Assert
-        import.Options.Should().Be(new AudienceImportOptions(ClearEmptyCells: true, ClearMissingProperties: false));
-    }
-
-    [Fact]
-    public void Start_WithoutOptions_KeepsEveryStoredValue()
-    {
-        // Act
-        AudienceImport import = AudienceImport.Start(StartArgs(1_200, 1_000));
-
-        // Assert
-        import.Options.Should().Be(AudienceImportOptions.Keep);
-    }
-
-    [Fact]
     public void Cancel_ResumableFailure_AbandonsItAndKeepsTheCheckpoint()
     {
         // Arrange

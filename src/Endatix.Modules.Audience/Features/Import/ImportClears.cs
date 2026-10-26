@@ -16,23 +16,10 @@ internal static class ImportClears
     public static IReadOnlySet<long> Of(CsvColumnMap map, AudienceImportOptions options, MatchKey? matchKey)
     {
         HashSet<long> inFile = [.. map.SimpleColumns.Values, .. map.ChoiceColumns.Values.Select(column => column.Property.Id)];
-        HashSet<long> clears = [];
-        if (options.ClearEmptyCells)
-        {
-            clears.UnionWith(inFile);
-        }
-
-        if (options.ClearMissingProperties)
-        {
-            clears.UnionWith(map.PropertiesById.Keys.Where(propertyId => !inFile.Contains(propertyId)));
-        }
-
-        if (matchKey is not null)
-        {
-            clears.Remove(matchKey.PropertyId);
-        }
-
-        return clears;
+        return map.PropertiesById.Keys
+            .Where(propertyId => inFile.Contains(propertyId) ? options.ClearEmptyCells : options.ClearMissingProperties)
+            .Where(propertyId => propertyId != matchKey?.PropertyId)
+            .ToHashSet();
     }
 
     /// <summary>

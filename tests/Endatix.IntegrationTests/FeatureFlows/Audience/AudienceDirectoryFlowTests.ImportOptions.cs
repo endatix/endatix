@@ -45,7 +45,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         JsonElement view = await api.ImportWithAsync(
-            formId, ["email", "City"], [["ada@example.com", ""]], new ImportChoices(new() { ["city"] = "City" }));
+            formId, [["email", "City"], ["ada@example.com", ""]], new ImportChoices(new() { ["city"] = "City" }));
 
         // Assert
         Assert.Equal("keep", view.GetProperty("emptyCells").GetString());
@@ -65,8 +65,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Act
         JsonElement view = await api.ImportWithAsync(
             formId,
-            ["email", "City"],
-            [["ada@example.com", ""], ["bob@example.com", "Ruse"]],
+            [["email", "City"], ["ada@example.com", ""], ["bob@example.com", "Ruse"]],
             new ImportChoices(new() { ["city"] = "City" }, EmptyCells: "clear"));
 
         // Assert
@@ -85,11 +84,11 @@ public sealed partial class AudienceDirectoryFlowTests
         long region = await api.CreatePropertyAsync(
             formId, new { name = "Region", dataType = "multiple_choice", choicesJson = """["North","South"]""" });
         string[] headers = ["email", "region__North", "region__South"];
-        await api.ImportWithAsync(formId, headers, [["ada@example.com", "x", ""], ["bob@example.com", "", "x"]], new ImportChoices([]));
+        await api.ImportWithAsync(formId, [headers, ["ada@example.com", "x", ""], ["bob@example.com", "", "x"]], new ImportChoices([]));
 
         // Act
         await api.ImportWithAsync(
-            formId, headers, [["ada@example.com", "", ""], ["bob@example.com", "", "x"]], new ImportChoices([], EmptyCells: "clear"));
+            formId, [headers, ["ada@example.com", "", ""], ["bob@example.com", "", "x"]], new ImportChoices([], EmptyCells: "clear"));
 
         // Assert
         Assert.False((await api.ValuesAsync(formId, "ada@example.com")).ContainsKey(region));
@@ -112,7 +111,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         JsonElement view = await api.ImportWithAsync(
-            formId, ["email", "City"], [["ada@example.com", "Sofia"]],
+            formId, [["email", "City"], ["ada@example.com", "Sofia"]],
             new ImportChoices(new() { ["city"] = "City" }, MissingProperties: "clear"));
 
         // Assert
@@ -134,10 +133,10 @@ public sealed partial class AudienceDirectoryFlowTests
         long region = await api.CreatePropertyAsync(
             formId, new { name = "Region", dataType = "multiple_choice", choicesJson = """["North","South"]""" });
         string[] headers = ["email", "region__North", "region__South"];
-        await api.ImportWithAsync(formId, headers, [["ada@example.com", "x", ""]], new ImportChoices([]));
+        await api.ImportWithAsync(formId, [headers, ["ada@example.com", "x", ""]], new ImportChoices([]));
 
         // Act
-        await api.ImportWithAsync(formId, headers, [["ada@example.com", "", ""]], new ImportChoices([], MissingProperties: "clear"));
+        await api.ImportWithAsync(formId, [headers, ["ada@example.com", "", ""]], new ImportChoices([], MissingProperties: "clear"));
 
         // Assert
         Assert.Equal("""["North"]""", (await api.ValuesAsync(formId, "ada@example.com"))[region]);
@@ -154,7 +153,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         JsonElement view = await api.ImportWithAsync(
-            formId, ["email", "City"], [["ada@example.com", ""]],
+            formId, [["email", "City"], ["ada@example.com", ""]],
             new ImportChoices(new() { ["city"] = "City" }, EmptyCells: "clear", MissingProperties: "clear", IsTest: true));
 
         // Assert
@@ -174,7 +173,7 @@ public sealed partial class AudienceDirectoryFlowTests
         await api.SeedAsync(formId, "email,City\nada@example.com,\n", new() { ["city"] = "City" });
 
         // Act
-        JsonElement view = await api.ImportWithAsync(formId, ["email", "City"], [["ada@example.com", ""]], clearBoth);
+        JsonElement view = await api.ImportWithAsync(formId, [["email", "City"], ["ada@example.com", ""]], clearBoth);
 
         // Assert
         JsonElement written = view.GetProperty("written");
@@ -192,15 +191,14 @@ public sealed partial class AudienceDirectoryFlowTests
         await api.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
         Dictionary<string, string> columns = new() { ["city"] = "City" };
         List<string[]> seeded = [.. Enumerable.Range(1, 600).Select(n => new[] { $"p{n}@example.com", $"City {n}" })];
-        await api.ImportWithAsync(formId, ["email", "City"], seeded, new ImportChoices(columns));
+        await api.ImportWithAsync(formId, [["email", "City"], .. seeded], new ImportChoices(columns));
         using CommandPause cutOff = world.Services.GetRequiredService<AppCommandGate>().FailAt(
             WriteProgressSave(), new TimeoutException("The connection was lost."), skip: 1);
 
         // Act
         JsonElement view = await api.ImportWithAsync(
             formId,
-            ["email", "City"],
-            [.. seeded.Select(row => new[] { row[0], "" })],
+            [["email", "City"], .. seeded.Select(row => new[] { row[0], "" })],
             new ImportChoices(columns, EmptyCells: "clear"));
 
         // Assert
@@ -306,13 +304,14 @@ public sealed partial class AudienceDirectoryFlowTests
             Assert.Equal(HttpStatusCode.OK, seeded.StatusCode);
         }
 
-        /// <summary>Runs a staged import with <paramref name="choices"/> to its end and returns its view.</summary>
-        public async Task<JsonElement> ImportWithAsync(
-            long formId,
-            string[] headers,
-            IReadOnlyList<string[]> rows,
-            ImportChoices choices)
+        /// <summary>
+        /// Runs a staged import of <paramref name="file"/>, whose first row is the header row, with
+        /// <paramref name="choices"/> to its end and returns its view.
+        /// </summary>
+        public async Task<JsonElement> ImportWithAsync(long formId, string[][] file, ImportChoices choices)
         {
+            string[] headers = file[0];
+            string[][] rows = file[1..];
             using HttpResponseMessage started = await PostAsync(
                 $"/api/forms/{formId}/audience/imports",
                 new

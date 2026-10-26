@@ -29,13 +29,11 @@ public sealed class Start(
         Summary(summary =>
         {
             summary.Summary = "Start a Participant import";
-            summary.Description = "Starts an import of a CSV the browser has parsed: its header row, its row count, " +
-                "the column mapping, and what the write does with values the file does not fill (emptyCells, " +
-                "missingProperties: keep or clear, default keep), fixed from here on. Send the rows with PUT …/chunks/{index}; the last chunk starts " +
-                "the Check, which writes nothing. A form has one unfinished import at a time.";
+            summary.Description = "Starts an import of a CSV the browser has parsed: its header row, its row count, the " +
+                "column mapping and the emptyCells and missingProperties options, fixed from here on. Send the rows with " +
+                "PUT …/chunks/{index}; the last chunk starts the Check, which writes nothing. One unfinished import a form.";
             summary.Responses[201] = "Import started; send its chunks.";
-            summary.Responses[400] = "Too many rows, no identifier column, a mapping that does not fit the form, " +
-                "or an option that is not keep or clear.";
+            summary.Responses[400] = "Too many rows, no identifier column, a mapping that does not fit, or a bad option.";
             summary.Responses[404] = "Form not found.";
             summary.Responses[409] = "The form already has an unfinished import; its id is in the problem's existing resource.";
         });

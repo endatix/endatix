@@ -395,11 +395,16 @@ public sealed record AudienceImportOptions(bool ClearEmptyCells, bool ClearMissi
 /// </summary>
 public static class AudienceImportOptionCodes
 {
+    /// <summary>The stored value stays.</summary>
     public const string Keep = "keep";
+
+    /// <summary>The stored value is cleared.</summary>
     public const string Clear = "clear";
 
+    /// <summary>Every code an option takes.</summary>
     public static readonly IReadOnlyList<string> All = [Keep, Clear];
 
+    /// <summary>The code for an option stored as whether it clears.</summary>
     public static string Of(bool clear) => clear ? Clear : Keep;
 }
 
