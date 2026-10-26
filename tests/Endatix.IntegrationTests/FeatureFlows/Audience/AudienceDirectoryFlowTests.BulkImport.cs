@@ -128,6 +128,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.OK, again.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         Assert.Contains(import.ImportId.ToString(System.Globalization.CultureInfo.InvariantCulture), await second.Content.ReadAsStringAsync(api.CancellationToken));
+        Assert.Equal(EmailHeader, finished.GetProperty("headers").EnumerateArray().Select(header => header.GetString()));
         Assert.Equal(1_200, finished.GetProperty("checkedRowCount").GetInt32());
         Assert.Equal(1_200, finished.GetProperty("check").GetProperty("newCount").GetInt32());
     }
