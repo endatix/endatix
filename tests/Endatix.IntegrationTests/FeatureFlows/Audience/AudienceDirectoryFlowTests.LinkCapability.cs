@@ -208,6 +208,51 @@ public sealed partial class AudienceDirectoryFlowTests
         }
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Opening_a_link_whose_submission_ended_follows_the_after_completion_rule_and_writes_nothing_when_refused(
+        bool screenOut,
+        bool validAfterCompletion)
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Oberlin");
+        await SetTenantSettingsAsync(
+            world.Services,
+            world.Tenants[0].Id,
+            settings => settings.UpdateSubmissionTokenValidAfterCompletion(validAfterCompletion));
+        using var anonymous = world.AnonymousClient();
+        var opened = await RedeemAsync(anonymous, formId, token);
+        var submissionId = IdOf(opened, "submissionId");
+        object ending = screenOut
+            ? new { jsonData = """{"q1":"no"}""", collectionOutcome = "screen_out" }
+            : new { jsonData = """{"q1":"done"}""", isComplete = true };
+        using var ended = await anonymous.PatchAsJsonAsync(
+            ByAccessTokenUrl(formId, SubmissionAccessTokenOf(opened)), ending, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, ended.StatusCode);
+        var before = await StoredTokenAsync(world.Services, submissionId);
+
+        // Act
+        using var again = await anonymous.PostAsJsonAsync(RedeemUrl(formId, token), new { }, admin.CancellationToken);
+
+        // Assert
+        var body = await again.Content.ReadFromJsonAsync<JsonElement>(admin.CancellationToken);
+        if (validAfterCompletion)
+        {
+            Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+            Assert.Equal(submissionId, IdOf(body, "submissionId"));
+            return;
+        }
+
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal("submission_ended", body.GetProperty("errorCode").GetString());
+        Assert.Equal(before, await StoredTokenAsync(world.Services, submissionId));
+    }
+
     [Fact]
     public async Task A_completed_submission_is_not_edited_through_its_links_access_token()
     {

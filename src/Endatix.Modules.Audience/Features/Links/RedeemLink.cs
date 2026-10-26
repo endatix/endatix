@@ -53,6 +53,14 @@ internal sealed class RedeemLinkHandler(
     /// </summary>
     private const string LinkBusy = "This link can't be opened right now. Try again in a moment.";
 
+    /// <summary>
+    /// The link's response is complete or screened out and its tenant does not keep tokens valid after that: the
+    /// person already answered, which the caller can say instead of calling the link dead.
+    /// </summary>
+    private const string SubmissionEnded = "Submission ended";
+
+    private const string SubmissionEndedCode = "submission_ended";
+
     public async Task<Result<RedeemedLinkDto>> Handle(
         RedeemLinkCommand request,
         CancellationToken cancellationToken)
@@ -341,6 +349,12 @@ internal sealed class RedeemLinkHandler(
         return Result.Success(submission);
     }
 
+    /// <summary>The one refusal that names the submission: the person already answered.</summary>
+    private static Result<OpenedLink> Ended(long submissionId) =>
+        Result<OpenedLink>.Conflict(
+            new ExistingResource(SubmissionEndedCode, "submissionId", submissionId.ToString()),
+            SubmissionEnded);
+
     /// <summary>A busy refusal stays busy, a retryable 503; every other one reads the same.</summary>
     private static Result<OpenedLink> Refused(IResult refusal) =>
         refusal.IsUnavailable() ? Result.Unavailable(LinkBusy) : Result.NotFound(LinkNotFound);
@@ -386,12 +400,21 @@ internal sealed class RedeemLinkHandler(
                 cells);
     }
 
-    /// <summary>A submission or form deleted meanwhile is the same refusal as any other.</summary>
+    /// <summary>
+    /// A submission or form deleted meanwhile is the same refusal as any other. A response that has ended is refused
+    /// before its token is extended, unless its tenant keeps tokens valid after completion; under the link's lock the
+    /// refusal rolls the open back, so a refused open writes nothing.
+    /// </summary>
     private async Task<Result<OpenedLink>> RedeemedAsync(
         long submissionId,
         bool created,
         CancellationToken cancellationToken)
     {
+        if (!await submissionTokens.AcceptsTokenAsync(submissionId, cancellationToken))
+        {
+            return Ended(submissionId);
+        }
+
         var token = await submissionTokens.ObtainTokenAsync(submissionId, cancellationToken);
         if (token.IsSuccess)
         {

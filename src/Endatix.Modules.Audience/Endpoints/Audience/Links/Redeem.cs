@@ -17,21 +17,25 @@ public sealed class Redeem(IMediator mediator)
         AllowAnonymous();
         // In-process only. The host rewrites X-Forwarded-For when the peer is a known proxy.
         Throttle(60, 60);
-        Summary(summary =>
-        {
-            summary.Summary = "Open a personalised link";
-            summary.Responses[200] = "Submission opened or resumed.";
-            summary.Responses[400] = "Invalid input.";
-            summary.Responses[404] = "Link not found.";
-            summary.Responses[403] = "Too many requests.";
-            summary.Responses[503] = "Another open of the same link is still running. Try again.";
-        });
+        Summary(Describe);
         Description(builder => builder
             .Produces<RedeemedLinkResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(403)
             .ProducesProblem(404)
+            .ProducesProblem(409)
             .ProducesProblem(503));
+    }
+
+    private static void Describe(EndpointSummary summary)
+    {
+        summary.Summary = "Open a personalised link";
+        summary.Responses[200] = "Submission opened or resumed.";
+        summary.Responses[400] = "Invalid input.";
+        summary.Responses[404] = "Link not found.";
+        summary.Responses[409] = "The link's submission has ended (errorCode submission_ended, submissionId).";
+        summary.Responses[403] = "Too many requests.";
+        summary.Responses[503] = "Another open of the same link is still running. Try again.";
     }
 
     public override async Task<Results<Ok<RedeemedLinkResponse>, ProblemHttpResult>> ExecuteAsync(
