@@ -26,17 +26,19 @@ public sealed record RedeemedLinkDto(
 
 public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Result<RedeemedLinkDto>>;
 
+/// <summary>What an open or resume yields before its access token is issued.</summary>
+internal sealed record OpenedLink(long SubmissionId, bool Created, string Token);
+
 /// <summary>
 /// The first open of a link, and the first token of a link claimed without one, run under
 /// <see cref="LinkOpenLock"/>, so parallel opens of one link take turns. A first open also holds its form's lock
 /// against the form's deletion. Everything else runs unlocked.
 /// </summary>
-internal sealed record OpenedLink(long SubmissionId, bool Created, string Token);
-
 internal sealed class RedeemLinkHandler(
     IAudienceDbContext db,
     IRepository<Submission> submissions,
     AppDbContext app,
+    ISubmissionTokenService submissionTokens,
     LinkTokens tokens,
     LinkOpenLock linkLock,
     LinkOpenGates gates)
@@ -390,7 +392,7 @@ internal sealed class RedeemLinkHandler(
         bool created,
         CancellationToken cancellationToken)
     {
-        var token = await tokens.ObtainSubmissionTokenAsync(submissionId, cancellationToken);
+        var token = await submissionTokens.ObtainTokenAsync(submissionId, cancellationToken);
         if (token.IsSuccess)
         {
             return Result.Success(new OpenedLink(submissionId, created, token.Value));

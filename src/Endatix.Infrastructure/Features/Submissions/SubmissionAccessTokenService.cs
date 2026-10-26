@@ -111,7 +111,7 @@ internal class SubmissionAccessTokenService : ISubmissionAccessTokenService
     private static ValidationError? Validate(SubmissionAccessTokenRequest request)
     {
         Guard.Against.NegativeOrZero(request.SubmissionId);
-        Guard.Against.NegativeOrZero(request.ExpiryMinutes);
+        Guard.Against.OutOfRange(request.ExpiryMinutes, nameof(request.ExpiryMinutes), 1, ISubmissionAccessTokenService.MAX_EXPIRY_MINUTES);
         Guard.Against.NullOrEmpty(request.Permissions);
 
         var invalidPermission = request.Permissions.FirstOrDefault(permission => !SubmissionAccessTokenPermissions.IsValid(permission));

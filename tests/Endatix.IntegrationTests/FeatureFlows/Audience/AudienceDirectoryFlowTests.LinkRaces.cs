@@ -296,7 +296,7 @@ public sealed partial class AudienceDirectoryFlowTests
             new EfRepository<Submitter>(app, evaluator),
             services.GetRequiredService<ISubmitterResolver>());
         var linkTokens = new LinkTokens(services.GetRequiredService<ISubmissionAccessTokenService>(), tokens);
-        return new RedeemLinkHandler(audience, submissions, app, linkTokens, linkLock, gates);
+        return new RedeemLinkHandler(audience, submissions, app, tokens, linkTokens, linkLock, gates);
     }
 
     /// <summary>Starts a link open paused at <paramref name="gate"/>.</summary>
