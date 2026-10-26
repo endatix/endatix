@@ -142,6 +142,16 @@ and redeem, which is anonymous.
   `false`. `date`: `YYYY-MM-DD`. `date_time`: ISO 8601 (`2026-10-05T09:30`, optional seconds and
   offset). `single_choice`: one key from `ChoicesJson`. `multiple_choice`: a JSON array of keys.
   `AllowsOther` accepts any key.
+- **Choice columns in an import.** A `variable__choice` header whose variable is a choice Property is one choice of
+  it (`CsvColumnMapper`, `ChoiceCells`), so a responses export imports back unchanged; a single-choice Property may
+  also keep one column holding the key. A choice cell ticks with `1`, `true`, `yes`, `y` or `x` and stays unticked
+  with `0`, `false`, `no`, `n` or nothing, in any case; any other value rejects the row, naming the column. On a
+  multiple-choice Property, `variable__other` and `variable__other_text` are Other (endatix#1418): the text is added
+  as a free choice only when the Property allows Other and `__other` is ticked. Text without the tick, or on a
+  Property without Other, rejects the row, and so does a ticked `__other` with no text. A Property that lists a key
+  `other` keeps `__other` as that key, and its `__other_text` adds the text beside it under the same conditions.
+  Without Other, a ticked `__other` is the key `other`, which the value check refuses. The Check and the write read
+  rows through the same `ImportRowReader`, so staged imports and the one-request route share the rule.
 - **Concurrency.** Person creates and imports take a shared tenant lock; a match-key change takes it
   exclusively. The lock is `ITransactionLock` (scope `AudienceMatchKey`, key the tenant id), held until the
   transaction ends. The unique indexes settle create races (a second pass reuses the member; a duplicate
