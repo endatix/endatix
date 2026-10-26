@@ -93,6 +93,21 @@ public sealed class VariableDefinitionTests
     }
 
     [Fact]
+    public void Build_EveryDataType_PrefillsAtLeastItsOwnQuestion()
+    {
+        foreach (string dataType in AudienceDataTypeCodes.All)
+        {
+            // Act
+            JsonNode question = VariableDefinition.Build([PropertyOf(dataType, ChoicesFor(dataType))])["elements"]![0]!;
+
+            // Assert
+            question["prefillTargets"]!.AsArray()
+                .Select(target => (Type: (string?)target!["type"], InputType: (string?)target["inputType"]))
+                .Should().Contain(((string?)question["type"], (string?)question["inputType"]), dataType);
+        }
+    }
+
+    [Fact]
     public void Build_SeveralProperties_KeepsTheirOrder()
     {
         // Act
@@ -110,15 +125,16 @@ public sealed class VariableDefinitionTests
     private static Property PropertyOf(string dataType, string? choicesJson = null, bool allowsOther = false) =>
         new(new PropertyCreateArgs(1, 10, "Plan tier", dataType, 0, choicesJson, allowsOther));
 
-    /// <summary>The question as SurveyJS reads it; <c>prefillTargets</c> has its own tests.</summary>
     private static string? ChoicesFor(string dataType) =>
         dataType is AudienceDataTypeCodes.SingleChoice or AudienceDataTypeCodes.MultipleChoice ? """["basic"]""" : null;
 
+    /// <summary>The question as SurveyJS reads it; <c>prefillTargets</c> has its own tests.</summary>
     private static void AssertQuestions(JsonObject definition, string expectedQuestion)
     {
+        definition.Select(entry => entry.Key).Should().Equal("elements");
+        definition["elements"]!.AsArray().Should().HaveCount(1);
         JsonObject question = definition["elements"]![0]!.AsObject().DeepClone().AsObject();
         question.Remove("prefillTargets");
-        definition["elements"]!.AsArray().Should().HaveCount(1);
         JsonNode.DeepEquals(question, JsonNode.Parse(expectedQuestion)).Should().BeTrue(question.ToJsonString());
     }
 }
