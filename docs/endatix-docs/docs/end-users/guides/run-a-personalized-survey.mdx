@@ -65,12 +65,14 @@ Each test is a test submission: it never uses a real person's link and stays out
 
 ## Generate and share personalized links
 
-First decide who can open the form:
+A personalized link opens its person's own response without a sign-in, whether the form is public or private. The link opens that one response and nothing else.
 
-- **Public**: best for a panel. Each person's link opens their own response without signing in.
-- **Private**, the default for new forms: a link shows *Sign in required* to anyone who is not signed in to your Endatix workspace.
+**Visibility** decides only who can open the form's plain share link, `/share/<formId>`:
 
-Change it with the **Visibility** switch on the form's **Overview**. See [Visibility (Public / Private)](/docs/end-users/sharing/public-and-private-forms#switch-a-form-between-public-and-private).
+- **Private**, the default for new forms: the plain link asks for a sign-in, so only your panel's links collect responses. Keep it for a panel.
+- **Public**: anyone with the plain link can also respond, without a link of their own.
+
+Change it with the **Visibility** switch on the form's **Overview**. See [Visibility (Public / Private)](/docs/end-users/sharing/public-and-private-forms#personalized-links-on-a-private-form).
 
 Then make the links:
 
@@ -114,7 +116,7 @@ See [Keep test submissions out of exports](/docs/end-users/submissions/testing-s
 
 ## Limitations
 
-- **Links on a private form need a sign-in.** A respondent without an account in your workspace cannot open their link until the form is public.
+- **Removing a person stops their link within a minute, not at once.** A response they have open can still save until then.
 - **Links are shown once.** Hub keeps no copy you can download again, and a person who has a link does not get a new one.
 - **Testing happens in your own browser.** **Test as this participant** opens the form for you; there is no link to send a colleague to test as someone.
 - **Values are fixed when a link is first opened.** Editing a person afterwards does not change a response they already started.
@@ -136,7 +138,7 @@ See [Keep test submissions out of exports](/docs/end-users/submissions/testing-s
   <LinkCard
     to="/docs/end-users/sharing/public-and-private-forms"
     title="Visibility (Public / Private)"
-    description="Decide whether a link opens the form without a sign-in."
+    description="Decide who can open the form's plain share link."
   />
   <LinkCard
     to="/docs/end-users/submissions/exporting-submissions"
