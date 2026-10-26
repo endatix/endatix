@@ -174,7 +174,7 @@ public class SubmissionAccessTokenServiceStampTests
 
     private SubmissionAccessTokenService CreateService() => CreateService(_gate);
 
-    private SubmissionAccessTokenService CreateService(ISubmissionAccessTokenGate gate)
+    private static SubmissionAccessTokenService CreateService(ISubmissionAccessTokenGate gate)
     {
         var dateTimeProvider = Substitute.For<IDateTimeProvider>();
         dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
