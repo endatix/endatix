@@ -191,8 +191,8 @@ and redeem, which is anonymous.
   and resumes that writer's submission. A link claimed before tokens were issued this way gets its first token
   under the lock. A person removed before that claim is not found, and the link stays unopened: every path under the
   lock (insert or take-over) reads the snapshot, which reads the cells before the membership, and a removal deletes
-  both in one save. A person removed after open still resumes
-  that submission while the form is enabled.
+  both in one save. A person removed after open is 404 on redeem too, and their
+  access token is refused (see the redeem route above).
 - **One response per person.** On a one-response form the open resolves the person's Submitter before the lock:
   `Member.SubmitterId` when bound, else `Integration` + the identifier (what on-behalf resolves), created if missing
   and bound once. The link's submission carries it with the single-response gate, so `UX_Submissions_RestrictionKey`

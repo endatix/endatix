@@ -5,5 +5,5 @@ namespace Endatix.Infrastructure.Features.Submissions;
 internal sealed class OpenSubmissionAccessTokenGate : ISubmissionAccessTokenGate
 {
     public Task<bool> IsCurrentAsync(SubmissionAccessTokenClaims claims, CancellationToken cancellationToken) =>
-        Task.FromResult(true);
+        Task.FromResult(claims.Stamp is null);
 }

@@ -78,7 +78,9 @@ public sealed class RedeemLinkRequest
 public sealed record RedeemedLinkResponse(
     long SubmissionId,
     bool Created,
+#pragma warning disable S1133 // Intentional: AccessToken stays until a later release removes it.
     [property: Obsolete("Use SubmissionAccessToken. AccessToken is removed in a later release.")] string AccessToken,
+#pragma warning restore S1133
     string SubmissionAccessToken,
     DateTime SubmissionAccessTokenExpiresAt)
 {

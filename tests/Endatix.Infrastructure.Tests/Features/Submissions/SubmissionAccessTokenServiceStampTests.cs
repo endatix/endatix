@@ -142,11 +142,43 @@ public class SubmissionAccessTokenServiceStampTests
         result.ValidationErrors.Should().ContainSingle(error => error.ErrorCode == SubmissionAccessTokenErrors.ErrorCodes.TOKEN_REVOKED);
     }
 
-    private SubmissionAccessTokenService CreateService()
+    [Fact]
+    public async Task ValidateAccessTokenAsync_OpenGate_HoldsAnUnstampedToken()
+    {
+        // Arrange
+        var service = CreateService(new OpenSubmissionAccessTokenGate());
+        var token = service.GenerateAccessToken(12345, 60, ["view"]).Value.Token;
+
+        // Act
+        var result = await service.ValidateAccessTokenAsync(token, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Stamp.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ValidateAccessTokenAsync_OpenGate_RefusesAStampedToken()
+    {
+        // Arrange
+        var service = CreateService(new OpenSubmissionAccessTokenGate());
+        var token = service.GenerateAccessToken(new SubmissionAccessTokenRequest(12345, 60, ["submit"], "0a1b2c3d")).Value.Token;
+
+        // Act
+        var result = await service.ValidateAccessTokenAsync(token, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle(error => error.ErrorCode == SubmissionAccessTokenErrors.ErrorCodes.TOKEN_REVOKED);
+    }
+
+    private SubmissionAccessTokenService CreateService() => CreateService(_gate);
+
+    private SubmissionAccessTokenService CreateService(ISubmissionAccessTokenGate gate)
     {
         var dateTimeProvider = Substitute.For<IDateTimeProvider>();
         dateTimeProvider.Now.Returns(DateTimeOffset.UtcNow);
         var options = new SubmissionAccessTokenOptions { AccessTokenSigningKey = SigningKey };
-        return new SubmissionAccessTokenService(Options.Create(options), dateTimeProvider, _gate);
+        return new SubmissionAccessTokenService(Options.Create(options), dateTimeProvider, gate);
     }
 }
