@@ -4,6 +4,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.Imports;
 
@@ -31,7 +32,11 @@ internal sealed class StageImportChunkHandler(
             return refused;
         }
 
-        await StoreAsync(import!, request, cancellationToken);
+        if (await StoreAsync(import!, request, cancellationToken) is { } stored)
+        {
+            return stored;
+        }
+
         Result started = await StartCheckIfCompleteAsync(import!, request.Import, cancellationToken);
         return started.Status == ResultStatus.Unavailable
             ? started.ToErrorResult<ImportViewDto>()
@@ -63,6 +68,21 @@ internal sealed class StageImportChunkHandler(
 
         int expected = Math.Min(import.ChunkSize, import.RowCount - (request.Index * import.ChunkSize));
         return request.Rows.Count == expected ? null : $"Chunk {request.Index} holds {expected} rows, not {request.Rows.Count}.";
+    }
+
+    /// <summary>A chunk must sit after every earlier index and before every later one, with no shared row.</summary>
+    private async Task<string?> RangeErrorAsync(
+        AudienceImport import,
+        StageImportChunkCommand request,
+        CancellationToken cancellationToken)
+    {
+        List<ChunkSpan> others = await db.ImportChunks.AsNoTracking()
+            .Where(chunk => chunk.TenantId == import.TenantId
+                && chunk.ImportId == import.Id
+                && chunk.ChunkIndex != request.Index)
+            .Select(chunk => new ChunkSpan(chunk.ChunkIndex, chunk.FirstRowNumber, chunk.RowCount))
+            .ToListAsync(cancellationToken);
+        return StagedChunkRanges.Rejection(new ChunkSpan(request.Index, request.FirstRowNumber, request.Rows.Count), others);
     }
 
     private static string? RowsError(AudienceImport import, StageImportChunkCommand request)
@@ -97,7 +117,46 @@ internal sealed class StageImportChunkHandler(
     private Task<ImportViewDto> ViewAsync(AudienceImport import, CancellationToken cancellationToken) =>
         ImportView.ReadAsync(new ImportViewSource(db, runner.RunsInBackground), import, cancellationToken);
 
-    private async Task StoreAsync(AudienceImport import, StageImportChunkCommand request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Replaces the chunk only while the import is still uploading; a check that won the race answers 409. The row
+    /// range is checked under the import row's lock, so two chunks sent at once see each other's rows.
+    /// </summary>
+    private async Task<Result<ImportViewDto>?> StoreAsync(
+        AudienceImport import,
+        StageImportChunkCommand request,
+        CancellationToken cancellationToken)
+    {
+        await using IDbContextTransaction transaction =
+            await ((DbContext)db).Database.BeginTransactionAsync(cancellationToken);
+        if (!await HoldUploadingAsync(import, cancellationToken))
+        {
+            return Result<ImportViewDto>.Conflict("The import is no longer uploading; it takes no more rows.");
+        }
+
+        if (await RangeErrorAsync(import, request, cancellationToken) is { } range)
+        {
+            return Result<ImportViewDto>.Invalid(new ValidationError(range));
+        }
+
+        await ReplaceAsync(import, request, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return null;
+    }
+
+    /// <summary>Locks the import row if it is still uploading. The lock lasts until the replace commits.</summary>
+    private async Task<bool> HoldUploadingAsync(AudienceImport import, CancellationToken cancellationToken)
+    {
+        int held = await db.AudienceImports
+            .Where(row => row.Id == import.Id
+                && row.TenantId == import.TenantId
+                && row.Status == AudienceImportStatusCodes.Uploading)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(row => row.Status, AudienceImportStatusCodes.Uploading),
+                cancellationToken);
+        return held == 1;
+    }
+
+    private async Task ReplaceAsync(AudienceImport import, StageImportChunkCommand request, CancellationToken cancellationToken)
     {
         await db.ImportChunks
             .Where(chunk => chunk.TenantId == import.TenantId
@@ -135,6 +194,51 @@ internal sealed class StageImportChunkHandler(
             await ((DbContext)db).Entry(import).ReloadAsync(cancellationToken);
             return false;
         }
+    }
+}
+
+/// <summary>One staged chunk's place and size, without its cells.</summary>
+internal readonly record struct ChunkSpan(int Index, int FirstRowNumber, int RowCount);
+
+/// <summary>Row-number rules for staged chunks: index order at upload, and a complete unique file at the Check.</summary>
+internal static class StagedChunkRanges
+{
+    public static string? Rejection(ChunkSpan incoming, IReadOnlyList<ChunkSpan> others) =>
+        others.Any(other => OutOfOrder(incoming, other))
+            ? $"Chunk {incoming.Index} overlaps another chunk or is numbered behind an earlier one."
+            : null;
+
+    /// <summary>
+    /// Exactly the file's declared count, and rows that increase in chunk-index order with no shared row, as the
+    /// write reads them: a chunk numbered below an earlier index would fall behind the write's checkpoint.
+    /// </summary>
+    public static bool IsTheFile(int rowCount, IReadOnlyList<ChunkSpan> spans)
+    {
+        if (spans.Sum(span => span.RowCount) != rowCount)
+        {
+            return false;
+        }
+
+        int coveredThrough = 0;
+        foreach (ChunkSpan span in spans.OrderBy(span => span.Index))
+        {
+            if (span.FirstRowNumber <= coveredThrough)
+            {
+                return false;
+            }
+
+            coveredThrough = span.FirstRowNumber + span.RowCount - 1;
+        }
+
+        return true;
+    }
+
+    /// <summary>The later index must start strictly after the earlier index ends.</summary>
+    private static bool OutOfOrder(ChunkSpan left, ChunkSpan right)
+    {
+        ChunkSpan earlier = left.Index < right.Index ? left : right;
+        ChunkSpan later = left.Index < right.Index ? right : left;
+        return later.FirstRowNumber <= earlier.FirstRowNumber + earlier.RowCount - 1;
     }
 }
 

@@ -42,6 +42,9 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
     internal const string FormDeleted = "The form was deleted.";
     internal const string MappingGone = "A column's Property was deleted after the import started. Start the import again.";
     internal const string MatchKeyChanged = "The match key changed after the check. Start the import again.";
+    internal const string WriteStopped = "The import stopped before it finished. Resume it to continue.";
+    internal const string CheckStopped = "The check stopped before it finished. Start the import again.";
+    internal const string StagedRowsMismatch = "The staged rows do not match the file.";
 
     public Task<Result> RunAsync(ImportRef import, ImportPhase phase, CancellationToken cancellationToken) =>
         phase == ImportPhase.Check ? CheckAsync(import, cancellationToken) : WriteAsync(import, cancellationToken);
@@ -150,9 +153,38 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
             return Result.Success();
         }
 
+        if (!await work.StagedRowsAreTheFileAsync(import, cancellationToken))
+        {
+            return await work.FailAsync(import, Result.Invalid(new ValidationError(StagedRowsMismatch)), cancellationToken);
+        }
+
         import.FinishCheck();
         await work.SaveUnlessMovedAsync(cancellationToken);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Ends a phase that nothing will continue, such as one its request left: a stopped write may resume from its
+    /// checkpoint, a stopped Check may not. An import that is no longer running is left as it is.
+    /// </summary>
+    public async Task StopIfRunningAsync(ImportRef target, CancellationToken cancellationToken)
+    {
+        await using AsyncServiceScope scope = scopes.CreateAsyncScope();
+        ImportScope work = ImportScope.Of(scope);
+        AudienceImport? import = await work.LoadAsync(target, cancellationToken);
+        switch (import?.Status)
+        {
+            case AudienceImportStatusCodes.Writing:
+                import.Fail(WriteStopped, resumable: true);
+                break;
+            case AudienceImportStatusCodes.Checking:
+                import.Fail(CheckStopped);
+                break;
+            default:
+                return;
+        }
+
+        await work.SaveUnlessMovedAsync(cancellationToken);
     }
 
     private async Task<Result> WriteAsync(ImportRef target, CancellationToken cancellationToken)

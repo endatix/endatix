@@ -45,10 +45,10 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.NotEqual(abandoned.ImportId, next.ImportId);
-        Assert.Equal("expired", (await api.GetImportAsync(abandoned)).GetProperty("status").GetString());
+        Assert.Equal("expired", (await api.ReadImportAsync(abandoned)).GetProperty("status").GetString());
         Assert.Equal(0, (await FormAudienceLeftAsync(world.Services, abandoned)).Chunks);
-        Assert.Equal("uploading", (await api.GetImportAsync(active)).GetProperty("status").GetString());
-        Assert.Equal("expired", (await api.GetImportAsync(unconfirmed)).GetProperty("status").GetString());
+        Assert.Equal("uploading", (await api.ReadImportAsync(active)).GetProperty("status").GetString());
+        Assert.Equal("expired", (await api.ReadImportAsync(unconfirmed)).GetProperty("status").GetString());
         Assert.Equal(0, (await FormAudienceLeftAsync(world.Services, unconfirmed)).Chunks);
     }
 
@@ -76,8 +76,8 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Single(world.Services.GetServices<IHostedService>().OfType<ImportSweepService>());
         Assert.Equal(2, together.Sum());
         Assert.Equal(0, again);
-        Assert.Equal("expired", (await owner.GetImportAsync(first)).GetProperty("status").GetString());
-        Assert.Equal("expired", (await other.GetImportAsync(second)).GetProperty("status").GetString());
+        Assert.Equal("expired", (await owner.ReadImportAsync(first)).GetProperty("status").GetString());
+        Assert.Equal("expired", (await other.ReadImportAsync(second)).GetProperty("status").GetString());
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Act — the resumed run writes the last rows and is held before it completes; then the stalled batch wakes
         // and writes those rows again for the run it belonged to.
         await api.StartImportAsync(await api.CreateFormAsync(), ["email"], 1);
-        JsonElement failed = await api.GetImportAsync(import);
+        JsonElement failed = await api.ReadImportAsync(import);
         using CommandPause beforeCompleting = world.Services.GetRequiredService<AppCommandGate>().PauseAt(WriteRowsRead(), skip: 1);
         using HttpResponseMessage resumed = await api.MoveImportAsync(import, "writing");
         await beforeCompleting.Reached.WaitAsync(ImportWait, api.CancellationToken);
@@ -170,7 +170,7 @@ public sealed partial class AudienceDirectoryFlowTests
         (BulkImport import, CommandPause held) = await StallWriteAsync(world, api, batch: 0);
         using CommandPause stalled = held;
         await SweepAllTenantsAsync(world.Services);
-        JsonElement failed = await api.GetImportAsync(import);
+        JsonElement failed = await api.ReadImportAsync(import);
         stalled.Release();
         await api.WaitForJobToEndAsync(IdOf(failed, "jobId"));
         await AgeImportAsync(world.Services, import, TimeSpan.FromDays(8));
@@ -180,7 +180,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.True(failed.GetProperty("canResume").GetBoolean());
-        JsonElement expired = await api.GetImportAsync(import);
+        JsonElement expired = await api.ReadImportAsync(import);
         Assert.Equal("expired", expired.GetProperty("status").GetString());
         Assert.False(expired.GetProperty("canResume").GetBoolean());
         Assert.Equal(0, (await FormAudienceLeftAsync(world.Services, import)).Chunks);
@@ -218,7 +218,7 @@ public sealed partial class AudienceDirectoryFlowTests
         await SweepAllTenantsAsync(world.Services);
 
         // Assert
-        Assert.Equal("expired", (await api.GetImportAsync(stopped)).GetProperty("status").GetString());
+        Assert.Equal("expired", (await api.ReadImportAsync(stopped)).GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.Conflict, resumed.StatusCode);
         Assert.Equal(next.ImportId, IdOf(current, "importId"));
         Assert.Equal(0, (await FormAudienceLeftAsync(world.Services, stopped)).Chunks);
@@ -347,7 +347,7 @@ public sealed partial class AudienceDirectoryFlowTests
         (BulkImport import, CommandPause held) = await StallWriteAsync(world, api, batch: 1);
         using CommandPause stalled = held;
         await SweepAllTenantsAsync(world.Services);
-        JsonElement failed = await api.GetImportAsync(import);
+        JsonElement failed = await api.ReadImportAsync(import);
         stalled.Release();
         await api.WaitForJobToEndAsync(IdOf(failed, "jobId"));
         return import;

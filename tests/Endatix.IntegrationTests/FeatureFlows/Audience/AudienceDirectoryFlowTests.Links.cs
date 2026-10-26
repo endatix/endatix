@@ -5,14 +5,12 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Features.Outbox;
-using Endatix.Infrastructure.Features.Submissions;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
@@ -124,6 +122,10 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.All(opened, item => Assert.Equal(submissionId, IdOf(item, "submissionId")));
         Assert.Equal(1, opened.Count(item => item.GetProperty("created").GetBoolean()));
         Assert.All(opened, item => Assert.Equal(AccessTokenOf(reopened), AccessTokenOf(item)));
+        foreach (var item in opened)
+        {
+            await AssertFillsInAsync(anonymous, (formId, submissionId), SubmissionAccessTokenOf(item));
+        }
         await AssertOnlySubmissionAsync(world.Services, formId, submissionId);
     }
 
@@ -218,6 +220,25 @@ public sealed partial class AudienceDirectoryFlowTests
 
     private const int ParallelOpens = 8;
     private static string AccessTokenOf(JsonElement opened) => opened.GetProperty("accessToken").GetString()!;
+
+    private static string SubmissionAccessTokenOf(JsonElement opened) =>
+        opened.GetProperty("submissionAccessToken").GetString()!;
+
+    /// <summary>GET /access accepts the token for that submission, with permission to fill it in.</summary>
+    private static async Task AssertFillsInAsync(
+        HttpClient anonymous,
+        (long FormId, long SubmissionId) submission,
+        string accessToken)
+    {
+        (var formId, var submissionId) = submission;
+        using var access = await AccessAsync(anonymous, formId, accessToken);
+        Assert.Equal(HttpStatusCode.OK, access.StatusCode);
+        var grant = await access.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        Assert.Equal(submissionId.ToString(), grant.GetProperty("submissionId").GetString());
+        Assert.Contains(
+            "submission.edit",
+            grant.GetProperty("submissionPermissions").EnumerateArray().Select(item => item.GetString()));
+    }
 
     /// <summary>The form has exactly this submission, live, soft-deleted rows included, and the link names it.</summary>
     private static async Task AssertOnlySubmissionAsync(IServiceProvider services, long formId, long submissionId)

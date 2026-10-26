@@ -44,12 +44,15 @@ public sealed class AudienceModule : IEndatixModule, IHasFeatureFlag, IHasDbMigr
         AddPersistence(builder);
         builder.Services.AddAudienceOutboxWork();
         builder.Services.AddImportRunner();
+        builder.Services.AddScoped<ImportMoveGuard>();
         builder.Services.AddImportJobs();
         builder.Services.AddScoped<ImportWriteSupport>();
         builder.Services.AddScoped<ISubmissionPersonalizer, OnBehalfPersonalizer>();
         builder.Services.AddScoped<IAudiencePropertyCatalog, AudiencePropertyCatalog>();
         builder.Services.AddScoped<LinkOpenLock>();
         builder.Services.AddScoped<LinkOpenGates>();
+        builder.Services.AddScoped<LinkTokens>();
+        builder.Services.AddScoped<ISubmissionAccessTokenGate, LinkAccessTokenGate>();
         builder.Services.AddScoped<LinkStatuses>();
         builder.Services.AddScoped<ParticipantReader>();
         builder.Services.AddScoped<LockedValuesWriter>();

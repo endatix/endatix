@@ -2,6 +2,7 @@ using System.Text.Json;
 using Endatix.Core.Events;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +49,9 @@ internal sealed class DeleteFormAudienceOutboxHandler(IAudienceDbContext db)
 
 /// <summary>
 /// Soft-deletes a deleted form's audience: its value cells, memberships and properties. Tenant members stay, as when
-/// a person is removed from one form. Its imports' staged rows and rejections go for good; the import records stay.
+/// a person is removed from one form. An import no phase is running (uploading, or checked) is canceled, so the form
+/// keeps no unfinished import; a running phase fails in its own run. Its imports' staged rows and rejections go
+/// for good; the import records stay.
 /// Safe to run again: the form-deletion handler runs it, and so does an import write that finds the form gone, in
 /// case its last batch committed after the handler had run.
 /// </summary>
@@ -60,7 +63,27 @@ internal static class FormAudienceCleanup
         CancellationToken cancellationToken)
     {
         await SoftDeleteAudienceAsync(db, form, cancellationToken);
+        await CancelIdleImportsAsync(db, form, cancellationToken);
         await DeleteStagedImportsAsync(db, form, cancellationToken);
+    }
+
+    private static async Task CancelIdleImportsAsync(
+        IAudienceDbContext db,
+        DeleteFormAudienceOutboxHandler.DeletedForm form,
+        CancellationToken cancellationToken)
+    {
+        List<AudienceImport> idle = await db.AudienceImports
+            .Where(import => import.TenantId == form.TenantId
+                && import.FormId == form.FormId
+                && (import.Status == AudienceImportStatusCodes.Uploading
+                    || import.Status == AudienceImportStatusCodes.Checked))
+            .ToListAsync(cancellationToken);
+        foreach (AudienceImport import in idle)
+        {
+            import.Cancel();
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task SoftDeleteAudienceAsync(

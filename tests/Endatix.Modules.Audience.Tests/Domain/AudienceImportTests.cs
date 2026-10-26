@@ -83,6 +83,24 @@ public sealed class AudienceImportTests
     }
 
     [Fact]
+    public void Cancel_ResumableFailure_AbandonsItAndKeepsTheCheckpoint()
+    {
+        // Arrange
+        AudienceImport import = ImportIn(Writing);
+        import.RecordWritten(new WrittenRows(ThroughRow: 501, Written: 500, Created: 500, Updated: 0, Skipped: 0, Rejected: 0));
+        import.Fail("The import stopped.", resumable: true);
+
+        // Act
+        import.Cancel();
+
+        // Assert
+        import.Status.Should().Be(Canceled);
+        import.Resumable.Should().BeFalse();
+        import.WrittenThroughRow.Should().Be(501);
+        import.IsUnfinished.Should().BeFalse();
+    }
+
+    [Fact]
     public void Resume_FailedCheck_IsRefused()
     {
         // Arrange — a Check has no checkpoint, so resumable is ignored.
@@ -403,14 +421,29 @@ public sealed class AudienceImportTests
     {
         switch (move)
         {
-            case "BeginCheck": import.BeginCheck(); break;
-            case "FinishCheck": import.FinishCheck(); break;
-            case "Confirm": import.Confirm(); break;
-            case "Complete": import.Complete(); break;
-            case "Cancel": import.Cancel(); break;
-            case "Expire": import.Expire(); break;
-            case "Fail": import.Fail("Stopped."); break;
-            default: throw new ArgumentOutOfRangeException(nameof(move));
+            case "BeginCheck":
+                import.BeginCheck();
+                break;
+            case "FinishCheck":
+                import.FinishCheck();
+                break;
+            case "Confirm":
+                import.Confirm();
+                break;
+            case "Complete":
+                import.Complete();
+                break;
+            case "Cancel":
+                import.Cancel();
+                break;
+            case "Expire":
+                import.Expire();
+                break;
+            case "Fail":
+                import.Fail("Stopped.");
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(move));
         }
     }
 }

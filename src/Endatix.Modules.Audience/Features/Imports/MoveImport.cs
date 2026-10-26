@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -14,14 +15,9 @@ namespace Endatix.Modules.Audience.Features.Imports;
 /// </summary>
 public sealed record MoveImportCommand(ImportRef Import, string Status) : ICommand<Result<ImportViewDto>>;
 
-internal sealed class MoveImportHandler(
-    IAudienceDbContext db,
-    IImportRunner runner,
-    ILogger<MoveImportHandler> logger)
+internal sealed class MoveImportHandler(IAudienceDbContext db, IImportRunner runner, ImportMoveGuard guard)
     : ICommandHandler<MoveImportCommand, Result<ImportViewDto>>
 {
-    private const string Changed = "The import changed meanwhile. Reload it and try again.";
-
     public async Task<Result<ImportViewDto>> Handle(MoveImportCommand request, CancellationToken cancellationToken)
     {
         AudienceImport? import = await ImportQueries.FindAsync(db, request.Import, cancellationToken);
@@ -54,12 +50,11 @@ internal sealed class MoveImportHandler(
         }
         catch (DomainRuleException ex)
         {
-            return Result<ImportViewDto>.Conflict(SafeError.LogAndResolve(
-                logger, ex, Changed, $"moving import {import.Id} to {status}"));
+            return guard.Rule(ex, import.Id, status);
         }
-        catch (DbUpdateConcurrencyException)
+        catch (DbUpdateException ex) when (guard.Save(ex) is { } conflict)
         {
-            return Result<ImportViewDto>.Conflict(Changed);
+            return conflict;
         }
     }
 
@@ -103,5 +98,29 @@ internal sealed class MoveImportHandler(
             default:
                 throw new DomainRuleException("An import can only be moved to writing or canceled.");
         }
+    }
+}
+
+/// <summary>Why a move's save is a conflict: someone else moved the import, or the form already has one.</summary>
+internal sealed class ImportMoveGuard(IUniqueConstraintViolationChecker violations, ILogger<ImportMoveGuard> logger)
+{
+    private const string Changed = "The import changed meanwhile. Reload it and try again.";
+
+    private const string Occupied = "This form already has an import in progress.";
+
+    public Result<ImportViewDto> Rule(DomainRuleException ex, long importId, string status) =>
+        Result<ImportViewDto>.Conflict(SafeError.LogAndResolve(
+            logger, ex, Changed, $"moving import {importId} to {status}"));
+
+    public Result<ImportViewDto>? Save(DbUpdateException ex)
+    {
+        if (ex is DbUpdateConcurrencyException)
+        {
+            return Result<ImportViewDto>.Conflict(Changed);
+        }
+
+        return violations.IsViolationOf(ex, AudienceImport.UniqueConstraints.OneUnfinishedPerForm)
+            ? Result<ImportViewDto>.Conflict(Occupied)
+            : null;
     }
 }
