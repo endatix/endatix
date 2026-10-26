@@ -23,24 +23,26 @@ public sealed class CreateLinks(IMediator mediator, ITenantContext tenantContext
     {
         Post("forms/{formId}/audience/test-links");
         PermissionsAll(Actions.Forms.Test, Actions.Forms.Edit);
-        Summary(summary =>
-        {
-            summary.Summary = "Create test links for Test participants";
-            summary.Description =
-                "Opens runsEach new test submissions for each named Test participant, or for every Test participant " +
-                "when membershipIds is null, and returns a fill-in access token for each. Either every submission " +
-                "is opened or none is.";
-            summary.Responses[200] = "The links, by membership, then run.";
-            summary.Responses[400] =
-                "Invalid input, a real participant in the set, or more than 500 test submissions asked for.";
-            summary.Responses[404] = "Form not found or not enabled, or a person is not on this form.";
-            summary.Responses[503] = "The form is being deleted, or the save lost to a concurrent write; try again shortly.";
-        });
+        Summary(Describe);
         Description(builder => builder
             .Produces<TestLinksResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404)
             .ProducesProblem(503));
+    }
+
+    private static void Describe(EndpointSummary summary)
+    {
+        summary.Summary = "Create test links for Test participants";
+        summary.Description =
+            "Opens runsEach new test submissions for each named Test participant, or for every Test participant " +
+            "when membershipIds is null, and returns a fill-in access token for each. Either every submission " +
+            "is opened or none is. A token works until it expires, or until its submission or form is deleted.";
+        summary.Responses[200] = "The links, by membership, then run.";
+        summary.Responses[400] =
+            "Invalid input, a real participant in the set, or more than 500 test submissions asked for.";
+        summary.Responses[404] = "Form not found or not enabled, or a person is not on this form.";
+        summary.Responses[503] = "The form is being deleted, or the save lost to a concurrent write; try again shortly.";
     }
 
     /// <inheritdoc />
@@ -75,6 +77,7 @@ public sealed class CreateTestLinksValidator : Validator<CreateTestLinksRequest>
         RuleFor(request => request.MembershipIds)
             .NotEmpty()
             .WithMessage("Name at least one participant, or send null for every Test participant.")
+            // Each id gets at least one run; this also keeps an oversized list out of the query.
             .Must(ids => ids!.Count <= TestLinkLimits.MAX_SUBMISSIONS)
             .WithMessage($"The limit is {TestLinkLimits.MAX_SUBMISSIONS} test submissions per call.")
             .When(request => request.MembershipIds is not null);

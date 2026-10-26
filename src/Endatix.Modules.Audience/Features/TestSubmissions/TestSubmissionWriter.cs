@@ -45,58 +45,42 @@ internal sealed class TestSubmissionWriter(
         SaveLockedAsync(prepared, current, cancellationToken);
 
     /// <summary>
-    /// Saves every one of <paramref name="prepared"/>, all on one form, in one save under one hold of the lock, then
-    /// runs <paramref name="finish"/> on them, in order, before anything commits. A failed
+    /// Saves every submission of <paramref name="batch"/> in one save under one hold of the lock, then runs
+    /// <paramref name="finish"/> on them, one per submission and in order, before anything commits. A failed
     /// <paramref name="finish"/> rolls the save back, so nothing is opened.
     /// </summary>
     /// <returns>What <paramref name="finish"/> returned, or an error as <see cref="AddAsync"/> reports it.</returns>
-    public async Task<Result<TResult>> AddManyAsync<TResult>(
-        IReadOnlyList<PreparedTestSubmission> prepared,
+    public Task<Result<TResult>> AddManyAsync<TResult>(
+        PreparedTestBatch batch,
         Func<IReadOnlyList<OpenedTestSubmissionDto>, Result<TResult>> finish,
-        CancellationToken cancellationToken)
-    {
-        var subject = prepared[0].Subject;
-        var locked = await formLock.BeginAddingAsync(subject.FormId, cancellationToken);
-        if (!locked.IsSuccess)
-        {
-            return locked.ToErrorResult<TResult>();
-        }
+        CancellationToken cancellationToken) =>
+        batch.Submissions.Count == 0
+            ? Task.FromResult(finish([]))
+            : InSectionAsync(batch.Key.FormId, () => SaveManyAsync(batch, finish, cancellationToken), cancellationToken);
 
-        await using var section = locked.Value;
-        if (await OpenDefinitionIdAsync(subject, cancellationToken) is not long definitionId)
-        {
-            return Result.NotFound(FormNotFound);
-        }
-
-        var built = prepared.Select(item => item.Build(definitionId)).ToList();
-        var saved = await submissions.TryAddRangeAsync(built, cancellationToken);
-        if (!saved.IsSuccess)
-        {
-            return saved.ToErrorResult<TResult>();
-        }
-
-        var finished = finish([.. built.Select(Opened)]);
-        if (finished.IsSuccess)
-        {
-            await section.CommitAsync(cancellationToken);
-        }
-
-        return finished;
-    }
-
-    private async Task<Result<OpenedTestSubmissionDto>> SaveLockedAsync(
+    private Task<Result<OpenedTestSubmissionDto>> SaveLockedAsync(
         PreparedTestSubmission prepared,
         Submission? replaced,
+        CancellationToken cancellationToken) =>
+        InSectionAsync(
+            prepared.Subject.FormId,
+            () => SaveOnCurrentDefinitionAsync(prepared, replaced, cancellationToken),
+            cancellationToken);
+
+    /// <summary>Runs <paramref name="save"/> under the form's lock, and commits only what succeeded.</summary>
+    private async Task<Result<T>> InSectionAsync<T>(
+        long formId,
+        Func<Task<Result<T>>> save,
         CancellationToken cancellationToken)
     {
-        var locked = await formLock.BeginAddingAsync(prepared.Subject.FormId, cancellationToken);
+        var locked = await formLock.BeginAddingAsync(formId, cancellationToken);
         if (!locked.IsSuccess)
         {
-            return locked.ToErrorResult<OpenedTestSubmissionDto>();
+            return locked.ToErrorResult<T>();
         }
 
         await using var section = locked.Value;
-        var saved = await SaveOnCurrentDefinitionAsync(prepared, replaced, cancellationToken);
+        var saved = await save();
         if (saved.IsSuccess)
         {
             await section.CommitAsync(cancellationToken);
@@ -105,13 +89,29 @@ internal sealed class TestSubmissionWriter(
         return saved;
     }
 
+    private async Task<Result<TResult>> SaveManyAsync<TResult>(
+        PreparedTestBatch batch,
+        Func<IReadOnlyList<OpenedTestSubmissionDto>, Result<TResult>> finish,
+        CancellationToken cancellationToken)
+    {
+        if (await OpenDefinitionIdAsync(batch.Key, cancellationToken) is not long definitionId)
+        {
+            return Result.NotFound(FormNotFound);
+        }
+
+        var built = batch.Submissions.Select(item => item.Build(definitionId)).ToList();
+        var saved = await submissions.TryAddRangeAsync(built, cancellationToken);
+        return saved.IsSuccess ? finish([.. built.Select(Opened)]) : saved.ToErrorResult<TResult>();
+    }
+
     /// <summary>A refused form deletes nothing: <paramref name="replaced"/> is deleted only once the form is read open.</summary>
     private async Task<Result<OpenedTestSubmissionDto>> SaveOnCurrentDefinitionAsync(
         PreparedTestSubmission prepared,
         Submission? replaced,
         CancellationToken cancellationToken)
     {
-        if (await OpenDefinitionIdAsync(prepared.Subject, cancellationToken) is not long definitionId)
+        var key = new TestSubjectKey(prepared.Subject.TenantId, prepared.Subject.FormId);
+        if (await OpenDefinitionIdAsync(key, cancellationToken) is not long definitionId)
         {
             return Result.NotFound(FormNotFound);
         }
@@ -124,11 +124,14 @@ internal sealed class TestSubmissionWriter(
             : saved.ToErrorResult<OpenedTestSubmissionDto>();
     }
 
-    private Task<long?> OpenDefinitionIdAsync(TestSubject subject, CancellationToken cancellationToken) =>
+    private Task<long?> OpenDefinitionIdAsync(TestSubjectKey key, CancellationToken cancellationToken) =>
         forms.FirstOrDefaultAsync(
-            new FormSpecifications.OpenFormActiveDefinitionId(subject.FormId, subject.TenantId),
+            new FormSpecifications.OpenFormActiveDefinitionId(key.FormId, key.TenantId),
             cancellationToken);
 
     private static OpenedTestSubmissionDto Opened(Submission submission) =>
         new(submission.Id, submission.Token!.Value);
 }
+
+/// <summary>Prepared test submissions, all on the form <see cref="Key"/> names.</summary>
+internal sealed record PreparedTestBatch(TestSubjectKey Key, IReadOnlyList<PreparedTestSubmission> Submissions);

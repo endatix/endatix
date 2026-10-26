@@ -20,6 +20,15 @@ internal sealed record TestSubject(
 /// </summary>
 internal sealed record TestOpening(TestSubject Subject, Form Form);
 
+/// <summary>
+/// The people, once per run, to open test submissions for on one form, already loaded. The form supplies the token
+/// expiry.
+/// </summary>
+internal sealed record TestBatch(Form Form, IReadOnlyList<TestSubject> Subjects)
+{
+    public TestSubjectKey Key => new(Form.TenantId, Form.Id);
+}
+
 /// <summary>A test submission just opened, and the token the respondent page works on it with.</summary>
 public sealed record OpenedTestSubmissionDto(long SubmissionId, string Token);
 
@@ -85,34 +94,37 @@ internal sealed class TestSubmissionOpener(
         await writer.ReplaceAsync(current, await PrepareAsync(opening, cancellationToken), cancellationToken);
 
     /// <summary>
-    /// Opens one test submission per item of <paramref name="openings"/>, which names a person once per run, in one save,
-    /// and runs <paramref name="finish"/> on them, in order, before anything commits. Each person's values are read
-    /// once. A failed <paramref name="finish"/> saves nothing.
+    /// Opens one test submission per subject of <paramref name="batch"/>, in one save, and runs
+    /// <paramref name="finish"/> on them, one per subject and in order, before anything commits. A failed
+    /// <paramref name="finish"/> saves nothing.
     /// </summary>
     public async Task<Result<TResult>> OpenManyAsync<TResult>(
-        IReadOnlyList<TestOpening> openings,
+        TestBatch batch,
         Func<IReadOnlyList<OpenedTestSubmissionDto>, Result<TResult>> finish,
-        CancellationToken cancellationToken)
-    {
-        if (openings.Count == 0)
-        {
-            return finish([]);
-        }
+        CancellationToken cancellationToken) =>
+        await writer.AddManyAsync(
+            new PreparedTestBatch(batch.Key, await PrepareManyAsync(batch, cancellationToken)),
+            finish,
+            cancellationToken);
 
+    /// <summary>The token lifetime is read once, and each person's values once however many runs they have.</summary>
+    private async Task<List<PreparedTestSubmission>> PrepareManyAsync(TestBatch batch, CancellationToken cancellationToken)
+    {
+        var expiryHours = await tokens.GetExpiryHoursAsync(batch.Form.Id, batch.Form.TenantId, cancellationToken);
         var cellsByPerson = new Dictionary<long, List<SnapshotCell>>();
-        var prepared = new List<PreparedTestSubmission>(openings.Count);
-        foreach (var opening in openings)
+        var prepared = new List<PreparedTestSubmission>(batch.Subjects.Count);
+        foreach (var subject in batch.Subjects)
         {
-            if (!cellsByPerson.TryGetValue(opening.Subject.MembershipId, out var cells))
+            if (!cellsByPerson.TryGetValue(subject.MembershipId, out var cells))
             {
-                cells = await CellsAsync(opening.Subject, cancellationToken);
-                cellsByPerson.Add(opening.Subject.MembershipId, cells);
+                cells = await CellsAsync(subject, cancellationToken);
+                cellsByPerson.Add(subject.MembershipId, cells);
             }
 
-            prepared.Add(await PrepareAsync(opening, cells, cancellationToken));
+            prepared.Add(new PreparedTestSubmission(subject, cells, new Token(expiryHours), DateTime.UtcNow));
         }
 
-        return await writer.AddManyAsync(prepared, finish, cancellationToken);
+        return prepared;
     }
 
     /// <summary>

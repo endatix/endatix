@@ -212,8 +212,10 @@ and redeem, which is anonymous.
   concurrency token, so the delete matches only while the old one is live, and of two Start overs at once one
   replaces it and the other gets 404 and saves nothing. A save that loses a deadlock is 503. A failure to mint the
   token saves nothing and the old test submission stays. Test submissions are left out of exports unless the export asks for them.
-- **Test links.** `CreateTestLinksHandler` refuses a real participant itself, because `TestSubjects` finds anyone on the
-  form. It checks the 500 cap before it writes. `TestSubmissionOpener.OpenManyAsync` reads each person's values once.
+- **Test links.** `TestSubjects.CandidatesAsync` reads the form first, then the named people (or every Test
+  participant) in one read, each with its test flag. `CreateTestLinksHandler` refuses a real participant itself,
+  because `TestSubjects` finds anyone on the form, and it checks the 500 cap before anything is written.
+  `TestSubmissionOpener.OpenManyAsync` reads the token lifetime once and each person's values once.
   `TestSubmissionWriter.AddManyAsync` holds the shared `FormSubmissionsLock` once and inserts every submission in one
   save. It then mints each token through `ISubmissionAccessTokenService` before it commits, so a token that can't be
   minted rolls the call back. Each token is unstamped and `submit` only, as Copy test link's is. It works until it

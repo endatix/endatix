@@ -21,7 +21,7 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 /// </remarks>
 internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> forms, LinkOpenGates gates)
 {
-    internal const string PERSON_NOT_FOUND = "Person not found on this form.";
+    private const string PERSON_NOT_FOUND = "Person not found on this form.";
 
     private const string FORM_NOT_FOUND = "Form not found.";
 
@@ -42,12 +42,13 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
             cancellationToken);
 
     /// <summary>
-    /// Every one of <paramref name="membershipIds"/>, in membership order, with the form read once. Not found when the
-    /// form takes no submissions or any of them is not on it.
+    /// The named people on the form, or every Test participant when <paramref name="membershipIds"/> is
+    /// <see langword="null"/>, in membership order, each with whether they are a Test participant. Named ids are
+    /// distinct. The form is read first. Not found when the form takes no submissions or a named person is not on it.
     /// </summary>
-    public async Task<Result<IReadOnlyList<TestOpening>>> ManyAsync(
+    public async Task<Result<TestCandidates>> CandidatesAsync(
         TestSubjectKey key,
-        IReadOnlyCollection<long> membershipIds,
+        IReadOnlyCollection<long>? membershipIds,
         CancellationToken cancellationToken)
     {
         if (await OpenFormAsync(key, cancellationToken) is not { } form)
@@ -55,20 +56,36 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
             return Result.NotFound(FORM_NOT_FOUND);
         }
 
-        var memberships = FormParticipants.OnForm(db, key.TenantId, key.FormId)
-            .Where(membership => membershipIds.Contains(membership.Id));
-        var people = await FormParticipants.Of(db, memberships)
-            .OrderBy(participant => participant.Membership.Id)
-            .Select(participant => new TestSubject(
-                participant.Membership.TenantId,
-                key.FormId,
-                participant.Membership.Id,
-                participant.Member.Id,
-                participant.Member.Identifier))
-            .ToListAsync(cancellationToken);
-        return people.Count == membershipIds.Count
-            ? Result.Success<IReadOnlyList<TestOpening>>([.. people.Select(person => new TestOpening(person, form))])
+        var people = await CandidateListAsync(key, membershipIds, cancellationToken);
+        return membershipIds is null || people.Count == membershipIds.Count
+            ? Result.Success(new TestCandidates(form, people))
             : Result.NotFound(PERSON_NOT_FOUND);
+    }
+
+    private Task<List<TestCandidate>> CandidateListAsync(
+        TestSubjectKey key,
+        IReadOnlyCollection<long>? membershipIds,
+        CancellationToken cancellationToken)
+    {
+        return FormParticipants.Of(db, CandidateMemberships(key, membershipIds))
+            .OrderBy(participant => participant.Membership.Id)
+            .Select(participant => new TestCandidate(
+                new TestSubject(
+                    participant.Membership.TenantId,
+                    key.FormId,
+                    participant.Membership.Id,
+                    participant.Member.Id,
+                    participant.Member.Identifier),
+                participant.Membership.IsTest))
+            .ToListAsync(cancellationToken);
+    }
+
+    private IQueryable<Membership> CandidateMemberships(TestSubjectKey key, IReadOnlyCollection<long>? membershipIds)
+    {
+        var onForm = FormParticipants.OnForm(db, key.TenantId, key.FormId);
+        return membershipIds is null
+            ? onForm.Where(membership => membership.IsTest)
+            : onForm.Where(membership => membershipIds.Contains(membership.Id));
     }
 
     private async Task<Result<TestOpening>> FindAsync(
@@ -95,6 +112,12 @@ internal sealed class TestSubjects(IAudienceDbContext db, IRepository<Form> form
         return form is { IsEnabled: true, ActiveDefinitionId: not null } && form.TenantId == key.TenantId ? form : null;
     }
 }
+
+/// <summary>The people <see cref="TestSubjects.CandidatesAsync"/> found, and their form.</summary>
+internal sealed record TestCandidates(Form Form, IReadOnlyList<TestCandidate> People);
+
+/// <summary>A person on the form; <see cref="TestSubjects"/> finds real participants too.</summary>
+internal sealed record TestCandidate(TestSubject Subject, bool IsTest);
 
 /// <summary>The tenant and form a test submission is opened on. Both are stated in every read.</summary>
 internal sealed record TestSubjectKey(long TenantId, long FormId);

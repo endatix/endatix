@@ -6,7 +6,6 @@ using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Features.TestSubmissions;
-using Endatix.Modules.Audience.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
@@ -284,7 +283,6 @@ public sealed partial class AudienceDirectoryFlowTests
         await using var scope = world.Services.CreateAsyncScope();
         var services = scope.ServiceProvider;
         var handler = new CreateTestLinksHandler(
-            services.GetRequiredService<IAudienceDbContext>(),
             services.GetRequiredService<TestSubjects>(),
             services.GetRequiredService<TestSubmissionOpener>(),
             new FailingSecondMint(services.GetRequiredService<ISubmissionAccessTokenService>()));
