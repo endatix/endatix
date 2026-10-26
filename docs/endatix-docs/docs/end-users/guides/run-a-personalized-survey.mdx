@@ -1,6 +1,6 @@
 ---
 title: Run a personalized survey
-description: Send each person in a panel their own survey link, fill the questions from their data, test it as one of them, and export the real responses without the test ones, all from a form's Audience tab in Endatix Hub.
+description: Send each person in a panel their own survey link, fill the questions from their data, preview and test it as one of them, and export the real responses without the test ones, with a form's Audience tab and designer in Endatix Hub.
 sidebar_label: Run a personalized survey
 ---
 
@@ -39,9 +39,11 @@ See [Audience](/docs/end-users/forms/audience#add-a-property) for each field and
 
 ## Use the properties in the form and check coverage
 
-1. In the designer, put the variable names in braces wherever the form should show a person's value: a title of `Welcome, {first_name}`, or a question that asks about `{company}`. See [Text Piping](/docs/end-users/forms/form-builder/text-piping) for where they work.
-2. Save the form.
-3. Back on the **Audience** tab, open the **Properties** view.
+1. In the designer, put the variable names in braces wherever the form should show a person's value: a title of `Welcome, {first_name}`, or a question that asks about `{company}`. The designer knows the properties, so don't add them as custom variables.
+2. On the **Preview** tab, click **Preview as** and choose a test participant to see the form with their values. On a form with more than 20 people, **Find participant** finds anyone else by identifier.
+3. Check the **Diagnostics** tab for **Personalization** warnings, such as a misspelled variable name, and fix them.
+4. Save the form.
+5. Back on the **Audience** tab, open the **Properties** view.
 
 <Shot
   alt="Properties view with First name and Company, both Used in form; First name is 3 of 3 filled and Company is 2 of 3 filled"
@@ -53,9 +55,14 @@ Decide what to do with each gap before you send links:
 - **Not used**: the form never reads that property. Fix the variable name in the designer, or leave it if the property is only for your records.
 - **Fewer than all filled**: some real people have no value, and the form shows those places empty for them. On the **People** view, the **N not filled in** mark names who. Fill the values in with **Edit**, or reword the question so it still reads well without one.
 
-A response starts with the person's values as they are when their link is first opened, so finish the values first. See [Check which values the form uses](/docs/end-users/forms/audience#check-which-values-the-form-uses).
+A response starts with the person's values as they are when their link is first opened, so finish the values first. See [Personalized Forms](/docs/end-users/forms/personalized-forms) for Preview as and each warning, and [Check which values the form uses](/docs/end-users/forms/audience#check-which-values-the-form-uses).
 
 ## Test as a participant and use Start over
+
+Start with a look, then a real test:
+
+- **Preview as** on the **Audience** tab shows the saved form as any participant, real ones included, and creates nothing. Use it to check a few real people, especially those with values missing. See [Preview as](/docs/end-users/forms/audience#preview-as).
+- **Test as this participant** opens the form in a new tab as a submission you can fill in and complete. Use it with a test person to check the whole flow.
 
 1. On the **People** view, click **Test as this participant**: the flask icon in a test person's row, or the button on their page. The form opens in a new tab as that person.
 2. Check the greeting and questions read correctly with their values, and answer as they would.
@@ -110,6 +117,7 @@ See [Keep test submissions out of exports](/docs/end-users/submissions/testing-s
 ## Done when
 
 - The **Properties** view shows **Used** for every property the form needs, and each **Filled in (real)** count is one you accept.
+- **Preview as** on the **Audience** tab reads correctly for a real participant with missing values, and the designer's **Diagnostics** tab has no **Personalization** warning you did not accept.
 - A test person's form shows their own values, and your test submissions show under **Submission Type: Test**.
 - Every real person reads **Issued** or **Opened** in the **Link** column, and the CSV of links is stored safely.
 - Your export has one row per real response and no test submissions.
@@ -129,6 +137,11 @@ See [Keep test submissions out of exports](/docs/end-users/submissions/testing-s
     to="/docs/end-users/forms/audience"
     title="Audience"
     description="Every control on the Audience tab: properties, people, imports, and test people."
+  />
+  <LinkCard
+    to="/docs/end-users/forms/personalized-forms"
+    title="Personalized Forms"
+    description="Use properties in the designer, preview as a participant, and fix the warnings."
   />
   <LinkCard
     to="/docs/end-users/submissions/testing-submissions"
