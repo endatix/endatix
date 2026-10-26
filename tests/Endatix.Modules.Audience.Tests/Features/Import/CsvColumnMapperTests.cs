@@ -230,7 +230,7 @@ public sealed class CsvColumnMapperTests
         CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other_text", "Acme")));
 
         // Assert
-        read.Error.Should().Be("'brands__other_text' has text, but 'brands__other' is not ticked.");
+        read.Error.Should().Be("'brands__other_text' has text, but the file has no 'brands__other' column.");
     }
 
     [Theory]
@@ -258,7 +258,7 @@ public sealed class CsvColumnMapperTests
         CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other", "1")));
 
         // Assert
-        read.Error.Should().Be("'brands__other' is ticked, but 'brands__other_text' is empty.");
+        read.Error.Should().Be("'brands__other' is ticked, but the file has no 'brands__other_text' column.");
     }
 
     [Fact]
@@ -315,6 +315,41 @@ public sealed class CsvColumnMapperTests
         // Assert
         read.Error.Should().BeNull();
         read.Values[5].Should().Be("""["other","Acme"]""");
+    }
+
+    [Fact]
+    public void ReadValues_SingleChoiceOtherTextFromAnExport_IsSkipped()
+    {
+        // Arrange — a radio question with Other exports its key column and q__other_text.
+        Property tier = new(new PropertyCreateArgs(
+            1, 10, "Tier", AudienceDataTypeCodes.SingleChoice, 0, """["basic"]""", AllowsOther: true)) { Id = 5 };
+        CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest(
+            [tier], ["email", "tier", "tier__other_text"], "email", new Dictionary<string, string> { ["tier"] = "tier" }));
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("tier", "other"), ("tier__other_text", "Gold")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values.Should().Equal(new Dictionary<long, string> { [5] = "other" });
+    }
+
+    [Fact]
+    public void ReadValues_ChoiceStyledHeaderMappedToAProperty_IsReadAsThatProperty()
+    {
+        // Arrange
+        Property brands = new(new PropertyCreateArgs(
+            1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike"]""")) { Id = 5 };
+        Property notes = Text(6, "Notes");
+        CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest(
+            [brands, notes], ["email", "brands__notes"], "email", new Dictionary<string, string> { ["notes"] = "brands__notes" }));
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__notes", "Prefers trail shoes")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values.Should().Equal(new Dictionary<long, string> { [6] = "Prefers trail shoes" });
     }
 
     private static Property Text(long id, string name) =>

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Features.Import;
 
 namespace Endatix.IntegrationTests;
 
@@ -99,13 +100,12 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>The export's <c>brands__*</c> columns, one data row per response, each with a new email.</summary>
     private static string BrandsColumnsWithEmails(string export)
     {
-        string[][] lines = [.. export.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.TrimEnd('\r').Split(',').Select(cell => cell.Trim('"')).ToArray())];
-        int[] brandColumns = [.. Enumerable.Range(0, lines[0].Length)
-            .Where(index => lines[0][index].StartsWith("brands__", StringComparison.Ordinal))];
-        Assert.Equal(BrandsHeaders.Skip(1), brandColumns.Select(index => lines[0][index]));
-        List<string[]> rows = [.. lines.Skip(1).Select((line, row) =>
-            new[] { $"p{row}@example.com" }.Concat(brandColumns.Select(index => line[index])).ToArray())];
+        CsvFileParseResult parsed = CsvFileParser.Parse(export);
+        Assert.True(parsed.IsSuccess, parsed.Error);
+        string[] brandColumns = [.. parsed.Headers.Where(header => header.StartsWith("brands__", StringComparison.Ordinal))];
+        Assert.Equal(BrandsHeaders.Skip(1), brandColumns);
+        List<string[]> rows = [.. parsed.Rows.Select((row, index) =>
+            new[] { $"p{index}@example.com" }.Concat(brandColumns.Select(header => row.Cells[header])).ToArray())];
         return Csv(BrandsHeaders, rows);
     }
 

@@ -69,9 +69,9 @@ internal sealed class ChoiceCells(Dictionary<long, string> values)
 
     private void ReadTick(string header, ChoiceColumn column, bool ticked)
     {
-        if (column.Role == ChoiceColumnRole.Other)
+        if (column.Role is ChoiceColumnRole.Other or ChoiceColumnRole.FreeOther)
         {
-            OthersOf(column.Property).ReadTick(header, ticked, column.ChoiceKey is null);
+            OthersOf(column.Property).ReadTick(header, ticked, column.Role == ChoiceColumnRole.FreeOther);
         }
 
         if (ticked && column.ChoiceKey is { } key)
@@ -154,9 +154,7 @@ internal sealed class ChoiceCells(Dictionary<long, string> values)
         {
             if (Text.Length == 0)
             {
-                return _ticked && _needsText
-                    ? $"'{_tickHeader}' is ticked, but '{_tickHeader}_text' is empty."
-                    : null;
+                return _ticked && _needsText ? MissingTextError() : null;
             }
 
             if (!property.AllowsOther)
@@ -164,9 +162,17 @@ internal sealed class ChoiceCells(Dictionary<long, string> values)
                 return $"'{_textHeader}' has text, but '{property.Name}' does not allow other choices.";
             }
 
-            return _ticked ? null : $"'{_textHeader}' has text, but '{TickHeader()}' is not ticked.";
+            return _ticked ? null : MissingTickError();
         }
 
-        private string TickHeader() => _tickHeader ?? _textHeader![..^"_text".Length];
+        private string MissingTextError() =>
+            _textHeader is null
+                ? $"'{_tickHeader}' is ticked, but the file has no '{_tickHeader}_text' column."
+                : $"'{_tickHeader}' is ticked, but '{_textHeader}' is empty.";
+
+        private string MissingTickError() =>
+            _tickHeader is null
+                ? $"'{_textHeader}' has text, but the file has no '{_textHeader![..^"_text".Length]}' column."
+                : $"'{_textHeader}' has text, but '{_tickHeader}' is not ticked.";
     }
 }

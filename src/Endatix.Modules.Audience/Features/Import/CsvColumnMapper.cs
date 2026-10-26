@@ -29,10 +29,11 @@ internal static class CsvColumnMapper
         Dictionary<string, Property> byVariable = request.Properties.ToDictionary(
             property => property.VariableName,
             StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, long> simple = BuildSimpleColumns(byVariable, request.PropertyColumns);
         return new CsvColumnMap(
             request.IdentifierColumn,
-            BuildSimpleColumns(byVariable, request.PropertyColumns),
-            BuildChoiceColumns(byVariable, request.Headers),
+            simple,
+            BuildChoiceColumns(byVariable, request.Headers.Where(header => !simple.ContainsKey(header))),
             request.Properties.ToDictionary(property => property.Id));
     }
 
@@ -113,12 +114,13 @@ internal static class CsvColumnMapper
     }
 
     /// <summary>
-    /// Each <c>variable__choice</c> header whose variable is a choice property. Other headers with
-    /// <c>__</c> are ordinary columns, because a column name may contain it.
+    /// Each <c>variable__choice</c> header whose variable is a choice property, except headers the
+    /// caller mapped to a property. Other headers with <c>__</c> are ordinary columns, because a
+    /// column name may contain it.
     /// </summary>
     private static Dictionary<string, ChoiceColumn> BuildChoiceColumns(
         IReadOnlyDictionary<string, Property> byVariable,
-        IReadOnlyList<string> headers)
+        IEnumerable<string> headers)
     {
         Dictionary<string, ChoiceColumn> choices = new(StringComparer.OrdinalIgnoreCase);
         foreach (string header in headers)
@@ -144,9 +146,12 @@ internal static class CsvColumnMapper
         }
 
         string choice = header[(separator + ChoiceSeparator.Length)..];
-        return property.DataType == AudienceDataTypeCodes.MultipleChoice
-            ? MultiChoiceColumn(property, choice)
-            : new ChoiceColumn(property, CanonicalKey(property, choice));
+        if (property.DataType == AudienceDataTypeCodes.MultipleChoice)
+        {
+            return MultiChoiceColumn(property, choice);
+        }
+
+        return IsUnlistedOtherText(property, choice) ? null : new ChoiceColumn(property, CanonicalKey(property, choice));
     }
 
     /// <summary>
@@ -156,21 +161,29 @@ internal static class CsvColumnMapper
     /// </summary>
     private static ChoiceColumn MultiChoiceColumn(Property property, string choice)
     {
-        string key = CanonicalKey(property, choice);
-        bool listed = property.ChoiceKeys().Contains(key);
-        if (!listed && choice.Equals(OtherTextSuffix, StringComparison.OrdinalIgnoreCase))
+        if (IsUnlistedOtherText(property, choice))
         {
-            return new ChoiceColumn(property, key, ChoiceColumnRole.OtherText);
+            return new ChoiceColumn(property, null, ChoiceColumnRole.OtherText);
         }
 
+        string key = CanonicalKey(property, choice);
         if (!key.Equals(OtherSuffix, StringComparison.OrdinalIgnoreCase))
         {
             return new ChoiceColumn(property, key);
         }
 
-        string? otherKey = listed || !property.AllowsOther ? key : null;
-        return new ChoiceColumn(property, otherKey, ChoiceColumnRole.Other);
+        return property.AllowsOther && !property.ChoiceKeys().Contains(key)
+            ? new ChoiceColumn(property, null, ChoiceColumnRole.FreeOther)
+            : new ChoiceColumn(property, key, ChoiceColumnRole.Other);
     }
+
+    /// <summary>
+    /// The export's Other text column. A single-choice property skips it: the import does not
+    /// store a single choice's Other text yet, and reading it as a tick would refuse the export.
+    /// </summary>
+    private static bool IsUnlistedOtherText(Property property, string choice) =>
+        choice.Equals(OtherTextSuffix, StringComparison.OrdinalIgnoreCase)
+        && !property.ChoiceKeys().Contains(CanonicalKey(property, choice));
 
     /// <summary>
     /// The property's own spelling of the key when the header differs only in case (an export tool
@@ -213,8 +226,8 @@ internal sealed record CsvColumnRequest(
 
 /// <summary>
 /// A <c>variable__choice</c> header: the choice property it fills, the key a ticked cell sets
-/// (none for an Other tick that stands for no listed key), and whether it is the Other tick or
-/// its text.
+/// (none for <see cref="ChoiceColumnRole.FreeOther"/> and <see cref="ChoiceColumnRole.OtherText"/>),
+/// and its role.
 /// </summary>
 internal sealed record ChoiceColumn(
     Property Property,
@@ -223,8 +236,16 @@ internal sealed record ChoiceColumn(
 
 internal enum ChoiceColumnRole
 {
+    /// <summary>A ticked cell sets the key.</summary>
     Choice,
+
+    /// <summary><c>__other</c> naming a key (listed, or refused where Other is not allowed); the text is optional.</summary>
     Other,
+
+    /// <summary><c>__other</c> on a property that allows Other and lists no such key: it sets no key and needs the text.</summary>
+    FreeOther,
+
+    /// <summary><c>__other_text</c>: free text, stored as a choice when the Other tick allows it.</summary>
     OtherText,
 }
 
