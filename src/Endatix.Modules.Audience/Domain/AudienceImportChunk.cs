@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
@@ -42,7 +43,10 @@ public sealed class AudienceImportChunk : BaseEntity, ITenantOwned
     /// <summary>The chunk's place in the file, from 0.</summary>
     public int ChunkIndex { get; private set; }
 
-    /// <summary>The spreadsheet row of the chunk's first data row; the rows after it are numbered in order.</summary>
+    /// <summary>
+    /// The spreadsheet row of the chunk's first data row; the rows after it are numbered in order, except a row that
+    /// carries its own number.
+    /// </summary>
     public int FirstRowNumber { get; private set; }
 
     /// <summary>Rows in the chunk.</summary>
@@ -65,15 +69,22 @@ public sealed class AudienceImportChunk : BaseEntity, ITenantOwned
     /// <summary>The chunk's rows, each with its spreadsheet row number.</summary>
     public IReadOnlyList<NumberedRow> Rows() =>
         (JsonSerializer.Deserialize<List<StagedRow>>(RowsJson) ?? [])
-            .Select((row, offset) => new NumberedRow(FirstRowNumber + offset, row))
+            .Select((row, offset) => new NumberedRow(row.RowNumber ?? FirstRowNumber + offset, row))
             .ToList();
 }
 
 /// <summary>Where a chunk sits in its file: its index, and the spreadsheet row of its first row.</summary>
 public sealed record ChunkPlace(int Index, int FirstRowNumber);
 
-/// <summary>One uploaded row: its cells in header order, and whether the browser's parser found a stray quote.</summary>
-public sealed record StagedRow(IReadOnlyList<string> Cells, bool Malformed);
+/// <summary>
+/// One uploaded row: its cells in header order, and whether the parser found a stray quote. A file parsed on the
+/// server numbers its rows as a spreadsheet shows them, so a blank line or a multi-line cell skips a number; such a
+/// row carries <paramref name="RowNumber"/>, and a row without one follows the row before it.
+/// </summary>
+public sealed record StagedRow(
+    IReadOnlyList<string> Cells,
+    bool Malformed,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? RowNumber = null);
 
 /// <summary>A staged row and the spreadsheet row it came from.</summary>
 public sealed record NumberedRow(int RowNumber, StagedRow Row);

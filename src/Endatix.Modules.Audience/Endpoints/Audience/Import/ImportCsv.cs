@@ -6,6 +6,7 @@ using Endatix.Modules.Audience.Features.Import;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -37,14 +38,20 @@ public sealed class ImportCsv(
             summary.Responses[200] = "Import finished (may include rejections).";
             summary.Responses[400] = "Invalid CSV or mapping.";
             summary.Responses[404] = "Form not found.";
+            summary.Responses[409] =
+                "The form has an import in progress (importId), or the audience changed while the import ran.";
             summary.Responses[503] = "The form's people are being imported or changed; try again shortly.";
         });
-        Description(builder => builder
+        Description(Produces);
+    }
+
+    private static void Produces(RouteHandlerBuilder builder) =>
+        builder
             .Produces<AudienceImportResponse>(200, "application/json")
             .ProducesProblem(400)
             .ProducesProblem(404)
-            .ProducesProblem(503));
-    }
+            .ProducesProblem(409)
+            .ProducesProblem(503);
 
     public override async Task<Results<Ok<AudienceImportResponse>, ProblemHttpResult>> ExecuteAsync(
         ImportAudienceCsvRequest request,

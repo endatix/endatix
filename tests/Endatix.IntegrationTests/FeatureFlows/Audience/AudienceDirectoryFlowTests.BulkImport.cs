@@ -219,7 +219,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task A_resumable_failure_leaves_the_form_free_for_a_new_import_and_can_still_be_abandoned()
+    public async Task A_resumable_failure_leaves_the_form_free_for_a_new_import_which_expires_it()
     {
         // Arrange
         IntegrationTestWorld world = await WorldAsync();
@@ -234,10 +234,10 @@ public sealed partial class AudienceDirectoryFlowTests
             new { fileName = "other.csv", headers = EmailHeader, rowCount = 1, identifierColumn = "email" });
         using HttpResponseMessage abandoned = await api.MoveImportAsync(stopped, "canceled");
 
-        // Assert
+        // Assert — starting over ends the stopped write (endatix#1406), so there is nothing left to abandon.
         Assert.Equal(HttpStatusCode.Created, started.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, abandoned.StatusCode);
-        Assert.Equal("canceled", (await api.ReadImportAsync(stopped)).GetProperty("status").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, abandoned.StatusCode);
+        Assert.Equal("expired", (await api.ReadImportAsync(stopped)).GetProperty("status").GetString());
     }
 
     [Fact]
@@ -280,6 +280,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.OK, again.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         Assert.Contains(import.ImportId.ToString(System.Globalization.CultureInfo.InvariantCulture), await second.Content.ReadAsStringAsync(api.CancellationToken));
+        Assert.Equal(EmailHeader, finished.GetProperty("headers").EnumerateArray().Select(header => header.GetString()));
         Assert.Equal(1_200, finished.GetProperty("checkedRowCount").GetInt32());
         Assert.Equal(1_200, finished.GetProperty("check").GetProperty("newCount").GetInt32());
     }

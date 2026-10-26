@@ -54,4 +54,35 @@ public sealed class AudienceImportChunkTests
         // Assert
         act.Should().Throw<ArgumentException>();
     }
+
+    [Fact]
+    public void Rows_WithoutTheirOwnNumbers_StoreNoRowNumber()
+    {
+        // Arrange
+        AudienceImportChunk chunk = AudienceImportChunk.Create(
+            Import, new ChunkPlace(0, 2), [new StagedRow(["a@example.com"], false), new StagedRow(["b@example.com"], false)]);
+
+        // Act
+        IReadOnlyList<NumberedRow> rows = chunk.Rows();
+
+        // Assert — chunks staged before rows carried numbers read the same.
+        rows.Select(row => row.RowNumber).Should().Equal(2, 3);
+        chunk.RowsJson.Should().NotContain("RowNumber");
+    }
+
+    [Fact]
+    public void Rows_WithTheirOwnNumbers_KeepThem()
+    {
+        // Arrange — a blank line was row 3.
+        AudienceImportChunk chunk = AudienceImportChunk.Create(
+            Import,
+            new ChunkPlace(0, 2),
+            [new StagedRow(["a@example.com"], false, 2), new StagedRow(["b@example.com"], false, 4)]);
+
+        // Act
+        IReadOnlyList<NumberedRow> rows = chunk.Rows();
+
+        // Assert
+        rows.Select(row => row.RowNumber).Should().Equal(2, 4);
+    }
 }

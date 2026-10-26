@@ -12,8 +12,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Modules.Audience.Features.Imports;
 
-/// <summary>A staged import, addressed in its tenant and form.</summary>
-public sealed record ImportRef(long TenantId, long FormId, long ImportId);
+/// <summary>
+/// A staged import, addressed in its tenant and form. A write names the <paramref name="WriteRun"/> it writes for, so a
+/// write left over from a run the import has since resumed past writes nothing; a write started without one takes the
+/// import's run when it starts.
+/// </summary>
+public sealed record ImportRef(long TenantId, long FormId, long ImportId, int? WriteRun = null);
 
 /// <summary>The two phases a staged import runs.</summary>
 internal enum ImportPhase
@@ -45,6 +49,11 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
 
     public Task<Result> RunAsync(ImportRef import, ImportPhase phase, CancellationToken cancellationToken) =>
         phase == ImportPhase.Check ? CheckAsync(import, cancellationToken) : WriteAsync(import, cancellationToken);
+
+    /// <summary>
+    /// Whether a write lost to a parallel add or import, or was a deadlock's victim, after its one retry of the batch.
+    /// </summary>
+    public bool IsAudienceRace(DbUpdateException exception) => ImportScope.IsAudienceRace(scopes, exception);
 
     /// <summary>
     /// <see cref="RunAsync"/> for a background job: a busy audience is transient, so it is thrown for the job to
@@ -181,6 +190,7 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
 
     private async Task<Result> WriteAsync(ImportRef target, CancellationToken cancellationToken)
     {
+        target = await WithRunAsync(target, cancellationToken);
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -190,6 +200,19 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
                 return done;
             }
         }
+    }
+
+    /// <summary>The write's run: the one it names, else the import's run now, so every batch is fenced on one run.</summary>
+    private async Task<ImportRef> WithRunAsync(ImportRef target, CancellationToken cancellationToken)
+    {
+        if (target.WriteRun is not null)
+        {
+            return target;
+        }
+
+        await using AsyncServiceScope scope = scopes.CreateAsyncScope();
+        AudienceImport? import = await ImportScope.Of(scope).LoadAsync(target, cancellationToken);
+        return target with { WriteRun = import?.WriteRun };
     }
 
     /// <summary>
@@ -250,6 +273,7 @@ internal sealed class ImportRun(IServiceScopeFactory scopes)
         {
             null => BatchStart.Stopped(Result.Invalid(new ValidationError(FormDeleted))),
             { Status: not AudienceImportStatusCodes.Writing } => BatchStart.Stopped(Result.Success()),
+            _ when import.WriteRun != target.WriteRun => BatchStart.Stopped(Result.Success()),
             _ => new BatchStart(import, null),
         };
     }

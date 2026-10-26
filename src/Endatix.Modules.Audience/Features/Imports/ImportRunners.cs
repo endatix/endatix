@@ -68,7 +68,7 @@ internal sealed class QueuedImportRunner(IBackgroundJobQueue queue, IAudienceDbC
                 row.PerformedById,
                 dedupKey: $"{import.ImportId}:check")
             : BackgroundJobRequest.Create(
-                new WriteImportPayload(import.FormId, import.ImportId),
+                new WriteImportPayload(import.FormId, import.ImportId, row.WriteRun),
                 import.TenantId,
                 row.PerformedById,
                 dedupKey: $"{import.ImportId}:write:{row.WriteRun}");
@@ -112,6 +112,8 @@ internal static class ImportRunnerRegistration
     public static IServiceCollection AddImportRunner(this IServiceCollection services)
     {
         services.AddSingleton<ImportRun>();
+        services.AddScoped<ImportSweep>();
+        services.AddHostedService<ImportSweepService>();
         services.AddScoped<IImportRunner>(provider =>
             provider.GetService<IBackgroundJobQueue>() is { } queue
                 ? new QueuedImportRunner(queue, provider.GetRequiredService<IAudienceDbContext>())

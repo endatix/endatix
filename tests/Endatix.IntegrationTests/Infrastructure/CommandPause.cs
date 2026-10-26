@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Text.RegularExpressions;
 
 namespace Endatix.IntegrationTests.Infrastructure;
@@ -9,6 +10,7 @@ namespace Endatix.IntegrationTests.Infrastructure;
 public sealed class CommandPause(Regex statement, AppCommandGate gate, Exception? fault = null) : IDisposable
 {
     private int _matches;
+    private DbTransaction? _transaction;
 
     private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -33,6 +35,14 @@ public sealed class CommandPause(Regex statement, AppCommandGate gate, Exception
 
     /// <summary>How many matching commands run before the one this pause catches.</summary>
     internal int Skip { get; init; }
+
+    /// <summary>Whether this pause holds the commit of the transaction that ran the statement, not the statement.</summary>
+    internal bool AtCommit { get; init; }
+
+    internal void MarkTransaction(DbTransaction transaction) =>
+        Interlocked.CompareExchange(ref _transaction, transaction, null);
+
+    internal bool RanIn(DbTransaction transaction) => ReferenceEquals(Volatile.Read(ref _transaction), transaction);
 
     /// <summary>Catches this match, once the <see cref="Skip"/> matches before it have run.</summary>
     internal bool TryCatch() => Interlocked.Increment(ref _matches) > Skip && _reached.TrySetResult();

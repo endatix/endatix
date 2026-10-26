@@ -17,6 +17,12 @@ public sealed class AudienceImportResponse
     /// <summary>The file name the scripter chose.</summary>
     public string FileName { get; init; } = string.Empty;
 
+    /// <summary>
+    /// The file's header row, fixed at start; staged cells are positional against it, so a file chosen again to resume
+    /// an upload must have the same headers.
+    /// </summary>
+    public IReadOnlyList<string> Headers { get; init; } = [];
+
     /// <summary>Whether new people become test participants.</summary>
     public bool IsTest { get; init; }
 
@@ -58,6 +64,7 @@ public sealed class AudienceImportResponse
         ImportId = dto.ImportId,
         Status = dto.Status,
         FileName = dto.FileName,
+        Headers = dto.Headers,
         IsTest = dto.IsTest,
         Upload = AudienceImportUploadResponse.FromDto(dto.Upload),
         RunsInBackground = dto.Outcome.RunsInBackground,

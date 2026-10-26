@@ -13,14 +13,31 @@ namespace Endatix.IntegrationTests.Infrastructure;
 /// Registered once for the shared host, which runs one test at a time. A statement must match only the request the
 /// test means to pause: background work (the outbox relay, Reporting) runs through the same context.
 /// </remarks>
-public sealed class AppCommandGate : DbCommandInterceptor
+public sealed class AppCommandGate : DbCommandInterceptor, IDbTransactionInterceptor
 {
     private CommandPause? _armed;
 
     /// <summary>Pauses the next command whose text matches <paramref name="statement"/>, until the pause is released.</summary>
-    public CommandPause PauseAt(Regex statement)
+    public CommandPause PauseAt(Regex statement) => PauseAt(statement, skip: 0);
+
+    /// <summary>
+    /// Pauses the command after the next <paramref name="skip"/> commands whose text matches <paramref name="statement"/>,
+    /// until the pause is released.
+    /// </summary>
+    public CommandPause PauseAt(Regex statement, int skip)
     {
-        var pause = new CommandPause(statement, this);
+        var pause = new CommandPause(statement, this) { Skip = skip };
+        Volatile.Write(ref _armed, pause);
+        return pause;
+    }
+
+    /// <summary>
+    /// Pauses the commit of the first transaction that runs a command matching <paramref name="statement"/>, until the
+    /// pause is released: its writes have run, uncommitted, and its locks are held.
+    /// </summary>
+    public CommandPause PauseAtCommitAfter(Regex statement)
+    {
+        var pause = new CommandPause(statement, this) { AtCommit = true };
         Volatile.Write(ref _armed, pause);
         return pause;
     }
@@ -65,11 +82,38 @@ public sealed class AppCommandGate : DbCommandInterceptor
         return result;
     }
 
+    /// <inheritdoc />
+    public async ValueTask<InterceptionResult> TransactionCommittingAsync(
+        DbTransaction transaction,
+        TransactionEventData eventData,
+        InterceptionResult result,
+        CancellationToken cancellationToken = default)
+    {
+        var pause = Volatile.Read(ref _armed);
+        if (pause is { AtCommit: true } && pause.RanIn(transaction) && pause.TryCatch())
+        {
+            Disarm(pause);
+            await pause.WaitForReleaseAsync(cancellationToken);
+        }
+
+        return result;
+    }
+
     internal void Disarm(CommandPause pause) => Interlocked.CompareExchange(ref _armed, null, pause);
 
     private async Task HoldAsync(DbCommand command, CancellationToken cancellationToken)
     {
         var pause = Volatile.Read(ref _armed);
+        if (pause is { AtCommit: true })
+        {
+            if (command.Transaction is { } transaction && pause.Matches(command.CommandText))
+            {
+                pause.MarkTransaction(transaction);
+            }
+
+            return;
+        }
+
         if (pause is not null && pause.Matches(command.CommandText) && pause.TryCatch())
         {
             Disarm(pause);

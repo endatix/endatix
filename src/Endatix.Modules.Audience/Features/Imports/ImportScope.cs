@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Forms;
 using Endatix.Modules.Audience.Features.Import;
@@ -39,7 +40,8 @@ internal sealed class ImportScope
             scope.ServiceProvider.GetRequiredService<ImportWriteSupport>().Violations;
         return violations.IsViolationOf(exception, Member.UniqueConstraints.IdentifierPerTenant)
             || violations.IsViolationOf(exception, Membership.UniqueConstraints.MemberPerForm)
-            || violations.IsViolationOf(exception, PropertyValue.UniqueConstraints.CellPerMembership);
+            || violations.IsViolationOf(exception, PropertyValue.UniqueConstraints.CellPerMembership)
+            || DatabaseDeadlocks.IsVictim(exception);
     }
 
     public ImportMatchKey MatchKey(string identifierKind) => new(identifierKind, Support.Normalizer);
@@ -97,10 +99,11 @@ internal sealed class ImportScope
         CancellationToken cancellationToken)
     {
         int after = import.WrittenThroughRow;
-        List<AudienceImportChunk> chunks = await Db.ImportChunks.AsNoTracking()
-            .Where(chunk => chunk.TenantId == import.TenantId
-                && chunk.ImportId == import.Id
-                && chunk.FirstRowNumber + chunk.RowCount - 1 > after)
+        IQueryable<AudienceImportChunk> staged = Db.ImportChunks.AsNoTracking()
+            .Where(chunk => chunk.TenantId == import.TenantId && chunk.ImportId == import.Id);
+        int from = await ChunkHoldingAsync(staged, after, cancellationToken);
+        List<AudienceImportChunk> chunks = await staged
+            .Where(chunk => chunk.ChunkIndex >= from)
             .OrderBy(chunk => chunk.ChunkIndex)
             .Take(1 + (count / Math.Max(1, import.ChunkSize)) + 1)
             .ToListAsync(cancellationToken);
@@ -110,6 +113,18 @@ internal sealed class ImportScope
             .Take(count)
             .ToList();
     }
+
+    /// <summary>
+    /// The chunk that holds row <paramref name="row"/>, or the first: row numbers may skip, so a chunk's last row is not
+    /// known before it is read.
+    /// </summary>
+    private static async Task<int> ChunkHoldingAsync(
+        IQueryable<AudienceImportChunk> staged,
+        int row,
+        CancellationToken cancellationToken) =>
+        await staged
+            .Where(chunk => chunk.FirstRowNumber <= row)
+            .MaxAsync(chunk => (int?)chunk.ChunkIndex, cancellationToken) ?? 0;
 
     public async Task<HashSet<int>> RejectedRowsAsync(
         AudienceImport import,

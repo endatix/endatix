@@ -146,6 +146,12 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
     /// <summary>Whether a failed write may continue from its checkpoint.</summary>
     public bool Resumable { get; private set; }
 
+    /// <summary>
+    /// Whether a request runs the import's phases itself, with no job: a read never enqueues one beside it. A resume
+    /// runs as a job again.
+    /// </summary>
+    public bool RunsInRequest { get; private set; }
+
     /// <summary>Whether the import can still change.</summary>
     public bool IsUnfinished => AudienceImportStatusCodes.Unfinished.Contains(Status);
 
@@ -229,6 +235,14 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
         CompletedAt = null;
         WriteRun++;
         JobId = null;
+        RunsInRequest = false;
+    }
+
+    /// <summary>Marks an uploading import whose phases the request that started it runs, with no job.</summary>
+    public void RunInRequest()
+    {
+        Ensure(AudienceImportStatusCodes.Uploading);
+        RunsInRequest = true;
     }
 
     /// <summary>Advances the checkpoint and adds one batch's counts, in the same save as its Participants.</summary>
@@ -269,10 +283,20 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
         CompletedAt = DateTime.UtcNow;
     }
 
-    /// <summary>Ends an import left uploading or checked for too long.</summary>
+    /// <summary>Ends an import left uploading or checked for too long, or a stopped write nobody resumed.</summary>
     public void Expire()
     {
-        Move(AudienceImportStatusCodes.Expired, AudienceImportStatusCodes.Uploading, AudienceImportStatusCodes.Checked);
+        if (Status == AudienceImportStatusCodes.Failed && !Resumable)
+        {
+            throw new DomainRuleException("Only a stopped write that can be resumed expires once it failed.");
+        }
+
+        Move(
+            AudienceImportStatusCodes.Expired,
+            AudienceImportStatusCodes.Uploading,
+            AudienceImportStatusCodes.Checked,
+            AudienceImportStatusCodes.Failed);
+        Resumable = false;
         CompletedAt = DateTime.UtcNow;
     }
 

@@ -29,7 +29,8 @@ internal sealed class StartImportHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
     IImportRunner runner,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    ImportSweep sweep)
     : ICommandHandler<StartImportCommand, Result<ImportViewDto>>
 {
     internal const string ImportExistsCode = "import_exists";
@@ -44,25 +45,67 @@ internal sealed class StartImportHandler(
         }
 
         AudienceImport import = AudienceImport.Start(StartArgsOf(request));
-        return await TryAddAsync(import, cancellationToken)
+        return await AddAsync(import, cancellationToken)
             ? Result<ImportViewDto>.Created(await ViewAsync(import, cancellationToken))
             : await ConflictWithCurrentAsync(request, cancellationToken);
     }
 
-    /// <summary>Adds the import; false when a parallel start on the form won the unfinished-import index.</summary>
-    private async Task<bool> TryAddAsync(AudienceImport import, CancellationToken cancellationToken)
+    /// <summary>
+    /// Adds the import. A cancel or a sweep that moved a stopped write first leaves the form free, so the add runs once
+    /// more on what is there now; a resume that did leaves an unfinished import, which the second add runs into.
+    /// </summary>
+    private async Task<bool> AddAsync(AudienceImport import, CancellationToken cancellationToken)
     {
+        AddOutcome added = await TryAddAsync(import, cancellationToken);
+        if (added == AddOutcome.Moved)
+        {
+            ((DbContext)db).ChangeTracker.Clear();
+            added = await TryAddAsync(import, cancellationToken);
+        }
+
+        return added == AddOutcome.Added;
+    }
+
+    /// <summary>
+    /// Adds the import and, in the same save, expires the form's stopped writes that could still resume: the scripter
+    /// chose to start over, so their staging is swept like any expired import's.
+    /// </summary>
+    private async Task<AddOutcome> TryAddAsync(AudienceImport import, CancellationToken cancellationToken)
+    {
+        await ExpireStoppedWritesAsync(import, cancellationToken);
         db.AudienceImports.Add(import);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
-            return true;
+            return AddOutcome.Added;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return AddOutcome.Moved;
         }
         catch (DbUpdateException race)
             when (violations.IsViolationOf(race, AudienceImport.UniqueConstraints.OneUnfinishedPerForm))
         {
-            return false;
+            return AddOutcome.Occupied;
         }
+    }
+
+    private async Task ExpireStoppedWritesAsync(AudienceImport import, CancellationToken cancellationToken)
+    {
+        foreach (AudienceImport stopped in await Resumable(db, import.TenantId, import.FormId).ToListAsync(cancellationToken))
+        {
+            stopped.Expire();
+        }
+    }
+
+    /// <summary>
+    /// How an add ended: added; refused by the unfinished-import index; or a stopped write it expired was moved first.
+    /// </summary>
+    private enum AddOutcome
+    {
+        Added,
+        Occupied,
+        Moved,
     }
 
     /// <summary>Why the import cannot start: no form, a file this host does not take, or an import already running.</summary>
@@ -80,6 +123,8 @@ internal sealed class StartImportHandler(
             return Result<ImportViewDto>.Invalid(new ValidationError(error));
         }
 
+        // An abandoned import must not hold the form.
+        await sweep.ForTenantAsync(request.TenantId, cancellationToken);
         return await CurrentAsync(request, cancellationToken) is { } current ? Conflict(current) : null;
     }
 
@@ -131,13 +176,23 @@ internal sealed class StartImportHandler(
             .Select(import => (long?)import.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    /// <summary>The form's stopped writes that can still resume.</summary>
+    internal static IQueryable<AudienceImport> Resumable(IAudienceDbContext db, long tenantId, long formId) =>
+        db.AudienceImports.Where(import => import.TenantId == tenantId
+            && import.FormId == formId
+            && import.Status == AudienceImportStatusCodes.Failed
+            && import.Resumable);
+
     internal static IQueryable<AudienceImport> Unfinished(IAudienceDbContext db, long tenantId, long formId) =>
         db.AudienceImports.Where(import => import.TenantId == tenantId
             && import.FormId == formId
             && AudienceImportStatusCodes.Unfinished.Contains(import.Status));
 
-    private static Result<ImportViewDto> Conflict(long currentImportId) =>
-        Result<ImportViewDto>.Conflict(
+    private static Result<ImportViewDto> Conflict(long currentImportId) => Conflict<ImportViewDto>(currentImportId);
+
+    /// <summary>The 409 naming the form's unfinished import, for a start or a one-request import.</summary>
+    internal static Result<T> Conflict<T>(long currentImportId) =>
+        Result<T>.Conflict(
             new ExistingResource(ImportExistsCode, "importId", currentImportId.ToString(System.Globalization.CultureInfo.InvariantCulture)),
             ImportExists);
 }

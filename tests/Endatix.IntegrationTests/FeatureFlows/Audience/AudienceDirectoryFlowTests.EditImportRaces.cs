@@ -5,6 +5,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data.Locking;
+using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Import;
@@ -38,13 +39,9 @@ public sealed partial class AudienceDirectoryFlowTests
         var formId = await admin.CreateFormAsync();
         var city = await admin.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
         var ada = await AddParticipantAsync(admin, formId, "ada@example.com");
-        var gate = CommandGate.AtCommit();
-        await using var scope = world.Services.CreateAsyncScope();
-        await using var gated = GatedAudienceDbContext(scope.ServiceProvider, gate);
+        using var commit = world.Services.GetRequiredService<AppCommandGate>().PauseAtCommitAfter(CommandGate.CellInsert());
         await using var paused = new PausedRace<Result<ImportResultDto>>(
-            gate,
-            ImportHandlerWith(scope.ServiceProvider, gated, Waiting(world, RaceWait))
-                .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
+            commit, ImportThroughHostAsync(world, CityImport(world, formId, "ada@example.com")));
         await paused.ReachedGateAsync();
 
         // Act - over HTTP, so the host's lock waits its default.
@@ -80,12 +77,9 @@ public sealed partial class AudienceDirectoryFlowTests
                 new UpdatePersonCommand(world.Tenants[0].Id, formId, ada.MembershipId, Values(city, "Plovdiv")),
                 admin.CancellationToken));
         await paused.ReachedGateAsync();
-        await using var second = world.Services.CreateAsyncScope();
-        var secondDb = second.ServiceProvider.GetRequiredService<IAudienceDbContext>();
 
-        // Act
-        var import = paused.Alongside(ImportHandlerWith(second.ServiceProvider, secondDb, Waiting(world, RaceWait))
-            .Handle(CityImport(world, formId, "ada@example.com"), admin.CancellationToken));
+        // Act - the host's lock waits its default, longer than the probe.
+        var import = paused.Alongside(ImportThroughHostAsync(world, CityImport(world, formId, "ada@example.com")));
         var importWaited = await Task.WhenAny(import, Task.Delay(SecondOpenProbe, admin.CancellationToken)) != import;
         var edited = await paused.ReleaseAsync();
         var imported = await import.WaitAsync(_gateTimeout, admin.CancellationToken);

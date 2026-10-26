@@ -116,6 +116,69 @@ public sealed class AudienceImportTests
     }
 
     [Fact]
+    public void RunInRequest_ThenResumeAfterAStop_RunsAsAJobAgain()
+    {
+        // Arrange
+        AudienceImport import = ImportIn(Uploading);
+        import.RunInRequest();
+        Apply(import, "BeginCheck");
+        Apply(import, "FinishCheck");
+        Apply(import, "Confirm");
+        import.Fail("The import stopped.", resumable: true);
+
+        // Act
+        import.Resume();
+
+        // Assert
+        import.RunsInRequest.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RunInRequest_ImportPastUploading_IsRefused()
+    {
+        // Arrange
+        AudienceImport import = ImportIn(Checking);
+
+        // Act
+        Action act = import.RunInRequest;
+
+        // Assert
+        act.Should().Throw<DomainRuleException>();
+        import.RunsInRequest.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Expire_StoppedWriteNobodyResumed_EndsItAndItCannotResume()
+    {
+        // Arrange
+        AudienceImport import = ImportIn(Writing);
+        import.Fail("The import stopped.", resumable: true);
+
+        // Act
+        import.Expire();
+
+        // Assert
+        import.Status.Should().Be(Expired);
+        import.Resumable.Should().BeFalse();
+        ((Action)import.Resume).Should().Throw<DomainRuleException>();
+    }
+
+    [Fact]
+    public void Expire_FailureThatCannotResume_IsRefused()
+    {
+        // Arrange
+        AudienceImport import = ImportIn(Writing);
+        import.Fail("The form was deleted.");
+
+        // Act
+        Action act = import.Expire;
+
+        // Assert
+        act.Should().Throw<DomainRuleException>();
+        import.Status.Should().Be(Failed);
+    }
+
+    [Fact]
     public void RecordWritten_CheckpointThatDoesNotAdvance_IsRefused()
     {
         // Arrange
