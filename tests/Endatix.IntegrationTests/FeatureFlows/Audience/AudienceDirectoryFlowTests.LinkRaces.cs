@@ -356,9 +356,9 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     /// <summary>
-    /// Holds the first matching command until the test releases it: on <c>Submissions</c> for the link races, or on a
-    /// participant's cells and membership for the edit and removal races. An import's phases open their own scopes, so
-    /// its races pause through <see cref="AppCommandGate"/> instead.
+    /// Holds the first matching command until the test releases it: on <c>Submissions</c> for the link races, on
+    /// <c>Links</c> for the reissue race, or on a participant's cells and membership for the edit and removal races. An
+    /// import's phases open their own scopes, so its races pause through <see cref="AppCommandGate"/> instead.
     /// </summary>
     private sealed partial class CommandGate(Regex statement) : DbCommandInterceptor
     {
@@ -375,6 +375,9 @@ public sealed partial class AudienceDirectoryFlowTests
 
         /// <summary>A removal's soft delete of the participant's membership.</summary>
         public static CommandGate AtMembershipRemoval() => new(MembershipUpdate());
+
+        /// <summary>A reissue's write of the link's new token hash.</summary>
+        public static CommandGate AtLinkUpdate() => new(LinkUpdate());
 
         private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -416,6 +419,10 @@ public sealed partial class AudienceDirectoryFlowTests
 
         [GeneratedRegex("""UPDATE \S*["\[]Memberships["\]]""")]
         private static partial Regex MembershipUpdate();
+
+        /// <summary>PostgreSQL writes <c>UPDATE audience."Links"</c>, SQL Server <c>UPDATE [l] SET … FROM [audience].[Links]</c>.</summary>
+        [GeneratedRegex("""^UPDATE .*["\[]Links["\]]""", RegexOptions.Singleline)]
+        private static partial Regex LinkUpdate();
 
         private async Task HoldAsync(DbCommand command, CancellationToken cancellationToken)
         {

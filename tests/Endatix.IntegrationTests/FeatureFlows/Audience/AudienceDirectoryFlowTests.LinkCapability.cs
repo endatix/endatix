@@ -4,7 +4,6 @@ using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
-using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -96,24 +95,6 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, access.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, saved.StatusCode);
-    }
-
-    [Fact]
-    public async Task A_redeemed_links_access_token_is_refused_once_the_link_is_reissued()
-    {
-        // Arrange
-        var world = await WorldAsync();
-        var admin = await AsAsync(world, TestPersona.TenantAdmin);
-        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Medina");
-        using var anonymous = world.AnonymousClient();
-        var accessToken = SubmissionAccessTokenOf(await RedeemAsync(anonymous, formId, token));
-        await ReissueAsync(world.Services, formId);
-
-        // Act
-        using var read = await anonymous.GetAsync(ByAccessTokenUrl(formId, accessToken), admin.CancellationToken);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, read.StatusCode);
     }
 
     [Fact]
@@ -451,19 +432,5 @@ public sealed partial class AudienceDirectoryFlowTests
 
         change(settings);
         await app.SaveChangesAsync(cancellationToken);
-    }
-
-    /// <summary>What a reissue does to an opened link (endatix#1400): a new token hash, the same submission.</summary>
-    private static async Task ReissueAsync(IServiceProvider services, long formId)
-    {
-        var cancellationToken = TestContext.Current.CancellationToken;
-        await using var scope = services.CreateAsyncScope();
-        var audience = scope.ServiceProvider.GetRequiredService<IAudienceDbContext>();
-        var updated = await audience.Links
-            .Where(link => link.FormId == formId)
-            .ExecuteUpdateAsync(
-                setters => setters.SetProperty(link => link.TokenHash, AudienceLink.Hash(Guid.NewGuid().ToString())),
-                cancellationToken);
-        Assert.Equal(1, updated);
     }
 }
