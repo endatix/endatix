@@ -52,8 +52,9 @@ public sealed partial class AudienceDirectoryFlowTests
         AssertJson(
             """
             {"elements":[
-              {"type":"dropdown","name":"plan_tier","title":"Plan tier","choices":["basic","pro"]},
-              {"type":"text","name":"renews_at","title":"Renews at"}
+              {"type":"dropdown","name":"plan_tier","title":"Plan tier","choices":["basic","pro"],
+               "prefillTargets":[{"type":"dropdown"},{"type":"radiogroup"},{"type":"buttongroup"}]},
+              {"type":"text","name":"renews_at","title":"Renews at","prefillTargets":[{"type":"text"}]}
             ]}
             """,
             presets.GetProperty("definition"));
@@ -123,7 +124,8 @@ public sealed partial class AudienceDirectoryFlowTests
         // Assert
         AssertJson(
             """
-            {"definition":{"elements":[{"type":"text","name":"city","title":"City"}]},
+            {"definition":{"elements":[
+               {"type":"text","name":"city","title":"City","prefillTargets":[{"type":"text"},{"type":"comment"}]}]},
              "presets":[{"name":"kept@example.com","description":"Test participant","variables":{"city":"Sofia"}}],
              "totalPresets":1}
             """,
@@ -219,8 +221,44 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         AssertJson(
-            """{"elements":[{"type":"tagbox","name":"sites","title":"Sites","choices":["a"],"allowCustomChoices":true}]}""",
+            """
+            {"elements":[{"type":"tagbox","name":"sites","title":"Sites","choices":["a"],"allowCustomChoices":true,
+                          "prefillTargets":[{"type":"checkbox"},{"type":"tagbox"}]}]}
+            """,
             variables.GetProperty("variablePresets").GetProperty("definition"));
+    }
+
+    [Fact]
+    public async Task Each_variable_names_the_question_types_it_can_prefill()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await admin.CreateFormAsync();
+        await OnePropertyOfEveryDataTypeAsync(admin, formId);
+
+        // Act
+        var variables = await GetVariablesAsync(admin, formId);
+
+        // Assert
+        var elements = variables.GetProperty("variablePresets").GetProperty("definition").GetProperty("elements");
+        var targets = new JsonObject();
+        foreach (var element in elements.EnumerateArray())
+        {
+            targets[element.GetProperty("name").GetString()!] =
+                JsonNode.Parse(element.GetProperty("prefillTargets").GetRawText());
+        }
+
+        AssertJson(
+            """
+            {"city":[{"type":"text"},{"type":"comment"}],
+             "seats":[{"type":"text","inputType":"number"},{"type":"rating"},{"type":"slider"}],
+             "consent":[{"type":"boolean"}],
+             "joined":[{"type":"text","inputType":"date"}],
+             "renews":[{"type":"text"}],
+             "tier":[{"type":"dropdown"},{"type":"radiogroup"},{"type":"buttongroup"}],
+             "sites":[{"type":"checkbox"},{"type":"tagbox"}]}
+            """,
+            JsonDocument.Parse(targets.ToJsonString()).RootElement);
     }
 
     [Fact]
