@@ -3,6 +3,7 @@
   <ItemGroup>
     <PackageReference Include="FastEndpoints.Testing" />
     <PackageReference Include="MediatR" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
   </ItemGroup>
 
   <ItemGroup>
