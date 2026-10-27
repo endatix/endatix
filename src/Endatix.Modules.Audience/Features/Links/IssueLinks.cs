@@ -94,9 +94,10 @@ internal sealed class LinkBatch(
             return OverCap(await WithoutLinkAsync(scope, cancellationToken));
         }
 
+        var matching = await MatchingAsync(scope, cancellationToken);
         var issued = recipients.Select(recipient => Issue(scope, recipient)).ToList();
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(new IssuedLinkBatchDto(await MatchingAsync(scope, cancellationToken), issued));
+        return Result.Success(new IssuedLinkBatchDto(matching, issued));
     }
 
     /// <summary>Up to one more than the cap, so a batch over it is refused without reading it all.</summary>
