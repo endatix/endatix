@@ -14,6 +14,7 @@ public sealed record ImportViewDto(
     string FileName,
     IReadOnlyList<string> Headers,
     bool IsTest,
+    AudienceImportOptions Options,
     ImportUploadDto Upload,
     int CheckedRowCount,
     ImportCheckDto? Check,
@@ -57,18 +58,18 @@ internal static class ImportView
         CancellationToken cancellationToken)
     {
         IReadOnlyList<int> missing = await MissingChunksAsync(source.Db, import, cancellationToken);
-        List<ImportRejectionDto> rejections = await FirstRejections(source.Db, import).ToListAsync(cancellationToken);
         return new ImportViewDto(
             import.Id,
             import.Status,
             import.FileName,
             import.Headers,
             import.IsTest,
+            import.Options,
             new ImportUploadDto(import.RowCount, import.ChunkSize, missing),
             import.CheckedRowCount,
             CheckOf(import),
             WrittenOf(import),
-            rejections,
+            await FirstRejections(source.Db, import).ToListAsync(cancellationToken),
             OutcomeOf(import, source.RunsInBackground));
     }
 

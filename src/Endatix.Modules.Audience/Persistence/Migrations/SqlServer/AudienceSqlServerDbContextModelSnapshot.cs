@@ -45,6 +45,12 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<int>("ChunkSize")
                         .HasColumnType("int");
 
+                    b.Property<bool>("ClearEmptyCells")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ClearMissingProperties")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 

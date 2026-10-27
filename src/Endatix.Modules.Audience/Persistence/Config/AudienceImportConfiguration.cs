@@ -51,6 +51,7 @@ internal sealed class AudienceImportConfiguration(AudienceSqlDialect dialect)
         builder.Ignore(import => import.Headers);
         builder.Ignore(import => import.PropertyColumns);
         builder.Ignore(import => import.ChunkCount);
+        builder.Ignore(import => import.Options);
         builder.Ignore(import => import.IsUnfinished);
     }
 

@@ -1,3 +1,4 @@
+using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Endpoints.Audience.Import;
 using Endatix.Modules.Audience.Features.Imports;
 
@@ -25,6 +26,14 @@ public sealed class AudienceImportResponse
 
     /// <summary>Whether new people become test participants.</summary>
     public bool IsTest { get; init; }
+
+    /// <summary><c>keep</c> or <c>clear</c>: what an empty cell does to a stored value.</summary>
+    public string EmptyCells => AudienceImportOptionCodes.Of(Options.ClearEmptyCells);
+
+    /// <summary><c>keep</c> or <c>clear</c>: what the write does to the Properties the file has no column for.</summary>
+    public string MissingProperties => AudienceImportOptionCodes.Of(Options.ClearMissingProperties);
+
+    internal AudienceImportOptions Options { get; init; } = AudienceImportOptions.Keep;
 
     /// <summary>The file's size, and the chunks still to send while uploading.</summary>
     public AudienceImportUploadResponse Upload { get; init; } = new();
@@ -66,6 +75,7 @@ public sealed class AudienceImportResponse
         FileName = dto.FileName,
         Headers = dto.Headers,
         IsTest = dto.IsTest,
+        Options = dto.Options,
         Upload = AudienceImportUploadResponse.FromDto(dto.Upload),
         RunsInBackground = dto.Outcome.RunsInBackground,
         CheckedRowCount = dto.CheckedRowCount,

@@ -30,7 +30,8 @@ public sealed class AudienceMigrationsAvailabilityTests
             "20261024135627_AddPropertyValueIsTest",
             "20261025201021_AddStagedAudienceImports",
             "20261025215922_FenceImportWritesOnWriteRun",
-            "20261026191842_AddImportRunsInRequest");
+            "20261026191842_AddImportRunsInRequest",
+            "20261026221758_AddImportOptions");
     }
 
     [Fact]
@@ -50,7 +51,8 @@ public sealed class AudienceMigrationsAvailabilityTests
             "20261024135630_AddPropertyValueIsTest",
             "20261025201026_AddStagedAudienceImports",
             "20261025215942_FenceImportWritesOnWriteRun",
-            "20261026191848_AddImportRunsInRequest");
+            "20261026191848_AddImportRunsInRequest",
+            "20261026221808_AddImportOptions");
         migrationIds.Should().NotIntersectWith(postgreSqlContext.Database.GetMigrations());
     }
 

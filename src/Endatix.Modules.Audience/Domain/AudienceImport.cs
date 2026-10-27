@@ -64,6 +64,9 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
         IdentifierColumn = args.IdentifierColumn;
         PropertyColumnsJson = JsonSerializer.Serialize(args.PropertyColumns);
         IsTest = args.IsTest;
+        AudienceImportOptions options = args.Options ?? AudienceImportOptions.Keep;
+        ClearEmptyCells = options.ClearEmptyCells;
+        ClearMissingProperties = options.ClearMissingProperties;
         RowCount = args.RowCount;
         ChunkSize = args.ChunkSize;
         PerformedById = args.PerformedById;
@@ -103,6 +106,12 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
 
     /// <summary>Whether the people this import adds to the form are test participants.</summary>
     public bool IsTest { get; private set; }
+
+    /// <summary>Whether the write clears a stored value whose cell in the file is empty, fixed when the import starts.</summary>
+    public bool ClearEmptyCells { get; private set; }
+
+    /// <summary>Whether the write clears a stored value of a Property the file has no column for, fixed when the import starts.</summary>
+    public bool ClearMissingProperties { get; private set; }
 
     /// <summary>Data rows the file declared when the import started.</summary>
     public int RowCount { get; private set; }
@@ -151,6 +160,9 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
     /// runs as a job again.
     /// </summary>
     public bool RunsInRequest { get; private set; }
+
+    /// <summary>What every write batch does with the stored values the file does not fill.</summary>
+    public AudienceImportOptions Options => new(ClearEmptyCells, ClearMissingProperties);
 
     /// <summary>Whether the import can still change.</summary>
     public bool IsUnfinished => AudienceImportStatusCodes.Unfinished.Contains(Status);
@@ -364,7 +376,37 @@ public sealed record AudienceImportStartArgs(
     bool IsTest,
     int RowCount,
     int ChunkSize,
-    long? PerformedById);
+    long? PerformedById,
+    AudienceImportOptions? Options = null);
+
+/// <summary>
+/// What the write does for a participant already on the form: with <paramref name="ClearEmptyCells"/>, a Property the
+/// file has a column for but the row leaves empty is cleared; with <paramref name="ClearMissingProperties"/>, a Property
+/// the file has no column for is. Otherwise the stored value stays.
+/// </summary>
+public sealed record AudienceImportOptions(bool ClearEmptyCells, bool ClearMissingProperties)
+{
+    /// <summary>Every stored value the file does not fill stays.</summary>
+    public static readonly AudienceImportOptions Keep = new(false, false);
+}
+
+/// <summary>
+/// Wire codes for <see cref="AudienceImportOptions"/>: <c>emptyCells</c> and <c>missingProperties</c>.
+/// </summary>
+public static class AudienceImportOptionCodes
+{
+    /// <summary>The stored value stays.</summary>
+    public const string Keep = "keep";
+
+    /// <summary>The stored value is cleared.</summary>
+    public const string Clear = "clear";
+
+    /// <summary>Every code an option takes.</summary>
+    public static readonly IReadOnlyList<string> All = [Keep, Clear];
+
+    /// <summary>The code for an option stored as whether it clears.</summary>
+    public static string Of(bool clear) => clear ? Clear : Keep;
+}
 
 /// <summary>One chunk's Check counts.</summary>
 public sealed record CheckedRows(int Read, int New, int Existing, int Rejected);

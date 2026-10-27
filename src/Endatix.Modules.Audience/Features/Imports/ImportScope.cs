@@ -6,6 +6,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Forms;
 using Endatix.Modules.Audience.Features.Import;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -176,13 +177,14 @@ internal sealed class ImportScope
         CancellationToken cancellationToken) =>
         ExistingAudience.LoadAsync(new AudienceQuery(Db, TargetOf(import), cancellationToken), rows);
 
-    public async Task<ImportTally> StageAsync(
-        AudienceImport import,
-        IReadOnlyList<ImportRow> rows,
-        CancellationToken cancellationToken)
+    /// <summary>Stages the rows' Participants, clearing what the import's options clear.</summary>
+    public async Task<ImportTally> StageAsync(AcceptedRows accepted, CancellationToken cancellationToken)
     {
+        (AudienceImport import, CsvColumnMap map, IReadOnlyList<ImportRow> rows) = accepted;
         ExistingAudience existing = await ExistingAsync(import, rows, cancellationToken);
-        ImportBatch batch = new(Db, TargetOf(import), existing);
+        MatchKey? matchKey = MatchKeyProperty.In(map.PropertiesById.Values, import.IdentifierKind!);
+        ImportTarget target = TargetOf(import) with { Clears = ImportClears.Of(map, import, matchKey) };
+        ImportBatch batch = new(Db, target, existing);
         foreach (ImportRow row in rows)
         {
             batch.Stage(row);
@@ -230,6 +232,9 @@ internal sealed class ImportScope
         return Result.Invalid(new ValidationError(reason));
     }
 }
+
+/// <summary>One write batch's accepted rows, and the mapping they were read with.</summary>
+internal sealed record AcceptedRows(AudienceImport Import, CsvColumnMap Map, IReadOnlyList<ImportRow> Rows);
 
 /// <summary>One chunk of a Check, and the reader the whole Check shares.</summary>
 internal sealed record ChunkCheck(
