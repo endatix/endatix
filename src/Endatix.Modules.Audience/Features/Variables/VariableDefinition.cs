@@ -23,9 +23,10 @@ internal static class VariableDefinition
     }
 
     /// <summary>
-    /// A date-time is a plain text question: <c>datetime-local</c> drops the offset every stored value has. A choice
-    /// Property that allows other takes free text through <c>allowCustomChoices</c>, stored as the text itself, as
-    /// the Audience stores it; a multiple one needs a tagbox for that.
+    /// A date-time stays a plain text question. The client converts the stored value (offset dropped, wall-clock
+    /// time kept) before it fills a <c>datetime-local</c> input. A choice Property that allows other takes free
+    /// text through <c>allowCustomChoices</c>, stored as the text itself, as the Audience stores it; a multiple
+    /// one needs a tagbox for that.
     /// </summary>
     private static JsonObject QuestionOf(Property property) =>
         property.DataType switch
@@ -40,8 +41,9 @@ internal static class VariableDefinition
 
     /// <summary>
     /// The form questions whose answer has the shape the Snapshot types this data type as, so a designer can prefill
-    /// them from it: a string, a number, a boolean, a date string, one key, or an array of keys. A date-time fills a
-    /// plain text question for the same reason its own question is one. Whether a choice Property allows other does
+    /// them from it: a string, a number, a boolean, a date string, one key, or an array of keys. A date-time also
+    /// prefills a <c>datetime-local</c> input. The client converts the stored value (offset dropped, wall-clock
+    /// time kept) before it fills a <c>datetime-local</c> input. Whether a choice Property allows other does
     /// not change its targets.
     /// </summary>
     private static PrefillTarget[] PrefillTargets(string dataType) =>
@@ -50,7 +52,7 @@ internal static class VariableDefinition
             AudienceDataTypeCodes.Number => [new("text", "number"), new("rating"), new("slider")],
             AudienceDataTypeCodes.Boolean => [new("boolean")],
             AudienceDataTypeCodes.Date => [new("text", "date")],
-            AudienceDataTypeCodes.DateTime => [new("text")],
+            AudienceDataTypeCodes.DateTime => [new("text"), new("text", "datetime-local")],
             AudienceDataTypeCodes.SingleChoice => [new("dropdown"), new("radiogroup"), new("buttongroup")],
             AudienceDataTypeCodes.MultipleChoice => [new("checkbox"), new("tagbox")],
             AudienceDataTypeCodes.Text => [new("text"), new("comment")],

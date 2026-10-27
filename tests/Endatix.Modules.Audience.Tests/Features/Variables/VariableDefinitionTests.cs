@@ -63,7 +63,9 @@ public sealed class VariableDefinitionTests
         """[{"type":"text","inputType":"number"},{"type":"rating"},{"type":"slider"}]""")]
     [InlineData(AudienceDataTypeCodes.Boolean, """[{"type":"boolean"}]""")]
     [InlineData(AudienceDataTypeCodes.Date, """[{"type":"text","inputType":"date"}]""")]
-    [InlineData(AudienceDataTypeCodes.DateTime, """[{"type":"text"}]""")]
+    [InlineData(
+        AudienceDataTypeCodes.DateTime,
+        """[{"type":"text"},{"type":"text","inputType":"datetime-local"}]""")]
     [InlineData(
         AudienceDataTypeCodes.SingleChoice,
         """[{"type":"dropdown"},{"type":"radiogroup"},{"type":"buttongroup"}]""")]

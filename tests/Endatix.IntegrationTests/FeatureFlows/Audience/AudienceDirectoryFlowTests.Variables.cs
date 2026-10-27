@@ -54,7 +54,7 @@ public sealed partial class AudienceDirectoryFlowTests
             {"elements":[
               {"type":"dropdown","name":"plan_tier","title":"Plan tier","choices":["basic","pro"],
                "prefillTargets":[{"type":"dropdown"},{"type":"radiogroup"},{"type":"buttongroup"}]},
-              {"type":"text","name":"renews_at","title":"Renews at","prefillTargets":[{"type":"text"}]}
+              {"type":"text","name":"renews_at","title":"Renews at","prefillTargets":[{"type":"text"},{"type":"text","inputType":"datetime-local"}]}
             ]}
             """,
             presets.GetProperty("definition"));
