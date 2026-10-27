@@ -51,6 +51,23 @@ internal static class PersonalizationSnapshotJson
     public static Expression<Func<string?, bool>> IsOnBehalf() =>
         snapshot => JsonDbFunctions.KeyText(snapshot, SourceKey) == PersonalizationSources.OnBehalf;
 
+    /// <summary>
+    /// Whether a stored snapshot names any of the participants whose audience member ids are
+    /// <paramref name="memberIds"/>: <see cref="NamesParticipant"/> for a set, sent as one collection parameter.
+    /// </summary>
+    public static Expression<Func<string?, bool>> NamesAnyParticipant(IReadOnlyCollection<long> memberIds)
+    {
+        string[] ids = memberIds.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToArray();
+        return snapshot => ids.Contains(JsonDbFunctions.KeyText(snapshot, MemberIdKey));
+    }
+
+    /// <summary>
+    /// Whether a stored snapshot is from a test submission opened as a participant: an exact lookup of its top-level
+    /// <c>source</c> key. A submission marked as test later keeps the source it was opened with.
+    /// </summary>
+    public static Expression<Func<string?, bool>> IsTest() =>
+        snapshot => JsonDbFunctions.KeyText(snapshot, SourceKey) == PersonalizationSources.Test;
+
     private static JsonObject Root(SnapshotHeader header, JsonObject variables, JsonArray values)
     {
         JsonObject root = new()
