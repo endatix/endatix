@@ -254,7 +254,7 @@ public sealed partial class AudienceDirectoryFlowTests
              "seats":[{"type":"text","inputType":"number"},{"type":"rating"},{"type":"slider"}],
              "consent":[{"type":"boolean"}],
              "joined":[{"type":"text","inputType":"date"}],
-             "renews":[{"type":"text"}],
+             "renews":[{"type":"text"},{"type":"text","inputType":"datetime-local"}],
              "tier":[{"type":"dropdown"},{"type":"radiogroup"},{"type":"buttongroup"}],
              "sites":[{"type":"checkbox"},{"type":"tagbox"}]}
             """,
