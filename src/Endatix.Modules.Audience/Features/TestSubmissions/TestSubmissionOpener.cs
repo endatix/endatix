@@ -20,6 +20,15 @@ internal sealed record TestSubject(
 /// </summary>
 internal sealed record TestOpening(TestSubject Subject, Form Form);
 
+/// <summary>
+/// The people, once per run, to open test submissions for on one form, already loaded. The form supplies the token
+/// expiry.
+/// </summary>
+internal sealed record TestBatch(Form Form, IReadOnlyList<TestSubject> Subjects)
+{
+    public TestSubjectKey Key => new(Form.TenantId, Form.Id);
+}
+
 /// <summary>A test submission just opened, and the token the respondent page works on it with.</summary>
 public sealed record OpenedTestSubmissionDto(long SubmissionId, string Token);
 
@@ -85,21 +94,51 @@ internal sealed class TestSubmissionOpener(
         await writer.ReplaceAsync(current, await PrepareAsync(opening, cancellationToken), cancellationToken);
 
     /// <summary>
+    /// Opens one test submission per subject of <paramref name="batch"/>, in one save, and runs
+    /// <paramref name="finish"/> on them, one per subject and in order, before anything commits. A failed
+    /// <paramref name="finish"/> saves nothing.
+    /// </summary>
+    public async Task<Result<TResult>> OpenManyAsync<TResult>(
+        TestBatch batch,
+        Func<IReadOnlyList<OpenedTestSubmissionDto>, Result<TResult>> finish,
+        CancellationToken cancellationToken) =>
+        await writer.AddManyAsync(
+            new PreparedTestBatch(batch.Key, await PrepareManyAsync(batch, cancellationToken)),
+            finish,
+            cancellationToken);
+
+    /// <summary>The token lifetime is read once, and each person's values once however many runs they have.</summary>
+    private async Task<List<PreparedTestSubmission>> PrepareManyAsync(TestBatch batch, CancellationToken cancellationToken)
+    {
+        var expiryHours = await tokens.GetExpiryHoursAsync(batch.Form.Id, batch.Form.TenantId, cancellationToken);
+        var cellsByPerson = new Dictionary<long, List<SnapshotCell>>();
+        var prepared = new List<PreparedTestSubmission>(batch.Subjects.Count);
+        foreach (var subject in batch.Subjects)
+        {
+            if (!cellsByPerson.TryGetValue(subject.MembershipId, out var cells))
+            {
+                cells = await CellsAsync(subject, cancellationToken);
+                cellsByPerson.Add(subject.MembershipId, cells);
+            }
+
+            prepared.Add(new PreparedTestSubmission(subject, cells, new Token(expiryHours), DateTime.UtcNow));
+        }
+
+        return prepared;
+    }
+
+    /// <summary>
     /// Every read an open makes but the form's: the person's values and the token. They run before the form's lock,
     /// so the locked section reads only the form, on its own connection, and never waits for a second one.
     /// </summary>
-    private async Task<PreparedTestSubmission> PrepareAsync(TestOpening opening, CancellationToken cancellationToken)
-    {
-        var cells = await SnapshotCells.LoadAsync(
+    private async Task<PreparedTestSubmission> PrepareAsync(TestOpening opening, CancellationToken cancellationToken) =>
+        await PrepareAsync(opening, await CellsAsync(opening.Subject, cancellationToken), cancellationToken);
+
+    private Task<List<SnapshotCell>> CellsAsync(TestSubject subject, CancellationToken cancellationToken) =>
+        SnapshotCells.LoadAsync(
             db,
-            new SnapshotMembership(
-                opening.Subject.TenantId,
-                opening.Subject.MembershipId,
-                opening.Subject.FormId,
-                opening.Subject.Identifier),
+            new SnapshotMembership(subject.TenantId, subject.MembershipId, subject.FormId, subject.Identifier),
             cancellationToken);
-        return await PrepareAsync(opening, cells, cancellationToken);
-    }
 
     /// <summary>Mints the token from the form already loaded.</summary>
     internal async Task<PreparedTestSubmission> PrepareAsync(
