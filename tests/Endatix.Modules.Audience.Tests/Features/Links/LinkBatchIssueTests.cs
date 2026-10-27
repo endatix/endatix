@@ -8,6 +8,7 @@ using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Modules.Audience.Persistence.Config;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Modules.Audience.Tests.Features.Links;
 
@@ -37,7 +38,8 @@ public sealed class LinkBatchIssueTests
         var batch = new LinkBatch(
             guard,
             new PeopleQuery(guard, Substitute.For<IRelationalSubstringLikeFilter>()),
-            Substitute.For<IUniqueConstraintViolationChecker>());
+            Substitute.For<IUniqueConstraintViolationChecker>(),
+            NullLogger<LinkBatch>.Instance);
         var scope = new LinkBatchScope(tenantId, formId, new PeopleFilter());
 
         // Act

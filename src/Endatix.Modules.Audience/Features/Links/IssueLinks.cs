@@ -8,6 +8,7 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Audience.Features.Links;
 
@@ -45,7 +46,8 @@ public sealed record IssuedPersonLinkDto(long MembershipId, string Identifier, s
 internal sealed class LinkBatch(
     IAudienceDbContext db,
     PeopleQuery people,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    ILogger<LinkBatch> logger)
 {
     /// <summary>Counts the links a batch would issue, not the people on the form.</summary>
     public const int MAX_LINKS = 5_000;
@@ -72,6 +74,10 @@ internal sealed class LinkBatch(
         }
         catch (DbUpdateException ex) when (LinkIssueRace.IsLost(violations, ex))
         {
+            logger.LogWarning(
+                ex,
+                "Could not issue link batch for form {FormId}",
+                scope.FormId);
             return Result.Unavailable("Other link batches on this form are still running. Try again.");
         }
     }
