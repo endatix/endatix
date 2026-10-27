@@ -104,6 +104,28 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
+    public async Task Creating_test_links_for_a_disabled_form_with_a_real_participant_is_not_found_and_opens_nothing()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        var formId = await admin.CreateFormAsync();
+        var real = await AddParticipantAsync(admin, formId, "real@example.com");
+        using var disabled = await admin.Client.PatchAsJsonAsync(
+            $"/api/forms/{formId}", new { isEnabled = false }, admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
+
+        // Act
+        using var response = await admin.PostAsync(
+            TestLinksUrl(formId),
+            new { membershipIds = new[] { real.MembershipId }, runsEach = 1, expiryMinutes = 60 });
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Empty(await LiveSubmissionIdsAsync(world.Services, formId));
+    }
+
+    [Fact]
     public async Task Creating_test_links_for_a_participant_of_another_form_is_not_found_and_opens_nothing()
     {
         // Arrange
