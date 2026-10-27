@@ -236,7 +236,7 @@ public sealed class CsvColumnMapperTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public void ReadValues_OtherTickedWithoutText_ReturnsError(string text)
+    public void ReadValues_OtherTickedWithBlankText_DoesNotAddAFreeChoice(string text)
     {
         // Arrange
         CsvColumnMap map = BrandsMap(allowsOther: true, "brands__other", "brands__other_text");
@@ -245,7 +245,8 @@ public sealed class CsvColumnMapperTests
         CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other", "x"), ("brands__other_text", text)));
 
         // Assert
-        read.Error.Should().Be("'brands__other' is ticked, but 'brands__other_text' is empty.");
+        read.Error.Should().BeNull();
+        read.Values.Should().NotContainKey(5);
     }
 
     [Fact]

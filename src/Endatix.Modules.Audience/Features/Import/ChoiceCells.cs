@@ -123,8 +123,8 @@ internal sealed class ChoiceCells(Dictionary<long, string> values)
 
     /// <summary>
     /// A multi-choice property's <c>__other</c> tick and <c>__other_text</c> cell. The text is stored only when the
-    /// property allows Other and <c>__other</c> is ticked; a ticked <c>__other</c> that stands for no listed key needs
-    /// the text.
+    /// property allows Other and <c>__other</c> is ticked with non-empty text; an empty <c>__other_text</c> cell is
+    /// ignored like any other empty cell.
     /// </summary>
     private sealed class OtherCells(Property property)
     {
@@ -154,7 +154,7 @@ internal sealed class ChoiceCells(Dictionary<long, string> values)
         {
             if (Text.Length == 0)
             {
-                return _ticked && _needsText ? MissingTextError() : null;
+                return _ticked && _needsText && _textHeader is null ? MissingTextError() : null;
             }
 
             if (!property.AllowsOther)
