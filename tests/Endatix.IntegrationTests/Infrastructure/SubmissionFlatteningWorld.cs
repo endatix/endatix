@@ -11,6 +11,7 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -97,6 +98,7 @@ internal sealed class SubmissionFlatteningWorld(DbIntegrationFixture fixture)
                 new ReportingUnitOfWork(reportingDb),
                 new FormSchemaCompiler(),
                 NullLogger<FormSchemaPersonalization>.Instance),
+            SubmitterProfileFields.None,
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     public static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase reportingDb) =>

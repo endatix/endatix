@@ -94,8 +94,7 @@ internal static class ExportColumnPlanBuilder
                     keySeparator),
             })
             .ToList();
-        aliasedColumns.AddRange(PersonalizationBlock(schema, flatteningMap, aliasedColumns));
-        aliasedColumns.AddRange(SubmitterProfileBlock(flatteningMap, aliasedColumns));
+        AddNonQuestionBlocks(schema, flatteningMap, aliasedColumns);
 
         EnsureUniqueExportKeys(aliasedColumns);
 
@@ -128,6 +127,16 @@ internal static class ExportColumnPlanBuilder
             .Where(column => !taken.Contains(column.Key))
             .Select(ToColumn)
             .ToList();
+    }
+
+    // Audience values, then submitter profile fields: each block sees the export keys taken before it.
+    private static void AddNonQuestionBlocks(
+        FormSchemaEntity schema,
+        MergedFormSchema flatteningMap,
+        List<ExportColumnDefinition> columns)
+    {
+        columns.AddRange(PersonalizationBlock(schema, flatteningMap, columns));
+        columns.AddRange(SubmitterProfileBlock(flatteningMap, columns));
     }
 
     // Submitter profile fields follow as one more block, with the same key rules as audience values. They come last so

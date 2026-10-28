@@ -84,7 +84,7 @@ A form deleted after a compile read it loses the schema that compile wrote, hard
 }
 ```
 
-- **Columns.** Each listed field is a `submitter_<field>` column of kind `SubmitterProfile`, data type `string`, label `Submitter <field>`. Every compile adds them after the definition's columns, so a replace keeps them. A schema that lacks one is compiled again by the next flatten, so listing a field needs no republish; a backfill with `force` fills the existing rows. A question already named `submitter_<field>` keeps the key, and the profile value is not exported.
+- **Columns.** Each listed field is a `submitter_<field>` column of kind `SubmitterProfile`, data type `string`, label `Submitter <field>`. Every compile adds them after the definition's columns, so a replace keeps them. A schema that lacks one is compiled again by the next flatten, so listing a field needs no republish; a backfill with `force` fills the existing rows. A question already named `submitter_<field>` keeps the key, and the profile value is not exported: the schema keeps the first column a key had, the same rule that lets a question win over an `audience_` key.
 - **Values.** A flatten copies only the fields listed now, as text. A field the snapshot lacks, or one no longer listed whose column a merge kept, is null.
 - **Export.** The submitter columns close the row after the audience columns, under their keys as stored (no alias profile or key separator), so listing a field moves no existing column. Shoji writes them as text variables.
 - **Freshness.** A `submission.updated` event whose `changeKind` has `submitter` flattens the row again, as `answers` and `definition` do.

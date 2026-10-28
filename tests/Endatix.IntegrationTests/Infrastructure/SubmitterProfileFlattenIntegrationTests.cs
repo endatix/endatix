@@ -19,7 +19,7 @@ public sealed class SubmitterProfileFlattenIntegrationTests(DbIntegrationFixture
     private readonly FormSchemaRebuildWorld _world = new(fixture, new SubmitterProfileFields(["email"]));
 
     [Fact]
-    public async Task A_submitter_change_on_a_completed_submission_flattens_its_row_again_with_the_listed_fields()
+    public async Task RunFlattenJobAsync_WithSubmitterChangeOnCompletedSubmission_RewritesListedProfileFields()
     {
         // Arrange
         var form = await _world.SeedFormWithRealSubmissionAsync([BaseDefinition]);
@@ -41,7 +41,7 @@ public sealed class SubmitterProfileFlattenIntegrationTests(DbIntegrationFixture
     }
 
     [Fact]
-    public async Task A_flatten_after_a_field_is_listed_adds_its_column_to_a_schema_compiled_without_it()
+    public async Task FlattenAsync_WithFieldListedAfterSchemaCompiled_AddsItsColumn()
     {
         // Arrange
         FormSchemaRebuildWorld beforeListing = new(fixture);
