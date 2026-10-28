@@ -43,8 +43,9 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
     [Fact]
     public async Task Host_with_jobs_on_creates_the_scheduler_tables_and_runs_the_scheduler_while_its_background_work_is_on()
     {
-        // Arrange
+        // Arrange — reset first, so the relay and the scheduler meet nothing an earlier test left.
         var cancellationToken = TestContext.Current.CancellationToken;
+        await fixture.PrepareWorldAsync(IntegrationWorldOptions.Empty, cancellationToken);
         var schedulerTables = fixture.Provider == TestDatabaseProvider.PostgreSql
             ? QuartzSchemaScripts.PostgreSqlTableNames()
             : QuartzSchemaScripts.SqlServerTableNames();

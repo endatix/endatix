@@ -23,7 +23,10 @@ public sealed class MyFlowTests(EndatixIntegrationWebHostFixture fixture)
 }
 ```
 
-- **Background work is off:** every test host starts with its outbox relay switched off, its jobs scheduler built but not started, and no daily import sweep, so nothing a test leaves behind runs while the next test resets the database. A test that waits for an outbox handler calls `fixture.BackgroundWork.DeliverOutboxOnceAsync(ct)`; one that needs jobs or the relay running calls `StartAsync`, and its class stops it in `DisposeAsync` (`StopAsync` waits for the relay batch and the jobs already running) — see `AudienceDirectoryFlowTests`.
+- **Background work is off** in every test host: the outbox relay asks a switch that is off, the jobs scheduler is built but not started, and the daily import sweep is not registered. Nothing a test leaves behind runs while the next test resets the database.
+  - A test that waits for an outbox handler calls `fixture.BackgroundWork.DeliverOutboxOnceAsync(ct)`, which hands the shared host's outbox to the shared host's handlers in the call. It refuses while the relay is on.
+  - A test that needs jobs or the relay running calls `fixture.BackgroundWork.StartAsync(ct)` — on the shared host only; the audience test clients of a per-test host refuse to start a background import. Reset the database first (`PrepareWorldAsync`), or the relay and the scheduler run what the previous test left. The class stops it in `DisposeAsync` with `StopAsync(CancellationToken.None)`, which switches everything off at once and then waits for the relay batch and the jobs already running — see `AudienceDirectoryFlowTests`.
+  - A job firing while background work is off is vetoed and its trigger dropped, so a job enqueued just before a stop does not run after a restart in the same test.
 - **Reporting endpoints:** the shared host runs with `ReportingModule` off. Open `await using ReportingWebHost host = new(fixture)` in the test and prepare the world on it. Leave its background work off and trigger Reporting work over HTTP (compile, backfill) rather than wait for outbox handlers.
 - **DB-only** (no host): `DbIntegrationTestCollection` + `DbIntegrationFixture` — see `ReportingQueryFilterTests`.
 - **Provider-specific only when required:** `[Trait("DbSpecific", "PostgreSql")]` or `SqlServer` — e.g. `OutboxCaptureTests`, `SqlServerMigrationArtifactTests`.

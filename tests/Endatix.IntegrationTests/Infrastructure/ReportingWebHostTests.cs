@@ -51,9 +51,10 @@ public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixtu
     [Fact]
     public async Task Starting_the_shared_hosts_background_work_leaves_the_reporting_hosts_relay_off()
     {
-        // Arrange
+        // Arrange — reset first, so the shared relay meets no message an earlier test left.
         var ct = TestContext.Current.CancellationToken;
         await using ReportingWebHost host = new(fixture);
+        await fixture.PrepareWorldAsync(IntegrationWorldOptions.Empty, ct);
 
         // Act
         await fixture.BackgroundWork.StartAsync(ct);

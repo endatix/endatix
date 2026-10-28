@@ -124,7 +124,8 @@ public sealed class BackgroundWorkTests(EndatixIntegrationWebHostFixture fixture
     [Fact]
     public async Task Delivering_the_outbox_in_the_test_while_the_relay_is_on_is_refused()
     {
-        // Arrange
+        // Arrange — reset first, so the relay meets no message an earlier test left.
+        await fixture.PrepareWorldAsync(IntegrationWorldOptions.Empty, Ct);
         await fixture.BackgroundWork.StartAsync(Ct);
 
         // Act
