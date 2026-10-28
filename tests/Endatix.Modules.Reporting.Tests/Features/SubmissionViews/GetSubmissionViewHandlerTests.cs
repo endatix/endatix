@@ -94,7 +94,26 @@ public sealed class GetSubmissionViewHandlerTests
             """{"v":1,"columns":[{"key":"q1","width":120},{"key":"createdAt"}],"pageSize":50}""");
     }
 
-    private GetSubmissionViewHandler CreateSut() => new(_formsRepository, _viewRepository, _formSchemaRepository);
+    [Fact]
+    public async Task Handle_SavedViewOfFormWithoutSchema_ReturnsTheStoredColumns()
+    {
+        // Arrange
+        const string settings = """{"v":1,"columns":[{"key":"q1","width":120},{"key":"q2","visible":false}]}""";
+        var view = SubmissionView.CreateShared(new SubmissionViewCreateArgs(TenantId, FormId, settings, ModifiedBy: 7));
+        _viewRepository.FindSharedAsync(TenantId, FormId, Arg.Any<CancellationToken>()).Returns(view);
+        _formSchemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns((ReportingFormSchema?)null);
+
+        // Act
+        var result = await CreateSut().Handle(new(TenantId, FormId), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.SettingsJson.Should().Be(settings, "with no compiled schema there is nothing to judge the columns by");
+    }
+
+    private GetSubmissionViewHandler CreateSut() =>
+        new(_formsRepository, _viewRepository, new SubmissionViewReader(_formSchemaRepository));
 
     private static ReportingFormSchema SchemaWithQuestionQ1()
     {

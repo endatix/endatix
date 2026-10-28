@@ -20,6 +20,7 @@ public sealed record SaveSubmissionViewCommand(SubmissionViewSave Save) : IComma
 internal sealed class SaveSubmissionViewHandler(
     IRepository<Form> formsRepository,
     ISubmissionViewRepository viewRepository,
+    SubmissionViewReader viewReader,
     ILogger<SaveSubmissionViewHandler> logger)
     : ICommandHandler<SaveSubmissionViewCommand, Result<SubmissionViewDto>>
 {
@@ -55,7 +56,7 @@ internal sealed class SaveSubmissionViewHandler(
             var saved = await viewRepository.SaveSharedAsync(save, cancellationToken);
             return saved is null
                 ? Result.Conflict(ConflictMessage)
-                : Result.Success(new SubmissionViewDto(saved.Revision, saved.SettingsJson));
+                : Result.Success(await viewReader.ReadAsync(saved, cancellationToken));
         }
         catch (DomainValidationException ex)
         {

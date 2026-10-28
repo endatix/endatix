@@ -52,6 +52,50 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
+    public async Task A_saved_view_keeps_its_question_columns_before_the_schema_is_compiled()
+    {
+        // Arrange - this host's outbox relay is closed, so nothing compiles the form's schema.
+        var ct = TestContext.Current.CancellationToken;
+        await using ReportingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        var formId = await CreateFormAsync(client, ct);
+        using var saved = await client.PutAsJsonAsync(ViewUri(formId), SaveBody(0, Settings), ct);
+        saved.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Act
+        using var read = await client.GetAsync(ViewUri(formId), ct);
+
+        // Assert
+        read.StatusCode.Should().Be(HttpStatusCode.OK);
+        JsonElement.DeepEquals((await BodyAsync(read, ct)).GetProperty("settings"), Parse(Settings)).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_save_returns_the_view_a_read_returns()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using ReportingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        var formId = await CreateCompiledFormAsync(client, ct);
+        const string withRemovedQuestion = """{"v":1,"columns":[{"key":"q1","width":90},{"key":"removed_question","width":80}]}""";
+
+        // Act
+        using var saved = await client.PutAsJsonAsync(ViewUri(formId), SaveBody(0, withRemovedQuestion), ct);
+        using var read = await client.GetAsync(ViewUri(formId), ct);
+
+        // Assert
+        saved.StatusCode.Should().Be(HttpStatusCode.OK);
+        var savedSettings = (await BodyAsync(saved, ct)).GetProperty("settings");
+        savedSettings.GetProperty("columns").EnumerateArray()
+            .Select(column => column.GetProperty("key").GetString())
+            .Should().Equal("q1");
+        JsonElement.DeepEquals(savedSettings, (await BodyAsync(read, ct)).GetProperty("settings")).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task A_save_from_an_old_revision_is_a_conflict()
     {
         // Arrange

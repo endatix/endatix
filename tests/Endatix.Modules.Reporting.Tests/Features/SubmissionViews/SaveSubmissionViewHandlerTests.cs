@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.SubmissionViews;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -19,6 +20,7 @@ public sealed class SaveSubmissionViewHandlerTests
 
     private readonly IRepository<Form> _formsRepository = Substitute.For<IRepository<Form>>();
     private readonly ISubmissionViewRepository _viewRepository = Substitute.For<ISubmissionViewRepository>();
+    private readonly IFormSchemaRepository _formSchemaRepository = Substitute.For<IFormSchemaRepository>();
 
     public SaveSubmissionViewHandlerTests()
     {
@@ -106,8 +108,45 @@ public sealed class SaveSubmissionViewHandlerTests
         result.Value.Should().Be(new SubmissionViewDto(1, Settings));
     }
 
+    [Fact]
+    public async Task Handle_LatestRevision_ReturnsTheSettingsAReadWouldReturn()
+    {
+        // Arrange
+        const string stored = """{"v":1,"columns":[{"key":"q1","width":120},{"key":"gone"},{"key":"createdAt"}]}""";
+        var save = new SubmissionViewSave(TenantId, FormId, 0, stored, UserId);
+        _viewRepository.SaveSharedAsync(save, Arg.Any<CancellationToken>())
+            .Returns(SubmissionView.CreateShared(new SubmissionViewCreateArgs(TenantId, FormId, stored, UserId)));
+        _formSchemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(SchemaWithQuestionQ1());
+
+        // Act
+        var result = await CreateSut().Handle(Command(save), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.SettingsJson.Should().Be("""{"v":1,"columns":[{"key":"q1","width":120},{"key":"createdAt"}]}""");
+    }
+
+    private static Endatix.Modules.Reporting.Domain.FormSchema SchemaWithQuestionQ1()
+    {
+        var compiled = new FormSchemaCompiler().CompilePersisted(
+            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
+
+        return new Endatix.Modules.Reporting.Domain.FormSchema(
+            TenantId,
+            FormId,
+            formDefinitionRevision: 200,
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            compiled.LocalesJson);
+    }
+
     private SaveSubmissionViewHandler CreateSut() =>
-        new(_formsRepository, _viewRepository, NullLogger<SaveSubmissionViewHandler>.Instance);
+        new(
+            _formsRepository,
+            _viewRepository,
+            new SubmissionViewReader(_formSchemaRepository),
+            NullLogger<SaveSubmissionViewHandler>.Instance);
 
     private static SubmissionViewSave Save(long revision) => new(TenantId, FormId, revision, Settings, UserId);
 

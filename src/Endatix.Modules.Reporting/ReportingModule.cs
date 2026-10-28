@@ -24,6 +24,7 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.Outbox;
+using Endatix.Modules.Reporting.Features.SubmissionViews;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Infrastructure;
 using FastEndpoints;
@@ -73,6 +74,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
         services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
         services.AddScoped<ISubmissionViewRepository, SubmissionViewRepository>();
+        services.AddScoped<SubmissionViewReader>();
     }
 
     private static void AddExports(IServiceCollection services)

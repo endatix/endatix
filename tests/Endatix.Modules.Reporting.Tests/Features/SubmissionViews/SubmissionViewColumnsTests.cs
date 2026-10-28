@@ -43,7 +43,7 @@ public sealed class SubmissionViewColumnsTests
     }
 
     [Fact]
-    public void KeepKnown_NoSchemaKeys_KeepsOnlyMetadataColumns()
+    public void KeepKnown_SchemaWithNoColumns_KeepsOnlyMetadataColumns()
     {
         // Arrange
         const string settings = """{"v":1,"columns":[{"key":"q1"},{"key":"completedAt"}]}""";

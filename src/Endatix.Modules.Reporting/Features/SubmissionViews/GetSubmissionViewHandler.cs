@@ -4,7 +4,6 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.SubmissionViews;
 
@@ -17,7 +16,7 @@ public sealed record GetSubmissionViewQuery(long TenantId, long FormId) : IQuery
 internal sealed class GetSubmissionViewHandler(
     IRepository<Form> formsRepository,
     ISubmissionViewRepository viewRepository,
-    IFormSchemaRepository formSchemaRepository)
+    SubmissionViewReader viewReader)
     : IQueryHandler<GetSubmissionViewQuery, Result<SubmissionViewDto>>
 {
     /// <inheritdoc />
@@ -48,23 +47,6 @@ internal sealed class GetSubmissionViewHandler(
             return SubmissionViewDto.Default;
         }
 
-        var schemaKeys = await SchemaColumnKeysAsync(tenantId, formId, cancellationToken);
-        return new SubmissionViewDto(view.Revision, SubmissionViewColumns.KeepKnown(view.SettingsJson, schemaKeys));
-    }
-
-    private async Task<IReadOnlySet<string>> SchemaColumnKeysAsync(
-        long tenantId,
-        long formId,
-        CancellationToken cancellationToken)
-    {
-        var schema = await formSchemaRepository.GetByFormIdAsync(tenantId, formId, cancellationToken);
-        if (schema is null)
-        {
-            return new HashSet<string>();
-        }
-
-        return FormSchemaFlatteningMap.FromJson(schema.FlatteningMap).Columns
-            .Select(column => column.Key)
-            .ToHashSet(StringComparer.Ordinal);
+        return await viewReader.ReadAsync(view, cancellationToken);
     }
 }

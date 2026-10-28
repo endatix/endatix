@@ -7,7 +7,8 @@ namespace Endatix.Modules.Reporting.Features.SubmissionViews;
 /// Drops the saved columns a form no longer has, so a question removed from the form leaves no ghost column.
 /// </summary>
 /// <remarks>
-/// Applied on read only: the stored settings keep every column, so a question that comes back keeps its width.
+/// Applied to what a read or a save returns, never to what is stored: the stored settings keep every column, so a
+/// question that comes back keeps its width. <see cref="SubmissionViewReader"/> applies it.
 /// </remarks>
 internal static class SubmissionViewColumns
 {
