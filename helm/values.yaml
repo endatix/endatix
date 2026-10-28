@@ -189,6 +189,15 @@ tmp:
 
 nodeSelector: {}
 
+# Pod tolerations, e.g. to let the API schedule onto a tainted, dedicated node
+# pool. Pair with nodeSelector or affinity to also keep it there.
+tolerations: []
+#  - key: example.com/dedicated
+#    operator: Exists
+#    effect: NoSchedule
+
+affinity: {}
+
 # ---------------------------------------------------------------------------
 # Passthrough
 #
