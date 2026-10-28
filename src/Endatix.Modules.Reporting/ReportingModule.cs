@@ -71,7 +71,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
     }
 
-    // The compiler adds the configured submitter profile columns to every schema; the flatten fills only those fields.
+    // The configured submitter profile fields; the flatten appends their columns, and copies only those fields.
     private static void AddFormSchemaCompiler(IServiceCollection services)
     {
         services.AddSingleton(sp =>
