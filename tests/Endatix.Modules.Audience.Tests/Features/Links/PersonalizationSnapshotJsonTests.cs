@@ -105,6 +105,31 @@ public sealed class PersonalizationSnapshotJsonTests
         value.GetProperty("value").GetDouble().Should().Be(65);
     }
 
+    /// <summary>
+    /// The participant read looks up these top-level keys in the database (<c>NamesParticipant</c>, <c>IsOnBehalf</c>);
+    /// the member id must stay a JSON number so its text is its digits.
+    /// </summary>
+    [Theory]
+    [InlineData(PersonalizationSources.Test, null)]
+    [InlineData(PersonalizationSources.Link, 7L)]
+    [InlineData(PersonalizationSources.OnBehalf, null)]
+    public void Write_PutsTheKeysTheParticipantLookupsReadAtTheTop(string source, long? audienceLinkId)
+    {
+        // Arrange
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(audienceLinkId, "ada@example.com", DateTime.UnixEpoch, source, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        // Act
+        using var document = JsonDocument.Parse(json);
+
+        // Assert
+        var memberId = document.RootElement.GetProperty(PersonalizationSnapshotJson.MemberIdKey);
+        memberId.ValueKind.Should().Be(JsonValueKind.Number);
+        memberId.GetRawText().Should().Be("42");
+        document.RootElement.GetProperty(PersonalizationSnapshotJson.SourceKey).GetString().Should().Be(source);
+    }
+
     /// <summary>A cell whose property is named after its variable ("age" → "Age"), with a stable id.</summary>
     private static SnapshotCell Cell(string variableName, string dataType, string value) =>
         new(PropertyIdOf(variableName), variableName, char.ToUpperInvariant(variableName[0]) + variableName[1..], dataType, value);

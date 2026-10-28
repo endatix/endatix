@@ -31,8 +31,8 @@
     "qComment": {
       "surveyJsType": "comment",
       "title": {
-        "default": "Anything else about life in {city}?",
-        "es": "¿Algo más sobre la vida en {city}?"
+        "default": "Anything else about life in {hometown}?",
+        "es": "¿Algo más sobre la vida en {hometown}?"
       },
       "exportShape": "scalar"
     },
@@ -713,15 +713,6 @@
         "default": "Age"
       }
     },
-    "audience_city": {
-      "parentKey": "audience_city",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
-      "dataType": "text",
-      "title": {
-        "default": "City"
-      }
-    },
     "audience_full_name": {
       "parentKey": "audience_full_name",
       "surveyJsType": "personalization",
@@ -729,6 +720,15 @@
       "dataType": "text",
       "title": {
         "default": "Full name"
+      }
+    },
+    "audience_hometown": {
+      "parentKey": "audience_hometown",
+      "surveyJsType": "personalization",
+      "exportShape": "personalization",
+      "dataType": "text",
+      "title": {
+        "default": "Hometown"
       }
     },
     "audience_joined": {
@@ -805,8 +805,8 @@
       "surveyJsType": "comment",
       "exportShape": "scalar",
       "title": {
-        "default": "Anything else about life in {city}?",
-        "es": "¿Algo más sobre la vida en {city}?"
+        "default": "Anything else about life in {hometown}?",
+        "es": "¿Algo más sobre la vida en {hometown}?"
       }
     },
     "qDropdown": {

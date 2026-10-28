@@ -36,6 +36,21 @@ test('a red coverage condition fails the gate even next to an advisory one', () 
   assert.equal(verdict.advisory.length, 1);
 });
 
+test('advisory * reports every red condition as a warning (report-only, as on main)', () => {
+  const status = {
+    status: 'ERROR',
+    conditions: [...DUPLICATION_ONLY.conditions, condition('new_coverage', 'ERROR', '61.0', '80')],
+  };
+  const verdict = evaluateGate(status, ['*']);
+  assert.equal(verdict.passed, true);
+  assert.deepEqual(verdict.blocking, []);
+  assert.deepEqual(verdict.advisory.map((c) => c.metricKey), ['new_duplicated_lines_density', 'new_coverage']);
+});
+
+test('advisory * still fails an unexplained red gate', () => {
+  assert.equal(evaluateGate({ status: 'ERROR', conditions: [] }, ['*']).passed, false);
+});
+
 test('a green gate passes with nothing to report', () => {
   const verdict = evaluateGate({ status: 'OK', conditions: [condition('new_coverage', 'OK')] }, ADVISORY);
   assert.deepEqual(verdict, { passed: true, blocking: [], advisory: [] });

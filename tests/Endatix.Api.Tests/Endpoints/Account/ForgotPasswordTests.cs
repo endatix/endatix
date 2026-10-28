@@ -82,7 +82,6 @@ public class ForgotPasswordTests
         problemResult.Should().NotBeNull();
         problemResult!.StatusCode.Should().Be(503);
         problemResult!.ProblemDetails.Title.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
-        // 5xx detail stays generic so handler text cannot leak.
-        problemResult!.ProblemDetails.Detail.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
+        problemResult!.ProblemDetails.Detail.Should().Be(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
     }
 }

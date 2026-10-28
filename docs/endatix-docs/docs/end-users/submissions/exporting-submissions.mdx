@@ -48,7 +48,7 @@ Click **Prepare for export**. This runs once per form. Later exports, including 
 Once the form is prepared, the panel shows the export format and, for row-based formats, which submissions to include:
 
 <Shot
-  alt="Export submissions panel: Ready to export, Export format set to CSV, and the Submissions section prefilled from the grid — Completion, Include test submissions, and Created at, Modified at, Started at, and Completed at ranges"
+  alt="Export submissions panel: Export format CSV, and the Submissions section prefilled from the filters on the submissions table - Status set to All statuses with the note that incomplete submissions are updated first, Include test submissions on, and the Created at, Modified at, and Started at ranges"
   sources={{ light: readyLight, dark: readyDark }}
 />
 
@@ -57,9 +57,9 @@ The **Submissions** section says it is prefilled from the filters on the submiss
 | Field | What it does |
 | --- | --- |
 | **Export format** | Which of the workspace's configured formats to download. Grouped by **Submissions** (response data) and **Codebook** (metadata only) when both exist. See [Where Formats Come From](#where-formats-come-from). |
-| **Completion** | **Completed**, **Incomplete**, or **All**. Copied from the grid's Complete filter: only complete rows become **Completed**, only incomplete rows become **Incomplete**, and no selection (or both) becomes **All**. **Incomplete** and **All** include drafts. The export panel updates those drafts in the export structure before the download, which can take a moment. A draft can still change after the file is downloaded. Deleted submissions are not included. |
+| **Status** | Which collection statuses to include, such as **Complete**, **Not started**, **In progress**, or **Screened out**. Select one or more; no selection reads **All statuses**. Copied from the grid's **Status** filter. Any status other than **Complete** includes drafts: the panel says *Incomplete submissions are updated first, so this export takes a little longer.* It updates those drafts in the export structure before the download. A draft can still change after the file is downloaded. Deleted submissions are not included. |
 | **Include test submissions** | Copied from the grid's Submission Type filter. It is off when the grid shows production submissions only. It is on when the grid has no type filter, shows tests only, or shows both. See [Submission Type](/docs/end-users/submissions/viewing-submissions#filter-by-complete-status-and-submission-type). |
-| **Created at**, **Modified at**, **Started at**, **Completed at** | Optional date ranges, copied from the matching grid filters. **Created at** is when the submission was created, including prefilled ones nobody has opened. **Modified at** is when it was last changed. **Started at** is when the respondent first saved an answer. **Completed at** is when they submitted the form, and it only appears when **Completion** includes completed submissions. |
+| **Created at**, **Modified at**, **Started at**, **Completed at** | Optional date ranges, copied from the matching grid filters. **Created at** is when the submission was created, including prefilled ones nobody has opened. **Modified at** is when it was last changed. **Started at** is when the respondent first saved an answer. **Completed at** is when they submitted the form, and it only appears when **Status** includes **Complete** or is **All statuses**. |
 
 Press **Export**, or <kbd>Enter</kbd>, to download the file. While drafts are being updated, the button reads **Updating submissions…**.
 
@@ -114,10 +114,10 @@ To hand that PDF to someone who has no Hub account, generate an **Export PDF** s
 ## Important Considerations
 
 * **Prepare is per form, not per user.** Once anyone prepares a form for export, every user exporting that form skips the prepare step.
-* **The panel starts from the grid.** Completion, test submissions, and the four date ranges are copied from the filters already on the Submissions page. Clear a grid filter before you open the panel if you do not want it in the file.
+* **The panel starts from the grid.** Status, test submissions, and the four date ranges are copied from the filters already on the Submissions page. Clear a grid filter before you open the panel if you do not want it in the file.
 * **The export panel refreshes drafts before an Incomplete or All download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included.
 * **Refreshing drafts needs permission to edit the form.** Without that permission the download still runs, and incomplete submissions stay as of their last update. If only some drafts can be updated in one export, the file still downloads and the panel says so.
-* **A codebook has no rows to filter.** Completion, test-submission, and date filters apply only to Submissions formats.
+* **A codebook has no rows to filter.** Status, test-submission, and date filters apply only to Submissions formats.
 * **Full recompile discards export history.** It rebuilds the export structure from the form's current questions only. A question that was removed or renamed loses its column history in future exports.
 
 :::warning[Data list multi-select is one column of ids]

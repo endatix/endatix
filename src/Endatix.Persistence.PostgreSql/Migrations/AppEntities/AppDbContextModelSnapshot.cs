@@ -658,7 +658,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PersonalizationSnapshot")
-                        .HasColumnType("text");
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("RestrictionKey")
                         .HasMaxLength(256)

@@ -1,10 +1,11 @@
 name: Build, Test & Release
 
 # Thin consumer of endatix/release-workflows (see its README):
-#   • any PR (stacked ones included) → tests (below) + SonarCloud + build
+#   • a PR that touches the product paths below → tests + SonarCloud + build
 #     validation in the shared pipeline
-#     (scripts/release-prepare.sh @ 0.0.0-ci — builds + packs, publishes nothing)
-#   • push main  → tests, then canary vX.Y.Z-canary.N: semantic-release builds
+#     (scripts/release-prepare.sh @ 0.0.0-ci — builds + packs, publishes nothing).
+#     A docs-only PR skips those jobs; the checks still pass.
+#   • push main, same paths → tests, then canary vX.Y.Z-canary.N: semantic-release builds
 #     once at the real version and publishes the NuGet packages to GitHub
 #     Packages (canaries NEVER go to nuget.org — it is public and immutable).
 #   • stable releases → MANUAL, human-reviewed: run "Start Stable Release"
@@ -18,11 +19,34 @@ name: Build, Test & Release
 # branch required by semantic-release's branch validation.
 
 on:
-  # Every PR, stacked ones included (base = another feature branch): they need
-  # tests and the SonarCloud coverage too. The canary job only builds on PRs.
+  # Every PR, stacked ones included (base = another feature branch). No paths
+  # filter here: a workflow that does not start leaves required checks pending.
+  # The changes job skips the suite when the PR touches nothing this pipeline builds.
   pull_request:
   push:
     branches: [main, "hotfix/**"] # hotfix/X.Y.x pushes publish vX.Y.Z-hotfix.N builds
+    # What this pipeline builds and releases. A push of only docs, agent files,
+    # or local docker compose never starts, so it never cuts a canary. Commits
+    # from a skipped push are not lost: the next push that matches releases
+    # everything since the last tag. Keep this list in step with `product` in
+    # the changes job. A new packable root has to be added to both.
+    # docs/ and docker/ are absent on purpose. scripts/ is included whole so a
+    # new release script is picked up without editing this list.
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "samples/**"
+      - "templates/**"
+      - "helm/**"
+      - "scripts/**"
+      - "Directory.*"
+      - "global.json"
+      - "NuGet.config"
+      - ".editorconfig"
+      - "coverlet.runsettings"
+      - "*.slnx"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/release-*.yml"
   workflow_dispatch:
 
 env:
@@ -40,8 +64,55 @@ permissions:
   contents: read
 
 jobs:
+  # Decides whether a pull request needs this pipeline. Skipped jobs count as
+  # passing for required checks, which a workflow-level paths filter on
+  # pull_request would not. Pushes, manual runs, and a file list this job cannot
+  # read run everything — a push only reaches here when `paths` above already matched.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # the PR's file list
+    outputs:
+      code: ${{ steps.paths.outputs.code }}
+    steps:
+      - name: 🔎 Classify the changed files
+        id: paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          everything() {
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          [ "$EVENT" = "pull_request" ] || everything "Not a pull request: running everything."
+          # A rename lists only its new path, so the old one is added: a file moved
+          # out of src/ into docs/ still changes the build.
+          files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate \
+            --jq '.[] | .filename, (.previous_filename // empty)') \
+            || everything "Could not list the PR files: running everything."
+          [ -n "$files" ] || everything "No files listed: running everything."
+          # The endpoint stops at 3000 files without saying so; a longer list may be missing code.
+          [ "$(printf '%s\n' "$files" | wc -l)" -lt 3000 ] \
+            || everything "3000 or more files (the API's limit): running everything."
+
+          # Same set as `paths` on push. A file that matches runs the whole pipeline.
+          product='^(src/|tests/|samples/|templates/|helm/|scripts/|Directory\.[^/]+$|global\.json$|NuGet\.config$|\.editorconfig$|coverlet\.runsettings$|[^/]*\.slnx$|\.github/workflows/ci\.yml$|\.github/workflows/release-[^/]+\.yml$)'
+          code=false
+          printf '%s\n' "$files" | grep -qE "$product" && code=true
+          echo "code=${code}" >> "$GITHUB_OUTPUT"
+          echo "Changed files: $(printf '%s\n' "$files" | wc -l). Run pipeline: ${code}." >> "$GITHUB_STEP_SUMMARY"
+
   unit-tests:
     name: "Endatix API: Build & Test"
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     env:
       BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
     runs-on: ubuntu-latest
@@ -104,6 +175,8 @@ jobs:
 
   integration-tests:
     name: "Endatix API: Integration tests"
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: PostgreSql
@@ -151,6 +224,8 @@ jobs:
 
   integration-tests-sqlserver:
     name: "Endatix API: SQL Server integration tests"
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: SqlServer
@@ -193,7 +268,8 @@ jobs:
   # Fork and Dependabot PRs get no OIDC secrets: they skip the scan, with a notice.
   sonar:
     name: "Endatix API: SonarCloud"
-    needs: [unit-tests, integration-tests, integration-tests-sqlserver]
+    needs: [changes, unit-tests, integration-tests, integration-tests-sqlserver]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     environment:
       name: Production
@@ -211,7 +287,7 @@ jobs:
         if: >-
           github.actor != 'dependabot[bot]' &&
           (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        uses: Infisical/secrets-action@03d3fa38607956c493f53c6633f94006a13c47ae # v1.0.7
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
         with:
           method: "oidc"
           env-slug: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
@@ -258,7 +334,10 @@ jobs:
               exit 1
             fi
           done
-          dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" \
+          # New code on main runs from the last stable release ("Previous version" in
+          # SonarCloud); without /v: every analysis is "not provided" and it never resets.
+          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' 2>/dev/null || echo v0.0.0)
+          dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" /v:"${tag#v}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
@@ -271,13 +350,14 @@ jobs:
           dotnet build
           dotnet-sonarscanner end /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN"
       - name: 🚦 Quality gate
-        # SonarCloud Free can't edit "Sonar way", so we read its verdict ourselves:
-        # every red condition fails the job except the metrics in
-        # SONAR_ADVISORY_METRICS (duplication), which only warn. See AGENTS.md → Sonar gate.
+        # SonarCloud Free can't edit "Sonar way", so we read its verdict ourselves.
+        # PRs: every red condition fails the job except the metrics in
+        # SONAR_ADVISORY_METRICS (duplication), which only warn. Pushes (main, hotfix):
+        # report only (`*`); the code is already merged. See AGENTS.md → Sonar gate.
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         env:
           SONAR_TOKEN: ${{ env.ENDATIX_API_REPO_SONAR_TOKEN }}
-          SONAR_ADVISORY_METRICS: new_duplicated_lines_density
+          SONAR_ADVISORY_METRICS: ${{ github.event_name == 'pull_request' && 'new_duplicated_lines_density' || '*' }}
         run: node scripts/sonar-gate.mjs
 
   # Build validation on PRs; canary release on main — publishes only after ALL
@@ -290,7 +370,8 @@ jobs:
   # and fetches everything else via Infisical (OIDC, hence id-token).
   pipeline:
     name: Pipeline
-    needs: [unit-tests, integration-tests, integration-tests-sqlserver]
+    needs: [changes, unit-tests, integration-tests, integration-tests-sqlserver]
+    if: needs.changes.outputs.code == 'true'
     permissions:
       contents: read # release writes use the App token inside the shared workflow
       packages: write # GitHub Packages push + GHCR image push

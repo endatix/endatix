@@ -143,7 +143,7 @@ public class PropertyValueTests
     public void Constructor_EmptyValue_ThrowsDomainValidationException()
     {
         // Act
-        Action act = () => new PropertyValue(new PropertyValueCreateArgs(1, 2, 3, ""));
+        Action act = () => _ = new PropertyValue(PropertyValueCreateArgs.For(MembershipWithId(), 3, ""));
 
         // Assert
         act.Should().Throw<DomainValidationException>();
@@ -153,7 +153,7 @@ public class PropertyValueTests
     public void SetValue_EmptyValue_ThrowsDomainValidationException()
     {
         // Arrange
-        PropertyValue cell = new(new PropertyValueCreateArgs(1, 2, 3, "Sofia"));
+        PropertyValue cell = new(PropertyValueCreateArgs.For(MembershipWithId(), 3, "Sofia"));
 
         // Act
         Action act = () => cell.SetValue("");
@@ -161,4 +161,8 @@ public class PropertyValueTests
         // Assert
         act.Should().Throw<DomainValidationException>();
     }
+
+    /// <summary>A membership as stored: the snowflake id is stamped on add.</summary>
+    private static Membership MembershipWithId() =>
+        new(new MembershipCreateArgs(TenantId: 1, FormId: 10, MemberId: 20, IsTest: false)) { Id = 2 };
 }

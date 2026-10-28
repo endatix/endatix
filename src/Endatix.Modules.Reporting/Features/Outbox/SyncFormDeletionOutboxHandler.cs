@@ -15,16 +15,18 @@ internal sealed class SyncFormDeletionOutboxHandler(
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     ISubmissionViewRepository submissionViewRepository,
     IReportingUnitOfWork unitOfWork,
-    ILogger<SyncFormDeletionOutboxHandler> logger) : IOutboxIntegrationEventHandler
+    ILogger<SyncFormDeletionOutboxHandler> logger) : IOutboxWork<SyncFormDeletionOutboxHandler>
 {
-    public static readonly IReadOnlyCollection<string> HandledEventTypes = [FormDeletedEvent.EventTypeName];
+    public static string JobType => "ReportingSyncFormDeletion";
+
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), message.Id, cancellationToken);
+    public OutboxWork Read(IOutboxMessage message)
+    {
+        var input = Parse(message);
+        return OutboxWork.For(cancellationToken => ProcessAsync(input, message.Id, cancellationToken));
+    }
 
     /// <summary>Reads the work from the message; throws <see cref="InvalidOperationException"/> when it cannot.</summary>
     public static Input Parse(IOutboxMessage message)

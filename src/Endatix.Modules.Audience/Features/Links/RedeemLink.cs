@@ -14,9 +14,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Audience.Features.Links;
 
-public sealed record RedeemedLinkDto(long SubmissionId, bool Created, string AccessToken);
+/// <summary>
+/// The opened submission, its own token, and the signed access token to fill it in (<see cref="LinkTokens"/>).
+/// </summary>
+public sealed record RedeemedLinkDto(
+    long SubmissionId,
+    bool Created,
+    string AccessToken,
+    string SubmissionAccessToken,
+    DateTime SubmissionAccessTokenExpiresAt);
 
 public sealed record RedeemLinkCommand(long FormId, string Token) : ICommand<Result<RedeemedLinkDto>>;
+
+/// <summary>What an open or resume yields before its access token is issued.</summary>
+internal sealed record OpenedLink(long SubmissionId, bool Created, string Token);
 
 /// <summary>
 /// The first open of a link, and the first token of a link claimed without one, run under
@@ -27,7 +38,8 @@ internal sealed class RedeemLinkHandler(
     IAudienceDbContext db,
     IRepository<Submission> submissions,
     AppDbContext app,
-    ISubmissionTokenService tokens,
+    ISubmissionTokenService submissionTokens,
+    LinkTokens tokens,
     LinkOpenLock linkLock,
     LinkOpenGates gates)
     : ICommandHandler<RedeemLinkCommand, Result<RedeemedLinkDto>>
@@ -41,16 +53,35 @@ internal sealed class RedeemLinkHandler(
     /// </summary>
     private const string LinkBusy = "This link can't be opened right now. Try again in a moment.";
 
+    /// <summary>
+    /// The link's response is complete or screened out and its tenant does not keep tokens valid after that: the
+    /// person already answered, which the caller can say instead of calling the link dead.
+    /// </summary>
+    private const string SubmissionEnded = "Submission ended";
+
+    private const string SubmissionEndedCode = "submission_ended";
+
     public async Task<Result<RedeemedLinkDto>> Handle(
         RedeemLinkCommand request,
         CancellationToken cancellationToken)
     {
+        // A person removed after the first open is refused before anything is written: their access token would be.
         var link = await LinkAsync(request, cancellationToken);
-        if (link is null)
+        if (link is null || await gates.PersonAsync(link.MembershipId, cancellationToken) is null)
         {
             return Result.NotFound(LinkNotFound);
         }
 
+        var opened = await OpenOrResumeOrBusyAsync(link, cancellationToken);
+        return opened.IsSuccess
+            ? await WithAccessTokenAsync(link, opened.Value, cancellationToken)
+            : opened.ToErrorResult<RedeemedLinkDto>();
+    }
+
+    private async Task<Result<OpenedLink>> OpenOrResumeOrBusyAsync(
+        AudienceLink link,
+        CancellationToken cancellationToken)
+    {
         try
         {
             return await OpenOrResumeAsync(link, cancellationToken);
@@ -59,6 +90,22 @@ internal sealed class RedeemLinkHandler(
         {
             return Result.Unavailable(LinkBusy);
         }
+    }
+
+    private async Task<Result<RedeemedLinkDto>> WithAccessTokenAsync(
+        AudienceLink link,
+        OpenedLink opened,
+        CancellationToken cancellationToken)
+    {
+        var issued = await tokens.IssueAccessTokenAsync(link, opened.SubmissionId, cancellationToken);
+        return issued.IsSuccess
+            ? Result.Success(new RedeemedLinkDto(
+                opened.SubmissionId,
+                opened.Created,
+                opened.Token,
+                issued.Value.Token,
+                issued.Value.ExpiresAt))
+            : issued.ToErrorResult<RedeemedLinkDto>();
     }
 
     private Task<AudienceLink?> LinkAsync(RedeemLinkCommand request, CancellationToken cancellationToken) =>
@@ -71,7 +118,7 @@ internal sealed class RedeemLinkHandler(
     /// marked as test, deleted or not, is no longer the person's: it is cleared here, without waiting for the outbox,
     /// and the link opens afresh, so the person never resumes a test submission or meets a dead link.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>> OpenOrResumeAsync(
+    private async Task<Result<OpenedLink>> OpenOrResumeAsync(
         AudienceLink link,
         CancellationToken cancellationToken)
     {
@@ -113,7 +160,7 @@ internal sealed class RedeemLinkHandler(
     /// another writer (an on-behalf create) stored this person's response first. The lock rolled ours back, and the
     /// second pass takes that response over. <see langword="null"/> when another open claimed the link first.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>?> OpenAsync(AudienceLink link, CancellationToken cancellationToken)
+    private async Task<Result<OpenedLink>?> OpenAsync(AudienceLink link, CancellationToken cancellationToken)
     {
         var opening = await gates.CheckAsync(link, cancellationToken);
         if (opening is null)
@@ -131,7 +178,7 @@ internal sealed class RedeemLinkHandler(
         }
     }
 
-    private async Task<Result<RedeemedLinkDto>?> OpenLockedAsync(
+    private async Task<Result<OpenedLink>?> OpenLockedAsync(
         LinkOpening opening,
         CancellationToken cancellationToken)
     {
@@ -153,7 +200,7 @@ internal sealed class RedeemLinkHandler(
     /// <summary>
     /// Reads the form again under the lock, as the gates did before it, and opens against the definition active now.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>?> OpenOnCurrentDefinitionAsync(
+    private async Task<Result<OpenedLink>?> OpenOnCurrentDefinitionAsync(
         LinkOpening opening,
         CancellationToken cancellationToken) =>
         await gates.OpenDefinitionIdAsync(opening.Link, cancellationToken) is long definitionId
@@ -165,14 +212,14 @@ internal sealed class RedeemLinkHandler(
     /// form, else starts one. Then issues its token and claims. <see langword="null"/> when a writer outside the lock
     /// (an older version during a deploy) claimed first: everything here rolls back with the lock.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>?> OpenNewAsync(LinkOpening opening, CancellationToken cancellationToken)
+    private async Task<Result<OpenedLink>?> OpenNewAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
         var link = opening.Link;
         var existing = await submissions.FirstOrDefaultAsync(new SubmissionForLinkSpec(link.FormId, link.Id), cancellationToken)
             ?? await PersonsResponseAsync(opening, cancellationToken);
         var started = existing is null
             ? await StartAsync(opening, cancellationToken)
-            : await TakeOverAsync(link, existing, cancellationToken);
+            : await TakeOverAsync(opening, existing, cancellationToken);
         if (!started.IsSuccess)
         {
             return Refused(started);
@@ -199,11 +246,11 @@ internal sealed class RedeemLinkHandler(
     /// deadlock. Either way the open rolls back with the lock.
     /// </summary>
     private async Task<Result<Submission>> TakeOverAsync(
-        AudienceLink link,
+        LinkOpening opening,
         Submission submission,
         CancellationToken cancellationToken)
     {
-        var snapshot = await SnapshotAsync(link, cancellationToken);
+        var snapshot = await SnapshotAsync(opening, cancellationToken);
         if (snapshot is null)
         {
             return Result.NotFound(LinkNotFound);
@@ -211,7 +258,7 @@ internal sealed class RedeemLinkHandler(
 
         if (submission.PersonalizationSnapshot is null)
         {
-            submission.FreezePersonalization(link.Id, snapshot);
+            submission.FreezePersonalization(opening.Link.Id, snapshot);
         }
 
         submission.EnsureStarted();
@@ -224,7 +271,7 @@ internal sealed class RedeemLinkHandler(
     /// token is issued under the lock, so parallel opens do not each write their own. <see langword="null"/> when the
     /// claim is stale: the submission is a test, live or deleted. A deleted real response keeps the link refused.
     /// </summary>
-    private async Task<Result<RedeemedLinkDto>?> ResumeAsync(
+    private async Task<Result<OpenedLink>?> ResumeAsync(
         long linkId,
         long submissionId,
         CancellationToken cancellationToken)
@@ -244,7 +291,7 @@ internal sealed class RedeemLinkHandler(
         };
     }
 
-    private async Task<Result<RedeemedLinkDto>> FirstTokenLockedAsync(
+    private async Task<Result<OpenedLink>> FirstTokenLockedAsync(
         long linkId,
         long submissionId,
         CancellationToken cancellationToken)
@@ -289,7 +336,7 @@ internal sealed class RedeemLinkHandler(
     /// <summary>Not found when the person was removed meanwhile.</summary>
     private async Task<Result<Submission>> StartAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
-        var snapshot = await SnapshotAsync(opening.Link, cancellationToken);
+        var snapshot = await SnapshotAsync(opening, cancellationToken);
         if (snapshot is null)
         {
             return Result.NotFound(LinkNotFound);
@@ -302,8 +349,14 @@ internal sealed class RedeemLinkHandler(
         return Result.Success(submission);
     }
 
+    /// <summary>The one refusal that names the submission: the person already answered.</summary>
+    private static Result<OpenedLink> Ended(long submissionId) =>
+        Result<OpenedLink>.Conflict(
+            new ExistingResource(SubmissionEndedCode, "submissionId", submissionId.ToString()),
+            SubmissionEnded);
+
     /// <summary>A busy refusal stays busy, a retryable 503; every other one reads the same.</summary>
-    private static Result<RedeemedLinkDto> Refused(IResult refusal) =>
+    private static Result<OpenedLink> Refused(IResult refusal) =>
         refusal.IsUnavailable() ? Result.Unavailable(LinkBusy) : Result.NotFound(LinkNotFound);
 
     /// <summary>
@@ -324,13 +377,15 @@ internal sealed class RedeemLinkHandler(
 
     /// <summary>
     /// The live audience values, or <see langword="null"/> when the person was removed. The cells are read before
-    /// the person: a removal deletes both in one save, so a person still there means the cells predate it.
+    /// the person: a removal deletes both in one save, so a person still there means the cells predate it. The
+    /// identifier the match-key Property holds is the open's (<see cref="LinkOpening.Identifier"/>): it never changes.
     /// </summary>
-    private async Task<string?> SnapshotAsync(AudienceLink link, CancellationToken cancellationToken)
+    private async Task<string?> SnapshotAsync(LinkOpening opening, CancellationToken cancellationToken)
     {
+        var link = opening.Link;
         var cells = await SnapshotCells.LoadAsync(
             db,
-            new SnapshotMembership(link.TenantId, link.MembershipId),
+            new SnapshotMembership(link.TenantId, link.MembershipId, link.FormId, opening.Identifier),
             cancellationToken);
         var person = await gates.PersonAsync(link.MembershipId, cancellationToken);
         return person is null
@@ -345,20 +400,29 @@ internal sealed class RedeemLinkHandler(
                 cells);
     }
 
-    /// <summary>A submission or form deleted meanwhile is the same refusal as any other.</summary>
-    private async Task<Result<RedeemedLinkDto>> RedeemedAsync(
+    /// <summary>
+    /// A submission or form deleted meanwhile is the same refusal as any other. A response that has ended is refused
+    /// before its token is extended, unless its tenant keeps tokens valid after completion; under the link's lock the
+    /// refusal rolls the open back, so a refused open writes nothing.
+    /// </summary>
+    private async Task<Result<OpenedLink>> RedeemedAsync(
         long submissionId,
         bool created,
         CancellationToken cancellationToken)
     {
-        var token = await tokens.ObtainTokenAsync(submissionId, cancellationToken);
+        if (!await submissionTokens.AcceptsTokenAsync(submissionId, cancellationToken))
+        {
+            return Ended(submissionId);
+        }
+
+        var token = await submissionTokens.ObtainTokenAsync(submissionId, cancellationToken);
         if (token.IsSuccess)
         {
-            return Result.Success(new RedeemedLinkDto(submissionId, created, token.Value));
+            return Result.Success(new OpenedLink(submissionId, created, token.Value));
         }
 
         return token.Status == ResultStatus.NotFound
             ? Result.NotFound(LinkNotFound)
-            : token.ToErrorResult<RedeemedLinkDto>();
+            : token.ToErrorResult<OpenedLink>();
     }
 }

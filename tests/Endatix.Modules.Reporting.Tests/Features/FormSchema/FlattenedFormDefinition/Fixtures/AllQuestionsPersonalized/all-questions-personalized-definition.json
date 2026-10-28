@@ -323,8 +323,8 @@
           "type": "comment",
           "name": "qComment",
           "title": {
-            "default": "Anything else about life in {city}?",
-            "es": "¿Algo más sobre la vida en {city}?"
+            "default": "Anything else about life in {hometown}?",
+            "es": "¿Algo más sobre la vida en {hometown}?"
           }
         },
         {
@@ -603,7 +603,7 @@
           "type": "text",
           "name": "city",
           "title": "Confirm the city you live in",
-          "defaultValueExpression": "{city}"
+          "defaultValueExpression": "{hometown}"
         },
         {
           "type": "text",
@@ -625,27 +625,6 @@
       "name": "qCalculatedHidden",
       "expression": "{qTextNumber} + 1",
       "includeIntoResult": false
-    },
-    {
-      "name": "full_name"
-    },
-    {
-      "name": "age"
-    },
-    {
-      "name": "city"
-    },
-    {
-      "name": "panel_member"
-    },
-    {
-      "name": "joined"
-    },
-    {
-      "name": "last_seen"
-    },
-    {
-      "name": "tags"
     }
   ]
 }

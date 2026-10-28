@@ -22,17 +22,16 @@ namespace Endatix.Modules.Audience.Features.TestSubmissions;
 /// nothing on a repeat, so a retry is harmless.
 /// </remarks>
 internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, AppDbContext app)
-    : IOutboxIntegrationEventHandler
+    : IOutboxWork<ReleaseLinkOnTestMarkOutboxHandler>
 {
+    public static string JobType => "AudienceReleaseLinkOnTestMark";
+
     /// <summary>The event types this handler, and its job, run on.</summary>
     public static IReadOnlyCollection<string> HandledEventTypes { get; } = [SubmissionUpdatedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), cancellationToken);
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.If(Parse(message), ProcessAsync);
 
     /// <summary>The submission the message is about, or <see langword="null"/> when its test flag did not change.</summary>
     /// <exception cref="InvalidOperationException">The message lacks its tenant or submission id.</exception>
@@ -52,10 +51,7 @@ internal sealed class ReleaseLinkOnTestMarkOutboxHandler(IAudienceDbContext db, 
     /// <see cref="AppDbContext"/> joins the audience connection and transaction, as in a link open, so the
     /// submission's row lock and the link update commit together.
     /// </remarks>
-    public Task ProcessAsync(MarkedSubmission? marked, CancellationToken cancellationToken) =>
-        marked is null ? Task.CompletedTask : ReleaseIfStillTestAsync(marked, cancellationToken);
-
-    private async Task ReleaseIfStillTestAsync(MarkedSubmission marked, CancellationToken cancellationToken)
+    public async Task ProcessAsync(MarkedSubmission marked, CancellationToken cancellationToken)
     {
         var audience = ((DbContext)db).Database;
         await using var transaction = await audience.BeginTransactionAsync(cancellationToken);

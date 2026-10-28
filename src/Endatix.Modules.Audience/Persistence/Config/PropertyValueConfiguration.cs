@@ -17,20 +17,29 @@ internal sealed class PropertyValueConfiguration(AudienceSqlDialect dialect) : I
         builder.Property(value => value.TenantId).IsRequired();
         builder.Property(value => value.MembershipId).IsRequired();
         builder.Property(value => value.PropertyId).IsRequired();
+        builder.Property(value => value.IsTest).IsRequired();
         builder.Property(value => value.Value)
             .HasMaxLength(PropertyValue.VALUE_MAX_LENGTH)
             .IsRequired();
         HasIndexes(builder);
+        builder.HasOne<Membership>().WithMany()
+            .HasForeignKey(value => new { value.TenantId, value.MembershipId, value.IsTest })
+            .HasPrincipalKey(membership => new { membership.TenantId, membership.Id, membership.IsTest })
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasConstraintName("FK_PropertyValues_Membership");
     }
 
     private void HasIndexes(EntityTypeBuilder<PropertyValue> builder)
     {
-        builder.HasIndex(value => new { value.TenantId, value.MembershipId, value.PropertyId })
+        // IsTest follows MembershipId, so the cell stays unique per membership and Property, and EF takes this index as
+        // the foreign key's and adds none. Filtered, it cannot serve FK_PropertyValues_Membership's checks, which also see
+        // soft-deleted cells; nothing hard-deletes a membership (Audience README -> Migrations).
+        builder.HasIndex(value => new { value.TenantId, value.MembershipId, value.IsTest, value.PropertyId })
             .IsUnique()
             .HasDatabaseName(PropertyValue.UniqueConstraints.CellPerMembership)
             .HasFilter(dialect.ActiveRowsFilter);
 
-        builder.HasIndex(value => new { value.TenantId, value.PropertyId })
+        builder.HasIndex(value => new { value.TenantId, value.PropertyId, value.IsTest })
             .HasDatabaseName("IX_PropertyValues_Property")
             .HasFilter(dialect.ActiveRowsFilter);
     }

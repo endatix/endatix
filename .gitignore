@@ -64,3 +64,9 @@ Thumbs.db
 
 # Rider/ReSharper per-developer editor state
 *.DotSettings.user
+
+# agent skills: per-developer config, evidence and work files
+.agents/endatix-models.local.yaml
+.agents/endatix-workspace.local.yaml
+.agents/evidence/
+.agents/work/

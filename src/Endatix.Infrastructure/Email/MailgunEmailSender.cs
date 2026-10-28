@@ -75,9 +75,9 @@ public class MailgunEmailSender(
             new("html", email.HtmlBody)
         };
 
-        var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
+        using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        var responseContent = await ProviderResponse.ReadAcceptedBodyForLogAsync(ProviderName, response.StatusCode, response.Content);
         _logger.LogInformation("Sending Mailgun message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
@@ -123,9 +123,9 @@ public class MailgunEmailSender(
             contentValues.Add(new("h:X-Mailgun-Variables", JsonSerializer.Serialize(email.Metadata)));
         }
 
-        var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
+        using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        var responseContent = await ProviderResponse.ReadAcceptedBodyForLogAsync(ProviderName, response.StatusCode, response.Content);
         _logger.LogInformation("Sending Mailgun template message with status code {statusCode} and response: {response}", response.StatusCode, responseContent);
     }
 
@@ -133,21 +133,36 @@ public class MailgunEmailSender(
     {
         Guard.Against.NullOrWhiteSpace(email.To);
 
+        var httpClient = CreateAuthorizedClient();
+
+        contentValues.Add(new KeyValuePair<string, string>("to", email.To));
+        using var request = new HttpRequestMessage(HttpMethod.Post, MessagesUrl)
+        {
+            Content = new FormUrlEncodedContent(contentValues)
+        };
+
+        return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+    }
+
+    private HttpClient CreateAuthorizedClient()
+    {
         var httpClient = _factory.CreateClient();
         var authToken = Encoding.ASCII.GetBytes($"api:{_settings.ApiKey}");
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(authToken));
+        return httpClient;
+    }
 
-        var baseUrl = _settings.BaseUrl.Trim();
-        if (baseUrl.EndsWith('/'))
+    private string MessagesUrl
+    {
+        get
         {
-            baseUrl = baseUrl[..^1];
+            var baseUrl = _settings.BaseUrl.Trim();
+            if (baseUrl.EndsWith('/'))
+            {
+                baseUrl = baseUrl[..^1];
+            }
+
+            return $"{baseUrl}/{_settings.Domain}/messages";
         }
-
-        var requestUrl = $"{baseUrl}/{_settings.Domain}/messages";
-
-        contentValues.Add(new KeyValuePair<string, string>("to", email.To));
-        var requestContent = new FormUrlEncodedContent(contentValues);
-
-        return await httpClient.PostAsync(requestUrl, requestContent, cancellationToken);
     }
 }

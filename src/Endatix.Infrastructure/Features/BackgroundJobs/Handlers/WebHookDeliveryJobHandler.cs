@@ -38,7 +38,7 @@ internal sealed class WebHookDeliveryJobHandler(
     public const string HttpClientName = "webhook-job-delivery";
 
     // Each attempt re-reads the outbox row, so outbox retention must allow for it: see background-processing.mdx.
-    public const string MessageGone = "The outbox message no longer exists.";
+    public const string MessageGone = OutboxJobFailures.MessageGone;
     public const string EndpointGone = "The webhook endpoint is no longer configured.";
     public const string EventDisabled = "Webhook delivery for this event is disabled.";
     public const string InvalidUrl = "The webhook endpoint URL is not valid.";

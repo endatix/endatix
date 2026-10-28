@@ -5,7 +5,8 @@
 // Usage: node scripts/sonar-gate.mjs   (reads .sonarqube/out/.sonar/report-task.txt)
 // Env:   SONAR_TOKEN               the scanner's token, sent to SONAR_HOST only
 //        SONAR_ADVISORY_METRICS    comma-separated metric keys that warn instead of failing
-//                                  (default: new_duplicated_lines_density)
+//                                  (default: new_duplicated_lines_density;
+//                                  `*` = report only, nothing fails)
 //        GITHUB_STEP_SUMMARY       set by GitHub Actions; the verdict table goes there
 import { appendFileSync, readFileSync } from 'node:fs';
 import { describeCondition, evaluateGate, parseReportTask, sonarApiUrl } from './lib/sonar-gate.mjs';

@@ -30,7 +30,28 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         .HasColumnType("bigint")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
-                    b.Property<DateTime>("CompletedAt")
+                    b.Property<int>("CheckExistingCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CheckNewCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CheckRejectedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CheckedRowCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ChunkSize")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("ClearEmptyCells")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("ClearMissingProperties")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAt")
@@ -42,6 +63,10 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Failure")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -50,14 +75,34 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("HeadersJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("IdentifierColumn")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("IdentifierKind")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean");
+
+                    b.Property<long?>("JobId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<long?>("PerformedById")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("PropertyColumnsJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<int>("RejectedCount")
                         .HasColumnType("integer");
@@ -66,10 +111,20 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<bool>("Resumable")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("RunsInRequest")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("SkippedCount")
                         .HasColumnType("integer");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
@@ -80,13 +135,126 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<int>("UpdatedCount")
                         .HasColumnType("integer");
 
+                    b.Property<int>("WriteRun")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WrittenRowCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WrittenThroughRow")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId");
 
+                    b.HasIndex(new[] { "TenantId", "FormId" }, "IX_Imports_Unfinished")
+                        .IsUnique()
+                        .HasFilter("\"Status\" IN ('uploading', 'checking', 'checked', 'writing') AND \"IsDeleted\" = false");
+
                     b.ToTable("Imports", "audience", t =>
                         {
                             t.HasCheckConstraint("CK_Imports_TenantId", "\"TenantId\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportChunk", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+                    b.Property<int>("ChunkIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FirstRowNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ImportId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RowsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportId", "ChunkIndex")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ImportChunks_Index");
+
+                    b.ToTable("ImportChunks", "audience", t =>
+                        {
+                            t.HasCheckConstraint("CK_ImportChunks_TenantId", "\"TenantId\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportRejection", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+                    b.Property<string>("CellsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ImportId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportId", "RowNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ImportRejections_Row");
+
+                    b.ToTable("ImportRejections", "audience", t =>
+                        {
+                            t.HasCheckConstraint("CK_ImportRejections_TenantId", "\"TenantId\" > 0");
                         });
                 });
 
@@ -268,6 +436,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
+                    b.HasAlternateKey("TenantId", "Id", "IsTest")
+                        .HasName("AK_Memberships_TestFlag");
+
                     b.HasIndex("TenantId", "FormId")
                         .HasDatabaseName("IX_Memberships_Form")
                         .HasFilter("\"IsDeleted\" = false");
@@ -368,6 +539,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
@@ -387,11 +561,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "PropertyId")
+                    b.HasIndex("TenantId", "PropertyId", "IsTest")
                         .HasDatabaseName("IX_PropertyValues_Property")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.HasIndex("TenantId", "MembershipId", "PropertyId")
+                    b.HasIndex("TenantId", "MembershipId", "IsTest", "PropertyId")
                         .IsUnique()
                         .HasDatabaseName("IX_PropertyValues_Cell")
                         .HasFilter("\"IsDeleted\" = false");
@@ -400,6 +574,35 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.PostgreSql
                         {
                             t.HasCheckConstraint("CK_PropertyValues_TenantId", "\"TenantId\" > 0");
                         });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportChunk", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.AudienceImport", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportRejection", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.AudienceImport", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.PropertyValue", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.Membership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "MembershipId", "IsTest")
+                        .HasPrincipalKey("TenantId", "Id", "IsTest")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PropertyValues_Membership");
                 });
 #pragma warning restore 612, 618
         }

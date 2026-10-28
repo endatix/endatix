@@ -14,6 +14,7 @@ using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.Submissions;
+using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Features.Links;
 using Endatix.Modules.Audience.Persistence;
@@ -42,10 +43,10 @@ public sealed partial class AudienceDirectoryFlowTests
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Canton");
         using var anonymous = world.AnonymousClient();
-        var gate = SubmissionCommandGate.AtInsert();
+        var gate = CommandGate.AtInsert();
         await using var scope = world.Services.CreateAsyncScope();
         await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
-        await using var firstOpen = PausedOpen.Start(
+        await using var firstOpen = PausedOpen(
             gate,
             HandlerWith(scope.ServiceProvider, gatedApp),
             new RedeemLinkCommand(formId, token));
@@ -69,6 +70,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.False(second.GetProperty("created").GetBoolean());
         Assert.Equal(first.Value.SubmissionId, IdOf(second, "submissionId"));
         Assert.Equal(first.Value.AccessToken, AccessTokenOf(second));
+        await AssertFillsInAsync(anonymous, (formId, first.Value.SubmissionId), first.Value.SubmissionAccessToken);
         await AssertOnlySubmissionAsync(world.Services, formId, first.Value.SubmissionId);
     }
 
@@ -84,10 +86,10 @@ public sealed partial class AudienceDirectoryFlowTests
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Mentor");
-        var gate = SubmissionCommandGate.AtInsert();
+        var gate = CommandGate.AtInsert();
         await using var scope = world.Services.CreateAsyncScope();
         await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
-        await using var firstOpen = PausedOpen.Start(
+        await using var firstOpen = PausedOpen(
             gate,
             HandlerWith(scope.ServiceProvider, gatedApp),
             new RedeemLinkCommand(formId, token));
@@ -116,10 +118,10 @@ public sealed partial class AudienceDirectoryFlowTests
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var link = await LinkForPersonWithCityAsync(admin, "Parma", limitOnePerUser: true);
-        var gate = SubmissionCommandGate.AtInsert();
+        var gate = CommandGate.AtInsert();
         await using var scope = world.Services.CreateAsyncScope();
         await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
-        await using var firstOpen = PausedOpen.Start(
+        await using var firstOpen = PausedOpen(
             gate,
             HandlerWith(scope.ServiceProvider, gatedApp),
             new RedeemLinkCommand(link.FormId, link.Token));
@@ -151,10 +153,10 @@ public sealed partial class AudienceDirectoryFlowTests
         var link = await LinkForPersonWithCityAsync(admin, "Elyria", limitOnePerUser: true);
         using var created = await OnBehalfAsync(admin, link.FormId, link.Identifier);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var gate = SubmissionCommandGate.AtFirstRead();
+        var gate = CommandGate.AtFirstRead();
         await using var scope = world.Services.CreateAsyncScope();
         await using var gatedApp = GatedAppDbContext(scope.ServiceProvider, gate);
-        await using var open = PausedOpen.Start(
+        await using var open = PausedOpen(
             gate,
             HandlerWith(scope.ServiceProvider, gatedApp),
             new RedeemLinkCommand(link.FormId, link.Token));
@@ -294,32 +296,49 @@ public sealed partial class AudienceDirectoryFlowTests
             forms,
             new EfRepository<Submitter>(app, evaluator),
             services.GetRequiredService<ISubmitterResolver>());
-        return new RedeemLinkHandler(audience, submissions, app, tokens, linkLock, gates);
+        var linkTokens = new LinkTokens(services.GetRequiredService<ISubmissionAccessTokenService>(), tokens);
+        return new RedeemLinkHandler(audience, submissions, app, tokens, linkTokens, linkLock, gates);
     }
 
+    /// <summary>Starts a link open paused at <paramref name="gate"/>.</summary>
+    private static PausedRace<Result<RedeemedLinkDto>> PausedOpen(
+        CommandGate gate,
+        RedeemLinkHandler handler,
+        RedeemLinkCommand open) =>
+        new(gate, handler.Handle(open, TestContext.Current.CancellationToken));
+
     /// <summary>
-    /// An open held at its gate. Disposing releases it and waits for it and for the requests
-    /// made alongside it, so a failed assert never leaves one running into the next test.
+    /// A handler held at its gate, and the requests made alongside it. Disposing releases it and waits for it and for
+    /// the requests made alongside it, so a failed assert never leaves one running into the next test.
     /// </summary>
-    private sealed class PausedOpen(SubmissionCommandGate gate, Task<Result<RedeemedLinkDto>> open) : IAsyncDisposable
+    private sealed class PausedRace<T>(Task reached, Action release, Task<T> paused) : IAsyncDisposable
     {
-        public static PausedOpen Start(SubmissionCommandGate gate, RedeemLinkHandler handler, RedeemLinkCommand open) =>
-            new(gate, handler.Handle(open, TestContext.Current.CancellationToken));
+        private readonly List<Task> _companions = [];
+
+        public PausedRace(CommandGate gate, Task<T> paused)
+            : this(gate.Reached, gate.Release, paused)
+        {
+        }
+
+        public PausedRace(CommandPause pause, Task<T> paused)
+            : this(pause.Reached, pause.Release, paused)
+        {
+        }
 
         public async Task ReachedGateAsync()
         {
-            await Task.WhenAny(gate.Reached, open).WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
-            Assert.True(gate.Reached.IsCompleted, "The first open never reached its gate.");
+            await Task.WhenAny(reached, paused).WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
+            Assert.True(reached.IsCompleted, "The paused handler never reached its gate.");
         }
 
-        public Task<Result<RedeemedLinkDto>> ReleaseAsync()
+        public Task<T> ReleaseAsync()
         {
-            gate.Release();
-            return open.WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
+            release();
+            return paused.WaitAsync(_gateTimeout, TestContext.Current.CancellationToken);
         }
 
-        /// <summary>A request made while this open is paused; disposing drains it too.</summary>
-        public Task<T> Alongside<T>(Task<T> companion)
+        /// <summary>A request made while the handler is paused; disposing drains it too.</summary>
+        public Task<TCompanion> Alongside<TCompanion>(Task<TCompanion> companion)
         {
             _companions.Add(companion);
             return companion;
@@ -327,27 +346,38 @@ public sealed partial class AudienceDirectoryFlowTests
 
         public async ValueTask DisposeAsync()
         {
-            gate.Release();
-            await ((Task)open).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            release();
+            await ((Task)paused).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
             foreach (var companion in _companions)
             {
                 await companion.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
             }
         }
-
-        private readonly List<Task> _companions = [];
     }
 
-    /// <summary>Holds the first matching command on <c>Submissions</c> until the test releases it.</summary>
-    private sealed partial class SubmissionCommandGate(Regex statement) : DbCommandInterceptor
+    /// <summary>
+    /// Holds the first matching command until the test releases it: on <c>Submissions</c> for the link races, on
+    /// <c>Links</c> for the reissue race, or on a participant's cells and membership for the edit and removal races. An
+    /// import's phases open their own scopes, so its races pause through <see cref="AppCommandGate"/> instead.
+    /// </summary>
+    private sealed partial class CommandGate(Regex statement) : DbCommandInterceptor
     {
         /// <summary>The open's insert of its new submission.</summary>
-        public static SubmissionCommandGate AtInsert() => new(SubmissionInsert());
+        public static CommandGate AtInsert() => new(SubmissionInsert());
 
         /// <summary>
         /// The open's first read of a submission: under the lock, after <see cref="LinkOpenGates"/>, which reads none.
         /// </summary>
-        public static SubmissionCommandGate AtFirstRead() => new(SubmissionRead());
+        public static CommandGate AtFirstRead() => new(SubmissionRead());
+
+        /// <summary>An edit's or an import's insert of a participant's value cell.</summary>
+        public static CommandGate AtCellInsert() => new(CellInsert());
+
+        /// <summary>A removal's soft delete of the participant's membership.</summary>
+        public static CommandGate AtMembershipRemoval() => new(MembershipUpdate());
+
+        /// <summary>A reissue's write of the link's new token hash.</summary>
+        public static CommandGate AtLinkUpdate() => new(LinkUpdate());
 
         private readonly TaskCompletionSource _reached = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -382,6 +412,17 @@ public sealed partial class AudienceDirectoryFlowTests
 
         [GeneratedRegex("""FROM ["\[]Submissions["\]]""")]
         private static partial Regex SubmissionRead();
+
+        /// <summary>The audience schema qualifies these: <c>audience."PropertyValues"</c>, <c>[audience].[PropertyValues]</c>.</summary>
+        [GeneratedRegex("""INSERT INTO \S*["\[]PropertyValues["\]]""")]
+        public static partial Regex CellInsert();
+
+        [GeneratedRegex("""UPDATE \S*["\[]Memberships["\]]""")]
+        private static partial Regex MembershipUpdate();
+
+        /// <summary>PostgreSQL writes <c>UPDATE audience."Links"</c>, SQL Server <c>UPDATE [l] SET … FROM [audience].[Links]</c>.</summary>
+        [GeneratedRegex("""^UPDATE .*["\[]Links["\]]""", RegexOptions.Singleline)]
+        private static partial Regex LinkUpdate();
 
         private async Task HoldAsync(DbCommand command, CancellationToken cancellationToken)
         {

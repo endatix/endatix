@@ -17,7 +17,7 @@ public class GetByAccessTokenHandler(
 {
     public async Task<Result<Submission>> Handle(GetByAccessTokenQuery request, CancellationToken cancellationToken)
     {
-        var tokenValidationResult = tokenService.ValidateAccessToken(request.Token);
+        var tokenValidationResult = await tokenService.ValidateAccessTokenAsync(request.Token, cancellationToken);
         if (!tokenValidationResult.IsSuccess)
         {
             return Result.Invalid(tokenValidationResult.ValidationErrors);

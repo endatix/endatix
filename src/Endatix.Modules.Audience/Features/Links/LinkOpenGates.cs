@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +13,12 @@ namespace Endatix.Modules.Audience.Features.Links;
 /// What a first open locks with: the definition it pins, on a one-response form the person's Submitter, and the
 /// label its response shows.
 /// </summary>
-internal sealed record LinkOpening(AudienceLink Link, long DefinitionId, long? SubmitterId, string SubmitterLabel);
+internal sealed record LinkOpening(
+    AudienceLink Link,
+    long DefinitionId,
+    long? SubmitterId,
+    string SubmitterLabel,
+    string Identifier);
 
 /// <summary>The person behind a membership.</summary>
 internal sealed record LinkPerson(long TenantId, long MembershipId, string Identifier, long MemberId, long? SubmitterId);
@@ -47,7 +53,7 @@ internal sealed class LinkOpenGates(
             ? await SubmitterIdAsync(link.TenantId, person, cancellationToken)
             : null;
         var label = await LabelAsync(submitterId ?? person.SubmitterId, person.Identifier, cancellationToken);
-        return new LinkOpening(link, definitionId, submitterId, label);
+        return new LinkOpening(link, definitionId, submitterId, label, person.Identifier);
     }
 
     /// <summary>
@@ -69,11 +75,14 @@ internal sealed class LinkOpenGates(
     /// from the form. Test submissions open through it too, so "still on the form" means one thing.
     /// </summary>
     public Task<LinkPerson?> PersonAsync(IQueryable<Membership> memberships, CancellationToken cancellationToken) =>
-        (
-            from membership in memberships
-            join member in db.Members on membership.MemberId equals member.Id
-            select new LinkPerson(membership.TenantId, membership.Id, member.Identifier, member.Id, member.SubmitterId))
-        .FirstOrDefaultAsync(cancellationToken);
+        FormParticipants.Of(db, memberships)
+            .Select(participant => new LinkPerson(
+                participant.Membership.TenantId,
+                participant.Membership.Id,
+                participant.Member.Identifier,
+                participant.Member.Id,
+                participant.Member.SubmitterId))
+            .FirstOrDefaultAsync(cancellationToken);
 
     /// <summary>
     /// The Submitter bound to the person, else the one an on-behalf create resolves for their identifier
