@@ -72,7 +72,8 @@ internal sealed class PersonalizationPipeline
 
     public void Flatten(string definitionJson, FixtureResponse response)
     {
-        var columns = PersonalizationColumns.From(response.Personalization);
+        IReadOnlyList<FormSchemaColumn> columns =
+            [.. PersonalizationColumns.From(response.Personalization), .. _compiler.SubmitterProfileColumns];
         if (columns.Count > 0 && !PersonalizationColumns.AreCoveredBy(Schema.FlatteningMap, columns))
         {
             Schema = _compiler.IncludePersonalization(

@@ -5,8 +5,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 namespace Endatix.Modules.Reporting.Features.FormSchema;
 
 /// <summary>
-/// Whether a form's schema already has every column of a definition older than it, and the configured submitter
-/// profile columns.
+/// Whether a form's schema already has every column of a definition older than it.
 /// </summary>
 /// <remarks>
 /// Each answer is kept for the scope, per definition and saved version of the schema, so a backfill over many
@@ -31,9 +30,6 @@ internal sealed class FormSchemaCoverage(IFormsRepository formsRepository, FormS
 
         return hasColumns;
     }
-
-    public bool HasSubmitterProfileColumns(Domain.FormSchema schema) =>
-        compiler.HasSubmitterProfileColumns(schema.FlatteningMap);
 
     private async Task<bool> CheckAsync(Domain.FormSchema schema, long formDefinitionId, CancellationToken cancellationToken)
     {

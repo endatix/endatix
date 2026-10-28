@@ -60,6 +60,40 @@ public sealed class SubmitterProfileFlattenIntegrationTests(DbIntegrationFixture
             .Should().Be("ana@example.com");
     }
 
+    [Fact]
+    public async Task FlattenAsync_WithNoFieldListedOnOlderDefinitionSubmission_KeepsNewerLabels()
+    {
+        // Arrange
+        FormSchemaRebuildWorld unlisted = new(fixture);
+        var form = await unlisted.SeedFormWithRealSubmissionAsync([BaseDefinition, RetitlesBase]);
+        await unlisted.CompileAsync(form.FormId, form.DefinitionIds[1]);
+
+        // Act
+        await unlisted.FlattenAsync(form.FormId, form.SubmissionId);
+
+        // Assert
+        (await unlisted.ReadSchemaAsync(form.FormId)).Codebook.Should().Contain("Base, retitled");
+    }
+
+    [Fact]
+    public async Task FlattenAsync_WithFieldListedOnOlderDefinitionSubmission_AddsColumnAndKeepsNewerLabels()
+    {
+        // Arrange
+        FormSchemaRebuildWorld beforeListing = new(fixture);
+        var form = await beforeListing.SeedFormWithRealSubmissionAsync([BaseDefinition, RetitlesBase]);
+        await beforeListing.CompileAsync(form.FormId, form.DefinitionIds[1]);
+
+        // Act
+        await _world.FlattenAsync(form.FormId, form.SubmissionId);
+
+        // Assert
+        var schema = await _world.ReadSchemaAsync(form.FormId);
+        ColumnKeys(schema).Should().Contain(["q0", "qb", "submitter_email"]);
+        schema.FormDefinitionRevision.Should().Be(form.DefinitionIds[1]);
+        schema.Codebook.Should().Contain("Base, retitled", "a newly listed field must not put an older definition's labels back");
+        schema.Codebook.Should().Contain("\"submitter_profile\"");
+    }
+
     private static JsonElement Values(Modules.Reporting.Domain.FlattenedSubmission row)
     {
         using var document = JsonDocument.Parse(row.DataJson!);

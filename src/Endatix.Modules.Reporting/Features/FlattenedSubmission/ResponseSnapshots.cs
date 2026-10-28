@@ -21,12 +21,12 @@ internal sealed record ResponseSnapshots(
     /// </summary>
     public bool TryGetValue(FormSchemaColumn column, out JsonElement? value)
     {
-        value = column.Kind switch
+        (var filled, value) = column.Kind switch
         {
-            FormSchemaColumnKind.Personalization => PersonalizationColumns.ValueOf(column, Personalization),
-            FormSchemaColumnKind.SubmitterProfile => SubmitterProfileColumns.ValueOf(column, SubmitterProfile),
-            _ => null,
+            FormSchemaColumnKind.Personalization => (true, PersonalizationColumns.ValueOf(column, Personalization)),
+            FormSchemaColumnKind.SubmitterProfile => (true, SubmitterProfileColumns.ValueOf(column, SubmitterProfile)),
+            _ => (false, (JsonElement?)null),
         };
-        return column.Kind is FormSchemaColumnKind.Personalization or FormSchemaColumnKind.SubmitterProfile;
+        return filled;
     }
 }

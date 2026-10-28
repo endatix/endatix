@@ -10,8 +10,6 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// columns. A merge never drops a column, so an older definition is normally still in the schema; rebuilding from it
 /// would save the schema again for every submission made on it, and put its labels and locales back over the newer
 /// ones. Its columns are missing only after a replace dropped them, as when the form had no real submissions yet.
-/// A schema that lacks a configured submitter profile column is out of date for every definition, so listing a field
-/// reaches a form's schema with the next flatten instead of waiting for its next publish.
 /// </remarks>
 internal sealed class FormSchemaProvider(
     IFormSchemaRepository schemaRepository,
@@ -41,8 +39,7 @@ internal sealed class FormSchemaProvider(
         Domain.FormSchema schema,
         long formDefinitionId,
         CancellationToken cancellationToken) =>
-        coverage.HasSubmitterProfileColumns(schema) &&
-        (schema.FormDefinitionRevision == formDefinitionId ||
-         (schema.FormDefinitionRevision > formDefinitionId &&
-          await coverage.HasColumnsOfAsync(schema, formDefinitionId, cancellationToken)));
+        schema.FormDefinitionRevision == formDefinitionId ||
+        (schema.FormDefinitionRevision > formDefinitionId &&
+         await coverage.HasColumnsOfAsync(schema, formDefinitionId, cancellationToken));
 }

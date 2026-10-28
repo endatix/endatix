@@ -3,27 +3,27 @@
     "department": "Field sales",
     "submitter_region": "Northern Europe",
     "recommend": true,
-    "submitter_email": "ana@example.com",
-    "submitter_department": "Sales",
     "AudienceIdentifier": "CG-000001-01",
-    "audience_city": "03. MIDWEST - COLUMBUS"
+    "audience_city": "03. MIDWEST - COLUMBUS",
+    "submitter_email": "ana@example.com",
+    "submitter_department": "Sales"
   },
   "partial-profile": {
     "department": "Support",
     "submitter_region": null,
     "recommend": false,
-    "submitter_email": "bo@example.com",
-    "submitter_department": null,
     "AudienceIdentifier": null,
-    "audience_city": null
+    "audience_city": null,
+    "submitter_email": "bo@example.com",
+    "submitter_department": null
   },
   "no-profile": {
     "department": "Finance",
     "submitter_region": null,
     "recommend": null,
-    "submitter_email": null,
-    "submitter_department": null,
     "AudienceIdentifier": null,
-    "audience_city": null
+    "audience_city": null,
+    "submitter_email": null,
+    "submitter_department": null
   }
 }

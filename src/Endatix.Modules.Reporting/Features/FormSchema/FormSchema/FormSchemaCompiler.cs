@@ -15,8 +15,9 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 /// <remarks>
 /// <para>Not sealed, and <see cref="CompilePersisted"/> is virtual, so a test can count the compiles a rebuild makes.</para>
 /// <para>
-/// A definition compiles to its own columns, then the configured submitter profile columns, so every compile, a
-/// replace too, has them and a schema that lacks them is compiled again before a flatten.
+/// A definition compiles to its own columns only. The configured submitter profile columns
+/// (<see cref="SubmitterProfileColumns"/>) join a schema the way audience columns do: a flatten appends them at the
+/// schema's own revision, so a field listed later never makes a compile from an older definition.
 /// </para>
 /// </remarks>
 internal class FormSchemaCompiler(
@@ -27,11 +28,10 @@ internal class FormSchemaCompiler(
     private readonly SubmitterProfileFields _submitterProfileFields = submitterProfileFields ?? SubmitterProfileFields.None;
 
     public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null) =>
-        Merge(CurrentColumns(definition), existing);
+        Merge(FormDefinitionFlattener.Flatten(definition, _limits), existing);
 
-    // A question that already has a submitter column's key keeps it: the schema dedupes keys first come, first kept.
-    private IReadOnlyList<FormSchemaColumn> CurrentColumns(JsonElement definition) =>
-        [.. FormDefinitionFlattener.Flatten(definition, _limits), .. _submitterProfileFields.Columns];
+    /// <summary>One column per configured submitter profile field, in the configured order.</summary>
+    public IReadOnlyList<FormSchemaColumn> SubmitterProfileColumns => _submitterProfileFields.Columns;
 
     private MergedFormSchema Merge(IReadOnlyList<FormSchemaColumn> currentColumns, MergedFormSchema? existing) =>
         existing is null
@@ -62,7 +62,7 @@ internal class FormSchemaCompiler(
             ? null
             : FormSchemaFlatteningMap.FromJson(flatteningMapJsonInput);
 
-        var currentColumns = CurrentColumns(definition.RootElement);
+        var currentColumns = FormDefinitionFlattener.Flatten(definition.RootElement, _limits);
         var merged = Merge(currentColumns, existingFlatteningMap);
         var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
         var codebookJson = FormSchemaCodebookBuilder.Build(
@@ -99,13 +99,6 @@ internal class FormSchemaCompiler(
     public bool HasColumnsFor(string flatteningMapJson, string definitionJson) =>
         HasColumns(flatteningMapJson, Columns(definitionJson));
 
-    /// <summary>
-    /// Whether a persisted flattening map has a column with the key of every configured submitter profile column, so
-    /// a field listed since it was compiled is compiled in before a flatten.
-    /// </summary>
-    public bool HasSubmitterProfileColumns(string flatteningMapJson) =>
-        _submitterProfileFields.Columns.Count == 0 || HasColumns(flatteningMapJson, _submitterProfileFields.Columns);
-
     /// <summary>Whether a persisted flattening map already has a column with the key of every one in <paramref name="columns"/>.</summary>
     public static bool HasColumns(string flatteningMapJson, IReadOnlyList<FormSchemaColumn> columns) =>
         FormSchemaFlatteningMap.FromJson(flatteningMapJson).HasColumnsFor(columns);
@@ -114,7 +107,7 @@ internal class FormSchemaCompiler(
     public IReadOnlyList<FormSchemaColumn> Columns(string definitionJson)
     {
         using var definition = JsonDocument.Parse(definitionJson);
-        return CurrentColumns(definition.RootElement);
+        return FormDefinitionFlattener.Flatten(definition.RootElement, _limits);
     }
 
     public MergedFormSchema CompileFromPersistedSchema(string definitionJson, string? existingFlatteningMapJson = null)

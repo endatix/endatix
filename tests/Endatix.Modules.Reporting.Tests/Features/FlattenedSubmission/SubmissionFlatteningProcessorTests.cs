@@ -337,9 +337,16 @@ public partial class SubmissionFlatteningProcessorTests
         _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
             .Returns((FormSchemaEntity?)null);
 
+    // The submitter columns a flatten's include would have added, so the schema is as a flatten finds it.
     private void GivenSchema(SubmitterProfileFields? fields = null)
     {
-        var compiled = new FormSchemaCompiler(submitterProfileFields: fields).CompilePersisted(FormSchemaFixtureLoader.LoadText("simple-definition.json"));
+        var definition = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompiler compiler = new(submitterProfileFields: fields);
+        var compiled = compiler.CompilePersisted(definition);
+        compiled = compiler.IncludePersonalization(
+            definition,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            compiler.SubmitterProfileColumns);
         _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
             .Returns(new FormSchemaEntity(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson));
     }

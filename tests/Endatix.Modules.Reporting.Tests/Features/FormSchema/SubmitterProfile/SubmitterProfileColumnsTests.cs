@@ -30,44 +30,20 @@ public sealed class SubmitterProfileColumnsTests
     }
 
     [Fact]
-    public void CompilePersisted_ListedFields_AddsOneStringColumnPerFieldAfterTheDefinitionColumns()
-    {
-        // Arrange
-        FormSchemaCompiler compiler = new(submitterProfileFields: new SubmitterProfileFields(["email", "department"]));
-
-        // Act
-        var columns = compiler.CompilePersisted(_definition).FlatteningMap.Columns;
-
-        // Assert
-        columns.TakeLast(2).Should().BeEquivalentTo(
-            [
-                new FormSchemaColumn("submitter_email", FormSchemaColumnKind.SubmitterProfile, "Submitter email", "string"),
-                new FormSchemaColumn("submitter_department", FormSchemaColumnKind.SubmitterProfile, "Submitter department", "string"),
-            ],
-            options => options.WithStrictOrdering());
-    }
-
-    [Fact]
-    public void CompilePersisted_ReplaceOfSchemaWithSubmitterColumns_KeepsThem()
+    public void CompilePersisted_ListedFields_CompilesOnlyTheDefinitionColumns()
     {
         // Arrange
         FormSchemaCompiler compiler = new(submitterProfileFields: new SubmitterProfileFields(["email"]));
-        var existing = compiler.CompilePersisted(_definition);
 
         // Act
-        var replaced = compiler.CompilePersisted(
-            _definition,
-            existing.FlatteningMapJson,
-            existing.CodebookJson,
-            FormSchemaCompileMode.Replace);
+        var compiled = compiler.CompilePersisted(_definition);
 
         // Assert
-        replaced.FlatteningMap.TryGetColumn("submitter_email", out var column).Should().BeTrue();
-        column!.Kind.Should().Be(FormSchemaColumnKind.SubmitterProfile);
+        compiled.FlatteningMapJson.Should().Be(new FormSchemaCompiler().CompilePersisted(_definition).FlatteningMapJson);
     }
 
     [Fact]
-    public void HasColumnsFor_SchemaCompiledBeforeTheFieldWasListed_IsFalse()
+    public void HasColumnsFor_SchemaCompiledBeforeTheFieldWasListed_IsTrue()
     {
         // Arrange
         var compiledBefore = new FormSchemaCompiler().CompilePersisted(_definition);
@@ -77,7 +53,22 @@ public sealed class SubmitterProfileColumnsTests
         var hasColumns = compiler.HasColumnsFor(compiledBefore.FlatteningMapJson, _definition);
 
         // Assert
-        hasColumns.Should().BeFalse("a flatten compiles the schema again so it gains the submitter column");
+        hasColumns.Should().BeTrue("a listed field must not make a definition look uncompiled and rebuild from it");
+    }
+
+    [Fact]
+    public void Columns_ListedFields_OneStringColumnPerFieldWithItsLabel()
+    {
+        // Arrange & Act
+        SubmitterProfileFields fields = new(["email", "department"]);
+
+        // Assert
+        fields.Columns.Should().BeEquivalentTo(
+            [
+                new FormSchemaColumn("submitter_email", FormSchemaColumnKind.SubmitterProfile, "Submitter email", "string"),
+                new FormSchemaColumn("submitter_department", FormSchemaColumnKind.SubmitterProfile, "Submitter department", "string"),
+            ],
+            options => options.WithStrictOrdering());
     }
 
     [Fact]
@@ -135,8 +126,7 @@ public sealed class SubmitterProfileColumnsTests
     public void Flatten_SchemaColumnOfAFieldNoLongerListed_IsNull()
     {
         // Arrange
-        var schema = new FormSchemaCompiler(submitterProfileFields: new SubmitterProfileFields(["email"]))
-            .CompilePersisted(_definition).FlatteningMap;
+        var schema = WithSubmitterColumns(["email"]).FlatteningMap;
         ResponseSnapshots snapshots = new(SubmitterProfile: SubmitterProfileFields.None.Read("""{"email":"ana@example.com"}"""));
         using var answers = JsonDocument.Parse("{}");
 
@@ -151,8 +141,7 @@ public sealed class SubmitterProfileColumnsTests
     public void ExportColumnPlan_ListedFields_CloseTheRowAsTextColumnsWithTheirLabels()
     {
         // Arrange
-        var compiled = new FormSchemaCompiler(submitterProfileFields: new SubmitterProfileFields(["email"]))
-            .CompilePersisted(_definition);
+        var compiled = WithSubmitterColumns(["email"]);
         FormSchemaEntity schema = new(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
 
         // Act
@@ -162,5 +151,16 @@ public sealed class SubmitterProfileColumnsTests
         last.ExportKey.Should().Be("submitter_email");
         last.HeaderLabel.Should().Be("Submitter email");
         last.DataType.Should().Be("string");
+    }
+
+    // The schema as a flatten's include leaves it: the definition's columns, then the listed submitter columns.
+    private static FormSchemaCompileResult WithSubmitterColumns(IEnumerable<string> fields)
+    {
+        FormSchemaCompiler compiler = new(submitterProfileFields: new SubmitterProfileFields(fields));
+        var compiled = compiler.CompilePersisted(_definition);
+        return compiler.IncludePersonalization(
+            _definition,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            compiler.SubmitterProfileColumns);
     }
 }
