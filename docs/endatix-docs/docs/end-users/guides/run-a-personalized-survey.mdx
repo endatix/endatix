@@ -10,6 +10,10 @@ import LinksLight from "./run-a-personalized-survey-links_light.webp";
 import LinksDark from "./run-a-personalized-survey-links_dark.webp";
 import ExportLight from "./run-a-personalized-survey-export_light.webp";
 import ExportDark from "./run-a-personalized-survey-export_dark.webp";
+import PrefillLight from "../forms/prefill-from-property_light.webp";
+import PrefillDark from "../forms/prefill-from-property_dark.webp";
+import PrefillPreviewLight from "../forms/prefill-from-preview-as_light.webp";
+import PrefillPreviewDark from "../forms/prefill-from-preview-as_dark.webp";
 
 # Run a personalized survey
 
@@ -40,10 +44,23 @@ A file can hold up to 100,000 rows and 50 MB on a deployment that runs imports a
 ## Use the properties in the form and check coverage
 
 1. In the designer, put the variable names in braces wherever the form should show a person's value: a title of `Welcome, {first_name}`, or a question that asks about `{company}`. The designer knows the properties, so don't add them as custom variables.
-2. On the **Preview** tab, click **Preview as** and choose a test participant to see the form with their values. On a form with more than 20 people, **Find participant** finds anyone else by identifier.
-3. Check the **Diagnostics** tab for **Personalization** warnings, such as a misspelled variable name, and fix them.
-4. Save the form.
-5. Back on the **Audience** tab, open the **Properties** view.
+2. To start a question with the person's value, select it, open the **Personalization** tab in the Property Grid, and pick a Property that fits the question in **Prefill from**, such as a number Property for a number question. Turn **Allow respondent to edit** off if the person should only confirm the value; it is not a security control. See [Prefill from a Property](/docs/end-users/forms/prefilling-and-personalization#prefill-from-a-property).
+
+<Shot
+  alt="Personalization tab of the household_size question: Prefill from set to Family size, and Allow respondent to edit turned on"
+  sources={{ light: PrefillLight, dark: PrefillDark }}
+/>
+
+3. On the **Preview** tab, click **Preview as** and choose a test participant to see the form with their values, prefilled questions included. On a form with more than 20 people, **Find participant** finds anyone else by identifier.
+
+<Shot
+  alt="Preview tab running the form as a test participant: Household size reads 4, Region reads North, and Renewal reads its stored date and time, and Age in months reads 408"
+  sources={{ light: PrefillPreviewLight, dark: PrefillPreviewDark }}
+/>
+
+4. Check the **Diagnostics** tab for **Personalization** warnings, such as a misspelled variable name, and fix them.
+5. Save the form.
+6. Back on the **Audience** tab, open the **Properties** view.
 
 <Shot
   alt="Properties view with First name and Company, both Used in form; First name is 3 of 3 filled and Company is 2 of 3 filled"
@@ -120,7 +137,7 @@ See [Keep test submissions out of exports](/docs/end-users/submissions/testing-s
 
 - The **Properties** view shows **Used** for every property the form needs, and each **Filled in (real)** count is one you accept.
 - **Preview as** on the **Audience** tab reads correctly for a real participant with missing values, and the designer's **Diagnostics** tab has no **Personalization** warning you did not accept.
-- A test person's form shows their own values, and your test submissions show under **Submission Type: Test**.
+- A test person's form shows their own values, prefilled questions included, and your test submissions show under **Submission Type: Test**.
 - Every real person reads **Issued** or **Opened** in the **Link** column, and the CSV of links is stored safely.
 - Your export has one row per real response and no test submissions.
 
