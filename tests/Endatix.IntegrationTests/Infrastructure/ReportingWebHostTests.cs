@@ -7,12 +7,13 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// The shared host leaves Reporting off, and <see cref="ReportingWebHost"/> turns it on. Its outbox relay stays off
-/// whatever the shared host's does (#1268).
+/// whatever the shared host's does: a relay marks delivered the events it has no handler for, so two relays with
+/// different modules would each run the handlers for only some events.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixture)
+public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixture) : IAsyncDisposable
 {
     private const string ExportFormatsUri = "/api/settings/export-formats";
     private const string SeedPassword = "Password123!";
@@ -53,23 +54,13 @@ public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixtu
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using ReportingWebHost host = new(fixture);
-        bool reportingRelayAskedItsSwitch;
-        bool reportingOpen;
-        bool sharedOpen;
 
         // Act
         await fixture.BackgroundWork.StartAsync(ct);
-        try
-        {
-            reportingRelayAskedItsSwitch = await RelayAskedAgainAsync(BackgroundWork.Of(host.Services), ct);
-            reportingOpen = await RelayOpenAsync(host.Services, ct);
-            sharedOpen = await RelayOpenAsync(fixture.Factory.Services, ct);
-        }
-        finally
-        {
-            await fixture.BackgroundWork.StopAsync(ct);
-        }
-
+        var reportingRelayAskedItsSwitch = await RelayAskedAgainAsync(BackgroundWork.Of(host.Services), ct);
+        var reportingOpen = await RelayOpenAsync(host.Services, ct);
+        var sharedOpen = await RelayOpenAsync(fixture.Factory.Services, ct);
+        await fixture.BackgroundWork.StopAsync(CancellationToken.None);
         var sharedOpenAfterStop = await RelayOpenAsync(fixture.Factory.Services, ct);
 
         // Assert
@@ -78,6 +69,9 @@ public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixtu
         sharedOpen.Should().BeTrue();
         sharedOpenAfterStop.Should().BeFalse();
     }
+
+    /// <summary>Stops the shared host's background work even when the test failed before it did.</summary>
+    public async ValueTask DisposeAsync() => await fixture.BackgroundWork.StopAsync(CancellationToken.None);
 
     private static async Task<HttpClient> TenantAdminAsync(IIntegrationTestHostFixture host, CancellationToken ct)
     {

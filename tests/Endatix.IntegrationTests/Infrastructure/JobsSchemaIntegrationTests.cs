@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture fixture)
+public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture fixture) : IAsyncDisposable
 {
     [Fact]
     public async Task BackgroundJobsTable_AfterMigrations_HasNoResultJsonColumn()
@@ -54,17 +54,9 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
         var beforeStart = scheduler.Status;
 
         // Act
-        SchedulerStatus whileOn;
         await fixture.BackgroundWork.StartAsync(cancellationToken);
-        try
-        {
-            whileOn = scheduler.Status;
-        }
-        finally
-        {
-            await fixture.BackgroundWork.StopAsync(cancellationToken);
-        }
-
+        var whileOn = scheduler.Status;
+        await fixture.BackgroundWork.StopAsync(CancellationToken.None);
         var afterStop = scheduler.Status;
         var missingTables = await MissingTablesAsync(schedulerTables, cancellationToken);
 
@@ -75,6 +67,9 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
         whileOn.Should().Be(SchedulerStatus.Running);
         afterStop.Should().Be(SchedulerStatus.Standby);
     }
+
+    /// <summary>Stops the shared host's background work even when the test failed before it did.</summary>
+    public async ValueTask DisposeAsync() => await fixture.BackgroundWork.StopAsync(CancellationToken.None);
 
     private async Task<List<string>> MissingTablesAsync(IEnumerable<string> tables, CancellationToken cancellationToken)
     {

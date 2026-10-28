@@ -22,6 +22,17 @@ internal sealed class OutboxRelaySwitch
     /// <summary>How many times this host's relay has asked whether to run.</summary>
     public int Checks => Volatile.Read(ref _checks);
 
+    public bool IsOn
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _on;
+            }
+        }
+    }
+
     public void TurnOn()
     {
         lock (_sync)

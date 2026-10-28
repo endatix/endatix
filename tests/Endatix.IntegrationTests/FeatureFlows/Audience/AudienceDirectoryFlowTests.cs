@@ -306,10 +306,15 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
 
     private async Task<AudienceApi> AdminAsync() => await AsAsync(await WorldAsync(), TestPersona.TenantAdmin);
 
-    private static async Task<AudienceApi> AsAsync(IntegrationTestWorld world, TestPersona persona)
+    /// <summary>
+    /// A client of the world's host. Only on the shared host can it start staged imports: this class stops only the
+    /// shared host's background work, so a per-test host's must stay off.
+    /// </summary>
+    private async Task<AudienceApi> AsAsync(IntegrationTestWorld world, TestPersona persona)
     {
         var ct = TestContext.Current.CancellationToken;
-        return new AudienceApi(await world.AsAsync(persona, cancellationToken: ct), BackgroundWork.Of(world.Services), ct);
+        var backgroundWork = ReferenceEquals(world.Services, fixture.Factory.Services) ? fixture.BackgroundWork : null;
+        return new AudienceApi(await world.AsAsync(persona, cancellationToken: ct), backgroundWork, ct);
     }
 
     /// <summary>Ids may be sent as JSON strings (snowflake) or numbers.</summary>
@@ -428,8 +433,8 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
             var view = await ReadAsync(started);
             if (view.GetProperty("runsInBackground").GetBoolean())
             {
-                var background = backgroundWork
-                    ?? throw new InvalidOperationException("This client was made without its host's background work to run the import.");
+                var background = backgroundWork ?? throw new InvalidOperationException(
+                    "Only the shared host's background work may run this import, and this client is not on the shared host.");
                 await background.StartAsync(cancellationToken);
             }
 

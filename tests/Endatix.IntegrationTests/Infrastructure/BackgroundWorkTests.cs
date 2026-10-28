@@ -6,8 +6,10 @@ using Endatix.Core.Events;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Runtime;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Quartz;
 
 namespace Endatix.IntegrationTests;
 
@@ -75,6 +77,63 @@ public sealed class BackgroundWorkTests(EndatixIntegrationWebHostFixture fixture
         Assert.Equal("checked", import.GetProperty("status").GetString());
     }
 
+    [Fact]
+    public async Task A_stop_that_gives_up_waiting_for_the_relay_still_leaves_the_scheduler_in_standby()
+    {
+        // Arrange — the relay is held in a handler's transaction, which the stop will not see end.
+        var admin = await TenantAdminAsync();
+        var formId = await CreateFormAsync(admin);
+        using var handler = Gate.PauseAt(AudienceStatements.MembershipsSoftDelete());
+        await fixture.BackgroundWork.StartAsync(Ct);
+        using var deleted = await admin.DeleteAsync($"/api/forms/{formId}", Ct);
+        await handler.Reached.WaitAsync(Patience, Ct);
+        using var giveUp = new CancellationTokenSource(StopProbe);
+
+        // Act
+        var stopFailure = await Record.ExceptionAsync(() => fixture.BackgroundWork.StopAsync(giveUp.Token));
+        var status = (await SchedulerAsync()).Status;
+
+        // Assert
+        Assert.IsAssignableFrom<OperationCanceledException>(stopFailure);
+        Assert.Equal(SchedulerStatus.Standby, status);
+    }
+
+    [Fact]
+    public async Task A_job_firing_while_background_work_is_off_is_vetoed_and_leaves_nothing_to_stop_the_next_job()
+    {
+        // Arrange — the scheduler runs with the switch off, as one whose acquisition slipped past the standby would.
+        var admin = await TenantAdminAsync();
+        await fixture.BackgroundWork.StartAsync(Ct);
+        await fixture.BackgroundWork.StopAsync(Ct);
+        var scheduler = await SchedulerAsync();
+        var vetoedUrl = await StageImportAsync(admin, await CreateFormAsync(admin));
+        var vetoedTrigger = await TriggerOfAsync(admin, vetoedUrl);
+        await scheduler.Start(Ct);
+        await WaitUntilAsync(async () => !await scheduler.Exists(vetoedTrigger, Ct));
+
+        // Act
+        await fixture.BackgroundWork.StartAsync(Ct);
+        var checkedUrl = await StageImportAsync(admin, await CreateFormAsync(admin));
+        await WaitUntilAsync(async () => await ImportStatusAsync(admin, checkedUrl) == "checked");
+
+        // Assert
+        Assert.Equal("checking", await ImportStatusAsync(admin, vetoedUrl));
+        Assert.Equal("checked", await ImportStatusAsync(admin, checkedUrl));
+    }
+
+    [Fact]
+    public async Task Delivering_the_outbox_in_the_test_while_the_relay_is_on_is_refused()
+    {
+        // Arrange
+        await fixture.BackgroundWork.StartAsync(Ct);
+
+        // Act
+        var refused = await Record.ExceptionAsync(() => fixture.BackgroundWork.DeliverOutboxOnceAsync(Ct));
+
+        // Assert
+        Assert.IsType<InvalidOperationException>(refused);
+    }
+
     /// <summary>Stops what a test started, even a failed one, before the next test resets the database.</summary>
     public async ValueTask DisposeAsync() => await fixture.BackgroundWork.StopAsync(CancellationToken.None);
 
@@ -112,6 +171,33 @@ public sealed class BackgroundWorkTests(EndatixIntegrationWebHostFixture fixture
         using var sent = await admin.PutAsJsonAsync($"{importUrl}/chunks/0", new { firstRowNumber = 2, rows }, Ct);
         Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
         return importUrl;
+    }
+
+    private async Task<IScheduler> SchedulerAsync() =>
+        await fixture.Factory.Services
+            .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
+            .GetScheduler(Ct);
+
+    /// <summary>The scheduler trigger of the job that runs the import's current phase.</summary>
+    private static async Task<TriggerKey> TriggerOfAsync(HttpClient admin, string importUrl)
+    {
+        var import = await admin.GetFromJsonAsync<JsonElement>(importUrl, Ct);
+        var jobId = Text(import.GetProperty("jobId"));
+        var job = await admin.GetFromJsonAsync<JsonElement>($"/api/jobs/{jobId}", Ct);
+        return new TriggerKey(jobId, job.GetProperty("type").GetString()!);
+    }
+
+    private static async Task<string?> ImportStatusAsync(HttpClient admin, string importUrl) =>
+        (await admin.GetFromJsonAsync<JsonElement>(importUrl, Ct)).GetProperty("status").GetString();
+
+    private static async Task WaitUntilAsync(Func<Task<bool>> condition)
+    {
+        var deadline = DateTime.UtcNow + Patience;
+        while (!await condition())
+        {
+            Assert.True(DateTime.UtcNow < deadline, $"Still not so after {Patience.TotalSeconds:0} s.");
+            await Task.Delay(200, Ct);
+        }
     }
 
     /// <summary>Ids may be sent as JSON strings (snowflake) or numbers.</summary>

@@ -62,7 +62,7 @@ public sealed partial class AudienceDirectoryFlowTests
         AudienceApi owner = await AsAsync(world, TestPersona.TenantAdmin);
         AudienceApi other = new(
             await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: owner.CancellationToken),
-            BackgroundWork.Of(world.Services),
+            fixture.BackgroundWork,
             owner.CancellationToken);
         BulkImport first = await owner.StartImportAsync(await owner.CreateFormAsync(), ["email"], 10);
         BulkImport second = await other.StartImportAsync(await other.CreateFormAsync(), ["email"], 10);
