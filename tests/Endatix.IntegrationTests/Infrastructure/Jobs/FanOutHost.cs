@@ -66,8 +66,10 @@ internal sealed class FanOutHost : IAsyncDisposable
                 });
             });
 
-        // Reading the services builds and starts the host, and with it the migrations and the relay.
+        // Reading the services builds and starts the host, and with it the migrations. The relay and the scheduler are
+        // then switched on: this host is the only one on its database, and they are what its tests exercise.
         _ = factory.Services;
+        await BackgroundWork.Of(factory.Services).StartAsync(cancellationToken);
         return new FanOutHost(database, factory, logs);
     }
 

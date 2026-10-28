@@ -361,8 +361,7 @@ public sealed partial class AudienceDirectoryFlowTests
                     emptyCells = choices.EmptyCells,
                     missingProperties = choices.MissingProperties,
                 });
-            Assert.Equal(HttpStatusCode.Created, started.StatusCode);
-            BulkImport import = new(formId, IdOf(await ReadAsync(started), "importId"));
+            var import = await StartedImportAsync(formId, started);
             for (int index = 0; index * ImportChunkRows < rows.Count; index++)
             {
                 using HttpResponseMessage sent = await SendChunkAsync(import, index, rows);

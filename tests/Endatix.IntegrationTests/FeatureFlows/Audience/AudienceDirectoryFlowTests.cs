@@ -14,10 +14,9 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
-public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture fixture) : IAsyncDisposable
 {
     private const string SeedPassword = "Password123!";
-    private static readonly TimeSpan OutboxWait = TimeSpan.FromSeconds(30);
 
     [Fact]
     public async Task Adding_a_person_keeps_the_email_as_entered()
@@ -187,11 +186,11 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
 
         // Act
         using var deleted = await api.Client.DeleteAsync($"/api/forms/{formId}", api.CancellationToken);
-        var unlocked = await api.WaitUntilUnlockedAsync(OutboxWait);
+        await fixture.BackgroundWork.DeliverOutboxOnceAsync(api.CancellationToken);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
-        Assert.True(unlocked, "The form.deleted outbox handler should remove the form's people.");
+        Assert.False(await api.IsMatchKeyLockedAsync(), "The form.deleted outbox handler should remove the form's people.");
     }
 
     [Fact]
@@ -295,6 +294,9 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         Assert.Empty(person.GetProperty("values").EnumerateObject());
     }
 
+    /// <summary>Stops the background work a test started, even a failed one, before the next test resets the database.</summary>
+    public async ValueTask DisposeAsync() => await fixture.BackgroundWork.StopAsync(CancellationToken.None);
+
     private Task<IntegrationTestWorld> WorldAsync() => WorldAsync(fixture);
 
     private static Task<IntegrationTestWorld> WorldAsync(IIntegrationTestHostFixture host) =>
@@ -307,7 +309,7 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
     private static async Task<AudienceApi> AsAsync(IntegrationTestWorld world, TestPersona persona)
     {
         var ct = TestContext.Current.CancellationToken;
-        return new AudienceApi(await world.AsAsync(persona, cancellationToken: ct), ct);
+        return new AudienceApi(await world.AsAsync(persona, cancellationToken: ct), BackgroundWork.Of(world.Services), ct);
     }
 
     /// <summary>Ids may be sent as JSON strings (snowflake) or numbers.</summary>
@@ -325,16 +327,26 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         }
     }
 
-    /// <summary>
-    /// Audience API calls for one signed-in client.
-    /// </summary>
     /// <summary>A CSV to import, its Property columns by header, and whether it adds Test participants.</summary>
     private sealed record ImportedCsv(string Text, Dictionary<string, string>? PropertyColumns = null, bool IsTest = false);
 
-    private sealed partial class AudienceApi(HttpClient client, CancellationToken cancellationToken)
+    /// <summary>
+    /// Audience API calls for one signed-in client. A client that starts staged imports needs its host's
+    /// <paramref name="backgroundWork"/>, which runs them.
+    /// </summary>
+    private sealed partial class AudienceApi(
+        HttpClient client,
+        BackgroundWork? backgroundWork,
+        CancellationToken cancellationToken)
     {
         private const string FormDefinition =
             """{"pages":[{"name":"page1","elements":[{"type":"text","name":"q1"}]}]}""";
+
+        /// <summary>A client that starts no staged import.</summary>
+        public AudienceApi(HttpClient client, CancellationToken cancellationToken)
+            : this(client, backgroundWork: null, cancellationToken)
+        {
+        }
 
         public HttpClient Client => client;
 
@@ -406,6 +418,24 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
                     isTest = csv.IsTest,
                 });
 
+        /// <summary>
+        /// The import <paramref name="started"/> created. One that runs in the background starts the host's background
+        /// work, so its Check and Write jobs run.
+        /// </summary>
+        public async Task<BulkImport> StartedImportAsync(long formId, HttpResponseMessage started)
+        {
+            Assert.Equal(HttpStatusCode.Created, started.StatusCode);
+            var view = await ReadAsync(started);
+            if (view.GetProperty("runsInBackground").GetBoolean())
+            {
+                var background = backgroundWork
+                    ?? throw new InvalidOperationException("This client was made without its host's background work to run the import.");
+                await background.StartAsync(cancellationToken);
+            }
+
+            return new BulkImport(formId, IdOf(view, "importId"));
+        }
+
         public Task<HttpResponseMessage> AddPersonAsync(long formId, string identifier) =>
             PostAsync($"/api/forms/{formId}/audience/people", new { identifier });
 
@@ -424,22 +454,10 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
         public Task<JsonElement> ReadAsync(HttpResponseMessage response) =>
             response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
 
-        /// <summary>Polls the settings until the match key unlocks; outbox handlers run in the background.</summary>
-        public async Task<bool> WaitUntilUnlockedAsync(TimeSpan timeout)
+        public async Task<bool> IsMatchKeyLockedAsync()
         {
-            var deadline = DateTime.UtcNow + timeout;
-            while (DateTime.UtcNow < deadline)
-            {
-                var settings = await client.GetFromJsonAsync<JsonElement>("/api/audience/settings", cancellationToken);
-                if (!settings.GetProperty("isLocked").GetBoolean())
-                {
-                    return true;
-                }
-
-                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
-            }
-
-            return false;
+            var settings = await client.GetFromJsonAsync<JsonElement>("/api/audience/settings", cancellationToken);
+            return settings.GetProperty("isLocked").GetBoolean();
         }
     }
 }

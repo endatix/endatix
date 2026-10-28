@@ -12,8 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// A Participant import staged in chunks, checked, and written by background jobs on the shared host, which runs
-/// jobs in process. Shares the world and API helpers of <see cref="AudienceDirectoryFlowTests"/>.
+/// A Participant import staged in chunks, checked, and written by background jobs on the shared host, whose background
+/// work the import's start switches on. Shares the world and API helpers of <see cref="AudienceDirectoryFlowTests"/>.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
@@ -474,8 +474,7 @@ public sealed partial class AudienceDirectoryFlowTests
                     propertyColumns = headers.Skip(1).ToDictionary(header => header.ToLowerInvariant(), header => header),
                     isTest = false,
                 });
-            Assert.Equal(HttpStatusCode.Created, started.StatusCode);
-            return new BulkImport(formId, IdOf(await ReadAsync(started), "importId"));
+            return await StartedImportAsync(formId, started);
         }
 
         /// <summary>Sends chunk <paramref name="index"/> of <paramref name="rows"/>.</summary>

@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The shared host leaves Reporting off, and <see cref="ReportingWebHost"/> turns it on with its own outbox relay
-/// closed (#1268).
+/// The shared host leaves Reporting off, and <see cref="ReportingWebHost"/> turns it on. Its outbox relay stays off
+/// whatever the shared host's does (#1268).
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -48,26 +48,35 @@ public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixtu
     }
 
     [Fact]
-    public async Task Reporting_host_closes_its_own_outbox_relay_and_not_the_shared_one()
+    public async Task Starting_the_shared_hosts_background_work_leaves_the_reporting_hosts_relay_off()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        bool reportingRelayAskedClosedGate;
-        bool sharedOpenAlongside;
+        await using ReportingWebHost host = new(fixture);
+        bool reportingRelayAskedItsSwitch;
+        bool reportingOpen;
+        bool sharedOpen;
 
         // Act
-        await using (ReportingWebHost host = new(fixture))
+        await fixture.BackgroundWork.StartAsync(ct);
+        try
         {
-            reportingRelayAskedClosedGate = await RelayAskedGateAsync(host, ct);
-            sharedOpenAlongside = await RelayOpenAsync(fixture.Factory.Services, ct);
+            reportingRelayAskedItsSwitch = await RelayAskedAgainAsync(BackgroundWork.Of(host.Services), ct);
+            reportingOpen = await RelayOpenAsync(host.Services, ct);
+            sharedOpen = await RelayOpenAsync(fixture.Factory.Services, ct);
+        }
+        finally
+        {
+            await fixture.BackgroundWork.StopAsync(ct);
         }
 
-        var sharedOpenAfter = await RelayOpenAsync(fixture.Factory.Services, ct);
+        var sharedOpenAfterStop = await RelayOpenAsync(fixture.Factory.Services, ct);
 
         // Assert
-        reportingRelayAskedClosedGate.Should().BeTrue("the running relay, not just the container, must use the closed gate");
-        sharedOpenAlongside.Should().BeTrue();
-        sharedOpenAfter.Should().BeTrue();
+        reportingRelayAskedItsSwitch.Should().BeTrue("the running relay, not just the container, must ask the host's own switch");
+        reportingOpen.Should().BeFalse();
+        sharedOpen.Should().BeTrue();
+        sharedOpenAfterStop.Should().BeFalse();
     }
 
     private static async Task<HttpClient> TenantAdminAsync(IIntegrationTestHostFixture host, CancellationToken ct)
@@ -77,16 +86,17 @@ public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixtu
         return await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
     }
 
-    // Only the relay asks the closed gate, so a relay that stopped consulting it would leave the count at zero.
-    private static async Task<bool> RelayAskedGateAsync(ReportingWebHost host, CancellationToken ct)
+    // Only the relay asks the switch on its own, so a relay that stopped consulting it would leave the count where it was.
+    private static async Task<bool> RelayAskedAgainAsync(BackgroundWork background, CancellationToken ct)
     {
+        var before = background.RelayChecks;
         var deadline = DateTime.UtcNow + RelayTickWait;
-        while (host.RelayGateChecks == 0 && DateTime.UtcNow < deadline)
+        while (background.RelayChecks == before && DateTime.UtcNow < deadline)
         {
             await Task.Delay(200, ct);
         }
 
-        return host.RelayGateChecks > 0;
+        return background.RelayChecks > before;
     }
 
     // The relay resolves its gate from a new scope on every tick, so this is the answer its next tick gets.

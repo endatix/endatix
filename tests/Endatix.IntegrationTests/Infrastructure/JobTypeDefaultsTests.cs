@@ -54,6 +54,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runs = new NamedProbeRuns();
         await using var host = HostWithoutJobSettings(database, services => ReplaceWebHookHandler(services, runs));
+        await BackgroundWork.Of(host.Services).StartAsync(ct);
 
         // Act
         var webhooks = await EnqueueAsync(
@@ -149,7 +150,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider)
             .WithWebHostBuilder(configure);
 
-        // Reading the services builds and starts the host, and with it the migrations and the scheduler.
+        // Reading the services builds and starts the host, and with it the migrations; the scheduler waits in standby.
         _ = factory.Services;
         return factory;
     }

@@ -2,7 +2,6 @@ extern alias EndatixWebHost;
 
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Features.Imports;
-using Endatix.Outbox.Engine;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +15,7 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// Only the import runner changes: the job queue itself stays on, since <c>Endatix:BackgroundJobs</c> settings are read
-/// process-wide. Its outbox relay stays closed, so the shared host alone delivers the events both hosts raise.
+/// process-wide. Its imports need no <see cref="BackgroundWork"/>, so tests leave it off.
 /// </remarks>
 internal sealed class InlineImportWebHost : IIntegrationTestHostFixture, IAsyncDisposable
 {
@@ -27,11 +26,8 @@ internal sealed class InlineImportWebHost : IIntegrationTestHostFixture, IAsyncD
         Database = fixture.Database;
         _factory = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider)
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
-            {
-                services.Replace(ServiceDescriptor.Singleton<IOutboxRelayGate>(new ClosedOutboxRelayGate()));
                 services.Replace(ServiceDescriptor.Scoped<IImportRunner>(provider =>
-                    new InlineImportRunner(provider.GetRequiredService<ImportRun>())));
-            }));
+                    new InlineImportRunner(provider.GetRequiredService<ImportRun>())))));
 
         // Reading Services starts the host; a failed start would otherwise leave it running.
         try
@@ -56,9 +52,4 @@ internal sealed class InlineImportWebHost : IIntegrationTestHostFixture, IAsyncD
     public HttpClient CreateClient() => _factory.CreateClient();
 
     public ValueTask DisposeAsync() => _factory.DisposeAsync();
-
-    private sealed class ClosedOutboxRelayGate : IOutboxRelayGate
-    {
-        public Task<bool> IsRelayEnabledAsync(CancellationToken cancellationToken) => Task.FromResult(false);
-    }
 }

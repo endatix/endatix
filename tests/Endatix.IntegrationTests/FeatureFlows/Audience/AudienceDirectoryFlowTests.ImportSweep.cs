@@ -62,6 +62,7 @@ public sealed partial class AudienceDirectoryFlowTests
         AudienceApi owner = await AsAsync(world, TestPersona.TenantAdmin);
         AudienceApi other = new(
             await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: owner.CancellationToken),
+            BackgroundWork.Of(world.Services),
             owner.CancellationToken);
         BulkImport first = await owner.StartImportAsync(await owner.CreateFormAsync(), ["email"], 10);
         BulkImport second = await other.StartImportAsync(await other.CreateFormAsync(), ["email"], 10);
@@ -73,7 +74,7 @@ public sealed partial class AudienceDirectoryFlowTests
         int again = await SweepAllTenantsAsync(world.Services);
 
         // Assert
-        Assert.Single(world.Services.GetServices<IHostedService>().OfType<ImportSweepService>());
+        Assert.Single(ImportHostedServices(), descriptor => descriptor.ImplementationType == typeof(ImportSweepService));
         Assert.Equal(2, together.Sum());
         Assert.Equal(0, again);
         Assert.Equal("expired", (await owner.ReadImportAsync(first)).GetProperty("status").GetString());
@@ -383,6 +384,17 @@ public sealed partial class AudienceDirectoryFlowTests
             written.GetProperty("createdCount").GetInt32(),
             written.GetProperty("updatedCount").GetInt32(),
             written.GetProperty("skippedCount").GetInt32());
+    }
+
+    /// <summary>
+    /// The hosted services the import registration gives every node. Read from the registration, since test hosts take
+    /// the daily sweep back out and run it themselves.
+    /// </summary>
+    private static List<ServiceDescriptor> ImportHostedServices()
+    {
+        ServiceCollection services = new();
+        services.AddImportRunner();
+        return [.. services.Where(descriptor => descriptor.ServiceType == typeof(IHostedService))];
     }
 
     /// <summary>The daily service's sweep; returns how many imports it ended.</summary>
