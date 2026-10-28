@@ -29,20 +29,16 @@ on:
     # or local docker compose never starts, so it never cuts a canary. Commits
     # from a skipped push are not lost: the next push that matches releases
     # everything since the last tag. Keep this list in step with `product` in
-    # the changes job. A new packable root or release script has to be added
-    # to both. docs/ and docker/ are absent on purpose.
+    # the changes job. A new packable root has to be added to both.
+    # docs/ and docker/ are absent on purpose. scripts/ is included whole so a
+    # new release script is picked up without editing this list.
     paths:
       - "src/**"
       - "tests/**"
       - "samples/**"
       - "templates/**"
       - "helm/**"
-      - "scripts/release-prepare.sh"
-      - "scripts/release-publish.sh"
-      - "scripts/check-informational-version.cs"
-      - "scripts/sonar-gate.mjs"
-      - "scripts/lib/sonar-gate.mjs"
-      - "scripts/__tests__/sonar-gate.test.mjs"
+      - "scripts/**"
       - "Directory.*"
       - "global.json"
       - "NuGet.config"
@@ -107,7 +103,7 @@ jobs:
             || everything "3000 or more files (the API's limit): running everything."
 
           # Same set as `paths` on push. A file that matches runs the whole pipeline.
-          product='^(src/|tests/|samples/|templates/|helm/|scripts/release-(prepare|publish)\.sh$|scripts/check-informational-version\.cs$|scripts/(lib/)?sonar-gate\.mjs$|scripts/__tests__/sonar-gate\.test\.mjs$|Directory\.[^/]+$|global\.json$|NuGet\.config$|\.editorconfig$|coverlet\.runsettings$|[^/]*\.slnx$|\.github/workflows/ci\.yml$|\.github/workflows/release-[^/]+\.yml$)'
+          product='^(src/|tests/|samples/|templates/|helm/|scripts/|Directory\.[^/]+$|global\.json$|NuGet\.config$|\.editorconfig$|coverlet\.runsettings$|[^/]*\.slnx$|\.github/workflows/ci\.yml$|\.github/workflows/release-[^/]+\.yml$)'
           code=false
           printf '%s\n' "$files" | grep -qE "$product" && code=true
           echo "code=${code}" >> "$GITHUB_OUTPUT"
