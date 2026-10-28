@@ -48,6 +48,8 @@ public sealed class SubmissionViewSettingsTests
     [InlineData("""{"v":1,"columns":[{"key":"q1","width":0}]}""", "Column \"q1\" must have a \"width\" from 1 to 4000.")]
     [InlineData("""{"v":1,"columns":[{"key":"q1","width":4001}]}""", "Column \"q1\" must have a \"width\" from 1 to 4000.")]
     [InlineData("""{"v":1,"columns":[{"key":"q1","width":12.5}]}""", "Column \"q1\" must have a \"width\" from 1 to 4000.")]
+    [InlineData("""{"v":1,"v":1,"columns":[]}""", "Settings must be valid JSON.")]
+    [InlineData("""{"v":1,"columns":[{"key":"q1","key":"q2"}]}""", "Settings must be valid JSON.")]
     [InlineData("""{"v":1,"columns":[],"pageSize":0}""", "\"pageSize\" must be from 1 to 100.")]
     [InlineData("""{"v":1,"columns":[],"pageSize":101}""", "\"pageSize\" must be from 1 to 100.")]
     [InlineData("""{"v":1,"columns":[],"sort":"createdAt"}""", "\"sort\" must have a \"key\" and a \"direction\" of \"asc\" or \"desc\".")]

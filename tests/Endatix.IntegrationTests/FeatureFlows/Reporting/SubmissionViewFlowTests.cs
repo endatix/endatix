@@ -158,6 +158,28 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
+    public async Task Settings_with_a_repeated_property_are_refused_and_nothing_is_saved()
+    {
+        // Arrange - the schema is compiled, so a stored view goes through the read filter on the way back.
+        var ct = TestContext.Current.CancellationToken;
+        await using ReportingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        var formId = await CreateCompiledFormAsync(client, ct);
+        using StringContent body = new(
+            """{"revision":"0","settings":{"v":1,"v":1,"columns":[{"key":"q1"}]}}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        // Act
+        using var saved = await client.PutAsync(ViewUri(formId), body, ct);
+
+        // Assert
+        saved.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await CountViewsAsync(formId, ct)).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Another_tenant_cannot_read_or_save_the_view()
     {
         // Arrange

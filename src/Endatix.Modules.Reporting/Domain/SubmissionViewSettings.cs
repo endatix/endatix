@@ -60,7 +60,13 @@ public static class SubmissionViewSettings
 
     private const int MaxJsonDepth = 8;
 
-    private static readonly JsonDocumentOptions _documentOptions = new() { MaxDepth = MaxJsonDepth };
+    // A repeated property name is refused: JsonDocument would keep the last, but JsonNode, which filters the columns
+    // on the way back, throws on it.
+    private static readonly JsonDocumentOptions _documentOptions = new()
+    {
+        MaxDepth = MaxJsonDepth,
+        AllowDuplicateProperties = false,
+    };
 
     /// <summary>Returns why <paramref name="settingsJson"/> cannot be saved, or <see langword="null"/> when it can.</summary>
     public static string? Error(string? settingsJson)
