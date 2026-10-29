@@ -2,6 +2,7 @@ extern alias EndatixWebHost;
 
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,32 +44,47 @@ internal sealed class FanOutHost : IAsyncDisposable
         var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var logs = new CapturingLoggerProvider();
         var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider)
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseSetting("Endatix:Outbox:DeliverToJobQueue", setup.DeliverToJobQueue.ToString());
-                builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
-                builder.UseSetting("Endatix:FeatureFlags:JobsModule", setup.JobsModule.ToString());
-                builder.UseSetting("Endatix:BackgroundJobs:IdleWaitTimeSeconds", "1");
-                foreach (var (key, value) in setup.Settings)
-                {
-                    builder.UseSetting(key, value);
-                }
+            .WithWebHostBuilder(builder => Configure(builder, setup, logs));
 
-                builder.ConfigureTestServices(services =>
-                {
-                    if (setup.StripsInlineHandlers)
-                    {
-                        services.RemoveAll<IOutboxIntegrationEventHandler>();
-                    }
+        // Reading the services builds and starts the host, and with it the migrations. The relay and the scheduler are
+        // then switched on: this host is the only one on its database, and they are what its tests exercise.
+        // A start that fails returns no host to dispose, so it stops the host and drops its database here.
+        try
+        {
+            _ = factory.Services;
+            await BackgroundWork.Of(factory.Services).StartAsync(cancellationToken);
+        }
+        catch
+        {
+            await factory.DisposeAsync();
+            await database.DisposeAsync();
+            throw;
+        }
 
-                    services.AddSingleton<ILoggerProvider>(logs);
-                    setup.ConfigureServices(services);
-                });
-            });
-
-        // Reading the services builds and starts the host, and with it the migrations and the relay.
-        _ = factory.Services;
         return new FanOutHost(database, factory, logs);
+    }
+
+    private static void Configure(IWebHostBuilder builder, FanOutHostSetup setup, CapturingLoggerProvider logs)
+    {
+        builder.UseSetting("Endatix:Outbox:DeliverToJobQueue", setup.DeliverToJobQueue.ToString());
+        builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
+        builder.UseSetting("Endatix:FeatureFlags:JobsModule", setup.JobsModule.ToString());
+        builder.UseSetting("Endatix:BackgroundJobs:IdleWaitTimeSeconds", "1");
+        foreach (var (key, value) in setup.Settings)
+        {
+            builder.UseSetting(key, value);
+        }
+
+        builder.ConfigureTestServices(services =>
+        {
+            if (setup.StripsInlineHandlers)
+            {
+                services.RemoveAll<IOutboxIntegrationEventHandler>();
+            }
+
+            services.AddSingleton<ILoggerProvider>(logs);
+            setup.ConfigureServices(services);
+        });
     }
 
     // The time is bound in UTC, which the columns hold, because a server clock function returns the server's local

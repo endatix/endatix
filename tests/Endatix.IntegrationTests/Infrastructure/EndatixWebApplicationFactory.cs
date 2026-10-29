@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -76,6 +77,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseEnvironment(Environments.Staging);
 
         builder.ConfigureServices(AddTestServices);
+        builder.ConfigureTestServices(BackgroundWorkRegistration.AddSwitchedOff);
 
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
         builder.UseSetting("ConnectionStrings:DefaultConnection_DbProvider", provider.ToString());
@@ -84,6 +86,9 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Endatix:Data:SeedSampleForms", "false");
 
         ConfigureFeatureFlags(builder);
+
+        // A test that switches the outbox relay on sees it claim within a second rather than five.
+        builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
 
         var auth = IntegrationTestAuthSettings.FromEnvironment();
         builder.UseSetting("Endatix:Auth:Providers:Keycloak:Enabled", "false");
