@@ -33,7 +33,7 @@ internal sealed class OutboxRelaySwitch
         }
     }
 
-    /// <summary>Whether no relay tick holds a lease, so none is part-way through a batch.</summary>
+    /// <summary>Whether no relay tick or delivery in the test holds a lease, so none is part-way through a batch.</summary>
     public bool IsIdle
     {
         get
@@ -59,17 +59,19 @@ internal sealed class OutboxRelaySwitch
         Interlocked.Increment(ref _checks);
         lock (_sync)
         {
-            if (!_on)
-            {
-                return null;
-            }
+            return _on ? NewLease() : null;
+        }
+    }
 
-            if (_leases++ == 0)
-            {
-                _released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            }
-
-            return new Lease(this);
+    /// <summary>
+    /// A lease for a delivery the test runs itself, or <see langword="null"/> while the relay is on or a tick is
+    /// part-way through a batch. It counts with the relay's own leases, so a stop waits for the delivery too.
+    /// </summary>
+    public IDisposable? TryEnterDelivery()
+    {
+        lock (_sync)
+        {
+            return _on || _leases > 0 ? null : NewLease();
         }
     }
 
@@ -88,6 +90,17 @@ internal sealed class OutboxRelaySwitch
         TaskCompletionSource released = new(TaskCreationOptions.RunContinuationsAsynchronously);
         released.SetResult();
         return released;
+    }
+
+    // Called under the lock.
+    private Lease NewLease()
+    {
+        if (_leases++ == 0)
+        {
+            _released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        return new Lease(this);
     }
 
     private void Leave()

@@ -74,9 +74,11 @@ internal sealed class BackgroundWork(IServiceProvider services, OutboxRelaySwitc
     /// when no message is left to claim. A handler that throws fails the call.
     /// </summary>
     /// <remarks>
-    /// A handler that throws fails the call with its own exception. The message it failed on, and the rest of its batch,
-    /// are given back to the outbox first, due at once, so a later delivery claims them rather than waiting out their
-    /// lease. The store has no plain release, so each counts one attempt.
+    /// The call holds a lease on the relay switch while it runs, so a stop waits for it as for a relay tick. A handler,
+    /// or the store marking a message sent, that throws fails the call with its own exception. The message it failed
+    /// on, and the rest of its batch, are given back to the outbox first, due at once, so a later delivery claims them
+    /// rather than waiting out their lease. The store has no plain release, so each counts one attempt; giving back one
+    /// that was marked sent after all does nothing, since the mark released its lease.
     /// </remarks>
     /// <exception cref="InvalidOperationException">
     /// The host's relay is on, or a relay tick from before a stop that gave up waiting is still part-way through its
@@ -84,11 +86,8 @@ internal sealed class BackgroundWork(IServiceProvider services, OutboxRelaySwitc
     /// </exception>
     public async Task DeliverOutboxOnceAsync(CancellationToken cancellationToken)
     {
-        if (relay.IsOn || !relay.IsIdle)
-        {
-            throw new InvalidOperationException(
-                "The host's outbox relay is on or still in a batch; stop its background work before delivering the outbox in the test.");
-        }
+        using var delivery = relay.TryEnterDelivery() ?? throw new InvalidOperationException(
+            "The host's outbox relay is on or still in a batch; stop its background work before delivering the outbox in the test.");
 
         // A handler can raise messages of its own, which the next batch delivers.
         var options = services.GetRequiredService<IOptions<OutboxOptions>>().Value;
@@ -111,25 +110,24 @@ internal sealed class BackgroundWork(IServiceProvider services, OutboxRelaySwitc
             try
             {
                 await publisher.PublishAsync(batch[index], cancellationToken);
+                await store.MarkSentAsync(batch[index], DeliveringInstance, cancellationToken);
             }
-            catch (Exception handlerFailure)
+            catch (Exception failure)
             {
-                await GiveBackAsync(store, batch.Skip(index), handlerFailure);
+                await GiveBackAsync(store, batch.Skip(index), failure);
                 throw;
             }
-
-            await store.MarkSentAsync(batch[index], DeliveringInstance, cancellationToken);
         }
 
         return batch.Count;
     }
 
     // Each message is given back on its own, so one that cannot be still leaves the rest claimable. A failure to give one
-    // back is kept on the handler's exception rather than thrown in its place: the handler's failure is the finding.
+    // back is kept on the delivery's exception rather than thrown in its place: the delivery's failure is the finding.
     private static async Task GiveBackAsync(
         IOutboxClaimStore store,
         IEnumerable<IOutboxMessage> messages,
-        Exception handlerFailure)
+        Exception deliveryFailure)
     {
         foreach (var message in messages)
         {
@@ -139,7 +137,7 @@ internal sealed class BackgroundWork(IServiceProvider services, OutboxRelaySwitc
             }
             catch (Exception giveBackFailure)
             {
-                handlerFailure.Data[$"Outbox message {message.Id} not given back"] = giveBackFailure.Message;
+                deliveryFailure.Data[$"Outbox message {message.Id} not given back"] = giveBackFailure.Message;
             }
         }
     }

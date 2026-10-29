@@ -75,12 +75,20 @@ public sealed partial class AudienceDirectoryFlowTests
         using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ImportStatusSave());
         using HttpResponseMessage deleted = await api.Client.DeleteAsync($"/api/forms/{upload.FormId}", api.CancellationToken);
         var delivering = fixture.BackgroundWork.DeliverOutboxOnceAsync(api.CancellationToken);
-        await held.Reached.WaitAsync(ImportWait, api.CancellationToken);
+        try
+        {
+            await held.Reached.WaitAsync(ImportWait, api.CancellationToken);
 
-        // Act
-        await SweepAllTenantsAsync(world.Services);
-        held.Release();
-        await delivering.WaitAsync(ImportWait, api.CancellationToken);
+            // Act
+            await SweepAllTenantsAsync(world.Services);
+        }
+        finally
+        {
+            // A delivery the test leaves running would still be in the cleanup's transaction at the next reset.
+            held.Release();
+            await delivering.WaitAsync(ImportWait, api.CancellationToken);
+        }
+
         var cleanedUp = (await FormAudienceLeftAsync(world.Services, upload)).IsEmpty;
 
         // Assert
