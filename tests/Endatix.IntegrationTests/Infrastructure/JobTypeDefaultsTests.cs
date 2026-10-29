@@ -54,7 +54,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runs = new NamedProbeRuns();
         await using var host = HostWithoutJobSettings(database, services => ReplaceWebHookHandler(services, runs));
-        await BackgroundWork.Of(host.Services).StartAsync(ct);
+        await BackgroundWork.Of(host.Services).StartJobsAsync(ct);
 
         // Act
         var webhooks = await EnqueueAsync(

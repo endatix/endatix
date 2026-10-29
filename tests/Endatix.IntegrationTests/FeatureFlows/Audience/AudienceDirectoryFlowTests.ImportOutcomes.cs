@@ -74,12 +74,14 @@ public sealed partial class AudienceDirectoryFlowTests
         await AgeImportAsync(world.Services, upload, TimeSpan.FromHours(25));
         using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ImportStatusSave());
         using HttpResponseMessage deleted = await api.Client.DeleteAsync($"/api/forms/{upload.FormId}", api.CancellationToken);
+        var delivering = fixture.BackgroundWork.DeliverOutboxOnceAsync(api.CancellationToken);
         await held.Reached.WaitAsync(ImportWait, api.CancellationToken);
 
         // Act
         await SweepAllTenantsAsync(world.Services);
         held.Release();
-        bool cleanedUp = await WaitUntilAsync(async () => (await FormAudienceLeftAsync(world.Services, upload)).IsEmpty);
+        await delivering.WaitAsync(ImportWait, api.CancellationToken);
+        var cleanedUp = (await FormAudienceLeftAsync(world.Services, upload)).IsEmpty;
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);

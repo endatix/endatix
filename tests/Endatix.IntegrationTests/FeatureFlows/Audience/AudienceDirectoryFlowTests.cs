@@ -424,8 +424,8 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
                 });
 
         /// <summary>
-        /// The import <paramref name="started"/> created. One that runs in the background starts the host's background
-        /// work, so its Check and Write jobs run.
+        /// The import <paramref name="started"/> created. One that runs in the background starts the host's jobs
+        /// scheduler, so its Check and Write jobs run; the relay stays off.
         /// </summary>
         public async Task<BulkImport> StartedImportAsync(long formId, HttpResponseMessage started)
         {
@@ -435,7 +435,7 @@ public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHost
             {
                 var background = backgroundWork ?? throw new InvalidOperationException(
                     "Only the shared host's background work may run this import, and this client is not on the shared host.");
-                await background.StartAsync(cancellationToken);
+                await background.StartJobsAsync(cancellationToken);
             }
 
             return new BulkImport(formId, IdOf(view, "importId"));

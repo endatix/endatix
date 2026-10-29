@@ -33,6 +33,18 @@ internal sealed class OutboxRelaySwitch
         }
     }
 
+    /// <summary>Whether no relay tick holds a lease, so none is part-way through a batch.</summary>
+    public bool IsIdle
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _leases == 0;
+            }
+        }
+    }
+
     public void TurnOn()
     {
         lock (_sync)

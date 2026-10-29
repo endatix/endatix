@@ -49,25 +49,33 @@ public sealed class ReportingWebHostTests(EndatixIntegrationWebHostFixture fixtu
     }
 
     [Fact]
-    public async Task Starting_the_shared_hosts_background_work_leaves_the_reporting_hosts_relay_off()
+    public async Task Starting_the_shared_hosts_relay_leaves_the_reporting_hosts_off_and_disposing_it_leaves_the_shared_one_on()
     {
         // Arrange — reset first, so the shared relay meets no message an earlier test left.
         var ct = TestContext.Current.CancellationToken;
-        await using ReportingWebHost host = new(fixture);
         await fixture.PrepareWorldAsync(IntegrationWorldOptions.Empty, ct);
+        fixture.BackgroundWork.StartRelay();
+        bool reportingRelayAskedItsSwitch;
+        bool reportingOpen;
+        bool sharedOpenAlongside;
 
         // Act
-        await fixture.BackgroundWork.StartAsync(ct);
-        var reportingRelayAskedItsSwitch = await RelayAskedAgainAsync(BackgroundWork.Of(host.Services), ct);
-        var reportingOpen = await RelayOpenAsync(host.Services, ct);
-        var sharedOpen = await RelayOpenAsync(fixture.Factory.Services, ct);
+        await using (ReportingWebHost host = new(fixture))
+        {
+            reportingRelayAskedItsSwitch = await RelayAskedAgainAsync(BackgroundWork.Of(host.Services), ct);
+            reportingOpen = await RelayOpenAsync(host.Services, ct);
+            sharedOpenAlongside = await RelayOpenAsync(fixture.Factory.Services, ct);
+        }
+
+        var sharedOpenAfterDispose = await RelayOpenAsync(fixture.Factory.Services, ct);
         await fixture.BackgroundWork.StopAsync(CancellationToken.None);
         var sharedOpenAfterStop = await RelayOpenAsync(fixture.Factory.Services, ct);
 
         // Assert
         reportingRelayAskedItsSwitch.Should().BeTrue("the running relay, not just the container, must ask the host's own switch");
         reportingOpen.Should().BeFalse();
-        sharedOpen.Should().BeTrue();
+        sharedOpenAlongside.Should().BeTrue();
+        sharedOpenAfterDispose.Should().BeTrue("tearing the reporting host down must not switch the shared relay off");
         sharedOpenAfterStop.Should().BeFalse();
     }
 

@@ -25,6 +25,7 @@ internal sealed class JobsSchedulerSwitch(IServiceProvider services)
     /// <summary>Whether a firing may run its job now.</summary>
     public bool IsOn => Volatile.Read(ref _on);
 
+    /// <summary>Drops the triggers whose job rows are gone, then runs the scheduler.</summary>
     public async Task RunAsync(CancellationToken cancellationToken)
     {
         if (await SchedulerAsync() is not { } scheduler)
@@ -37,6 +38,7 @@ internal sealed class JobsSchedulerSwitch(IServiceProvider services)
             scheduler.ListenerManager.AddTriggerListener(new SwitchedOffVeto(this), Matchers.AllTriggers());
         }
 
+        await StaleJobTriggers.DropAsync(scheduler, services, cancellationToken);
         SetOn(true);
         _ranSinceIdle = true;
         await scheduler.Start(cancellationToken);

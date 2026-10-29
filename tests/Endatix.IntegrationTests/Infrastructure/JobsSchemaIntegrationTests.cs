@@ -55,7 +55,7 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
         var beforeStart = scheduler.Status;
 
         // Act
-        await fixture.BackgroundWork.StartAsync(cancellationToken);
+        await fixture.BackgroundWork.StartJobsAsync(cancellationToken);
         var whileOn = scheduler.Status;
         await fixture.BackgroundWork.StopAsync(CancellationToken.None);
         var afterStop = scheduler.Status;
