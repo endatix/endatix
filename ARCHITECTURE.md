@@ -237,11 +237,11 @@ Commercial waitlist (`Endatix.SaaS.Management`) is **not** registered by OSS `Us
 
 **Module options.** `Endatix.Modules.Jobs` is the pattern for a module's configuration surface:
 
-- One section per module, named by the options type itself — `BackgroundJobsOptions.SectionName` (`Endatix:BackgroundJobs`). The type carries the defaults; no doc restates them.
-- The module registers `AddOptions<T>().BindConfiguration(SectionName).ValidateOnStart()` together with an `IValidateOptions<T>` — Jobs adds both when the runner and sweeper are registered — so a value the module cannot run with fails the host at startup rather than at the first tick.
+- One section per module, named by the options type itself — `BackgroundJobsOptions.SectionName` (`Endatix:BackgroundJobs`). The type carries the defaults.
+- The module registers `AddOptions<T>().BindConfiguration(SectionName).ValidateOnStart()` together with an `IValidateOptions<T>` — Jobs adds both in `ConfigureServices` — so a value the module cannot run with fails the host at startup rather than at the first tick.
 - Validation messages name the **full configuration key** (`Endatix:BackgroundJobs:JobTypes:SubmissionExport:BackoffCapSeconds`): that is what an operator searches for in `appsettings.json` or an environment variable.
-- Per-item overrides are a `Dictionary<string, TOverrides>` of nullable properties. Keys match regardless of case, and each unset property falls back to the global value of the same name, one value at a time.
-- Overridable values are read only through the resolver (`BackgroundJobsOptions.ResolvePolicy(jobType)`). Reading the global property directly ignores every override, so the runtime never reads those properties itself.
+- Per-item overrides are a `Dictionary<string, TOverrides>` of nullable properties. Keys match regardless of case, and each unset property falls back, one value at a time, to the global value of the same name when the host set it, then to the default the item declared in code, then to the global default. Anything set in configuration wins over code.
+- Overridable values are read only through the resolver (`JobTypePolicies.For(jobType)` at runtime; it and the options validator both resolve through `JobTypeSettings.Resolve`). Reading the global property directly ignores every override, so the runtime never reads those properties itself.
 
 ---
 
@@ -394,12 +394,12 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 
 ### Classification
 
-| Kind                  | Interface                                                            | Dispatch                                         | Example                                                                                               |
-| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                  | Internal notifications                                                                                |
-| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities` | `submission.completed`, `form.definition.updated`                                                     |
-| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP                              | `form.updated`, `submission.completed`                                                                |
-| Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler                | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
+| Kind                  | Interface                                                            | Dispatch                                                                            | Example                                                                                               |
+| --------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| In-process only       | `DomainEventBase`                                                    | MediatR after save (when wired)                                                     | Internal notifications                                                                                |
+| Durable / integration | `IIntegrationEvent`                                                  | Outbox capture in `AppDbContext.ProcessEntities`                                    | `submission.completed`, `form.definition.updated`                                                     |
+| Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP, or with `DeliverToJobQueue` a job per endpoint                 | `form.updated`, `submission.completed`                                                                |
+| Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler, or with `DeliverToJobQueue` a job per subscriber | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
 
 A module registers each subscriber with `services.AddOutboxWork<TWork>()` (`Endatix.Infrastructure.Features.Outbox`): the handler implements `IOutboxWork<TWork>` (`JobType`, `HandledEventTypes`, `Read`), and the one call registers it inline, as a background job (`OutboxJobHandler`) and as the job's subscription to every event in `HandledEventTypes`, so `Endatix:Outbox:DeliverToJobQueue` can move it to the job queue. The job's stored input is `{"outboxMessageId":N}` under the work's `JobType` literal. The job fails for good, without retry, when the outbox row is gone or unreadable, or when an app-level row's payload names another tenant; anything the work throws is retried. With the switch on, startup fails when an outbox work has no job of its own or lists fewer `EventTypes` than its job subscribes, when any other inline handler's events have no subscription from its assembly that no work owns, or when an inline handler is registered twice; `OutboxWorkCoverageTests` boots every module that way.
 
@@ -490,6 +490,118 @@ Rules:
 - `Update` calls `EnsureStarted()` once (idempotent).
 - Completing with `StartedAt` still null sets `StartedAt = CompletedAt` (duration ≈ 0).
 - Hub completion time and export `DurationSeconds` use `CompletedAt − StartedAt` (Hub falls back to `CreatedAt` only when `startedAt` is absent on older payloads).
+
+---
+
+## Background Jobs
+
+`Endatix.Modules.Jobs` runs work that outlives a request: webhook delivery, Reporting's read-model
+updates, Audience's outbox work, and later exports. It is gated by `Endatix:FeatureFlags:JobsModule`
+and runs on PostgreSQL and on SQL Server, each with its own context and migrations; the provider rules,
+including SQL Server's trigger lock on enqueue, are under [Module registration](#module-registration-oss).
+
+### The row and the queue
+
+Every job has exactly one **row** in `jobs."BackgroundJobs"` and, while it waits to run, one
+**Quartz trigger** in `jobs.qrtz_triggers`, keyed by the job id. Quartz deletes a trigger once it has
+fired for the last time, so a finished job has none, and a job recovered from a dead node runs on a
+recovery trigger of Quartz's own before it gets a job-id trigger back for any retry.
+
+- The **row is the record**: tenant, status, attempts, progress, error, trace and retention. It is
+  what `GET jobs/{jobId}` reads, and the only place a job's state lives.
+- **Quartz.NET 4.2.2, pinned exactly, is the queue**: a clustered store in the same schema decides when and on which
+  node a job runs, and re-runs a dead node's jobs on a survivor. A retry is a trigger the job wrapper
+  stores itself. The trigger carries the job id and, on a re-fire, what it is for: taking the row
+  over, or writing the outcome of an attempt that finished but could not save it.
+- **Enqueue writes both in one transaction**: `BackgroundJobQueue` opens a transaction on the jobs
+  context, inserts the rows, and schedules the triggers through the enlisted scheduler before it
+  commits. Neither exists without the other.
+- Quartz's tables are created only by the `jobs` migrations, from the create script in the Quartz
+  package; Quartz validates them at startup and never changes them. A Quartz upgrade that changes
+  them needs a migration per provider: see
+  [Quartz schema and upgrades](src/Endatix.Modules.Jobs/README.md#quartz-schema-and-upgrades).
+
+```mermaid
+flowchart LR
+    Enqueue["Enqueue / relay fan-out"] -->|"rows + triggers, one transaction"| Store[("jobs schema: BackgroundJobs + qrtz_*")]
+    Store --> Quartz["Quartz: fire, recover"]
+    Quartz --> Wrapper["BackgroundJobExecution: claim"]
+    Wrapper --> Handler["IBackgroundJobHandler"]
+    Handler --> Outcome["Outcome: fenced write to the row"]
+    Outcome -->|"row + retry trigger"| Store
+```
+
+### Claim and outcome
+
+`BackgroundJobExecution` is the only Quartz job class. For each firing it **claims** the row with a
+compare-and-swap from `Pending`/`Retrying` to `Processing` that increments `AttemptCount`; a
+recovered firing re-claims from `Processing`, fenced on the attempt it read. A claim that changes
+nothing ends the firing; a claim that throws re-fires the job, to be claimed again. The handler runs in its own scope, under an `Endatix.Jobs` activity parented
+on the trace captured at enqueue, with one token linked from the runtime ceiling, a watcher that
+re-reads the row and trips when it is `Canceled`, belongs to another (newer) attempt or is gone, and host shutdown. Every outcome write is fenced on the claimed
+attempt:
+
+| Handler | Row | Quartz |
+| ------- | --- | ------ |
+| returns success | `Completed` | done |
+| returns a failure `Result` | `Failed` | done, no retry |
+| returns success or a failure `Result`, but the write fails | `Processing`, then that outcome | a re-fire 5 s later carries the outcome and writes it, fenced on that attempt; the handler is not run again. A stopping host carries nothing: the job is re-run on the next node to check in |
+| throws, attempts left | `Retrying` | a trigger of the job's own runs it again after the backoff |
+| throws, attempts spent | `DeadLettered` | done |
+| row set to `Canceled` | stays `Canceled` | done |
+| host stopped waiting | nothing written | re-run on the next node to check in |
+| node stopped during the last attempt | `DeadLettered` when recovered | done, the handler not run again |
+
+The row alone decides retry or dead-letter: its `AttemptCount` against the job type's `MaxAttempts`,
+as the node running the attempt was started with, not fixed at enqueue, so once the nodes restart a
+change to `MaxAttempts` also applies to jobs already waiting. Enqueue
+triggers carry no Quartz retry policy and the wrapper never throws to Quartz; the next attempt's
+trigger is stored before the row says `Retrying`. The retry trigger is tried once; if it cannot be
+stored, nothing is written and a re-fire that re-claims the row is stored 5 s out instead. Storing
+that re-fire is retried while the scheduler runs, rather than leave the row with nothing to run it:
+indefinitely when the database caused the failure, and 3 times when the scheduler refuses the
+trigger itself, after which the row is dead-lettered so the worker is freed (a re-fire carrying an
+outcome writes that outcome instead). A carried outcome the database keeps refusing while it
+answers is dropped after 3 re-fires and the row re-claimed; an outage is waited out. No exception
+text reaches `ErrorMessage`.
+
+### Isolation per job type
+
+Each job type is its own Quartz **execution group**, capped per node at
+`JobTypes:{JobType}:MaxConcurrency`; groups this node has no handler for are capped at `0`, and the
+thread pool holds every cap at once. Acquisition is narrowed to groups with a free slot, by the
+module's own driver delegate for each provider (`ExecutionGroupFilteringPostgreSqlDelegate`,
+`ExecutionGroupFilteringSqlServerDelegate`), so a webhook storm never takes an export's or
+Reporting's thread, and a node never takes a job type it cannot run — the job waits for a node that
+can.
+
+### The handler contract
+
+Feature handlers derive from `BackgroundJobHandler<TPayload>` over a payload record that declares its
+job type once, as a literal. Return a failure `Result` for a deterministic error, throw only for a
+transient one; scope every query to the job's `TenantId`; honour the token; never hold one
+`DbContext` for the length of a job. Handlers never see a Quartz type.
+
+### The relay delivers to the job queue
+
+With `Endatix:Outbox:DeliverToJobQueue` on, the outbox relay's publisher is
+`JobQueueIntegrationEventPublisher`: it enqueues **one job per subscriber** and returns, so the relay
+does no subscriber work and one failing subscriber can no longer block, re-send or dead-letter
+another. Reporting and Audience register each handler through `AddOutboxWork`, and the startup checks
+that guard the switch are listed with it under [Domain and integration events](#domain-and-integration-events);
+webhooks expand to one job per distinct enabled endpoint URL. The relay pauses rather than claim when
+the switch is on and no job queue is registered.
+
+### Three idempotency guards
+
+| Risk | Guard |
+| ---- | ----- |
+| The same row runs twice (recovery race, a misfire, a job cancelled before it starts) | The claim's compare-and-swap |
+| The same work is enqueued twice (the relay redelivers after a crash between enqueue and marking sent) | `DedupKey` = `{outboxMessageId}:{subscriberKey}` under a unique index |
+| The same delivery reaches an endpoint twice | `X-Endatix-Hook-Id` = the outbox message id |
+
+Details, configuration and operations: `src/Endatix.Modules.Jobs/README.md` and the
+[background processing](docs/endatix-docs/docs/configuration/background-processing.mdx) page.
 
 ---
 
@@ -701,6 +813,7 @@ Overloading `act` so `sub` is the customer would break assume-authz (`act == sub
 | 2026-08 | Tenant public id: keep `Tenant.ShortUrl` as a unique immutable `varchar(8)` column; generate with `IShortUrlGenerator` (CSPRNG, `a-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants).                                                                                                                                                       |
 | 2026-08 | Tenant access: one home `AppUser.TenantId`. Assume-tenant uses JWT `act` and does not write membership. `platform.users.impersonate` stays reserved. Self-reg is opt-in per tenant via opaque public id. Multi-tenant membership is a later Identity table.                                                                                                                                                                                                         |
 | 2026-09 | JWT session is `tid` + optional `act`. Refresh copies that session. `tenant.context.changed` covers assume and exit. Impersonation (`sub` = customer) is a later claim, not a second token service. See [JWT session](#multi-tenancy-platform-tenants).                                                                                                                                                                                                             |
+| 2026-09 | Background jobs run on Quartz.NET 4.2 in the `jobs` schema: the row is the job's record, Quartz is the queue, enqueue writes both in one transaction, and one execution group per job type isolates workloads. The outbox relay delivers to the job queue — one job per subscriber — behind `Endatix:Outbox:DeliverToJobQueue`. See [Background Jobs](#background-jobs). |
 | 2026-09 | Submissions Excel: a native XLSX exporter, not CSV `="id"` wrapping — CSV stays raw interchange. XLSX types a cell from the JSON value only; numeric-looking text (`007`, `NaN`) stays text. See [Module packaging](#module-packaging-contracts-vs-domain) (submission export formats).                                                                                                                                                                             |
 | 2026-10 | Submission export `collectionStatus`: pipe-separated wire codes. When set, it replaces `completionStatus` (`IsComplete`). Reporting filters with `Contains` on the `CollectionStatus` value, not `.Code` (the value converter does not translate member access). Legacy SQL functions return the column and do not apply the filter. |
 | 2026-10 | Background Jobs run on SQL Server as well as PostgreSQL, through the module pattern (`JobsSqlServerDbContext`). On SQL Server, enqueueing takes Quartz's trigger lock (`LockOnInsert` defaults to `true` there, `false` on PostgreSQL); turning it off is an operations change that needs `READ_COMMITTED_SNAPSHOT`, which the scheduler checks before it starts. The acquisition group column is computed in a pinned binary collation, read in the same one, so acquisition never depends on the database's default collation. See the [Jobs README](src/Endatix.Modules.Jobs/README.md). |
