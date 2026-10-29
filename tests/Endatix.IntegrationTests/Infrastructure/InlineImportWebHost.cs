@@ -30,7 +30,15 @@ internal sealed class InlineImportWebHost : IIntegrationTestHostFixture, IAsyncD
                     new InlineImportRunner(provider.GetRequiredService<ImportRun>())))));
 
         // Reading Services starts the host; a failed start would otherwise leave it running.
-        Seed = FailedHostStart.DisposeOnFailure(() => new IntegrationSeedBuilder(_factory.Services), _factory.Dispose);
+        try
+        {
+            Seed = new IntegrationSeedBuilder(_factory.Services);
+        }
+        catch
+        {
+            _factory.Dispose();
+            throw;
+        }
     }
 
     public DatabaseInfrastructureFixture Database { get; }

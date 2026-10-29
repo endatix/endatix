@@ -5,7 +5,9 @@ using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.IntegrationTests;
 
@@ -20,6 +22,11 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
 {
     private const int Pending = 0;
     private const int Sent = 1;
+
+    private static readonly IReadOnlyDictionary<string, string?> OneSecondJobShutdownWait = new Dictionary<string, string?>
+    {
+        ["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "1",
+    };
 
     [Fact]
     public async Task Fan_out_enqueues_one_job_per_subscriber_and_marks_sent()
@@ -39,6 +46,31 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
             reader => (reader.GetString(0), reader.GetInt64(1), reader.IsDBNull(2) ? (long?)null : reader.GetInt64(2)),
             ct);
         jobs.Should().Equal(("77:S1", 5L, (long?)null), ("77:S2", 5L, (long?)null));
+    }
+
+    [Fact]
+    public async Task Host_with_relay_and_scheduler_running_stops_well_within_its_shutdown_timeout()
+    {
+        // Arrange — the start switches the relay and the scheduler on, and a subscriber's job is running that would
+        // hold its slot for a minute. The stop gives it a second, rather than the default as long as the host's
+        // shutdown timeout, before it tells the job to stop.
+        var ct = TestContext.Current.CancellationToken;
+        var runs = new NamedProbeRuns();
+        var setup = JobQueueWith(SlowSubscriber(runs)) with { Settings = OneSecondJobShutdownWait };
+        // Disposed again at the end only so a failure before the timed stop still stops it; a second dispose does nothing.
+        await using var host = await FanOutHost.StartAsync(fixture, setup, ct);
+        var shutdownTimeout = host.Services.GetRequiredService<IOptions<HostOptions>>().Value.ShutdownTimeout;
+        await host.InsertMessageAsync(new OutboxRow(99, "slow.happened", TenantId: 5), ct);
+        var jobRunning = await JobsTestWait.UntilAsync(() => Task.FromResult(runs.Count == 1), TimeSpan.FromSeconds(30), ct);
+
+        // Act — a relay or a job that ignores the stop holds the host until the shutdown timeout.
+        var stopping = Stopwatch.StartNew();
+        var stopFailure = await Record.ExceptionAsync(() => host.DisposeAsync().AsTask());
+
+        // Assert
+        jobRunning.Should().BeTrue("the subscriber's job was running when the host stopped");
+        stopFailure.Should().BeNull();
+        stopping.Elapsed.Should().BeLessThan(shutdownTimeout / 2);
     }
 
     [Fact]
@@ -154,11 +186,7 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
             fixture,
-            JobQueueWith(services =>
-            {
-                services.AddOutboxJobSubscription("slow.happened", message => new SlowPayload(message.Id));
-                services.AddScoped<IBackgroundJobHandler>(_ => new NamedProbeHandler(SlowPayload.JobType, new NamedProbeRuns()));
-            }),
+            JobQueueWith(SlowSubscriber(new NamedProbeRuns())),
             ct);
         var ids = Enumerable.Range(1_000, 50).Select(id => (long)id).ToList();
         foreach (var id in ids)
@@ -183,6 +211,12 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         services.AddOutboxJobSubscription("x.happened", message => new SubscriberS1Payload(message.Id));
         services.AddOutboxJobSubscription("x.happened", message => new SubscriberS2Payload(message.Id));
     }
+
+    private static Action<IServiceCollection> SlowSubscriber(NamedProbeRuns runs) => services =>
+    {
+        services.AddOutboxJobSubscription("slow.happened", message => new SlowPayload(message.Id));
+        services.AddScoped<IBackgroundJobHandler>(_ => new NamedProbeHandler(SlowPayload.JobType, runs));
+    };
 
     private static async Task PublishAsync(FanOutHost host, IOutboxMessage message, CancellationToken ct)
     {
