@@ -141,7 +141,9 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
                     // only publish copies them there, so without this they are found by route but not on disk.
                     builder.UseStaticWebAssets();
                 });
-            Seed = new IntegrationSeedBuilder(_factory.Services);
+
+            // Reading Services starts the host; a failed start would otherwise leave it running.
+            Seed = FailedHostStart.DisposeOnFailure(() => new IntegrationSeedBuilder(_factory.Services), _factory.Dispose);
         }
 
         public DatabaseInfrastructureFixture Database { get; }

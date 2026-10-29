@@ -123,8 +123,13 @@ public sealed partial class BackgroundWorkTests
             .WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
                 services.Replace(ServiceDescriptor.Scoped<IOutboxClaimStore>(provider => new MarkFailingClaimStore(
                     ActivatorUtilities.CreateInstance<SqlOutboxClaimStore>(provider), failures)))));
-        _ = host.Services;
-        return host;
+        return FailedHostStart.DisposeOnFailure(
+            () =>
+            {
+                _ = host.Services;
+                return host;
+            },
+            host.Dispose);
     }
 
     private const string LostConnection = "The connection was lost.";

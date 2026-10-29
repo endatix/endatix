@@ -27,15 +27,7 @@ internal sealed class ReportingWebHost : IIntegrationTestHostFixture, IAsyncDisp
 
         // Reading Services starts the host; a failed start would otherwise leave it running, since the caller never
         // gets an instance to dispose.
-        try
-        {
-            Seed = new IntegrationSeedBuilder(_factory.Services);
-        }
-        catch
-        {
-            _factory.Dispose();
-            throw;
-        }
+        Seed = FailedHostStart.DisposeOnFailure(() => new IntegrationSeedBuilder(_factory.Services), _factory.Dispose);
     }
 
     public DatabaseInfrastructureFixture Database { get; }
