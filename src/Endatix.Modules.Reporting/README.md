@@ -219,12 +219,13 @@ Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, a
 | SQL Server realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
 
 64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
-is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (305–567 ms once the copies were
-rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range included (3 deep contains:
-805 → 861 ms), so the date shape check is within run-to-run noise. Each p95 is taken over 7 runs per scenario after
-2 warm-ups, so it is the slowest of the 7, and the two runs spread 777–861 ms: the 805 ms miss is inside that spread.
-The harness calls the search in process against one Testcontainer, without HTTP. Measure again before raising the key
-cap or adding work to the grid query.
+is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (567 ms at `bc271d63` and 305 ms at
+`2beee763` once the copies were rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range
+included (3 deep contains: 805 → 861 ms), so the date shape check is within run-to-run noise. Each p95 is taken over 7
+runs per scenario after 2 warm-ups, so it is the slowest of the 7, and the two runs spread 777–861 ms: the 805 ms miss
+is inside that spread. The harness calls the search in process against one Testcontainer, without HTTP. The form-exists
+read (one indexed `Forms` row per answer-filter request) was added after these runs, so it is not in the numbers;
+endatix#1451 re-measures. Measure again before raising the key cap or adding work to the grid query.
 
 ## Registration
 
