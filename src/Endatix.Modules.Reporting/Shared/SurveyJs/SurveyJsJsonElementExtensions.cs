@@ -46,9 +46,9 @@ internal static class SurveyJsJsonElementExtensions
     public static bool IsDateInputType(this JsonElement element)
     {
         var inputType = element.GetStringProperty(SurveyJsPropertyNames.InputType);
-        return string.Equals(inputType, "date", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(inputType, "datetime", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(inputType, "datetime-local", StringComparison.OrdinalIgnoreCase);
+        return string.Equals(inputType, SurveyJsPropertyNames.InputTypeDate, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(inputType, SurveyJsPropertyNames.InputTypeDateTime, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(inputType, SurveyJsPropertyNames.InputTypeDateTimeLocal, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
