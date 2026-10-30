@@ -23,6 +23,7 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Features.SubmissionViews;
 using Endatix.Modules.Reporting.Persistence;
@@ -56,7 +57,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         AddPersistence(builder);
         AddRepositories(builder.Services);
         AddExports(builder.Services);
-        builder.Services.AddSingleton<FormSchemaCompiler>();
+        AddFormSchemaCompiler(builder.Services);
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
         builder.Services.AddScoped<FormSchemaCoverage>();
         builder.Services.AddScoped<IFormSchemaProvider, FormSchemaProvider>();
@@ -75,6 +76,15 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
         services.AddScoped<ISubmissionViewRepository, SubmissionViewRepository>();
         services.AddScoped<SubmissionViewReader>();
+    }
+
+    // The configured submitter profile fields; the flatten appends their columns, and copies only those fields.
+    private static void AddFormSchemaCompiler(IServiceCollection services)
+    {
+        services.AddSingleton(sp =>
+            SubmitterProfileFields.From(sp.GetRequiredService<IOptions<ReportingOptions>>().Value));
+        services.AddSingleton(sp =>
+            new FormSchemaCompiler(submitterProfileFields: sp.GetRequiredService<SubmitterProfileFields>()));
     }
 
     private static void AddExports(IServiceCollection services)
