@@ -103,10 +103,51 @@ public sealed class ListSubmissionGridColumnsTests
         result.Value.Readiness.Should().Be(new SubmissionGridReadiness(
             Submissions: 10,
             CompletedSubmissions: 7,
+            InProgress: 3,
             Prepared: 4,
             Pending: 2,
             Failed: 2,
             SkippedInProgress: 3));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_IncompleteSubmissionsWithoutRows_CountsThemInProgress()
+    {
+        // Arrange
+        GivenForm(SampleData.TENANT_ID);
+        _submissionsRepository.CountAsync(Arg.Any<ISpecification<Submission>>(), Arg.Any<CancellationToken>())
+            .Returns(15, 10);
+        _flattenedSubmissionRepository
+            .CountByStatusAsync(SampleData.TENANT_ID, FormId, Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, int>());
+
+        // Act
+        var result = await _sut.ExecuteAsync(Query(), CancellationToken.None);
+
+        // Assert
+        result.Value.Readiness.InProgress.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_NotProcessedRows_CountAsPending()
+    {
+        // Arrange
+        GivenForm(SampleData.TENANT_ID);
+        _submissionsRepository.CountAsync(Arg.Any<ISpecification<Submission>>(), Arg.Any<CancellationToken>())
+            .Returns(3, 3);
+        _flattenedSubmissionRepository
+            .CountByStatusAsync(SampleData.TENANT_ID, FormId, Arg.Any<CancellationToken>())
+            .Returns(new Dictionary<string, int>
+            {
+                [SubmissionIntegrationStatusCodes.NotProcessed] = 2,
+                [SubmissionIntegrationStatusCodes.Pending] = 1,
+            });
+
+        // Act
+        var result = await _sut.ExecuteAsync(Query(), CancellationToken.None);
+
+        // Assert
+        result.Value.Readiness.Pending.Should().Be(3);
     }
 
     [Fact]

@@ -565,5 +565,6 @@ For questions, issues, or contributions, you can reach out through the following
 - **Email**: Drop us a line at  [info@endatix.com](mailto:info@endatix.com) to directly contact our team if you prefer.
 - **Endatix Website**: https://endatix.com
 - **Official Documentation**: https://docs.endatix.com
+- **Contributing**: how to name branches and pull requests is in [CONTRIBUTING.md](CONTRIBUTING.md)
 
 We recommend using GitHub Issues for public inquiries, bug reports, and feature requests, as it allows others to see and participate in the discussion. Email can be used for more private or specific queries.

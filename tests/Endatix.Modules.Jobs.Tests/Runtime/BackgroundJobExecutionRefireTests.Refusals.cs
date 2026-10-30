@@ -97,7 +97,10 @@ public sealed partial class BackgroundJobExecutionRefireTests
 
         // Act
         var executing = execution.Execute(context, TestContext.Current.CancellationToken).AsTask();
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        await UntilAsync(
+            () => (ScheduleJobCalls(context.Scheduler) > 1 + RefusedRefire.MaxRefusals && DeadLetterTries(repository) > 1)
+                || executing.IsCompleted,
+            Patience);
         var openUntilSignal = !executing.IsCompleted;
         provider.GetRequiredService<JobsShutdownSignal>().Raise();
         await executing.WaitAsync(Patience, TestContext.Current.CancellationToken);
@@ -105,10 +108,12 @@ public sealed partial class BackgroundJobExecutionRefireTests
         // Assert — the trigger and the dead-letter were both tried past the limit, as a store that is down would be.
         openUntilSignal.Should().BeTrue();
         ScheduleJobCalls(context.Scheduler).Should().BeGreaterThan(1 + RefusedRefire.MaxRefusals);
-        repository.ReceivedCalls()
-            .Count(call => call.GetMethodInfo().Name == nameof(IBackgroundJobStateRepository.TryDeadLetterAsync))
-            .Should().BeGreaterThan(1);
+        DeadLetterTries(repository).Should().BeGreaterThan(1);
     }
+
+    private static int DeadLetterTries(IBackgroundJobStateRepository repository) =>
+        repository.ReceivedCalls()
+            .Count(call => call.GetMethodInfo().Name == nameof(IBackgroundJobStateRepository.TryDeadLetterAsync));
 
     [Fact]
     public async Task Execute_RefireRejectedBecauseDurableJobIsMissing_StoresTheJobAgainThenTheRefire()

@@ -227,7 +227,7 @@ public sealed class SubmissionXlsxExporterTests
         Assert.True(result.IsSuccess);
         using var stream = new MemoryStream(await ReadAllBytes(pipe.Reader));
         using var document = SpreadsheetDocument.Open(stream, false);
-        var sheetData = document.WorkbookPart!.WorksheetParts.First().Worksheet.Elements<SheetData>().First();
+        var sheetData = document.WorkbookPart!.WorksheetParts.First().Worksheet!.Elements<SheetData>().First();
         Assert.Empty(sheetData.Elements<Row>());
     }
 
@@ -260,7 +260,7 @@ public sealed class SubmissionXlsxExporterTests
 
     private static Dictionary<string, CellSnapshot> ReadFirstDataRow(SpreadsheetDocument document)
     {
-        var sheetData = document.WorkbookPart!.WorksheetParts.First().Worksheet.Elements<SheetData>().First();
+        var sheetData = document.WorkbookPart!.WorksheetParts.First().Worksheet!.Elements<SheetData>().First();
         var rows = sheetData.Elements<Row>().ToList();
         Assert.True(rows.Count >= 2);
 

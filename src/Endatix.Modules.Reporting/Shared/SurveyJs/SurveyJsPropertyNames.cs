@@ -26,6 +26,9 @@ internal static class SurveyJsPropertyNames
     public const string CalculatedValues = "calculatedValues";
     public const string IncludeIntoResult = "includeIntoResult";
     public const string InputType = "inputType";
+    public const string InputTypeDate = "date";
+    public const string InputTypeDateTime = "datetime";
+    public const string InputTypeDateTimeLocal = "datetime-local";
     public const string ShowOtherItem = "showOtherItem";
     public const string OtherText = "otherText";
     public const string LabelTrue = "labelTrue";

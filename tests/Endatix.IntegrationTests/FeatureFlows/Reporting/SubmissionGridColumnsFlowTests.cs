@@ -24,7 +24,7 @@ public sealed class SubmissionGridColumnsFlowTests(EndatixIntegrationWebHostFixt
           "pages": [
             {
               "name": "contact",
-              "title": "Contact details",
+              "title": { "default": "Contact details", "es": "Datos de contacto" },
               "elements": [
                 { "type": "text", "name": "visitDate", "inputType": "date", "title": { "default": "Visit date", "es": "Fecha de visita" } },
                 {
@@ -79,7 +79,9 @@ public sealed class SubmissionGridColumnsFlowTests(EndatixIntegrationWebHostFixt
         using var columns = await GetColumnsAsync(client, $"/api/forms/{formId}/reporting/columns?locale=es", ct);
 
         // Assert
-        Column(columns.RootElement, "visitDate").GetProperty("title").GetString().Should().Be("Fecha de visita");
+        var visitDate = Column(columns.RootElement, "visitDate");
+        visitDate.GetProperty("title").GetString().Should().Be("Fecha de visita");
+        visitDate.GetProperty("pageTitle").GetString().Should().Be("Datos de contacto");
     }
 
     [Fact]

@@ -54,10 +54,10 @@ public class BackgroundJobQueueTests : IDisposable
         var request = Request();
 
         // Act
-        var jobId = await _queue.EnqueueAsync(request);
+        var jobId = await _queue.EnqueueAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var job = await _dbContext.BackgroundJobs.SingleAsync();
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
         job.Id.Should().Be(jobId).And.NotBe(0);
         job.Status.Should().Be(JobStatus.Pending);
         job.JobType.Should().Be("SubmissionExport");
@@ -75,10 +75,10 @@ public class BackgroundJobQueueTests : IDisposable
         var request = Request("WebHookDelivery");
 
         // Act
-        await _queue.EnqueueAsync(request);
+        await _queue.EnqueueAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var job = await _dbContext.BackgroundJobs.SingleAsync();
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
         job.CreatedByUserId.Should().BeNull();
     }
 
@@ -92,10 +92,10 @@ public class BackgroundJobQueueTests : IDisposable
         activity.Id.Should().NotBeNullOrEmpty();
 
         // Act
-        await _queue.EnqueueAsync(Request());
+        await _queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
 
         // Assert
-        var job = await _dbContext.BackgroundJobs.SingleAsync();
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
         job.TraceId.Should().Be(activity.Id);
     }
 
@@ -106,10 +106,10 @@ public class BackgroundJobQueueTests : IDisposable
         Activity.Current.Should().BeNull();
 
         // Act
-        await _queue.EnqueueAsync(Request());
+        await _queue.EnqueueAsync(Request(), TestContext.Current.CancellationToken);
 
         // Assert
-        var job = await _dbContext.BackgroundJobs.SingleAsync();
+        var job = await _dbContext.BackgroundJobs.SingleAsync(TestContext.Current.CancellationToken);
         job.TraceId.Should().BeNull();
     }
 
@@ -125,11 +125,11 @@ public class BackgroundJobQueueTests : IDisposable
         };
 
         // Act
-        var jobIds = await _queue.EnqueueManyAsync(requests);
+        var jobIds = await _queue.EnqueueManyAsync(requests, TestContext.Current.CancellationToken);
 
         // Assert
         jobIds.Should().HaveCount(3).And.OnlyHaveUniqueItems();
-        var jobs = await _dbContext.BackgroundJobs.OrderBy(job => job.Id).ToListAsync();
+        var jobs = await _dbContext.BackgroundJobs.OrderBy(job => job.Id).ToListAsync(TestContext.Current.CancellationToken);
         jobs.Select(job => job.Id).Should().BeEquivalentTo(jobIds, options => options.WithStrictOrdering());
         jobs.Select(job => job.PayloadJson)
             .Should().BeEquivalentTo(requests.Select(request => request.PayloadJson));
@@ -144,12 +144,12 @@ public class BackgroundJobQueueTests : IDisposable
             .ToArray();
 
         // Act
-        await _queue.EnqueueManyAsync(requests);
+        await _queue.EnqueueManyAsync(requests, TestContext.Current.CancellationToken);
 
         // Assert — a fan-out that partially committed would deliver to some endpoints and silently
         // drop the rest, so the batch must be one round trip.
         _dbContext.SaveChangesCallCount.Should().Be(1);
-        (await _dbContext.BackgroundJobs.CountAsync()).Should().Be(5);
+        (await _dbContext.BackgroundJobs.CountAsync(TestContext.Current.CancellationToken)).Should().Be(5);
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public class BackgroundJobQueueTests : IDisposable
     {
         // Arrange
         // Act
-        var jobIds = await _queue.EnqueueManyAsync([]);
+        var jobIds = await _queue.EnqueueManyAsync([], TestContext.Current.CancellationToken);
 
         // Assert — an event with no configured endpoints must not cost a round trip.
         jobIds.Should().BeEmpty();
@@ -200,7 +200,7 @@ public class BackgroundJobQueueTests : IDisposable
     {
         // Arrange — refused before the transaction opens, so it never holds a second connection while one is open.
         _triggerScheduler
-            .PrepareAsync(default)
+            .PrepareAsync(Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(Task.FromException(new InvalidOperationException("Refused.")));
 
         // Act
@@ -208,7 +208,7 @@ public class BackgroundJobQueueTests : IDisposable
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>();
-        await _triggerScheduler.DidNotReceiveWithAnyArgs().ScheduleAndCommitAsync(default!, default!, default);
+        await _triggerScheduler.DidNotReceiveWithAnyArgs().ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>());
         (await _dbContext.BackgroundJobs.CountAsync(TestContext.Current.CancellationToken)).Should().Be(0);
     }
 
@@ -217,7 +217,7 @@ public class BackgroundJobQueueTests : IDisposable
     {
         // Arrange
         _triggerScheduler
-            .ScheduleAndCommitAsync(default!, default!, default)
+            .ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>())
             .ReturnsForAnyArgs(Task.FromException(new InvalidOperationException("Scheduling failed.")));
         var metrics = Substitute.For<IJobMetrics>();
         var queue = QueueWith(_dbContext, metrics);

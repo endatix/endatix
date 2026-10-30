@@ -452,9 +452,9 @@ public class EndpointsCorsConfiguratorTests
     /// <returns>The arranged instances to perform the tests upon</returns>
     private EndpointsCorsConfigurator CreateCorsConfigurator(
         IOptions<CorsSettings>? corsSettingsStub = null,
-        ILogger<EndpointsCorsConfigurator> loggerStub = null,
-        IAppEnvironment appEnvironmentStub = null,
-        IWildcardSearcher wildcardSearcherStub = null)
+        ILogger<EndpointsCorsConfigurator>? loggerStub = null,
+        IAppEnvironment? appEnvironmentStub = null,
+        IWildcardSearcher? wildcardSearcherStub = null)
     {
         var corsSettings = corsSettingsStub ?? _corsSettings;
         var logger = loggerStub ?? _logger;

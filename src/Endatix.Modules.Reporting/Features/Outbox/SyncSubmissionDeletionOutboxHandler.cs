@@ -13,16 +13,18 @@ namespace Endatix.Modules.Reporting.Features.Outbox;
 internal sealed class SyncSubmissionDeletionOutboxHandler(
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     IReportingUnitOfWork unitOfWork,
-    ILogger<SyncSubmissionDeletionOutboxHandler> logger) : IOutboxIntegrationEventHandler
+    ILogger<SyncSubmissionDeletionOutboxHandler> logger) : IOutboxWork<SyncSubmissionDeletionOutboxHandler>
 {
-    public static readonly IReadOnlyCollection<string> HandledEventTypes = [SubmissionDeletedEvent.EventTypeName];
+    public static string JobType => "ReportingSyncSubmissionDeletion";
+
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } = [SubmissionDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), message.Id, cancellationToken);
+    public OutboxWork Read(IOutboxMessage message)
+    {
+        var input = Parse(message);
+        return OutboxWork.For(cancellationToken => ProcessAsync(input, message.Id, cancellationToken));
+    }
 
     /// <summary>Reads the work from the message; throws <see cref="InvalidOperationException"/> when it cannot.</summary>
     public static Input Parse(IOutboxMessage message)

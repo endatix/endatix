@@ -23,8 +23,24 @@ public sealed class OutboxJobSubscription
     /// <summary>The job type each of its jobs runs as.</summary>
     public string JobType { get; internal init; } = string.Empty;
 
-    /// <summary>The assembly that owns the work — the payload's.</summary>
+    /// <summary>The assembly that owns the work, or the payload's when no work owns the subscription.</summary>
     public Assembly SourceAssembly { get; internal init; } = null!;
+
+    /// <summary>The outbox work whose job this is, when the work registered it; otherwise none.</summary>
+    internal Type? WorkType { get; init; }
+
+    /// <summary>
+    /// Whether this subscription does <paramref name="handler"/>'s work as a job: an outbox work needs its own job,
+    /// any other handler one registered from its assembly that no work owns.
+    /// </summary>
+    internal bool Covers(IOutboxIntegrationEventHandler handler) =>
+        IsOutboxWork(handler)
+            ? WorkType == handler.GetType()
+            : WorkType is null && SourceAssembly == handler.GetType().Assembly;
+
+    internal static bool IsOutboxWork(IOutboxIntegrationEventHandler handler) =>
+        handler.GetType().GetInterfaces().Any(candidate =>
+            candidate.IsGenericType && candidate.GetGenericTypeDefinition() == typeof(IOutboxWork<>));
 
     /// <summary>Reads the tenant from an app-level message; <see langword="null"/> takes the message's own.</summary>
     internal Func<IOutboxMessage, long>? TenantResolver { private get; init; }
@@ -76,11 +92,13 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
     /// </summary>
     public void Validate(IEnumerable<IOutboxIntegrationEventHandler> inlineHandlers)
     {
-        foreach (var handler in inlineHandlers)
+        var handlers = inlineHandlers.ToList();
+        ThrowIfRegisteredTwice(handlers);
+        foreach (var handler in handlers)
         {
-            var handlerAssembly = handler.GetType().Assembly;
+            ThrowIfJobRunsOnOtherEvents(handler);
             var eventType = handler.EventTypes.FirstOrDefault(type =>
-                !_byEventType[type].Any(subscription => subscription.SourceAssembly == handlerAssembly));
+                !_byEventType[type].Any(subscription => subscription.Covers(handler)));
             if (eventType is not null)
             {
                 throw new InvalidOperationException(
@@ -88,6 +106,31 @@ public sealed class OutboxSubscriptions(IEnumerable<OutboxJobSubscription> subsc
                     $"no job subscription for it, so with Endatix:Outbox:DeliverToJobQueue on that work would be " +
                     $"marked sent and never done. Register the subscription or turn the switch off.");
             }
+        }
+    }
+
+    // However it was registered, an inline handler type that resolves twice runs every message twice.
+    private static void ThrowIfRegisteredTwice(List<IOutboxIntegrationEventHandler> handlers)
+    {
+        var twice = handlers.GroupBy(handler => handler.GetType()).FirstOrDefault(group => group.Count() > 1);
+        if (twice is not null)
+        {
+            throw new InvalidOperationException(
+                $"The outbox handler {twice.Key.FullName} is registered {twice.Count()} times, so it would run every " +
+                $"message that often inline. Register it once.");
+        }
+    }
+
+    // A work's job subscribes HandledEventTypes, its inline handler runs on EventTypes: they must be the same events.
+    private void ThrowIfJobRunsOnOtherEvents(IOutboxIntegrationEventHandler handler)
+    {
+        var extra = _byEventType.SelectMany(group => group).FirstOrDefault(subscription =>
+            subscription.WorkType == handler.GetType() && !handler.EventTypes.Contains(subscription.EventType));
+        if (extra is not null)
+        {
+            throw new InvalidOperationException(
+                $"The outbox work {handler.GetType().FullName} runs its job on '{extra.EventType}', which its EventTypes " +
+                $"do not list, so inline and job delivery would do different work. Make EventTypes return HandledEventTypes.");
         }
     }
 }

@@ -13,13 +13,15 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
-/// Adds a person to a form's audience (creates the tenant member when needed).
+/// Adds a person to a form's audience (creates the tenant member when needed). <see cref="IsTest"/> adds
+/// a test person, who is never issued a personalised link.
 /// </summary>
 public sealed record CreatePersonCommand(
     long TenantId,
     long FormId,
     string Identifier,
-    IReadOnlyDictionary<long, string>? Values = null) : ICommand<Result<PersonDto>>;
+    IReadOnlyDictionary<long, string>? Values = null,
+    bool IsTest = false) : ICommand<Result<PersonDto>>;
 
 internal sealed class CreatePersonHandler(
     IAudienceDbContext db,
@@ -33,13 +35,18 @@ internal sealed class CreatePersonHandler(
         CreatePersonCommand request,
         CancellationToken cancellationToken)
     {
-        Result gate = await GateAsync(request, cancellationToken);
+        Result<MatchKey?> gate = await GateAsync(request, cancellationToken);
         if (!gate.IsSuccess)
         {
             return gate.ToErrorResult<PersonDto>();
         }
 
-        return await CreateWithRetryAsync(request, cancellationToken);
+        MatchKey? matchKey = gate.Value;
+        Result<PersonDto> created = await CreateWithRetryAsync(
+            request with { Values = request.Values is null ? null : MatchKeyProperty.Stored(request.Values, matchKey) },
+            cancellationToken);
+        return created.Map(person =>
+            person with { Values = MatchKeyProperty.Shown(person.Values, matchKey, person.Identifier) });
     }
 
     /// <summary>
@@ -129,20 +136,39 @@ internal sealed class CreatePersonHandler(
     private static Result<PersonDto> AlreadyOnForm() =>
         Result.Conflict("This person is already on this form's audience.");
 
-    private async Task<Result> GateAsync(
+    /// <summary>The form, then its match-key Property (<see cref="MatchKeyAsync"/>), then the values.</summary>
+    private async Task<Result<MatchKey?>> GateAsync(
         CreatePersonCommand request,
         CancellationToken cancellationToken)
     {
         Result formGate = await TenantFormGate.EnsureAsync(
             new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
-        if (!formGate.IsSuccess)
+        Result<MatchKey?> matchKey = formGate.IsSuccess
+            ? await MatchKeyAsync(request, cancellationToken)
+            : formGate.ToErrorResult<MatchKey?>();
+        if (!matchKey.IsSuccess)
         {
-            return formGate;
+            return matchKey;
         }
 
-        return await PropertyValuesWriter.ValidateAsync(
+        Result values = await PropertyValuesWriter.ValidateAsync(
             new PropertyValuesCheck(db, request.FormId, request.Values),
             cancellationToken);
+        return values.IsSuccess ? matchKey : values.ToErrorResult<MatchKey?>();
+    }
+
+    /// <summary>
+    /// The form's match-key Property; a value for it other than the identifier is refused
+    /// (<see cref="MatchKeyProperty.WriteError"/>), and the identifier is not stored.
+    /// </summary>
+    private async Task<Result<MatchKey?>> MatchKeyAsync(CreatePersonCommand request, CancellationToken cancellationToken)
+    {
+        MatchKey? matchKey = await MatchKeyProperty.FindAsync(
+            db, new(request.TenantId, request.FormId), cancellationToken);
+        IReadOnlyDictionary<long, string> values = request.Values ?? new Dictionary<long, string>();
+        return MatchKeyProperty.WriteError(values, matchKey, request.Identifier) is { } error
+            ? Result.Invalid(new ValidationError(error))
+            : Result.Success(matchKey);
     }
 
     /// <summary>
@@ -155,13 +181,16 @@ internal sealed class CreatePersonHandler(
         Member member,
         CancellationToken cancellationToken)
     {
-        Membership membership = new(request.TenantId, request.FormId, member.Id);
+        Membership membership = new(
+            new MembershipCreateArgs(request.TenantId, request.FormId, member.Id, request.IsTest));
         db.Memberships.Add(membership);
 
         IReadOnlyDictionary<long, string> values = request.Values ?? new Dictionary<long, string>();
-        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, request.TenantId, membership.Id, values));
+        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, membership, values));
         await db.SaveChangesAsync(cancellationToken);
-        return new PersonDto(membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values));
+        return new PersonDto(
+            membership.Id, member.Id, member.Identifier, PropertyValuesWriter.Stored(values), membership.IsTest,
+            LinkStatusDto.None);
     }
 
     private async Task<Member> FindOrAddMemberAsync(

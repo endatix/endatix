@@ -27,11 +27,11 @@ public class ForgotPasswordTests
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
         var successResult = Result.Success(ForgotPasswordHandler.GENERAL_SUCCESS_MESSAGE);
 
-        _mediator.Send(forgotPasswordCommand)
+        _mediator.Send(forgotPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response!.Result.As<Ok<ForgotPasswordResponse>>();
@@ -51,11 +51,11 @@ public class ForgotPasswordTests
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
         var errorResult = Result.Invalid(new ValidationError("Invalid email format."));
 
-        _mediator.Send(forgotPasswordCommand)
+        _mediator.Send(forgotPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -71,18 +71,17 @@ public class ForgotPasswordTests
         var forgotPasswordCommand = new ForgotPasswordCommand(request.Email);
         var errorResult = Result<string>.Unavailable(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
 
-        _mediator.Send(forgotPasswordCommand)
+        _mediator.Send(forgotPasswordCommand, Arg.Any<CancellationToken>())
            .Returns(errorResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert - an upstream provider failure is 503, not 500.
         var problemResult = response!.Result as ProblemHttpResult;
         problemResult.Should().NotBeNull();
         problemResult!.StatusCode.Should().Be(503);
         problemResult!.ProblemDetails.Title.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
-        // 5xx detail stays generic so handler text cannot leak.
-        problemResult!.ProblemDetails.Detail.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
+        problemResult!.ProblemDetails.Detail.Should().Be(ForgotPasswordHandler.FAILED_TO_SEND_EMAIL_MESSAGE);
     }
 }

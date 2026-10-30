@@ -53,7 +53,7 @@ public class AudienceSqlServerDbContextTests
 
         // Assert
         CheckConstraintsOf(model).Should().BeEquivalentTo(
-            "CK_Imports_TenantId", "CK_Links_TenantId", "CK_Members_TenantId", "CK_Memberships_TenantId",
+            "CK_Imports_TenantId", "CK_ImportChunks_TenantId", "CK_ImportRejections_TenantId", "CK_Links_TenantId", "CK_Members_TenantId", "CK_Memberships_TenantId",
             "CK_Properties_TenantId", "CK_PropertyValues_TenantId", "CK_Settings_TenantId");
         model.GetEntityTypes().SelectMany(type => type.GetCheckConstraints())
             .Should().OnlyContain(constraint => constraint.Sql == "[TenantId] > 0");
@@ -66,12 +66,39 @@ public class AudienceSqlServerDbContextTests
             new IndexShape("IX_Memberships_Member", "TenantId,FormId,MemberId", true),
             new IndexShape("IX_Properties_Form", "TenantId,FormId", false),
             new IndexShape("IX_Properties_VariableName", "TenantId,FormId,VariableName", true),
-            new IndexShape("IX_PropertyValues_Cell", "TenantId,MembershipId,PropertyId", true),
-            new IndexShape("IX_PropertyValues_Property", "TenantId,PropertyId", false),
+            new IndexShape("IX_PropertyValues_Cell", "TenantId,MembershipId,IsTest,PropertyId", true),
+            new IndexShape("IX_PropertyValues_Property", "TenantId,PropertyId,IsTest", false),
             new IndexShape("IX_Settings_Tenant", "TenantId", true),
         ]);
         model.FindEntityType(typeof(Property))!.FindProperty(nameof(Property.ChoicesJson))!
             .GetColumnType().Should().Be("json");
+        model.FindEntityType(typeof(AudienceImportChunk))!.FindProperty(nameof(AudienceImportChunk.RowsJson))!
+            .GetColumnType().Should().Be("json");
+        // The one-unfinished-import index keeps only the statuses an import can still leave.
+        model.FindEntityType(typeof(AudienceImport))!.GetIndexes()
+            .Single(index => index.GetDatabaseName() == AudienceImport.UniqueConstraints.OneUnfinishedPerForm)
+            .GetFilter().Should().Be("[Status] IN ('uploading', 'checking', 'checked', 'writing') AND [IsDeleted] = 0");
+    }
+
+    [Fact]
+    public void OnModelCreating_SqlServerContext_TiesACellsTenantAndTestFlagToItsMembership()
+    {
+        // Arrange
+        using var context = CreateContext();
+
+        // Act
+        var foreignKey = context.GetService<IDesignTimeModel>().Model
+            .FindEntityType(typeof(PropertyValue))!
+            .GetForeignKeys()
+            .Single();
+
+        // Assert
+        foreignKey.GetConstraintName().Should().Be("FK_PropertyValues_Membership");
+        foreignKey.Properties.Select(property => property.Name).Should()
+            .Equal(nameof(PropertyValue.TenantId), nameof(PropertyValue.MembershipId), nameof(PropertyValue.IsTest));
+        foreignKey.PrincipalKey.Properties.Select(property => property.Name).Should()
+            .Equal(nameof(Membership.TenantId), nameof(Membership.Id), nameof(Membership.IsTest));
+        foreignKey.DeleteBehavior.Should().Be(DeleteBehavior.NoAction);
     }
 
     [Fact]

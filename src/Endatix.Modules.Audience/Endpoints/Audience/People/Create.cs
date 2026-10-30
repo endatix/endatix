@@ -26,8 +26,8 @@ public sealed class Create(
         Summary(summary =>
         {
             summary.Summary = "Add audience person";
-            summary.Description =
-                "Adds a person to this form. Creates the tenant member when the identifier is new.";
+            summary.Description = "Adds a person to this form, creating the tenant member when the identifier is " +
+                "new. With isTest, adds a test person, who is never issued a personalised link.";
             summary.Responses[201] = "Person added.";
             summary.Responses[400] = "Invalid input.";
             summary.Responses[404] = "Form not found.";
@@ -49,7 +49,8 @@ public sealed class Create(
                 tenantContext.TenantId,
                 request.FormId,
                 request.Identifier ?? string.Empty,
-                request.Values),
+                request.Values,
+                request.IsTest),
             ct);
 
         return TypedResultsBuilder
@@ -82,4 +83,7 @@ public sealed class CreateAudiencePersonRequest
     public string? Identifier { get; init; }
 
     public Dictionary<long, string>? Values { get; init; }
+
+    /// <summary>Adds a test person, who is never issued a personalised link. Set at create only.</summary>
+    public bool IsTest { get; init; }
 }

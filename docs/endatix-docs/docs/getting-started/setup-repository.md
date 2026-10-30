@@ -51,7 +51,7 @@ Cd into the src/Endatix.WebHost folder and open the appsettings.Development.json
 // Rest of the settings...
 ```
 
-:bulb: **Note on Initial User:** Line 6 and 7 are optional and they allow you to configure the credentials for the initial user. Change the email and password to your own credentials. You can remove these lines upon successful app setup and login. Never commit your credentials to the repository.
+:bulb: **Note on Initial User:** Lines 6 and 7 set the credentials of the initial admin, created on the first run when the database has no users. The password is required: without it the API creates no admin and logs an error. Change both to your own, and remove them after the first sign-in. Never commit your credentials to the repository. See [Data Settings](/docs/configuration/settings/data-settings#initialuser-options).
 
 ```json {6,7} showLineNumbers
   "Endatix": {

@@ -36,11 +36,11 @@ public class CreateRoleTests
         _mediator.Send(Arg.Is<CreateRoleCommand>(c =>
             c.Name == request.Name &&
             c.Description == request.Description &&
-            c.Permissions.Count == 2))
+            c.Permissions.Count == 2), Arg.Any<CancellationToken>())
             .Returns(successResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         response.Should().NotBeNull();
@@ -67,11 +67,11 @@ public class CreateRoleTests
             ErrorMessage = "Role 'Admin' already exists for this tenant."
         });
 
-        _mediator.Send(Arg.Is<CreateRoleCommand>(c => c.Name == request.Name))
+        _mediator.Send(Arg.Is<CreateRoleCommand>(c => c.Name == request.Name), Arg.Any<CancellationToken>())
             .Returns(invalidResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -96,11 +96,11 @@ public class CreateRoleTests
             ErrorMessage = "The following permissions do not exist: invalid.permission, another.invalid"
         });
 
-        _mediator.Send(Arg.Is<CreateRoleCommand>(c => c.Name == request.Name))
+        _mediator.Send(Arg.Is<CreateRoleCommand>(c => c.Name == request.Name), Arg.Any<CancellationToken>())
             .Returns(invalidResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response!.Result as ProblemHttpResult;
@@ -122,6 +122,6 @@ public class CreateRoleTests
         // Act & Assert
         // The guard clause in CreateRoleCommand constructor throws before reaching the mediator
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _endpoint.ExecuteAsync(request, default));
+            await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken));
     }
 }

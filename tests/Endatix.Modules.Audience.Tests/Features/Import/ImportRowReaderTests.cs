@@ -154,6 +154,68 @@ public sealed class ImportRowReaderTests
             ["Age"] = age,
         });
 
+    [Fact]
+    public void Start_RepeatInALaterPart_RejectsItAsADuplicate()
+    {
+        // Arrange
+        ImportRowReader.RowSorter reader = ImportRowReader.Start(EmailOnly, EmailKey);
+        reader.ReadPart([Row(2, "ada@example.com")]);
+
+        // Act
+        ImportRows later = reader.ReadPart([Row(1_002, "ADA@example.com"), Row(1_003, "cy@example.com")]);
+
+        // Assert
+        later.Accepted.Select(row => row.RowNumber).Should().Equal(1_003);
+        later.Rejected.Should().ContainSingle()
+            .Which.Should().Be(new ImportRejectionDto(1_002, "Identifier appears more than once in the file."));
+    }
+
+    [Fact]
+    public void Start_RowRejectedInAnEarlierPart_DoesNotClaimItsIdentifier()
+    {
+        // Arrange — a stray quote rejects the first row, so its identifier stays free.
+        ImportRowReader.RowSorter reader = ImportRowReader.Start(EmailOnly, EmailKey);
+        ImportRows first = reader.ReadPart([Row(2, "ada@example.com") with { Malformed = true }]);
+
+        // Act
+        ImportRows later = reader.ReadPart([Row(1_002, "ada@example.com")]);
+
+        // Assert
+        first.Rejected.Should().ContainSingle();
+        later.Accepted.Should().ContainSingle().Which.RowNumber.Should().Be(1_002);
+        later.Rejected.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Read_ChoiceCellThatIsNotATick_RejectsThatRowNamingTheColumn()
+    {
+        // Arrange
+        Property brands = new(new PropertyCreateArgs(
+            1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike"]"""))
+        { Id = 5 };
+        CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest([brands], ["email", "brands__nike"], "email", null));
+        List<CsvDataRow> rows =
+        [
+            ChoiceRow(2, "ada@example.com", "maybe"),
+            ChoiceRow(3, "bob@example.com", "1"),
+        ];
+
+        // Act
+        ImportRows result = ImportRowReader.Read(rows, map, EmailKey);
+
+        // Assert
+        result.Accepted.Should().ContainSingle().Which.RowNumber.Should().Be(3);
+        result.Rejected.Should().ContainSingle().Which.Should().Be(new ImportRejectionDto(
+            2, "'brands__nike' must be 1 or 0 (true/false, yes/no, y/n and x also work), not 'maybe'."));
+    }
+
+    private static CsvDataRow ChoiceRow(int rowNumber, string email, string nike) =>
+        new(rowNumber, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["email"] = email,
+            ["brands__nike"] = nike,
+        });
+
     private static CsvDataRow Row(int rowNumber, string email) =>
         new(rowNumber, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["email"] = email });
 

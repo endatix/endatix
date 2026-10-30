@@ -23,6 +23,9 @@ public sealed class EndatixIntegrationWebHostFixture : IAsyncLifetime, IIntegrat
 
     public IntegrationSeedBuilder Seed { get; private set; } = null!;
 
+    /// <summary>The shared host's outbox relay and jobs scheduler, off until a test starts them.</summary>
+    internal BackgroundWork BackgroundWork => BackgroundWork.Of(Factory.Services);
+
     public HttpClient CreateClient() => Factory.CreateClient();
 
     public async ValueTask InitializeAsync()

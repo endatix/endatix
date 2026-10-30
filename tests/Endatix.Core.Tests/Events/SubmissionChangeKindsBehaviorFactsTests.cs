@@ -25,6 +25,7 @@ public class SubmissionChangeKindsBehaviorFactsTests
         ((int)SubmissionChangeKinds.Metadata).Should().Be(2);
         ((int)SubmissionChangeKinds.Definition).Should().Be(4);
         ((int)SubmissionChangeKinds.Submitter).Should().Be(8);
+        ((int)SubmissionChangeKinds.Test).Should().Be(16);
     }
 
     // ── SubmissionData mask (SD-*) ───────────────────────────────────────────
@@ -41,6 +42,7 @@ public class SubmissionChangeKindsBehaviorFactsTests
     {
         SubmissionChangeKindsMasks.SubmissionData.HasFlag(SubmissionChangeKinds.Metadata).Should().BeFalse();
         SubmissionChangeKindsMasks.SubmissionData.HasFlag(SubmissionChangeKinds.Submitter).Should().BeFalse();
+        SubmissionChangeKindsMasks.SubmissionData.HasFlag(SubmissionChangeKinds.Test).Should().BeFalse();
     }
 
     // ── AffectsSubmissionData (ASD-*) ────────────────────────────────────────
@@ -54,6 +56,7 @@ public class SubmissionChangeKindsBehaviorFactsTests
             { "ASD-04", SubmissionChangeKinds.Answers | SubmissionChangeKinds.Definition, true },
             { "ASD-05", SubmissionChangeKinds.Metadata, false },
             { "ASD-06", SubmissionChangeKinds.Submitter, false },
+            { "ASD-10", SubmissionChangeKinds.Test, false },
             { "ASD-07", SubmissionChangeKinds.Answers | SubmissionChangeKinds.Metadata, true },
             { "ASD-08", SubmissionChangeKinds.Metadata | SubmissionChangeKinds.Submitter, false },
             { "ASD-09", SubmissionChangeKinds.Answers | SubmissionChangeKinds.Metadata | SubmissionChangeKinds.Submitter, true },
@@ -85,6 +88,7 @@ public class SubmissionChangeKindsBehaviorFactsTests
             { "PW-12", "Definition", SubmissionChangeKinds.Definition },
             { "PW-13", "answers,unknown,metadata", SubmissionChangeKinds.Answers | SubmissionChangeKinds.Metadata },
             { "PW-14", "unknown", SubmissionChangeKinds.None },
+            { "PW-15", "test", SubmissionChangeKinds.Test },
         };
 
     [Theory]
@@ -109,6 +113,7 @@ public class SubmissionChangeKindsBehaviorFactsTests
             { "TW-03", SubmissionChangeKinds.Metadata, "metadata" },
             { "TW-04", SubmissionChangeKinds.Definition, "definition" },
             { "TW-05", SubmissionChangeKinds.Submitter, "submitter" },
+            { "TW-09", SubmissionChangeKinds.Test, "test" },
             { "TW-06", SubmissionChangeKinds.Answers | SubmissionChangeKinds.Definition, "answers,definition" },
             { "TW-07", SubmissionChangeKinds.Metadata | SubmissionChangeKinds.Submitter, "metadata,submitter" },
             {

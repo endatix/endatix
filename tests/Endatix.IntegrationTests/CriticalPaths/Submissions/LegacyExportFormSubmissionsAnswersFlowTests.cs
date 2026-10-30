@@ -74,6 +74,7 @@ public sealed class LegacyExportFormSubmissionsAnswersFlowTests
                            long.Parse(formId),
                            sqlFunctionName,
                            pageSize: 100,
+                           includeTestSubmissions: false,
                            cancellationToken))
         {
             rows.Add(row);

@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Net.Sockets;
 using Endatix.Modules.Jobs.Runtime;
 using Endatix.Modules.Jobs.Tests.Shared;
+using Microsoft.Data.SqlClient;
 using Npgsql;
 
 namespace Endatix.Modules.Jobs.Tests.Runtime;
@@ -22,16 +23,20 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(2627)), false }, // unique key violation: the database answered
         { Wrapped(SqlServerExceptions.WithNumbers(1205)), true }, // deadlock victim
         { Wrapped(SqlServerExceptions.WithNumbers(-2)), true }, // client timeout
-        { Wrapped(SqlServerExceptions.WithNumbers(3906)), true }, // read-only after a failover
+        // Read-only, as a secondary after a failover or on purpose, which SQL Server reports alike: dropping an outcome
+        // during a failover would run finished work again, so both are waited out.
+        { Wrapped(ReadOnlyDatabase()), true },
         { Wrapped(SqlServerExceptions.WithNumbers(42108)), true }, // serverless database paused
         { Wrapped(SqlServerExceptions.WithNumbers(3621, 1205)), true }, // the deadlock is not the batch's first error
         { Wrapped(new OtherDriverException(1205)), false }, // another driver's error code is not SQL Server's
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
+        // A database dropped while a node runs fails a job's outcome write loudly, as it always has.
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), false },
         { new InvalidOperationException("Unexpected."), false },
     };
 
     [Theory]
-    [MemberData(nameof(Failures))]
+    [MemberData(nameof(Failures), DisableDiscoveryEnumeration = true)]
     public void IsOutage_DriverFailure_TellsAnOutageFromARefusal(Exception failure, bool expected)
     {
         // Act
@@ -79,7 +84,8 @@ public sealed class DatabaseFailuresTests
         { Wrapped(SqlServerExceptions.WithNumbers(1222)), false }, // a lock wait timed out: contention, not an outage
         { Wrapped(PostgresFailure(PostgresErrorCodes.DeadlockDetected)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.LockNotAvailable)), false },
-        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // the database is missing: waited out
+        // A missing database: only the start waits for one (IsAwayAtStartup); to a running node it is not away.
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
         { Wrapped(PostgresFailure(PostgresErrorCodes.ConnectionFailure)), true },
         { Wrapped(new TimeoutException("The pool is exhausted.")), true },
@@ -88,7 +94,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(ConnectFailures))]
+    [MemberData(nameof(ConnectFailures), DisableDiscoveryEnumeration = true)]
     public void IsUnreachable_ConnectFailure_TellsADatabaseThatIsAwayFromOneThatRefuses(Exception failure, bool expected)
     {
         // Act
@@ -111,7 +117,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(Contention))]
+    [MemberData(nameof(Contention), DisableDiscoveryEnumeration = true)]
     public void IsContention_DriverFailure_TellsALostRaceFromAnOutageOrARefusal(Exception failure, bool expected)
     {
         // Act
@@ -131,7 +137,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(UnavailableDatabases))]
+    [MemberData(nameof(UnavailableDatabases), DisableDiscoveryEnumeration = true)]
     public void IsDatabaseUnavailable_ConnectFailure_TellsADatabaseThatCannotBeOpenedOnEitherProvider(
         Exception failure, bool expected)
     {
@@ -140,6 +146,100 @@ public sealed class DatabaseFailuresTests
 
         // Assert
         unavailable.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> AwayAtStartup() => new()
+    {
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidCatalogName)), true }, // being created or restored
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), true },
+        { Wrapped(ReadOnlyDatabase()), true }, // the start waits for a failover to finish
+        { Wrapped(PostgresFailure(PostgresErrorCodes.ReadOnlySqlTransaction)), true },
+        { Wrapped(new ConnectFailureException(new SocketException((int)SocketError.ConnectionRefused))), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(18456)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.InvalidPassword)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(AwayAtStartup), DisableDiscoveryEnumeration = true)]
+    public void IsAwayAtStartup_ConnectFailure_WaitsForADatabaseThatIsAwayOrNotThereYet(Exception failure, bool expected)
+    {
+        // Act
+        var away = DatabaseFailures.IsAwayAtStartup(failure);
+
+        // Assert
+        away.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> ReadOnlyFailures() => new()
+    {
+        { Wrapped(ReadOnlyDatabase()), true },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.ReadOnlySqlTransaction)), true },
+        { Wrapped(SqlServerExceptions.WithNumbers(4060, 18456)), false },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.AdminShutdown)), false },
+        { Wrapped(new OtherDriverException(3906)), false }, // another driver's error code is not SQL Server's
+    };
+
+    [Theory]
+    [MemberData(nameof(ReadOnlyFailures), DisableDiscoveryEnumeration = true)]
+    public void IsReadOnly_DriverFailure_NamesAWriteToAReadOnlyDatabase(Exception failure, bool expected)
+    {
+        // Act
+        var readOnly = DatabaseFailures.IsReadOnly(failure);
+
+        // Assert
+        readOnly.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> SocketFailures() => new()
+    {
+        { Wrapped(NpgsqlConnectTimeout()), false }, // Npgsql reports its connect timeout with no socket failure
+        { Wrapped(SqlServerRefused()), true },
+        { Wrapped(SqlServerUnroutedHost()), false }, // SqlClient reports a host that never answers with no socket failure
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), false }, // a command timeout on a live connection
+        { Wrapped(new HttpRequestException("The endpoint is down.", new SocketException((int)SocketError.ConnectionRefused))), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(SocketFailures), DisableDiscoveryEnumeration = true)]
+    public void HasSocketFailure_DriverFailure_TellsANetworkFailureFromALockWait(Exception failure, bool expected)
+    {
+        // Act
+        var socket = DatabaseFailures.HasSocketFailure(failure);
+
+        // Assert
+        socket.Should().Be(expected);
+    }
+
+    public static TheoryData<Exception, bool> FailuresToConnect() => new()
+    {
+        { Wrapped(NpgsqlConnectTimeout()), true },
+        {
+            Wrapped(new NpgsqlException("Failed to connect to 127.0.0.1:1", new SocketException((int)SocketError.ConnectionRefused))),
+            true
+        },
+        { Wrapped(SqlServerUnroutedHost()), true },
+        { Wrapped(SqlServerPreLoginTimeout()), true },
+        { Wrapped(SqlServerRefused()), true },
+        // SqlClient's command timeout has the pre-login timeout's shape, but the connection was open: a lock wait.
+        { Wrapped(SqlServerCommandTimeout()), false },
+        // Npgsql's command timeout has the connect timeout's shape, but the connection was open: a lock wait.
+        {
+            Wrapped(new NpgsqlException("Exception while reading from stream", new TimeoutException("Timeout during reading attempt"))),
+            false
+        },
+        { Wrapped(PostgresFailure(PostgresErrorCodes.QueryCanceled)), false },
+        { Wrapped(SqlServerExceptions.WithNumbers(-2)), false },
+    };
+
+    [Theory]
+    [MemberData(nameof(FailuresToConnect), DisableDiscoveryEnumeration = true)]
+    public void FailedToConnect_DriverTimeout_TellsAConnectionThatNeverOpenedFromALockWait(Exception failure, bool expected)
+    {
+        // Act
+        var failedToConnect = DatabaseFailures.FailedToConnect(failure);
+
+        // Assert
+        failedToConnect.Should().Be(expected);
     }
 
     public static TheoryData<Exception, bool> Timeouts() => new()
@@ -152,7 +252,7 @@ public sealed class DatabaseFailuresTests
     };
 
     [Theory]
-    [MemberData(nameof(Timeouts))]
+    [MemberData(nameof(Timeouts), DisableDiscoveryEnumeration = true)]
     public void IsTimeout_DriverFailure_TellsAWaitThatRanOut(Exception failure, bool expected)
     {
         // Act
@@ -179,6 +279,42 @@ public sealed class DatabaseFailuresTests
 
     // EF Core and the scheduler wrap the driver's exception in their own.
     private static InvalidOperationException Wrapped(Exception cause) => new("The write failed.", cause);
+
+    // What SQL Server 2025 answers a write to a database set READ_ONLY, measured with SqlClient 7.0.2.
+    private static SqlException ReadOnlyDatabase() =>
+        SqlServerExceptions.WithMessage("Failed to update database \"jobs\" because the database is read-only.", 3906);
+
+    // What SqlClient 7.0.2 reports, as read from real connections against SQL Server 2025: a host that never
+    // answers, a listener that never answers the pre-login handshake, a refused port, and a command that ran past its
+    // timeout on a live connection.
+    private static SqlException SqlServerUnroutedHost() =>
+        SqlServerExceptions.WithInner(
+            258,
+            new Win32Exception(258, "The connection attempt timed out."),
+            "A network-related or instance-specific error occurred while establishing a connection to SQL Server. (provider: TCP Provider, error: 35 - An internal exception was caught)");
+
+    private static SqlException SqlServerPreLoginTimeout() =>
+        SqlServerExceptions.WithInner(
+            -2,
+            new Win32Exception(258),
+            "Connection Timeout Expired.  The timeout period elapsed while attempting to consume the pre-login handshake acknowledgement.");
+
+    private static SqlException SqlServerRefused() =>
+        SqlServerExceptions.WithInner(
+            0,
+            new SocketException(0),
+            "A network-related or instance-specific error occurred while establishing a connection to SQL Server. (provider: TCP Provider, error: 35 - An internal exception was caught)");
+
+    private static SqlException SqlServerCommandTimeout() =>
+        SqlServerExceptions.WithInner(
+            -2,
+            new Win32Exception(258),
+            "Execution Timeout Expired.  The timeout period elapsed prior to completion of the operation or the server is not responding.");
+
+    // What Npgsql 10 reports when its connect timeout runs out, as read from a real connection to an address that
+    // never answers.
+    private static NpgsqlException NpgsqlConnectTimeout() =>
+        new("Failed to connect to 10.255.255.1:5432", new TimeoutException("Timeout during connection attempt"));
 
     private static PostgresException PostgresFailure(string sqlState) =>
         new("The server refused the command.", "ERROR", "ERROR", sqlState);

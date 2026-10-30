@@ -27,7 +27,7 @@ public sealed class SyncFormDeletionOutboxHandlerTests
     [Fact]
     public void EventTypes_IncludesFormDeleted()
     {
-        CreateSut().EventTypes.Should().Contain(FormDeletedEvent.EventTypeName);
+        SyncFormDeletionOutboxHandler.HandledEventTypes.Should().Contain(FormDeletedEvent.EventTypeName);
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class SyncFormDeletionOutboxHandlerTests
         ReportingOutboxTestHelpers.FakeOutboxMessage message = CreateMessage();
 
         // Act
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Received.InOrder(() =>
@@ -69,7 +69,7 @@ public sealed class SyncFormDeletionOutboxHandlerTests
         ReportingOutboxTestHelpers.FakeOutboxMessage message = CreateMessage();
 
         // Act
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         // Assert
         await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
@@ -89,7 +89,7 @@ public sealed class SyncFormDeletionOutboxHandlerTests
         ReportingOutboxTestHelpers.FakeOutboxMessage message = CreateMessage();
 
         // Act
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("delete failed");
@@ -106,7 +106,7 @@ public sealed class SyncFormDeletionOutboxHandlerTests
             Payload: """{"tenantId":"42","name":"gone"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()

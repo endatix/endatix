@@ -14,6 +14,7 @@ public class PropertyValueRulesTests
     [InlineData(AudienceDataTypeCodes.SingleChoice, "{}")]
     [InlineData(AudienceDataTypeCodes.SingleChoice, """["a","a"]""")]
     [InlineData(AudienceDataTypeCodes.SingleChoice, """["a"," "]""")]
+    [InlineData(AudienceDataTypeCodes.MultipleChoice, """["Sales|EU"]""")]
     public void ChoicesError_ChoiceTypeWithBadChoices_ReturnsMessage(string dataType, string? choicesJson)
     {
         // Act

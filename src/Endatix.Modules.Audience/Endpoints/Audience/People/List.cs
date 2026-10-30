@@ -1,6 +1,7 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Common;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Features.People;
 using Endatix.Modules.Audience.Shared;
@@ -27,13 +28,15 @@ public sealed class List(
         Summary(summary =>
         {
             summary.Summary = "List audience people";
-            summary.Description =
-                "Lists people on this form's audience. Page size is capped at 5,000.";
+            summary.Description = "Lists people on this form's audience, at most 5,000 a page. test=all|real|test " +
+                "(default all) and search (part of the identifier, ignoring case) narrow it; the total counts the rest.";
             summary.Responses[200] = "People retrieved.";
+            summary.Responses[400] = "Invalid paging, test filter or search.";
             summary.Responses[404] = "Form not found.";
         });
         Description(builder => builder
             .Produces<Paged<AudiencePersonResponse>>(200, "application/json")
+            .ProducesProblem(400)
             .ProducesProblem(404));
     }
 
@@ -46,7 +49,9 @@ public sealed class List(
                 tenantContext.TenantId,
                 request.FormId,
                 request.Page,
-                request.PageSize),
+                request.PageSize,
+                request.Filter,
+                request.Search),
             ct);
 
         return TypedResultsBuilder
@@ -78,6 +83,8 @@ public sealed class ListAudiencePeopleValidator : Validator<ListAudiencePeopleRe
             .GreaterThan(0)
             .LessThanOrEqualTo(AudiencePaging.MaxPageSize)
             .When(request => request.PageSize.HasValue);
+        RuleFor(request => request.Test).ValidPeopleTestFilter();
+        RuleFor(request => request.Search).ValidPeopleSearch();
     }
 }
 
@@ -91,4 +98,13 @@ public sealed class ListAudiencePeopleRequest
     public int? Page { get; init; }
 
     public int? PageSize { get; init; }
+
+    /// <summary><c>all</c> (default), <c>real</c> or <c>test</c>.</summary>
+    public string? Test { get; init; }
+
+    /// <summary>Part of an identifier, matched ignoring case; at most as long as an identifier.</summary>
+    public string? Search { get; init; }
+
+    /// <summary>The filter <see cref="Test"/> names; the validator has refused any other value.</summary>
+    internal PeopleTestFilter Filter => PeopleTestFilterQuery.Parse(Test)!.Value;
 }

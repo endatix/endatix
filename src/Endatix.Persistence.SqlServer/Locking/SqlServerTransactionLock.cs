@@ -19,7 +19,9 @@ namespace Endatix.Persistence.SqlServer.Locking;
 /// byte for byte, whatever the collation, so keys are case-sensitive as on PostgreSQL. It holds at most 255
 /// characters and SQL Server would cut a longer one short, so a longer key is replaced by its SHA-256 as
 /// <c>{scope}#{hex}</c>; the <c>#</c> keeps that apart from every key short enough to be used as it is. SQL Server
-/// hashes the resource into its lock table, so two resources can share a lock; they then only wait for each other.
+/// keeps the first 32 characters of a resource as they are and hashes the rest, so two resources that agree in their
+/// first 32 characters can share a lock; they then only wait for each other. A scope whose waits are near zero keeps
+/// its resources shorter than that (<see cref="TransactionLockScopes.FormSubmissions"/>).
 /// </para>
 /// <para>
 /// A timeout is <c>@LockTimeout</c> in milliseconds and holds for this wait alone, like PostgreSQL's

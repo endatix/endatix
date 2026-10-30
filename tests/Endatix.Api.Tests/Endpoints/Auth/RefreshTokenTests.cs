@@ -32,11 +32,11 @@ public class RefreshTokenTests
             new TokenDto("new_refresh_token", DateTime.UtcNow.AddDays(1)));
         var successRefreshTokenResult = Result.Success(authTokens);
 
-        _mediator.Send(refreshTokenCommand)
+        _mediator.Send(refreshTokenCommand, Arg.Any<CancellationToken>())
            .Returns(successRefreshTokenResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         _endpoint.HttpContext.Response.StatusCode.Should().Be(200);
@@ -53,10 +53,10 @@ public class RefreshTokenTests
         var request = new RefreshTokenRequest("Bearer wrong_access_token", "wrong_refresh_token");
         var refreshTokenCommand = new RefreshTokenCommand("wrong_access_token", "wrong_refresh_token");
         var errorRefreshTokenResult = Result.Invalid();
-        _mediator.Send(refreshTokenCommand).Returns(errorRefreshTokenResult);
+        _mediator.Send(refreshTokenCommand, Arg.Any<CancellationToken>()).Returns(errorRefreshTokenResult);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response?.Result as ProblemHttpResult;

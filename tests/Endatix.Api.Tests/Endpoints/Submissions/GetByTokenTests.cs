@@ -34,7 +34,7 @@ public class GetByTokenTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -57,7 +57,7 @@ public class GetByTokenTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemResult = response.Result as ProblemHttpResult;
@@ -81,7 +81,7 @@ public class GetByTokenTests
             .Returns(result);
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response.Result as Ok<SubmissionModel>;
@@ -89,7 +89,7 @@ public class GetByTokenTests
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be("1");
         okResult!.Value!.Token.Should().NotBeNull();
-        okResult!.Value!.Token!.Should().Be(submission.Token.Value);
+        okResult!.Value!.Token!.Should().Be(submission.Token!.Value);
     }
 
     [Fact]

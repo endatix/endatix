@@ -40,7 +40,7 @@ public class DeleteRole(IMediator mediator)
         DeleteRoleRequest request,
         CancellationToken ct)
     {
-        var command = new DeleteRoleCommand(request.RoleName);
+        var command = new DeleteRoleCommand(request.RoleName!);
         var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
