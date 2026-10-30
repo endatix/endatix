@@ -173,8 +173,8 @@ with each other and with the list's metadata filters (`SubmissionGridAnswerSearc
   because a column key can contain `:`. At most 10 filters.
 - **Errors.** A malformed filter is 400 on `answer`. A key that is not one of the form's search keys
   (`answer_key_not_filterable`), or an operator its filter type lacks (`answer_operator_not_supported`), is 400 with
-  `fields.answer`. A form with no compiled schema is 409 `reporting_not_prepared`; without answer filters the same
-  form lists normally.
+  `fields.answer`. A missing, deleted or another tenant's form is 404 first, as without answer filters. A form with
+  no compiled schema is 409 `reporting_not_prepared`; without answer filters the same form lists normally.
 - **Which rows are checked.** Only rows processed from the submission's current version (`SourceModifiedAt` equals the
   submission's `ModifiedAt ?? CreatedAt`) with a search copy. Every other submission inside the metadata filters is
   left out of the page and counted in `answerFilterCoverage` (`uncheckedCompleted`, `uncheckedInProgress`), so the
@@ -183,7 +183,7 @@ with each other and with the list's metadata filters (`SubmissionGridAnswerSearc
   from migrations, at the name the core context resolves). The list's metadata filters run on it with the core rules
   (`SubmissionGridMetadataSpec`; submitter profile filters through `IRelationalSubmitterProfileFilter`, the same
   provider SQL as the core list), joined to the matching prepared rows. The ordered ids of every match are read once;
-  the count and the page come from that list, then the page's rows load by id. Coverage is one more statement.
+  the count and the page come from that list, then the page's rows load by id. Answer-filter coverage is one more statement.
 
 **Upgrading:** existing forms get their keys on their next compile (`POST …/reporting/compile-schema`), which then
 rebuilds their rows' copies. Until then their copies are empty.
@@ -199,7 +199,7 @@ checked and the rebuild catches it up.
 
 **Performance.** `tests/Endatix.IntegrationTests/Performance` measures the filters at scale (opt-in, see
 `tests/README.md`). p95 of the whole request (ids and sort key of every match, count, page of 50), 50,000 rows, flattened
-rows only for the first tables; the grid answer search rows below add the core join and the coverage count:
+rows only for the first tables; the grid answer search rows below add the core join and the answer-filter coverage count:
 
 | Shape (2026-10-16, Testcontainers, 8 vCPU) | No answer filter | 1–3 filters, 1 caller | 1–3 filters, 4 callers | Rebuild of 50k copies |
 | --- | --- | --- | --- | --- |
@@ -208,20 +208,22 @@ rows only for the first tables; the grid answer search rows below add the core j
 | SQL Server realistic | 200 ms | 220–423 ms | 584–790 ms | 53 s |
 | SQL Server worst | 295 ms | 163–269 ms | 609–754 ms | 69 s |
 
-Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, coverage count), same data:
+Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, answer-filter coverage count), same data:
 
 | Shape (Testcontainers, 8 vCPU) | 1–3 filters, 1 caller | 1–3 filters, 4 callers | No match, 1 caller |
 | --- | --- | --- | --- |
-| PostgreSQL realistic, 2026-10-16 | 64–106 ms | 101–127 ms | 81 ms |
-| PostgreSQL realistic, 2026-10-19 (ranges check the date shape) | 106–188 ms | 125–222 ms | 94 ms |
-| SQL Server realistic, 2026-10-16 | 307–400 ms | 786–805 ms | 188 ms |
-| SQL Server realistic, 2026-10-19 (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
+| PostgreSQL realistic, 2026-10-16, `bc271d63` | 64–106 ms | 101–127 ms | 81 ms |
+| PostgreSQL realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 106–188 ms | 125–222 ms | 94 ms |
+| SQL Server realistic, 2026-10-16, `bc271d63` | 307–400 ms | 786–805 ms | 188 ms |
+| SQL Server realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
 
 64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
 is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (305–567 ms once the copies were
 rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range included (3 deep contains:
-805 → 861 ms), so the date shape check is within run-to-run noise. Measure again before raising the key cap or adding
-work to the grid query.
+805 → 861 ms), so the date shape check is within run-to-run noise. Each p95 is taken over 7 runs per scenario after
+2 warm-ups, so it is the slowest of the 7, and the two runs spread 777–861 ms: the 805 ms miss is inside that spread.
+The harness calls the search in process against one Testcontainer, without HTTP. Measure again before raising the key
+cap or adding work to the grid query.
 
 ## Registration
 
