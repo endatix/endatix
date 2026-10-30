@@ -91,8 +91,10 @@ internal static partial class ShojiCodebookGenerator
             }
 
             var unique = label;
-            for (var repeat = 2; !labels.Add(unique); repeat++)
+            var repeat = 1;
+            while (!labels.Add(unique))
             {
+                repeat++;
                 unique = $"{label} ({repeat})";
             }
 
