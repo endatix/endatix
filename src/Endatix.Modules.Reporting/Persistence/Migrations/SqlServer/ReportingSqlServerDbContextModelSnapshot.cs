@@ -297,7 +297,8 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                 {
                     b.Property<string>("CollectionStatus")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
@@ -343,13 +344,16 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.Property<string>("SubmittedBy")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("SubmitterDisplayId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<long?>("SubmitterId")
                         .HasColumnType("bigint");

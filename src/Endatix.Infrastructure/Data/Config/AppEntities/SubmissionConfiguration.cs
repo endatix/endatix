@@ -9,8 +9,8 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
-    private const int IDENTIFIER_MAX_LENGTH = 64;
-    private const int SUBMITTER_DISPLAY_ID_MAX_LENGTH = 256;
+    public const int IDENTIFIER_MAX_LENGTH = 64;
+    public const int SUBMITTER_DISPLAY_ID_MAX_LENGTH = 256;
     private const int RESTRICTION_KEY_MAX_LENGTH = 256;
     private const int TOKEN_VALUE_MAX_LENGTH = 64;
 
