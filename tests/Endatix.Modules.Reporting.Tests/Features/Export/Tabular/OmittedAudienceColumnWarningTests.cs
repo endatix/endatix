@@ -24,12 +24,7 @@ public sealed class OmittedAudienceColumnWarningTests
     {
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         _logger
-            .When(logger => logger.Log(
-                Arg.Any<LogLevel>(),
-                Arg.Any<EventId>(),
-                Arg.Any<Arg.AnyType>(),
-                Arg.Any<Exception?>(),
-                Arg.Any<Func<Arg.AnyType, Exception?, string>>()))
+            .WhenForAnyArgs(logger => logger.Log<Arg.AnyType>(default, default, default!, default, default!))
             .Do(call => _entries.Add((
                 call.ArgAt<LogLevel>(0),
                 call.ArgAt<IEnumerable<KeyValuePair<string, object?>>>(2).ToDictionary(StringComparer.Ordinal))));

@@ -78,10 +78,7 @@ internal static class ExportColumnPlanBuilder
         AddSystemColumns(draft);
         foreach (var column in QuestionColumns(source.FlatteningMap, scopedKeys))
         {
-            if (!TryAddRangeSliderColumns(source, column, draft))
-            {
-                AddQuestionColumn(source, column, draft);
-            }
+            AddQuestionColumns(source, column, draft);
         }
 
         return WithExportKeys(source, draft);
@@ -125,14 +122,16 @@ internal static class ExportColumnPlanBuilder
             draft.Columns,
             draft.AliasInputs);
 
-    private static void AddQuestionColumn(PlanSource source, FormSchemaColumn column, ColumnDraft draft)
+    // A range slider exports as its min and max bounds; any other column as itself.
+    private static void AddQuestionColumns(PlanSource source, FormSchemaColumn column, ColumnDraft draft)
     {
-        draft.AliasInputs.Add(new ExportColumnAliasInput(
-            column.Key,
-            column.SourceQuestion,
-            column.ChoiceValue,
-            column.MatrixRowValue,
-            column.Kind.ToString()));
+        if (TryAddRangeSliderColumns(source, column, draft))
+        {
+            return;
+        }
+
+        draft.AliasInputs.Add(
+            new(column.Key, column.SourceQuestion, column.ChoiceValue, column.MatrixRowValue, column.Kind.ToString()));
         draft.Columns.Add(new ExportColumnDefinition(
             CanonicalKey: column.Key,
             ExportKey: column.Key,
