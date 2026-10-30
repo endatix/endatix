@@ -50,6 +50,31 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
     }
 
     [Fact]
+    public async Task A_rebuild_leaves_other_forms_and_other_tenants_alone()
+    {
+        // Arrange — another form of the tenant, and another tenant's row under the rebuilt form's id.
+        const long otherTenantId = FormSchemaRebuildWorld.TenantId + 1;
+        var form = await FlattenAllAsync();
+        var otherForm = await _world.AddFormAsync([Mixed]);
+        await _world.CompileAsync(otherForm.FormId, otherForm.DefinitionIds[0]);
+        var otherFormSubmission = await _world.AddRealSubmissionAsync(
+            otherForm.FormId, otherForm.DefinitionIds[0], SearchCopyForms.Answers(new { company = "Other Form Co" }));
+        await _world.FlattenAsync(otherForm.FormId, otherFormSubmission);
+        await SeedOtherTenantRowAsync(new FlattenedSubmissionKey(otherTenantId, form.FormId, SubmissionId: 9_000_000_001L));
+        await MarkUntouchedCopiesAsync(form.FormId, otherForm.FormId);
+        await ClearSearchCopiesAsync(form.FormId);
+        var untouchedBefore = await ReadUntouchedCopiesAsync(form.FormId, otherForm.FormId);
+
+        // Act
+        await RebuildAsync(form.FormId);
+
+        // Assert
+        (await ReadUntouchedCopiesAsync(form.FormId, otherForm.FormId)).Should().Equal(untouchedBefore);
+        untouchedBefore.Should().HaveCount(2, "the other form's row and the other tenant's row are both seeded");
+        untouchedBefore.Should().OnlyContain(copy => copy != null && copy.Contains(UntouchedMarker));
+    }
+
+    [Fact]
     public async Task A_compile_that_makes_existing_columns_searchable_rebuilds_the_rows()
     {
         // Arrange — rows flattened before the form had search keys, as after an upgrade.
@@ -91,6 +116,37 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
         SearchCopyRebuilder rebuilder = new(db, new FormSchemaRepository(db, new ReportingUnitOfWork(db), ReportingTestSchema.TransactionLockFor(db)),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchCopyRebuilder>.Instance) { BatchSize = 2 };
         return await rebuilder.RebuildFormAsync(FormSchemaRebuildWorld.TenantId, formId, Cancellation);
+    }
+
+    private async Task SeedOtherTenantRowAsync(FlattenedSubmissionKey key)
+    {
+        await using var db = ReportingTestSchema.CreateContext(fixture.ConnectionString, fixture.Provider, new IntegrationTenantContext(key.TenantId));
+        await new FlattenedRowSeed(db).ProcessedAsync(
+            key,
+            new FlattenedRowData("""{"company":"Other Tenant"}""", """{"company":"other tenant"}"""),
+            Cancellation);
+    }
+
+    // A copy no rebuild would write, so a rebuild that reached these rows would show.
+    private const string UntouchedMarker = "not rebuilt";
+
+    private async Task MarkUntouchedCopiesAsync(long formId, long otherFormId)
+    {
+        await using var db = ReportingTestSchema.CreateContext(fixture.ConnectionString, fixture.Provider, IntegrationTenantContext.Bypass);
+        await db.FlattenedSubmissions.IgnoreQueryFilters()
+            .Where(row => row.FormId == otherFormId || (row.FormId == formId && row.TenantId != FormSchemaRebuildWorld.TenantId))
+            .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, $$"""{"company":"{{UntouchedMarker}}"}"""), Cancellation);
+    }
+
+    // The copies the rebuild of formId must not touch: every other form's, and other tenants' rows under formId.
+    private async Task<List<string?>> ReadUntouchedCopiesAsync(long formId, long otherFormId)
+    {
+        await using var db = ReportingTestSchema.CreateContext(fixture.ConnectionString, fixture.Provider, IntegrationTenantContext.Bypass);
+        return await db.FlattenedSubmissions.IgnoreQueryFilters().AsNoTracking()
+            .Where(row => row.FormId == otherFormId || (row.FormId == formId && row.TenantId != FormSchemaRebuildWorld.TenantId))
+            .OrderBy(row => row.SubmissionId)
+            .Select(row => row.SearchJson)
+            .ToListAsync(Cancellation);
     }
 
     private async Task ClearSearchCopiesAsync(long formId)
