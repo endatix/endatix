@@ -117,8 +117,7 @@ public sealed partial class AudienceDirectoryFlowTests
         using HttpResponseMessage started = await api.PostAsync(
             $"/api/forms/{formId}/audience/imports",
             new { fileName = "people.csv", headers = BrandsHeaders, rowCount = rows.Count, identifierColumn = "email" });
-        Assert.Equal(HttpStatusCode.Created, started.StatusCode);
-        BulkImport import = new(formId, IdOf(await api.ReadAsync(started), "importId"));
+        var import = await api.StartedImportAsync(formId, started);
         using HttpResponseMessage sent = await api.SendChunkAsync(import, 0, rows);
         Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
         return import;

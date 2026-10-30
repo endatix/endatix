@@ -30,7 +30,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using var marked = await SetTestAsync(admin, link.FormId, testedId, isTest: true);
-        var released = await WaitUntilLinkReleasedAsync(world.Services, link.FormId);
+        var released = await IsLinkReleasedOnceOutboxDeliveredAsync(world.Services, link.FormId);
         var reopened = await RedeemAsync(anonymous, link.FormId, link.Token);
 
         // Assert
@@ -59,7 +59,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         await MarkAsTestAndDeleteAsync(world.Services, testedId);
-        var released = await WaitUntilLinkReleasedAsync(world.Services, link.FormId);
+        var released = await IsLinkReleasedOnceOutboxDeliveredAsync(world.Services, link.FormId);
         var reopened = await RedeemAsync(anonymous, link.FormId, link.Token);
 
         // Assert
@@ -78,7 +78,7 @@ public sealed partial class AudienceDirectoryFlowTests
         using var anonymous = world.AnonymousClient();
         var testedId = IdOf(await RedeemAsync(anonymous, link.FormId, link.Token), "submissionId");
         using var marked = await SetTestAsync(admin, link.FormId, testedId, isTest: true);
-        Assert.True(await WaitUntilLinkReleasedAsync(world.Services, link.FormId));
+        Assert.True(await IsLinkReleasedOnceOutboxDeliveredAsync(world.Services, link.FormId));
         var realId = IdOf(await RedeemAsync(anonymous, link.FormId, link.Token), "submissionId");
 
         // Act
@@ -373,20 +373,10 @@ public sealed partial class AudienceDirectoryFlowTests
         }
     }
 
-    /// <summary>Polls the form's one link until its claim is cleared; outbox handlers run in the background.</summary>
-    private static async Task<bool> WaitUntilLinkReleasedAsync(IServiceProvider services, long formId)
+    /// <summary>Whether the form's one link has its claim cleared once the pending outbox messages are handled.</summary>
+    private static async Task<bool> IsLinkReleasedOnceOutboxDeliveredAsync(IServiceProvider services, long formId)
     {
-        var deadline = DateTime.UtcNow + OutboxWait;
-        while (DateTime.UtcNow < deadline)
-        {
-            if (await LinkSubmissionIdAsync(services, formId) is null)
-            {
-                return true;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(250), TestContext.Current.CancellationToken);
-        }
-
-        return false;
+        await BackgroundWork.Of(services).DeliverOutboxOnceAsync(TestContext.Current.CancellationToken);
+        return await LinkSubmissionIdAsync(services, formId) is null;
     }
 }
