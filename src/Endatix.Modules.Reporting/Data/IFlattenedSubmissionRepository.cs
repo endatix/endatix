@@ -35,6 +35,15 @@ public interface IFlattenedSubmissionRepository
     Task<int> DeleteByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Counts a form's live (not deleted) rows by integration status code.
+    /// </summary>
+    /// <param name="tenantId">The tenant ID.</param>
+    /// <param name="formId">The form ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The number of rows per status code; codes with no rows are absent.</returns>
+    Task<IReadOnlyDictionary<string, int>> CountByStatusAsync(long tenantId, long formId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Hard-deletes the flattened submission row for a submission (including soft-deleted rows).
     /// Used when a submission is deleted so the reporting read model does not keep orphans.
     /// </summary>

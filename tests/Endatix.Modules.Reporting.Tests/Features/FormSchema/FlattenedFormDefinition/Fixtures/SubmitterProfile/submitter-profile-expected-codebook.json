@@ -9,6 +9,7 @@
       "title": {
         "default": "Which team are you on?"
       },
+      "pageName": "page1",
       "exportShape": "scalar"
     },
     "recommend": {
@@ -16,6 +17,7 @@
       "title": {
         "default": "Would you recommend working here?"
       },
+      "pageName": "page1",
       "exportShape": "scalar"
     },
     "submitter_region": {
@@ -23,6 +25,7 @@
       "title": {
         "default": "Which region do you work in?"
       },
+      "pageName": "page1",
       "exportShape": "scalar"
     }
   },

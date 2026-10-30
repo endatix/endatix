@@ -25,6 +25,7 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Features.Outbox;
+using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Features.SubmissionViews;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Infrastructure;
@@ -56,6 +57,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     {
         AddPersistence(builder);
         AddRepositories(builder.Services);
+        builder.Services.AddScoped<ListSubmissionGridColumns>();
         AddExports(builder.Services);
         AddFormSchemaCompiler(builder.Services);
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
