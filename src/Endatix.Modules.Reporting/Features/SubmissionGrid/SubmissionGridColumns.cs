@@ -24,7 +24,7 @@ public sealed record SubmissionGridColumns(
 /// One of <see cref="SubmissionGridFilterTypes"/>, or <see langword="null"/> when the column cannot be filtered.
 /// </param>
 /// <param name="PageName">The page the question is on.</param>
-/// <param name="PageTitle">The page title in the default locale.</param>
+/// <param name="PageTitle">The page title in the requested locale, falling back to the default locale.</param>
 /// <param name="PanelTitle">The nearest titled panel around the question, in the default locale.</param>
 public sealed record SubmissionGridColumn(
     string Key,

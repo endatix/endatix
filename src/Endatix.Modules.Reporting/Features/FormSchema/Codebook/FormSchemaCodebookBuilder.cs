@@ -60,7 +60,12 @@ internal static partial class FormSchemaCodebookBuilder
     // No name fallback for the page title: the grid falls back to pageName itself, and a copied name would look
     // like a real title.
     private static QuestionPlacement PlacementOnPage(JsonElement page) =>
-        new(page.GetSurveyJsName(), ResolvePanelTitle(page, fallbackName: null), ParentPanelTitle: null);
+        new(page.GetSurveyJsName(), PageTitleInEveryLocale(page), ParentPanelTitle: null);
+
+    private static Dictionary<string, string> PageTitleInEveryLocale(JsonElement page) =>
+        SurveyJsLocalizationHelper.ReadLocalizedStrings(page, SurveyJsPropertyNames.Title)
+            .Where(title => !string.IsNullOrWhiteSpace(title.Value))
+            .ToDictionary(title => title.Key, title => title.Value, StringComparer.Ordinal);
 
     private static void CollectElements(
         JsonElement elementList,
