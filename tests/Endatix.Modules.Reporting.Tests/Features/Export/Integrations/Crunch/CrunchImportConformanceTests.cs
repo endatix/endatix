@@ -56,7 +56,9 @@ public sealed class CrunchImportConformanceTests
 
         // Act
         var shoji = await CrunchExport.ShojiCodebookAsync(schema, cancellationToken, settings);
-        var csv = await CrunchExport.CsvAsync(schema, pipeline.ExportRows(responses), cancellationToken, settings, columnScope: ["qName"]);
+        var csv = await CrunchExport.CsvAsync(
+            new(schema, pipeline.ExportRows(responses), settings, ColumnScope: ["qName"]),
+            cancellationToken);
 
         // Assert: no column carries the audience value under the question's alias.
         CrunchImportCheck.ScopedProblems(shoji, csv).Should().BeEmpty();

@@ -46,23 +46,24 @@ internal static class CrunchExport
         return codebook.ToString();
     }
 
-    public static async Task<string> CsvAsync(
+    public static Task<string> CsvAsync(
         FormSchemaEntity schema,
         IReadOnlyList<FlattenedExportRow> rows,
-        CancellationToken cancellationToken,
-        string settingsJson = ShojiFormatSettings,
-        IReadOnlyList<string>? columnScope = null)
+        CancellationToken cancellationToken) =>
+        CsvAsync(new CsvExport(schema, rows), cancellationToken);
+
+    public static async Task<string> CsvAsync(CsvExport export, CancellationToken cancellationToken)
     {
         TabularExportDataSource dataSource = new(
-            TestExportSchemas.Of(Schemas(schema)),
-            Rows(rows),
+            TestExportSchemas.Of(Schemas(export.Schema)),
+            Rows(export.Rows),
             _settingsParser,
             ColumnAliasTransformerRegistry.Default,
             NullLogger<TabularExportDataSource>.Instance);
         var context = Context(
             "csv-shoji",
             typeof(SubmissionExportRow),
-            new(ExportFormatId: 1, SettingsJson: settingsJson, ColumnScope: columnScope));
+            new(ExportFormatId: 1, SettingsJson: export.SettingsJson, ColumnScope: export.ColumnScope));
         var prepared = await dataSource.PrepareOptionsAsync(context, cancellationToken);
         prepared.IsSuccess.Should().BeTrue();
 
@@ -73,6 +74,13 @@ internal static class CrunchExport
         await pipe.Writer.CompleteAsync();
         return await new StreamReader(pipe.Reader.AsStream()).ReadToEndAsync(cancellationToken);
     }
+
+    /// <summary>A <c>csv-shoji</c> export of a schema's rows, with the format's settings and the request's column scope.</summary>
+    internal sealed record CsvExport(
+        FormSchemaEntity Schema,
+        IReadOnlyList<FlattenedExportRow> Rows,
+        string SettingsJson = ShojiFormatSettings,
+        IReadOnlyList<string>? ColumnScope = null);
 
     private static async IAsyncEnumerable<SubmissionExportRow> ExportRows(
         TabularExportDataSource dataSource,

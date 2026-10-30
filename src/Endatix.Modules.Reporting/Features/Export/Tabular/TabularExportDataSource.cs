@@ -125,13 +125,7 @@ internal sealed partial class TabularExportDataSource(
         }
 
         var exported = ExportSchemas.WithCodebook(schema, await exportSchemas.CodebookAsync(schema, cancellationToken));
-        var plan = BuildPlan(exported, settings);
-        if (plan.OmittedAudienceKeys.Count > 0)
-        {
-            LogAudienceColumnsOmitted(context.FormId, string.Join(", ", plan.OmittedAudienceKeys));
-        }
-
-        var columnPlan = MapColumnPlan(plan);
+        var columnPlan = MapColumnPlan(BuildPlan(exported, settings));
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
@@ -150,14 +144,22 @@ internal sealed partial class TabularExportDataSource(
         return Result.Success(context.Options);
     }
 
-    private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings) =>
-        ExportColumnPlanBuilder.Build(
+    private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings)
+    {
+        var plan = ExportColumnPlanBuilder.Build(
             schema,
             locale: settings.Locale,
             aliasProfile: settings.AliasProfile,
             columnScope: settings.ColumnScope is null ? null : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal),
             keySeparator: settings.KeySeparator,
             aliasRegistry: aliasTransformerRegistry);
+        if (plan.OmittedAudienceKeys.Count > 0)
+        {
+            LogAudienceColumnsOmitted(schema.FormId, string.Join(", ", plan.OmittedAudienceKeys));
+        }
+
+        return plan;
+    }
 
     private async Task<string> ResolveEmptyExportMessageAsync(
         ExportDataSourceContext context,
