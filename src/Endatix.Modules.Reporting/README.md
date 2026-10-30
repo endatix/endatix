@@ -175,10 +175,11 @@ with each other and with the list's metadata filters (`SubmissionGridAnswerSearc
   (`answer_key_not_filterable`), or an operator its filter type lacks (`answer_operator_not_supported`), is 400 with
   `fields.answer`. A missing, deleted or another tenant's form is 404 first, as without answer filters. A form with
   no compiled schema is 409 `reporting_not_prepared`; without answer filters the same form lists normally.
-- **Which rows are checked.** Only rows processed from the submission's current version (`SourceModifiedAt` equals the
-  submission's `ModifiedAt ?? CreatedAt`) with a search copy. Every other submission inside the metadata filters is
-  left out of the page and counted in `answerFilterCoverage` (`uncheckedCompleted`, `uncheckedInProgress`), so the
-  grid can offer to prepare them. The field is absent without answer filters.
+- **Which rows are checked.** Only rows prepared since the submission's last change (`SourceModifiedAt` equals the
+  submission's `ModifiedAt ?? CreatedAt`) that have a search copy. Every other submission inside the metadata filters
+  is left out of the page and counted in answer-filter coverage (`answerFilterCoverage`: `uncheckedCompleted`,
+  `uncheckedInProgress`): the rows not prepared since the submission's last change, or not rebuilt for the form's
+  current search keys, so the grid can offer to prepare them. The field is absent without answer filters.
 - **One query.** The Reporting context maps the core `Submissions` table read-only (`CoreSubmissionRow`, excluded
   from migrations, at the name the core context resolves). The list's metadata filters run on it with the core rules
   (`SubmissionGridMetadataSpec`; submitter profile filters through `IRelationalSubmitterProfileFilter`, the same
