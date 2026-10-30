@@ -65,7 +65,8 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
     }
 
     // The same name the core context resolves for Submission: its configured ToTable("Submissions"), which a table
-    // prefix leaves as is.
+    // prefix leaves as is. The CoreSubmissionRows DbSet puts the entity in the model before OnModelCreating, so the
+    // tenant and soft-delete query filters already apply to it (CoreSubmissionRowsIntegrationTests).
     private void MapCoreSubmissions(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<CoreSubmissionRow>()
             .HasNoKey()
