@@ -211,6 +211,26 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
         result.Status.Should().Be(ResultStatus.NotFound);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_DeletedFormWithSchema_ReturnsNotFound()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        await world.PreparedAsync("""{"city":"columbus"}""");
+        await using (var appDb = CreateAppDbContext())
+        {
+            var form = await appDb.Forms.SingleAsync(form => form.Id == world.FormId, Cancellation);
+            form.Delete();
+            await appDb.SaveChangesAsync(Cancellation);
+        }
+
+        // Act
+        var result = await world.ExecuteAsync([Answer("contains", "city", "columbus")]);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
     private static AnswerFilter Answer(string @operator, string key, string value) => new(key, @operator, value);
 
     private async Task<GridWorld> SeedAsync(bool withSchema)
