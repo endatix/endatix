@@ -180,6 +180,99 @@ public sealed partial class ShojiCodebookGeneratorTests
         ShojiOrder.TopLevelAliases(questions).Should().Equal("qBefore", "qAfter");
     }
 
+    [Fact]
+    public void Generate_TwoPanelsWithOneTitle_GetTwoSubFoldersInSurveyOrder()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","name":"pFirst","title":"Details","elements":[{"type":"text","name":"qA"}]},
+              {"type":"text","name":"qMiddle"},
+              {"type":"panel","name":"pSecond","title":"Details","elements":[{"type":"text","name":"qB"}]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var questions = ShojiOrder.Folder(GenerateTable(compiled).GetProperty("order"), ShojiFolderNames.Questions);
+
+        // Assert
+        ShojiOrder.FolderNames(questions).Should().Equal("Details", "Details (2)");
+        ShojiOrder.Aliases(questions).Should().Equal("qA", "qMiddle", "qB");
+    }
+
+    [Fact]
+    public void Generate_PanelInAPanel_NestsItsSubFolderWhereItAppears()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","name":"pOuter","title":"Outer","elements":[
+                {"type":"text","name":"qO1"},
+                {"type":"panel","name":"pInner","title":"Inner","elements":[{"type":"text","name":"qI1"}]},
+                {"type":"text","name":"qO2"}
+              ]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var outer = ShojiOrder.Folder(GenerateTable(compiled).GetProperty("order"), ShojiFolderNames.Questions, "Outer");
+
+        // Assert
+        ShojiOrder.FolderNames(outer).Should().Equal("Inner");
+        ShojiOrder.Aliases(outer).Should().Equal("qO1", "qI1", "qO2");
+    }
+
+    [Fact]
+    public void Generate_CodebookWithoutParentPanels_FoldersByPanelTitle()
+    {
+        // Arrange: a codebook compiled before panel paths were stored has only the nearest panel's title.
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"text","name":"qBefore"},
+              {"type":"panel","name":"pContact","title":"Contact","elements":[{"type":"text","name":"qPhone"}]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var codebook = System.Text.Json.Nodes.JsonNode.Parse(compiled.CodebookJson)!;
+        codebook["questions"]!["qPhone"]!.AsObject().Remove("parentPanels");
+
+        // Act
+        using var document = JsonDocument.Parse(ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson,
+            codebook.ToJsonString(),
+            ExportFormatSettings.InterimCrunchKeySeparator));
+        var questions = ShojiOrder.Folder(document.RootElement.GetProperty("body").GetProperty("table").GetProperty("order"), ShojiFolderNames.Questions);
+
+        // Assert
+        ShojiOrder.FolderNames(questions).Should().Equal("Contact");
+        ShojiOrder.Aliases(ShojiOrder.Folder(questions, "Contact")).Should().Equal("qPhone");
+    }
+
+    [Fact]
+    public void Compile_QuestionInNestedPanels_CodebookListsItsPanelsOuterFirst()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","name":"pOuter","title":"Outer","elements":[
+                {"type":"panel","name":"pInner","elements":[{"type":"text","name":"qI1"}]}
+              ]}
+            ]}]}
+            """;
+
+        // Act
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Assert
+        using var codebook = JsonDocument.Parse(compiled.CodebookJson);
+        var question = codebook.RootElement.GetProperty("questions").GetProperty("qI1");
+        question.GetProperty("parentPanelTitle").GetString().Should().Be("pInner");
+        question.GetProperty("parentPanels").GetRawText().Should().Be(
+            """[{"name":"pOuter","title":"Outer"},{"name":"pInner","title":"pInner"}]""");
+    }
+
     private static JsonElement AllQuestionsTable() =>
         GenerateTable(new FormSchemaCompiler().CompilePersisted(
             FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json")));

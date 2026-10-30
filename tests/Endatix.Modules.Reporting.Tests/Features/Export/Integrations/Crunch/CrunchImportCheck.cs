@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 /// subvariable alias), every alias has a column, and every non-empty cell fits its variable's type. Crunch accepts an
 /// empty cell as missing and rejects anything else that does not parse ("CSV numeric format error"). Every variable is
 /// placed once: in <c>order</c>, folders included, or in <c>hidden</c>, never both ("FormId cannot be in multiple
-/// orders").
+/// orders"). Every folder has a name no sibling shares, and something in it.
 /// </summary>
 internal static partial class CrunchImportCheck
 {
@@ -46,7 +46,20 @@ internal static partial class CrunchImportCheck
             .. ordered.Intersect(hidden).Select(alias => $"Shoji alias '{alias}' is both hidden and ordered"),
             .. Repeated(ordered).Select(alias => $"Shoji alias '{alias}' is ordered more than once"),
             .. Repeated(hidden).Select(alias => $"Shoji alias '{alias}' is hidden more than once"),
+            .. FolderProblems(table.GetProperty("order")),
         ];
+    }
+
+    private static IEnumerable<string> FolderProblems(JsonElement entities)
+    {
+        var folders = entities.EnumerateArray().Where(entry => entry.ValueKind == JsonValueKind.Object).ToList();
+        var names = folders.Select(folder => folder.GetProperty("group").GetString() ?? string.Empty).ToList();
+        return names.Where(string.IsNullOrWhiteSpace).Select(_ => "a folder has no name")
+            .Concat(Repeated(names.Where(name => !string.IsNullOrWhiteSpace(name)))
+                .Select(name => $"folder '{name}' has a sibling of the same name"))
+            .Concat(folders.Where(folder => folder.GetProperty("entities").GetArrayLength() == 0)
+                .Select(folder => $"folder '{folder.GetProperty("group").GetString()}' is empty"))
+            .Concat(folders.SelectMany(folder => FolderProblems(folder.GetProperty("entities"))));
     }
 
     private static IEnumerable<string> Repeated(IEnumerable<string> aliases) =>

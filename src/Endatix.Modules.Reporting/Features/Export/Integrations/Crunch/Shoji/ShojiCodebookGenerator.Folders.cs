@@ -22,8 +22,12 @@ internal static partial class ShojiCodebookGenerator
         public void WriteTo(Utf8JsonWriter writer) => writer.WriteStringValue(Alias);
     }
 
-    private sealed record ShojiFolder(string Name, List<IShojiOrderEntry> Entries) : IShojiOrderEntry
+    private sealed class ShojiFolder(string name, List<IShojiOrderEntry> entries) : IShojiOrderEntry
     {
+        public string Name { get; } = name;
+
+        public List<IShojiOrderEntry> Entries { get; } = entries;
+
         public static ShojiFolder Of(string name, IEnumerable<string> aliases) =>
             new(name, [.. aliases.Select(alias => new ShojiOrderAlias(alias))]);
 
@@ -46,46 +50,44 @@ internal static partial class ShojiCodebookGenerator
         public HashSet<string> Written { get; } = new(WrittenAliases, StringComparer.Ordinal);
     }
 
-    /// <summary>The Questions folder and its panel and loop sub-folders by name.</summary>
+    /// <summary>A panel or loop a question sits in: the panel name it is told apart by, and the title it shows.</summary>
+    private sealed record ShojiPanel(string Key, string Label);
+
+    /// <summary>The Questions folder, and a sub-folder for each panel and loop, nested as the panels are.</summary>
     private sealed class QuestionFolders
     {
-        private readonly Dictionary<string, ShojiFolder> _subFolders = new(StringComparer.Ordinal);
+        private readonly Dictionary<(ShojiFolder Parent, string Key), ShojiFolder> _subFolders = [];
+        private readonly Dictionary<(ShojiFolder Parent, string Label), int> _labelUses = [];
 
         public ShojiFolder Root { get; } = new(ShojiFolderNames.Questions, []);
 
-        // A sub-folder takes its place in Questions where its first alias appears.
-        public ShojiFolder For(string? subFolderName)
+        // A sub-folder takes its place where its first alias appears. Two panels with one title stay apart, the
+        // second numbered ("Details (2)"), so no question moves out of survey order.
+        public ShojiFolder For(IReadOnlyList<ShojiPanel> panels)
         {
-            if (string.IsNullOrWhiteSpace(subFolderName))
+            var folder = Root;
+            foreach (var panel in panels)
             {
-                return Root;
-            }
+                if (!_subFolders.TryGetValue((folder, panel.Key), out var subFolder))
+                {
+                    subFolder = new ShojiFolder(UniqueLabel(folder, panel.Label.Trim()), []);
+                    _subFolders.Add((folder, panel.Key), subFolder);
+                    folder.Entries.Add(subFolder);
+                }
 
-            if (!_subFolders.TryGetValue(subFolderName, out var folder))
-            {
-                folder = new ShojiFolder(subFolderName, []);
-                _subFolders.Add(subFolderName, folder);
-                Root.Entries.Add(folder);
+                folder = subFolder;
             }
 
             return folder;
         }
-    }
 
-    private static readonly string[] _systemColumnOrder =
-    [
-        SubmissionExportRow.SystemColumns.FormId,
-        SubmissionExportRow.SystemColumns.Id,
-        SubmissionExportRow.SystemColumns.IsComplete,
-        SubmissionExportRow.SystemColumns.CollectionStatus,
-        SubmissionExportRow.SystemColumns.CreatedAt,
-        SubmissionExportRow.SystemColumns.ModifiedAt,
-        SubmissionExportRow.SystemColumns.StartedAt,
-        SubmissionExportRow.SystemColumns.CompletedAt,
-        SubmissionExportRow.SystemColumns.DurationSeconds,
-        SubmissionExportRow.SystemColumns.SubmitterId,
-        SubmissionExportRow.SystemColumns.SubmitterDisplayId,
-    ];
+        private string UniqueLabel(ShojiFolder parent, string label)
+        {
+            var uses = _labelUses.GetValueOrDefault((parent, label)) + 1;
+            _labelUses[(parent, label)] = uses;
+            return uses == 1 ? label : $"{label} ({uses})";
+        }
+    }
 
     // Crunch refuses an alias that is both hidden and ordered ("FormId cannot be in multiple orders").
     private static readonly string[] _hiddenSystemColumns = [SubmissionExportRow.SystemColumns.FormId];
@@ -104,9 +106,9 @@ internal static partial class ShojiCodebookGenerator
     }
 
     /// <summary>
-    /// System columns, audience values, submitter profile fields, calculated values, then the questions. The CSV keeps
-    /// the non-question columns last; Crunch matches CSV columns to variables by alias, so the orders may differ. An
-    /// empty folder is left out.
+    /// System columns, audience values, Submitter fields, calculated values, then the questions. The CSV keeps the
+    /// non-question columns last; Crunch matches CSV columns to variables by alias, so the orders may differ. An empty
+    /// folder is left out.
     /// </summary>
     private static IEnumerable<IShojiOrderEntry> BuildFolders(ShojiOrderSources sources)
     {
@@ -114,7 +116,7 @@ internal static partial class ShojiCodebookGenerator
         var nonQuestion = sources.NonQuestionAliases;
         ShojiFolder[] folders =
         [
-            ShojiFolder.Of(ShojiFolderNames.MetaData, _systemColumnOrder.Where(alias => sources.Written.Contains(alias) && placed.Add(alias))),
+            ShojiFolder.Of(ShojiFolderNames.MetaData, SubmissionExportRow.SystemColumns.OrderedKeys.Where(alias => sources.Written.Contains(alias) && placed.Add(alias))),
             ShojiFolder.Of(ShojiFolderNames.ParticipantVariables, nonQuestion.Personalization.Where(placed.Add)),
             ShojiFolder.Of(ShojiFolderNames.Submitter, nonQuestion.SubmitterProfile.Where(placed.Add)),
             ShojiFolder.Of(ShojiFolderNames.CalculatedValues, nonQuestion.Calculated.Where(placed.Add)),
@@ -132,32 +134,53 @@ internal static partial class ShojiCodebookGenerator
         QuestionFolders folders = new();
         foreach (var column in sources.Args.FlatteningMap.Columns)
         {
-            folders.For(SubFolderName(column, sources.Args.Questions)).Entries.AddRange(
-                OrderAliases(column, sources.Args)
-                    .Where(alias => sources.Written.Contains(alias) && placed.Add(alias))
-                    .Select(alias => new ShojiOrderAlias(alias)));
+            var aliases = OrderAliases(column, sources.Args)
+                .Where(alias => sources.Written.Contains(alias) && placed.Add(alias))
+                .Select(alias => new ShojiOrderAlias(alias))
+                .ToList();
+            if (aliases.Count > 0)
+            {
+                folders.For(PanelsOf(column, sources.Args.Questions)).Entries.AddRange(aliases);
+            }
         }
 
         folders.Root.Entries.AddRange(sources.WrittenAliases.Where(placed.Add).Select(alias => new ShojiOrderAlias(alias)));
-        folders.Root.Entries.RemoveAll(entry => entry is ShojiFolder { Entries.Count: 0 });
         return folders.Root;
     }
 
-    // Folders take default-locale titles, as the codebook's parentPanelTitle does. A loop is named by its own panel,
-    // so every alias of the loop, a panel nested in it included, is in one sub-folder.
-    private static string? SubFolderName(FormSchemaColumn column, IReadOnlyDictionary<string, JsonElement> questions)
+    // Folders take default-locale titles, as the codebook's panels do. A codebook compiled before parentPanels existed
+    // has only the nearest panel's title, so there panels are told apart by title and do not nest.
+    private static List<ShojiPanel> PanelsOf(FormSchemaColumn column, IReadOnlyDictionary<string, JsonElement> questions)
     {
-        if (column.LoopPath is { Count: > 0 } loopPath)
+        questions.TryGetValue(column.SourceQuestion ?? column.Key, out var question);
+        var panels = ReadParentPanels(question);
+        if (panels.Count > 0 || column.LoopPath is not { Count: > 0 } loopPath)
         {
-            var loopName = loopPath[0].PanelValueName;
-            return questions.TryGetValue(loopName, out var loop) && ReadDefaultTitle(loop) is { Length: > 0 } title
-                ? title
-                : loopName;
+            return panels;
         }
 
-        return questions.TryGetValue(column.SourceQuestion ?? column.Key, out var question)
-            ? ReadParentPanelTitle(question)
-            : null;
+        var loopName = loopPath[0].PanelValueName;
+        var loopTitle = questions.TryGetValue(loopName, out var loop) ? ReadDefaultTitle(loop) : null;
+        return [new ShojiPanel(loopName, string.IsNullOrWhiteSpace(loopTitle) ? loopName : loopTitle)];
+    }
+
+    private static List<ShojiPanel> ReadParentPanels(JsonElement question)
+    {
+        if (question.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        if (question.TryGetProperty(FormSchemaCodebookPropertyNames.ParentPanels, out var panels) &&
+            panels.ValueKind == JsonValueKind.Array)
+        {
+            return [.. panels.EnumerateArray().Select(panel => new ShojiPanel(
+                panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelName) ?? string.Empty,
+                panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelTitle) ?? string.Empty))];
+        }
+
+        var title = ReadParentPanelTitle(question);
+        return string.IsNullOrWhiteSpace(title) ? [] : [new ShojiPanel(title, title)];
     }
 
     private static string? ReadDefaultTitle(JsonElement question)

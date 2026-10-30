@@ -9,10 +9,10 @@ internal static class ShojiFolderNames
     /// <summary>System columns. A folder label only: in code the group is the system columns.</summary>
     public const string MetaData = "Meta-data";
 
-    /// <summary>The audience identifier and the audience values frozen on the response.</summary>
+    /// <summary>The audience identifier and the Snapshot's values.</summary>
     public const string ParticipantVariables = "Participant variables";
 
-    /// <summary>Submitter profile fields captured with the response.</summary>
+    /// <summary>Submitter fields captured with the response.</summary>
     public const string Submitter = "Submitter";
 
     public const string CalculatedValues = "Calculated values";

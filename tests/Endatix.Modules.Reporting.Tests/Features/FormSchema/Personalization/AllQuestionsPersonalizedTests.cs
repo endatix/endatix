@@ -102,6 +102,26 @@ public sealed class AllQuestionsPersonalizedTests
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
     }
 
+    // The layout customers approved on 2026-10-16 in the "-linked" reference codebook (refs/rcrunch, all-questions-output),
+    // with the folder names they chose and the Submitter folder, which this form has no fields for.
+    [Fact]
+    public async Task ShojiCodebook_PersonalizedForm_HasTheReferenceFolderLayout()
+    {
+        // Arrange
+        var (pipeline, _) = Flattened();
+
+        // Act
+        using var shoji = JsonDocument.Parse(await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken));
+
+        // Assert
+        var table = shoji.RootElement.GetProperty("body").GetProperty("table");
+        var order = table.GetProperty("order");
+        ShojiOrder.FolderNames(order).Should().Equal("Meta-data", "Participant variables", "Calculated values", "Questions");
+        ShojiOrder.FolderNames(ShojiOrder.Folder(order, "Questions")).Should().Equal("Internal Panel Group", "Loop Question (Based on Brands)");
+        ShojiOrder.Aliases(ShojiOrder.Folder(order, "Participant variables")).Should().StartWith("AudienceIdentifier");
+        table.GetProperty("hidden").EnumerateArray().Select(alias => alias.GetString()).Should().Equal("FormId");
+    }
+
     [Fact]
     public async Task ShojiCodebookAndCsv_PersonalizedForm_MatchGoldens()
     {

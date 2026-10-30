@@ -57,6 +57,36 @@ public sealed class CrunchImportCheckTests
         CrunchImportCheck.Problems(shoji, Csv).Should().Equal("Shoji alias 'FormId' is both hidden and ordered");
     }
 
+    [Fact]
+    public void Problems_EmptyFolder_ReportsIt()
+    {
+        // Arrange
+        var shoji = Codebook("""["Id","q1",{"group":"Panel","entities":[]}]""", """["FormId"]""");
+
+        // Act & Assert
+        CrunchImportCheck.Problems(shoji, Csv).Should().Equal("folder 'Panel' is empty");
+    }
+
+    [Fact]
+    public void Problems_TwoSiblingFoldersWithOneName_ReportsIt()
+    {
+        // Arrange
+        var shoji = Codebook("""[{"group":"Details","entities":["Id"]},{"group":"Details","entities":["q1"]}]""", """["FormId"]""");
+
+        // Act & Assert
+        CrunchImportCheck.Problems(shoji, Csv).Should().Equal("folder 'Details' has a sibling of the same name");
+    }
+
+    [Fact]
+    public void Problems_FolderWithoutAName_ReportsIt()
+    {
+        // Arrange
+        var shoji = Codebook("""["Id",{"group":" ","entities":["q1"]}]""", """["FormId"]""");
+
+        // Act & Assert
+        CrunchImportCheck.Problems(shoji, Csv).Should().Equal("a folder has no name");
+    }
+
     private static string Codebook(string order, string hidden) => $$$$"""
         {"element":"shoji:entity","body":{"table":{"element":"crunch:table","metadata":{
           "FormId":{"type":"numeric","alias":"FormId","name":"Form ID"},
