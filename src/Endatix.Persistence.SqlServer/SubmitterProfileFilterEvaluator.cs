@@ -36,7 +36,8 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
 
     private static IQueryable<Submission> Apply(IQueryable<Submission> query, FilterCriterion filter)
     {
-        var path = JsonPathOf(SubmissionFilterFields.GetSubmitterProfileFieldName(filter));
+        var path = SqlServerJsonObjectKeyFilter.BuildJsonValuePath(
+            SubmissionFilterFields.GetSubmitterProfileFieldName(filter));
         var values = filter.Values.ToList();
 
         return filter.Operator switch
@@ -65,8 +66,4 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
                         SqlServerJsonDbFunctions.JsonValue(s.SubmitterProfileSnapshot, path),
                         ExactCollation));
     }
-
-    // Quoted, so a field name with a dot or a space is one key, not a nested path.
-    private static string JsonPathOf(string field) =>
-        $"$.\"{field.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
 }
