@@ -41,13 +41,15 @@ public sealed record SubmissionGridColumn(
 /// </summary>
 /// <param name="Submissions">Every submission of the form, test submissions included.</param>
 /// <param name="CompletedSubmissions">The completed ones among them.</param>
+/// <param name="InProgress">The ones not completed, whether or not they have a prepared row.</param>
 /// <param name="Prepared">Submissions with prepared data.</param>
-/// <param name="Pending">Submissions queued or being prepared.</param>
+/// <param name="Pending">Submissions not prepared yet, queued or being prepared.</param>
 /// <param name="Failed">Submissions whose preparation failed.</param>
 /// <param name="SkippedInProgress">In-progress submissions that were not prepared because they were not complete.</param>
 public sealed record SubmissionGridReadiness(
     int Submissions,
     int CompletedSubmissions,
+    int InProgress,
     int Prepared,
     int Pending,
     int Failed,

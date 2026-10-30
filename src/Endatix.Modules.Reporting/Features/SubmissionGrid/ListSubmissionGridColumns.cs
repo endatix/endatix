@@ -72,8 +72,10 @@ public sealed class ListSubmissionGridColumns(
         return new SubmissionGridReadiness(
             Submissions: submissions,
             CompletedSubmissions: completed,
+            InProgress: submissions - completed,
             Prepared: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Processed),
-            Pending: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Pending) +
+            Pending: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.NotProcessed) +
+                     rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Pending) +
                      rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Processing),
             Failed: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Failed),
             SkippedInProgress: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Skipped));
