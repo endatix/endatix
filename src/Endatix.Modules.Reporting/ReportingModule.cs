@@ -23,6 +23,7 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
@@ -63,7 +64,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ListSubmissionGridColumns>();
         builder.Services.AddScoped<ListSubmissionGridRows>();
         AddExports(builder.Services);
-        builder.Services.AddSingleton<FormSchemaCompiler>();
+        AddFormSchemaCompiler(builder.Services);
         builder.Services.AddScoped<SearchCopyRebuilder>();
         builder.Services.AddScoped<FormSearchCopy>();
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
@@ -74,6 +75,15 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
         builder.Services.AddReportingOutboxWork();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
+    }
+
+    // The configured submitter profile fields; the flatten appends their columns, and copies only those fields.
+    private static void AddFormSchemaCompiler(IServiceCollection services)
+    {
+        services.AddSingleton(sp =>
+            SubmitterProfileFields.From(sp.GetRequiredService<IOptions<ReportingOptions>>().Value));
+        services.AddSingleton(sp =>
+            new FormSchemaCompiler(submitterProfileFields: sp.GetRequiredService<SubmitterProfileFields>()));
     }
 
     private static void AddExports(IServiceCollection services)

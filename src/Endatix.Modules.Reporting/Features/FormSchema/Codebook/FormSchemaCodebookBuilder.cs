@@ -202,20 +202,17 @@ internal static partial class FormSchemaCodebookBuilder
 
     // These entries come from the column alone, so rebuilding them is cheap and drops stale ones.
     private static bool IsDescribedByColumnAlone(FormSchemaColumn column) =>
-        column.Kind is FormSchemaColumnKind.Calculated or FormSchemaColumnKind.Personalization;
+        column.Kind is FormSchemaColumnKind.Calculated
+            or FormSchemaColumnKind.Personalization
+            or FormSchemaColumnKind.SubmitterProfile;
 
     private static JsonElement CreateColumnEntry(
         FormSchemaColumn column,
         IReadOnlyDictionary<string, CollectedQuestion> questionElements)
     {
-        if (column.Kind is FormSchemaColumnKind.Calculated)
+        if (IsDescribedByColumnAlone(column))
         {
-            return CreateCalculatedColumnEntry(column);
-        }
-
-        if (column.Kind is FormSchemaColumnKind.Personalization)
-        {
-            return CreatePersonalizationColumnEntry(column);
+            return CreateNonQuestionColumnEntry(column);
         }
 
         var parentKey = column.SourceQuestion ?? column.Key;

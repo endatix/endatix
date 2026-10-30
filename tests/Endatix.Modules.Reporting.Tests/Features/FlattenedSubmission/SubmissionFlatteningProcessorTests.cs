@@ -10,6 +10,7 @@ using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -68,7 +69,7 @@ public partial class SubmissionFlatteningProcessorTests
     {
         // Arrange
         GivenSubmission(CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 1));
-        GivenSchema("""[{"key":"firstName","source":"auto","filterType":"text","addedAt":"2026-10-19T00:00:00Z"}]""");
+        GivenSchema(searchKeysJson: """[{"key":"firstName","source":"auto","filterType":"text","addedAt":"2026-10-19T00:00:00Z"}]""");
         GivenRowAcceptsRevision(true);
         GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
 
@@ -280,8 +281,41 @@ public partial class SubmissionFlatteningProcessorTests
         await _submissions.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
-    private SubmissionFlatteningProcessor Processor() =>
-        new(_submissions, _rows, _schemas, _personalization, NullLogger<SubmissionFlatteningProcessor>.Instance);
+    [Fact]
+    public async Task ProcessAsync_SubmitterChangedOnCompletedSubmission_WritesTheListedFieldsOfTheNewProfile()
+    {
+        // Arrange
+        SubmitterProfileFields fields = new(["email", "department"]);
+        var submission = CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 1);
+        var revisionBefore = submission.Revision;
+        submission.SetSubmitter(7, "ana", """{"email":"ana@example.com","phone":"+1 555 0100"}""");
+        GivenSubmission(submission);
+        GivenSchema(fields);
+        GivenRowAcceptsRevision(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
+
+        // Act
+        await Processor(fields).ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        submission.Revision.Should().BeGreaterThan(revisionBefore, "a submitter change is a new revision to flatten");
+        await _rows.Received(1).TryMarkProcessedAsync(
+            WriteOf(submission),
+            Arg.Is<FlattenedRowData>(data =>
+                data.DataJson.Contains("\"submitter_email\":\"ana@example.com\"") &&
+                data.DataJson.Contains("\"submitter_department\":null") &&
+                !data.DataJson.Contains("+1 555 0100")),
+            Arg.Any<CancellationToken>());
+    }
+
+    private SubmissionFlatteningProcessor Processor(SubmitterProfileFields? fields = null) =>
+        new(
+            _submissions,
+            _rows,
+            _schemas,
+            _personalization,
+            fields ?? SubmitterProfileFields.None,
+            NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     private static Submission CompletedSubmission(string json, long revision)
     {
@@ -322,9 +356,16 @@ public partial class SubmissionFlatteningProcessorTests
         _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
             .Returns((FormSchemaEntity?)null);
 
-    private void GivenSchema(string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson)
+    // The submitter columns a flatten's include would have added, so the schema is as a flatten finds it.
+    private void GivenSchema(SubmitterProfileFields? fields = null, string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson)
     {
-        var compiled = new FormSchemaCompiler().CompilePersisted(FormSchemaFixtureLoader.LoadText("simple-definition.json"));
+        var definition = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        FormSchemaCompiler compiler = new(submitterProfileFields: fields);
+        var compiled = compiler.CompilePersisted(definition);
+        compiled = compiler.IncludePersonalization(
+            definition,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            compiler.SubmitterProfileColumns);
         FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
         schema.UpdateSearchKeys(searchKeysJson);
         _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>()).Returns(schema);
