@@ -1,0 +1,172 @@
+{
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Exported shoji codebook for formID 100",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "department": {
+          "type": "text",
+          "alias": "department",
+          "name": "Which team are you on?",
+          "description": ""
+        },
+        "recommend": {
+          "type": "categorical",
+          "alias": "recommend",
+          "name": "Would you recommend working here?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "submitter_region": {
+          "type": "text",
+          "alias": "submitter_region",
+          "name": "Which region do you work in?",
+          "description": ""
+        },
+        "AudienceIdentifier": {
+          "type": "text",
+          "alias": "AudienceIdentifier",
+          "name": "Audience identifier",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "audience_city": {
+          "type": "text",
+          "alias": "audience_city",
+          "name": "City",
+          "description": "Audience value frozen when the response was opened."
+        },
+        "submitter_email": {
+          "type": "text",
+          "alias": "submitter_email",
+          "name": "Submitter email",
+          "description": "Submitter profile value captured with the response."
+        },
+        "submitter_department": {
+          "type": "text",
+          "alias": "submitter_department",
+          "name": "Submitter department",
+          "description": "Submitter profile value captured with the response."
+        }
+      },
+      "order": [
+        "FormId",
+        "Id",
+        "IsComplete",
+        "CollectionStatus",
+        "CreatedAt",
+        "ModifiedAt",
+        "StartedAt",
+        "CompletedAt",
+        "DurationSeconds",
+        "SubmitterId",
+        "SubmitterDisplayId",
+        "AudienceIdentifier",
+        "audience_city",
+        "submitter_email",
+        "submitter_department",
+        "department",
+        "submitter_region",
+        "recommend"
+      ]
+    }
+  }
+}

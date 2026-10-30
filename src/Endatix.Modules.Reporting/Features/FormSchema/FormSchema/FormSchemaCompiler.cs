@@ -2,6 +2,7 @@ using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -11,13 +12,26 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 /// Supports append-only <see cref="FormSchemaCompileMode.Merge"/> and full
 /// <see cref="FormSchemaCompileMode.Replace"/> from the current definition.
 /// </summary>
-/// <remarks>Not sealed, and <see cref="CompilePersisted"/> is virtual, so a test can count the compiles a rebuild makes.</remarks>
-internal class FormSchemaCompiler(SchemaCompilationLimits? limits = null)
+/// <remarks>
+/// <para>Not sealed, and <see cref="CompilePersisted"/> is virtual, so a test can count the compiles a rebuild makes.</para>
+/// <para>
+/// A definition compiles to its own columns only. The configured submitter profile columns
+/// (<see cref="SubmitterProfileColumns"/>) join a schema the way audience columns do: a flatten appends them at the
+/// schema's own revision, so a field listed later never makes a compile from an older definition.
+/// </para>
+/// </remarks>
+internal class FormSchemaCompiler(
+    SchemaCompilationLimits? limits = null,
+    SubmitterProfileFields? submitterProfileFields = null)
 {
     private readonly SchemaCompilationLimits _limits = limits ?? SchemaCompilationLimits.Default;
+    private readonly SubmitterProfileFields _submitterProfileFields = submitterProfileFields ?? SubmitterProfileFields.None;
 
     public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null) =>
         Merge(FormDefinitionFlattener.Flatten(definition, _limits), existing);
+
+    /// <summary>One column per configured submitter profile field, in the configured order.</summary>
+    public IReadOnlyList<FormSchemaColumn> SubmitterProfileColumns => _submitterProfileFields.Columns;
 
     private MergedFormSchema Merge(IReadOnlyList<FormSchemaColumn> currentColumns, MergedFormSchema? existing) =>
         existing is null

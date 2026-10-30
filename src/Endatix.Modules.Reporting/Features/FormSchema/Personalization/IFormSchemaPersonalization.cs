@@ -3,7 +3,10 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 
-/// <summary>Makes a form's schema hold the audience columns a response carries, before the response is flattened.</summary>
+/// <summary>
+/// Makes a form's schema hold the audience columns a response carries and the configured submitter profile columns,
+/// before the response is flattened.
+/// </summary>
 internal interface IFormSchemaPersonalization
 {
     /// <summary>

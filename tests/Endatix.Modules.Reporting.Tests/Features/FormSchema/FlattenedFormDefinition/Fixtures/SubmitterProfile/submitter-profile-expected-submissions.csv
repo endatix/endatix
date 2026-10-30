@@ -1,0 +1,4 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,department,submitter_region,recommend,AudienceIdentifier,audience_city,submitter_email,submitter_department
+100,1,1,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,,,,1001,ana,Field sales,Northern Europe,1,CG-000001-01,03. MIDWEST - COLUMBUS,ana@example.com,Sales
+100,2,1,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,,,,1002,bo,Support,,0,,,bo@example.com,
+100,3,1,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,,,,,,Finance,,,,,,
