@@ -28,10 +28,13 @@ internal static class CrunchExport
 
     private static readonly ExportFormatSettingsParser _settingsParser = new(NullLogger<ExportFormatSettingsParser>.Instance);
 
-    public static async Task<string> ShojiCodebookAsync(FormSchemaEntity schema, CancellationToken cancellationToken)
+    public static async Task<string> ShojiCodebookAsync(
+        FormSchemaEntity schema,
+        CancellationToken cancellationToken,
+        string settingsJson = ShojiFormatSettings)
     {
         ShojiCodebookExportDataSource dataSource = new(TestExportSchemas.Of(Schemas(schema)), Substitute.For<IFormsRepository>(), _settingsParser);
-        var context = Context("codebook-shoji", typeof(DynamicExportRow));
+        var context = Context("codebook-shoji", typeof(DynamicExportRow), new(ExportFormatId: 1, SettingsJson: settingsJson));
         (await dataSource.PrepareOptionsAsync(context, cancellationToken)).IsSuccess.Should().BeTrue();
 
         StringBuilder codebook = new();
@@ -46,10 +49,20 @@ internal static class CrunchExport
     public static async Task<string> CsvAsync(
         FormSchemaEntity schema,
         IReadOnlyList<FlattenedExportRow> rows,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string settingsJson = ShojiFormatSettings,
+        IReadOnlyList<string>? columnScope = null)
     {
-        TabularExportDataSource dataSource = new(TestExportSchemas.Of(Schemas(schema)), Rows(rows), _settingsParser, ColumnAliasTransformerRegistry.Default);
-        var context = Context("csv-shoji", typeof(SubmissionExportRow));
+        TabularExportDataSource dataSource = new(
+            TestExportSchemas.Of(Schemas(schema)),
+            Rows(rows),
+            _settingsParser,
+            ColumnAliasTransformerRegistry.Default,
+            NullLogger<TabularExportDataSource>.Instance);
+        var context = Context(
+            "csv-shoji",
+            typeof(SubmissionExportRow),
+            new(ExportFormatId: 1, SettingsJson: settingsJson, ColumnScope: columnScope));
         var prepared = await dataSource.PrepareOptionsAsync(context, cancellationToken);
         prepared.IsSuccess.Should().BeTrue();
 
@@ -88,7 +101,7 @@ internal static class CrunchExport
         return repository;
     }
 
-    private static ExportDataSourceContext Context(string format, Type itemType) =>
+    private static ExportDataSourceContext Context(string format, Type itemType, SubmissionExportExecutionSettings settings) =>
         new(
             new ExportDataSourceRequest(format, itemType, null, ExportFormatId: 1),
             TenantId,
@@ -98,9 +111,7 @@ internal static class CrunchExport
                 Metadata = new Dictionary<string, object>
                 {
                     ["FormId"] = FormId,
-                    [SubmissionExportMetadataKeys.ExecutionSettings] = new SubmissionExportExecutionSettings(
-                        ExportFormatId: 1,
-                        SettingsJson: ShojiFormatSettings),
+                    [SubmissionExportMetadataKeys.ExecutionSettings] = settings,
                 },
             },
             null);

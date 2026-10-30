@@ -15,13 +15,25 @@ internal static partial class CrunchImportCheck
     private static readonly string[] _datetimeFormats =
         ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ssZ", "yyyy-MM-ddTHH:mm:ss.FFFFFFFK", "yyyy-MM-dd"];
 
-    public static IReadOnlyList<string> Problems(string shojiJson, string csv)
+    public static IReadOnlyList<string> Problems(string shojiJson, string csv) => Problems(shojiJson, csv, scoped: false);
+
+    /// <summary>
+    /// The checks for a CSV exported with a column scope: the codebook is not scoped, so a variable outside the scope
+    /// has no column, but every header is still a variable and every cell still fits it.
+    /// </summary>
+    public static IReadOnlyList<string> ScopedProblems(string shojiJson, string csv) => Problems(shojiJson, csv, scoped: true);
+
+    private static List<string> Problems(string shojiJson, string csv, bool scoped)
     {
         var variables = VariablesByAlias(shojiJson);
         var (header, rows) = Read(csv);
         List<string> problems = [];
         problems.AddRange(header.Where(alias => !variables.ContainsKey(alias)).Select(alias => $"header '{alias}' has no Shoji variable"));
-        problems.AddRange(variables.Keys.Where(alias => !header.Contains(alias)).Select(alias => $"Shoji alias '{alias}' has no CSV column"));
+        if (!scoped)
+        {
+            problems.AddRange(variables.Keys.Where(alias => !header.Contains(alias)).Select(alias => $"Shoji alias '{alias}' has no CSV column"));
+        }
+
         problems.AddRange(CellProblems(new Columns(header, variables), rows));
         return problems;
     }

@@ -119,6 +119,50 @@ public sealed class ExportColumnPlanBuilderTests
         plan.Columns.Should().Contain(column => column.ExportKey == PersonalizationColumns.IdentifierKey);
     }
 
+    [Fact]
+    public void Build_ScopeLeavesOutTheQuestionThatTakesAnAudienceKey_TheAudienceColumnStaysOut()
+    {
+        // Arrange: with "_" as the separator, multipletext "audience" item "region" exports as "audience_region".
+        var schema = AudienceRegionCollisionSchema();
+        IReadOnlySet<string> columnScope = new HashSet<string>(["qName"], StringComparer.Ordinal);
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, columnScope: columnScope, keySeparator: "_");
+
+        // Assert
+        plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
+            "qName", PersonalizationColumns.IdentifierKey);
+        plan.OmittedAudienceKeys.Should().Equal("audience_region");
+    }
+
+    [Fact]
+    public void Build_NoQuestionTakesAnAudienceKey_OmitsNoAudienceKey()
+    {
+        // Arrange
+        var schema = PersonalizedSchema();
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, keySeparator: "_");
+
+        // Assert
+        plan.OmittedAudienceKeys.Should().BeEmpty();
+    }
+
+    internal static FormSchemaEntity AudienceRegionCollisionSchema()
+    {
+        const string definitionJson = """
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"qName"},
+              {"type":"multipletext","name":"audience","items":[{"name":"region"},{"name":"city"}]}]}]}
+            """;
+        FormSchemaCompiler compiler = new();
+        var compiled = compiler.CompilePersisted(definitionJson);
+        compiled = compiler.IncludePersonalization(
+            definitionJson,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            PersonalizationColumns.From(PersonalizationReader.Read("""{"identifier":"CG-1","variables":{"region":"North"}}""")));
+        return new FormSchemaEntity(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+    }
+
     private static FormSchemaEntity PersonalizedSchema()
     {
         const string definitionJson = """

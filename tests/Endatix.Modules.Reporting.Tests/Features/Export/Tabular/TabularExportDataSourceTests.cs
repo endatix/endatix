@@ -8,6 +8,7 @@ using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -425,10 +426,80 @@ public sealed class TabularExportDataSourceTests
         dataSource.Matches(new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), "custom_fn", 100L)).Should().BeFalse();
     }
 
+    [Fact]
+    public async Task PrepareOptionsAsync_QuestionTakesAnAudienceKey_LogsOneWarningAndSucceeds()
+    {
+        // Arrange
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(ExportColumnPlanBuilderTests.AudienceRegionCollisionSchema());
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        RecordingLogger logger = new();
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository, logger);
+
+        // Act
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(
+            CreateContext(settingsJson: """{"keySeparator":"_"}"""),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().ContainSingle()
+            .Which.Should().Match<(LogLevel Level, string Message)>(entry =>
+                entry.Level == LogLevel.Warning &&
+                entry.Message.Contains($"form {FormId}", StringComparison.Ordinal) &&
+                entry.Message.Contains("audience_region", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task PrepareOptionsAsync_NoQuestionTakesAnAudienceKey_LogsNothing()
+    {
+        // Arrange
+        IFormSchemaRepository formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository
+            .GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
+            .Returns(ExportColumnPlanBuilderTests.AudienceRegionCollisionSchema());
+        IReportingExportRepository reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        RecordingLogger logger = new();
+        TabularExportDataSource dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository, logger);
+
+        // Act: with the default "__" separator the item exports as "audience__region".
+        Result<ExportOptions> result = await dataSource.PrepareOptionsAsync(CreateContext(), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().BeEmpty();
+    }
+
     private static TabularExportDataSource CreateDataSource(
         IFormSchemaRepository formSchemaRepository,
-        IReportingExportRepository reportingExportRepository) =>
-        new(TestExportSchemas.Of(formSchemaRepository), reportingExportRepository, ExportFormatSettingsParser, ColumnAliasTransformerRegistry.Default);
+        IReportingExportRepository reportingExportRepository,
+        ILogger<TabularExportDataSource>? logger = null) =>
+        new(
+            TestExportSchemas.Of(formSchemaRepository),
+            reportingExportRepository,
+            ExportFormatSettingsParser,
+            ColumnAliasTransformerRegistry.Default,
+            logger ?? NullLogger<TabularExportDataSource>.Instance);
+
+    private sealed class RecordingLogger : ILogger<TabularExportDataSource>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
+    }
 
     private static ExportDataSourceContext CreateContext(
         string format = "csv",

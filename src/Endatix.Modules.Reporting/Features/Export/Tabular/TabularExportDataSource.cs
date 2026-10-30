@@ -6,6 +6,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Microsoft.Extensions.Logging;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.Tabular;
@@ -13,11 +14,12 @@ namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 /// <summary>
 /// Streams flattened submission rows from the reporting read model for tabular export (CSV/JSON/XLSX).
 /// </summary>
-internal sealed class TabularExportDataSource(
+internal sealed partial class TabularExportDataSource(
     ExportSchemas exportSchemas,
     IReportingExportRepository reportingExportRepository,
     ExportFormatSettingsParser exportFormatSettingsParser,
-    IColumnAliasTransformerRegistry aliasTransformerRegistry) : IExportDataSource
+    IColumnAliasTransformerRegistry aliasTransformerRegistry,
+    ILogger<TabularExportDataSource> logger) : IExportDataSource
 {
     private static readonly string SubmissionRowTypeName =
         typeof(SubmissionExportRow).FullName ?? typeof(SubmissionExportRow).Name;
@@ -123,7 +125,13 @@ internal sealed class TabularExportDataSource(
         }
 
         var exported = ExportSchemas.WithCodebook(schema, await exportSchemas.CodebookAsync(schema, cancellationToken));
-        var columnPlan = MapColumnPlan(BuildPlan(exported, settings));
+        var plan = BuildPlan(exported, settings);
+        if (plan.OmittedAudienceKeys.Count > 0)
+        {
+            LogAudienceColumnsOmitted(context.FormId, string.Join(", ", plan.OmittedAudienceKeys));
+        }
+
+        var columnPlan = MapColumnPlan(plan);
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
@@ -142,7 +150,7 @@ internal sealed class TabularExportDataSource(
         return Result.Success(context.Options);
     }
 
-    private IExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings) =>
+    private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings) =>
         ExportColumnPlanBuilder.Build(
             schema,
             locale: settings.Locale,
@@ -381,4 +389,9 @@ internal sealed class TabularExportDataSource(
             AnswersModel = answersModel,
         };
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Export of form {FormId} leaves out audience columns whose keys a question exports under: {AudienceKeys}")]
+    private partial void LogAudienceColumnsOmitted(long formId, string audienceKeys);
 }
