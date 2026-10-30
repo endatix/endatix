@@ -13,6 +13,7 @@ using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -78,8 +79,8 @@ public sealed class AudienceNamesAtExportTests
         // Assert
         var table = codebook.RootElement.GetProperty("body").GetProperty("table");
         table.GetProperty("metadata").GetProperty("audience_city").GetProperty("name").GetString().Should().Be("Town");
-        table.GetProperty("order").EnumerateArray().Select(alias => alias.GetString())
-            .Where(alias => alias!.StartsWith("Audience", StringComparison.OrdinalIgnoreCase))
+        ShojiOrder.Aliases(table.GetProperty("order"))
+            .Where(alias => alias.StartsWith("Audience", StringComparison.OrdinalIgnoreCase))
             .Should().Equal("AudienceIdentifier", "audience_city", "audience_age");
         await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, Arg.Any<CancellationToken>());
     }

@@ -18,10 +18,7 @@ internal static partial class ShojiCodebookGenerator
     private sealed record NonQuestionAliases(
         IReadOnlyList<string> Calculated,
         IReadOnlyList<string> Personalization,
-        IReadOnlyList<string> SubmitterProfile)
-    {
-        public IEnumerable<string> InAppearanceOrder => Personalization.Concat(SubmitterProfile).Concat(Calculated);
-    }
+        IReadOnlyList<string> SubmitterProfile);
 
     /// <summary>The Shoji type of an audience data type, and the resolution of a datetime.</summary>
     private sealed record PersonalizationShape(string Type, string? Resolution = null)

@@ -90,6 +90,32 @@
           "name": "Submitter Display ID",
           "description": ""
         },
+        "city": {
+          "type": "text",
+          "alias": "city",
+          "name": "Which city do you live in?",
+          "description": ""
+        },
+        "consent": {
+          "type": "categorical",
+          "alias": "consent",
+          "name": "Do you agree to the terms?",
+          "description": "",
+          "categories": [
+            {
+              "name": "No",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
         "AudienceIdentifier": {
           "type": "text",
           "alias": "AudienceIdentifier",
@@ -153,56 +179,47 @@
           "alias": "audience_tags",
           "name": "tags",
           "description": "Audience value frozen when the response was opened."
-        },
-        "city": {
-          "type": "text",
-          "alias": "city",
-          "name": "Which city do you live in?",
-          "description": ""
-        },
-        "consent": {
-          "type": "categorical",
-          "alias": "consent",
-          "name": "Do you agree to the terms?",
-          "description": "",
-          "categories": [
-            {
-              "name": "No",
-              "id": 0,
-              "numeric_value": 0,
-              "missing": false
-            },
-            {
-              "name": "Yes",
-              "id": 1,
-              "numeric_value": 1,
-              "missing": false
-            }
-          ]
         }
       },
       "order": [
-        "FormId",
-        "Id",
-        "IsComplete",
-        "CollectionStatus",
-        "CreatedAt",
-        "ModifiedAt",
-        "StartedAt",
-        "CompletedAt",
-        "DurationSeconds",
-        "SubmitterId",
-        "SubmitterDisplayId",
-        "AudienceIdentifier",
-        "audience_age",
-        "audience_city",
-        "audience_joined",
-        "audience_last_seen",
-        "audience_panel_member",
-        "audience_score",
-        "audience_tags",
-        "city",
-        "consent"
+        {
+          "group": "Meta-data",
+          "entities": [
+            "Id",
+            "IsComplete",
+            "CollectionStatus",
+            "CreatedAt",
+            "ModifiedAt",
+            "StartedAt",
+            "CompletedAt",
+            "DurationSeconds",
+            "SubmitterId",
+            "SubmitterDisplayId"
+          ]
+        },
+        {
+          "group": "Participant variables",
+          "entities": [
+            "AudienceIdentifier",
+            "audience_age",
+            "audience_city",
+            "audience_joined",
+            "audience_last_seen",
+            "audience_panel_member",
+            "audience_score",
+            "audience_tags"
+          ]
+        },
+        {
+          "group": "Questions",
+          "entities": [
+            "city",
+            "consent"
+          ]
+        }
+      ],
+      "hidden": [
+        "FormId"
       ]
     }
   }
