@@ -61,7 +61,7 @@ public sealed class CrunchImportConformanceTests
             cancellationToken);
 
         // Assert: the codebook's "audience_region" is the question's, so the CSV has no column under it.
-        CrunchImportCheck.ScopedProblems(shoji, csv).Should().BeEmpty();
+        CrunchImportCheck.ScopedProblems(shoji, csv, ["qName", "AudienceIdentifier"]).Should().BeEmpty();
         csv.Split('\n')[0].TrimEnd('\r').Split(',').Should().EndWith(["qName", "AudienceIdentifier"]);
     }
 }

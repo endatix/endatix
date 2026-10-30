@@ -7,11 +7,12 @@ using Endatix.Modules.Reporting.Features.Export.Tabular;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export.Tabular;
 
-/// <summary>The warning a tabular export logs when a question's export key leaves an audience column out (#1244).</summary>
-public sealed class OmittedAudienceColumnWarningTests
+/// <summary>The warnings a tabular export logs when a question's export key leaves a column out (#1244).</summary>
+public sealed class OmittedColumnWarningTests
 {
     private const long TenantId = 1;
     private const long FormId = 100;
@@ -20,7 +21,7 @@ public sealed class OmittedAudienceColumnWarningTests
     private readonly List<(LogLevel Level, Dictionary<string, object?> Values)> _entries = [];
 
     // The logging generator reuses its state object, so the values are read while the call is made.
-    public OmittedAudienceColumnWarningTests()
+    public OmittedColumnWarningTests()
     {
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
         _logger
@@ -31,17 +32,17 @@ public sealed class OmittedAudienceColumnWarningTests
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("qName")]
-    public async Task PrepareOptionsAsync_QuestionTakesAnAudienceKey_LogsOneWarningAndSucceeds(string? scopedQuestion)
+    [InlineData("csv", null)]
+    [InlineData("csv-shoji", null)]
+    [InlineData("csv-shoji", "qName")]
+    public async Task PrepareOptionsAsync_QuestionTakesAnAudienceKey_LogsOneWarningAndSucceeds(string format, string? scopedQuestion)
     {
         // Arrange: with "_" as the separator, multipletext "audience" item "region" exports as "audience_region".
-        var dataSource = DataSource();
-        IReadOnlyList<string>? columnScope = scopedQuestion is null ? null : [scopedQuestion];
+        var dataSource = DataSource(ExportColumnPlanBuilderTests.AudienceRegionCollisionSchema());
 
         // Act
         var result = await dataSource.PrepareOptionsAsync(
-            Context("""{"keySeparator":"_"}""", columnScope),
+            Context(format, """{"keySeparator":"_"}""", scopedQuestion),
             TestContext.Current.CancellationToken);
 
         // Assert
@@ -52,25 +53,48 @@ public sealed class OmittedAudienceColumnWarningTests
         entry.Values["AudienceKeys"].Should().Be("audience_region");
     }
 
-    [Fact]
-    public async Task PrepareOptionsAsync_NoQuestionTakesAnAudienceKey_LogsNothing()
+    [Theory]
+    [InlineData("csv", null, null)]
+    [InlineData("csv", """{"keySeparator":"_"}""", "qName")]
+    public async Task PrepareOptionsAsync_NoQuestionTakesAnAudienceKey_LogsNothing(string format, string? settingsJson, string? scopedQuestion)
     {
-        // Arrange: with the default "__" separator the item exports as "audience__region".
-        var dataSource = DataSource();
+        // Arrange: with "__" the item exports as "audience__region"; a plain export scoped to "qName" has no codebook
+        // that gives "audience_region" to the question.
+        var dataSource = DataSource(ExportColumnPlanBuilderTests.AudienceRegionCollisionSchema());
 
         // Act
-        var result = await dataSource.PrepareOptionsAsync(Context(settingsJson: null), TestContext.Current.CancellationToken);
+        var result = await dataSource.PrepareOptionsAsync(
+            Context(format, settingsJson, scopedQuestion),
+            TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         _entries.Should().BeEmpty();
     }
 
-    private TabularExportDataSource DataSource()
+    [Fact]
+    public async Task PrepareOptionsAsync_QuestionTakesASubmitterKey_LogsOneWarningAndSucceeds()
+    {
+        // Arrange: with "_" as the separator, multipletext "submitter" item "region" exports as "submitter_region".
+        var dataSource = DataSource(ExportColumnPlanBuilderTests.SubmitterRegionCollisionSchema());
+
+        // Act
+        var result = await dataSource.PrepareOptionsAsync(
+            Context("csv-shoji", """{"keySeparator":"_"}""", "qName"),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var entry = _entries.Should().ContainSingle().Subject;
+        entry.Level.Should().Be(LogLevel.Warning);
+        entry.Values["FormId"].Should().Be(FormId);
+        entry.Values["SubmitterProfileKeys"].Should().Be("submitter_region");
+    }
+
+    private TabularExportDataSource DataSource(FormSchemaEntity schema)
     {
         var schemas = Substitute.For<IFormSchemaRepository>();
-        schemas.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>())
-            .Returns(ExportColumnPlanBuilderTests.AudienceRegionCollisionSchema());
+        schemas.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>()).Returns(schema);
         var rows = Substitute.For<IReportingExportRepository>();
         rows.HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>()).Returns(true);
         return new(
@@ -81,9 +105,9 @@ public sealed class OmittedAudienceColumnWarningTests
             _logger);
     }
 
-    private static ExportDataSourceContext Context(string? settingsJson, IReadOnlyList<string>? columnScope = null) =>
+    private static ExportDataSourceContext Context(string format, string? settingsJson, string? scopedQuestion) =>
         new(
-            new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null),
+            new ExportDataSourceRequest(format, typeof(SubmissionExportRow), null),
             TenantId,
             FormId,
             new ExportOptions
@@ -93,7 +117,7 @@ public sealed class OmittedAudienceColumnWarningTests
                     [SubmissionExportMetadataKeys.ExecutionSettings] = new SubmissionExportExecutionSettings(
                         ExportFormatId: 1,
                         SettingsJson: settingsJson,
-                        ColumnScope: columnScope),
+                        ColumnScope: scopedQuestion is null ? null : [scopedQuestion]),
                 },
             },
             null);

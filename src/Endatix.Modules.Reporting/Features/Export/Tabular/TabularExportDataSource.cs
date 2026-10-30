@@ -125,7 +125,7 @@ internal sealed partial class TabularExportDataSource(
         }
 
         var exported = ExportSchemas.WithCodebook(schema, await exportSchemas.CodebookAsync(schema, cancellationToken));
-        var columnPlan = MapColumnPlan(BuildPlan(exported, settings));
+        var columnPlan = MapColumnPlan(BuildPlan(exported, settings, context.Request.Format));
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
@@ -144,21 +144,32 @@ internal sealed partial class TabularExportDataSource(
         return Result.Success(context.Options);
     }
 
-    private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings)
+    private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings, string format)
     {
         var plan = ExportColumnPlanBuilder.Build(
             schema,
-            locale: settings.Locale,
-            aliasProfile: settings.AliasProfile,
-            columnScope: settings.ColumnScope is null ? null : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal),
-            keySeparator: settings.KeySeparator,
-            aliasRegistry: aliasTransformerRegistry);
-        if (plan.OmittedAudienceKeys.Count > 0)
+            new ExportColumnPlanRequest(
+                settings.Locale,
+                settings.AliasProfile,
+                settings.ColumnScope is null ? null : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal),
+                settings.KeySeparator,
+                aliasTransformerRegistry,
+                ReadWithShojiCodebook: ShouldProjectCrunchShapes(format, settings)));
+        LogOmittedColumns(schema.FormId, plan.OmittedKeys);
+        return plan;
+    }
+
+    private void LogOmittedColumns(long formId, OmittedColumnKeys omittedKeys)
+    {
+        if (omittedKeys.Audience.Count > 0)
         {
-            LogAudienceColumnsOmitted(schema.FormId, string.Join(", ", plan.OmittedAudienceKeys));
+            LogAudienceColumnsOmitted(formId, string.Join(", ", omittedKeys.Audience));
         }
 
-        return plan;
+        if (omittedKeys.SubmitterProfile.Count > 0)
+        {
+            LogSubmitterProfileColumnsOmitted(formId, string.Join(", ", omittedKeys.SubmitterProfile));
+        }
     }
 
     private async Task<string> ResolveEmptyExportMessageAsync(
@@ -396,4 +407,9 @@ internal sealed partial class TabularExportDataSource(
         Level = LogLevel.Warning,
         Message = "Export of form {FormId} leaves out audience columns whose keys a question exports under: {AudienceKeys}")]
     private partial void LogAudienceColumnsOmitted(long formId, string audienceKeys);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Export of form {FormId} leaves out submitter profile columns whose keys a question exports under: {SubmitterProfileKeys}")]
+    private partial void LogSubmitterProfileColumnsOmitted(long formId, string submitterProfileKeys);
 }

@@ -25,29 +25,24 @@ internal static class ExportColumnPlanBuilder
         ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native,
         IReadOnlySet<string>? columnScope = null,
         string keySeparator = ExportFormatSettings.DefaultKeySeparator,
-        IColumnAliasTransformerRegistry? aliasRegistry = null)
-    {
-        ExportFormatSettings.RequireKeySeparator(keySeparator);
+        IColumnAliasTransformerRegistry? aliasRegistry = null) =>
+        Build(schema, new ExportColumnPlanRequest(locale, aliasProfile, columnScope, keySeparator, aliasRegistry));
 
-        PlanSource source = new(
-            schema,
-            FormSchemaFlatteningMap.FromJson(schema.FlatteningMap),
-            ReadCodebookColumns(schema.Codebook),
-            ReadCodebookQuestions(schema.Codebook),
-            locale,
-            aliasProfile,
-            keySeparator,
-            (aliasRegistry ?? ColumnAliasTransformerRegistry.Default).GetRequired(aliasProfile));
-        var scopedKeys = columnScope is null
+    internal static ExportColumnPlan Build(FormSchemaEntity schema, ExportColumnPlanRequest request)
+    {
+        ExportFormatSettings.RequireKeySeparator(request.KeySeparator);
+
+        var source = PlanSource.Of(schema, request);
+        var scopedKeys = request.ColumnScope is null
             ? null
-            : new HashSet<string>(columnScope, StringComparer.Ordinal);
+            : new HashSet<string>(request.ColumnScope, StringComparer.Ordinal);
 
         var columns = AliasedQuestionColumns(source, scopedKeys);
-        var omittedAudienceKeys = AddNonQuestionBlocks(source, columns, KeysTakenByQuestions(source, columns, scopedKeys));
+        var omittedKeys = AddNonQuestionBlocks(source, columns, KeysTakenByQuestions(source, columns, scopedKeys));
 
         EnsureUniqueExportKeys(columns);
 
-        return new ExportColumnPlan(columns, omittedAudienceKeys);
+        return new ExportColumnPlan(columns, omittedKeys);
     }
 
     /// <summary>The schema a plan is built from, and how its question columns get their export keys and labels.</summary>
@@ -56,11 +51,24 @@ internal static class ExportColumnPlanBuilder
         MergedFormSchema FlatteningMap,
         IReadOnlyDictionary<string, JsonElement> CodebookColumns,
         IReadOnlyDictionary<string, JsonElement> CodebookQuestions,
-        string Locale,
-        ColumnAliasProfile AliasProfile,
-        string KeySeparator,
+        ExportColumnPlanRequest Request,
         IColumnAliasTransformer AliasTransformer)
     {
+        public static PlanSource Of(FormSchemaEntity schema, ExportColumnPlanRequest request) =>
+            new(
+                schema,
+                FormSchemaFlatteningMap.FromJson(schema.FlatteningMap),
+                ReadCodebookColumns(schema.Codebook),
+                ReadCodebookQuestions(schema.Codebook),
+                request,
+                (request.AliasRegistry ?? ColumnAliasTransformerRegistry.Default).GetRequired(request.AliasProfile));
+
+        public string Locale => Request.Locale;
+
+        public ColumnAliasProfile AliasProfile => Request.AliasProfile;
+
+        public string KeySeparator => Request.KeySeparator;
+
         public bool ProjectCrunchShapes =>
             AliasProfile is ColumnAliasProfile.Crunch ||
             string.Equals(KeySeparator, ExportFormatSettings.InterimCrunchKeySeparator, StringComparison.Ordinal);
@@ -146,17 +154,18 @@ internal static class ExportColumnPlanBuilder
             column.Kind is not (FormSchemaColumnKind.Personalization or FormSchemaColumnKind.SubmitterProfile) &&
             (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
-    // The keys an audience or submitter column cannot have: those of the plan's columns, and those every question of the
-    // form exports under, in the scope or not. The Shoji codebook is not scoped and gives such a key to the question, so
-    // a column under it would carry audience values as the question's (#1281). Under the Crunch profile the unscoped
-    // keys are Q-numbers, which no audience or submitter key matches.
+    // The keys an audience or submitter column cannot have: those of the plan's columns, as in the schema, so a question
+    // keeps its key instead of failing the export (#1243). An export read with the Shoji codebook adds the keys of every
+    // question of the form, in the scope or not: the codebook is not scoped and gives such a key to the question, so a
+    // column under it would carry audience values as the question's (#1281). Under the Crunch profile the unscoped keys
+    // are Q-numbers, which no audience or submitter key matches.
     private static HashSet<string> KeysTakenByQuestions(
         PlanSource source,
         List<ExportColumnDefinition> scopedColumns,
         HashSet<string>? scopedKeys)
     {
         HashSet<string> taken = new(scopedColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
-        if (scopedKeys is not null)
+        if (scopedKeys is not null && source.Request.ReadWithShojiCodebook)
         {
             taken.UnionWith(AliasedQuestionColumns(source, scopedKeys: null).Select(column => column.ExportKey));
         }
@@ -167,7 +176,6 @@ internal static class ExportColumnPlanBuilder
     // Audience values close the row as one block, in the codebook's block order and under its titles, and their keys
     // are the headers as stored: no alias profile or key separator touches them, so a Crunch alias for an audience
     // variable never changes between exports. They are not questions, so a question column scope does not drop them.
-    // A question whose export key matches one keeps it, as in the schema, instead of failing the export (#1243).
     private static List<FormSchemaColumn> PersonalizationBlock(FormSchemaEntity schema, MergedFormSchema flatteningMap)
     {
         if (string.IsNullOrWhiteSpace(schema.Codebook))
@@ -180,29 +188,31 @@ internal static class ExportColumnPlanBuilder
     }
 
     /// <summary>Adds audience values, then submitter profile fields: each block sees the export keys taken before it.</summary>
-    /// <returns>The audience keys a question took.</returns>
-    private static List<string> AddNonQuestionBlocks(
+    /// <returns>The keys of the columns left out because a question took them.</returns>
+    private static OmittedColumnKeys AddNonQuestionBlocks(
         PlanSource source,
         List<ExportColumnDefinition> columns,
         HashSet<string> taken)
     {
-        var audience = PersonalizationBlock(source.Schema, source.FlatteningMap);
-        var omittedAudienceKeys = audience.Select(column => column.Key).Where(taken.Contains).ToList();
-        AddBlock(columns, taken, audience);
+        var audience = AddBlock(columns, taken, PersonalizationBlock(source.Schema, source.FlatteningMap));
         // Submitter profile fields follow as one more block, with the same key rules as audience values. They come
         // last so that listing a field leaves every column an export had before where it was.
-        AddBlock(columns, taken, SubmitterProfileColumns.InBlockOrder(source.FlatteningMap.Columns));
-        return omittedAudienceKeys;
+        var submitterProfile = AddBlock(columns, taken, SubmitterProfileColumns.InBlockOrder(source.FlatteningMap.Columns));
+        return new OmittedColumnKeys(audience, submitterProfile);
     }
 
-    private static void AddBlock(
+    /// <returns>The keys of the block's columns left out because their key was taken.</returns>
+    private static List<string> AddBlock(
         List<ExportColumnDefinition> columns,
         HashSet<string> taken,
         IEnumerable<FormSchemaColumn> block)
     {
-        var added = block.Where(column => !taken.Contains(column.Key)).Select(ToColumn).ToList();
+        var blockColumns = block.ToList();
+        var omitted = blockColumns.Where(column => taken.Contains(column.Key)).Select(column => column.Key).ToList();
+        var added = blockColumns.Where(column => !taken.Contains(column.Key)).Select(ToColumn).ToList();
         columns.AddRange(added);
         taken.UnionWith(added.Select(column => column.ExportKey));
+        return omitted;
     }
 
     private static ExportColumnDefinition ToColumn(FormSchemaColumn column) => new(
