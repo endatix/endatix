@@ -11,26 +11,51 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Modules.Audience.Features.People;
 
 /// <summary>
-/// Lists people on a form with paging up to <see cref="AudiencePaging.MaxPageSize"/>.
+/// Lists people on a form with paging up to <see cref="AudiencePaging.MaxPageSize"/>. The total counts only the
+/// people <see cref="Test"/> and <see cref="Search"/> keep. <see cref="Search"/> keeps people whose identifier contains
+/// it (ILIKE on PostgreSQL, the column's collation on SQL Server); a blank one keeps everyone.
 /// </summary>
 public sealed record ListPeopleQuery(
     long TenantId,
     long FormId,
     int? Page,
-    int? PageSize) : IQuery<Result<Paged<PersonDto>>>;
+    int? PageSize,
+    PeopleTestFilter Test = PeopleTestFilter.All,
+    string? Search = null) : IQuery<Result<Paged<PersonDto>>>;
 
 /// <summary>
-/// One person on a form's audience, with property values keyed by property id.
+/// Which people the list keeps: everyone, only real people, or only test persons.
+/// </summary>
+public enum PeopleTestFilter
+{
+    /// <summary>Everyone on the form.</summary>
+    All,
+
+    /// <summary>Only people who are not test persons.</summary>
+    Real,
+
+    /// <summary>Only test persons.</summary>
+    Test,
+}
+
+/// <summary>
+/// One person on a form's audience, with property values keyed by property id and their Link status.
+/// <see cref="NotFilledIn"/> counts the form's Properties they have no value for; only the list sets it.
 /// </summary>
 public sealed record PersonDto(
     long MembershipId,
     long MemberId,
     string Identifier,
-    IReadOnlyDictionary<long, string> Values);
+    IReadOnlyDictionary<long, string> Values,
+    bool IsTest,
+    LinkStatusDto Link,
+    int? NotFilledIn = null);
 
 internal sealed class ListPeopleHandler(
     IAudienceDbContext db,
-    IRepository<Form> forms)
+    IRepository<Form> forms,
+    LinkStatuses linkStatuses,
+    PeopleQuery people)
     : IQueryHandler<ListPeopleQuery, Result<Paged<PersonDto>>>
 {
     public async Task<Result<Paged<PersonDto>>> Handle(
@@ -56,7 +81,9 @@ internal sealed class ListPeopleHandler(
         ListPeopleQuery request,
         CancellationToken cancellationToken)
     {
-        IQueryable<Membership> query = MembershipsOnForm(request.TenantId, request.FormId);
+        IQueryable<Membership> query = WithTestFilter(
+            people.Matching(request.TenantId, request.FormId, new PeopleFilter(request.Search)),
+            request.Test);
         ResolvedPage resolved = ResolvedPage.For(
             request.Page ?? 1,
             PageSize(request),
@@ -67,16 +94,16 @@ internal sealed class ListPeopleHandler(
             .Take(resolved.PageSize)
             .ToListAsync(cancellationToken);
 
-        return resolved.ToPaged(await MapPeopleAsync(request.TenantId, rows, cancellationToken));
+        return resolved.ToPaged(await MapPeopleAsync(request, rows, cancellationToken));
     }
 
-    // The tenant is stated as well as filtered, so SQL Server can seek the tenant-first index: the tenant query
-    // filter's bypass parameter keeps it from seeking on the filter alone.
-    private IQueryable<Membership> MembershipsOnForm(long tenantId, long formId) =>
-        db.Memberships.AsNoTracking().Where(membership =>
-            membership.TenantId == tenantId
-            && membership.FormId == formId
-            && db.Members.Any(member => member.Id == membership.MemberId));
+    private static IQueryable<Membership> WithTestFilter(IQueryable<Membership> query, PeopleTestFilter filter) =>
+        filter switch
+        {
+            PeopleTestFilter.Real => query.Where(membership => !membership.IsTest),
+            PeopleTestFilter.Test => query.Where(membership => membership.IsTest),
+            _ => query,
+        };
 
     /// <summary>
     /// The audience's own limits rather than <see cref="PageRequest"/>'s, which caps a page at 100 people.
@@ -87,7 +114,7 @@ internal sealed class ListPeopleHandler(
             : AudiencePaging.DefaultPageSize;
 
     private async Task<List<PersonDto>> MapPeopleAsync(
-        long tenantId,
+        ListPeopleQuery request,
         List<Membership> rows,
         CancellationToken cancellationToken)
     {
@@ -96,11 +123,30 @@ internal sealed class ListPeopleHandler(
             return [];
         }
 
+        FormProperties form = await PropertiesAsync(request, cancellationToken);
         Dictionary<long, string> identifiers = await LoadIdentifiersAsync(rows, cancellationToken);
-        Dictionary<long, Dictionary<long, string>> values =
-            await LoadValuesAsync(tenantId, rows.Select(row => row.Id).ToHashSet(), cancellationToken);
-        return BuildDtos(rows, identifiers, values);
+        ParticipantCells cells = ParticipantCells.Of(request.TenantId, form, IdentifiersByMembership(rows, identifiers));
+        PageDetails details = new(
+            identifiers,
+            await ParticipantValues.ReadAsync(db, cells, cancellationToken),
+            await linkStatuses.ForAsync(rows.Select(row => row.Id).ToHashSet(), cancellationToken),
+            form.Ids);
+        return BuildDtos(rows, details);
     }
+
+    /// <summary>
+    /// The form's live Property ids and match-key Property (<see cref="FormProperties"/>). Read before the values: a
+    /// Property deleted between the two reads is then counted as not filled in, never as a value beyond the count.
+    /// </summary>
+    private Task<FormProperties> PropertiesAsync(ListPeopleQuery request, CancellationToken cancellationToken) =>
+        FormProperties.ReadAsync(db, new(request.TenantId, request.FormId), cancellationToken);
+
+    /// <summary>The page's participants by membership id, with the identifiers the match-key Property shows.</summary>
+    private static Dictionary<long, string> IdentifiersByMembership(
+        List<Membership> rows,
+        Dictionary<long, string> identifiers) =>
+        rows.Where(row => identifiers.ContainsKey(row.MemberId))
+            .ToDictionary(row => row.Id, row => identifiers[row.MemberId]);
 
     private async Task<Dictionary<long, string>> LoadIdentifiersAsync(
         List<Membership> rows,
@@ -113,34 +159,28 @@ internal sealed class ListPeopleHandler(
             .ToDictionaryAsync(member => member.Id, member => member.Identifier, cancellationToken);
     }
 
-    private async Task<Dictionary<long, Dictionary<long, string>>> LoadValuesAsync(
-        long tenantId,
-        HashSet<long> membershipIds,
-        CancellationToken cancellationToken)
-    {
-        var valueRows = await PropertyValuesWriter
-            .ActiveCells(db, tenantId, membershipIds)
-            .Select(value => new { value.MembershipId, value.PropertyId, value.Value })
-            .ToListAsync(cancellationToken);
-
-        return valueRows
-            .GroupBy(row => row.MembershipId)
-            .ToDictionary(
-                group => group.Key,
-                group => group.ToDictionary(row => row.PropertyId, row => row.Value));
-    }
-
-    private static List<PersonDto> BuildDtos(
-        List<Membership> rows,
-        Dictionary<long, string> identifiers,
-        Dictionary<long, Dictionary<long, string>> valuesByMembership) =>
+    /// <summary>A person lacks a value for each of the form's Properties they have no live cell for.</summary>
+    private static List<PersonDto> BuildDtos(List<Membership> rows, PageDetails details) =>
         rows
-            .Where(membership => identifiers.ContainsKey(membership.MemberId))
-            .Select(membership => new PersonDto(
-                membership.Id,
-                membership.MemberId,
-                identifiers[membership.MemberId],
-                valuesByMembership.GetValueOrDefault(membership.Id)
-                    ?? (IReadOnlyDictionary<long, string>)new Dictionary<long, string>()))
+            .Where(membership => details.Identifiers.ContainsKey(membership.MemberId))
+            .Select(membership =>
+            {
+                Dictionary<long, string> values = details.Values.GetValueOrDefault(membership.Id) ?? [];
+                return new PersonDto(
+                    membership.Id,
+                    membership.MemberId,
+                    details.Identifiers[membership.MemberId],
+                    values,
+                    membership.IsTest,
+                    details.Links[membership.Id],
+                    details.PropertyIds.Count(propertyId => !values.ContainsKey(propertyId)));
+            })
             .ToList();
+
+    /// <summary>What a page's rows are joined to, each read once for the whole page.</summary>
+    private sealed record PageDetails(
+        Dictionary<long, string> Identifiers,
+        Dictionary<long, Dictionary<long, string>> Values,
+        IReadOnlyDictionary<long, LinkStatusDto> Links,
+        IReadOnlyCollection<long> PropertyIds);
 }

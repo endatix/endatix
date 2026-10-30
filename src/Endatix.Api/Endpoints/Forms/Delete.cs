@@ -1,4 +1,5 @@
 using FastEndpoints;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
@@ -29,11 +30,13 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormRequest, Results<Ok
             s.Responses[200] = "Form deleted successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
+            s.Responses[503] = "The form is busy; try again shortly.";
         });
         Description(builder => builder
             .Produces<string>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     /// <inheritdoc/>
@@ -46,5 +49,31 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormRequest, Results<Ok
         return TypedResultsBuilder
             .MapResult(result, form => form.Id.ToString())
             .SetTypedResults<Ok<string>, ProblemHttpResult>();
+    }
+}
+
+/// <summary>
+/// Request model for deleting a form.
+/// </summary>
+public class DeleteFormRequest
+{
+    /// <summary>
+    /// The ID of the form to delete.
+    /// </summary>
+    public long FormId { get; init; }
+}
+
+/// <summary>
+/// Validation rules for the <c>DeleteFormRequest</c> class.
+/// </summary>
+public class DeleteFormValidator : Validator<DeleteFormRequest>
+{
+    /// <summary>
+    /// Default constructor
+    /// </summary>
+    public DeleteFormValidator()
+    {
+        RuleFor(x => x.FormId)
+            .GreaterThan(0);
     }
 }

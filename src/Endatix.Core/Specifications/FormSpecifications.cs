@@ -94,6 +94,23 @@ public static class FormSpecifications
     }
 
     /// <summary>
+    /// The active definition's id of one form of the tenant, while the form takes submissions: live, enabled and with
+    /// an active definition. <see langword="null"/> otherwise.
+    /// </summary>
+    public sealed class OpenFormActiveDefinitionId : Specification<Form, long?>
+    {
+        public OpenFormActiveDefinitionId(long id, long tenantId)
+        {
+            Guard.Against.NegativeOrZero(tenantId);
+
+            Query
+                .Where(f => f.Id == id && f.TenantId == tenantId && f.IsEnabled && f.ActiveDefinitionId != null)
+                .AsNoTracking();
+            Query.Select(f => f.ActiveDefinitionId);
+        }
+    }
+
+    /// <summary>
     /// Specification to get forms by theme ID
     /// </summary>
     public sealed class ByThemeId : Specification<Form>

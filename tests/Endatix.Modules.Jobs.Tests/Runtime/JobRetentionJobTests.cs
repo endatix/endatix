@@ -29,6 +29,6 @@ public sealed class JobRetentionJobTests
 
         // Assert
         await run.Should().ThrowAsync<OperationCanceledException>();
-        await repository.DidNotReceiveWithAnyArgs().DeleteExpiredAsync(default, default, default);
+        await repository.DidNotReceiveWithAnyArgs().DeleteExpiredAsync(default, default, Arg.Any<CancellationToken>());
     }
 }

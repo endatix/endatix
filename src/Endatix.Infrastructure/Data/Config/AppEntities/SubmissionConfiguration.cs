@@ -24,6 +24,11 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
         builder.Property(s => s.FormId)
            .IsRequired();
 
+        // Every tracked UPDATE carries "AND IsDeleted = false", so a write that read the submission before its form's
+        // deletion soft-deleted it by form matches no row and rolls back, instead of landing on a deleted submission.
+        builder.Property(s => s.IsDeleted)
+            .IsConcurrencyToken();
+
         builder.Property(s => s.JsonData)
             .IsRequired();
 

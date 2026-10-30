@@ -79,7 +79,7 @@ public class EndatixProblemDetailsTests
             StatusCodes.Status403Forbidden,
             title: "This survey is no longer available.",
             detail: "Thank you for your interest. Unfortunately, this survey can no longer be completed.",
-            errorCode: EndatixProblemCodes.FORM_UNAVAILABLE);
+            errorCode: EndatixProblemCodes.FORM_UNAVAILABLE, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
@@ -102,7 +102,7 @@ public class EndatixProblemDetailsTests
         await httpContext.WriteEndatixProblemAsync(
             StatusCodes.Status500InternalServerError,
             title: "Export failed",
-            detail: "connection string leaked");
+            detail: "connection string leaked", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         using var document = await ReadProblemAsync(httpContext);
@@ -196,7 +196,6 @@ public class EndatixProblemDetailsTests
     [Theory]
     [InlineData(ResultStatus.Error, StatusCodes.Status500InternalServerError)]
     [InlineData(ResultStatus.CriticalError, StatusCodes.Status500InternalServerError)]
-    [InlineData(ResultStatus.Unavailable, StatusCodes.Status503ServiceUnavailable)]
     public void ToProblem_ServerError_DoesNotEchoHandlerSuppliedDetail(ResultStatus status, int expectedStatusCode)
     {
         // Arrange
@@ -205,12 +204,9 @@ public class EndatixProblemDetailsTests
         EndatixProblemDetails.Configure(accessor);
 
         const string leak = "Error deleting folder: 23503 violates foreign key \"FK_Forms_Folders\" on table forms";
-        Core.Infrastructure.Result.IResult result = status switch
-        {
-            ResultStatus.CriticalError => Result.CriticalError(leak),
-            ResultStatus.Unavailable => Result.Unavailable(leak),
-            _ => Result.Error(leak),
-        };
+        Core.Infrastructure.Result.IResult result = status == ResultStatus.CriticalError
+            ? Result.CriticalError(leak)
+            : Result.Error(leak);
 
         // Act
         var httpResult = result.ToProblem();
@@ -240,6 +236,26 @@ public class EndatixProblemDetailsTests
         httpResult.ProblemDetails.Detail.Should().Be("Form not found.");
     }
 
+    /// <summary>
+    /// A 503's detail is the retry message the handler wrote, e.g. that the form's people are being imported.
+    /// </summary>
+    [Fact]
+    public void ToProblem_Unavailable_KeepsDetail()
+    {
+        // Arrange
+        var accessor = Substitute.For<IHttpContextAccessor>();
+        accessor.HttpContext.Returns(CreateHttpContext("/api/forms/9/audience/people/1", "trace-503"));
+        EndatixProblemDetails.Configure(accessor);
+
+        // Act
+        var httpResult = Result.Unavailable("People on this form are being imported or changed. Try again.").ToProblem();
+
+        // Assert
+        httpResult.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+        httpResult.ProblemDetails.Title.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
+        httpResult.ProblemDetails.Detail.Should().Be("People on this form are being imported or changed. Try again.");
+    }
+
     [Fact]
     public void Create_ServerError_SuppressesDetailForExportAndOtherDirectCallers()
     {
@@ -253,6 +269,20 @@ public class EndatixProblemDetailsTests
         // Assert
         problem.Detail.Should().Be("Export failed");
         problem.Detail.Should().NotContain("Object reference");
+    }
+
+    [Fact]
+    public void Create_ServiceUnavailable_SuppressesDetailForDirectCallers()
+    {
+        // Act
+        var problem = EndatixProblemDetails.Create(
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            title: null,
+            detail: "Npgsql: connection refused to db-primary:5432",
+            httpContext: CreateHttpContext("/api/forms/1/submissions/export", "trace-export-503"));
+
+        // Assert
+        problem.Detail.Should().Be(ResultTitles.SERVICE_UNAVAILABLE);
     }
 
     [Fact]

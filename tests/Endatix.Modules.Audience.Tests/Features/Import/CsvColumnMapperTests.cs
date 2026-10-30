@@ -114,14 +114,271 @@ public sealed class CsvColumnMapperTests
         read.Values[5].Should().Be("""["Café","R&D"]""");
     }
 
+    [Theory]
+    [InlineData("1")]
+    [InlineData("TRUE")]
+    [InlineData("Yes")]
+    [InlineData("y")]
+    [InlineData(" X ")]
+    public void ReadValues_TickedCell_TicksTheChoice(string cell)
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: false, "brands__nike");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__nike", cell)));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values[5].Should().Be("""["nike"]""");
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("False")]
+    [InlineData("NO")]
+    [InlineData("n")]
+    [InlineData(" ")]
+    public void ReadValues_UntickedCell_LeavesTheChoiceOut(string cell)
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: false, "brands__nike", "brands__adidas");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__nike", cell), ("brands__adidas", "1")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values[5].Should().Be("""["adidas"]""");
+    }
+
+    [Fact]
+    public void ReadValues_CellThatIsNeitherTickNorUntick_ReturnsErrorNamingTheColumn()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: false, "brands__nike");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__nike", "maybe")));
+
+        // Assert
+        read.Error.Should().Be("'brands__nike' must be 1 or 0 (true/false, yes/no, y/n and x also work), not 'maybe'.");
+    }
+
+    [Fact]
+    public void ReadValues_SingleChoiceSplitColumnWithBadCell_ReturnsError()
+    {
+        // Arrange
+        CsvColumnMap map = ChoiceMap(AudienceDataTypeCodes.SingleChoice, """["North","South"]""", ["region__North"]);
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("region__North", "2")));
+
+        // Assert
+        read.Error.Should().Be("'region__North' must be 1 or 0 (true/false, yes/no, y/n and x also work), not '2'.");
+    }
+
+    [Fact]
+    public void ReadValues_OtherTickedWithText_AddsTheTextAsAChoice()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: true, "brands__nike", "brands__other", "brands__other_text");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(
+            map, Cells(("brands__nike", "1"), ("brands__other", "1"), ("brands__other_text", " Acme ")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values[5].Should().Be("""["nike","Acme"]""");
+    }
+
+    [Fact]
+    public void ReadValues_OtherTextMatchingATickedChoice_StoresItOnce()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: true, "brands__nike", "brands__other", "brands__other_text");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(
+            map, Cells(("brands__nike", "1"), ("brands__other", "1"), ("brands__other_text", "nike")));
+
+        // Assert
+        read.Values[5].Should().Be("""["nike"]""");
+    }
+
+    [Fact]
+    public void ReadValues_OtherTextWithOtherUnticked_ReturnsError()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: true, "brands__other", "brands__other_text");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other", "0"), ("brands__other_text", "Acme")));
+
+        // Assert
+        read.Error.Should().Be("'brands__other_text' has text, but 'brands__other' is not ticked.");
+    }
+
+    [Fact]
+    public void ReadValues_OtherTextWithoutAnOtherColumn_ReturnsError()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: true, "brands__other_text");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other_text", "Acme")));
+
+        // Assert
+        read.Error.Should().Be("'brands__other_text' has text, but the file has no 'brands__other' column.");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ReadValues_OtherTickedWithBlankText_DoesNotAddAFreeChoice(string text)
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: true, "brands__other", "brands__other_text");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other", "x"), ("brands__other_text", text)));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values.Should().NotContainKey(5);
+    }
+
+    [Fact]
+    public void ReadValues_OtherTickedWithoutATextColumn_ReturnsError()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: true, "brands__other");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other", "1")));
+
+        // Assert
+        read.Error.Should().Be("'brands__other' is ticked, but the file has no 'brands__other_text' column.");
+    }
+
+    [Fact]
+    public void ReadValues_OtherTextOnAPropertyWithoutOther_ReturnsError()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: false, "brands__other", "brands__other_text");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other", "1"), ("brands__other_text", "Acme")));
+
+        // Assert
+        read.Error.Should().Be("'brands__other_text' has text, but 'Brands' does not allow other choices.");
+    }
+
+    [Fact]
+    public void ReadValues_OtherTickedOnAPropertyWithoutOther_StoresAKeyTheValueCheckRefuses()
+    {
+        // Arrange
+        CsvColumnMap map = BrandsMap(allowsOther: false, "brands__other");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__other", "1")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values[5].Should().Be("""["other"]""");
+        map.PropertiesById[5].ValueError(read.Values[5]).Should().Be("'Brands' has no choice 'other'.");
+    }
+
+    [Fact]
+    public void ReadValues_RealOtherChoiceWithoutText_StoresTheKey()
+    {
+        // Arrange
+        CsvColumnMap map = ListedOtherMap(allowsOther: false, "region__other");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("region__other", "1")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values[5].Should().Be("""["other"]""");
+    }
+
+    [Fact]
+    public void ReadValues_RealOtherChoiceThatAllowsOther_StoresTheKeyAndTheText()
+    {
+        // Arrange
+        CsvColumnMap map = ListedOtherMap(allowsOther: true, "region__other", "region__other_text");
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("region__other", "1"), ("region__other_text", "Acme")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values[5].Should().Be("""["other","Acme"]""");
+    }
+
+    [Fact]
+    public void ReadValues_SingleChoiceOtherTextFromAnExport_IsSkipped()
+    {
+        // Arrange — a radio question with Other exports its key column and q__other_text.
+        Property tier = new(new PropertyCreateArgs(
+            1, 10, "Tier", AudienceDataTypeCodes.SingleChoice, 0, """["basic"]""", AllowsOther: true))
+        { Id = 5 };
+        CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest(
+            [tier], ["email", "tier", "tier__other_text"], "email", new Dictionary<string, string> { ["tier"] = "tier" }));
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("tier", "other"), ("tier__other_text", "Gold")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values.Should().Equal(new Dictionary<long, string> { [5] = "other" });
+    }
+
+    [Fact]
+    public void ReadValues_ChoiceStyledHeaderMappedToAProperty_IsReadAsThatProperty()
+    {
+        // Arrange
+        Property brands = new(new PropertyCreateArgs(
+            1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike"]"""))
+        { Id = 5 };
+        Property notes = Text(6, "Notes");
+        CsvColumnMap map = CsvColumnMapper.Build(new CsvColumnRequest(
+            [brands, notes], ["email", "brands__notes"], "email", new Dictionary<string, string> { ["notes"] = "brands__notes" }));
+
+        // Act
+        CellRead read = CsvColumnMapper.ReadValues(map, Cells(("brands__notes", "Prefers trail shoes")));
+
+        // Assert
+        read.Error.Should().BeNull();
+        read.Values.Should().Equal(new Dictionary<long, string> { [6] = "Prefers trail shoes" });
+    }
+
     private static Property Text(long id, string name) =>
         new(new PropertyCreateArgs(1, 10, name, AudienceDataTypeCodes.Text, 0)) { Id = id };
 
-    private static CsvColumnMap ChoiceMap(string dataType, string choicesJson, IReadOnlyList<string> choiceHeaders)
+    private static CsvColumnMap ChoiceMap(string dataType, string choicesJson, IReadOnlyList<string> choiceHeaders) =>
+        MapOf(new PropertyCreateArgs(1, 10, "Region", dataType, 0, choicesJson), choiceHeaders);
+
+    /// <summary>A multiple-choice property that lists a key named <c>other</c>.</summary>
+    private static CsvColumnMap ListedOtherMap(bool allowsOther, params string[] choiceHeaders) =>
+        MapOf(
+            new PropertyCreateArgs(
+                1, 10, "Region", AudienceDataTypeCodes.MultipleChoice, 0, """["nike","other"]""", allowsOther),
+            choiceHeaders);
+
+    private static CsvColumnMap MapOf(PropertyCreateArgs args, IReadOnlyList<string> choiceHeaders)
     {
-        Property region = new(new PropertyCreateArgs(1, 10, "Region", dataType, 0, choicesJson)) { Id = 5 };
-        return CsvColumnMapper.Build(new CsvColumnRequest([region], ["email", .. choiceHeaders], "email", null));
+        Property property = new(args) { Id = 5 };
+        return CsvColumnMapper.Build(new CsvColumnRequest([property], ["email", .. choiceHeaders], "email", null));
     }
+
+    private static CsvColumnMap BrandsMap(bool allowsOther, params string[] choiceHeaders) =>
+        MapOf(
+            new PropertyCreateArgs(
+                1, 10, "Brands", AudienceDataTypeCodes.MultipleChoice, 0, """["nike","adidas"]""", allowsOther),
+            choiceHeaders);
 
     private static Dictionary<string, string> Cells(params (string Header, string Value)[] cells) =>
         cells.ToDictionary(cell => cell.Header, cell => cell.Value, StringComparer.OrdinalIgnoreCase);

@@ -1,4 +1,5 @@
 {
+  "$comment": "Keeps the old shape on purpose: expression-less calculatedValues city and age stand in for the audience variables, and the questions city and age each share a name with one, so the goldens cover those collisions. New fixtures declare audience variables as Survey Creator variablePresets instead; see AllQuestionsPersonalized/all-questions-personalization-overlay.json.",
   "title": "Panel check-in",
   "calculatedValues": [
     { "name": "city" },

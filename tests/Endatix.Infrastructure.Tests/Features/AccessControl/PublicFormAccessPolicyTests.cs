@@ -119,7 +119,7 @@ public partial class PublicFormAccessPolicyTests
                 new FormProjections.FormAccessRoutingDto(IsPublic: true, LimitOnePerUser: false, Id: 1)));
 
         _submissionRepository
-            .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .AnyAsync(Arg.Any<ISpecification<Submission>>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         var privateForm = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Private form", IsEnabled: true, IsPublic: false));
@@ -210,12 +210,12 @@ public partial class PublicFormAccessPolicyTests
     {
         if (isValid && claims != null)
         {
-            _accessTokenService.ValidateAccessToken(token)
+            _accessTokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
                 .Returns(Result<SubmissionAccessTokenClaims>.Success(claims));
         }
         else
         {
-            _accessTokenService.ValidateAccessToken(token)
+            _accessTokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
                 .Returns(Result<SubmissionAccessTokenClaims>.Unauthorized("Invalid access token"));
         }
     }
@@ -783,7 +783,7 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         result.IsSuccess.Should().BeTrue();
 
-        capturedCacheKey.Should().Be($"ac:sub_token:form:{formId}:token:{token}:userId:{userId}");
+        capturedCacheKey.Should().MatchRegex($"^ac:sub_token:form:{formId}:token_fp:[0-9A-F]{{64}}:userId:{userId}$").And.NotContain(token);
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(30));
     }
@@ -833,7 +833,7 @@ public partial class PublicFormAccessPolicyTests
         // Assert
         result.IsSuccess.Should().BeTrue();
 
-        capturedCacheKey.Should().Be($"ac:sub_token:form:{formId}:token:{token}:userId:{AuthorizationData.ANONYMOUS_USER_ID}");
+        capturedCacheKey.Should().MatchRegex($"^ac:sub_token:form:{formId}:token_fp:[0-9A-F]{{64}}:userId:{AuthorizationData.ANONYMOUS_USER_ID}$").And.NotContain(token);
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(10));
     }

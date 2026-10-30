@@ -281,6 +281,111 @@ public class MailgunEmailSenderTests
         variables.RootElement.GetProperty("attempt").GetInt32().Should().Be(2);
     }
 
+    [Fact]
+    public async Task SendEmailWithBody_CancelledAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts);
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), cts.Token);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateCancelledAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts);
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            TemplateId = "mailgun-template",
+            IsExternal = true
+        };
+
+        Func<Task> act = () => _sut.SendEmailAsync(email, cts.Token);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_ResponseBodyFailsAfterProviderAccepted_DoesNotFail()
+    {
+        using var cts = new CancellationTokenSource();
+        AcceptThenCancel(cts, resetOnRead: true);
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    public async Task SendEmailWithBody_ProviderRejects_ThrowsWithStatus(HttpStatusCode status)
+    {
+        RespondWith(status, "{\"message\":\"Forbidden\"}");
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        var thrown = await act.Should().ThrowAsync<EmailProviderException>();
+        thrown.Which.Provider.Should().Be("Mailgun");
+        thrown.Which.StatusCode.Should().Be(status);
+        thrown.Which.Message.Should().Contain("Forbidden");
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_ProviderRejectsWithLongBody_KeepsMessageBounded()
+    {
+        RespondWith(HttpStatusCode.BadGateway, new string('x', 10_000));
+
+        Func<Task> act = () => _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        (await act.Should().ThrowAsync<EmailProviderException>()).Which.Message.Length.Should().BeLessThan(1_200);
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateProviderRejects_Throws()
+    {
+        RespondWith(HttpStatusCode.BadRequest, "{\"message\":\"template not found\"}");
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            TemplateId = "mailgun-template",
+            IsExternal = true
+        };
+
+        Func<Task> act = () => _sut.SendEmailAsync(email, CancellationToken.None);
+
+        (await act.Should().ThrowAsync<EmailProviderException>()).Which.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private void RespondWith(HttpStatusCode status, string body) =>
+        _httpClientFactory.CreateClient().Returns(new HttpClient(new FixedResponseHttpMessageHandler(status, body)));
+
+    private sealed class FixedResponseHttpMessageHandler(HttpStatusCode status, string body) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
+    }
+
+    private void AcceptThenCancel(CancellationTokenSource cts, bool resetOnRead = false) =>
+        _httpClientFactory.CreateClient().Returns(new HttpClient(new AcceptThenCancelHttpMessageHandler(cts, resetOnRead)));
+
+    private sealed class AcceptThenCancelHttpMessageHandler(CancellationTokenSource cts, bool resetOnRead) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            cts.Cancel();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new CancellationAwareContent("{\"message\":\"Queued. Thank you.\"}", resetOnRead)
+            });
+        }
+    }
+
     private sealed class CapturingHttpMessageHandler : HttpMessageHandler
     {
         public HttpRequestMessage? Request { get; private set; }

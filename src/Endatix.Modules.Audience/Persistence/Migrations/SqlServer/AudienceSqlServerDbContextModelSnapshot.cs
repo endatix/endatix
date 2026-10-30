@@ -30,7 +30,28 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                         .HasColumnType("bigint")
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
 
-                    b.Property<DateTime>("CompletedAt")
+                    b.Property<int>("CheckExistingCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CheckNewCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CheckRejectedCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CheckedRowCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ChunkSize")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ClearEmptyCells")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ClearMissingProperties")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
@@ -42,6 +63,10 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("Failure")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -50,14 +75,34 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("HeadersJson")
+                        .HasColumnType("json");
+
+                    b.Property<string>("IdentifierColumn")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IdentifierKind")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("JobId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<long?>("PerformedById")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("PropertyColumnsJson")
+                        .HasColumnType("json");
 
                     b.Property<int>("RejectedCount")
                         .HasColumnType("int");
@@ -66,10 +111,20 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<bool>("Resumable")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RunsInRequest")
+                        .HasColumnType("bit");
+
                     b.Property<int>("SkippedCount")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)");
@@ -80,13 +135,126 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<int>("UpdatedCount")
                         .HasColumnType("int");
 
+                    b.Property<int>("WriteRun")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.Property<int>("WrittenRowCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WrittenThroughRow")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId", "FormId");
 
+                    b.HasIndex(new[] { "TenantId", "FormId" }, "IX_Imports_Unfinished")
+                        .IsUnique()
+                        .HasFilter("[Status] IN ('uploading', 'checking', 'checked', 'writing') AND [IsDeleted] = 0");
+
                     b.ToTable("Imports", "audience", t =>
                         {
                             t.HasCheckConstraint("CK_Imports_TenantId", "[TenantId] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportChunk", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+
+                    b.Property<int>("ChunkIndex")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FirstRowNumber")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ImportId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RowsJson")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportId", "ChunkIndex")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ImportChunks_Index");
+
+                    b.ToTable("ImportChunks", "audience", t =>
+                        {
+                            t.HasCheckConstraint("CK_ImportChunks_TenantId", "[TenantId] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportRejection", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+
+                    b.Property<string>("CellsJson")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("ImportId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("int");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportId", "RowNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ImportRejections_Row");
+
+                    b.ToTable("ImportRejections", "audience", t =>
+                        {
+                            t.HasCheckConstraint("CK_ImportRejections_TenantId", "[TenantId] > 0");
                         });
                 });
 
@@ -255,6 +423,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("bit");
+
                     b.Property<long>("MemberId")
                         .HasColumnType("bigint");
 
@@ -265,6 +436,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasAlternateKey("TenantId", "Id", "IsTest")
+                        .HasName("AK_Memberships_TestFlag");
 
                     b.HasIndex("TenantId", "FormId")
                         .HasDatabaseName("IX_Memberships_Form")
@@ -366,6 +540,9 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTest")
+                        .HasColumnType("bit");
+
                     b.Property<long>("MembershipId")
                         .HasColumnType("bigint");
 
@@ -385,11 +562,11 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId", "PropertyId")
+                    b.HasIndex("TenantId", "PropertyId", "IsTest")
                         .HasDatabaseName("IX_PropertyValues_Property")
                         .HasFilter("[IsDeleted] = 0");
 
-                    b.HasIndex("TenantId", "MembershipId", "PropertyId")
+                    b.HasIndex("TenantId", "MembershipId", "IsTest", "PropertyId")
                         .IsUnique()
                         .HasDatabaseName("IX_PropertyValues_Cell")
                         .HasFilter("[IsDeleted] = 0");
@@ -398,6 +575,35 @@ namespace Endatix.Modules.Audience.Persistence.Migrations.SqlServer
                         {
                             t.HasCheckConstraint("CK_PropertyValues_TenantId", "[TenantId] > 0");
                         });
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportChunk", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.AudienceImport", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.AudienceImportRejection", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.AudienceImport", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Modules.Audience.Domain.PropertyValue", b =>
+                {
+                    b.HasOne("Endatix.Modules.Audience.Domain.Membership", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId", "MembershipId", "IsTest")
+                        .HasPrincipalKey("TenantId", "Id", "IsTest")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PropertyValues_Membership");
                 });
 #pragma warning restore 612, 618
         }

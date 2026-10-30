@@ -39,6 +39,9 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
     }
 
     /// <inheritdoc/>
+    public void ClearChangeTracker() => _context.ChangeTracker.Clear();
+
+    /// <inheritdoc/>
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         _transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -55,7 +58,7 @@ public abstract class EfUnitOfWorkBase<TContext> : IUnitOfWork
         }
         finally
         {
-            await _transaction.DisposeAsync();
+            await _transaction!.DisposeAsync();
             _transaction = null;
         }
     }

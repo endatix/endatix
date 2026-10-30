@@ -55,6 +55,7 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
         result.Value.Readiness.Should().Be(new SubmissionGridReadiness(
             Submissions: 5,
             CompletedSubmissions: 3,
+            InProgress: 2,
             Prepared: 1,
             Pending: 1,
             Failed: 1,
