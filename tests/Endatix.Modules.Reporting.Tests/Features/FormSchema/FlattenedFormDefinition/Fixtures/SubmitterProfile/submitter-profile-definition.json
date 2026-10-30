@@ -1,0 +1,25 @@
+{
+  "title": "Staff pulse",
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "text",
+          "name": "department",
+          "title": "Which team are you on?"
+        },
+        {
+          "type": "text",
+          "name": "submitter_region",
+          "title": "Which region do you work in?"
+        },
+        {
+          "type": "boolean",
+          "name": "recommend",
+          "title": "Would you recommend working here?"
+        }
+      ]
+    }
+  ]
+}
