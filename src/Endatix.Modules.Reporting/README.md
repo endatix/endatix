@@ -72,6 +72,10 @@ A flatten rebuilds the schema only for a submission on a definition newer than t
 
 A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
 
+### Audience columns in exports
+
+Audience values close an export row as one block, under their keys as stored (`AudienceIdentifier`, `audience_<variable>`). A question whose export key matches an audience key keeps the key, and the audience column is left out. That holds for every question of the form, whether the export's column scope includes it or not, because the Shoji codebook is never scoped and gives the key to the question: a scoped `csv-shoji` export would otherwise write audience values under a variable Crunch reads as the question's. Submitter profile columns follow the same rule. A tabular export that leaves out an audience column logs one warning naming the form and the keys.
+
 ### Submitter profile fields
 
 `Customizations:Reporting:SubmitterProfileFields` lists the keys of `Submission.SubmitterProfileSnapshot` (the claims `Endatix:Submitter:ProfileSnapshotFields` captures) that prepared submissions carry. It is empty by default, and empty adds no column: schemas, flattened rows and exports stay as they were.

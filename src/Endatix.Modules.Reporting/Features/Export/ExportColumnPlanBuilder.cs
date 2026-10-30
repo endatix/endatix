@@ -146,8 +146,10 @@ internal static class ExportColumnPlanBuilder
             column.Kind is not (FormSchemaColumnKind.Personalization or FormSchemaColumnKind.SubmitterProfile) &&
             (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
-    // Every question of the form takes its export key, in the scope or not. The Shoji codebook is not scoped and gives
-    // the key to the question, so an audience column under it would carry audience values as the question's (#1281).
+    // The keys an audience or submitter column cannot have: those of the plan's columns, and those every question of the
+    // form exports under, in the scope or not. The Shoji codebook is not scoped and gives such a key to the question, so
+    // a column under it would carry audience values as the question's (#1281). Under the Crunch profile the unscoped
+    // keys are Q-numbers, which no audience or submitter key matches.
     private static HashSet<string> KeysTakenByQuestions(
         PlanSource source,
         List<ExportColumnDefinition> scopedColumns,
@@ -177,7 +179,7 @@ internal static class ExportColumnPlanBuilder
         return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement).ToList();
     }
 
-    // Audience values, then submitter profile fields: each block sees the export keys taken before it.
+    /// <summary>Adds audience values, then submitter profile fields: each block sees the export keys taken before it.</summary>
     /// <returns>The audience keys a question took.</returns>
     private static List<string> AddNonQuestionBlocks(
         PlanSource source,

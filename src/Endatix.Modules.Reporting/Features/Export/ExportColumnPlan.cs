@@ -11,6 +11,6 @@ internal sealed class ExportColumnPlan(
 {
     public IReadOnlyList<ExportColumnDefinition> Columns { get; } = columns;
 
-    /// <summary>The audience keys a question of the form exports under, so the plan has no audience column for them.</summary>
+    /// <summary>The audience columns left out because a question of the form exports under their key.</summary>
     public IReadOnlyList<string> OmittedAudienceKeys { get; } = omittedAudienceKeys;
 }

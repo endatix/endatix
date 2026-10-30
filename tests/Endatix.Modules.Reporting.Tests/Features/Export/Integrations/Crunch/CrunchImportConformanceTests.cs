@@ -60,8 +60,8 @@ public sealed class CrunchImportConformanceTests
             new(schema, pipeline.ExportRows(responses), settings, ColumnScope: ["qName"]),
             cancellationToken);
 
-        // Assert: no column carries the audience value under the question's alias.
+        // Assert: the codebook's "audience_region" is the question's, so the CSV has no column under it.
         CrunchImportCheck.ScopedProblems(shoji, csv).Should().BeEmpty();
-        csv.Should().NotContain("North");
+        csv.Split('\n')[0].TrimEnd('\r').Split(',').Should().EndWith(["qName", "AudienceIdentifier"]);
     }
 }

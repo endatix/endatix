@@ -30,14 +30,19 @@ public sealed class OmittedAudienceColumnWarningTests
                 call.ArgAt<IEnumerable<KeyValuePair<string, object?>>>(2).ToDictionary(StringComparer.Ordinal))));
     }
 
-    [Fact]
-    public async Task PrepareOptionsAsync_QuestionTakesAnAudienceKey_LogsOneWarningAndSucceeds()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("qName")]
+    public async Task PrepareOptionsAsync_QuestionTakesAnAudienceKey_LogsOneWarningAndSucceeds(string? scopedQuestion)
     {
         // Arrange: with "_" as the separator, multipletext "audience" item "region" exports as "audience_region".
         var dataSource = DataSource();
+        IReadOnlyList<string>? columnScope = scopedQuestion is null ? null : [scopedQuestion];
 
         // Act
-        var result = await dataSource.PrepareOptionsAsync(Context("""{"keySeparator":"_"}"""), TestContext.Current.CancellationToken);
+        var result = await dataSource.PrepareOptionsAsync(
+            Context("""{"keySeparator":"_"}""", columnScope),
+            TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -76,7 +81,7 @@ public sealed class OmittedAudienceColumnWarningTests
             _logger);
     }
 
-    private static ExportDataSourceContext Context(string? settingsJson) =>
+    private static ExportDataSourceContext Context(string? settingsJson, IReadOnlyList<string>? columnScope = null) =>
         new(
             new ExportDataSourceRequest("csv", typeof(SubmissionExportRow), null),
             TenantId,
@@ -87,7 +92,8 @@ public sealed class OmittedAudienceColumnWarningTests
                 {
                     [SubmissionExportMetadataKeys.ExecutionSettings] = new SubmissionExportExecutionSettings(
                         ExportFormatId: 1,
-                        SettingsJson: settingsJson),
+                        SettingsJson: settingsJson,
+                        ColumnScope: columnScope),
                 },
             },
             null);

@@ -4,7 +4,9 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
@@ -146,6 +148,26 @@ public sealed class ExportColumnPlanBuilderTests
 
         // Assert
         plan.OmittedAudienceKeys.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Build_ScopeLeavesOutTheQuestionThatTakesASubmitterKey_TheSubmitterColumnStaysOut()
+    {
+        // Arrange: with "_" as the separator, multipletext "submitter" item "region" exports as "submitter_region".
+        const string definitionJson = """
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"qName"},
+              {"type":"multipletext","name":"submitter","items":[{"name":"region"}]}]}]}
+            """;
+        var pipeline = PersonalizationPipeline.Compile(definitionJson, new SubmitterProfileFields(["region", "email"]));
+        pipeline.Flatten(definitionJson, new FixtureResponse("r1", "{}", null, SubmitterProfile: """{"region":"EMEA"}"""));
+        IReadOnlySet<string> columnScope = new HashSet<string>(["qName"], StringComparer.Ordinal);
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(pipeline.Entity(), columnScope: columnScope, keySeparator: "_");
+
+        // Assert
+        plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
+            "qName", "submitter_email");
     }
 
     internal static FormSchemaEntity AudienceRegionCollisionSchema()
