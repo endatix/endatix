@@ -15,6 +15,7 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Persistence;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -238,6 +239,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             flattenedSubmissionRepository,
             schemaProvider,
             NoSnapshotPersonalization(formSchemaRepository),
+            SubmitterProfileFields.None,
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
         return new SubmissionBackfillProcessor(

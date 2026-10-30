@@ -7,16 +7,22 @@ using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 
 /// <summary>
-/// One response of a personalization fixture: its answers, the snapshot frozen on it if any, and the system values
-/// its export row carries (<c>system</c>, optional).
+/// One response of a personalization fixture: its answers, the snapshot frozen on it if any, the system values its
+/// export row carries (<c>system</c>, optional), and its submitter profile snapshot (<c>submitterProfile</c>, optional).
 /// </summary>
-internal sealed record FixtureResponse(string Id, string AnswersJson, string? Snapshot, JsonElement System = default)
+internal sealed record FixtureResponse(
+    string Id,
+    string AnswersJson,
+    string? Snapshot,
+    JsonElement System = default,
+    string? SubmitterProfile = null)
 {
     public PersonalizationRead? Personalization => PersonalizationReader.Read(Snapshot);
 }
@@ -24,22 +30,28 @@ internal sealed record FixtureResponse(string Id, string AnswersJson, string? Sn
 /// <summary>
 /// Plays responses through the same steps production runs, without a database: a definition compile, then for each
 /// flatten the audience-column include (<see cref="FormSchemaCompiler.IncludePersonalization"/>) and the flatten
-/// with the schema as it stands after that include.
+/// with the schema as it stands after that include. Given submitter profile fields, it compiles and flattens them too.
 /// </summary>
 internal sealed class PersonalizationPipeline
 {
-    private readonly FormSchemaCompiler _compiler = new();
+    private readonly FormSchemaCompiler _compiler;
+    private readonly SubmitterProfileFields _submitterProfileFields;
     private readonly Dictionary<string, Dictionary<string, JsonElement?>> _rows = new(StringComparer.Ordinal);
 
-    private PersonalizationPipeline(FormSchemaCompileResult schema) => Schema = schema;
+    private PersonalizationPipeline(SubmitterProfileFields submitterProfileFields, string definitionJson)
+    {
+        _submitterProfileFields = submitterProfileFields;
+        _compiler = new FormSchemaCompiler(submitterProfileFields: submitterProfileFields);
+        Schema = _compiler.CompilePersisted(definitionJson);
+    }
 
     public FormSchemaCompileResult Schema { get; private set; }
 
     /// <summary>Each response's flattened row, as written when it was flattened.</summary>
     public IReadOnlyDictionary<string, Dictionary<string, JsonElement?>> Rows => _rows;
 
-    public static PersonalizationPipeline Compile(string definitionJson) =>
-        new(new FormSchemaCompiler().CompilePersisted(definitionJson));
+    public static PersonalizationPipeline Compile(string definitionJson, SubmitterProfileFields? submitterProfileFields = null) =>
+        new(submitterProfileFields ?? SubmitterProfileFields.None, definitionJson);
 
     public static IReadOnlyList<FixtureResponse> LoadResponses() =>
         LoadResponses(Path.Combine("Personalization", "personalization-responses.json"));
@@ -60,7 +72,8 @@ internal sealed class PersonalizationPipeline
 
     public void Flatten(string definitionJson, FixtureResponse response)
     {
-        var columns = PersonalizationColumns.From(response.Personalization);
+        IReadOnlyList<FormSchemaColumn> columns =
+            [.. PersonalizationColumns.From(response.Personalization), .. _compiler.SubmitterProfileColumns];
         if (columns.Count > 0 && !PersonalizationColumns.AreCoveredBy(Schema.FlatteningMap, columns))
         {
             Schema = _compiler.IncludePersonalization(
@@ -70,7 +83,8 @@ internal sealed class PersonalizationPipeline
         }
 
         using var answers = JsonDocument.Parse(response.AnswersJson);
-        _rows[response.Id] = FlattenedSubmissionFlattener.Flatten(answers.RootElement, Schema.FlatteningMap, response.Personalization)
+        ResponseSnapshots snapshots = new(response.Personalization, _submitterProfileFields.Read(response.SubmitterProfile));
+        _rows[response.Id] = FlattenedSubmissionFlattener.Flatten(answers.RootElement, Schema.FlatteningMap, snapshots)
             .ToDictionary(entry => entry.Key, entry => entry.Value?.Clone(), StringComparer.Ordinal);
     }
 
@@ -133,7 +147,8 @@ internal sealed class PersonalizationPipeline
             response.GetProperty("id").GetString()!,
             AnswersOf(response),
             snapshot.ValueKind == JsonValueKind.Null ? null : snapshot.GetRawText(),
-            response.TryGetProperty("system", out var system) ? system.Clone() : default);
+            response.TryGetProperty("system", out var system) ? system.Clone() : default,
+            response.TryGetProperty("submitterProfile", out var profile) ? profile.GetRawText() : null);
     }
 
     // answersFile is the base; answers adds to it or replaces its values, so a response can reuse a large submission.

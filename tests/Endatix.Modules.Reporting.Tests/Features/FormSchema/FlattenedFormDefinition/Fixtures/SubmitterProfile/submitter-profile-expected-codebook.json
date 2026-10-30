@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "department": {
+      "surveyJsType": "text",
+      "title": {
+        "default": "Which team are you on?"
+      },
+      "pageName": "page1",
+      "exportShape": "scalar"
+    },
+    "recommend": {
+      "surveyJsType": "boolean",
+      "title": {
+        "default": "Would you recommend working here?"
+      },
+      "pageName": "page1",
+      "exportShape": "scalar"
+    },
+    "submitter_region": {
+      "surveyJsType": "text",
+      "title": {
+        "default": "Which region do you work in?"
+      },
+      "pageName": "page1",
+      "exportShape": "scalar"
+    }
+  },
+  "columns": {
+    "AudienceIdentifier": {
+      "parentKey": "AudienceIdentifier",
+      "surveyJsType": "personalization",
+      "exportShape": "personalization",
+      "dataType": "text",
+      "title": {
+        "default": "Audience identifier"
+      }
+    },
+    "audience_city": {
+      "parentKey": "audience_city",
+      "surveyJsType": "personalization",
+      "exportShape": "personalization",
+      "dataType": "text",
+      "title": {
+        "default": "City"
+      }
+    },
+    "department": {
+      "parentKey": "department",
+      "surveyJsType": "text",
+      "exportShape": "scalar",
+      "title": {
+        "default": "Which team are you on?"
+      }
+    },
+    "recommend": {
+      "parentKey": "recommend",
+      "surveyJsType": "boolean",
+      "exportShape": "scalar",
+      "title": {
+        "default": "Would you recommend working here?"
+      }
+    },
+    "submitter_department": {
+      "parentKey": "submitter_department",
+      "surveyJsType": "submitter_profile",
+      "exportShape": "submitter_profile",
+      "dataType": "string",
+      "title": {
+        "default": "Submitter department"
+      }
+    },
+    "submitter_email": {
+      "parentKey": "submitter_email",
+      "surveyJsType": "submitter_profile",
+      "exportShape": "submitter_profile",
+      "dataType": "string",
+      "title": {
+        "default": "Submitter email"
+      }
+    },
+    "submitter_region": {
+      "parentKey": "submitter_region",
+      "surveyJsType": "text",
+      "exportShape": "scalar",
+      "title": {
+        "default": "Which region do you work in?"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "recommend": {
+      "choices": [
+        {
+          "value": "true",
+          "id": 1,
+          "text": {
+            "default": "Yes"
+          }
+        },
+        {
+          "value": "false",
+          "id": 2,
+          "text": {
+            "default": "No"
+          }
+        }
+      ]
+    }
+  }
+}
