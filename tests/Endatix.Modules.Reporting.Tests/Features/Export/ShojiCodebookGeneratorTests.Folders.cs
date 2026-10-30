@@ -273,6 +273,89 @@ public sealed partial class ShojiCodebookGeneratorTests
             """[{"name":"pOuter","title":"Outer"},{"name":"pInner","title":"pInner"}]""");
     }
 
+    [Fact]
+    public void Generate_PanelTitledLikeANumberedRepeat_KeepsEverySiblingNameUnique()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","name":"p1","title":"Details","elements":[{"type":"text","name":"q1"}]},
+              {"type":"panel","name":"p2","title":"Details","elements":[{"type":"text","name":"q2"}]},
+              {"type":"panel","name":"p3","title":"Details (2)","elements":[{"type":"text","name":"q3"}]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var questions = ShojiOrder.Folder(GenerateTable(compiled).GetProperty("order"), ShojiFolderNames.Questions);
+
+        // Assert
+        ShojiOrder.FolderNames(questions).Should().Equal("Details", "Details (2)", "Details (2) (2)");
+        ShojiOrder.Aliases(questions).Should().Equal("q1", "q2", "q3");
+    }
+
+    [Fact]
+    public void Generate_ParentPanelWithABlankTitleOrName_UsesTheOtherOrLeavesTheQuestionInItsParent()
+    {
+        // Arrange: a hand-edited or damaged codebook.
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","name":"pOuter","title":"Outer","elements":[
+                {"type":"panel","name":"pInner","title":"Inner","elements":[{"type":"text","name":"qInner"}]},
+                {"type":"text","name":"qOuter"}
+              ]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var codebook = System.Text.Json.Nodes.JsonNode.Parse(compiled.CodebookJson)!;
+        var questionsNode = codebook["questions"]!;
+        questionsNode["qInner"]!["parentPanels"] = System.Text.Json.Nodes.JsonNode.Parse(
+            """[{"name":"pOuter","title":" "},{"name":"","title":""}]""");
+        questionsNode["qOuter"]!["parentPanels"] = System.Text.Json.Nodes.JsonNode.Parse("""[{"name":"pOuter","title":" "}]""");
+
+        // Act
+        using var document = JsonDocument.Parse(ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson,
+            codebook.ToJsonString(),
+            ExportFormatSettings.InterimCrunchKeySeparator));
+        var order = document.RootElement.GetProperty("body").GetProperty("table").GetProperty("order");
+
+        // Assert
+        var questions = ShojiOrder.Folder(order, ShojiFolderNames.Questions);
+        ShojiOrder.FolderNames(questions).Should().Equal("pOuter");
+        ShojiOrder.Folder(questions, "pOuter").EnumerateArray().Select(alias => alias.GetString()).Should().Equal("qInner", "qOuter");
+    }
+
+    [Fact]
+    public void Generate_LoopWithAValueNameOtherThanItsName_KeepsEveryLoopAliasInOneSubFolder()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"checkbox","name":"qBrands","choices":["nike","puma"]},
+              {"type":"paneldynamic","name":"pLoop","valueName":"brandAnswers","title":"Brands","loopSource":["qBrands"],
+               "templateElements":[
+                 {"type":"boolean","name":"qLike"},
+                 {"type":"dropdown","name":"qColor","choices":["red","blue"],"showOtherItem":true}
+               ]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var table = GenerateTable(compiled);
+        var questions = ShojiOrder.Folder(table.GetProperty("order"), ShojiFolderNames.Questions);
+
+        // Assert
+        var loopAliases = table.GetProperty("metadata").EnumerateObject()
+            .Select(variable => variable.Name)
+            .Where(alias => alias.StartsWith("brandAnswers", StringComparison.Ordinal) || alias.StartsWith("pLoop", StringComparison.Ordinal))
+            .ToList();
+        loopAliases.Should().NotBeEmpty();
+        ShojiOrder.FolderNames(questions).Should().Equal("Brands");
+        ShojiOrder.Aliases(ShojiOrder.Folder(questions, "Brands")).Should().BeEquivalentTo(loopAliases);
+    }
+
     private static JsonElement AllQuestionsTable() =>
         GenerateTable(new FormSchemaCompiler().CompilePersisted(
             FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json")));

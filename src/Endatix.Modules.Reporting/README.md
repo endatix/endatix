@@ -72,6 +72,14 @@ A flatten rebuilds the schema only for a submission on a definition newer than t
 
 A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
 
+### Codebook panels and Crunch folders
+
+Each question entry in the codebook names the panels it sits in, outermost first: `parentPanels: [{ "name", "title" }]`, where the title is the panel's default-locale title, or its name when it has none. `parentPanelTitle` (the nearest panel's title) stays for readers of older codebooks. A panel with neither a name nor a title adds no entry.
+
+The Shoji codebook (`codebook-shoji`) groups its `order` into folders Crunch shows on import: Meta-data (system columns), Participant variables (`AudienceIdentifier`, `audience_*`), Submitter (`submitter_*`), Calculated values and Questions; an empty folder is left out. The names are in `ShojiFolderNames`. Panels and loops become sub-folders of Questions, nested along `parentPanels` and keyed by panel name. A repeated title among siblings is numbered ("Details (2)"). `FormId` goes in `table.hidden` instead: Crunch refuses an alias that is both hidden and ordered.
+
+A codebook saved before `parentPanels` existed keeps one folder per panel title, without nesting, until the form's schema is compiled again. A compile's new question entries win over the stored ones, in both replace and merge.
+
 ### Submitter profile fields
 
 `Customizations:Reporting:SubmitterProfileFields` lists the keys of `Submission.SubmitterProfileSnapshot` (the claims `Endatix:Submitter:ProfileSnapshotFields` captures) that prepared submissions carry. It is empty by default, and empty adds no column: schemas, flattened rows and exports stay as they were.

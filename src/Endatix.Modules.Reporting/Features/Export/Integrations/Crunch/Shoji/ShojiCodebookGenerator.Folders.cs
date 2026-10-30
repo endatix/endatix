@@ -57,7 +57,7 @@ internal static partial class ShojiCodebookGenerator
     private sealed class QuestionFolders
     {
         private readonly Dictionary<(ShojiFolder Parent, string Key), ShojiFolder> _subFolders = [];
-        private readonly Dictionary<(ShojiFolder Parent, string Label), int> _labelUses = [];
+        private readonly Dictionary<ShojiFolder, HashSet<string>> _siblingLabels = [];
 
         public ShojiFolder Root { get; } = new(ShojiFolderNames.Questions, []);
 
@@ -81,11 +81,22 @@ internal static partial class ShojiCodebookGenerator
             return folder;
         }
 
+        // Numbered until no sibling has the label, so a panel titled "Details (2)" cannot meet a numbered repeat.
         private string UniqueLabel(ShojiFolder parent, string label)
         {
-            var uses = _labelUses.GetValueOrDefault((parent, label)) + 1;
-            _labelUses[(parent, label)] = uses;
-            return uses == 1 ? label : $"{label} ({uses})";
+            if (!_siblingLabels.TryGetValue(parent, out var labels))
+            {
+                labels = new HashSet<string>(StringComparer.Ordinal);
+                _siblingLabels.Add(parent, labels);
+            }
+
+            var unique = label;
+            for (var repeat = 2; !labels.Add(unique); repeat++)
+            {
+                unique = $"{label} ({repeat})";
+            }
+
+            return unique;
         }
     }
 
@@ -148,8 +159,9 @@ internal static partial class ShojiCodebookGenerator
         return folders.Root;
     }
 
-    // Folders take default-locale titles, as the codebook's panels do. A codebook compiled before parentPanels existed
-    // has only the nearest panel's title, so there panels are told apart by title and do not nest.
+    // Folders take the codebook's panel titles, which are default-locale. A codebook compiled before parentPanels
+    // existed has only the nearest panel's title, so there panels are told apart by title and do not nest. A loop
+    // column whose question the codebook lacks goes in a folder named by the loop.
     private static List<ShojiPanel> PanelsOf(FormSchemaColumn column, IReadOnlyDictionary<string, JsonElement> questions)
     {
         questions.TryGetValue(column.SourceQuestion ?? column.Key, out var question);
@@ -160,7 +172,7 @@ internal static partial class ShojiCodebookGenerator
         }
 
         var loopName = loopPath[0].PanelValueName;
-        var loopTitle = questions.TryGetValue(loopName, out var loop) ? ReadDefaultTitle(loop) : null;
+        var loopTitle = questions.TryGetValue(loopName, out var loop) ? ReadQuestionTitle(loop) : null;
         return [new ShojiPanel(loopName, string.IsNullOrWhiteSpace(loopTitle) ? loopName : loopTitle)];
     }
 
@@ -174,29 +186,25 @@ internal static partial class ShojiCodebookGenerator
         if (question.TryGetProperty(FormSchemaCodebookPropertyNames.ParentPanels, out var panels) &&
             panels.ValueKind == JsonValueKind.Array)
         {
-            return [.. panels.EnumerateArray().Select(panel => new ShojiPanel(
-                panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelName) ?? string.Empty,
-                panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelTitle) ?? string.Empty))];
+            return [.. panels.EnumerateArray().Select(ReadPanel).OfType<ShojiPanel>()];
         }
 
         var title = ReadParentPanelTitle(question);
         return string.IsNullOrWhiteSpace(title) ? [] : [new ShojiPanel(title, title)];
     }
 
-    private static string? ReadDefaultTitle(JsonElement question)
+    // A blank title shows the name; a panel with neither leaves its questions in the folder around it.
+    private static ShojiPanel? ReadPanel(JsonElement panel)
     {
-        if (!question.TryGetProperty(SurveyJsPropertyNames.Title, out var title))
+        var name = panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelName);
+        var title = panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelTitle);
+        var label = string.IsNullOrWhiteSpace(title) ? name : title;
+        if (string.IsNullOrWhiteSpace(label))
         {
             return null;
         }
 
-        return title.ValueKind switch
-        {
-            JsonValueKind.String => title.GetString(),
-            JsonValueKind.Object when title.TryGetProperty(FormSchemaCodebookPropertyNames.Default, out var text) &&
-                                      text.ValueKind == JsonValueKind.String => text.GetString(),
-            _ => null,
-        };
+        return new ShojiPanel(string.IsNullOrWhiteSpace(name) ? label : name, label);
     }
 
     private static IEnumerable<string> OrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args)
