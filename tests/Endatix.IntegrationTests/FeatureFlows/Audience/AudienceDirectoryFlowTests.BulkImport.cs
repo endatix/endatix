@@ -12,8 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// A Participant import staged in chunks, checked, and written by background jobs on the shared host, which runs
-/// jobs in process. Shares the world and API helpers of <see cref="AudienceDirectoryFlowTests"/>.
+/// A Participant import staged in chunks, checked, and written by background jobs on the shared host, whose scheduler
+/// the import's start switches on. Shares the world and API helpers of <see cref="AudienceDirectoryFlowTests"/>.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
@@ -302,7 +302,8 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using HttpResponseMessage deleted = await api.Client.DeleteAsync($"/api/forms/{formId}", api.CancellationToken);
-        bool cleanedUp = await WaitUntilAsync(async () => (await FormAudienceLeftAsync(world.Services, import)).Chunks == 0);
+        await fixture.BackgroundWork.DeliverOutboxOnceAsync(api.CancellationToken);
+        var cleanedUp = (await FormAudienceLeftAsync(world.Services, import)).Chunks == 0;
         held.Release();
         JsonElement view = await api.WaitForImportAsync(import, "failed");
 
@@ -389,7 +390,8 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Act
         using HttpResponseMessage deleted = await api.Client.DeleteAsync($"/api/forms/{formId}", api.CancellationToken);
-        bool canceled = await WaitUntilAsync(async () => await StatusOfAsync(world.Services, import) == "canceled");
+        await fixture.BackgroundWork.DeliverOutboxOnceAsync(api.CancellationToken);
+        var canceled = await StatusOfAsync(world.Services, import) == "canceled";
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
@@ -474,8 +476,7 @@ public sealed partial class AudienceDirectoryFlowTests
                     propertyColumns = headers.Skip(1).ToDictionary(header => header.ToLowerInvariant(), header => header),
                     isTest = false,
                 });
-            Assert.Equal(HttpStatusCode.Created, started.StatusCode);
-            return new BulkImport(formId, IdOf(await ReadAsync(started), "importId"));
+            return await StartedImportAsync(formId, started);
         }
 
         /// <summary>Sends chunk <paramref name="index"/> of <paramref name="rows"/>.</summary>

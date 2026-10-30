@@ -8,10 +8,43 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// Staged imports on a host without background jobs (<see cref="InlineImportWebHost"/>), where each phase runs in the
-/// request that starts it.
+/// request that starts it; a staged import on the shared host, which starts its jobs but not the relay; and a per-test
+/// host that would run them in the background, which tests may not use.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
+    [Fact]
+    public async Task A_staged_import_on_the_shared_host_starts_its_jobs_and_leaves_the_outbox_to_the_test()
+    {
+        // Arrange
+        var api = await AdminAsync();
+        var formId = await api.CreateFormAsync();
+
+        // Act
+        await api.StartImportAsync(formId, ["email"], 10);
+        var delivery = await Record.ExceptionAsync(() => fixture.BackgroundWork.DeliverOutboxOnceAsync(api.CancellationToken));
+
+        // Assert — a delivery in the test is refused only while the relay runs.
+        Assert.True(fixture.BackgroundWork.IsOn, "The import did not start the jobs that run it.");
+        Assert.Null(delivery);
+    }
+
+    [Fact]
+    public async Task A_client_of_a_per_test_host_refuses_to_start_a_background_import()
+    {
+        // Arrange — this class stops only the shared host's background work, so a per-test host's must stay off.
+        await using ReportingWebHost host = new(fixture);
+        var api = await AsAsync(await WorldAsync(host), TestPersona.TenantAdmin);
+        var formId = await api.CreateFormAsync();
+
+        // Act
+        var refused = await Record.ExceptionAsync(() => api.StartImportAsync(formId, ["email"], 10));
+
+        // Assert
+        Assert.IsType<InvalidOperationException>(refused);
+        Assert.False(BackgroundWork.Of(host.Services).IsOn);
+    }
+
     [Fact]
     public async Task On_a_host_without_jobs_5000_rows_import_in_the_request_and_5001_are_refused_at_start()
     {

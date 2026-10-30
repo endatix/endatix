@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture fixture)
+public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture fixture) : IAsyncDisposable
 {
     [Fact]
     public async Task BackgroundJobsTable_AfterMigrations_HasNoResultJsonColumn()
@@ -41,20 +41,41 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
     }
 
     [Fact]
-    public async Task Host_with_jobs_on_creates_the_scheduler_tables_and_starts_the_scheduler()
+    public async Task Host_with_jobs_on_creates_the_scheduler_tables_and_runs_the_scheduler_while_its_background_work_is_on()
     {
-        // Arrange
+        // Arrange — reset first, so the relay and the scheduler meet nothing an earlier test left.
         var cancellationToken = TestContext.Current.CancellationToken;
+        await fixture.PrepareWorldAsync(IntegrationWorldOptions.Empty, cancellationToken);
         var schedulerTables = fixture.Provider == TestDatabaseProvider.PostgreSql
             ? QuartzSchemaScripts.PostgreSqlTableNames()
             : QuartzSchemaScripts.SqlServerTableNames();
-
-        // Act
         var scheduler = await fixture.Factory.Services
             .GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName)
             .GetScheduler(cancellationToken);
+        var beforeStart = scheduler.Status;
+
+        // Act
+        await fixture.BackgroundWork.StartJobsAsync(cancellationToken);
+        var whileOn = scheduler.Status;
+        await fixture.BackgroundWork.StopAsync(CancellationToken.None);
+        var afterStop = scheduler.Status;
+        var missingTables = await MissingTablesAsync(schedulerTables, cancellationToken);
+
+        // Assert — the test host builds the scheduler without starting it; once a test has stopped it, it waits in standby.
+        schedulerTables.Should().NotBeEmpty();
+        missingTables.Should().BeEmpty();
+        beforeStart.Should().BeOneOf(SchedulerStatus.Created, SchedulerStatus.Standby);
+        whileOn.Should().Be(SchedulerStatus.Running);
+        afterStop.Should().Be(SchedulerStatus.Standby);
+    }
+
+    /// <summary>Stops the shared host's background work even when the test failed before it did.</summary>
+    public async ValueTask DisposeAsync() => await fixture.BackgroundWork.StopAsync(CancellationToken.None);
+
+    private async Task<List<string>> MissingTablesAsync(IEnumerable<string> tables, CancellationToken cancellationToken)
+    {
         List<string> missingTables = [];
-        foreach (var table in schedulerTables)
+        foreach (var table in tables)
         {
             if (!await IntegrationDbAssert.TableExistsAsync(
                     fixture.Database.ConnectionString, fixture.Database.Provider, JobsPersistence.Schema, table, cancellationToken))
@@ -63,10 +84,7 @@ public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture 
             }
         }
 
-        // Assert
-        schedulerTables.Should().NotBeEmpty();
-        missingTables.Should().BeEmpty();
-        scheduler.Status.Should().Be(SchedulerStatus.Running);
+        return missingTables;
     }
 
     // Upper-case catalog names, which PostgreSQL folds to its own and SQL Server reads under any collation.
