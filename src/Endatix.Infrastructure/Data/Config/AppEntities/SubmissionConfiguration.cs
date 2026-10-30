@@ -9,7 +9,9 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
+    /// <summary>The longest <c>SubmittedBy</c>; the Reporting contexts map the same column read-only.</summary>
     public const int IDENTIFIER_MAX_LENGTH = 64;
+    /// <summary>The longest <c>SubmitterDisplayId</c>; the Reporting contexts map the same column read-only.</summary>
     public const int SUBMITTER_DISPLAY_ID_MAX_LENGTH = 256;
     private const int RESTRICTION_KEY_MAX_LENGTH = 256;
     private const int TOKEN_VALUE_MAX_LENGTH = 64;
