@@ -40,6 +40,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         services.AddSingleton(Substitute.For<IFormSchemaProcessor>());
         services.AddSingleton(Substitute.For<IFormSchemaRepository>());
         services.AddSingleton(Substitute.For<IFlattenedSubmissionRepository>());
+        services.AddSingleton(Substitute.For<ISubmissionViewRepository>());
         services.AddSingleton(Substitute.For<IReportingUnitOfWork>());
         services.AddReportingOutboxWork();
         _provider = services.BuildServiceProvider();
