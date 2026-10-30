@@ -151,6 +151,15 @@ with each other and with the list's metadata filters (`SubmissionGridAnswerSearc
 **Upgrading:** existing forms get their keys on their next compile (`POST …/reporting/compile-schema`), which then
 rebuilds their rows' copies. Until then their copies are empty.
 
+**Rolling deploy.** `AddSearchCopy` is an expand-only migration ([Schema changes during a rolling deploy](../../ARCHITECTURE.md#schema-changes-during-a-rolling-deploy)):
+`FormSchemas.SearchKeys` defaults to `[]` and `FlattenedSubmissions.SearchJson` is nullable, so the previous release's
+writes still succeed, and no contract migration follows. The expand release is the first stable release after `v0.9.0`
+that ships it. During its rollout an old pod still flattens without knowing the copy: a row it writes after a new pod
+compiled the form keeps `SearchJson` as it was (`NULL` for a new row, the previous copy for one it rewrites) until the row
+is flattened again, and the compile that rebuilt the form's copies does not see it. #1265 (endatix#1273) closes that
+window: each row stamps the search keys revision it was written with, so a row an old pod wrote counts as not yet
+checked and the rebuild catches it up.
+
 **Performance.** `tests/Endatix.IntegrationTests/Performance` measures the filters at scale (opt-in, see
 `tests/README.md`). p95 of the whole request (ids and sort key of every match, count, page of 50), 50,000 rows, flattened
 rows only for the first tables; the grid answer search rows below add the core join and the coverage count:

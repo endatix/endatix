@@ -92,9 +92,19 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture)
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
         await ReportingTestSchema.EnsureMigratedAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
 
+        await using (var tenantDb = CreateAppDbContext())
+        {
+            tenantDb.Set<Tenant>().Add(new Tenant("form-schema-rebuild-tenant", "tnntfsrb") { Id = TenantId });
+            await tenantDb.SaveChangesAsync(Cancellation);
+        }
+
+        return await AddFormAsync(definitionsOldestFirst);
+    }
+
+    /// <summary>Another form of the world's tenant, beside the ones already seeded.</summary>
+    public async Task<RebuildForm> AddFormAsync(string[] definitionsOldestFirst)
+    {
         await using var appDb = CreateAppDbContext();
-        appDb.Set<Tenant>().Add(new Tenant("form-schema-rebuild-tenant", "tnntfsrb") { Id = TenantId });
-        await appDb.SaveChangesAsync(Cancellation);
 
         // Saved before its definitions, which avoids the Form <-> ActiveDefinition circular insert.
         var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Rebuilt form"));
