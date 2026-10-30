@@ -21,7 +21,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     FormId = table.Column<long>(type: "bigint", nullable: false),
                     OwnerUserId = table.Column<long>(type: "bigint", nullable: false, defaultValue: 0L),
                     SettingsJson = table.Column<string>(type: "jsonb", nullable: false),
-                    Revision = table.Column<long>(type: "bigint", nullable: false),
+                    Version = table.Column<long>(type: "bigint", nullable: false),
                     ModifiedBy = table.Column<long>(type: "bigint", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),

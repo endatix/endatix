@@ -38,7 +38,7 @@ public sealed class SubmissionViewTests
     }
 
     [Fact]
-    public void CreateShared_ValidSettings_StartsAtFirstRevisionOwnedByEveryone()
+    public void CreateShared_ValidSettings_StartsAtFirstVersionOwnedByEveryone()
     {
         // Act
         var view = SubmissionView.CreateShared(new SubmissionViewCreateArgs(TenantId, FormId, Settings, UserId));
@@ -48,12 +48,12 @@ public sealed class SubmissionViewTests
         view.FormId.Should().Be(FormId);
         view.OwnerUserId.Should().Be(SubmissionView.SharedOwnerUserId);
         view.SettingsJson.Should().Be(Settings);
-        view.Revision.Should().Be(SubmissionView.UnsavedRevision + 1);
+        view.Version.Should().Be(SubmissionView.UnsavedVersion + 1);
         view.ModifiedBy.Should().Be(UserId);
     }
 
     [Fact]
-    public void UpdateSettings_ValidSettings_ReplacesSettingsAndMovesToNextRevision()
+    public void UpdateSettings_ValidSettings_ReplacesSettingsAndMovesToNextVersion()
     {
         // Arrange
         var view = SubmissionView.CreateShared(new SubmissionViewCreateArgs(TenantId, FormId, Settings, UserId));
@@ -65,12 +65,12 @@ public sealed class SubmissionViewTests
 
         // Assert
         view.SettingsJson.Should().Be(newSettings);
-        view.Revision.Should().Be(2);
+        view.Version.Should().Be(2);
         view.ModifiedBy.Should().Be(otherUserId);
     }
 
     [Fact]
-    public void UpdateSettings_MalformedSettings_KeepsSettingsAndRevision()
+    public void UpdateSettings_MalformedSettings_KeepsSettingsAndVersion()
     {
         // Arrange
         var view = SubmissionView.CreateShared(new SubmissionViewCreateArgs(TenantId, FormId, Settings, UserId));
@@ -82,6 +82,6 @@ public sealed class SubmissionViewTests
         // Assert
         act.Should().Throw<DomainValidationException>();
         view.SettingsJson.Should().Be(Settings);
-        view.Revision.Should().Be(1);
+        view.Version.Should().Be(1);
     }
 }

@@ -44,7 +44,7 @@ public sealed class SubmissionViewEndpointsTests
     }
 
     [Fact]
-    public async Task Get_SavedView_ReturnsRevisionAndSettingsAsJson()
+    public async Task Get_SavedView_ReturnsVersionAndSettingsAsJson()
     {
         // Arrange
         _mediator.Send(Arg.Any<GetSubmissionViewQuery>(), Arg.Any<CancellationToken>())
@@ -57,7 +57,7 @@ public sealed class SubmissionViewEndpointsTests
         // Assert
         var ok = response.Result as Ok<SubmissionViewResponse>;
         ok.Should().NotBeNull();
-        ok!.Value!.Revision.Should().Be(3);
+        ok!.Value!.Version.Should().Be(3);
         ok.Value.Settings.GetRawText().Should().Be(Settings);
         await _mediator.Received(1).Send(
             Arg.Is<GetSubmissionViewQuery>(query => query.TenantId == SampleData.TENANT_ID && query.FormId == FormId),
@@ -71,13 +71,13 @@ public sealed class SubmissionViewEndpointsTests
         _mediator.Send(Arg.Any<SaveSubmissionViewCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new SubmissionViewDto(2, Settings)));
         var endpoint = Factory.Create<SaveSubmissionView>(_mediator, _tenantContext, _userContext);
-        SaveSubmissionViewRequest request = new() { FormId = FormId, Revision = 1, Settings = Parse(Settings) };
+        SaveSubmissionViewRequest request = new() { FormId = FormId, Version = 1, Settings = Parse(Settings) };
 
         // Act
         var response = await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        (response.Result as Ok<SubmissionViewResponse>)!.Value!.Revision.Should().Be(2);
+        (response.Result as Ok<SubmissionViewResponse>)!.Value!.Version.Should().Be(2);
         await _mediator.Received(1).Send(
             Arg.Is<SaveSubmissionViewCommand>(command =>
                 command.Save == new Data.SubmissionViewSave(SampleData.TENANT_ID, FormId, 1, Settings, 7)),
@@ -85,13 +85,13 @@ public sealed class SubmissionViewEndpointsTests
     }
 
     [Fact]
-    public async Task Save_StaleRevision_Returns409()
+    public async Task Save_StaleVersion_Returns409()
     {
         // Arrange
         _mediator.Send(Arg.Any<SaveSubmissionViewCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Conflict(SaveSubmissionViewHandler.ConflictMessage));
         var endpoint = Factory.Create<SaveSubmissionView>(_mediator, _tenantContext, _userContext);
-        SaveSubmissionViewRequest request = new() { FormId = FormId, Revision = 1, Settings = Parse(Settings) };
+        SaveSubmissionViewRequest request = new() { FormId = FormId, Version = 1, Settings = Parse(Settings) };
 
         // Act
         var response = await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -110,7 +110,7 @@ public sealed class SubmissionViewEndpointsTests
     {
         // Arrange
         SaveSubmissionViewValidator validator = new();
-        SaveSubmissionViewRequest request = new() { FormId = FormId, Revision = 0, Settings = Parse(settings) };
+        SaveSubmissionViewRequest request = new() { FormId = FormId, Version = 0, Settings = Parse(settings) };
 
         // Act
         var result = validator.Validate(request);
@@ -124,7 +124,7 @@ public sealed class SubmissionViewEndpointsTests
     {
         // Arrange
         SaveSubmissionViewValidator validator = new();
-        SaveSubmissionViewRequest request = new() { FormId = FormId, Revision = 0 };
+        SaveSubmissionViewRequest request = new() { FormId = FormId, Version = 0 };
 
         // Act
         var result = validator.Validate(request);
@@ -153,11 +153,11 @@ public sealed class SubmissionViewEndpointsTests
     }
 
     [Fact]
-    public void SaveValidator_NegativeRevision_IsInvalid()
+    public void SaveValidator_NegativeVersion_IsInvalid()
     {
         // Arrange
         SaveSubmissionViewValidator validator = new();
-        SaveSubmissionViewRequest request = new() { FormId = FormId, Revision = -1, Settings = Parse(SubmissionViewSettings.DefaultJson) };
+        SaveSubmissionViewRequest request = new() { FormId = FormId, Version = -1, Settings = Parse(SubmissionViewSettings.DefaultJson) };
 
         // Act
         var result = validator.Validate(request);

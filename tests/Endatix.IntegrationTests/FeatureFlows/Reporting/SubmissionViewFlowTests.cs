@@ -8,7 +8,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Reporting;
 
 /// <summary>
 /// The form's saved submissions grid view over HTTP (#1257), against the real tenant middleware, permissions and the
-/// database's unique index and revision check, on both providers.
+/// database's unique index and version check, on both providers.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -39,15 +39,15 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
         // Assert
         before.StatusCode.Should().Be(HttpStatusCode.OK);
         var defaults = await BodyAsync(before, ct);
-        defaults.Revision().Should().Be(0);
+        defaults.Version().Should().Be(0);
         defaults.GetProperty("settings").GetProperty("columns").GetArrayLength().Should().Be(0);
 
         saved.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await BodyAsync(saved, ct)).Revision().Should().Be(1);
+        (await BodyAsync(saved, ct)).Version().Should().Be(1);
 
         read.StatusCode.Should().Be(HttpStatusCode.OK);
         var view = await BodyAsync(read, ct);
-        view.Revision().Should().Be(1);
+        view.Version().Should().Be(1);
         JsonElement.DeepEquals(view.GetProperty("settings"), Parse(Settings)).Should().BeTrue();
     }
 
@@ -96,7 +96,7 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
-    public async Task A_save_from_an_old_revision_is_a_conflict()
+    public async Task A_save_from_an_old_version_is_a_conflict()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
@@ -116,14 +116,14 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
         // Assert
         secondCreate.StatusCode.Should().Be(HttpStatusCode.Conflict);
         update.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await BodyAsync(update, ct)).Revision().Should().Be(2);
+        (await BodyAsync(update, ct)).Version().Should().Be(2);
         staleUpdate.StatusCode.Should().Be(HttpStatusCode.Conflict);
         staleUpdate.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
         futureUpdate.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         using var read = await client.GetAsync(ViewUri(formId), ct);
         var view = await BodyAsync(read, ct);
-        view.Revision().Should().Be(2);
+        view.Version().Should().Be(2);
         view.GetProperty("settings").GetProperty("pageSize").GetInt32().Should().Be(50);
     }
 
@@ -154,7 +154,7 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
         (await BodyAsync(oversized, ct)).GetProperty("detail").GetString().Should().Contain("cannot be longer than");
 
         using var read = await client.GetAsync(ViewUri(formId), ct);
-        (await BodyAsync(read, ct)).Revision().Should().Be(0, "nothing was saved");
+        (await BodyAsync(read, ct)).Version().Should().Be(0, "nothing was saved");
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
         using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
         var formId = await CreateCompiledFormAsync(client, ct);
         using StringContent body = new(
-            """{"revision":"0","settings":{"v":1,"v":1,"columns":[{"key":"q1"}]}}""",
+            """{"version":"0","settings":{"v":1,"v":1,"columns":[{"key":"q1"}]}}""",
             System.Text.Encoding.UTF8,
             "application/json");
 
@@ -203,7 +203,7 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
         foreignCreate.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
         using var read = await owner.GetAsync(ViewUri(formId), ct);
-        (await BodyAsync(read, ct)).Revision().Should().Be(1);
+        (await BodyAsync(read, ct)).Version().Should().Be(1);
         (await CountViewsAsync(formId, ct)).Should().Be(1, "the other tenant created no view of its own");
     }
 
@@ -235,7 +235,7 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
 
     private static Uri ViewUri(long formId) => new($"/api/forms/{formId}/reporting/submission-view", UriKind.Relative);
 
-    private static object SaveBody(long revision, string settings) => new { revision, settings = Parse(settings) };
+    private static object SaveBody(long version, string settings) => new { version, settings = Parse(settings) };
 
     private static async Task<long> CreateFormAsync(HttpClient client, CancellationToken ct)
     {
@@ -276,5 +276,5 @@ public sealed class SubmissionViewFlowTests(EndatixIntegrationWebHostFixture fix
 internal static class SubmissionViewJson
 {
     // Longs travel as JSON strings on this API.
-    public static long Revision(this JsonElement view) => long.Parse(view.GetProperty("revision").GetString()!);
+    public static long Version(this JsonElement view) => long.Parse(view.GetProperty("version").GetString()!);
 }

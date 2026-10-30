@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Features.SubmissionViews;
 internal sealed class SubmissionViewReader(IFormSchemaRepository formSchemaRepository)
 {
     /// <summary>
-    /// The view's revision and its settings without the columns the form no longer has. Before the form's schema is
+    /// The view's version and its settings without the columns the form no longer has. Before the form's schema is
     /// compiled there is nothing to judge the columns by, so they come back as stored.
     /// </summary>
     public async Task<SubmissionViewDto> ReadAsync(SubmissionView view, CancellationToken cancellationToken)
@@ -18,12 +18,12 @@ internal sealed class SubmissionViewReader(IFormSchemaRepository formSchemaRepos
         var schema = await formSchemaRepository.GetByFormIdAsync(view.TenantId, view.FormId, cancellationToken);
         if (schema is null)
         {
-            return new SubmissionViewDto(view.Revision, view.SettingsJson);
+            return new SubmissionViewDto(view.Version, view.SettingsJson);
         }
 
         var schemaKeys = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap).Columns
             .Select(column => column.Key)
             .ToHashSet(StringComparer.Ordinal);
-        return new SubmissionViewDto(view.Revision, SubmissionViewColumns.KeepKnown(view.SettingsJson, schemaKeys));
+        return new SubmissionViewDto(view.Version, SubmissionViewColumns.KeepKnown(view.SettingsJson, schemaKeys));
     }
 }

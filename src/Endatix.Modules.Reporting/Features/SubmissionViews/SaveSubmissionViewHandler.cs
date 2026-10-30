@@ -10,11 +10,11 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Modules.Reporting.Features.SubmissionViews;
 
 /// <summary>Saves the submissions grid view everyone on a form sees.</summary>
-/// <param name="Save">The save, made from the view read at its revision.</param>
+/// <param name="Save">The save, made from the view read at its version.</param>
 public sealed record SaveSubmissionViewCommand(SubmissionViewSave Save) : ICommand<Result<SubmissionViewDto>>;
 
 /// <summary>
-/// Saves the form's shared view when the caller read the latest revision, so one editor never silently overwrites
+/// Saves the form's shared view when the caller read the latest version, so one editor never silently overwrites
 /// another's change.
 /// </summary>
 internal sealed class SaveSubmissionViewHandler(

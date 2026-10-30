@@ -21,7 +21,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                     FormId = table.Column<long>(type: "bigint", nullable: false),
                     OwnerUserId = table.Column<long>(type: "bigint", nullable: false, defaultValue: 0L),
                     SettingsJson = table.Column<string>(type: "json", nullable: false),
-                    Revision = table.Column<long>(type: "bigint", nullable: false),
+                    Version = table.Column<long>(type: "bigint", nullable: false),
                     ModifiedBy = table.Column<long>(type: "bigint", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),

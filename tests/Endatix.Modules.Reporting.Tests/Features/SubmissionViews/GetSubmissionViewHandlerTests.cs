@@ -58,7 +58,7 @@ public sealed class GetSubmissionViewHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NoSavedView_ReturnsDefaultsAtRevisionZero()
+    public async Task Handle_NoSavedView_ReturnsDefaultsAtVersionZero()
     {
         // Arrange
         _viewRepository.FindSharedAsync(TenantId, FormId, Arg.Any<CancellationToken>()).Returns((SubmissionView?)null);
@@ -69,11 +69,11 @@ public sealed class GetSubmissionViewHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(SubmissionViewDto.Default);
-        result.Value.Revision.Should().Be(0);
+        result.Value.Version.Should().Be(0);
     }
 
     [Fact]
-    public async Task Handle_SavedView_ReturnsItsRevisionWithoutColumnsTheFormNoLongerHas()
+    public async Task Handle_SavedView_ReturnsItsVersionWithoutColumnsTheFormNoLongerHas()
     {
         // Arrange
         var view = SubmissionView.CreateShared(new SubmissionViewCreateArgs(
@@ -89,7 +89,7 @@ public sealed class GetSubmissionViewHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.Revision.Should().Be(view.Revision);
+        result.Value.Version.Should().Be(view.Version);
         result.Value.SettingsJson.Should().Be(
             """{"v":1,"columns":[{"key":"q1","width":120},{"key":"createdAt"}],"pageSize":50}""");
     }

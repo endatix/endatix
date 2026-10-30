@@ -52,7 +52,7 @@ public sealed class SaveSubmissionViewHandlerTests
             .Returns(false);
 
         // Act
-        var result = await CreateSut().Handle(Command(Save(revision: 0)), TestContext.Current.CancellationToken);
+        var result = await CreateSut().Handle(Command(Save(version: 0)), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -63,7 +63,7 @@ public sealed class SaveSubmissionViewHandlerTests
     public async Task Handle_AnotherSaveGotThereFirst_ReturnsConflict()
     {
         // Arrange
-        var save = Save(revision: 1);
+        var save = Save(version: 1);
         _viewRepository.SaveSharedAsync(save, Arg.Any<CancellationToken>()).Returns((SubmissionView?)null);
 
         // Act
@@ -78,7 +78,7 @@ public sealed class SaveSubmissionViewHandlerTests
     public async Task Handle_SettingsTheEntityRefuses_ReturnsInvalidWithItsMessage()
     {
         // Arrange
-        var save = Save(revision: 0);
+        var save = Save(version: 0);
         const string reason = "Settings must be valid JSON.";
         _viewRepository
             .SaveSharedAsync(save, Arg.Any<CancellationToken>())
@@ -93,10 +93,10 @@ public sealed class SaveSubmissionViewHandlerTests
     }
 
     [Fact]
-    public async Task Handle_LatestRevision_ReturnsTheSavedView()
+    public async Task Handle_LatestVersion_ReturnsTheSavedView()
     {
         // Arrange
-        var save = Save(revision: 0);
+        var save = Save(version: 0);
         var saved = SubmissionView.CreateShared(new SubmissionViewCreateArgs(TenantId, FormId, Settings, UserId));
         _viewRepository.SaveSharedAsync(save, Arg.Any<CancellationToken>()).Returns(saved);
 
@@ -109,7 +109,7 @@ public sealed class SaveSubmissionViewHandlerTests
     }
 
     [Fact]
-    public async Task Handle_LatestRevision_ReturnsTheSettingsAReadWouldReturn()
+    public async Task Handle_LatestVersion_ReturnsTheSettingsAReadWouldReturn()
     {
         // Arrange
         const string stored = """{"v":1,"columns":[{"key":"q1","width":120},{"key":"gone"},{"key":"createdAt"}]}""";
@@ -148,7 +148,7 @@ public sealed class SaveSubmissionViewHandlerTests
             new SubmissionViewReader(_formSchemaRepository),
             NullLogger<SaveSubmissionViewHandler>.Instance);
 
-    private static SubmissionViewSave Save(long revision) => new(TenantId, FormId, revision, Settings, UserId);
+    private static SubmissionViewSave Save(long version) => new(TenantId, FormId, version, Settings, UserId);
 
     private static SaveSubmissionViewCommand Command(SubmissionViewSave save) => new(save);
 }

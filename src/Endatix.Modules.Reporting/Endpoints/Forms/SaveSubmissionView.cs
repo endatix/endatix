@@ -40,20 +40,20 @@ public sealed class SaveSubmissionView(
     {
         summary.Summary = "Save the form's submissions grid view";
         summary.Description =
-            "Saves the grid view everyone on the form sees. Send the revision the view was read at: 0 creates the " +
-            "view, the current revision replaces it. Any other revision means someone saved in between, and " +
+            "Saves the grid view everyone on the form sees. Send the version the view was read at: 0 creates the " +
+            "view, the current version replaces it. Any other version means someone saved in between, and " +
             "the save is refused with 409.";
         summary.ExampleRequest = new SaveSubmissionViewRequest
         {
             FormId = 1,
-            Revision = 2,
+            Version = 2,
             Settings = SubmissionViewResponse.Example.Settings,
         };
         summary.ResponseExamples[200] = SubmissionViewResponse.Example;
         summary.Responses[200] = "Submissions grid view saved.";
         summary.Responses[400] = "Invalid input data, or settings that are malformed or too large.";
         summary.Responses[404] = "Form not found.";
-        summary.Responses[409] = "Someone else saved the view after the given revision.";
+        summary.Responses[409] = "Someone else saved the view after the given version.";
     }
 
     /// <inheritdoc />
@@ -64,7 +64,7 @@ public sealed class SaveSubmissionView(
         SubmissionViewSave save = new(
             tenantContext.TenantId,
             request.FormId,
-            request.Revision,
+            request.Version,
             request.Settings.GetRawText(),
             long.TryParse(userContext.GetCurrentUserId(), CultureInfo.InvariantCulture, out var userId) ? userId : null);
 
@@ -79,14 +79,14 @@ public sealed class SaveSubmissionView(
 /// <summary>Validates the request for the save submission view endpoint.</summary>
 public sealed class SaveSubmissionViewValidator : Validator<SaveSubmissionViewRequest>
 {
-    /// <summary>Requires a form id and a revision, and checks the settings' shape and size.</summary>
+    /// <summary>Requires a form id and a version, and checks the settings' shape and size.</summary>
     public SaveSubmissionViewValidator()
     {
         RuleFor(request => request.FormId)
             .GreaterThan(0);
 
-        RuleFor(request => request.Revision)
-            .GreaterThanOrEqualTo(SubmissionView.UnsavedRevision);
+        RuleFor(request => request.Version)
+            .GreaterThanOrEqualTo(SubmissionView.UnsavedVersion);
 
         RuleFor(request => request.Settings)
             .Must(settings => SettingsError(settings) is null)
@@ -105,8 +105,8 @@ public sealed class SaveSubmissionViewRequest
     /// <summary>The form whose view to save, from the route.</summary>
     public long FormId { get; init; }
 
-    /// <summary>The revision the view was read at; <c>0</c> when nobody had saved one.</summary>
-    public long Revision { get; init; }
+    /// <summary>The version the view was read at; <c>0</c> when nobody had saved one.</summary>
+    public long Version { get; init; }
 
     /// <summary><c>{"v":1,"columns":[{"key","visible","width"}],"pageSize","sort":{"key","direction"}}</c>.</summary>
     public JsonElement Settings { get; init; }

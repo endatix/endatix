@@ -35,8 +35,8 @@ public sealed class GetSubmissionView(
     {
         summary.Summary = "Get the form's submissions grid view";
         summary.Description =
-            "Returns the grid view saved for everyone on the form, with the revision to send back when saving it. " +
-            "Columns the form no longer has are left out. When nobody saved a view, returns revision 0 and the " +
+            "Returns the grid view saved for everyone on the form, with the version to send back when saving it. " +
+            "Columns the form no longer has are left out. When nobody saved a view, returns version 0 and the " +
             "default settings.";
         summary.ResponseExamples[200] = SubmissionViewResponse.Example;
         summary.Responses[200] = "Submissions grid view returned.";
@@ -84,8 +84,8 @@ public sealed class SubmissionViewResponse
         3,
         """{"v":1,"columns":[{"key":"q1","visible":true,"width":240}],"pageSize":25,"sort":{"key":"createdAt","direction":"desc"}}"""));
 
-    /// <summary>The revision to send back with the next save; <c>0</c> when nobody saved a view.</summary>
-    public required long Revision { get; init; }
+    /// <summary>The version to send back with the next save; <c>0</c> when nobody saved a view.</summary>
+    public required long Version { get; init; }
 
     /// <summary><c>{"v":1,"columns":[{"key","visible","width"}],"pageSize","sort":{"key","direction"}}</c>.</summary>
     public required JsonElement Settings { get; init; }
@@ -95,7 +95,7 @@ public sealed class SubmissionViewResponse
         using var settings = JsonDocument.Parse(dto.SettingsJson);
         return new SubmissionViewResponse
         {
-            Revision = dto.Revision,
+            Version = dto.Version,
             Settings = settings.RootElement.Clone(),
         };
     }

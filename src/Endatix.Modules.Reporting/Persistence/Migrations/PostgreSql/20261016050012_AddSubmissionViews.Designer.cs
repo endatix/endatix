@@ -220,15 +220,15 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                         .HasColumnType("bigint")
                         .HasDefaultValue(0L);
 
-                    b.Property<long>("Revision")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
                     b.Property<string>("SettingsJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
                     b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");

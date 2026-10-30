@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Domain;
 /// A saved submissions grid view of a form: column visibility, order and widths, page size and sort.
 /// One row per tenant, form and owner. Owner <see cref="SharedOwnerUserId"/> is the view everyone on the form sees.
 /// </summary>
-public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot
+public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot, IHasVersion
 {
     /// <summary>
     /// The owner of the shared form view. Not <see langword="null"/>: SQL Server allows one NULL in a unique index
@@ -18,8 +18,8 @@ public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot
     /// </summary>
     public const long SharedOwnerUserId = 0;
 
-    /// <summary>The revision of a view that was never saved; a save from it creates the view.</summary>
-    public const long UnsavedRevision = 0;
+    /// <summary>The version of a view that was never saved; a save from it creates the view.</summary>
+    public const long UnsavedVersion = 0;
 
     private SubmissionView() { }
 
@@ -34,7 +34,6 @@ public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot
         FormId = args.FormId;
         OwnerUserId = SharedOwnerUserId;
         SettingsJson = args.SettingsJson;
-        Revision = UnsavedRevision + 1;
         ModifiedBy = args.ModifiedBy;
     }
 
@@ -53,7 +52,7 @@ public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot
     /// <summary>
     /// Bumped on every save and checked by the database on update, so a save made from an older read is refused.
     /// </summary>
-    public long Revision { get; private set; }
+    public long Version { get; private set; } = 1;
 
     /// <summary>The user who saved the view last, when known.</summary>
     public long? ModifiedBy { get; private set; }
@@ -61,14 +60,14 @@ public sealed class SubmissionView : BaseEntity, ITenantOwned, IAggregateRoot
     /// <summary>Creates the view everyone on the form sees.</summary>
     public static SubmissionView CreateShared(SubmissionViewCreateArgs args) => new(args);
 
-    /// <summary>Replaces the settings and moves to the next revision.</summary>
+    /// <summary>Replaces the settings and moves to the next version.</summary>
     public void UpdateSettings(string settingsJson, long? modifiedBy)
     {
         DomainValidationException.ThrowIfError(SubmissionViewSettings.Error(settingsJson), nameof(settingsJson));
 
         SettingsJson = settingsJson;
         ModifiedBy = modifiedBy;
-        Revision++;
+        Version++;
     }
 }
 

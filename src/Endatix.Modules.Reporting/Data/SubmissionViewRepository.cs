@@ -9,9 +9,9 @@ namespace Endatix.Modules.Reporting.Data;
 /// Repository for saved submissions grid views.
 /// </summary>
 /// <remarks>
-/// Two saves made from the same revision must not both win. The database decides, not a lock: the unique index
-/// refuses a second create, and the <see cref="SubmissionView.Revision"/> concurrency token makes an update from an
-/// older revision change no row.
+/// Two saves made from the same version must not both win. The database decides, not a lock: the unique index
+/// refuses a second create, and the <see cref="SubmissionView.Version"/> concurrency token makes an update from an
+/// older version change no row.
 /// </remarks>
 internal sealed class SubmissionViewRepository(
     IReportingDbContext dbContext,
@@ -29,12 +29,12 @@ internal sealed class SubmissionViewRepository(
         var view = await SharedView(save.TenantId, save.FormId).FirstOrDefaultAsync(cancellationToken);
         if (view is null)
         {
-            return save.Revision == SubmissionView.UnsavedRevision
+            return save.Version == SubmissionView.UnsavedVersion
                 ? await CreateAsync(save, cancellationToken)
                 : null;
         }
 
-        if (view.Revision != save.Revision)
+        if (view.Version != save.Version)
         {
             return null;
         }

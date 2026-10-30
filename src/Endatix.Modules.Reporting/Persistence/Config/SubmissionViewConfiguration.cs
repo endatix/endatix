@@ -19,7 +19,7 @@ internal sealed class SubmissionViewConfiguration : IEntityTypeConfiguration<Sub
         builder.Property(x => x.SettingsJson).IsRequired();
 
         // Not PostgreSQL xmin: the module runs on SQL Server too, where a rowversion is a byte array.
-        builder.Property(x => x.Revision)
+        builder.Property(x => x.Version)
             .IsRequired()
             .IsConcurrencyToken();
         builder.Property(x => x.CreatedAt).IsRequired();

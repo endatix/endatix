@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// The database guards behind a saved grid view (#1257): two saves made from the same revision never both win, even
-/// when they interleave past the repository's own revision check.
+/// The database guards behind a saved grid view (#1257): two saves made from the same version never both win, even
+/// when they interleave past the repository's own version check.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -32,11 +32,11 @@ public sealed class SubmissionViewRepositoryIntegrationTests(DbIntegrationFixtur
         var ct = TestContext.Current.CancellationToken;
         await ResetAsync(ct);
         // The other create commits after this save looked for a view and found none.
-        AfterFirstViewRead interleave = new(() => SaveAsync(Save(SubmissionView.UnsavedRevision, OtherSettings), ct));
+        AfterFirstViewRead interleave = new(() => SaveAsync(Save(SubmissionView.UnsavedVersion, OtherSettings), ct));
         await using var racing = CreateContext(TenantId, interleave);
 
         // Act
-        var saved = await Repository(racing).SaveSharedAsync(Save(SubmissionView.UnsavedRevision, Settings), ct);
+        var saved = await Repository(racing).SaveSharedAsync(Save(SubmissionView.UnsavedVersion, Settings), ct);
 
         // Assert
         interleave.Ran.Should().BeTrue();
@@ -46,12 +46,12 @@ public sealed class SubmissionViewRepositoryIntegrationTests(DbIntegrationFixtur
     }
 
     [Fact]
-    public async Task SaveSharedAsync_UpdateRacingAnotherUpdate_ConcedesToTheRevisionToken()
+    public async Task SaveSharedAsync_UpdateRacingAnotherUpdate_ConcedesToTheVersionToken()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await ResetAsync(ct);
-        await SaveAsync(Save(SubmissionView.UnsavedRevision, Settings), ct);
+        await SaveAsync(Save(SubmissionView.UnsavedVersion, Settings), ct);
         AfterFirstViewRead interleave = new(() => SaveAsync(Save(1, OtherSettings), ct));
         await using var racing = CreateContext(TenantId, interleave);
 
@@ -62,7 +62,7 @@ public sealed class SubmissionViewRepositoryIntegrationTests(DbIntegrationFixtur
         interleave.Ran.Should().BeTrue();
         saved.Should().BeNull();
         var stored = (await StoredViewsAsync(ct)).Should().ContainSingle().Subject;
-        stored.Revision.Should().Be(2);
+        stored.Version.Should().Be(2);
         SameJson(stored.SettingsJson, OtherSettings).Should().BeTrue();
     }
 
@@ -72,7 +72,7 @@ public sealed class SubmissionViewRepositoryIntegrationTests(DbIntegrationFixtur
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await ResetAsync(ct);
-        await SaveAsync(Save(SubmissionView.UnsavedRevision, Settings), ct);
+        await SaveAsync(Save(SubmissionView.UnsavedVersion, Settings), ct);
         await using var context = CreateContext(OtherTenantId);
 
         // Act
@@ -114,8 +114,8 @@ public sealed class SubmissionViewRepositoryIntegrationTests(DbIntegrationFixtur
         return JsonElement.DeepEquals(actualDocument.RootElement, expectedDocument.RootElement);
     }
 
-    private static SubmissionViewSave Save(long revision, string settings) =>
-        new(TenantId, FormId, revision, settings, ModifiedBy: 7);
+    private static SubmissionViewSave Save(long version, string settings) =>
+        new(TenantId, FormId, version, settings, ModifiedBy: 7);
 
     /// <summary>Runs another save once, right after the first read of a view, before this context writes.</summary>
     private sealed class AfterFirstViewRead(Func<Task> otherSave) : DbCommandInterceptor

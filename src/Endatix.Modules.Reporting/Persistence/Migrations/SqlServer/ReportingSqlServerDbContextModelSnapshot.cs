@@ -217,15 +217,15 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                         .HasColumnType("bigint")
                         .HasDefaultValue(0L);
 
-                    b.Property<long>("Revision")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint");
-
                     b.Property<string>("SettingsJson")
                         .IsRequired()
                         .HasColumnType("json");
 
                     b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
