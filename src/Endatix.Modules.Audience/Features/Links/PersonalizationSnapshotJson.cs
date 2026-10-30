@@ -1,7 +1,8 @@
 using System.Globalization;
-using System.Text.Json;
+using System.Linq.Expressions;
 using System.Text.Json.Nodes;
-using Endatix.Modules.Audience.Contracts;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Infrastructure.Data.Querying;
 
 namespace Endatix.Modules.Audience.Features.Links;
 
@@ -16,7 +17,7 @@ internal readonly record struct SnapshotHeader(
     long? AudienceLinkId,
     string Identifier,
     DateTime CapturedAt,
-    string Source = "link",
+    string Source = PersonalizationSources.Link,
     long? MemberId = null);
 
 /// <summary>
@@ -26,21 +27,59 @@ internal readonly record struct SnapshotHeader(
 /// </summary>
 internal static class PersonalizationSnapshotJson
 {
+    internal const string SourceKey = "source";
+    internal const string MemberIdKey = "memberId";
+
     public static string Write(SnapshotHeader header, IReadOnlyCollection<SnapshotCell> cells) =>
         Root(header, TypedVariables(cells), TypedValues(cells)).ToJsonString();
+
+    /// <summary>
+    /// Whether a stored snapshot names the participant whose audience member id is <paramref name="memberId"/>: an
+    /// exact lookup of its top-level <c>memberId</c> key. Snapshots written before endatix#1213 have none.
+    /// </summary>
+    public static Expression<Func<string?, bool>> NamesParticipant(long memberId)
+    {
+        string id = memberId.ToString(CultureInfo.InvariantCulture);
+        return snapshot => JsonDbFunctions.KeyText(snapshot, MemberIdKey) == id;
+    }
+
+    /// <summary>
+    /// Whether a stored snapshot is from an on-behalf create: an exact lookup of its top-level <c>source</c> key. Used
+    /// with <see cref="NamesParticipant"/> so an on-behalf submission still shows on the participant when the
+    /// best-effort Submitter bind did not run.
+    /// </summary>
+    public static Expression<Func<string?, bool>> IsOnBehalf() =>
+        snapshot => JsonDbFunctions.KeyText(snapshot, SourceKey) == PersonalizationSources.OnBehalf;
+
+    /// <summary>
+    /// Whether a stored snapshot names any of the participants whose audience member ids are
+    /// <paramref name="memberIds"/>: <see cref="NamesParticipant"/> for a set, sent as one collection parameter.
+    /// </summary>
+    public static Expression<Func<string?, bool>> NamesAnyParticipant(IReadOnlyCollection<long> memberIds)
+    {
+        string[] ids = memberIds.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToArray();
+        return snapshot => ids.Contains(JsonDbFunctions.KeyText(snapshot, MemberIdKey));
+    }
+
+    /// <summary>
+    /// Whether a stored snapshot is from a test submission opened as a participant: an exact lookup of its top-level
+    /// <c>source</c> key. A submission marked as test later keeps the source it was opened with.
+    /// </summary>
+    public static Expression<Func<string?, bool>> IsTest() =>
+        snapshot => JsonDbFunctions.KeyText(snapshot, SourceKey) == PersonalizationSources.Test;
 
     private static JsonObject Root(SnapshotHeader header, JsonObject variables, JsonArray values)
     {
         JsonObject root = new()
         {
             ["schemaVersion"] = 1,
-            ["source"] = header.Source,
+            [SourceKey] = header.Source,
             ["capturedAt"] = header.CapturedAt,
             ["identifier"] = header.Identifier,
             ["variables"] = variables,
             ["values"] = values,
         };
-        Add(root, "memberId", header.MemberId);
+        Add(root, MemberIdKey, header.MemberId);
         Add(root, "audienceLinkId", header.AudienceLinkId);
         return root;
     }
@@ -58,7 +97,7 @@ internal static class PersonalizationSnapshotJson
         JsonObject variables = new();
         foreach (SnapshotCell cell in cells)
         {
-            JsonNode? typed = Typed(cell.DataType, cell.Value);
+            JsonNode? typed = AudienceValueJson.Typed(cell.DataType, cell.Value);
             if (typed is not null)
             {
                 variables[cell.VariableName] = typed;
@@ -73,7 +112,7 @@ internal static class PersonalizationSnapshotJson
         JsonArray values = [];
         foreach (SnapshotCell cell in cells)
         {
-            JsonNode? typed = Typed(cell.DataType, cell.Value);
+            JsonNode? typed = AudienceValueJson.Typed(cell.DataType, cell.Value);
             if (typed is not null)
             {
                 values.Add(ValueEntry(cell, typed));
@@ -91,43 +130,4 @@ internal static class PersonalizationSnapshotJson
         ["dataType"] = cell.DataType,
         ["value"] = typed,
     };
-
-    internal static JsonNode? Typed(string dataType, string value)
-    {
-        if (value.Length == 0)
-        {
-            return null;
-        }
-
-        if (dataType == AudienceDataTypeCodes.Number
-            && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double number))
-        {
-            return JsonValue.Create(number);
-        }
-
-        if (dataType == AudienceDataTypeCodes.Boolean && value is "true" or "false")
-        {
-            return JsonValue.Create(value == "true");
-        }
-
-        if (dataType == AudienceDataTypeCodes.MultipleChoice)
-        {
-            return Choice(value);
-        }
-
-        return JsonValue.Create(value);
-    }
-
-    /// <summary>A stored choice list is JSON. Unparseable text is kept as text so one bad cell cannot block the open.</summary>
-    private static JsonNode? Choice(string value)
-    {
-        try
-        {
-            return JsonNode.Parse(value);
-        }
-        catch (JsonException)
-        {
-            return JsonValue.Create(value);
-        }
-    }
 }

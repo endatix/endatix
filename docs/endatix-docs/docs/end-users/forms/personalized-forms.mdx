@@ -1,0 +1,110 @@
+---
+title: Personalized Forms
+description: Use a form's Audience properties in the designer, preview the form as a test or real participant with Preview as and Find participant, and fix the Personalization warnings in Diagnostics before you send any links.
+sidebar_label: Personalized Forms
+---
+
+import FindParticipantLight from "./personalized-forms-find-participant_light.webp";
+import FindParticipantDark from "./personalized-forms-find-participant_dark.webp";
+import DiagnosticsLight from "./personalized-forms-diagnostics_light.webp";
+import DiagnosticsDark from "./personalized-forms-diagnostics_dark.webp";
+
+# Personalized Forms
+
+A personalized form shows each participant their own values: a greeting with their first name, a question about their own company, a question only for one tier. You build it in the designer with the properties from the form's [Audience](/docs/end-users/forms/audience) tab, and check it as any participant before anyone gets a link.
+
+This page needs personalization turned on for your Endatix deployment, a form with at least one property, and permission to edit the form.
+
+## Use a property in the form
+
+Each property has a **variable name**, shown on the Audience tab's **Properties** view (`First name` becomes `first_name`). Use it in braces anywhere the designer takes a variable:
+
+- **Text**: a title of `Welcome, {first_name}`, or `How many people at {company} use the product?`. See [Text Piping](/docs/end-users/forms/form-builder/text-piping).
+- **Conditions**: a **Visible if** of `{tier} = 'Gold'` shows a question only to Gold participants. See [Logic Expressions](/docs/end-users/forms/form-builder/logic-expressions).
+- **Starting answers**: pick the Property in **Prefill from** on the question's **Personalization** tab. See [Prefill from a Property](/docs/end-users/forms/prefilling-and-personalization#prefill-from-a-property).
+
+The designer already knows the form's properties, so do not add them under **Custom variables**. Custom variables are for values that come from somewhere else: a parameter in the form's link (see [Prefilling and Personalization](/docs/end-users/forms/prefilling-and-personalization)) or a value calculated in the form (see [Custom Variables](/docs/end-users/forms/form-builder/custom-variables)). A custom variable with the same name as a property gets a warning in Diagnostics.
+
+## Preview the form as a participant
+
+The designer's **Preview** tab can run the form with one participant's values, so you see the greeting, the questions and the conditions the way that person will. Nothing you enter is saved, and no submission is created.
+
+1. Open the form in the designer and select the **Preview** tab.
+2. Click **Preview as** in the toolbar below the form.
+3. Choose a participant. The list starts with **None** (no values), then the test participants, then real participants, up to 20 in all.
+
+<Shot
+  src={require("./personalized-forms-preview-as.webp").default}
+  alt="The designer's Preview tab running the form as the test participant qa.tester@example.com: the heading reads Welcome, Sam, the questions mention Contoso and a Gold renewal, and the toolbar below shows Preview as: qa.tester@example.com, Find participant, and Participant values"
+/>
+
+**Participant values** shows the values the preview uses, read-only. To change a value, use **Edit values** on the Audience tab; the designer reads the values again when you next open **Preview**.
+
+The preview uses the form as it is in the designer, including changes you have not saved yet.
+
+### Find a participant past the first 20
+
+When the form has more than 20 participants, **Find participant** appears next to **Preview as**.
+
+1. Click **Find participant**.
+2. Type part of an identifier in **Search by identifier**, or scroll: the list loads more as you go. Test participants come first, marked **Test participant**.
+3. Click a participant. The preview runs with their values, and they stay in the **Preview as** list until you leave the designer.
+
+<Shot
+  alt="Find participant dialog with Search by identifier, and a list that starts with qa.tester@example.com and qa.reviewer@example.com marked Test participant, followed by real participants"
+  sources={{ light: FindParticipantLight, dark: FindParticipantDark }}
+/>
+
+
+## Fix the Personalization warnings
+
+The designer's **Diagnostics** tab lists **Personalization** warnings when the form and its properties do not line up. A warning never blocks a save. When the tab bar is too narrow for every tab, for example with the Property Grid open, **Diagnostics** is under the **...** button.
+
+<Shot
+  alt="Diagnostics tab, Personalization section with 3 warnings: {compnay} is not declared, with Did you mean {company}?, In contact, and a Use {company} button; {region} is never used; and {tier} is not filled in for 1 of 2 real participants"
+  sources={{ light: DiagnosticsLight, dark: DiagnosticsDark }}
+/>
+
+| Warning | What it means | What to do |
+| --- | --- | --- |
+| **`{name}` is not declared** | The form uses a name that no property, question or calculated value has, usually a typo. It names the question it is in. | Click **Use `{suggestion}`** when it offers the right name, or fix the text yourself. |
+| **`{name}` is never used** | The form never reads that property. | Use it in the form, or leave it if you keep it only for your records. |
+| **`{name}` is not filled in for N of M real participants** | Some real participants have no value, so the form shows that place empty for them. | Fill the values in on the Audience tab, or reword the text so it reads well without one. |
+| **A question (or calculated value) shares its name with the property `{name}`** | The property replaces that question's answer, or the two overwrite each other. | Rename the question or the calculated value. |
+
+The Audience tab shows the same coverage for the saved form: see [Check which values the form uses](/docs/end-users/forms/audience#check-which-values-the-form-uses).
+
+## Check the saved form on the Audience tab
+
+The designer previews the form you are editing. To see the saved form as participants will get it, and to find anyone on a large form, use [Preview as on the Audience tab](/docs/end-users/forms/audience#preview-as). From there, **Test as this participant** opens a real test submission with the same values.
+
+## Limitations
+
+- **Values are edited on the Audience tab.** The designer shows a participant's values but cannot change them, and cannot add a property or a test participant.
+- **Conditions are not checked against a property's values.** Diagnostics does not warn about a condition no participant can meet, such as `{tier} = 'Platinum'` when nobody has that tier.
+- **Preview as needs a property and a participant.** On a form with neither, the designer's Preview works as before, without **Preview as**.
+
+## Related documentation
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/forms/audience"
+    title="Audience"
+    description="Add properties and people, check coverage, and preview the saved form as anyone."
+  />
+  <LinkCard
+    to="/docs/end-users/guides/run-a-personalized-survey"
+    title="Run a personalized survey"
+    description="Import a panel, test as one of them, send links, and export real responses."
+  />
+  <LinkCard
+    to="/docs/end-users/forms/prefilling-and-personalization"
+    title="Prefilling and Personalization"
+    description="Pass values in the link instead, with query string variables."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/testing-submissions"
+    title="Testing Submissions"
+    description="Read the Test inspector and keep test submissions out of your data."
+  />
+</CardGrid>

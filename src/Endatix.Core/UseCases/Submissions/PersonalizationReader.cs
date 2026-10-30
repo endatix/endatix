@@ -6,7 +6,9 @@ namespace Endatix.Core.UseCases.Submissions;
 
 /// <summary>
 /// Typed audience values frozen on a submission. Parsed from <c>PersonalizationSnapshot</c>
-/// without knowing the audience module.
+/// without knowing the audience module. <see cref="Source"/> is one of
+/// <see cref="Endatix.Core.Abstractions.Submissions.PersonalizationSources"/>, or <see langword="null"/> on a snapshot
+/// written without one.
 /// </summary>
 public sealed record PersonalizationRead(
     string Identifier,

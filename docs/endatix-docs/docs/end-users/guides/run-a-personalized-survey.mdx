@@ -1,0 +1,183 @@
+---
+title: Run a personalized survey
+description: Send each person in a panel their own survey link, fill the questions from their data, preview and test it as one of them, and export the real responses without the test ones, with a form's Audience tab and designer in Endatix Hub.
+sidebar_label: Run a personalized survey
+---
+
+import CoverageLight from "./run-a-personalized-survey-coverage_light.webp";
+import CoverageDark from "./run-a-personalized-survey-coverage_dark.webp";
+import LinksLight from "./run-a-personalized-survey-links_light.webp";
+import LinksDark from "./run-a-personalized-survey-links_dark.webp";
+import ExportLight from "./run-a-personalized-survey-export_light.webp";
+import ExportDark from "./run-a-personalized-survey-export_dark.webp";
+import PrefillLight from "../forms/prefill-from-property_light.webp";
+import PrefillDark from "../forms/prefill-from-property_dark.webp";
+import PrefillPreviewLight from "../forms/prefill-from-preview-as_light.webp";
+import PrefillPreviewDark from "../forms/prefill-from-preview-as_dark.webp";
+
+# Run a personalized survey
+
+A research team surveys a known panel: customers, employees, or members. Each person should get their own link, see questions that use their own name or company, and come back to the same response if they open the link again, while the team tries the survey without its test answers ending up in the results.
+
+You finish with a file of personal links ready to send, a Link status for every person on the form, and an export that holds only real responses.
+
+## Before you start
+
+- **Personalization is on** for your Endatix deployment. Ask whoever runs it if a form has no **Audience** tab. The setup is on [Hub Environment](/docs/developers/hub/environment#feature-flags).
+- **Permission to edit the form.** The coverage counts and participant pages need it.
+- **Permission to test forms**, for **Test as this participant**. **Copy test link** also needs permission to edit the form and to view, edit, or export submissions.
+- **A list of your people** as a CSV, with one row per person, a column that identifies each person (for example their email), and one column per fact you want to use.
+
+## Turn on personalization
+
+Personalization is turned on for the whole deployment, not per form. To check, open the form from the **Forms** list, click the section menu next to the form name (it shows **Overview**), and choose **Audience**. If the menu has no **Audience**, ask whoever runs your Endatix deployment to turn personalization on.
+
+## Add properties and import the audience
+
+1. On the **Properties** view, add one property for each fact the form will use, such as `First name` and `Company`. Note each **variable name** (`first_name`, `company`): the form uses it.
+2. On the **People** view, click **Import CSV**, choose the column that identifies people, and map each other column to a property.
+
+Import the real panel as real people. Add one or two test people with the values you want to try, either with **Add person** and **Add as test participant**, or with a second import that has **Import as test participants** on. A person's test status cannot change later.
+
+A file can hold up to 100,000 rows and 50 MB on a deployment that runs imports as background jobs. Once the file is sent, you can close the tab: the import keeps going, and **Import in progress** on the **People** view shows where it stands. See [Import participants from a CSV](/docs/end-users/forms/audience#import-participants-from-a-csv) for each step, rejected rows, and how to resume an import that stopped.
+
+## Use the properties in the form and check coverage
+
+1. In the designer, put the variable names in braces wherever the form should show a person's value: a title of `Welcome, {first_name}`, or a question that asks about `{company}`. The designer knows the properties, so don't add them as custom variables.
+2. To start a question with the person's value, select it, open the **Personalization** tab in the Property Grid, and pick a Property that fits the question in **Prefill from**, such as a number Property for a number question. Turn **Allow respondent to edit** off if the person should only confirm the value; it is not a security control. See [Prefill from a Property](/docs/end-users/forms/prefilling-and-personalization#prefill-from-a-property).
+
+<Shot
+  alt="Personalization tab of the household_size question: Prefill from set to Family size, and Allow respondent to edit turned on"
+  sources={{ light: PrefillLight, dark: PrefillDark }}
+/>
+
+3. On the **Preview** tab, click **Preview as** and choose a test participant to see the form with their values, prefilled questions included. On a form with more than 20 people, **Find participant** finds anyone else by identifier.
+
+<Shot
+  alt="Preview tab running the form as a test participant: Household size reads 4, Region reads North, and Renewal reads its stored date and time, and Age in months reads 408"
+  sources={{ light: PrefillPreviewLight, dark: PrefillPreviewDark }}
+/>
+
+4. Check the **Diagnostics** tab for **Personalization** warnings, such as a misspelled variable name, and fix them.
+5. Save the form.
+6. Back on the **Audience** tab, open the **Properties** view.
+
+<Shot
+  alt="Properties view with First name and Company, both Used in form; First name is 3 of 3 filled and Company is 2 of 3 filled"
+  sources={{ light: CoverageLight, dark: CoverageDark }}
+/>
+
+Decide what to do with each gap before you send links:
+
+- **Not used**: the form never reads that property. Fix the variable name in the designer, or leave it if the property is only for your records.
+- **Fewer than all filled**: some real people have no value, and the form shows those places empty for them. On the **People** view, the **N not filled in** mark names who. Fill the values in with **Edit**, or reword the question so it still reads well without one.
+
+A response starts with the person's values as they are when their link is first opened, so finish the values first. See [Personalized Forms](/docs/end-users/forms/personalized-forms) for Preview as and each warning, and [Check which values the form uses](/docs/end-users/forms/audience#check-which-values-the-form-uses).
+
+## Test as a participant and use Start over
+
+Start with a look, then a real test:
+
+- **Preview as** on the **Audience** tab shows the saved form as any participant, real ones included, and creates nothing. Use it to check a few real people, especially those with values missing. See [Preview as](/docs/end-users/forms/audience#preview-as).
+- **Test as this participant** opens the form in a new tab as a submission you can fill in and complete. Use it with a test person to check the whole flow.
+
+1. On the **People** view, click **Test as this participant**: the flask icon in a test person's row, or the button on their page. The form opens in a new tab as that person.
+2. Check the greeting and questions read correctly with their values, and answer as they would.
+3. After you change the form or the person's values, click **Start over** in the Test inspector, the **TEST** button at the bottom right. It opens a new test submission with the latest form and values.
+
+To have a colleague without an Endatix login test as a test person, click **Copy test link** in that person's row or on their page, choose the **Link lifetime** (7 days unless you change it), and click **Create and copy link**. Send them the link: it opens one new test submission with that person's values, also on a private form. See [Copy test link](/docs/end-users/forms/audience#copy-test-link).
+
+Each test is a test submission: it never uses a real person's link and stays out of exports unless you ask for it. See [Testing Submissions](/docs/end-users/submissions/testing-submissions) for the Test inspector and [Start over](/docs/end-users/submissions/testing-submissions#start-over).
+
+## Generate and share personalized links
+
+A personalized link opens its person's own response without a sign-in, whether the form is public or private. The link opens that one response and nothing else.
+
+**Visibility** decides only who can open the form's plain share link, `/share/<formId>`:
+
+- **Private**, the default for new forms: the plain link asks for a sign-in, so only your panel's links collect responses. Keep it for a panel.
+- **Public**: anyone with the plain link can also respond, without a link of their own.
+
+Change it with the **Visibility** switch on the form's **Overview**. See [Visibility (Public / Private)](/docs/end-users/sharing/public-and-private-forms#personalized-links-on-a-private-form).
+
+Then make the links:
+
+1. On the **People** view, click **Personalized links**.
+2. Click **Generate and download**. Hub downloads a CSV with each person's email and link.
+3. Send each link from your own email or panel tool.
+
+<Shot
+  alt="Personalized links panel: Who gets a link, everyone on this form who has no link yet, People on this form 12, and the note The file is the only copy, with Cancel and Generate and download"
+  sources={{ light: LinksLight, dark: LinksDark }}
+/>
+
+Keep the file safe: Hub shows each link only once, and anyone with a link can open that person's response. Test people never get a link. People who already have one keep it, so after you add more people, click **Personalized links** again to make links for the new ones only.
+
+## Follow link status and open participant pages
+
+On the **People** view, the **Link** column shows each real person's link as **Not issued**, **Issued**, or **Opened**. Click **Opened** to see the response that link started.
+
+Click a person's identifier to open their page: their values, their link with when it was opened, and their submissions on this form. Use it to answer "did this person get and open their link?" without searching the Submissions page. See [Open a participant's page](/docs/end-users/forms/audience#open-a-participants-page).
+
+## Export the real submissions without the test ones
+
+1. Open the form's **Submissions** page.
+2. Set the **Submission Type** filter to **Production**. The grid hides test submissions.
+3. Click **Export Submissions**. The panel copies the filter, so **Include test submissions** is off.
+4. Choose the **Export format** and click **Export**.
+
+<Shot
+  alt="Export submissions panel with Export format CSV and, under Submissions, Include test submissions turned off"
+  sources={{ light: ExportLight, dark: ExportDark }}
+/>
+
+See [Keep test submissions out of exports](/docs/end-users/submissions/testing-submissions#keep-test-submissions-out-of-exports) and [Exporting Submissions](/docs/end-users/submissions/exporting-submissions).
+
+## Done when
+
+- The **Properties** view shows **Used** for every property the form needs, and each **Filled in (real)** count is one you accept.
+- **Preview as** on the **Audience** tab reads correctly for a real participant with missing values, and the designer's **Diagnostics** tab has no **Personalization** warning you did not accept.
+- A test person's form shows their own values, prefilled questions included, and your test submissions show under **Submission Type: Test**.
+- Every real person reads **Issued** or **Opened** in the **Link** column, and the CSV of links is stored safely.
+- Your export has one row per real response and no test submissions.
+
+## Limitations
+
+- **Removing a person stops their link within a minute, not at once.** A response they have open can still save until then.
+- **Up to 5,000 people per form get links.** On a form with more real people, **Generate and download** creates none.
+- **An import takes up to 100,000 rows and 50 MB.** A deployment without background jobs takes 5,000 rows and 20 MB, and needs the tab open until the import finishes. Split a larger panel into several files.
+- **A link's access expires** after the form's Session expiry, at most 60 days. The person opens their link again to continue the same response.
+- **Links are shown once.** Hub keeps no copy you can download again, and a person who has a link does not get a new one.
+- **Test links are for test people only.** **Copy test link** shares a test as a test person, not as a real one, and each copy opens a single test submission.
+- **Values are fixed when a link is first opened.** Editing a person afterwards does not change a response they already started.
+- **No Test inspector in embeds.** An embedded form shows the plain test notice with **Start over**.
+
+## Next steps
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/forms/audience"
+    title="Audience"
+    description="Every control on the Audience tab: properties, people, imports, and test people."
+  />
+  <LinkCard
+    to="/docs/end-users/forms/personalized-forms"
+    title="Personalized Forms"
+    description="Use properties in the designer, preview as a participant, and fix the warnings."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/testing-submissions"
+    title="Testing Submissions"
+    description="Read the Test inspector and keep test submissions out of your data."
+  />
+  <LinkCard
+    to="/docs/end-users/sharing/public-and-private-forms"
+    title="Visibility (Public / Private)"
+    description="Decide who can open the form's plain share link."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/exporting-submissions"
+    title="Exporting Submissions"
+    description="Formats, filters, and the first-export prepare step."
+  />
+</CardGrid>

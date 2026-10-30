@@ -9,18 +9,24 @@ namespace Endatix.Modules.Audience.Features.Settings;
 /// </summary>
 internal static class IdentifierKindReader
 {
+    /// <summary>The match key of a tenant with no settings row.</summary>
+    public const string Default = AudienceIdentifierKindCodes.Email;
+
     public static async Task<string> GetAsync(
         IAudienceDbContext db,
         long tenantId,
-        CancellationToken cancellationToken)
-    {
-        string? identifierKind = await db.AudienceSettings
+        CancellationToken cancellationToken) =>
+        await Stored(db, tenantId).FirstOrDefaultAsync(cancellationToken) ?? Default;
+
+    /// <summary>
+    /// The tenant's stored match key, at most one; none means <see cref="Default"/>. Also a subquery of
+    /// <see cref="People.MatchKeyProperty.Of"/>, so both read the key one way.
+    /// </summary>
+    public static IQueryable<string?> Stored(IAudienceDbContext db, long tenantId) =>
+        db.AudienceSettings
             .AsNoTracking()
             .Where(settings => settings.TenantId == tenantId)
-            .Select(settings => settings.IdentifierKind)
-            .FirstOrDefaultAsync(cancellationToken);
-        return identifierKind ?? AudienceIdentifierKindCodes.Email;
-    }
+            .Select(settings => (string?)settings.IdentifierKind);
 
     /// <summary>
     /// The match key locks while any person is on any form's audience. A member removed from

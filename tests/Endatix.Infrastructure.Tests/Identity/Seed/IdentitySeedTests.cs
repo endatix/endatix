@@ -3,10 +3,12 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests;
+using Endatix.Framework.Logging;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Seed;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Identity.Seed;
@@ -92,31 +94,88 @@ public class IdentitySeedTests
     }
 
     [Fact]
-    public async Task SeedInitialUser_NoUsersAndNoDataOptions_CreatesDefaultUser()
+    public async Task SeedInitialUser_NoUsersAndNoInitialUserSection_SkipsSeedingAndLogsError()
     {
         // Arrange
-        var users = Enumerable.Empty<AppUser>().AsQueryable();
-        _userManager.Users.Returns(users);
-        DataOptions? nullOptions = null;
+        _userManager.Users.Returns(Enumerable.Empty<AppUser>().AsQueryable());
+        _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        _dataOptions.InitialUser = null;
 
-        var expectedEmail = "admin@endatix.com";
-        var expectedPassword = "P@ssw0rd";
-        var expectedUserId = 2L;
+        // Act
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
 
-        // Setup mock return value
+        // Assert
+        await AssertSkippedWithPasswordNotConfiguredError();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task SeedInitialUser_NoUsersAndEmailWithoutPassword_SkipsSeedingAndLogsError(string password)
+    {
+        // Arrange
+        _userManager.Users.Returns(Enumerable.Empty<AppUser>().AsQueryable());
+        _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
+        _dataOptions.InitialUser = new InitialUserOptions { Email = "admin@example.com", Password = password };
+
+        // Act
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
+
+        // Assert
+        await AssertSkippedWithPasswordNotConfiguredError();
+    }
+
+    [Fact]
+    public async Task SeedInitialUser_PasswordWithoutEmail_CreatesUserWithDefaultEmail()
+    {
+        // Arrange
+        _userManager.Users.Returns(Enumerable.Empty<AppUser>().AsQueryable());
+        const string expectedEmail = "admin@endatix.com";
+        const string expectedPassword = "Configured1!";
+        _dataOptions.InitialUser = new InitialUserOptions { Password = expectedPassword };
         _userRegistrationService.RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>())
-            .Returns(Result<User>.Success(new User(expectedUserId, expectedEmail, expectedEmail, true)));
-        _roleManagementService.AssignRoleToUserAsync(expectedUserId, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(new User(2L, expectedEmail, expectedEmail, true)));
+        _roleManagementService.AssignRoleToUserAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, nullOptions!, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
             .RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void WebHostBaseSettings_DoNotCarryInitialUserPassword()
+    {
+        var dataOptions = BindWebHostDataOptions("appsettings.json");
+
+        dataOptions.InitialUser?.Password.Should().BeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task SeedInitialUser_WebHostDevelopmentSettings_CreatesInitialUser()
+    {
+        // Arrange
+        _userManager.Users.Returns(Enumerable.Empty<AppUser>().AsQueryable());
+        var dataOptions = BindWebHostDataOptions("appsettings.json", "appsettings.Development.json");
+        var email = dataOptions.InitialUser!.Email;
+        var password = dataOptions.InitialUser.Password;
+        _userRegistrationService.RegisterUserAsync(email, password, 1L, true, Arg.Any<CancellationToken>())
+            .Returns(Result<User>.Success(new User(2L, email, email, true)));
+        _roleManagementService.AssignRoleToUserAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+
+        // Act
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, dataOptions, _logger);
+
+        // Assert
+        password.Should().NotBeNullOrWhiteSpace();
+        await _userRegistrationService.Received(1)
+            .RegisterUserAsync(email, password, 1L, true, Arg.Any<CancellationToken>());
         await _roleManagementService.Received(1)
-            .AssignRoleToUserAsync(expectedUserId, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>());
+            .AssignRoleToUserAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -151,5 +210,43 @@ public class IdentitySeedTests
 
         await _roleManagementService.Received(1)
             .AssignRoleToUserAsync(expectedUserId, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>());
+    }
+
+    private async Task AssertSkippedWithPasswordNotConfiguredError()
+    {
+        await _userRegistrationService.DidNotReceive()
+            .RegisterUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<long>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+        var errorLog = _logger.ReceivedCalls()
+            .Where(call => call.GetMethodInfo().Name == nameof(ILogger.Log))
+            .Select(call => call.GetArguments())
+            .Should().ContainSingle(args => (LogLevel)args[0]! == LogLevel.Error).Subject;
+        ((EventId)errorLog[1]!).Id.Should().Be(EndatixEventIds.IdentitySeed.PasswordNotConfigured);
+        var message = ((Delegate)errorLog[4]!).DynamicInvoke(errorLog[2], errorLog[3]) as string;
+        message.Should().Contain("Endatix:Data:InitialUser:Password");
+    }
+
+    private static DataOptions BindWebHostDataOptions(params string[] settingsFiles)
+    {
+        var webHostDirectory = Path.Combine(RepositoryRoot(), "src", "Endatix.WebHost");
+        var builder = new ConfigurationBuilder().SetBasePath(webHostDirectory);
+        foreach (var settingsFile in settingsFiles)
+        {
+            builder.AddJsonFile(settingsFile, optional: false);
+        }
+
+        var dataOptions = new DataOptions();
+        builder.Build().GetSection(dataOptions.FullSectionName).Bind(dataOptions);
+        return dataOptions;
+    }
+
+    private static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Endatix.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
     }
 }

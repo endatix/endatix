@@ -1,5 +1,6 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions.UpdateStatus;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,7 +24,7 @@ public class UpdateStatusHandlerTests
     {
         // Arrange
         var command = new UpdateStatusCommand(1, 1, "new");
-        _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns((Submission?)null);
 
         // Act
@@ -34,30 +35,7 @@ public class UpdateStatusHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.Errors.First().Should().Contain("Submission not found");
         await _submissionRepository.DidNotReceive()
-            .UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_WhenFormIdDoesNotMatch_ReturnsNotFound()
-    {
-        // Arrange
-        var requestFormId = 999;
-        var actualFormId = 1;
-        var command = new UpdateStatusCommand(1, requestFormId, "new");
-        var submission = new Submission(SampleData.TENANT_ID, "data", 1, actualFormId);
-
-        _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
-            .Returns(submission);
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Submission not found");
-        await _submissionRepository.DidNotReceive()
-            .UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -67,7 +45,7 @@ public class UpdateStatusHandlerTests
         var command = new UpdateStatusCommand(1, 1, "invalid_status");
         var submission = new Submission(SampleData.TENANT_ID, "data", 1, 1);
 
-        _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
 
         // Act
@@ -78,7 +56,7 @@ public class UpdateStatusHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == "Invalid status code.");
         await _submissionRepository.DidNotReceive()
-            .UpdateAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -88,7 +66,7 @@ public class UpdateStatusHandlerTests
         var command = new UpdateStatusCommand(1, 1, "approved");
         var submission = new Submission(SampleData.TENANT_ID, "{}", 1, 1, isComplete: true);
 
-        _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
 
         // Act
@@ -102,7 +80,7 @@ public class UpdateStatusHandlerTests
         result.Value.Status.Should().Be("approved");
 
         await _submissionRepository.Received(1)
-            .UpdateAsync(Arg.Is<Submission>(s => s.Id == submission.Id), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -114,7 +92,7 @@ public class UpdateStatusHandlerTests
         var command = new UpdateStatusCommand(1, 1, statusCode);
         var submission = new Submission(SampleData.TENANT_ID, "{}", 1, 1, isComplete: true);
 
-        _submissionRepository.GetByIdAsync(command.SubmissionId, Arg.Any<CancellationToken>())
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
 
         // Act
@@ -127,6 +105,6 @@ public class UpdateStatusHandlerTests
         result.Value.Status.Should().Be(statusCode);
 
         await _submissionRepository.Received(1)
-            .UpdateAsync(Arg.Is<Submission>(s => s.Id == submission.Id), Arg.Any<CancellationToken>());
+            .SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 }

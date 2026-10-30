@@ -11,9 +11,10 @@ internal static class TenantFormGate
 {
     public static async Task<Result> EnsureAsync(FormGateRequest request)
     {
-        if (request.TenantId <= 0)
+        var tenant = EnsureTenant(request.TenantId);
+        if (!tenant.IsSuccess)
         {
-            return Result.Unauthorized("Tenant context is required.");
+            return tenant;
         }
 
         Form? form = await request.Forms.GetByIdAsync(request.FormId, request.CancellationToken);
@@ -21,6 +22,12 @@ internal static class TenantFormGate
             ? Result.NotFound("Form not found.")
             : Result.Success();
     }
+
+    /// <summary>The tenant half alone, for work that reads the form itself.</summary>
+    public static Result EnsureTenant(long tenantId) =>
+        tenantId <= 0
+            ? Result.Unauthorized("Tenant context is required.")
+            : Result.Success();
 }
 
 /// <summary>

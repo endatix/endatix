@@ -77,10 +77,10 @@ initialUser:
   # Deployments have shipped a placeholder secret purely to get past this.
   #
   # Turning this OFF does not turn seeding off — data.seedSampleData is the
-  # master switch for that. With seeding on and this off, an EMPTY database is
-  # seeded with the built-in fallback admin (admin@endatix.com / P@ssw0rd), so
-  # only disable it when data.seedSampleData is false or the database already
-  # has users.
+  # master switch for that. With seeding on and this off, an EMPTY database
+  # gets NO admin: the API has no default password, so it logs an error and
+  # skips the initial user. Only disable it when data.seedSampleData is false
+  # or the database already has users.
   #
   # Modelled as `enabled` rather than "an empty secretName means off" to match
   # otel.enabled elsewhere in this chart, to keep secretName meaning only which
@@ -188,6 +188,15 @@ tmp:
   sizeLimit: ""
 
 nodeSelector: {}
+
+# Pod tolerations, e.g. to let the API schedule onto a tainted, dedicated node
+# pool. Pair with nodeSelector or affinity to also keep it there.
+tolerations: []
+#  - key: example.com/dedicated
+#    operator: Exists
+#    effect: NoSchedule
+
+affinity: {}
 
 # ---------------------------------------------------------------------------
 # Passthrough

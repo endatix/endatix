@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Ardalis.GuardClauses;
@@ -12,6 +13,8 @@ namespace Endatix.Modules.Audience.Domain;
 public sealed class AudienceLink : BaseEntity, ITenantOwned
 {
     public const int TokenHashLength = 64;
+
+    private const int AccessDigestLength = 16;
 
     /// <summary>Database names of the unique indexes on <see cref="AudienceLink"/>.</summary>
     public static class UniqueConstraints
@@ -49,8 +52,34 @@ public sealed class AudienceLink : BaseEntity, ITenantOwned
         Guard.Against.NegativeOrZero(tenantId);
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NegativeOrZero(membershipId);
-        string token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        string token = NewToken();
         return (new AudienceLink(tenantId, formId, membershipId, Hash(token)), token);
+    }
+
+    /// <summary>
+    /// A new token for the same link: the old token no longer opens it, and the new <see cref="AccessStamp"/> refuses
+    /// the access tokens it handed out. An opened link keeps its submission, so the person resumes their response.
+    /// </summary>
+    public string Reissue()
+    {
+        string token = NewToken();
+        TokenHash = Hash(token);
+        return token;
+    }
+
+    /// <summary>
+    /// What the link's access tokens are bound to: the link's id, then a digest of <see cref="TokenHash"/>, in
+    /// lowercase hex. The digest changes with the hash, so a reissued link's old tokens stop opening its submission,
+    /// and a token never carries the hash itself.
+    /// </summary>
+    public string AccessStamp() => $"{Id:x}{Hash($"access-stamp:{TokenHash}")[..AccessDigestLength]}";
+
+    /// <summary>The link id an <see cref="AccessStamp"/> names; <see langword="false"/> for any other value.</summary>
+    public static bool TryReadAccessStamp(string stamp, out long linkId)
+    {
+        linkId = 0;
+        return stamp.Length > AccessDigestLength
+            && long.TryParse(stamp[..^AccessDigestLength], NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out linkId);
     }
 
     public static string Hash(string token)
@@ -58,4 +87,6 @@ public sealed class AudienceLink : BaseEntity, ITenantOwned
         byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
+
+    private static string NewToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
 }

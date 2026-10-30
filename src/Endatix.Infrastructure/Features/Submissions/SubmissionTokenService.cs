@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -46,8 +47,14 @@ public class SubmissionTokenService : ISubmissionTokenService
         }
 
         IssueOrExtend(submission, await GetTokenExpiryHoursAsync(formExpiry, submission.TenantId, cancellationToken));
-        await _submissionRepository.SaveChangesAsync(cancellationToken);
-        return Result<string>.Success(submission!.Token!.Value);
+        return await SaveTokenAsync(submission, cancellationToken);
+    }
+
+    /// <summary>A submission deleted since it was read, on its own or with its form, is not found; a deadlock victim is busy.</summary>
+    private async Task<Result<string>> SaveTokenAsync(Submission submission, CancellationToken cancellationToken)
+    {
+        var saved = await _submissionRepository.TrySaveChangesAsync(cancellationToken);
+        return saved.IsSuccess ? Result<string>.Success(submission.Token!.Value) : saved.ToErrorResult<string>();
     }
 
     public async Task<Token> NewTokenAsync(Form form, CancellationToken cancellationToken)
@@ -81,19 +88,41 @@ public class SubmissionTokenService : ISubmissionTokenService
         }
 
         // A screened-out interview has ended too, so its token follows the same after-completion rule.
-        if (submission.IsComplete || submission.IsScreenedOut)
+        if ((submission.IsComplete || submission.IsScreenedOut)
+            && !await IsValidAfterCompletionAsync(submission.TenantId, cancellationToken))
         {
-            // No settings row reads as a new tenant's default: not valid after completion.
-            var tenantSettings = await _tenantSettingsRepository
-                .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(submission.TenantId), cancellationToken);
-
-            if (tenantSettings?.IsSubmissionTokenValidAfterCompletion != true)
-            {
-                return Result.NotFound(submission.IsComplete ? "Submission completed" : "Submission screened out");
-            }
+            return Result.NotFound(submission.IsComplete ? "Submission completed" : "Submission screened out");
         }
 
         return Result<long>.Success(submission.Id);
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> AcceptsTokenAsync(long submissionId, CancellationToken cancellationToken)
+    {
+        var state = await _submissionRepository.FirstOrDefaultAsync(
+            new SubmissionTokenStateSpec(submissionId), cancellationToken);
+        return state is not { HasEnded: true }
+            || await IsValidAfterCompletionAsync(state.TenantId, cancellationToken);
+    }
+
+    /// <summary>No settings row reads as a new tenant's default: not valid after completion.</summary>
+    private async Task<bool> IsValidAfterCompletionAsync(long tenantId, CancellationToken cancellationToken)
+    {
+        var tenantSettings = await _tenantSettingsRepository
+            .FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(tenantId), cancellationToken);
+        return tenantSettings?.IsSubmissionTokenValidAfterCompletion == true;
+    }
+
+    /// <inheritdoc />
+    public async Task<int?> GetExpiryHoursAsync(long formId, long tenantId, CancellationToken cancellationToken)
+    {
+        var formExpiry = await _formRepository.FirstOrDefaultAsync(
+            new FormProjections.SessionTokenExpiryDtoSpec(formId), cancellationToken);
+        return await GetTokenExpiryHoursAsync(
+            formExpiry ?? new FormProjections.FormSessionTokenExpiryDto(formId, null),
+            tenantId,
+            cancellationToken);
     }
 
     private async Task<int?> GetTokenExpiryHoursAsync(

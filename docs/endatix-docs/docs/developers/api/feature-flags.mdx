@@ -16,6 +16,19 @@ For product level feature, flags, we use the string constants on **`FeatureFlags
 
 You can also define custom feature flags as the FeatureFlag's config is open for custom feature flag keys.
 
+### Deployment-scoped flags
+
+These flags ship disabled and are deployment-scoped: they are read without a tenant, so per-tenant targeting does not apply to them. The three module flags register a whole module at startup, with its endpoints, database schema, and migrations, so changing one means restarting the API.
+
+| Flag | Registers |
+| --- | --- |
+| `ReportingModule` | The Reporting module: export endpoints and the `reporting` schema |
+| `JobsModule` | The Background Jobs module: the job queue and the `jobs` schema. See [Background processing](/docs/configuration/background-processing) |
+| `PersonalizationModule` | The Audience module: properties, people, imports, personalized links, and the `audience` schema. See [Audience API](/docs/developers/api/audience) |
+| `MultiTenancy` | Tenant management: create, edit, assume, and switch tenants, and self-registration |
+
+As environment variables: `Endatix__FeatureFlags__PersonalizationModule=true`.
+
 ## Configuration
 
 ### Global toggle

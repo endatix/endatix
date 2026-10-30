@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Features.Links;
 
@@ -47,6 +48,19 @@ public sealed class PersonalizationSnapshotJsonTests
     }
 
     [Fact]
+    public void Write_Test_OmitsLinkAndKeepsMember()
+    {
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(null, "ada@example.com", DateTime.UnixEpoch, PersonalizationSources.Test, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("source").GetString().Should().Be("test");
+        document.RootElement.GetProperty("memberId").GetInt64().Should().Be(42);
+        document.RootElement.TryGetProperty("audienceLinkId", out _).Should().BeFalse();
+    }
+
+    [Fact]
     public void Write_BooleanAndChoice_AreTypedJson()
     {
         var json = PersonalizationSnapshotJson.Write(
@@ -89,6 +103,31 @@ public sealed class PersonalizationSnapshotJsonTests
         value.GetProperty("name").GetString().Should().Be("Age");
         value.GetProperty("dataType").GetString().Should().Be(AudienceDataTypeCodes.Number);
         value.GetProperty("value").GetDouble().Should().Be(65);
+    }
+
+    /// <summary>
+    /// The participant read looks up these top-level keys in the database (<c>NamesParticipant</c>, <c>IsOnBehalf</c>);
+    /// the member id must stay a JSON number so its text is its digits.
+    /// </summary>
+    [Theory]
+    [InlineData(PersonalizationSources.Test, null)]
+    [InlineData(PersonalizationSources.Link, 7L)]
+    [InlineData(PersonalizationSources.OnBehalf, null)]
+    public void Write_PutsTheKeysTheParticipantLookupsReadAtTheTop(string source, long? audienceLinkId)
+    {
+        // Arrange
+        var json = PersonalizationSnapshotJson.Write(
+            new SnapshotHeader(audienceLinkId, "ada@example.com", DateTime.UnixEpoch, source, 42),
+            [Cell("age", AudienceDataTypeCodes.Number, "65")]);
+
+        // Act
+        using var document = JsonDocument.Parse(json);
+
+        // Assert
+        var memberId = document.RootElement.GetProperty(PersonalizationSnapshotJson.MemberIdKey);
+        memberId.ValueKind.Should().Be(JsonValueKind.Number);
+        memberId.GetRawText().Should().Be("42");
+        document.RootElement.GetProperty(PersonalizationSnapshotJson.SourceKey).GetString().Should().Be(source);
     }
 
     /// <summary>A cell whose property is named after its variable ("age" → "Age"), with a stable id.</summary>

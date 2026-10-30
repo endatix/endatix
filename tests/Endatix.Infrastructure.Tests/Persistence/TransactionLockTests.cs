@@ -66,6 +66,23 @@ public class TransactionLockTests
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*1:tenant:form*inside a transaction*");
     }
 
+    /// <summary>
+    /// SQL Server hashes a resource name past its first 32 characters, so a form's lock, which must never be shared,
+    /// stays within them for every id.
+    /// </summary>
+    [Fact]
+    public void ResourceName_FormLockOfTheLargestId_StaysWithinTheCharactersKeptAsTheyAre()
+    {
+        // Arrange
+        var request = FormSubmissionsLock.Deleting(long.MaxValue);
+
+        // Act
+        var name = SqlServerTransactionLock.ResourceName(request);
+
+        // Assert
+        name.Length.Should().BeLessThanOrEqualTo(32);
+    }
+
     [Fact]
     public void ResourceName_ShortKey_IsScopeAndKey()
     {

@@ -38,6 +38,7 @@ public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
         MembershipId = args.MembershipId;
         PropertyId = args.PropertyId;
         Value = args.Value;
+        IsTest = args.IsTest;
     }
 
     public long TenantId { get; private set; }
@@ -45,6 +46,13 @@ public sealed class PropertyValue : BaseEntity, IAggregateRoot, ITenantOwned
     public long MembershipId { get; private set; }
 
     public long PropertyId { get; private set; }
+
+    /// <summary>
+    /// The membership's <see cref="Membership.IsTest"/>, copied when the cell is written; it never changes on either,
+    /// and <c>FK_PropertyValues_Membership</c> refuses a cell that disagrees.
+    /// Coverage counts test and real cells per Property from one index (<c>IX_PropertyValues_Property</c>) with it.
+    /// </summary>
+    public bool IsTest { get; private set; }
 
     /// <summary>
     /// Canonical, never empty: an empty input clears the cell (soft delete) instead. Multiple

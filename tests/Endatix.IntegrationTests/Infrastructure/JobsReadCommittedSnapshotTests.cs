@@ -94,8 +94,8 @@ public sealed class JobsReadCommittedSnapshotTests(DbIntegrationFixture fixture)
 
         // Assert
         (await write.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("READ_COMMITTED_SNAPSHOT");
-        var lookup = () => schedulers.LookupScheduler(QuartzRegistration.SchedulerName, ct).AsTask();
-        await lookup.Should().ThrowAsync<InvalidOperationException>("looking a scheduler up by name builds it");
+        (await schedulers.LookupScheduler(QuartzRegistration.SchedulerName, ct)).Should()
+            .BeNull("a lookup never builds the scheduler, so a node whose build was refused has none to hand out");
 
         // The dashboard and its HTTP API find their scheduler in the repository, and the container's IScheduler
         // builds one on first use: neither has one to write through.
