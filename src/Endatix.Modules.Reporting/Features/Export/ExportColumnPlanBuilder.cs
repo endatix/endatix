@@ -58,8 +58,8 @@ internal static class ExportColumnPlanBuilder
             new(
                 schema,
                 FormSchemaFlatteningMap.FromJson(schema.FlatteningMap),
-                ReadCodebookColumns(schema.Codebook),
-                ReadCodebookQuestions(schema.Codebook),
+                FormSchemaCodebookReader.ReadColumns(schema.Codebook),
+                FormSchemaCodebookReader.ReadQuestions(schema.Codebook),
                 request,
                 (request.AliasRegistry ?? ColumnAliasTransformerRegistry.Default).GetRequired(request.AliasProfile));
 
@@ -144,7 +144,7 @@ internal static class ExportColumnPlanBuilder
             CanonicalKey: column.Key,
             ExportKey: column.Key,
             Source: ExportColumnSource.DataJson,
-            HeaderLabel: ResolveHeaderLabel(source.CodebookColumns, column.Key, source.Locale),
+            HeaderLabel: FormSchemaCodebookReader.ResolveHeaderLabel(source.CodebookColumns, column.Key, source.Locale),
             DataType: column.DataType));
     }
 
@@ -277,7 +277,7 @@ internal static class ExportColumnPlanBuilder
         string headerFallback)
     {
         var canonicalKey = ExportPathBuilder.Join(sourceColumn.Key, bound);
-        var headerLabel = ResolveHeaderLabel(codebookColumns, canonicalKey, locale) ?? headerFallback;
+        var headerLabel = FormSchemaCodebookReader.ResolveHeaderLabel(codebookColumns, canonicalKey, locale) ?? headerFallback;
         var sourceQuestion = sourceColumn.SourceQuestion ?? sourceColumn.Key;
 
         aliasInputs.Add(new ExportColumnAliasInput(
@@ -300,30 +300,6 @@ internal static class ExportColumnPlanBuilder
             question.GetStringProperty(SurveyJsPropertyNames.SliderType),
             SurveyJsPropertyNames.SliderTypeRange,
             StringComparison.OrdinalIgnoreCase);
-
-    private static Dictionary<string, JsonElement> ReadCodebookQuestions(string codebookJson)
-    {
-        Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
-
-        if (string.IsNullOrWhiteSpace(codebookJson))
-        {
-            return questions;
-        }
-
-        using var document = JsonDocument.Parse(codebookJson);
-        if (!document.RootElement.TryGetProperty(FormSchemaCodebookPropertyNames.Questions, out var questionsElement) ||
-            questionsElement.ValueKind != JsonValueKind.Object)
-        {
-            return questions;
-        }
-
-        foreach (var property in questionsElement.EnumerateObject())
-        {
-            questions[property.Name] = property.Value.Clone();
-        }
-
-        return questions;
-    }
 
     private static void EnsureUniqueExportKeys(IReadOnlyList<ExportColumnDefinition> columns)
     {
@@ -365,93 +341,5 @@ internal static class ExportColumnPlanBuilder
         return applyKeySeparator
             ? ExportKeyTransformer.Transform(sourceKey, keySeparator)
             : ExportKeyTransformer.Sanitize(sourceKey);
-    }
-
-    private static Dictionary<string, JsonElement> ReadCodebookColumns(string codebookJson)
-    {
-        Dictionary<string, JsonElement> columns = new(StringComparer.Ordinal);
-
-        if (string.IsNullOrWhiteSpace(codebookJson))
-        {
-            return columns;
-        }
-
-        using var document = JsonDocument.Parse(codebookJson);
-        if (!document.RootElement.TryGetProperty("columns", out var columnsElement) ||
-            columnsElement.ValueKind != JsonValueKind.Object)
-        {
-            return columns;
-        }
-
-        foreach (var property in columnsElement.EnumerateObject())
-        {
-            columns[property.Name] = property.Value.Clone();
-        }
-
-        return columns;
-    }
-
-    private static string? ResolveHeaderLabel(
-        IReadOnlyDictionary<string, JsonElement> codebookColumns,
-        string canonicalKey,
-        string locale)
-    {
-        if (!codebookColumns.TryGetValue(canonicalKey, out var columnMetadata))
-        {
-            return null;
-        }
-
-        var title = ReadLocalizedString(columnMetadata, "title", locale);
-        var choiceLabel = ReadLocalizedString(columnMetadata, "choiceLabel", locale);
-        var rowLabel = ReadLocalizedString(columnMetadata, "rowLabel", locale);
-        var columnLabel = ReadLocalizedString(columnMetadata, "columnLabel", locale);
-
-        if (!string.IsNullOrWhiteSpace(choiceLabel))
-        {
-            return string.IsNullOrWhiteSpace(title) ? choiceLabel : $"{title} ({choiceLabel})";
-        }
-
-        if (!string.IsNullOrWhiteSpace(rowLabel))
-        {
-            return string.IsNullOrWhiteSpace(title) ? rowLabel : $"{title} — {rowLabel}";
-        }
-
-        if (!string.IsNullOrWhiteSpace(columnLabel))
-        {
-            return string.IsNullOrWhiteSpace(title) ? columnLabel : $"{title} — {columnLabel}";
-        }
-
-        return title;
-    }
-
-    private static string? ReadLocalizedString(JsonElement element, string propertyName, string locale)
-    {
-        if (!element.TryGetProperty(propertyName, out var property))
-        {
-            return null;
-        }
-
-        if (property.ValueKind == JsonValueKind.String)
-        {
-            return property.GetString();
-        }
-
-        if (property.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        if (property.TryGetProperty(locale, out var localized) && localized.ValueKind == JsonValueKind.String)
-        {
-            return localized.GetString();
-        }
-
-        if (property.TryGetProperty(FormSchemaCodebookPropertyNames.Default, out var defaultValue) &&
-            defaultValue.ValueKind == JsonValueKind.String)
-        {
-            return defaultValue.GetString();
-        }
-
-        return null;
     }
 }

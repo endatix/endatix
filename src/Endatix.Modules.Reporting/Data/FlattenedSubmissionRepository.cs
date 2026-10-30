@@ -41,6 +41,18 @@ internal sealed class FlattenedSubmissionRepository(
             .ExecuteDeleteAsync(cancellationToken);
 
     /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, int>> CountByStatusAsync(
+        long tenantId,
+        long formId,
+        CancellationToken cancellationToken) =>
+        await dbContext.FlattenedSubmissions
+            .AsNoTracking()
+            .Where(row => row.TenantId == tenantId && row.FormId == formId && !row.IsDeleted)
+            .GroupBy(row => row.Integration.Code)
+            .Select(group => new { Code = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(entry => entry.Code, entry => entry.Count, cancellationToken);
+
+    /// <inheritdoc />
     public Task<int> DeleteBySubmissionIdAsync(
         long tenantId,
         long submissionId,

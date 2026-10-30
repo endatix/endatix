@@ -76,6 +76,14 @@ A form deleted after a compile read it loses the schema that compile wrote, hard
 
 Audience values close an export row as one block, under their keys as stored (`AudienceIdentifier`, `audience_<variable>`). A question whose export key matches an audience key keeps the key, and the audience column is left out. An export read with the Shoji codebook (`csv-shoji`, or any export with the Crunch alias profile or the `--` separator) applies this to every question of the form, whether the column scope includes it or not: the codebook is never scoped and gives the key to the question, so the export would otherwise write audience values under a variable Crunch reads as the question's. A plain `csv`, `json` or `xlsx` export applies it only to the questions it exports. Submitter profile columns follow the same rule. A tabular export that leaves out an audience column logs one warning naming the form and the keys, and one more for submitter profile columns.
 
+### Submission Grid columns
+
+`GET forms/{formId}/reporting/columns?locale=` (`submissions.view`) lists the columns of the form's compiled schema in flattening-map order, for the Submission Grid's headers, column picker and answer filters. Each column has its key and kind, a title in `locale` (falling back to the default), the SurveyJS question type, an answer `filterType` (`text`, `date`, `datetime` or none) and its page and panel. The filter type is worked out at read time from the column kind and the codebook question's type and `inputType`, so a schema needs no recompile for it and export is unchanged. A form without a compiled schema answers `schemaReady: false` with no columns.
+
+`readiness` counts the form's live submissions (`submissions`, `completedSubmissions`, `inProgress`) from core and its flattened rows by status (`prepared`, `pending` including `not_processed`, `failed`, `skippedInProgress`). An out-of-date count is not there yet.
+
+Codebook question entries carry the question's place in the form: `pageName`, `pageTitle` (a locale map like `title`, left out when the page has no title) and `parentPanelTitle` (default locale). They are written at compile time, so a schema compiled before these keys existed has no page until its next compile. Codebook `version` stays 1.
+
 ### Submitter profile fields
 
 `Customizations:Reporting:SubmitterProfileFields` lists the keys of `Submission.SubmitterProfileSnapshot` (the claims `Endatix:Submitter:ProfileSnapshotFields` captures) that prepared submissions carry. It is empty by default, and empty adds no column: schemas, flattened rows and exports stay as they were.

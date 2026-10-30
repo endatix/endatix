@@ -33,7 +33,7 @@ internal static partial class FormSchemaCodebookBuilder
         return Serialize(locales, questions, columns, choiceCatalogs);
     }
 
-    private sealed record CollectedQuestion(JsonElement Element, string? ParentPanelTitle);
+    private sealed record CollectedQuestion(JsonElement Element, QuestionPlacement Placement);
 
     private static Dictionary<string, CollectedQuestion> CollectQuestionElements(JsonElement definition)
     {
@@ -46,20 +46,30 @@ internal static partial class FormSchemaCodebookBuilder
                 continue;
             }
 
-            CollectElements(pageElements, parentPanelTitle: null, elements);
+            CollectElements(pageElements, PlacementOnPage(page), elements);
         }
 
         if (definition.TryGetElements(out var rootElements))
         {
-            CollectElements(rootElements, parentPanelTitle: null, elements);
+            CollectElements(rootElements, QuestionPlacement.None, elements);
         }
 
         return elements;
     }
 
+    // No name fallback for the page title: the grid falls back to pageName itself, and a copied name would look
+    // like a real title.
+    private static QuestionPlacement PlacementOnPage(JsonElement page) =>
+        new(page.GetSurveyJsName(), PageTitleInEveryLocale(page), ParentPanelTitle: null);
+
+    private static Dictionary<string, string> PageTitleInEveryLocale(JsonElement page) =>
+        SurveyJsLocalizationHelper.ReadLocalizedStrings(page, SurveyJsPropertyNames.Title)
+            .Where(title => !string.IsNullOrWhiteSpace(title.Value))
+            .ToDictionary(title => title.Key, title => title.Value, StringComparer.Ordinal);
+
     private static void CollectElements(
         JsonElement elementList,
-        string? parentPanelTitle,
+        QuestionPlacement placement,
         Dictionary<string, CollectedQuestion> elements)
     {
         if (elementList.ValueKind != JsonValueKind.Array)
@@ -78,14 +88,14 @@ internal static partial class FormSchemaCodebookBuilder
             var name = element.GetSurveyJsName();
             if (!string.IsNullOrWhiteSpace(name))
             {
-                elements.TryAdd(name, new CollectedQuestion(element, parentPanelTitle));
+                elements.TryAdd(name, new CollectedQuestion(element, placement));
             }
 
             if (SurveyJsElementType.Panel.Matches(type) && element.TryGetElements(out var panelChildren))
             {
                 CollectElements(
                     panelChildren,
-                    ResolvePanelTitle(element, name) ?? parentPanelTitle,
+                    placement.InPanel(ResolvePanelTitle(element, name)),
                     elements);
             }
 
@@ -94,7 +104,7 @@ internal static partial class FormSchemaCodebookBuilder
             {
                 CollectElements(
                     templateElements,
-                    ResolvePanelTitle(element, name) ?? parentPanelTitle,
+                    placement.InPanel(ResolvePanelTitle(element, name)),
                     elements);
             }
         }
@@ -138,7 +148,7 @@ internal static partial class FormSchemaCodebookBuilder
                 continue;
             }
 
-            if (TryBuildQuestionEntry(element, type, entry.Value.ParentPanelTitle, out var questionEntry))
+            if (TryBuildQuestionEntry(element, type, entry.Value.Placement, out var questionEntry))
             {
                 questions[name] = questionEntry;
             }
@@ -473,7 +483,7 @@ internal static partial class FormSchemaCodebookBuilder
     private static bool TryBuildQuestionEntry(
         JsonElement element,
         string? type,
-        string? parentPanelTitle,
+        QuestionPlacement placement,
         out JsonElement questionEntry)
     {
         questionEntry = default;
@@ -485,7 +495,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
                 WriteTitle(writer, element);
                 WriteDescription(writer, element);
-                WriteParentPanelTitle(writer, parentPanelTitle);
+                placement.WriteTo(writer);
 
                 if (element.TryGetLoopSource(out var _))
                 {
@@ -511,7 +521,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
                 WriteTitle(writer, element);
                 WriteDescription(writer, element);
-                WriteParentPanelTitle(writer, parentPanelTitle);
+                placement.WriteTo(writer);
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.CategoricalArray.Name);
@@ -528,7 +538,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
                 WriteTitle(writer, element);
                 WriteDescription(writer, element);
-                WriteParentPanelTitle(writer, parentPanelTitle);
+                placement.WriteTo(writer);
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.MultipleResponse.Name);
@@ -544,7 +554,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
                 WriteTitle(writer, element);
                 WriteDescription(writer, element);
-                WriteParentPanelTitle(writer, parentPanelTitle);
+                placement.WriteTo(writer);
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.Categorical.Name);
@@ -560,7 +570,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
                 WriteTitle(writer, element);
                 WriteDescription(writer, element);
-                WriteParentPanelTitle(writer, parentPanelTitle);
+                placement.WriteTo(writer);
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.Ranking.Name);
@@ -576,7 +586,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
                 WriteTitle(writer, element);
                 WriteDescription(writer, element);
-                WriteParentPanelTitle(writer, parentPanelTitle);
+                placement.WriteTo(writer);
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.MultipleText.Name);
@@ -592,7 +602,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
                 WriteTitle(writer, element);
                 WriteDescription(writer, element);
-                WriteParentPanelTitle(writer, parentPanelTitle);
+                placement.WriteTo(writer);
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.MatrixCell.Name);
@@ -608,7 +618,7 @@ internal static partial class FormSchemaCodebookBuilder
                 element,
                 type!,
                 FormSchemaCodebookExportShape.File,
-                parentPanelTitle);
+                placement);
             return true;
         }
 
@@ -616,30 +626,22 @@ internal static partial class FormSchemaCodebookBuilder
             element,
             type!,
             FormSchemaCodebookExportShape.Scalar,
-            parentPanelTitle);
+            placement);
         return true;
-    }
-
-    private static void WriteParentPanelTitle(Utf8JsonWriter writer, string? parentPanelTitle)
-    {
-        if (!string.IsNullOrWhiteSpace(parentPanelTitle))
-        {
-            writer.WriteString(FormSchemaCodebookPropertyNames.ParentPanelTitle, parentPanelTitle);
-        }
     }
 
     private static JsonElement WriteScalarQuestionEntry(
         JsonElement element,
         string type,
         FormSchemaCodebookExportShape exportShape,
-        string? parentPanelTitle)
+        QuestionPlacement placement)
     {
         return WriteQuestionEntry(writer =>
         {
             writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type);
             WriteTitle(writer, element);
             WriteDescription(writer, element);
-            WriteParentPanelTitle(writer, parentPanelTitle);
+            placement.WriteTo(writer);
             writer.WriteString(FormSchemaCodebookPropertyNames.ExportShape, exportShape.Name);
             WriteInputType(writer, element);
             WriteSliderType(writer, element);
