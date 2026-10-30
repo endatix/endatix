@@ -258,6 +258,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         SyncFormDeletionOutboxHandler sync = new(
             new FormSchemaRepository(reportingDb, unitOfWork, ReportingTestSchema.TransactionLockFor(reportingDb)),
             new FlattenedSubmissionRepository(reportingDb, unitOfWork, new DateTimeProvider()),
+            new SubmissionViewRepository(reportingDb, new UniqueConstraintViolationChecker()),
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
         await sync.ProcessAsync(new SyncFormDeletionOutboxHandler.Input(TenantId, formId), outboxMessageId: 0, cancellationToken);

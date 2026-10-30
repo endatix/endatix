@@ -19,7 +19,7 @@ public sealed class ReportingMigrationsAvailabilityTests
     private const string MigrationsRootNamespace = "Endatix.Modules.Reporting.Persistence.Migrations";
 
     [Fact]
-    public void GetMigrations_PostgreSqlContext_ReturnsTheShippedIds()
+    public void GetMigrations_PostgreSqlContext_ReturnsItsChainInOrder()
     {
         // Arrange
         using var context = CreatePostgreSqlContext();
@@ -33,6 +33,7 @@ public sealed class ReportingMigrationsAvailabilityTests
             "20260904194346_SeedDefaultExportFormats",
             "20260929125737_AddFlattenedSubmissionSourceModifiedAt",
             "20260930070117_AddFlattenedSubmissionSourceRevision",
+            "20261016050012_AddSubmissionViews",
             "20261016102336_AddSearchCopy");
     }
 
@@ -52,7 +53,7 @@ public sealed class ReportingMigrationsAvailabilityTests
     }
 
     [Fact]
-    public void GetMigrations_SqlServerContext_ReturnsOnlyItsOwnMigrations()
+    public void GetMigrations_SqlServerContext_ReturnsOnlyItsOwnChain()
     {
         // Arrange
         using var postgreSqlContext = CreatePostgreSqlContext();
@@ -62,7 +63,8 @@ public sealed class ReportingMigrationsAvailabilityTests
         var sqlServerMigrationIds = sqlServerContext.Database.GetMigrations().ToList();
 
         // Assert
-        sqlServerMigrationIds.Should().Equal("20261012154208_InitialReporting", "20261016102338_AddSearchCopy");
+        sqlServerMigrationIds.Should().Equal(
+            "20261012154208_InitialReporting", "20261016050017_AddSubmissionViews", "20261016102338_AddSearchCopy");
         sqlServerMigrationIds.Should().NotIntersectWith(
             postgreSqlContext.Database.GetMigrations(),
             "each provider's context must see only its own migrations");
