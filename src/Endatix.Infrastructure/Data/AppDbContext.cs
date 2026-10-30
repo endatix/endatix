@@ -20,10 +20,16 @@ public class AppDbContext : DbContext, ITenantDbContext
 {
     private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
 
-    private readonly ITenantContext _tenantContext;
-    private readonly OutboxIntegrationEventDispatcher _outboxDispatcher;
+    // Null only through the protected constructor: GetTenantId falls back to 0 and no outbox
+    // messages are captured.
+    private readonly ITenantContext? _tenantContext;
+    private readonly OutboxIntegrationEventDispatcher? _outboxDispatcher;
 
+    /// <summary>
+    /// For proxies and design-time tooling only. The context has no tenant and captures no outbox messages.
+    /// </summary>
     protected AppDbContext() { }
+
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
         ITenantContext tenantContext,
@@ -66,11 +72,6 @@ public class AppDbContext : DbContext, ITenantDbContext
     public DbSet<FormDependency> FormDependencies { get; set; }
 
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,6 +117,14 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return base.SaveChanges();
         }
+        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        {
+            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
+        }
+        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
+        {
+            throw DatabaseDeadlocks.Victim(exception);
+        }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
@@ -130,11 +139,26 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return await base.SaveChangesAsync(true, cancellationToken);
         }
+        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        {
+            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
+        }
+        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
+        {
+            throw DatabaseDeadlocks.Victim(exception);
+        }
         catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
         }
     }
+
+    /// <summary>
+    /// <see cref="BaseEntity.IsDeleted"/> is a concurrency token on <see cref="Submission"/>, so a tracked save of a submission deleted since it
+    /// was read, on its own or with its form, matches no row.
+    /// </summary>
+    private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>
+        concurrencyException.Entries.Any(entry => entry.Entity is Submission);
 
     private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
     {
@@ -224,7 +248,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         }
     }
 
-    private void PrefixTableNames(ModelBuilder builder)
+    private static void PrefixTableNames(ModelBuilder builder)
     {
         Guard.Against.Null(builder);
         var entityTypes = builder.Model.GetEntityTypes();
@@ -233,16 +257,13 @@ public class AppDbContext : DbContext, ITenantDbContext
             return;
         }
 
-        foreach (var entity in entityTypes)
+        foreach (var entity in entityTypes.Where(ShouldPrefixTable))
         {
-            if (ShouldPrefixTable(entity))
-            {
-                builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name, entity.GetTableName()));
-            }
+            builder.Entity(entity.Name).ToTable(TableNamePrefix.GetTableName(entity.Name, entity.GetTableName()));
         }
     }
 
-    private bool ShouldPrefixTable(IMutableEntityType? entityType)
+    private static bool ShouldPrefixTable(IMutableEntityType? entityType)
     {
         Guard.Against.Null(entityType);
 

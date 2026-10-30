@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -21,57 +20,39 @@ public sealed record UpdatePersonCommand(
 internal sealed class UpdatePersonHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    IUniqueConstraintViolationChecker violations)
+    LockedValuesWriter valuesWriter,
+    ParticipantReader participantReader)
     : ICommandHandler<UpdatePersonCommand, Result<PersonDto>>
 {
+    /// <summary>
+    /// The form, the membership and the values are checked before the lock; the write re-reads the membership under
+    /// it, so an edit racing the participant's removal is not found instead of leaving a live value behind.
+    /// </summary>
     public async Task<Result<PersonDto>> Handle(
         UpdatePersonCommand request,
         CancellationToken cancellationToken)
     {
-        Result<Membership> loaded = await LoadAsync(request, cancellationToken);
+        Result<ParticipantOnForm> loaded = await LoadAsync(request, cancellationToken);
         if (!loaded.IsSuccess)
         {
             return loaded.ToErrorResult<PersonDto>();
         }
 
-        await UpsertWithRetryAsync(request, loaded.Value, cancellationToken);
-        return await ToDtoAsync(loaded.Value, cancellationToken);
+        ParticipantOnForm participant = loaded.Value;
+        ValuesEdit edit = new(
+            request.TenantId, request.FormId, participant.Membership.Id,
+            MatchKeyProperty.Stored(request.Values, participant.MatchKey));
+        IResult? failure = await valuesWriter.WriteAsync(edit, cancellationToken);
+        return failure is null
+            ? await participantReader.ReadAsync(participant, cancellationToken)
+            : failure.ToErrorResult<PersonDto>();
     }
 
     /// <summary>
-    /// A parallel update can add the same cell first. It is committed by the time the index
-    /// refuses this one, so a second pass finds it and overwrites it instead of inserting.
+    /// The participant and the form's Properties, with its match-key Property, then the values: a value for that Property other than the
+    /// identifier is refused (<see cref="MatchKeyProperty.WriteError"/>).
     /// </summary>
-    private async Task UpsertWithRetryAsync(
-        UpdatePersonCommand request,
-        Membership membership,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await UpsertAsync(request, membership, cancellationToken);
-        }
-        catch (DbUpdateException ex) when (violations.IsViolationOf(
-            ex,
-            PropertyValue.UniqueConstraints.CellPerMembership))
-        {
-            ((DbContext)db).ChangeTracker.Clear();
-            await UpsertAsync(request, membership, cancellationToken);
-        }
-    }
-
-    private async Task UpsertAsync(
-        UpdatePersonCommand request,
-        Membership membership,
-        CancellationToken cancellationToken)
-    {
-        await PropertyValuesWriter.UpsertAsync(
-            new PropertyValueWrite(db, request.TenantId, membership.Id, request.Values),
-            cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task<Result<Membership>> LoadAsync(
+    private async Task<Result<ParticipantOnForm>> LoadAsync(
         UpdatePersonCommand request,
         CancellationToken cancellationToken)
     {
@@ -79,44 +60,45 @@ internal sealed class UpdatePersonHandler(
             new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
         if (!formGate.IsSuccess)
         {
-            return formGate.ToErrorResult<Membership>();
+            return formGate.ToErrorResult<ParticipantOnForm>();
         }
 
-        Membership? membership = await db.Memberships.AsNoTracking().FirstOrDefaultAsync(
-            row => row.Id == request.MembershipId && row.FormId == request.FormId,
-            cancellationToken);
-        return membership is null
+        ParticipantOnForm? participant = await FindAsync(request, cancellationToken);
+        return participant is null
             ? Result.NotFound("Audience membership not found.")
-            : await ValidateValuesAsync(request, membership, cancellationToken);
+            : await ValidateValuesAsync(request, participant, cancellationToken);
     }
 
-    private async Task<Result<Membership>> ValidateValuesAsync(
+    private async Task<ParticipantOnForm?> FindAsync(UpdatePersonCommand request, CancellationToken cancellationToken)
+    {
+        var row = await FormParticipants
+            .Of(db, db.Memberships.AsNoTracking().Where(
+                membership => membership.Id == request.MembershipId && membership.FormId == request.FormId))
+            .Select(participant => new { participant.Membership, participant.Member.Identifier })
+            .FirstOrDefaultAsync(cancellationToken);
+        return row is null
+            ? null
+            : new ParticipantOnForm(
+                row.Membership,
+                row.Identifier,
+                await FormProperties.ReadAsync(db, new(request.TenantId, request.FormId), cancellationToken));
+    }
+
+    private async Task<Result<ParticipantOnForm>> ValidateValuesAsync(
         UpdatePersonCommand request,
-        Membership membership,
+        ParticipantOnForm participant,
         CancellationToken cancellationToken)
     {
+        if (MatchKeyProperty.WriteError(request.Values, participant.MatchKey, participant.Identifier) is { } matchKeyError)
+        {
+            return Result.Invalid(new ValidationError(matchKeyError));
+        }
+
         Result values = await PropertyValuesWriter.ValidateAsync(
             new PropertyValuesCheck(db, request.FormId, request.Values),
             cancellationToken);
         return values.IsSuccess
-            ? Result.Success(membership)
-            : values.ToErrorResult<Membership>();
-    }
-
-    private async Task<Result<PersonDto>> ToDtoAsync(
-        Membership membership,
-        CancellationToken cancellationToken)
-    {
-        Member? member = await db.Members.AsNoTracking()
-            .FirstOrDefaultAsync(row => row.Id == membership.MemberId, cancellationToken);
-        if (member is null)
-        {
-            return Result.NotFound("Audience member not found.");
-        }
-
-        Dictionary<long, string> allValues = await PropertyValuesWriter
-            .ActiveCells(db, membership.TenantId, [membership.Id])
-            .ToDictionaryAsync(value => value.PropertyId, value => value.Value, cancellationToken);
-        return new PersonDto(membership.Id, member.Id, member.Identifier, allValues);
+            ? Result.Success(participant)
+            : values.ToErrorResult<ParticipantOnForm>();
     }
 }

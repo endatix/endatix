@@ -28,11 +28,13 @@ public sealed class Update(
             summary.Description = "Updates property values for a person on this form.";
             summary.Responses[200] = "Person updated.";
             summary.Responses[404] = "Form or membership not found.";
+            summary.Responses[503] = "People on this form are being imported or changed, or this person is being changed; try again shortly.";
         });
         Description(builder => builder
             .Produces<AudiencePersonResponse>(200, "application/json")
             .ProducesProblem(400)
-            .ProducesProblem(404));
+            .ProducesProblem(404)
+            .ProducesProblem(503));
     }
 
     public override async Task<Results<Ok<AudiencePersonResponse>, ProblemHttpResult>> ExecuteAsync(

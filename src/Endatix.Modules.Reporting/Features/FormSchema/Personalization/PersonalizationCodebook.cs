@@ -37,7 +37,7 @@ internal static class PersonalizationCodebook
             return codebookJson;
         }
 
-        var codebook = JsonNode.Parse(codebookJson).AsObject();
+        var codebook = JsonNode.Parse(codebookJson)!.AsObject();
         Retitle(codebook[FormSchemaCodebookPropertyNames.Columns]?.AsObject(), block);
         codebook[BlockPropertyName] = Block(block);
         return codebook.ToJsonString();

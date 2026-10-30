@@ -1,0 +1,107 @@
+---
+title: "Audience API"
+description: Turn on the Audience module with Endatix:FeatureFlags:PersonalizationModule, then manage a form's properties and people, import participants in chunks, issue personalized links, and open test submissions over the Endatix API.
+sidebar_label: "Audience API"
+sidebar_position: 6
+---
+
+# Audience API
+
+The Audience module keeps the people a form is for, their values, and their personalized links. Hub's [Audience tab](/docs/end-users/forms/audience) is built on these endpoints. This page covers turning the module on and the routes it adds. The request and response shapes are in the [API Reference](/docs/developers/api/api-reference).
+
+## Turn on the Audience module
+
+The module ships disabled. Turn it on in the API and in Hub:
+
+<Settings>
+  <Setting name="Endatix:FeatureFlags:PersonalizationModule" default="false" note="API">
+    Registers the module at startup: its endpoints, its `audience` schema and migrations, its outbox subscribers, and its import jobs. Deployment-scoped, so per-tenant targeting does not apply: the flag is read before any tenant exists. As an environment variable: `Endatix__FeatureFlags__PersonalizationModule=true`.
+  </Setting>
+  <Setting name="FLAG_PERSONALIZATION" default="false" note="Hub">
+    Shows a form's **Audience** tab and the personalization controls in the designer. See [Hub environment](/docs/developers/hub/environment#feature-flags).
+  </Setting>
+</Settings>
+
+With the API flag off, every route below returns 404. The module runs on PostgreSQL and SQL Server: see [Persistence settings](/docs/configuration/settings/persistence-settings).
+
+Large imports need the Background Jobs module (`Endatix:FeatureFlags:JobsModule`). With it, each import's check and write run as `AudienceImportCheck` and `AudienceImportWrite` jobs. Without it, they run inside the request, with a smaller file limit. See [Import participants](#import-participants).
+
+## Routes
+
+All routes are under `/api`. `{formId}` is the form; people and properties belong to one form, and the match key belongs to the tenant.
+
+| Method | Route | Permission | Does |
+| --- | --- | --- | --- |
+| GET | `/audience/settings` | `forms.edit` | Read the tenant's match key (`email` or `external_id`) and this host's import limits |
+| PUT | `/audience/settings` | `tenant.settings.manage` | Change the match key, while no one is on any form's audience |
+| GET | `/forms/{formId}/audience/properties` | `forms.edit` | List the form's properties |
+| POST | `/forms/{formId}/audience/properties` | `forms.edit` | Add a property |
+| PATCH | `/forms/{formId}/audience/properties/{propertyId}` | `forms.edit` | Rename a property |
+| DELETE | `/forms/{formId}/audience/properties/{propertyId}` | `forms.edit` | Delete a property |
+| GET | `/forms/{formId}/audience/people` | `forms.edit` | List the form's people, paged (up to 5,000 per page) |
+| POST | `/forms/{formId}/audience/people` | `forms.edit` | Add a person |
+| GET | `/forms/{formId}/audience/people/{memberId}` | `forms.edit` | Read one participant, with their link and submissions |
+| PUT | `/forms/{formId}/audience/people/{membershipId}` | `forms.edit` | Update a person's values |
+| DELETE | `/forms/{formId}/audience/people/{membershipId}` | `forms.edit` | Remove a person from this form |
+| GET | `/forms/{formId}/audience/variables` | `forms.edit` | The form's variables, for the designer |
+| GET | `/forms/{formId}/audience/variables/participants/{memberId}` | `forms.edit` | One participant's values, for Preview as |
+| PUT | `/forms/{formId}/audience/variables/test-participants` | `forms.edit` | Save test participants' values |
+| POST | `/forms/{formId}/audience/imports` | `forms.edit` | Start an import |
+| PUT | `/forms/{formId}/audience/imports/{importId}/chunks/{index}` | `forms.edit` | Send one chunk of rows |
+| GET | `/forms/{formId}/audience/imports/{importId}` | `forms.edit` | Read an import; `current` as `importId` reads the form's unfinished one |
+| PATCH | `/forms/{formId}/audience/imports/{importId}` | `forms.edit` | Confirm, resume, or cancel an import |
+| POST | `/forms/{formId}/audience/import` | `forms.edit` | Import a small CSV in one request |
+| POST | `/forms/{formId}/audience/links` | `forms.edit` | Issue personalized links |
+| POST | `/forms/{formId}/audience/links/{token}/redeem` | Anonymous | Open a personalized link |
+| POST | `/forms/{formId}/audience/test-submissions` | `forms.test` and `forms.edit` | Open a test submission as a person |
+| POST | `/forms/{formId}/audience/test-submissions/{submissionId}/restart` | `forms.test` and `forms.edit` | Start a test submission over |
+
+## Import participants
+
+An import is staged: the client parses the CSV, sends its rows in chunks, and confirms once the API has checked them. Nothing is written to the audience before the confirm.
+
+1. `POST /imports` with the file name, header row, row count, the identifier column, the property each other column fills, and `isTest`. The response is `201` with the import, its `chunkSize` (1,000 rows), and the chunks still missing. A form runs one unfinished import at a time: a second start is `409`, with the running import's id in the problem.
+2. `PUT /imports/{importId}/chunks/{index}` for each chunk, with `firstRowNumber` and the rows' cells. Sending a chunk again replaces it, so a cut-off upload resumes by sending the chunks the import still lists as missing.
+3. When the last chunk arrives, the API checks every row. Read `GET /imports/{importId}` until `status` is `checked`; the view then carries the new, existing, and rejected counts and the first 50 rejected rows.
+4. `PATCH /imports/{importId}` with `status: "writing"` confirms it. Read the import until it is `completed`.
+
+`PATCH` with `status: "canceled"` cancels an import that is still uploading, checking, or checked. On a stopped write (`failed` with `canResume: true`), `status: "writing"` resumes it from where it stopped, writing each participant once.
+
+The file limit depends on how the host runs imports. `GET /audience/settings` returns it as `importLimits`:
+
+| Host | `maxRows` | `maxBytes` | `runsInBackground` |
+| --- | --- | --- | --- |
+| Background Jobs module on | 100,000 | 50 MB | `true` |
+| Background Jobs module off | 5,000 | 20 MB | `false` |
+
+A start with more rows than `maxRows` is `400`, with *The file has 120,000 rows. Import up to 100,000 at a time.*
+
+The API ends abandoned imports. One left uploading or checked for 24 hours expires. One stuck checking or writing for 6 hours fails; a failed write stays resumable for 7 days. A tenant's next import start ends its idle imports, and a daily sweep ends them for every tenant.
+
+`POST /import` takes a whole CSV of up to 5,000 rows in one request and runs it as a staged import inside that request. Use the staged routes for anything larger.
+
+## Personalized links
+
+`POST /links` issues one link per real person on the form who has none, and returns each person's `membershipId` and raw `token`. The token is returned once: the API keeps only its hash, so save the response before anything else. A form with more than 5,000 real people is refused with `400`, *This form has more than 5,000 people to send links to.* Test people never get a link.
+
+A link's URL in Hub is `/share/{formId}/a/{token}`. Hub redeems it with `POST /links/{token}/redeem` once the page loads in a browser, so a mail scanner fetching the URL changes nothing. Redeem starts the person's submission on the first open and returns the same one on every later open, with a `submissionAccessToken` that opens that submission only, on a public or a private form. A link whose submission is complete is `409` with `errorCode` `submission_ended`.
+
+## See also
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/forms/audience"
+    title="Audience"
+    description="The Hub tab built on these routes: people, imports, links, and test people."
+  />
+  <LinkCard
+    to="/docs/developers/api/feature-flags"
+    title="Using feature flags"
+    description="Endatix:FeatureFlags, module flags, and per-tenant targeting."
+  />
+  <LinkCard
+    to="/docs/configuration/background-processing"
+    title="Background processing"
+    description="The outbox and the Background Jobs module that runs large imports."
+  />
+</CardGrid>

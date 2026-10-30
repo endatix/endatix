@@ -19,8 +19,6 @@ internal sealed class GenerateLinksHandler(
     IUniqueConstraintViolationChecker violations)
     : ICommandHandler<GenerateLinksCommand, Result<IReadOnlyList<IssuedLinkDto>>>
 {
-    public const int MaxLinks = 5_000;
-
     public async Task<Result<IReadOnlyList<IssuedLinkDto>>> Handle(
         GenerateLinksCommand request,
         CancellationToken cancellationToken)
@@ -32,26 +30,9 @@ internal sealed class GenerateLinksHandler(
             return gate.ToErrorResult<IReadOnlyList<IssuedLinkDto>>();
         }
 
-        return await IssueOnceAsync(request, cancellationToken);
-    }
-
-    /// <summary>
-    /// Two issuers can both pass the existence check. The membership index refuses the loser;
-    /// a second pass returns only the links that were not saved.
-    /// </summary>
-    private async Task<Result<IReadOnlyList<IssuedLinkDto>>> IssueOnceAsync(
-        GenerateLinksCommand request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await IssueAsync(request, cancellationToken);
-        }
-        catch (DbUpdateException ex) when (violations.IsViolationOf(ex, AudienceLink.UniqueConstraints.OnePerMembership))
-        {
-            ((DbContext)db).ChangeTracker.Clear();
-            return await IssueAsync(request, cancellationToken);
-        }
+        return await LinkIssueRace.RetryAsync(
+            new LinkIssuePasses(db, violations, Count: 2),
+            () => IssueAsync(request, cancellationToken));
     }
 
     private async Task<Result<IReadOnlyList<IssuedLinkDto>>> IssueAsync(
@@ -59,9 +40,9 @@ internal sealed class GenerateLinksHandler(
         CancellationToken cancellationToken)
     {
         var membershipIds = await MembershipIdsAsync(request, cancellationToken);
-        if (membershipIds.Count > MaxLinks)
+        if (membershipIds.Count > LinkBatch.MAX_LINKS)
         {
-            return Result.Invalid(new ValidationError("This form has more than 5,000 people."));
+            return Result.Invalid(new ValidationError("This form has more than 5,000 people to send links to."));
         }
 
         var existing = await ExistingAsync(request, cancellationToken);
@@ -70,12 +51,17 @@ internal sealed class GenerateLinksHandler(
         return Result.Success<IReadOnlyList<IssuedLinkDto>>(issued);
     }
 
-    /// <summary>Up to one more than the cap, so a form over it is refused without reading it all.</summary>
+    /// <summary>
+    /// Real people only, since a test person is never sent a link. Up to one more than the cap, so a form over it is
+    /// refused without reading it all.
+    /// </summary>
     private Task<List<long>> MembershipIdsAsync(GenerateLinksCommand request, CancellationToken cancellationToken) =>
         db.Memberships
-            .Where(membership => membership.TenantId == request.TenantId && membership.FormId == request.FormId)
+            .Where(membership => membership.TenantId == request.TenantId
+                && membership.FormId == request.FormId
+                && !membership.IsTest)
             .Select(membership => membership.Id)
-            .Take(MaxLinks + 1)
+            .Take(LinkBatch.MAX_LINKS + 1)
             .ToListAsync(cancellationToken);
 
     private async Task<HashSet<long>> ExistingAsync(GenerateLinksCommand request, CancellationToken cancellationToken)

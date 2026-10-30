@@ -640,6 +640,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsDeleted")
+                        .IsConcurrencyToken()
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsTestSubmission")
@@ -658,7 +659,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PersonalizationSnapshot")
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("json");
 
                     b.Property<string>("RestrictionKey")
                         .HasMaxLength(256)

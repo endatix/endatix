@@ -136,6 +136,7 @@ const sidebars: SidebarsConfig = {
         "developers/api/health-checks",
         "developers/api/feature-flags",
         "developers/api/data-lists-translations",
+        "developers/api/audience",
         "developers/integration-testing",
         {
           type: "link",
@@ -161,6 +162,12 @@ const sidebars: SidebarsConfig = {
   ],
   userSidebar: [
     "end-users/index",
+    {
+      type: "category",
+      label: "Guides",
+      collapsed: false,
+      items: ["end-users/guides/run-a-personalized-survey"],
+    },
     {
       type: "category",
       label: "Forms",
@@ -248,6 +255,8 @@ const sidebars: SidebarsConfig = {
           items: ["end-users/forms/submission-expiration"],
         },
         "end-users/forms/prefilling-and-personalization",
+        "end-users/forms/audience",
+        "end-users/forms/personalized-forms",
       ],
     },
     "end-users/data-lists/index",
@@ -281,6 +290,7 @@ const sidebars: SidebarsConfig = {
       },
       items: [
         "end-users/submissions/viewing-submissions",
+        "end-users/submissions/testing-submissions",
         "end-users/submissions/submission-details",
         "end-users/submissions/sharing-submissions",
         "end-users/submissions/exporting-submissions",

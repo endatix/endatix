@@ -292,6 +292,88 @@ public sealed class SubmissionFileExtractorTests
     Assert.Equal("question9.wav", files[0].FileName);
   }
 
+  [Fact]
+  public async Task ExtractFiles_RequestCancelledDuringUrlFetch_PropagatesWithoutErrorLog()
+  {
+    using var cts = new CancellationTokenSource();
+    var httpClient = new HttpClient(new CancellingHandler(cts));
+    _httpClientFactory
+        .CreateClient(SubmissionFileFetchHttpClient.Name)
+        .Returns(httpClient);
+    var json = $$"""
+        {
+          "imagesUpload": [
+            { "name": "foo.png", "type": "image/jpeg", "content": "{{CanonicalUrl("foo.png")}}" },
+            { "name": "bar.png", "type": "image/jpeg", "content": "{{CanonicalUrl("bar.png")}}" }
+          ]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        () => _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: cts.Token));
+
+    Assert.DoesNotContain(
+        _logger.ReceivedCalls(),
+        call => call.GetMethodInfo().Name == nameof(ILogger.Log)
+            && (LogLevel)call.GetArguments()[0]! == LogLevel.Error);
+  }
+
+  [Fact]
+  public async Task ExtractFiles_RequestCancelledAfterAFileWasFetched_DisposesFetchedFiles()
+  {
+    using var cts = new CancellationTokenSource();
+    var fetchedContent = new TrackedStream();
+    var httpClient = new HttpClient(new CancellingHandler(cts, fetchedContent));
+    _httpClientFactory
+        .CreateClient(SubmissionFileFetchHttpClient.Name)
+        .Returns(httpClient);
+    var json = $$"""
+        {
+          "imagesUpload": [
+            { "name": "foo.png", "type": "image/jpeg", "content": "{{CanonicalUrl("foo.png")}}" },
+            { "name": "bar.png", "type": "image/jpeg", "content": "{{CanonicalUrl("bar.png")}}" }
+          ]
+        }
+        """;
+    var doc = JsonDocument.Parse(json);
+
+    await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        () => _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: cts.Token));
+
+    Assert.True(fetchedContent.IsDisposed);
+  }
+
+  private sealed class CancellingHandler(CancellationTokenSource cts, Stream? firstContent = null) : HttpMessageHandler
+  {
+    private Stream? _firstContent = firstContent;
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+      if (_firstContent is not null)
+      {
+        var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(_firstContent) };
+        _firstContent = null;
+        return Task.FromResult(response);
+      }
+
+      cts.Cancel();
+      cancellationToken.ThrowIfCancellationRequested();
+      throw new InvalidOperationException("The linked request token should be cancelled.");
+    }
+  }
+
+  private sealed class TrackedStream() : MemoryStream([1, 2, 3])
+  {
+    public bool IsDisposed { get; private set; }
+
+    protected override void Dispose(bool disposing)
+    {
+      IsDisposed = true;
+      base.Dispose(disposing);
+    }
+  }
+
   private sealed class DummyHandler(long? contentLength = null) : HttpMessageHandler
   {
     public bool WasCalled { get; private set; }

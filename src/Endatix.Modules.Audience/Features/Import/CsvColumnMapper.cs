@@ -12,6 +12,8 @@ namespace Endatix.Modules.Audience.Features.Import;
 internal static class CsvColumnMapper
 {
     private const string ChoiceSeparator = "__";
+    private const string OtherSuffix = "other";
+    private const string OtherTextSuffix = "other_text";
 
     /// <summary>
     /// The same JSON a browser writes for a multi-choice value (<c>["Café"]</c>, not
@@ -27,10 +29,11 @@ internal static class CsvColumnMapper
         Dictionary<string, Property> byVariable = request.Properties.ToDictionary(
             property => property.VariableName,
             StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, long> simple = BuildSimpleColumns(byVariable, request.PropertyColumns);
         return new CsvColumnMap(
             request.IdentifierColumn,
-            BuildSimpleColumns(byVariable, request.PropertyColumns),
-            BuildChoiceColumns(byVariable, request.Headers),
+            simple,
+            BuildChoiceColumns(byVariable, request.Headers.Where(header => !simple.ContainsKey(header))),
             request.Properties.ToDictionary(property => property.Id));
     }
 
@@ -57,8 +60,9 @@ internal static class CsvColumnMapper
     }
 
     /// <summary>
-    /// The row's values keyed by property id, or why the row cannot be read (two choices ticked
-    /// for a single-choice property).
+    /// The row's values keyed by property id, or why the row cannot be read (a choice cell that is
+    /// neither ticked nor unticked, two choices ticked for a single-choice property, Other text
+    /// without Other).
     /// </summary>
     public static CellRead ReadValues(CsvColumnMap map, IReadOnlyDictionary<string, string> row)
     {
@@ -66,10 +70,7 @@ internal static class CsvColumnMapper
         ChoiceCells choices = new(values);
         foreach ((string header, ChoiceColumn column) in map.ChoiceColumns)
         {
-            if (row.TryGetValue(header, out string? cell) && IsTruthy(cell))
-            {
-                choices.Tick(column);
-            }
+            choices.Read(header, column, row.GetValueOrDefault(header) ?? string.Empty);
         }
 
         return choices.Finish(ChoiceJson);
@@ -113,12 +114,13 @@ internal static class CsvColumnMapper
     }
 
     /// <summary>
-    /// Each <c>variable__choice</c> header whose variable is a choice property. Other headers with
-    /// <c>__</c> are ordinary columns, because a column name may contain it.
+    /// Each <c>variable__choice</c> header whose variable is a choice property, except headers the
+    /// caller mapped to a property. Other headers with <c>__</c> are ordinary columns, because a
+    /// column name may contain it.
     /// </summary>
     private static Dictionary<string, ChoiceColumn> BuildChoiceColumns(
         IReadOnlyDictionary<string, Property> byVariable,
-        IReadOnlyList<string> headers)
+        IEnumerable<string> headers)
     {
         Dictionary<string, ChoiceColumn> choices = new(StringComparer.OrdinalIgnoreCase);
         foreach (string header in headers)
@@ -143,8 +145,45 @@ internal static class CsvColumnMapper
             return null;
         }
 
-        return new ChoiceColumn(property, CanonicalKey(property, header[(separator + ChoiceSeparator.Length)..]));
+        string choice = header[(separator + ChoiceSeparator.Length)..];
+        if (property.DataType == AudienceDataTypeCodes.MultipleChoice)
+        {
+            return MultiChoiceColumn(property, choice);
+        }
+
+        return IsUnlistedOtherText(property, choice) ? null : new ChoiceColumn(property, CanonicalKey(property, choice));
     }
+
+    /// <summary>
+    /// <c>__other</c> and <c>__other_text</c> are the Other tick and its text unless the property
+    /// lists a key of that name. A listed <c>other</c> key stays that key; on a property without
+    /// Other, <c>__other</c> sets the key <c>other</c>, which the value check then refuses.
+    /// </summary>
+    private static ChoiceColumn MultiChoiceColumn(Property property, string choice)
+    {
+        if (IsUnlistedOtherText(property, choice))
+        {
+            return new ChoiceColumn(property, null, ChoiceColumnRole.OtherText);
+        }
+
+        string key = CanonicalKey(property, choice);
+        if (!key.Equals(OtherSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return new ChoiceColumn(property, key);
+        }
+
+        return property.AllowsOther && !property.ChoiceKeys().Contains(key)
+            ? new ChoiceColumn(property, null, ChoiceColumnRole.FreeOther)
+            : new ChoiceColumn(property, key, ChoiceColumnRole.Other);
+    }
+
+    /// <summary>
+    /// The export's Other text column. A single-choice property skips it: the import does not
+    /// store a single choice's Other text yet, and reading it as a tick would refuse the export.
+    /// </summary>
+    private static bool IsUnlistedOtherText(Property property, string choice) =>
+        choice.Equals(OtherTextSuffix, StringComparison.OrdinalIgnoreCase)
+        && !property.ChoiceKeys().Contains(CanonicalKey(property, choice));
 
     /// <summary>
     /// The property's own spelling of the key when the header differs only in case (an export tool
@@ -173,64 +212,6 @@ internal static class CsvColumnMapper
 
         return values;
     }
-
-    private static bool IsTruthy(string cell)
-    {
-        string trimmed = cell.Trim();
-        return trimmed.Equals("1", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.Equals("y", StringComparison.OrdinalIgnoreCase) ||
-               trimmed.Equals("x", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// The ticked choice columns of one row: one key per single-choice property, a list per
-    /// multi-choice property.
-    /// </summary>
-    private sealed class ChoiceCells(Dictionary<long, string> values)
-    {
-        private readonly Dictionary<long, List<string>> _multi = new();
-        private readonly HashSet<long> _single = [];
-        private string? _error;
-
-        public void Tick(ChoiceColumn column)
-        {
-            if (column.Property.DataType == AudienceDataTypeCodes.MultipleChoice)
-            {
-                MultiChoices(column.Property.Id).Add(column.ChoiceKey);
-                return;
-            }
-
-            if (!_single.Add(column.Property.Id))
-            {
-                _error ??= $"'{column.Property.Name}' takes one choice, but the row marks more than one.";
-            }
-
-            values[column.Property.Id] = column.ChoiceKey;
-        }
-
-        public CellRead Finish(JsonSerializerOptions json)
-        {
-            foreach ((long propertyId, List<string> keys) in _multi)
-            {
-                values[propertyId] = JsonSerializer.Serialize(keys, json);
-            }
-
-            return new CellRead(values, _error);
-        }
-
-        private List<string> MultiChoices(long propertyId)
-        {
-            if (!_multi.TryGetValue(propertyId, out List<string>? keys))
-            {
-                keys = [];
-                _multi[propertyId] = keys;
-            }
-
-            return keys;
-        }
-    }
 }
 
 /// <summary>
@@ -244,9 +225,29 @@ internal sealed record CsvColumnRequest(
     IReadOnlyDictionary<string, string>? PropertyColumns);
 
 /// <summary>
-/// A <c>variable__choice</c> header: the choice property it fills and the key a ticked cell sets.
+/// A <c>variable__choice</c> header: the choice property it fills, the key a ticked cell sets
+/// (none for <see cref="ChoiceColumnRole.FreeOther"/> and <see cref="ChoiceColumnRole.OtherText"/>),
+/// and its role.
 /// </summary>
-internal sealed record ChoiceColumn(Property Property, string ChoiceKey);
+internal sealed record ChoiceColumn(
+    Property Property,
+    string? ChoiceKey,
+    ChoiceColumnRole Role = ChoiceColumnRole.Choice);
+
+internal enum ChoiceColumnRole
+{
+    /// <summary>A ticked cell sets the key.</summary>
+    Choice,
+
+    /// <summary><c>__other</c> naming a key (listed, or refused where Other is not allowed); the text is optional.</summary>
+    Other,
+
+    /// <summary><c>__other</c> on a property that allows Other and lists no such key: it sets no key and needs the text.</summary>
+    FreeOther,
+
+    /// <summary><c>__other_text</c>: free text, stored as a choice when the Other tick allows it.</summary>
+    OtherText,
+}
 
 /// <summary>
 /// One row's values keyed by property id, or the reason the row cannot be read.

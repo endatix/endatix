@@ -36,11 +36,11 @@ public class ChangePasswordTests
 
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
-            .Send(Arg.Any<ChangePasswordCommand>())
+            .Send(Arg.Any<ChangePasswordCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success("Password changed successfully"));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var okResult = response.Result as Ok<ChangePasswordResponse>;
@@ -58,11 +58,11 @@ public class ChangePasswordTests
 
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
-            .Send(Arg.Any<ChangePasswordCommand>())
+            .Send(Arg.Any<ChangePasswordCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Invalid(new ValidationError("Invalid current password")));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemDetailsResult = response.Result as ProblemHttpResult;
@@ -84,11 +84,11 @@ public class ChangePasswordTests
 
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
-            .Send(Arg.Any<ChangePasswordCommand>())
+            .Send(Arg.Any<ChangePasswordCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Error("Failed to change password"));
 
         // Act
-        var response = await _endpoint.ExecuteAsync(request, default);
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         var problemDetailsResult = response.Result as ProblemHttpResult;
@@ -110,11 +110,11 @@ public class ChangePasswordTests
 
         _userContext.GetCurrentUserId().Returns(userId);
         _mediator
-            .Send(Arg.Any<ChangePasswordCommand>())
+            .Send(Arg.Any<ChangePasswordCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success("Success"));
 
         // Act
-        await _endpoint.ExecuteAsync(request, default);
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
         await _mediator

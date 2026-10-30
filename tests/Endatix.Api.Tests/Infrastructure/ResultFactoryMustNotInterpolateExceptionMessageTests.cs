@@ -20,8 +20,9 @@ public sealed class ResultFactoryMustNotInterpolateExceptionMessageTests
     private const string ExceptionTypeMessagePattern =
         @"(?<!Error)Exception\s*\??\s*\.\s*Message";
 
-    // Every Result factory whose message ends up in the RFC7807 `detail`. 4xx details are echoed
-    // verbatim to the client; only 5xx is scrubbed by EndatixProblemDetails.
+    // Every Result factory whose message ends up in the RFC7807 `detail`. 4xx
+    // and 503 (Unavailable) details are echoed verbatim to the client; only the other 5xx are scrubbed
+    // by EndatixProblemDetails.
     private static readonly Regex FactoryCall = new(
         @"Result(?:<[^>]+>)?\s*\.\s*(Error|Invalid|NotFound|Conflict|Unauthorized|Forbidden|CriticalError|Unavailable)\s*\(",
         RegexOptions.Compiled);

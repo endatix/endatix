@@ -5,15 +5,17 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Domain;
-using Endatix.Modules.Audience.Features.Settings;
+using Endatix.Modules.Audience.Features.Imports;
 using Endatix.Modules.Audience.Persistence;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Modules.Audience.Features.Import;
 
 /// <summary>
-/// Sync-imports audience people from CSV (max 5,000 rows). Partial success is allowed.
+/// Sync-imports audience people from CSV (max 5,000 rows). Partial success is allowed. <see cref="IsTest"/> makes
+/// the people this import adds to the form test persons; people already on the form get no writes and count as
+/// skipped.
 /// </summary>
 public sealed record ImportCsvCommand(
     long TenantId,
@@ -22,7 +24,8 @@ public sealed record ImportCsvCommand(
     string IdentifierColumn,
     string FileName,
     IReadOnlyDictionary<string, string>? PropertyColumns = null,
-    long? PerformedById = null) : ICommand<Result<ImportResultDto>>;
+    long? PerformedById = null,
+    bool IsTest = false) : ICommand<Result<ImportResultDto>>;
 
 /// <summary>
 /// Import outcome counts plus the first rejected rows with their reasons.
@@ -40,75 +43,78 @@ public sealed record ImportResultDto(
 /// </summary>
 public sealed record ImportRejectionDto(int RowNumber, string Reason);
 
+/// <summary>
+/// The one-request import, run as a staged import in the request: the file is parsed here, started and staged as
+/// the import's chunks, then checked, confirmed and written by the same run the staged import uses. A form with an
+/// import still running refuses it with 409, as a second start does.
+/// </summary>
 internal sealed class ImportCsvHandler(
     IAudienceDbContext db,
     IRepository<Form> forms,
-    ImportWriteSupport support,
-    MatchKeyLock matchKeyLock)
+    IMediator mediator,
+    ImportRun run)
     : ICommandHandler<ImportCsvCommand, Result<ImportResultDto>>
 {
     private const int MaxReportedRejections = 50;
+    private const string Changed = "The audience changed while the import ran. Run the import again.";
+    private const string Interrupted = "The import stopped before it finished. Run it again.";
 
     public async Task<Result<ImportResultDto>> Handle(
         ImportCsvCommand request,
         CancellationToken cancellationToken)
     {
-        Result gate = await ValidateRequestAsync(request, cancellationToken);
-        if (!gate.IsSuccess)
+        Result<CsvFileParseResult> file = await ReadFileAsync(request, cancellationToken);
+        if (!file.IsSuccess)
         {
-            return gate.ToErrorResult<ImportResultDto>();
+            return file.ToErrorResult<ImportResultDto>();
         }
 
-        Result<ImportInput> prepared = await PrepareAsync(request, cancellationToken);
-        return prepared.IsSuccess
-            ? await ImportWithRetryAsync(request, prepared.Value, cancellationToken)
-            : prepared.ToErrorResult<ImportResultDto>();
+        return file.Value.Rows.Count == 0
+            ? await RecordEmptyAsync(request, file.Value, cancellationToken)
+            : await ImportAsync(request, file.Value, cancellationToken);
     }
 
-    /// <summary>
-    /// A parallel add or import can win a unique index first. Its rows are committed by then, so
-    /// a second pass reloads them and matches instead of inserting. A second loss is a conflict.
-    /// </summary>
-    private async Task<Result<ImportResultDto>> ImportWithRetryAsync(
+    private async Task<Result<ImportResultDto>> ImportAsync(
         ImportCsvCommand request,
-        ImportInput input,
+        CsvFileParseResult file,
         CancellationToken cancellationToken)
     {
-        Result<ImportResultDto>? first = await ImportUnlessRaceAsync(request, input, cancellationToken);
-        if (first is not null)
-        {
-            return first;
-        }
-
-        ((DbContext)db).ChangeTracker.Clear();
-        return await ImportUnlessRaceAsync(request, input, cancellationToken)
-            ?? Result.Conflict("The audience changed while the import ran. Run the import again.");
+        Result<ImportViewDto> started = await mediator.Send(StartOf(request, file), cancellationToken);
+        return started.IsSuccess
+            ? await RunToEndAsync(new ImportRef(request.TenantId, request.FormId, started.Value.ImportId), file, cancellationToken)
+            : started.ToErrorResult<ImportResultDto>();
     }
 
-    /// <summary>
-    /// The import's result, or <see langword="null"/> when a parallel write won a unique index.
-    /// </summary>
-    private async Task<Result<ImportResultDto>?> ImportUnlessRaceAsync(
-        ImportCsvCommand request,
-        ImportInput input,
+    /// <summary>Stages, checks and writes the started import; abandons it on any failure, so its form is free.</summary>
+    private async Task<Result<ImportResultDto>> RunToEndAsync(
+        ImportRef import,
+        CsvFileParseResult file,
         CancellationToken cancellationToken)
     {
+        Result ran;
         try
         {
-            return await ImportAsync(request, input, cancellationToken);
+            ran = await StageAsync(import, file, cancellationToken)
+                ? await RunAsync(import, cancellationToken)
+                : Result.Conflict(Changed);
         }
-        catch (DbUpdateException ex) when (IsAudienceRace(ex))
+        catch
         {
-            return null;
+            await AbandonAsync(import);
+            throw;
         }
+
+        return ran.IsSuccess ? await ResultOfAsync(import, cancellationToken) : await AbandonedAsync(import, ran);
     }
 
-    private bool IsAudienceRace(DbUpdateException ex) =>
-        support.Violations.IsViolationOf(ex, Member.UniqueConstraints.IdentifierPerTenant)
-        || support.Violations.IsViolationOf(ex, Membership.UniqueConstraints.MemberPerForm)
-        || support.Violations.IsViolationOf(ex, PropertyValue.UniqueConstraints.CellPerMembership);
+    private async Task<Result<ImportResultDto>> AbandonedAsync(ImportRef import, Result ran)
+    {
+        await AbandonAsync(import);
+        return ran.ToErrorResult<ImportResultDto>();
+    }
 
-    private async Task<Result> ValidateRequestAsync(
+    /// <summary>Checks the form and the request, then parses the file. Writes nothing.</summary>
+    private async Task<Result<CsvFileParseResult>> ReadFileAsync(
         ImportCsvCommand request,
         CancellationToken cancellationToken)
     {
@@ -116,139 +122,242 @@ internal sealed class ImportCsvHandler(
             new FormGateRequest(forms, request.TenantId, request.FormId, cancellationToken));
         if (!formGate.IsSuccess)
         {
-            return formGate;
+            return formGate.ToErrorResult<CsvFileParseResult>();
         }
 
+        string? error = RequestError(request);
+        CsvFileParseResult parsed = error is null ? CsvFileParser.Parse(request.CsvText) : CsvFileParseResult.Invalid(error);
+        return parsed.IsSuccess
+            ? Result.Success(parsed)
+            : Result<CsvFileParseResult>.Invalid(new ValidationError(parsed.Error!));
+    }
+
+    private static string? RequestError(ImportCsvCommand request)
+    {
         if (string.IsNullOrWhiteSpace(request.CsvText))
         {
-            return Result.Invalid(new ValidationError("CSV content is required."));
+            return "CSV content is required.";
         }
 
-        return string.IsNullOrWhiteSpace(request.IdentifierColumn)
-            ? Result.Invalid(new ValidationError("Identifier column is required."))
-            : Result.Success();
+        return string.IsNullOrWhiteSpace(request.IdentifierColumn) ? "Identifier column is required." : null;
     }
 
-    /// <summary>
-    /// Parses the file and resolves the column mapping. Writes nothing, so a refused file or
-    /// mapping leaves the audience as it was.
-    /// </summary>
-    private async Task<Result<ImportInput>> PrepareAsync(
-        ImportCsvCommand request,
-        CancellationToken cancellationToken)
-    {
-        CsvFileParseResult parsed = CsvFileParser.Parse(request.CsvText);
-        string? fileError = FileError(parsed, request.IdentifierColumn);
-        if (fileError is not null)
-        {
-            return Result<ImportInput>.Invalid(new ValidationError(fileError));
-        }
-
-        List<Property> properties = await LoadPropertiesAsync(request, cancellationToken);
-        return MapColumns(request, parsed, properties);
-    }
-
-    private static Result<ImportInput> MapColumns(
-        ImportCsvCommand request,
-        CsvFileParseResult parsed,
-        IReadOnlyList<Property> properties)
-    {
-        CsvColumnRequest columns = new(properties, parsed.Headers, request.IdentifierColumn, request.PropertyColumns);
-        string? mappingError = CsvColumnMapper.MappingError(columns);
-        return mappingError is null
-            ? Result.Success(new ImportInput(parsed.Rows, CsvColumnMapper.Build(columns)))
-            : Result<ImportInput>.Invalid(new ValidationError(mappingError));
-    }
-
-    private static string? FileError(CsvFileParseResult parsed, string identifierColumn)
-    {
-        if (!parsed.IsSuccess)
-        {
-            return parsed.Error;
-        }
-
-        return parsed.Headers.Contains(identifierColumn, StringComparer.OrdinalIgnoreCase)
-            ? null
-            : $"The CSV has no '{identifierColumn}' column.";
-    }
-
-    /// <summary>
-    /// Stages every row and the import summary, then saves once: a database failure leaves no
-    /// half-imported audience and no summary that disagrees with the rows written.
-    /// </summary>
-    private async Task<Result<ImportResultDto>> ImportAsync(
-        ImportCsvCommand request,
-        ImportInput input,
-        CancellationToken cancellationToken)
-    {
-        await using IDbContextTransaction transaction =
-            await matchKeyLock.BeginSharedAsync(db, request.TenantId, cancellationToken);
-        string identifierKind = await IdentifierKindReader.GetAsync(db, request.TenantId, cancellationToken);
-        ImportTarget target = new(request.TenantId, request.FormId, new ImportMatchKey(identifierKind, support.Normalizer));
-        ImportRows rows = ImportRowReader.Read(input.Rows, input.Map, target.MatchKey);
-        ImportTally tally = await StageAsync(new AudienceQuery(db, target, cancellationToken), rows.Accepted);
-
-        AudienceImport summary = new(ToCreateArgs(request, tally, rows.Rejected.Count));
-        db.AudienceImports.Add(summary);
-        await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return ToDto(summary, rows.Rejected);
-    }
-
-    private Task<List<Property>> LoadPropertiesAsync(ImportCsvCommand request, CancellationToken cancellationToken) =>
-        db.Properties
-            .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
-            .ToListAsync(cancellationToken);
-
-    private static async Task<ImportTally> StageAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
-    {
-        ExistingAudience existing = await ExistingAudience.LoadAsync(query, rows);
-        ImportBatch batch = new(query.Db, query.Target, existing);
-        foreach (ImportRow row in rows)
-        {
-            batch.Stage(row);
-        }
-
-        return batch.Tally;
-    }
-
-    private static AudienceImportCreateArgs ToCreateArgs(
-        ImportCsvCommand request,
-        ImportTally tally,
-        int rejectedCount) =>
+    private static StartImportCommand StartOf(ImportCsvCommand request, CsvFileParseResult file) =>
         new(
             request.TenantId,
             request.FormId,
             request.FileName,
-            tally.Created,
-            tally.Updated,
-            tally.Skipped,
-            rejectedCount,
+            file.Headers,
+            file.Rows.Count,
+            request.IdentifierColumn,
+            request.PropertyColumns ?? new Dictionary<string, string>(),
+            request.IsTest,
             request.PerformedById);
 
-    private static ImportResultDto ToDto(AudienceImport summary, IReadOnlyList<ImportRejectionDto> rejected) =>
+    /// <summary>
+    /// Stores the file as the import's chunks, each row with its own spreadsheet number, and moves it to Checking in
+    /// the same save.
+    /// </summary>
+    /// <summary>False when the import left Uploading before it was staged, such as a form deletion canceling it.</summary>
+    private async Task<bool> StageAsync(ImportRef target, CsvFileParseResult file, CancellationToken cancellationToken)
+    {
+        if (await ImportQueries.FindAsync(db, target, cancellationToken) is not { Status: AudienceImportStatusCodes.Uploading } import)
+        {
+            return false;
+        }
+
+        foreach ((CsvDataRow[] rows, int index) in file.Rows.Chunk(import.ChunkSize).Select((rows, index) => (rows, index)))
+        {
+            List<StagedRow> staged = [.. rows.Select(row => StagedRowOf(row, file.Headers))];
+            db.ImportChunks.Add(AudienceImportChunk.Create(import, new ChunkPlace(index, rows[0].RowNumber), staged));
+        }
+
+        import.RunInRequest();
+        import.BeginCheck();
+        await db.SaveChangesAsync(cancellationToken);
+        ((DbContext)db).ChangeTracker.Clear();
+        return true;
+    }
+
+    private static StagedRow StagedRowOf(CsvDataRow row, IReadOnlyList<string> headers) =>
+        new([.. headers.Select(header => row.Cells.TryGetValue(header, out string? cell) ? cell : string.Empty)], row.Malformed, row.RowNumber);
+
+    private async Task<Result> RunAsync(ImportRef import, CancellationToken cancellationToken)
+    {
+        Result check = await run.RunAsync(import, ImportPhase.Check, cancellationToken);
+        if (!check.IsSuccess)
+        {
+            return check;
+        }
+
+        return await ConfirmAsync(import, cancellationToken) ?? await WriteAsync(import, cancellationToken);
+    }
+
+    /// <summary>Confirms the checked import; a refusal when something moved it meanwhile.</summary>
+    private async Task<Result?> ConfirmAsync(ImportRef target, CancellationToken cancellationToken)
+    {
+        AudienceImport? import = await ImportQueries.FindAsync(db, target, cancellationToken);
+        if (import is not { Status: AudienceImportStatusCodes.Checked })
+        {
+            return Result.Conflict(Changed);
+        }
+
+        import.Confirm();
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Conflict(Changed);
+        }
+    }
+
+    private async Task<Result> WriteAsync(ImportRef import, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Result written = await run.RunAsync(import, ImportPhase.Write, cancellationToken);
+            return written.Status == ResultStatus.Unavailable ? Result.Unavailable(MembershipLock.FormBusy) : written;
+        }
+        catch (DbUpdateException race) when (run.IsAudienceRace(race))
+        {
+            return Result.Conflict(Changed);
+        }
+    }
+
+    /// <summary>
+    /// Ends an import this request could not finish, so its form is free at once: canceled before the write, failed
+    /// during it. Not resumable: the caller sends the whole file again, which matches the rows already written.
+    /// </summary>
+    private async Task AbandonAsync(ImportRef target)
+    {
+        ((DbContext)db).ChangeTracker.Clear();
+        AudienceImport? import = await ImportQueries.FindAsync(db, target, CancellationToken.None);
+        if (import is not { IsUnfinished: true })
+        {
+            return;
+        }
+
+        Abandon(import);
+        try
+        {
+            await db.SaveChangesAsync(CancellationToken.None);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The run ended the import first.
+        }
+    }
+
+    private static void Abandon(AudienceImport import)
+    {
+        if (import.Status == AudienceImportStatusCodes.Writing)
+        {
+            import.Fail(Interrupted);
+        }
+        else
+        {
+            import.Cancel();
+        }
+    }
+
+    private async Task<Result<ImportResultDto>> ResultOfAsync(ImportRef target, CancellationToken cancellationToken)
+    {
+        ((DbContext)db).ChangeTracker.Clear();
+        AudienceImport import = (await ImportQueries.FindAsync(db, target, cancellationToken))!;
+        List<ImportRejectionDto> rejections = await db.ImportRejections.AsNoTracking()
+            .Where(rejection => rejection.TenantId == import.TenantId && rejection.ImportId == import.Id)
+            .OrderBy(rejection => rejection.RowNumber)
+            .Take(MaxReportedRejections)
+            .Select(rejection => new ImportRejectionDto(rejection.RowNumber, rejection.Reason))
+            .ToListAsync(cancellationToken);
+        return ToDto(import, rejections);
+    }
+
+    /// <summary>A file with no data rows still checks its columns, and is recorded as an import that wrote nothing.</summary>
+    private async Task<Result<ImportResultDto>> RecordEmptyAsync(
+        ImportCsvCommand request,
+        CsvFileParseResult file,
+        CancellationToken cancellationToken)
+    {
+        if (await EmptyRefusalAsync(request, file, cancellationToken) is { } refused)
+        {
+            return refused;
+        }
+
+        AudienceImport summary = new(new AudienceImportCreateArgs(
+            request.TenantId, request.FormId, request.FileName, 0, 0, 0, 0, request.PerformedById));
+        db.AudienceImports.Add(summary);
+        await db.SaveChangesAsync(cancellationToken);
+        return ToDto(summary, []);
+    }
+
+    /// <summary>Why an empty file is refused, as a start would refuse it: its columns, or an import in progress.</summary>
+    private async Task<Result<ImportResultDto>?> EmptyRefusalAsync(
+        ImportCsvCommand request,
+        CsvFileParseResult file,
+        CancellationToken cancellationToken)
+    {
+        if (await ColumnsErrorAsync(request, file, cancellationToken) is { } error)
+        {
+            return Result<ImportResultDto>.Invalid(new ValidationError(error));
+        }
+
+        return await CurrentImportAsync(request, cancellationToken) is { } current
+            ? StartImportHandler.Conflict<ImportResultDto>(current)
+            : null;
+    }
+
+    private Task<long?> CurrentImportAsync(ImportCsvCommand request, CancellationToken cancellationToken) =>
+        StartImportHandler.Unfinished(db, request.TenantId, request.FormId)
+            .Select(import => (long?)import.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    private async Task<string?> ColumnsErrorAsync(
+        ImportCsvCommand request,
+        CsvFileParseResult file,
+        CancellationToken cancellationToken)
+    {
+        if (!file.Headers.Contains(request.IdentifierColumn, StringComparer.OrdinalIgnoreCase))
+        {
+            return $"The CSV has no '{request.IdentifierColumn}' column.";
+        }
+
+        List<Property> properties = await db.Properties
+            .Where(property => property.TenantId == request.TenantId && property.FormId == request.FormId)
+            .ToListAsync(cancellationToken);
+        return CsvColumnMapper.MappingError(
+            new CsvColumnRequest(properties, file.Headers, request.IdentifierColumn, request.PropertyColumns));
+    }
+
+    private static ImportResultDto ToDto(AudienceImport import, IReadOnlyList<ImportRejectionDto> rejections) =>
         new(
-            summary.Id,
-            summary.CreatedCount,
-            summary.UpdatedCount,
-            summary.SkippedCount,
-            summary.RejectedCount,
-            rejected.Take(MaxReportedRejections).ToList());
+            import.Id,
+            import.CreatedCount,
+            import.UpdatedCount,
+            import.SkippedCount,
+            import.RejectedCount,
+            rejections);
 }
 
 /// <summary>
-/// A parsed file and the column mapping resolved against this form's properties.
-/// </summary>
-internal sealed record ImportInput(IReadOnlyList<CsvDataRow> Rows, CsvColumnMap Map);
-
-/// <summary>
-/// Identity normalizer and unique-index detection for one import.
+/// Identity normalizer, unique-index detection and the form's people lock for one import.
 /// </summary>
 internal sealed class ImportWriteSupport(
     IValueNormalizer normalizer,
-    IUniqueConstraintViolationChecker violations)
+    IUniqueConstraintViolationChecker violations,
+    MembershipLock formPeopleLock)
 {
     public IValueNormalizer Normalizer { get; } = normalizer;
 
     public IUniqueConstraintViolationChecker Violations { get; } = violations;
+
+    /// <summary>
+    /// Takes every stripe of the form's people lock (scope <c>AudienceFormPeople</c>) shared, after the tenant's
+    /// match-key lock; <see cref="MembershipLock"/> owns it with the participant lock, so their order lives in one
+    /// place.
+    /// </summary>
+    public MembershipLock FormPeopleLock { get; } = formPeopleLock;
 }

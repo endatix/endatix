@@ -55,7 +55,7 @@ public class Result : Result<Result>
     /// </summary>
     /// <param name="error">An optional instance of ErrorList with list of string error messages and CorrelationId.</param>
     /// <returns>A Result</returns>
-    public new static Result Error(ErrorList error = null)
+    public new static Result Error(ErrorList? error = null)
     {
         return new Result(ResultStatus.Error)
         {

@@ -1,7 +1,8 @@
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// Identifies which material submission fields changed on a post-completion update.
+/// Identifies which material submission fields changed. All kinds but <see cref="Test"/> are raised only on a
+/// complete submission.
 /// </summary>
 [Flags]
 public enum SubmissionChangeKinds
@@ -11,6 +12,9 @@ public enum SubmissionChangeKinds
     Metadata = 2,
     Definition = 4,
     Submitter = 8,
+
+    /// <summary>The submission was marked as test or as real, at any stage. Its data did not change.</summary>
+    Test = 16,
 }
 
 /// <summary>
@@ -37,6 +41,7 @@ public static class SubmissionChangeKindsExtensions
         (SubmissionChangeKinds.Metadata, "metadata"),
         (SubmissionChangeKinds.Definition, "definition"),
         (SubmissionChangeKinds.Submitter, "submitter"),
+        (SubmissionChangeKinds.Test, "test"),
     ];
 
     /// <summary>

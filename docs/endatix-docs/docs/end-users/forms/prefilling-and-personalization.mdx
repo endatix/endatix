@@ -1,6 +1,6 @@
 ---
 title: Prefilling and Personalization
-description: Create SurveyJS variables, pass their values through query string parameters, and use them to prefill questions, drive logic, and personalize text throughout a form.
+description: Prefill a question from a participant's Property with Prefill from, or create SurveyJS variables, pass their values through query string parameters, and use them to prefill questions, drive logic, and personalize text throughout a form.
 sidebar_label: Prefilling and Personalization
 ---
 
@@ -12,6 +12,12 @@ import defaultValueLight from "./prefill-default-value-expression_light.png";
 import defaultValueDark from "./prefill-default-value-expression_dark.png";
 import respondentResult from "./prefill-respondent-result.png";
 import textPipingRating from "./prefill-text-piping-rating.png";
+import PrefillFromLight from "./prefill-from-property_light.webp";
+import PrefillFromDark from "./prefill-from-property_dark.webp";
+import PrefillCustomLight from "./prefill-from-custom-expression_light.webp";
+import PrefillCustomDark from "./prefill-from-custom-expression_dark.webp";
+import PrefillPreviewLight from "./prefill-from-preview-as_light.webp";
+import PrefillPreviewDark from "./prefill-from-preview-as_dark.webp";
 
 # Prefilling and Personalization
 
@@ -19,12 +25,13 @@ import textPipingRating from "./prefill-text-piping-rating.png";
 
 Prefilling means a form arrives with some of its values already supplied, based on information you already have about the respondent — a name, an account ID, a plan tier — so they see fewer blank fields and the form feels tailored to them rather than generic.
 
-Endatix supports two ways to pre-fill a form:
+Endatix supports three ways to pre-fill a form:
 
-* **Query string variables** (this guide) — values are read directly in the respondent's browser from the link they open, with no backend involved. It's the simplest option and well suited to personalized links in an email campaign or CRM outreach — append the data to the URL, and the form does the rest.
+* **Prefill from a Property** — when the form has [Participants](/docs/end-users/forms/audience), pick a Property on a question's **Personalization** tab, and each participant's form starts with their own value. See [Prefill from a Property](#prefill-from-a-property).
+* **Query string variables** (most of this guide) — values are read directly in the respondent's browser from the link they open, with no backend involved. It's the simplest option and well suited to personalized links in an email campaign or CRM outreach — append the data to the URL, and the form does the rest.
 * **Access-token prefilling** — your backend creates a submission with data it already holds and issues a scoped, expiring access token for it. This relies on the Endatix API and is aimed at developers integrating Endatix server-side; see [Form Prefilling and Sharing](/docs/guides/form-prefilling) for details.
 
-The rest of this guide covers query string variables. Beyond prefilling a question, the same variables can:
+The next sections cover query string variables. Beyond prefilling a question, the same variables can:
 
 * **Drive logic** — show, hide, or branch based on where the respondent came from.
 * **Personalize text** — pipe the value into a question's title or description.
@@ -32,6 +39,10 @@ The rest of this guide covers query string variables. Beyond prefilling a questi
 ## Creating a Variable
 
 Variables are declared in the Form Builder, not on any single question — they belong to the survey as a whole.
+
+:::tip[Values from the Audience tab need no variable]
+If the values come from the form's [Audience](/docs/end-users/forms/audience), each property is already a variable: use `{first_name}` in the form without adding it here. A custom variable is only for a value passed in the link, as on this page, or calculated in the form. See [Personalized Forms](/docs/end-users/forms/personalized-forms).
+:::
 
 1. Open your form in the Form Builder and click the **Survey settings** icon (the sliders icon above the Property Grid) to open **Survey Settings**.
 2. Select the **Conditions** category.
@@ -150,6 +161,91 @@ When that respondent opens the link, the title renders with the value already fi
 
 <img src={textPipingRating} width="700" alt="Rating question rendered with the title 'How would you rate Spotify?' from the brand_name query string parameter" />
 
+## Prefill from a Property
+
+When the form has Participants, a question can start with each participant's value of a Property, such as their family size or region. **Prefill from** sets this up in the designer without typing an expression.
+
+It needs personalization turned on for your Endatix deployment, permission to edit the form, and at least one Property on the form's [Participants](/docs/end-users/forms/audience#add-a-property) tab.
+
+1. Open the form in the designer and select the question.
+2. In the Property Grid, open the **Personalization** tab (the person icon).
+3. In **Prefill from**, pick a Property.
+
+<Shot
+  alt="Personalization tab of the household_size question: Prefill from set to Family size, and Allow respondent to edit turned on"
+  sources={{ light: PrefillFromLight, dark: PrefillFromDark }}
+/>
+
+Pick a Property that fits the question:
+
+| Property type | Question it fits |
+| --- | --- |
+| Text | Single-Line Input (plain text), Long Text |
+| Number | Single-Line Input with **Input type** Number, Rating, Slider |
+| Yes/No | Yes/No (Boolean) |
+| Date | Single-Line Input with **Input type** Date |
+| Date-time | Single-Line Input (plain text, or **Input type** Date and Time) |
+| Single choice | Dropdown, Radio Button Group, Button Group |
+| Multiple choice | Checkboxes, Multi-Select Dropdown (tag box) |
+
+A Property of another type can leave the question empty or with a value it cannot show.
+
+To check the result, open the **Preview** tab and pick a participant in [**Preview as**](/docs/end-users/forms/personalized-forms#preview-the-form-as-a-participant). The question starts with their value.
+
+<Shot
+  alt="Preview tab running the form as qa.tester@example.com: Household size reads 4, Region reads North, Renewal reads 15.03.2027, 09:30, and Age in months reads 408"
+  sources={{ light: PrefillPreviewLight, dark: PrefillPreviewDark }}
+/>
+
+### Allow respondent to edit
+
+After you pick a Property, **Allow respondent to edit** appears below it, on by default.
+
+- **On**: the participant sees their value and can change it.
+- **Off**: the answer is read-only in the form.
+
+**Allow respondent to edit is not a security control.** It only changes the form in the browser: the saved answer can still be changed outside the form, for example through the API. Use it to keep a value the participant should only confirm, not to protect data.
+
+### Custom expression
+
+If the question's **Default value expression** is a calculation, such as `{age} * 12`, **Prefill from** shows **Custom expression** and a link to that expression. The calculation stays as you wrote it. It changes only when you pick a Property, and **Undo** brings it back. Edit the calculation itself in [Default value expression](#prefilling-a-question).
+
+<Shot
+  alt="Personalization tab with Prefill from set to Custom expression and the note This question's default is a calculation. It stays as written unless you pick a Property. Edit it in Default value expression."
+  sources={{ light: PrefillCustomLight, dark: PrefillCustomDark }}
+/>
+
+### Date and time Properties
+
+A date-time Property fits a plain text question and a date-and-time question (**Input type** `datetime-local`). A date-and-time question shows the time as it is stored on the participant, without the time zone: a renewal stored as 09:30 shows 09:30 to every respondent, whatever their own time zone.
+
+### When the tab is missing or disabled
+
+| What you see | Why |
+| --- | --- |
+| No **Personalization** tab | Personalization is off for the deployment, you cannot edit the form, or no Property can fill this question type (a matrix, a file upload, an HTML block). |
+| **Prefill from** disabled, with a link to **Participants** | The form has no Properties yet. Add one on the Participants tab. |
+
+### What is saved
+
+**Prefill from** writes two standard SurveyJS properties and nothing else:
+
+- `defaultValueExpression`: `{family_size}`, or `edxLocalDateTime({renewal_date})` on a date-and-time question.
+- `readOnly`: `true` when **Allow respondent to edit** is off.
+
+So you can write the same result by hand in the JSON editor, and a form edited that way shows the Property in **Prefill from**:
+
+```json
+{
+  "type": "text",
+  "name": "household_size",
+  "title": "Household size",
+  "inputType": "number",
+  "defaultValueExpression": "{family_size}",
+  "readOnly": true
+}
+```
+
 ## Important Considerations
 
 * Reserved names (`token`, `theme`, `language`, `lang`) are never captured as variables, regardless of what's in the URL.
@@ -164,6 +260,7 @@ When that respondent opens the link, the title renders with the value already fi
 * [Form Prefilling and Sharing](/docs/guides/form-prefilling) — pre-populate an entire submission from your backend using access tokens, instead of query string variables.
 * [Carry Forward](/docs/end-users/forms/form-builder/carry-forward) — another way to drive a question's choices from earlier answers.
 * [Embedding a Form](/docs/end-users/sharing/embedding) — pass the same variables to a form running inside your own web page.
+* [Personalized Forms](/docs/end-users/forms/personalized-forms) - use the values kept for each person on the form's Audience tab instead of the link.
 
 ## Technical Reference (JSON Schema)
 

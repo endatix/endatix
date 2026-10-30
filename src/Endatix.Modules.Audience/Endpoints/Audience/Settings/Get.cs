@@ -26,7 +26,8 @@ public sealed class Get(
             summary.Summary = "Get audience match key";
             summary.Description =
                 "Returns the tenant-wide audience identifier kind (email or external_id). " +
-                "A tenant that never set it gets email. isLocked is true while any person is on a form's audience.";
+                "A tenant that never set it gets email. isLocked is true while any person is on a form's audience. " +
+                "importLimits says how large a CSV this host imports, so the limits can be stated before a file is chosen.";
             summary.Responses[200] = "Settings retrieved.";
         });
         Description(builder => builder
@@ -55,9 +56,33 @@ public sealed class AudienceSettingsResponse
     /// <summary>True while any person is on a form's audience. The match key cannot change then.</summary>
     public bool IsLocked { get; init; }
 
+    /// <summary>How large a CSV this host imports.</summary>
+    public AudienceImportLimitsResponse ImportLimits { get; init; } = new();
+
     internal static AudienceSettingsResponse FromDto(AudienceSettingsDto dto) => new()
     {
         IdentifierKind = dto.IdentifierKind,
         IsLocked = dto.IsLocked,
+        ImportLimits = new AudienceImportLimitsResponse
+        {
+            MaxRows = dto.ImportLimits.MaxRows,
+            MaxBytes = dto.ImportLimits.MaxBytes,
+            RunsInBackground = dto.ImportLimits.RunsInBackground,
+        },
     };
+}
+
+/// <summary>
+/// How large a CSV this host imports: larger where imports run as background jobs than where they run in a request.
+/// </summary>
+public sealed class AudienceImportLimitsResponse
+{
+    /// <summary>Most data rows in one file.</summary>
+    public int MaxRows { get; init; }
+
+    /// <summary>Largest file, in bytes.</summary>
+    public long MaxBytes { get; init; }
+
+    /// <summary>Whether imports run in the background, so the scripter may close the page.</summary>
+    public bool RunsInBackground { get; init; }
 }

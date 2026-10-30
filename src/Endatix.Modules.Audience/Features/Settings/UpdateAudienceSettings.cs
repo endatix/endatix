@@ -1,7 +1,9 @@
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Domain;
+using Endatix.Modules.Audience.Features.Imports;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -14,7 +16,7 @@ namespace Endatix.Modules.Audience.Features.Settings;
 public sealed record UpdateAudienceSettingsCommand(long TenantId, string IdentifierKind)
     : ICommand<Result<AudienceSettingsDto>>;
 
-internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db, MatchKeyLock matchKeyLock)
+internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db, MatchKeyLock matchKeyLock, IImportRunner runner)
     : ICommandHandler<UpdateAudienceSettingsCommand, Result<AudienceSettingsDto>>
 {
     public async Task<Result<AudienceSettingsDto>> Handle(
@@ -47,7 +49,7 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db, Match
         }
 
         bool isLocked = await IdentifierKindReader.IsLockedAsync(db, request.TenantId, cancellationToken);
-        return Result.Success(new AudienceSettingsDto(current, isLocked));
+        return Result.Success(new AudienceSettingsDto(current, isLocked, ImportRunnerRegistration.LimitsOf(runner)));
     }
 
     private async Task<Result<AudienceSettingsDto>> SaveLockedAsync(
@@ -77,7 +79,7 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db, Match
         bool isLocked = await IdentifierKindReader.IsLockedAsync(db, request.TenantId, cancellationToken);
         if (current == request.IdentifierKind)
         {
-            return Result.Success(new AudienceSettingsDto(current, isLocked));
+            return Result.Success(new AudienceSettingsDto(current, isLocked, ImportRunnerRegistration.LimitsOf(runner)));
         }
 
         if (isLocked)
@@ -87,7 +89,7 @@ internal sealed class UpdateAudienceSettingsHandler(IAudienceDbContext db, Match
 
         await RetireMembersAsync(request.TenantId, cancellationToken);
         AudienceSettings settings = await UpsertAsync(request, cancellationToken);
-        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind, IsLocked: false));
+        return Result.Success(new AudienceSettingsDto(settings.IdentifierKind, IsLocked: false, ImportRunnerRegistration.LimitsOf(runner)));
     }
 
     /// <summary>

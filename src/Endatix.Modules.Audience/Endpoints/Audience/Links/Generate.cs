@@ -22,7 +22,7 @@ public sealed class Generate(IMediator mediator, ITenantContext tenantContext)
         {
             summary.Summary = "Issue personalised links";
             summary.Responses[200] = "Links issued. Each raw token is returned once.";
-            summary.Responses[400] = "Invalid input, or the form has more than 5,000 people.";
+            summary.Responses[400] = "Invalid input, or the form has more than 5,000 real people.";
             summary.Responses[404] = "Form not found.";
         });
         Description(builder => builder
@@ -57,6 +57,10 @@ public sealed class IssuedLinkResponse
     public long MembershipId { get; init; }
     public string Token { get; init; } = string.Empty;
 
+    /// <summary>The response for one issued link.</summary>
+    public static IssuedLinkResponse From(IssuedLinkDto link) =>
+        new() { MembershipId = link.MembershipId, Token = link.Token };
+
     public static IReadOnlyList<IssuedLinkResponse> From(IReadOnlyList<IssuedLinkDto> issued) =>
-        issued.Select(link => new IssuedLinkResponse { MembershipId = link.MembershipId, Token = link.Token }).ToList();
+        issued.Select(From).ToList();
 }
