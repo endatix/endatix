@@ -17,8 +17,7 @@ public sealed class SqlServerEndatixModelCustomizer(ModelCustomizerDependencies 
         base.Customize(modelBuilder, context);
 
         modelBuilder.HasDbFunction(SqlServerJsonDbFunctions.JsonValueMethod)
-            .HasName("JSON_VALUE")
-            .IsBuiltIn();
+            .HasTranslation(SqlServerJsonDbFunctions.Translate);
 
         modelBuilder.HasDbFunction(JsonDbFunctions.KeyTextMethod)
             .HasTranslation(arguments => new SqlFunctionExpression(

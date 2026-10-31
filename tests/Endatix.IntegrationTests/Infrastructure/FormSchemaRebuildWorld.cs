@@ -95,9 +95,19 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
         await ReportingTestSchema.EnsureMigratedAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
 
+        await using (var tenantDb = CreateAppDbContext())
+        {
+            tenantDb.Set<Tenant>().Add(new Tenant("form-schema-rebuild-tenant", "tnntfsrb") { Id = TenantId });
+            await tenantDb.SaveChangesAsync(Cancellation);
+        }
+
+        return await AddFormAsync(definitionsOldestFirst);
+    }
+
+    /// <summary>Another form of the world's tenant, beside the ones already seeded.</summary>
+    public async Task<RebuildForm> AddFormAsync(string[] definitionsOldestFirst)
+    {
         await using var appDb = CreateAppDbContext();
-        appDb.Set<Tenant>().Add(new Tenant("form-schema-rebuild-tenant", "tnntfsrb") { Id = TenantId });
-        await appDb.SaveChangesAsync(Cancellation);
 
         // Saved before its definitions, which avoids the Form <-> ActiveDefinition circular insert.
         var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Rebuilt form"));
@@ -105,6 +115,15 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
         await appDb.SaveChangesAsync(Cancellation);
         return new RebuildForm(form.Id, await AddDefinitionsAsync(appDb, form, definitionsOldestFirst), SubmissionId: 0);
     }
+
+    /// <summary>A completed real submission, so every compile of its form merges.</summary>
+    public Task<long> AddRealSubmissionAsync(long formId, long formDefinitionId, string jsonData) =>
+        AddSubmissionAsync(Submission.Create(new SubmissionCreateArgs(
+            TenantId: TenantId,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData,
+            IsComplete: true)));
 
     public Task<long> AddTestSubmissionAsync(long formId, long formDefinitionId, string jsonData) =>
         AddSubmissionAsync(Submission.Create(new SubmissionCreateArgs(
@@ -349,6 +368,7 @@ internal sealed class RebuildScope(
             unitOfWork,
             appDb,
             compiler,
+            ReportingTestSchema.SearchCopyFor(reportingDb),
             NullLogger<FormSchemaProcessor>.Instance);
     }
 

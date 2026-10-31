@@ -59,9 +59,28 @@ public partial class SubmissionFlatteningProcessorTests
         await _rows.Received(1).TryMarkProcessingAsync(write, Arg.Any<CancellationToken>());
         await _rows.Received(1).TryMarkProcessedAsync(
             write,
-            Arg.Is<string>(json => json.Contains("firstName")),
+            Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessAsync_SchemaWithSearchKeys_WritesTheSearchCopyOfThoseKeys()
+    {
+        // Arrange
+        GivenSubmission(CompletedSubmission(FormSchemaFixtureLoader.LoadText("simple-submission.json"), revision: 1));
+        GivenSchema(searchKeysJson: """[{"key":"firstName","source":"auto","filterType":"text","addedAt":"2026-10-19T00:00:00Z"}]""");
+        GivenRowAcceptsRevision(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _rows.Received(1).TryMarkProcessedAsync(
+            Arg.Any<FlattenedRevision>(),
+            Arg.Is<FlattenedRowData>(data => data.SearchJson == """{"firstName":"ada"}"""),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -88,10 +107,10 @@ public partial class SubmissionFlatteningProcessorTests
             Arg.Any<CancellationToken>());
         await _rows.Received(1).TryMarkProcessedAsync(
             Arg.Any<FlattenedRevision>(),
-            Arg.Is<string>(json =>
-                json.Contains("firstName") &&
-                json.Contains("\"AudienceIdentifier\":\"CG-1\"") &&
-                json.Contains("\"audience_city\":\"Columbus\"")),
+            Arg.Is<FlattenedRowData>(data =>
+                data.DataJson.Contains("firstName") &&
+                data.DataJson.Contains("\"AudienceIdentifier\":\"CG-1\"") &&
+                data.DataJson.Contains("\"audience_city\":\"Columbus\"")),
             Arg.Any<CancellationToken>());
     }
 
@@ -168,7 +187,7 @@ public partial class SubmissionFlatteningProcessorTests
         GivenSubmission(submission);
         GivenSchema();
         _rows.TryMarkProcessingAsync(WriteOf(submission), Arg.Any<CancellationToken>()).Returns(true);
-        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        _rows.TryMarkProcessedAsync(WriteOf(submission), Arg.Any<FlattenedRowData>(), Arg.Any<CancellationToken>()).Returns(false);
         GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
 
         // Act
@@ -216,7 +235,7 @@ public partial class SubmissionFlatteningProcessorTests
         // Assert
         await _rows.Received(1).TryMarkProcessedAsync(
             WriteOf(draft),
-            Arg.Is<string>(json => json.Contains("firstName")),
+            Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().TryMarkSkippedAsync(default, Arg.Any<CancellationToken>());
     }
@@ -282,10 +301,10 @@ public partial class SubmissionFlatteningProcessorTests
         submission.Revision.Should().BeGreaterThan(revisionBefore, "a submitter change is a new revision to flatten");
         await _rows.Received(1).TryMarkProcessedAsync(
             WriteOf(submission),
-            Arg.Is<string>(json =>
-                json.Contains("\"submitter_email\":\"ana@example.com\"") &&
-                json.Contains("\"submitter_department\":null") &&
-                !json.Contains("+1 555 0100")),
+            Arg.Is<FlattenedRowData>(data =>
+                data.DataJson.Contains("\"submitter_email\":\"ana@example.com\"") &&
+                data.DataJson.Contains("\"submitter_department\":null") &&
+                !data.DataJson.Contains("+1 555 0100")),
             Arg.Any<CancellationToken>());
     }
 
@@ -338,7 +357,7 @@ public partial class SubmissionFlatteningProcessorTests
             .Returns((FormSchemaEntity?)null);
 
     // The submitter columns a flatten's include would have added, so the schema is as a flatten finds it.
-    private void GivenSchema(SubmitterProfileFields? fields = null)
+    private void GivenSchema(SubmitterProfileFields? fields = null, string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson)
     {
         var definition = FormSchemaFixtureLoader.LoadText("simple-definition.json");
         FormSchemaCompiler compiler = new(submitterProfileFields: fields);
@@ -347,8 +366,9 @@ public partial class SubmissionFlatteningProcessorTests
             definition,
             new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
             compiler.SubmitterProfileColumns);
-        _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>())
-            .Returns(new FormSchemaEntity(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson));
+        FormSchemaEntity schema = new(TenantId, FormId, FormDefinitionId, compiled.FlatteningMapJson, compiled.CodebookJson);
+        schema.UpdateSearchKeys(searchKeysJson);
+        _schemas.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, Arg.Any<CancellationToken>()).Returns(schema);
     }
 
     private void GivenRowAcceptsRevision(bool accepts)
