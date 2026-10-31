@@ -101,7 +101,7 @@ Each row carries the list fields plus:
 - `answers`, the requested columns that have a value.
 - `answersSource`: `prepared` when the row is `prepared`, otherwise `raw`. Raw answers come from the submission's own `jsonData`, which is keyed by question name, so only simple question columns can be found there. Choice indicators, matrix cells and other flattened keys are left out until the row is prepared.
 
-The page comes from the core list; its flattened rows are then read by id, with `DataJson` only when `columns` is set.
+Without `answer=` filters, the page comes from the core list; its flattened rows are then read by id, with `DataJson` only when `columns` is set. With them, see [Answer filters on the submissions grid](#answer-filters-on-the-submissions-grid).
 
 `submitterProfile.{field}` filters, on this list and on the submissions list, read the profile snapshot with `JSON_VALUE` on SQL Server. They compare under the `Latin1_General_100_BIN2` collation, so matching is case-sensitive as on PostgreSQL, whatever the database collation. Unlike PostgreSQL, SQL Server ignores trailing spaces when it compares strings, and `JSON_VALUE` returns NULL for a value over 4,000 characters, so such a value never matches `=` and always matches `!=`.
 
@@ -158,9 +158,33 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
   `lower()` / `LOWER`, which follow its collation. Under a `C` or POSIX PostgreSQL collation the SQL lowercases ASCII
   only, so non-ASCII text a rebuild wrote can miss a contains filter until the row is flattened again.
 - **Filters.** `IRelationalJsonObjectKeyFilter.WhereKeyMatches` (contains, lowercased pattern as a parameter) and
-  `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point). SQL Server reads keys with
+  `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point, on values that start with `yyyy-MM-dd`, so a
+  value kept as entered never falls in a range). SQL Server reads keys with
   `JSON_VALUE(… RETURNING nvarchar(max))`, because lax `JSON_VALUE` returns NULL above 4,000 characters, and compares
   lowercased values, so a case-sensitive database collation still matches without case.
+
+### Answer filters on the submissions grid
+
+`GET forms/{formId}/reporting/submissions` takes repeated `answer={operator}:{key}:{value}` parameters, AND-combined
+with each other and with the list's metadata filters (`SubmissionGridAnswerSearch`).
+
+- **Operators.** `contains` on `text` search keys (case-insensitive, 1–200 characters); `from` and `to` on `date` and
+  `datetime` keys, each a calendar day `yyyy-MM-dd`, both inclusive. The key is percent-encoded (`encodeURIComponent`),
+  because a column key can contain `:`. At most 10 filters.
+- **Errors.** A malformed filter is 400 on `answer`. A key that is not one of the form's search keys
+  (`answer_key_not_filterable`), or an operator its filter type lacks (`answer_operator_not_supported`), is 400 with
+  `fields.answer`. A missing, deleted or another tenant's form is 404 first, as without answer filters. A form with
+  no compiled schema is 409 `reporting_not_prepared`; without answer filters the same form lists normally.
+- **Which rows are checked.** Only rows prepared since the submission's last change (`SourceModifiedAt` equals the
+  submission's `ModifiedAt ?? CreatedAt`) that have a search copy. Every other submission inside the metadata filters
+  is left out of the page and counted in answer-filter coverage (`answerFilterCoverage`: `uncheckedCompleted`,
+  `uncheckedInProgress`): the rows not prepared since the submission's last change, or not rebuilt for the form's
+  current search keys, so the grid can offer to prepare them. The field is absent without answer filters.
+- **One query.** The Reporting context maps the core `Submissions` table read-only (`CoreSubmissionRow`, excluded
+  from migrations, at the name the core context resolves). The list's metadata filters run on it with the core rules
+  (`SubmissionGridMetadataSpec`; submitter profile filters through `IRelationalSubmitterProfileFilter`, the same
+  provider SQL as the core list), joined to the matching prepared rows. The ordered ids of every match are read once;
+  the count and the page come from that list, then the page's rows load by id. Answer-filter coverage is one more statement.
 
 **Upgrading:** existing forms get their keys on their next compile (`POST …/reporting/compile-schema`), which then
 rebuilds their rows' copies. Until then their copies are empty.
@@ -176,7 +200,7 @@ checked and the rebuild catches it up.
 
 **Performance.** `tests/Endatix.IntegrationTests/Performance` measures the filters at scale (opt-in, see
 `tests/README.md`). p95 of the whole request (ids and sort key of every match, count, page of 50), 50,000 rows, flattened
-rows only (the join with core submissions is not in it yet):
+rows only for the first tables; the grid answer search rows below add the core join and the answer-filter coverage count:
 
 | Shape (2026-10-16, Testcontainers, 8 vCPU) | No answer filter | 1–3 filters, 1 caller | 1–3 filters, 4 callers | Rebuild of 50k copies |
 | --- | --- | --- | --- | --- |
@@ -185,8 +209,23 @@ rows only (the join with core submissions is not in it yet):
 | SQL Server realistic | 200 ms | 220–423 ms | 584–790 ms | 53 s |
 | SQL Server worst | 295 ms | 163–269 ms | 609–754 ms | 69 s |
 
+Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, answer-filter coverage count), same data:
+
+| Shape (Testcontainers, 8 vCPU) | 1–3 filters, 1 caller | 1–3 filters, 4 callers | No match, 1 caller |
+| --- | --- | --- | --- |
+| PostgreSQL realistic, 2026-10-16, `bc271d63` | 64–106 ms | 101–127 ms | 81 ms |
+| PostgreSQL realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 106–188 ms | 125–222 ms | 94 ms |
+| SQL Server realistic, 2026-10-16, `bc271d63` | 307–400 ms | 786–805 ms | 188 ms |
+| SQL Server realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
+
 64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
-is the edge (790 ms against an 800 ms target): measure again before raising the cap or adding the core join.
+is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (567 ms at `bc271d63` and 305 ms at
+`2beee763` once the copies were rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range
+included (3 deep contains: 805 → 861 ms), so the date shape check is within run-to-run noise. Each p95 is taken over 7
+runs per scenario after 2 warm-ups, so it is the slowest of the 7, and the two runs spread 777–861 ms: the 805 ms miss
+is inside that spread. The harness calls the search in process against one Testcontainer, without HTTP. The form-exists
+read (one indexed `Forms` row per answer-filter request) was added after these runs, so it is not in the numbers;
+endatix#1451 re-measures. Measure again before raising the key cap or adding work to the grid query.
 
 ## Registration
 

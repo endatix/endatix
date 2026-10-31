@@ -1,13 +1,16 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Core.UseCases.Submissions.ListByFormId;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Entities;
 
 namespace Endatix.IntegrationTests;
 
@@ -18,8 +21,9 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// Opt-in (<see cref="PerformanceRun"/>): it loads 50,000 rows by default and takes minutes, longer on SQL Server.
-/// It reads the flattened rows only; the grid's join with the core submissions (#1255) adds its own cost, which the
-/// metadata-only reference row shows once that join is measured here too.
+/// The first tables read the flattened rows only. The last ones run the grid's own answer search
+/// (<see cref="SubmissionGridAnswerSearch"/>, #1091): the join with the core submissions, the metadata filters, the
+/// page and the coverage count, as the endpoint does.
 /// </remarks>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", PerformanceRun.Category)]
@@ -49,6 +53,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         // Act
         await MeasureSingleCallerAsync(report, formId, counts);
         await MeasureConcurrentCallersAsync(report, formId, counts);
+        await MeasureGridSearchAsync(report, formId, counts);
         await MeasureRebuildAsync(report, formId, counts);
         await ExplainAsync(report, formId);
 
@@ -70,6 +75,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         GridPerformanceLoader loader = new(_shape, searchKeys, form.FormId);
         await loader.LoadAsync(connection, PerformanceRun.Rows, Cancellation);
         await GridPerformanceSql.AnalyzeAsync(connection, fixture.Provider, Cancellation);
+        await GridPerformanceSql.LoadCoreSubmissionsAsync(connection, fixture.Provider, form, Cancellation);
 
         report.Header(_shape, searchKeys, FormattableString.Invariant($"load {load.Elapsed.TotalSeconds:F0} s; planted: {loader.Counts}"));
         report.Line("storage: " + await GridPerformanceSql.StorageAsync(connection, fixture.Provider, Cancellation));
@@ -110,6 +116,41 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         }
     }
 
+    private async Task MeasureGridSearchAsync(GridPerformanceReport report, long formId, GridPerformanceCounts counts)
+    {
+        report.Table("Grid answer search (core join, coverage), one caller");
+        foreach (var scenario in Scenarios(counts).Where(scenario => scenario.Answers is not null))
+        {
+            report.Row(await MeasureAsync(scenario.Name, scenario.Expected, () => GridSearchAsync(formId, scenario.Answers!)));
+        }
+
+        report.Table($"Grid answer search (core join, coverage), {ConcurrentCallers} concurrent callers");
+        foreach (var scenario in Scenarios(counts).Where(scenario => scenario is { Concurrent: true, Answers: not null }))
+        {
+            report.Row(await MeasureConcurrentlyAsync(scenario, () => GridSearchAsync(formId, scenario.Answers!)));
+        }
+    }
+
+    private async Task<int> GridSearchAsync(long formId, IReadOnlyList<AnswerFilter> answers)
+    {
+        await using var db = _world.CreateReportingDbContext();
+        await using var appDb = _world.CreateAppDbContext();
+        SubmissionGridAnswerSearch search = new(
+            db,
+            Filter,
+            SearchCopyForms.ProfileFilter(fixture.Provider),
+            new EfRepository<Form>(appDb, new EndatixSpecificationEvaluator([])));
+        SubmissionGridRowsQuery query = new(
+            FormSchemaRebuildWorld.TenantId,
+            new ListByFormIdQuery(formId, 1, PageSize),
+            [_shape.Key(GridPerformanceShape.EarlyZebra)],
+            answers);
+
+        var result = await search.ExecuteAsync(query, Cancellation);
+        result.IsSuccess.Should().BeTrue(string.Join("; ", result.ValidationErrors.Select(error => error.ErrorMessage)));
+        return result.Value.TotalRecords;
+    }
+
     private async Task MeasureRebuildAsync(GridPerformanceReport report, long formId, GridPerformanceCounts counts)
     {
         var rebuild = Stopwatch.StartNew();
@@ -139,15 +180,28 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
 
     private IEnumerable<GridScenario> Scenarios(GridPerformanceCounts counts)
     {
-        yield return new("1 contains, 1% (early key)", counts.Zebra, query => Contains(query, GridPerformanceShape.EarlyZebra, "zebra"));
-        yield return new("1 contains, 1% (deep)", counts.Zebra, query => Contains(query, _shape.DeepZebra, "ZEBRA"), Concurrent: true);
-        yield return new("1 contains, 25% (deep)", counts.Mango, query => Contains(query, _shape.DeepMango, "mango"));
+        yield return new("1 contains, 1% (early key)", counts.Zebra, query => Contains(query, GridPerformanceShape.EarlyZebra, "zebra"),
+            Answers: [ContainsAnswer(GridPerformanceShape.EarlyZebra, "zebra")]);
+        yield return new("1 contains, 1% (deep)", counts.Zebra, query => Contains(query, _shape.DeepZebra, "ZEBRA"), Concurrent: true,
+            Answers: [ContainsAnswer(_shape.DeepZebra, "ZEBRA")]);
+        yield return new("1 contains, 25% (deep)", counts.Mango, query => Contains(query, _shape.DeepMango, "mango"),
+            Answers: [ContainsAnswer(_shape.DeepMango, "mango")]);
         yield return new("2 contains (deep)", counts.MangoAndKiwi, query => Contains(Contains(query, _shape.DeepMango, "mango"), _shape.DeepKiwi, "kiwi"));
-        yield return new(AllThreeName, counts.AllThree, AllThree, Concurrent: true);
-        yield return new("3 contains + date range", counts.AllThreeIn2025, query => In2025(AllThree(query)), Concurrent: true);
+        yield return new(AllThreeName, counts.AllThree, AllThree, Concurrent: true, Answers: AllThreeAnswers());
+        yield return new("3 contains + date range", counts.AllThreeIn2025, query => In2025(AllThree(query)), Concurrent: true,
+            Answers: [.. AllThreeAnswers(), DateAnswer(AnswerFilterOperators.From, "2025-01-01"), DateAnswer(AnswerFilterOperators.To, "2025-12-31")]);
         yield return new("long comment (2%)", counts.LongComments, query => Contains(query, GridPerformanceShape.LongComment, "longneedle"));
-        yield return new("no match (full scan)", 0, query => Contains(query, _shape.DeepKiwi, "qqqqqq"));
+        yield return new("no match (full scan)", 0, query => Contains(query, _shape.DeepKiwi, "qqqqqq"),
+            Answers: [ContainsAnswer(_shape.DeepKiwi, "qqqqqq")]);
     }
+
+    private AnswerFilter ContainsAnswer(int question, string text) =>
+        new(_shape.Key(question), AnswerFilterOperators.Contains, text);
+
+    private AnswerFilter DateAnswer(string @operator, string day) => new(_shape.Key(GridPerformanceShape.Date), @operator, day);
+
+    private AnswerFilter[] AllThreeAnswers() =>
+        [ContainsAnswer(_shape.DeepMango, "mango"), ContainsAnswer(_shape.DeepKiwi, "kiwi"), ContainsAnswer(_shape.DeepZebra, "zebra")];
 
     private IQueryable<FlattenedSubmission> AllThree(IQueryable<FlattenedSubmission> query) =>
         Contains(Contains(Contains(query, _shape.DeepMango, "mango"), _shape.DeepKiwi, "kiwi"), _shape.DeepZebra, "zebra");
@@ -206,7 +260,10 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         return new GridMeasurement(name, expected, total, times);
     }
 
-    private async Task<GridMeasurement> MeasureConcurrentlyAsync(long formId, GridScenario scenario)
+    private Task<GridMeasurement> MeasureConcurrentlyAsync(long formId, GridScenario scenario) =>
+        MeasureConcurrentlyAsync(scenario, () => ScanOnceAsync(formId, scenario.Query));
+
+    private static async Task<GridMeasurement> MeasureConcurrentlyAsync(GridScenario scenario, Func<Task<int>> run)
     {
         List<double> times = [];
         var totals = await Task.WhenAll(Enumerable.Range(0, ConcurrentCallers).Select(async _ =>
@@ -215,7 +272,7 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
             for (var request = 0; request <= PerformanceRun.Iterations; request++)
             {
                 var started = Stopwatch.GetTimestamp();
-                total = await ScanOnceAsync(formId, scenario.Query);
+                total = await run();
                 RecordAfterWarmUp(times, request, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
             }
 
@@ -242,5 +299,6 @@ public sealed class SubmissionsGridPerformanceTests(DbIntegrationFixture fixture
         string Name,
         int Expected,
         Func<IQueryable<FlattenedSubmission>, IQueryable<FlattenedSubmission>> Query,
-        bool Concurrent = false);
+        bool Concurrent = false,
+        IReadOnlyList<AnswerFilter>? Answers = null);
 }

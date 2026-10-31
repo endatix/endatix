@@ -1,13 +1,14 @@
-using System.Linq.Expressions;
-using System.Text.Json;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Specifications;
-using Microsoft.EntityFrameworkCore;
+using Endatix.Infrastructure.Data.Querying;
 
 namespace Endatix.Persistence.PostgreSql;
 
-internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
+/// <summary>
+/// Applies <c>submitterProfile.{field}</c> list filters through <see cref="IRelationalSubmitterProfileFilter"/>.
+/// </summary>
+internal sealed class SubmitterProfileFilterEvaluator(IRelationalSubmitterProfileFilter profileFilter) : IEvaluator
 {
     public bool IsCriteriaEvaluator => true;
 
@@ -23,26 +24,9 @@ internal sealed class SubmitterProfileFilterEvaluator : IEvaluator
         var submissionQuery = (IQueryable<Submission>)query;
         foreach (var filter in profileFilterSpecification.SubmitterProfileFilters)
         {
-            var profileField = SubmissionFilterFields.GetSubmitterProfileFieldName(filter);
-            var payloads = filter.Values
-                .Select(value => BuildJsonContainsPayload(profileField, value))
-                .ToList();
-
-            submissionQuery = filter.Operator switch
-            {
-                ExpressionType.Equal => submissionQuery.Where(s =>
-                    s.SubmitterProfileSnapshot != null &&
-                    payloads.Any(payload => EF.Functions.JsonContains(s.SubmitterProfileSnapshot, payload))),
-                ExpressionType.NotEqual => submissionQuery.Where(s =>
-                    s.SubmitterProfileSnapshot == null ||
-                    payloads.All(payload => !EF.Functions.JsonContains(s.SubmitterProfileSnapshot, payload))),
-                _ => throw new NotSupportedException($"Operator {filter.Operator} is not supported for submitter profile filters.")
-            };
+            submissionQuery = profileFilter.Where(submissionQuery, s => s.SubmitterProfileSnapshot, filter);
         }
 
         return (IQueryable<T>)submissionQuery;
     }
-
-    private static string BuildJsonContainsPayload(string profileField, string value) =>
-        JsonSerializer.Serialize(new Dictionary<string, string> { [profileField] = value });
 }

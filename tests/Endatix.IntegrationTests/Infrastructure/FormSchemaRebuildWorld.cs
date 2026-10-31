@@ -275,7 +275,7 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
         return submission.Id;
     }
 
-    private AppDbContext CreateAppDbContext()
+    internal AppDbContext CreateAppDbContext()
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);

@@ -293,6 +293,83 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                     b.ToTable("SurveyTypeExportMappings", "reporting");
                 });
 
+            modelBuilder.Entity("Endatix.Modules.Reporting.Persistence.CoreSubmissionRow", b =>
+                {
+                    b.Property<string>("CollectionStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CurrentPage")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FormDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+
+                    b.Property<bool>("IsComplete")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsTestSubmission")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("json");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("SubmittedBy")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("SubmitterDisplayId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<long?>("SubmitterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SubmitterProfileSnapshot")
+                        .HasColumnType("json");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.ToTable("Submissions", "dbo", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
             modelBuilder.Entity("Endatix.Modules.Reporting.Domain.SurveyTypeExportMapping", b =>
                 {
                     b.HasOne("Endatix.Modules.Reporting.Domain.ExportFormat", "ExportFormat")

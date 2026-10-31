@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence.Config;
 using Endatix.Infrastructure.Data;
+using Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 
 namespace Endatix.Modules.Reporting.Persistence;
 
@@ -16,6 +18,8 @@ namespace Endatix.Modules.Reporting.Persistence;
 /// </remarks>
 public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
 {
+    private const string CoreSubmissionsTable = "Submissions";
+
     private readonly ITenantContext _tenantContext;
 
     protected ReportingDbContextBase(
@@ -33,6 +37,9 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
     public DbSet<ExportFormat> ExportFormats => Set<ExportFormat>();
 
     public DbSet<SurveyTypeExportMapping> SurveyTypeExportMappings => Set<SurveyTypeExportMapping>();
+
+    /// <inheritdoc />
+    public DbSet<CoreSubmissionRow> CoreSubmissionRows => Set<CoreSubmissionRow>();
 
     /// <inheritdoc />
     public DbSet<SubmissionView> SubmissionViews => Set<SubmissionView>();
@@ -54,6 +61,27 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
 
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
         modelBuilder.ApplyModuleTableNames();
+
+        MapCoreSubmissions(modelBuilder);
+    }
+
+    // The same name the core context resolves for Submission: its configured ToTable("Submissions"), which a table
+    // prefix leaves as is. The CoreSubmissionRows DbSet puts the entity in the model before OnModelCreating, so the
+    // tenant and soft-delete query filters already apply to it (CoreSubmissionRowsIntegrationTests).
+    private void MapCoreSubmissions(ModelBuilder modelBuilder)
+    {
+        var row = modelBuilder.Entity<CoreSubmissionRow>();
+        row.HasNoKey()
+            .ToTable(
+                TableNamePrefix.GetTableName(typeof(Submission).FullName ?? nameof(Submission), CoreSubmissionsTable),
+                CoreSchema,
+                table => table.ExcludeFromMigrations());
+
+        // The core lengths, so parameters compared with these columns get the same store type (CoreSubmissionRowMappingTests).
+        row.Property(x => x.Status).HasMaxLength(SubmissionStatus.STATUS_CODE_MAX_LENGTH);
+        row.Property(x => x.CollectionStatus).HasMaxLength(CollectionStatus.CODE_MAX_LENGTH);
+        row.Property(x => x.SubmittedBy).HasMaxLength(SubmissionConfiguration.IDENTIFIER_MAX_LENGTH);
+        row.Property(x => x.SubmitterDisplayId).HasMaxLength(SubmissionConfiguration.SUBMITTER_DISPLAY_ID_MAX_LENGTH);
     }
 
     // Applied explicitly rather than by attribute scan: the shared configurations belong to every derived
@@ -73,6 +101,12 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
     /// names it rather than at whichever mapping first uses a provider-specific feature.
     /// </summary>
     protected abstract void EnsureSupportedProvider();
+
+    /// <summary>
+    /// The schema the core tables live in on this provider. The core context sets no default schema, and EF rejects
+    /// an empty one.
+    /// </summary>
+    protected abstract string CoreSchema { get; }
 
     /// <summary>
     /// Applies the configurations belonging to this provider's context. Each derived context scans for

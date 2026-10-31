@@ -10,6 +10,8 @@ using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Infrastructure.Domain;
+using NSubstitute;
 
 namespace Endatix.IntegrationTests;
 
@@ -83,7 +85,7 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         var cancellationToken = TestContext.Current.CancellationToken;
         var seed = await SeedAsync(cancellationToken);
         await using var reportingDb = CreateReportingDbContext(TenantId);
-        ListSubmissionGridRows sut = new(new FixedPageMediator(seed.Page), reportingDb);
+        ListSubmissionGridRows sut = Create(new FixedPageMediator(seed.Page), reportingDb);
 
         // Act
         var result = await sut.ExecuteAsync(Query(0, seed, ["city"]), cancellationToken);
@@ -98,7 +100,7 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         CancellationToken cancellationToken)
     {
         await using var reportingDb = CreateReportingDbContext(query.TenantId);
-        ListSubmissionGridRows sut = new(new FixedPageMediator(page), reportingDb);
+        ListSubmissionGridRows sut = Create(new FixedPageMediator(page), reportingDb);
 
         var result = await sut.ExecuteAsync(query, cancellationToken);
 
@@ -106,6 +108,14 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
         result.Value.TotalRecords.Should().Be(page.TotalRecords);
         return result.Value.Items;
     }
+
+    // The rows here never reach the answer search, so its form check gets a repository that reads nothing.
+    private ListSubmissionGridRows Create(IMediator mediator, ReportingDbContextBase reportingDb) =>
+        new(mediator, reportingDb, new SubmissionGridAnswerSearch(
+            reportingDb,
+            SearchCopyForms.KeyFilter(fixture.Provider),
+            SearchCopyForms.ProfileFilter(fixture.Provider),
+            Substitute.For<IRepository<Form>>()));
 
     private static SubmissionGridRowsQuery Query(long tenantId, SeededForm seed, IReadOnlyList<string> columns) =>
         new(tenantId, new ListByFormIdQuery(seed.FormId, 1, 10), columns);
