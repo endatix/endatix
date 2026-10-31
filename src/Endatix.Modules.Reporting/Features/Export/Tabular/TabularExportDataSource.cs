@@ -6,6 +6,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Microsoft.Extensions.Logging;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export.Tabular;
@@ -13,11 +14,12 @@ namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 /// <summary>
 /// Streams flattened submission rows from the reporting read model for tabular export (CSV/JSON/XLSX).
 /// </summary>
-internal sealed class TabularExportDataSource(
+internal sealed partial class TabularExportDataSource(
     ExportSchemas exportSchemas,
     IReportingExportRepository reportingExportRepository,
     ExportFormatSettingsParser exportFormatSettingsParser,
-    IColumnAliasTransformerRegistry aliasTransformerRegistry) : IExportDataSource
+    IColumnAliasTransformerRegistry aliasTransformerRegistry,
+    ILogger<TabularExportDataSource> logger) : IExportDataSource
 {
     private static readonly string SubmissionRowTypeName =
         typeof(SubmissionExportRow).FullName ?? typeof(SubmissionExportRow).Name;
@@ -123,7 +125,7 @@ internal sealed class TabularExportDataSource(
         }
 
         var exported = ExportSchemas.WithCodebook(schema, await exportSchemas.CodebookAsync(schema, cancellationToken));
-        var columnPlan = MapColumnPlan(BuildPlan(exported, settings));
+        var columnPlan = MapColumnPlan(BuildPlan(exported, settings, context.Request.Format));
 
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
         context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
@@ -142,14 +144,33 @@ internal sealed class TabularExportDataSource(
         return Result.Success(context.Options);
     }
 
-    private IExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings) =>
-        ExportColumnPlanBuilder.Build(
+    private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings, string format)
+    {
+        var plan = ExportColumnPlanBuilder.Build(
             schema,
-            locale: settings.Locale,
-            aliasProfile: settings.AliasProfile,
-            columnScope: settings.ColumnScope is null ? null : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal),
-            keySeparator: settings.KeySeparator,
-            aliasRegistry: aliasTransformerRegistry);
+            new ExportColumnPlanRequest(
+                settings.Locale,
+                settings.AliasProfile,
+                settings.ColumnScope is null ? null : new HashSet<string>(settings.ColumnScope, StringComparer.Ordinal),
+                settings.KeySeparator,
+                aliasTransformerRegistry,
+                ReadWithShojiCodebook: ShouldProjectCrunchShapes(format, settings)));
+        LogOmittedColumns(schema.FormId, plan.OmittedKeys);
+        return plan;
+    }
+
+    private void LogOmittedColumns(long formId, OmittedColumnKeys omittedKeys)
+    {
+        if (omittedKeys.Audience.Count > 0)
+        {
+            LogAudienceColumnsOmitted(formId, string.Join(", ", omittedKeys.Audience));
+        }
+
+        if (omittedKeys.SubmitterProfile.Count > 0)
+        {
+            LogSubmitterProfileColumnsOmitted(formId, string.Join(", ", omittedKeys.SubmitterProfile));
+        }
+    }
 
     private async Task<string> ResolveEmptyExportMessageAsync(
         ExportDataSourceContext context,
@@ -381,4 +402,14 @@ internal sealed class TabularExportDataSource(
             AnswersModel = answersModel,
         };
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Export of form {FormId} leaves out audience columns whose keys a question exports under: {AudienceKeys}")]
+    private partial void LogAudienceColumnsOmitted(long formId, string audienceKeys);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Export of form {FormId} leaves out submitter profile columns whose keys a question exports under: {SubmitterProfileKeys}")]
+    private partial void LogSubmitterProfileColumnsOmitted(long formId, string submitterProfileKeys);
 }

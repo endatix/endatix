@@ -19,86 +19,133 @@ internal static class ExportColumnPlanBuilder
     /// Builds an export column plan. When <paramref name="aliasRegistry"/> is omitted,
     /// the built-in Native + Crunch registry is used.
     /// </summary>
-    internal static IExportColumnPlan Build(
+    internal static ExportColumnPlan Build(
         FormSchemaEntity schema,
         string locale = FormSchemaCodebookPropertyNames.Default,
         ColumnAliasProfile aliasProfile = ColumnAliasProfile.Native,
         IReadOnlySet<string>? columnScope = null,
         string keySeparator = ExportFormatSettings.DefaultKeySeparator,
-        IColumnAliasTransformerRegistry? aliasRegistry = null)
+        IColumnAliasTransformerRegistry? aliasRegistry = null) =>
+        Build(schema, new ExportColumnPlanRequest(locale, aliasProfile, columnScope, keySeparator, aliasRegistry));
+
+    internal static ExportColumnPlan Build(FormSchemaEntity schema, ExportColumnPlanRequest request)
     {
-        ExportFormatSettings.RequireKeySeparator(keySeparator);
+        ExportFormatSettings.RequireKeySeparator(request.KeySeparator);
 
-        var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
-        var codebookColumns = FormSchemaCodebookReader.ReadColumns(schema.Codebook);
-        var codebookQuestions = FormSchemaCodebookReader.ReadQuestions(schema.Codebook);
-        var registry = aliasRegistry ?? ColumnAliasTransformerRegistry.Default;
-        var aliasTransformer = registry.GetRequired(aliasProfile);
-        var scopedKeys = columnScope is null
+        var source = PlanSource.Of(schema, request);
+        var scopedKeys = request.ColumnScope is null
             ? null
-            : new HashSet<string>(columnScope, StringComparer.Ordinal);
-        var projectCrunchShapes = ShouldProjectCrunchShapes(aliasProfile, keySeparator);
+            : new HashSet<string>(request.ColumnScope, StringComparer.Ordinal);
 
-        List<ExportColumnDefinition> columns = [];
-        List<ExportColumnAliasInput> aliasInputs = [];
+        var columns = AliasedQuestionColumns(source, scopedKeys);
+        var omittedKeys = AddNonQuestionBlocks(source, columns, KeysTakenByQuestions(source, columns, scopedKeys));
 
-        foreach (var systemKey in SubmissionExportRow.SystemColumns.OrderedKeys)
+        EnsureUniqueExportKeys(columns);
+
+        return new ExportColumnPlan(columns, omittedKeys);
+    }
+
+    /// <summary>The schema a plan is built from, and how its question columns get their export keys and labels.</summary>
+    private sealed record PlanSource(
+        FormSchemaEntity Schema,
+        MergedFormSchema FlatteningMap,
+        IReadOnlyDictionary<string, JsonElement> CodebookColumns,
+        IReadOnlyDictionary<string, JsonElement> CodebookQuestions,
+        ExportColumnPlanRequest Request,
+        IColumnAliasTransformer AliasTransformer)
+    {
+        public static PlanSource Of(FormSchemaEntity schema, ExportColumnPlanRequest request) =>
+            new(
+                schema,
+                FormSchemaFlatteningMap.FromJson(schema.FlatteningMap),
+                FormSchemaCodebookReader.ReadColumns(schema.Codebook),
+                FormSchemaCodebookReader.ReadQuestions(schema.Codebook),
+                request,
+                (request.AliasRegistry ?? ColumnAliasTransformerRegistry.Default).GetRequired(request.AliasProfile));
+
+        public string Locale => Request.Locale;
+
+        public ColumnAliasProfile AliasProfile => Request.AliasProfile;
+
+        public string KeySeparator => Request.KeySeparator;
+
+        public bool ProjectCrunchShapes =>
+            AliasProfile is ColumnAliasProfile.Crunch ||
+            string.Equals(KeySeparator, ExportFormatSettings.InterimCrunchKeySeparator, StringComparison.Ordinal);
+
+        public bool ApplyKeySeparator => AliasProfile is ColumnAliasProfile.Native;
+    }
+
+    /// <summary>The columns collected before aliasing, with the inputs the alias profile reads.</summary>
+    private sealed record ColumnDraft(List<ExportColumnDefinition> Columns, List<ExportColumnAliasInput> AliasInputs);
+
+    // The system columns, then the columns that answers fill within the scope, under their export keys.
+    private static List<ExportColumnDefinition> AliasedQuestionColumns(PlanSource source, HashSet<string>? scopedKeys)
+    {
+        ColumnDraft draft = new([], []);
+        AddSystemColumns(draft);
+        foreach (var column in QuestionColumns(source.FlatteningMap, scopedKeys))
         {
-            aliasInputs.Add(new ExportColumnAliasInput(systemKey, null, null, null, "System"));
-            columns.Add(new ExportColumnDefinition(
-                CanonicalKey: systemKey,
-                ExportKey: systemKey,
-                Source: ExportColumnSource.System,
-                HeaderLabel: systemKey));
+            AddQuestionColumns(source, column, draft);
         }
 
-        foreach (var column in QuestionColumns(flatteningMap, scopedKeys))
-        {
-            if (projectCrunchShapes &&
-                TryExpandRangeSliderColumns(
-                    column,
-                    codebookQuestions,
-                    codebookColumns,
-                    locale,
-                    columns,
-                    aliasInputs))
-            {
-                continue;
-            }
+        return WithExportKeys(source, draft);
+    }
 
-            var headerLabel = FormSchemaCodebookReader.ResolveHeaderLabel(codebookColumns, column.Key, locale);
-            aliasInputs.Add(new ExportColumnAliasInput(
-                column.Key,
-                column.SourceQuestion,
-                column.ChoiceValue,
-                column.MatrixRowValue,
-                column.Kind.ToString()));
-
-            columns.Add(new ExportColumnDefinition(
-                CanonicalKey: column.Key,
-                ExportKey: column.Key,
-                Source: ExportColumnSource.DataJson,
-                HeaderLabel: headerLabel,
-                DataType: column.DataType));
-        }
-
-        var exportKeys = aliasTransformer.BuildExportKeys(aliasInputs);
-        var applyKeySeparator = aliasProfile is ColumnAliasProfile.Native;
-        var aliasedColumns = columns
+    private static List<ExportColumnDefinition> WithExportKeys(PlanSource source, ColumnDraft draft)
+    {
+        var exportKeys = source.AliasTransformer.BuildExportKeys(draft.AliasInputs);
+        return draft.Columns
             .Select(column => column with
             {
                 ExportKey = ResolveExportKey(
                     column.CanonicalKey,
                     exportKeys,
-                    applyKeySeparator,
-                    keySeparator),
+                    source.ApplyKeySeparator,
+                    source.KeySeparator),
             })
             .ToList();
-        AddNonQuestionBlocks(schema, flatteningMap, aliasedColumns);
+    }
 
-        EnsureUniqueExportKeys(aliasedColumns);
+    private static void AddSystemColumns(ColumnDraft draft)
+    {
+        foreach (var systemKey in SubmissionExportRow.SystemColumns.OrderedKeys)
+        {
+            draft.AliasInputs.Add(new ExportColumnAliasInput(systemKey, null, null, null, "System"));
+            draft.Columns.Add(new ExportColumnDefinition(
+                CanonicalKey: systemKey,
+                ExportKey: systemKey,
+                Source: ExportColumnSource.System,
+                HeaderLabel: systemKey));
+        }
+    }
 
-        return new ExportColumnPlan(aliasedColumns);
+    private static bool TryAddRangeSliderColumns(PlanSource source, FormSchemaColumn column, ColumnDraft draft) =>
+        source.ProjectCrunchShapes &&
+        TryExpandRangeSliderColumns(
+            column,
+            source.CodebookQuestions,
+            source.CodebookColumns,
+            source.Locale,
+            draft.Columns,
+            draft.AliasInputs);
+
+    // A range slider exports as its min and max bounds; any other column as itself.
+    private static void AddQuestionColumns(PlanSource source, FormSchemaColumn column, ColumnDraft draft)
+    {
+        if (TryAddRangeSliderColumns(source, column, draft))
+        {
+            return;
+        }
+
+        draft.AliasInputs.Add(
+            new(column.Key, column.SourceQuestion, column.ChoiceValue, column.MatrixRowValue, column.Kind.ToString()));
+        draft.Columns.Add(new ExportColumnDefinition(
+            CanonicalKey: column.Key,
+            ExportKey: column.Key,
+            Source: ExportColumnSource.DataJson,
+            HeaderLabel: FormSchemaCodebookReader.ResolveHeaderLabel(source.CodebookColumns, column.Key, source.Locale),
+            DataType: column.DataType));
     }
 
     // The columns that answers fill, within the requested scope. Audience and submitter columns join after aliasing.
@@ -107,49 +154,65 @@ internal static class ExportColumnPlanBuilder
             column.Kind is not (FormSchemaColumnKind.Personalization or FormSchemaColumnKind.SubmitterProfile) &&
             (scopedKeys is null || scopedKeys.Contains(column.Key)));
 
+    // The keys an audience or submitter column cannot have: those of the plan's columns, as in the schema, so a question
+    // keeps its key instead of failing the export (#1243). An export read with the Shoji codebook adds the keys of every
+    // question of the form, in the scope or not: the codebook is not scoped and gives such a key to the question, so a
+    // column under it would carry audience values as the question's (#1281). Under the Crunch profile the unscoped keys
+    // are Q-numbers, which no audience or submitter key matches.
+    private static HashSet<string> KeysTakenByQuestions(
+        PlanSource source,
+        List<ExportColumnDefinition> scopedColumns,
+        HashSet<string>? scopedKeys)
+    {
+        HashSet<string> taken = new(scopedColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
+        if (scopedKeys is not null && source.Request.ReadWithShojiCodebook)
+        {
+            taken.UnionWith(AliasedQuestionColumns(source, scopedKeys: null).Select(column => column.ExportKey));
+        }
+
+        return taken;
+    }
+
     // Audience values close the row as one block, in the codebook's block order and under its titles, and their keys
     // are the headers as stored: no alias profile or key separator touches them, so a Crunch alias for an audience
     // variable never changes between exports. They are not questions, so a question column scope does not drop them.
-    // A question whose export key matches one keeps it, as in the schema, instead of failing the export (#1243).
-    private static List<ExportColumnDefinition> PersonalizationBlock(
-        FormSchemaEntity schema,
-        MergedFormSchema flatteningMap,
-        List<ExportColumnDefinition> questionColumns)
+    private static List<FormSchemaColumn> PersonalizationBlock(FormSchemaEntity schema, MergedFormSchema flatteningMap)
     {
-        HashSet<string> taken = new(questionColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
         if (string.IsNullOrWhiteSpace(schema.Codebook))
         {
             return [];
         }
 
         using var codebook = JsonDocument.Parse(schema.Codebook);
-        return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement)
-            .Where(column => !taken.Contains(column.Key))
-            .Select(ToColumn)
-            .ToList();
+        return PersonalizationCodebook.InBlockOrder(flatteningMap, codebook.RootElement).ToList();
     }
 
-    // Audience values, then submitter profile fields: each block sees the export keys taken before it.
-    private static void AddNonQuestionBlocks(
-        FormSchemaEntity schema,
-        MergedFormSchema flatteningMap,
-        List<ExportColumnDefinition> columns)
+    /// <summary>Adds audience values, then submitter profile fields: each block sees the export keys taken before it.</summary>
+    /// <returns>The keys of the columns left out because a question took them.</returns>
+    private static OmittedColumnKeys AddNonQuestionBlocks(
+        PlanSource source,
+        List<ExportColumnDefinition> columns,
+        HashSet<string> taken)
     {
-        columns.AddRange(PersonalizationBlock(schema, flatteningMap, columns));
-        columns.AddRange(SubmitterProfileBlock(flatteningMap, columns));
+        var audience = AddBlock(columns, taken, PersonalizationBlock(source.Schema, source.FlatteningMap));
+        // Submitter profile fields follow as one more block, with the same key rules as audience values. They come
+        // last so that listing a field leaves every column an export had before where it was.
+        var submitterProfile = AddBlock(columns, taken, SubmitterProfileColumns.InBlockOrder(source.FlatteningMap.Columns));
+        return new OmittedColumnKeys(audience, submitterProfile);
     }
 
-    // Submitter profile fields follow as one more block, with the same key rules as audience values. They come last so
-    // that listing a field leaves every column an export had before where it was.
-    private static List<ExportColumnDefinition> SubmitterProfileBlock(
-        MergedFormSchema flatteningMap,
-        List<ExportColumnDefinition> precedingColumns)
+    /// <returns>The keys of the block's columns left out because their key was taken.</returns>
+    private static List<string> AddBlock(
+        List<ExportColumnDefinition> columns,
+        HashSet<string> taken,
+        IEnumerable<FormSchemaColumn> block)
     {
-        HashSet<string> taken = new(precedingColumns.Select(column => column.ExportKey), StringComparer.Ordinal);
-        return SubmitterProfileColumns.InBlockOrder(flatteningMap.Columns)
-            .Where(column => !taken.Contains(column.Key))
-            .Select(ToColumn)
-            .ToList();
+        var blockColumns = block.ToList();
+        var omitted = blockColumns.Where(column => taken.Contains(column.Key)).Select(column => column.Key).ToList();
+        var added = blockColumns.Where(column => !taken.Contains(column.Key)).Select(ToColumn).ToList();
+        columns.AddRange(added);
+        taken.UnionWith(added.Select(column => column.ExportKey));
+        return omitted;
     }
 
     private static ExportColumnDefinition ToColumn(FormSchemaColumn column) => new(
@@ -158,13 +221,6 @@ internal static class ExportColumnPlanBuilder
         Source: ExportColumnSource.DataJson,
         HeaderLabel: column.Label,
         DataType: column.DataType);
-
-    private static bool ShouldProjectCrunchShapes(ColumnAliasProfile aliasProfile, string keySeparator) =>
-        aliasProfile is ColumnAliasProfile.Crunch ||
-        string.Equals(
-            keySeparator,
-            ExportFormatSettings.InterimCrunchKeySeparator,
-            StringComparison.Ordinal);
 
     private static bool TryExpandRangeSliderColumns(
         FormSchemaColumn column,
