@@ -22,7 +22,7 @@ public sealed class FlattenedSubmissionRepositoryTests
     private const long SubmissionId = 500;
     private const string ProcessedDataJson = """{"firstName": "Ada"}""";
     private const string ProcessedSearchJson = """{"firstName": "ada"}""";
-    private static readonly FlattenedRowData ProcessedData = new(ProcessedDataJson, ProcessedSearchJson);
+    private static readonly FlattenedRowData ProcessedData = new(ProcessedDataJson, ProcessedSearchJson, searchKeysRevision: 0);
     private static readonly DateTimeOffset CreatedAt = new(2026, 9, 2, 8, 0, 0, TimeSpan.Zero);
 
     private static readonly Dictionary<string, Func<FlattenedSubmissionRepository, CancellationToken, Task<bool>>> AttemptWrites = new()

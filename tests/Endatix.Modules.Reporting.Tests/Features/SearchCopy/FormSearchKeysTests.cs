@@ -1,3 +1,4 @@
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 
@@ -19,9 +20,9 @@ public sealed class FormSearchKeysTests
         var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => key.Key).Should().Equal(Names(30));
-        refresh.Keys.Keys.Should().OnlyContain(key => key.Source == SearchKeySources.Auto && key.AddedAt == Now);
-        refresh.RowsNeedRebuild.Should().BeFalse("the rows hold none of these columns yet");
+        refresh.Keys.Select(key => key.Key).Should().Equal(Names(30));
+        refresh.Keys.Should().OnlyContain(key => key.Source == SearchKeySources.Auto && key.AddedAt == Now);
+        refresh.Revision.Should().Be(0, "the rows hold none of these columns yet");
     }
 
     [Fact]
@@ -34,7 +35,7 @@ public sealed class FormSearchKeysTests
         var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => key.Key).Should().Equal(Names(FormSearchKeys.MaxAutomatic));
+        refresh.Keys.Select(key => key.Key).Should().Equal(Names(FormSearchKeys.MaxAutomatic));
     }
 
     [Fact]
@@ -48,7 +49,7 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(searchable), Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => (key.Key, key.AddedAt)).Should().Equal(
+        refresh.Keys.Select(key => (key.Key, key.AddedAt)).Should().Equal(
             ("q001", Earlier), ("q002", Earlier), ("q003", Now));
     }
 
@@ -63,8 +64,8 @@ public sealed class FormSearchKeysTests
         var refresh = full.Refresh(Compile(oneMore), Now);
 
         // Assert
-        refresh.Keys.Keys.Should().HaveCount(FormSearchKeys.MaxAutomatic);
-        refresh.Keys.Keys.Should().NotContain(key => key.Key == "q051");
+        refresh.Keys.Should().HaveCount(FormSearchKeys.MaxAutomatic);
+        refresh.Keys.Should().NotContain(key => key.Key == "q051");
     }
 
     [Fact]
@@ -80,8 +81,8 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(Searchable(100)), Now);
 
         // Assert
-        refresh.Keys.Keys.Should().HaveCount(FormSearchKeys.MaxKeys);
-        refresh.Keys.Keys.Count(key => key.Source == SearchKeySources.Auto).Should().Be(49);
+        refresh.Keys.Should().HaveCount(FormSearchKeys.MaxKeys);
+        refresh.Keys.Count(key => key.Source == SearchKeySources.Auto).Should().Be(49);
     }
 
     [Fact]
@@ -95,25 +96,11 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(remaining), Now);
 
         // Assert
-        refresh.Keys.Keys.Select(key => key.Key).Should().Equal("q001", "q003");
+        refresh.Keys.Select(key => key.Key).Should().Equal("q001", "q003");
     }
 
     [Fact]
-    public void Refresh_KeyAddedForAColumnTheRowsAlreadyHold_AsksForARebuild()
-    {
-        // Arrange
-        var searchable = Searchable(2);
-        var compile = Compile(searchable) with { PreviousColumnKeys = Names(2).ToHashSet() };
-
-        // Act
-        var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
-
-        // Assert
-        refresh.RowsNeedRebuild.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Refresh_FilterTypeChanged_TakesTheNewOneAndAsksForARebuild()
+    public void Refresh_FilterTypeChanged_TakesTheNewOneAtTheNextRevision()
     {
         // Arrange
         var existing = Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier);
@@ -123,8 +110,8 @@ public sealed class FormSearchKeysTests
         var refresh = existing.Refresh(Compile(retyped), Now);
 
         // Assert
-        refresh.Keys.Keys.Should().ContainSingle().Which.FilterType.Should().Be(SubmissionGridFilterTypes.Date);
-        refresh.RowsNeedRebuild.Should().BeTrue();
+        refresh.Keys.Should().ContainSingle().Which.FilterType.Should().Be(SubmissionGridFilterTypes.Date);
+        refresh.Revision.Should().Be(1);
     }
 
     [Fact]
@@ -142,11 +129,208 @@ public sealed class FormSearchKeysTests
         read.Keys.Should().Equal(keys.Keys);
     }
 
+    [Fact]
+    public void Refresh_KeyForAColumnTheRowsHold_StampsItWithTheNextRevision()
+    {
+        // Arrange
+        var searchable = Searchable(2);
+        SearchKeysCompile compile = new(searchable, Keys(searchable));
+
+        // Act
+        var refresh = FormSearchKeys.Empty.Refresh(compile, Now);
+
+        // Assert
+        refresh.Revision.Should().Be(1);
+        refresh.Keys.Should().OnlyContain(key => key.Revision == 1);
+    }
+
+    [Fact]
+    public void Refresh_KeysForNewColumnsOnly_KeepsTheRevision()
+    {
+        // Arrange
+        var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(2)), Earlier), "u001");
+        existing.Revision.Should().Be(1);
+        var searchable = Searchable(3).Append(Column("u001")).ToList();
+        SearchKeysCompile compile = new(searchable, Keys(Searchable(2)));
+
+        // Act
+        var refresh = existing.Refresh(compile, Now);
+
+        // Assert
+        refresh.Revision.Should().Be(existing.Revision);
+        refresh.Find("q003")!.Revision.Should().Be(existing.Revision);
+    }
+
+    [Fact]
+    public void AddUser_ThirtyAutomaticKeys_AcceptsFourteenUserKeys()
+    {
+        // Arrange
+        var automatic = Refreshed(FormSearchKeys.Empty, Compile(Searchable(30)), Earlier);
+
+        // Act
+        var withUserKeys = WithUserKeys(automatic, UserNames(FormSearchKeys.MaxUserKeys));
+
+        // Assert
+        withUserKeys.Keys.Should().HaveCount(44);
+        withUserKeys.UserKeyCount.Should().Be(14);
+    }
+
+    [Fact]
+    public void AddUser_FifteenthUserKey_IsInvalidAndNamesTheCap()
+    {
+        // Arrange
+        var full = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(30)), Earlier), UserNames(14));
+
+        // Act
+        var result = full.AddUser(Column("u015"), Now);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle().Which.ErrorMessage.Should().Contain("14").And.Contain("64");
+    }
+
+    [Fact]
+    public void AddUser_FreeSlot_AppendsAUserKeyAtTheNextRevision()
+    {
+        // Arrange
+        var automatic = Refreshed(FormSearchKeys.Empty, Compile(Searchable(2)), Earlier);
+
+        // Act
+        var added = automatic.AddUser(new SearchableColumn("visit", SubmissionGridFilterTypes.Date), Now).Value;
+
+        // Assert
+        added.Revision.Should().Be(automatic.Revision + 1);
+        added.Keys[^1].Should().Be(new SearchKey("visit", SearchKeySources.User, SubmissionGridFilterTypes.Date, Now, added.Revision));
+    }
+
+    [Fact]
+    public void AddUser_KeyAlreadySearchable_ReturnsTheSameKeys()
+    {
+        // Arrange
+        var automatic = Refreshed(FormSearchKeys.Empty, Compile(Searchable(2)), Earlier);
+
+        // Act
+        var result = automatic.AddUser(Column("q001"), Now);
+
+        // Assert
+        result.Value.Should().BeSameAs(automatic);
+    }
+
+    [Fact]
+    public void RemoveUser_UserKey_DropsItAndKeepsTheRevision()
+    {
+        // Arrange
+        var keys = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier), "u001", "u002");
+
+        // Act
+        var removed = keys.RemoveUser("u001").Value;
+
+        // Assert
+        removed.Keys.Select(key => key.Key).Should().Equal("q001", "u002");
+        removed.Revision.Should().Be(keys.Revision);
+    }
+
+    [Fact]
+    public void RemoveUser_AutomaticKey_IsInvalid()
+    {
+        // Arrange
+        var keys = Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier);
+
+        // Act
+        var result = keys.RemoveUser("q001");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+    }
+
+    [Fact]
+    public void RemoveUser_KeyNotSearchable_IsNotFound()
+    {
+        // Act
+        var result = FormSearchKeys.Empty.RemoveUser("q001");
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public void RevisionNeededFor_SeveralKeys_IsTheNewestOfTheirRevisions()
+    {
+        // Arrange
+        var keys = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier), "u001", "u002");
+
+        // Act
+        var needed = keys.RevisionNeededFor(["q001", "u001", "not-a-key"]);
+
+        // Assert
+        needed.Should().Be(keys.Find("u001")!.Revision);
+    }
+
+    [Fact]
+    public void RevisionNeededFor_NoSearchKey_IsZero()
+    {
+        // Act
+        var needed = FormSearchKeys.Empty.RevisionNeededFor(["q001"]);
+
+        // Assert
+        needed.Should().Be(0);
+    }
+
+    [Fact]
+    public void Refresh_UserKeyOnReadOnlyQuestionWhoseFilterChanged_TakesTheNewOneAtTheNextRevision()
+    {
+        // Arrange
+        var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier), "r001");
+        List<SearchableColumn> searchable = [Column("q001"), new("r001", SubmissionGridFilterTypes.Date, Automatic: false)];
+
+        // Act
+        var refresh = existing.Refresh(Compile(searchable), Now);
+
+        // Assert
+        refresh.Find("r001").Should().Be(new SearchKey("r001", SearchKeySources.User, SubmissionGridFilterTypes.Date, Now, refresh.Revision));
+        refresh.Revision.Should().Be(existing.Revision + 1);
+    }
+
+    [Fact]
+    public void Refresh_KeyNoFilterSupportsAnyMore_IsDropped()
+    {
+        // Arrange
+        var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(1)), Earlier), "r001");
+
+        // Act
+        var refresh = existing.Refresh(Compile(Searchable(1)), Now);
+
+        // Assert
+        refresh.Keys.Select(key => key.Key).Should().Equal("q001");
+    }
+
+    [Fact]
+    public void Refresh_ReadOnlyColumn_IsNotChosenAutomatically()
+    {
+        // Arrange
+        List<SearchableColumn> searchable = [Column("q001"), new("r001", SubmissionGridFilterTypes.Text, Automatic: false)];
+
+        // Act
+        var refresh = FormSearchKeys.Empty.Refresh(Compile(searchable), Now);
+
+        // Assert
+        refresh.Keys.Select(key => key.Key).Should().Equal("q001");
+    }
+
+    private static FormSearchKeys WithUserKeys(FormSearchKeys keys, params string[] names) =>
+        names.Aggregate(keys, (current, name) => current.AddUser(Column(name), Now).Value);
+
+    private static string[] UserNames(int count) =>
+        Enumerable.Range(1, count).Select(index => $"u{index:D3}").ToArray();
+
+    private static HashSet<string> Keys(IEnumerable<SearchableColumn> columns) =>
+        columns.Select(column => column.Key).ToHashSet();
+
     private static FormSearchKeys Refreshed(FormSearchKeys keys, SearchKeysCompile compile, DateTime at) =>
-        keys.Refresh(compile, at).Keys;
+        keys.Refresh(compile, at);
 
     private static SearchKeysCompile Compile(IReadOnlyList<SearchableColumn> searchable) =>
-        new(searchable, searchable.Select(column => column.Key).ToHashSet(), new HashSet<string>());
+        new(searchable, new HashSet<string>());
 
     private static List<SearchableColumn> Searchable(int count) => Names(count).Select(Column).ToList();
 

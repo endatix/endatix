@@ -136,27 +136,43 @@ To roll out a field:
 Answer filters read a small copy of each processed row, not its whole `DataJson`: scanning `DataJson` on a 1,000-question
 form costs seconds at 50k rows (PostgreSQL detoasts every document; SQL Server's `JSON_VALUE` cost grows with the key's
 position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON array of
-`{ key, source: "auto" | "user", filterType, addedAt }`.
+`{ key, source: "auto" | "user", filterType, addedAt, revision }`.
 
 - **At most 64 keys** (`FormSearchKeys.MaxKeys`). Above that the copy passes PostgreSQL's 2 KB TOAST threshold on fully
   answered forms and costs about 3× more.
 - **Automatic keys, up to 50.** Each compile appends the schema's searchable columns, in schema order, while fewer than
   50 keys are `auto`: a question's own value column with a submissions-grid filter type (`SubmissionGridFilterTypes`),
   whose question is not `readOnly` in the definition (a read-only page or panel makes its questions read-only). The other
-  14 slots are for keys people add (`source: "user"`; the endpoint is not built yet).
-- **Append-only.** A key stays while its column is in the schema, so rows written from it stay valid; a replace compile
-  that drops a column drops its key. A key whose question changed filter type takes the new one.
+  14 slots (`FormSearchKeys.MaxUserKeys`) are for keys people add (`source: "user"`, see below).
+- **Append-only for the compile.** A key stays while an answer filter can read its column, so rows written from it stay
+  valid; a replace compile that drops the column, or a question no filter supports any more, drops the key. A key whose
+  question changed filter type takes the new one, whoever added it (a person's key on a read-only question too). Only a
+  person removes a key otherwise, and only one they added.
 - **Written with the answers.** A flatten writes `SearchJson` in the same conditional update as `DataJson`: the search
   keys answered with a scalar, each as text — lowercased for `text`, `yyyy-MM-dd` for `date`, `yyyy-MM-ddTHH:mm:ss` for
   `datetime` (read by ISO shape; a time zone is ignored; another shape is kept as entered and never matches a range).
   Numbers and booleans become their JSON text; arrays and objects are left out. A skipped row has no copy.
 - **Rebuilt in SQL.** `SearchCopyRebuilder` rewrites a form's copies from `DataJson` in batches of 1,000 rows by
-  submission id, one statement per batch, without flattening again. A compile runs it after its commit when it added a
-  key for a column the rows already hold (the first compile after this migration, for instance), or changed a key's
-  filter type. The SQL normalises dates as the flatten does, and `SearchCopyRebuildIntegrationTests` checks both write
-  the same copies. Lowercasing differs in one place: the flatten uses .NET's invariant rules, the SQL the database's
-  `lower()` / `LOWER`, which follow its collation. Under a `C` or POSIX PostgreSQL collation the SQL lowercases ASCII
-  only, so non-ASCII text a rebuild wrote can miss a contains filter until the row is flattened again.
+  submission id, one statement per batch, without flattening again. Every compile runs it after its commit, whether it
+  saved the schema or left it as it was: it rewrites only rows behind the schema's revision (below), so it catches up
+  rows the compile's new keys left behind, and rows a rebuild before it did not finish, and costs one empty batch when
+  none are. Adding a person's key asks for it in the background (below). The SQL normalises dates as the flatten
+  does, and `SearchCopyRebuildIntegrationTests` checks both write the same copies. Lowercasing differs in one place:
+  the flatten uses .NET's invariant rules, the SQL the database's `lower()` / `LOWER`, which follow its collation.
+  Under a `C` or POSIX PostgreSQL collation the SQL lowercases ASCII only, so non-ASCII text a rebuild wrote can miss
+  a contains filter until the row is flattened again.
+- **Search keys revision: rows that have not caught up count as not checked.** `FormSchemas.SearchKeysRevision` moves
+  forward whenever existing rows need a value they were not written with (a key added for a column they hold, a
+  person's key, a changed filter type), and that key's `revision` takes the new value. A flatten stamps its row with the
+  revision of the keys it read, and the rebuild stamps each row it rewrites
+  (`FlattenedSubmissions.SearchKeysRevision`). The rebuild rewrites only rows stamped older than the schema, and rows with
+  no copy whatever their stamp, so running it again finishes a run that was cut off, and a rebuild that read older keys never overwrites a newer row. A flatten
+  that read the keys before a change and writes after that change's rebuild passed its row reads the schema's revision
+  after its write, and runs the rebuild when it wrote an older one. A key is pending while some live processed row is
+  stamped below its revision or has no copy. A filter
+  on keys `K` checks a row only when its stamp is at least `FormSearchKeys.RevisionNeededFor(K)`
+  (`SearchCopyRows.HoldingSearchKeys`); any other row counts as not checked, not as not matching. Removing a key needs
+  no new revision: filters stop reading it at once, and its stale values are never read.
 - **Filters.** `IRelationalJsonObjectKeyFilter.WhereKeyMatches` (contains, lowercased pattern as a parameter) and
   `WhereKeyAtLeast` / `WhereKeyBefore` (ranges compared by code point, on values that start with `yyyy-MM-dd`, so a
   value kept as entered never falls in a range). SQL Server reads keys with
@@ -195,8 +211,9 @@ writes still succeed, and no contract migration follows. The expand release is t
 that ships it. During its rollout an old pod still flattens without knowing the copy: a row it writes after a new pod
 compiled the form keeps `SearchJson` as it was (`NULL` for a new row, the previous copy for one it rewrites) until the row
 is flattened again, and the compile that rebuilt the form's copies does not see it. #1265 (endatix#1273) closes that
-window: each row stamps the search keys revision it was written with, so a row an old pod wrote counts as not yet
-checked and the rebuild catches it up.
+window for rows an old pod creates: each row stamps the search keys revision it was written with, and an old pod
+leaves a new row at 0, so it counts as not yet checked and the next rebuild catches it up. A row an old pod rewrites
+keeps the stamp and copy it had, so it stays as it was until it is flattened again.
 
 **Performance.** `tests/Endatix.IntegrationTests/Performance` measures the filters at scale (opt-in, see
 `tests/README.md`). p95 of the whole request (ids and sort key of every match, count, page of 50), 50,000 rows, flattened
@@ -227,6 +244,36 @@ is inside that spread. The harness calls the search in process against one Testc
 read (one indexed `Forms` row per answer-filter request) was added after these runs, so it is not in the numbers;
 endatix#1451 re-measures. Measure again before raising the key cap or adding work to the grid query.
 
+#### Keys people choose
+
+`POST /api/forms/{formId}/reporting/search-keys` with `{ "key": "<column key>" }` adds a key in the slots kept for
+people; `DELETE /api/forms/{formId}/reporting/search-keys?key=<column key>` removes one (the key is a query parameter,
+because column keys may hold characters a path segment cannot). Both need `Forms.Edit`; a form of another tenant is 404.
+Both answer `200` with `{ formId, keys: [{ key, source, filterType, pending }], slots: { used, max, userUsed, userMax } }`.
+
+- **Add.** Any column of the compiled schema with a submissions-grid filter type, read-only questions included (people
+  may want what the form fills in; the compile leaves them out only because respondents do not). A column with no
+  filter, or not in the schema, is 400. Over 14 people's keys, or 64 in all, is 400 and names both caps. A key the form
+  already has changes nothing to the keys.
+- **Rebuild in the background.** After the keys commit, the request writes an outbox message
+  (`reporting.search_copy.rebuild_requested`, `SearchCopyRebuildRequests`) and answers at once, with the key
+  `pending` while the form has prepared rows. The relay runs `RebuildSearchCopyOutboxHandler` inline, or as the
+  `ReportingRebuildSearchCopy` job when `Endatix:Outbox:DeliverToJobQueue` is on; a rebuild that throws retries as any
+  outbox message does. The outbox, not the job queue directly, because the Jobs module is off by default and
+  PostgreSQL only, while the outbox runs on both databases. The message is written in the App database after the
+  Reporting commit, so the two are not atomic, and the write is best-effort: it ignores the caller going away, and a
+  failed write is logged, not returned as a 5xx. A message lost that way leaves the rows pending, never wrong. Every
+  add, including a repeat of a key the form has, writes a message, and every compile runs the rebuild, so either
+  finishes a rebuild that was cut off or lost; the rebuild skips rows already stamped. Inline in the relay, a rebuild of
+  a large form (tens of seconds, "Rebuild of 50k copies" above) holds up the messages behind it, as a compile's
+  rebuild does.
+- **Remove.** Only a key with `source: "user"` (an automatic key is 400; a column that is not a key is 404). Filters
+  stop reading it at once.
+- **Concurrency.** Both hold the form's schema lock (`IFormSchemaRepository.LockAndGetByFormIdAsync`), the one a
+  compile holds, so neither saves over the other's keys; a lock held too long is 503.
+- **Columns catalog.** `GET …/reporting/columns` reports per column `searchable`, `searchPending` (some prepared row is
+  stamped older than the key's revision) and `searchSource` (`auto`, `user` or null), and `searchSlots` for the form.
+
 ## Registration
 
 Registered via `EndatixBuilder.UseDefaults()` → `UseModule(ReportingModule.Instance)`. Capabilities: `IEndatixModule`, `IHasFeatureFlag`, `IHasDbMigrations`, `IHasFastEndpoints` (serializers/OpenAPI tags via `ConfigureFastEndpoints`). Do **not** also `Api.ScanAssemblies` this assembly. The module runs on **PostgreSQL** and on **SQL Server 2025 or later (or Azure SQL Database)**; it needs SQL Server's native `json` type. `ConfigureServices` registers `ReportingPostgreSqlDbContext` or `ReportingSqlServerDbContext` by `ConnectionStrings:DefaultConnection_DbProvider`, and consumers resolve it as `IReportingDbContext` or `ReportingDbContextBase`. Disabled by default until:
@@ -252,13 +299,13 @@ Run the commands from the `oss` folder.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`, `AddSubmissionViews`, `AddSearchCopy`)
+- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`, `AddSubmissionViews`, `AddSearchCopy`, `AddSearchKeysRevision`)
 
   Tenant export formats are rows, not code. Runtime catalog: `DefaultExportFormats.All`
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in
   `SeedDefaultExportFormats` — do not generate that migration from the catalog; a new default
   needs a new data migration. **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder`.
-- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`, `AddSubmissionViews`, `AddSearchCopy`)
+- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`, `AddSubmissionViews`, `AddSearchCopy`, `AddSearchKeysRevision`)
 
   One migration creates the schema and, at the end of its `Up()`, seeds the same default formats and CSV default
   mapping for every existing tenant as the PostgreSQL `SeedDefaultExportFormats` migration: frozen T-SQL in `SeedDefaultExportFormatsSqlServerSql`,

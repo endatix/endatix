@@ -16,6 +16,7 @@ internal static class ReportingOutboxJobs
             .AddOutboxWork<FlattenSubmissionOutboxHandler>()
             .AddOutboxWork<SyncSubmissionDeletionOutboxHandler>()
             .AddOutboxWork<SyncFormDeletionOutboxHandler>()
+            .AddOutboxWork<RebuildSearchCopyOutboxHandler>()
             // A new tenant's event is app-level; the seeding belongs to the tenant being created.
             .AddOutboxWork<SeedDefaultExportFormatsOutboxHandler>(
                 appLevelTenant: SeedDefaultExportFormatsOutboxHandler.Parse);

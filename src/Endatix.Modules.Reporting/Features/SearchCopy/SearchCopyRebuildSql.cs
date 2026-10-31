@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 
 namespace Endatix.Modules.Reporting.Features.SearchCopy;
@@ -11,10 +12,15 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// <remarks>
 /// <para>
 /// Parameters: <c>@tenantId</c>, <c>@formId</c>, <c>@afterId</c> (the last submission id of the previous batch),
-/// <c>@batchSize</c>, and on PostgreSQL <c>@keys</c>, a JSON object of search key to filter type (SQL Server writes
-/// the keys into the statement). The statement updates the next
+/// <c>@batchSize</c>, <c>@revision</c> (the form's search keys revision), and on PostgreSQL <c>@keys</c>, a JSON object
+/// of search key to filter type (SQL Server writes the keys into the statement). The statement updates the next
 /// <c>@batchSize</c> processed rows by submission id and returns the last id it updated and how many it did, or a
 /// null id when no row was left.
+/// </para>
+/// <para>
+/// Only rows stamped with an older revision, or with no copy at all, are rewritten, and each is stamped with
+/// <c>@revision</c>. A rebuild that was cut off therefore resumes where it stopped, one that read older keys never
+/// overwrites a newer row, and a row an old pod wrote without a copy gets one whatever its stamp.
 /// </para>
 /// <para>
 /// Date shapes are matched with a binary collation on SQL Server, so <c>[0-9]</c> means ASCII digits whatever the
@@ -31,13 +37,14 @@ internal static class SearchCopyRebuildSql
         WITH batch AS (
             SELECT "SubmissionId" FROM {{table}}
             WHERE "TenantId" = @tenantId AND "FormId" = @formId AND "SubmissionId" > @afterId AND "DataJson" IS NOT NULL
+              AND ("SearchKeysRevision" < @revision OR "SearchJson" IS NULL)
             ORDER BY "SubmissionId"
             LIMIT @batchSize),
         updated AS (
             UPDATE {{table}} AS f
-            SET "SearchJson" = {{PostgreSqlSearchCopy()}}
+            SET "SearchJson" = {{PostgreSqlSearchCopy()}}, "SearchKeysRevision" = @revision
             FROM batch
-            WHERE f."SubmissionId" = batch."SubmissionId"
+            WHERE f."SubmissionId" = batch."SubmissionId" AND (f."SearchKeysRevision" < @revision OR f."SearchJson" IS NULL)
             RETURNING f."SubmissionId")
         SELECT max("SubmissionId"), count(*) FROM updated;
         """;
@@ -59,11 +66,12 @@ internal static class SearchCopyRebuildSql
     public static string SqlServer(string table, FormSearchKeys searchKeys) => $$"""
         DECLARE @updated TABLE (SubmissionId bigint NOT NULL);
         WITH batch AS (
-            SELECT TOP (@batchSize) SubmissionId, DataJson, SearchJson FROM {{table}}
+            SELECT TOP (@batchSize) SubmissionId, DataJson, SearchJson, SearchKeysRevision FROM {{table}}
             WHERE TenantId = @tenantId AND FormId = @formId AND SubmissionId > @afterId AND DataJson IS NOT NULL
+              AND (SearchKeysRevision < @revision OR SearchJson IS NULL)
             ORDER BY SubmissionId)
         UPDATE batch
-        SET SearchJson = CAST({{SqlServerSearchCopy(searchKeys)}} AS json)
+        SET SearchJson = CAST({{SqlServerSearchCopy(searchKeys)}} AS json), SearchKeysRevision = @revision
         OUTPUT inserted.SubmissionId INTO @updated;
         SELECT MAX(SubmissionId), COUNT(*) FROM @updated;
         """;
@@ -89,8 +97,9 @@ internal static class SearchCopyRebuildSql
         _ => $"LOWER({text})",
     };
 
-    private static string SqlServerJsonPath(string key) =>
-        "$.\"" + key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+    // SQL Server matches a path against a key as it is escaped in the document, and the flatten writes the answers
+    // with System.Text.Json's default encoder, so the path escapes the key the same way ("\u0022" for a quote).
+    private static string SqlServerJsonPath(string key) => "$.\"" + JsonEncodedText.Encode(key) + "\"";
 
     private static string SqlServerLiteral(string value) => $"N'{value.Replace("'", "''", StringComparison.Ordinal)}'";
 

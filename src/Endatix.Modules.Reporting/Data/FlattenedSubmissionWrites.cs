@@ -11,7 +11,7 @@ public readonly record struct FlattenedRevision(long TenantId, long SubmissionId
 
 /// <summary>
 /// The data a processed flatten stores: the flattened answers, and their search copy built from the schema's search
-/// keys.
+/// keys at <see cref="SearchKeysRevision"/>.
 /// </summary>
 public sealed record FlattenedRowData
 {
@@ -20,10 +20,12 @@ public sealed record FlattenedRowData
     /// </summary>
     /// <param name="dataJson">The flattened answers as JSON.</param>
     /// <param name="searchJson">The search copy as JSON.</param>
-    public FlattenedRowData(string dataJson, string searchJson)
+    /// <param name="searchKeysRevision">The form's search keys revision the search copy was built at.</param>
+    public FlattenedRowData(string dataJson, string searchJson, int searchKeysRevision)
     {
         DataJson = Guard.Against.NullOrEmpty(dataJson);
         SearchJson = Guard.Against.NullOrEmpty(searchJson);
+        SearchKeysRevision = Guard.Against.Negative(searchKeysRevision);
     }
 
     /// <summary>The flattened answers as JSON.</summary>
@@ -31,4 +33,10 @@ public sealed record FlattenedRowData
 
     /// <summary>The search copy as JSON: the scalar answers to the schema's search keys, as normalised text.</summary>
     public string SearchJson { get; }
+
+    /// <summary>
+    /// The form's search keys revision (<see cref="Features.SearchCopy.FormSearchKeys.Revision"/>) the search copy
+    /// was built at: a key added at a later revision has no value here yet.
+    /// </summary>
+    public int SearchKeysRevision { get; }
 }

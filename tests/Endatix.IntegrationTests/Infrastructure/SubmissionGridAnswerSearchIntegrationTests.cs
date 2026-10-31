@@ -58,6 +58,40 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
+    public async Task ExecuteAsync_RowsNotRebuiltForAKeyAddedSince_CountAsNotChecked()
+    {
+        // Arrange — a person added "notes"; one row was rebuilt with it, the other not yet.
+        var world = await SeedAsync(withSchema: true);
+        await world.AddUserKeyAsync("notes");
+        var rebuilt = await world.PreparedAsync("""{"notes":"urgent call"}""");
+        await world.StampRebuiltAsync(rebuilt);
+        await world.PreparedAsync("""{"notes":"urgent call"}""");
+
+        // Act
+        var page = await world.SearchAsync([Answer("contains", "notes", "urgent")]);
+
+        // Assert
+        page.Items.Select(row => row.Id).Should().Equal(rebuilt);
+        page.AnswerFilterCoverage.Should().Be(new AnswerFilterCoverage(UncheckedCompleted: 1, UncheckedInProgress: 0));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_KeyAddedSince_DoesNotHoldBackFiltersOnOtherKeys()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        await world.AddUserKeyAsync("notes");
+        var dayton = await world.PreparedAsync("""{"city":"dayton"}""");
+
+        // Act
+        var page = await world.SearchAsync([Answer("contains", "city", "dayton")]);
+
+        // Assert
+        page.Items.Select(row => row.Id).Should().Equal(dayton);
+        page.AnswerFilterCoverage.Should().Be(new AnswerFilterCoverage(UncheckedCompleted: 0, UncheckedInProgress: 0));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_FromAndToOneDay_KeepWholeDayForDatesAndDateTimes()
     {
         // Arrange
@@ -254,7 +288,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
         {
             await using var reportingDb = CreateReportingDbContext();
             FormSchema schema = new(TenantId, form.Id, 1, FormSchema.EmptyFlatteningMapJson, FormSchema.EmptyCodebookJson);
-            schema.UpdateSearchKeys(SearchKeysJson);
+            schema.UpdateSearchKeys(SearchKeysJson, revision: 0);
             reportingDb.FormSchemas.Add(schema);
             await reportingDb.SaveChangesAsync(Cancellation);
         }
@@ -324,6 +358,27 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
 
         public Task<long> InProgressAsync() => AddAsync(isComplete: false, profile: null);
 
+        // A person's key at the next search keys revision; rows prepared before keep the older stamp.
+        public async Task AddUserKeyAsync(string key)
+        {
+            await using var reportingDb = tests.CreateReportingDbContext();
+            var schema = await reportingDb.FormSchemas.SingleAsync(schema => schema.FormId == formId, Cancellation);
+            var keys = FormSearchKeys.Of(schema).AddUser(new SearchableColumn(key, SubmissionGridFilterTypes.Text), DateTime.UtcNow).Value;
+            schema.UpdateSearchKeys(keys.ToJson(), keys.Revision);
+            await reportingDb.SaveChangesAsync(Cancellation);
+        }
+
+        // As the rebuild leaves a row: stamped with the schema's current search keys revision.
+        public async Task StampRebuiltAsync(long submissionId)
+        {
+            await using var reportingDb = tests.CreateReportingDbContext();
+            var revision = await reportingDb.FormSchemas.Where(schema => schema.FormId == formId)
+                .Select(schema => schema.SearchKeysRevision).SingleAsync(Cancellation);
+            await reportingDb.FlattenedSubmissions
+                .Where(row => row.SubmissionId == submissionId)
+                .ExecuteUpdateAsync(updates => updates.SetProperty(row => row.SearchKeysRevision, revision), Cancellation);
+        }
+
         private async Task<long> AddAsync(bool isComplete, string? profile)
         {
             await using var appDb = tests.CreateAppDbContext();
@@ -344,7 +399,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
             await using var reportingDb = tests.CreateReportingDbContext();
             await new FlattenedRowSeed(reportingDb).ProcessedAsync(
                 new FlattenedSubmissionKey(TenantId, formId, submissionId),
-                new FlattenedRowData(dataJson, searchJson),
+                new FlattenedRowData(dataJson, searchJson, searchKeysRevision: 0),
                 Cancellation);
 
             await using var appDb = tests.CreateAppDbContext();
