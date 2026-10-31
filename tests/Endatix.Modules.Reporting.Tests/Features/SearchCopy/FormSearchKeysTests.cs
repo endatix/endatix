@@ -148,8 +148,9 @@ public sealed class FormSearchKeysTests
     public void Refresh_KeysForNewColumnsOnly_KeepsTheRevision()
     {
         // Arrange
-        var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(2)), Earlier), "q002");
-        var searchable = Searchable(3);
+        var existing = WithUserKeys(Refreshed(FormSearchKeys.Empty, Compile(Searchable(2)), Earlier), "u001");
+        existing.Revision.Should().Be(1);
+        var searchable = Searchable(3).Append(Column("u001")).ToList();
         SearchKeysCompile compile = new(searchable, Keys(Searchable(2)));
 
         // Act
