@@ -18,8 +18,9 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// null id when no row was left.
 /// </para>
 /// <para>
-/// Only rows stamped with an older revision are rewritten, and each is stamped with <c>@revision</c>. A rebuild that
-/// was cut off therefore resumes where it stopped, and one that read older keys never overwrites a newer row.
+/// Only rows stamped with an older revision, or with no copy at all, are rewritten, and each is stamped with
+/// <c>@revision</c>. A rebuild that was cut off therefore resumes where it stopped, one that read older keys never
+/// overwrites a newer row, and a row an old pod wrote without a copy gets one whatever its stamp.
 /// </para>
 /// <para>
 /// Date shapes are matched with a binary collation on SQL Server, so <c>[0-9]</c> means ASCII digits whatever the
@@ -36,14 +37,14 @@ internal static class SearchCopyRebuildSql
         WITH batch AS (
             SELECT "SubmissionId" FROM {{table}}
             WHERE "TenantId" = @tenantId AND "FormId" = @formId AND "SubmissionId" > @afterId AND "DataJson" IS NOT NULL
-              AND "SearchKeysRevision" < @revision
+              AND ("SearchKeysRevision" < @revision OR "SearchJson" IS NULL)
             ORDER BY "SubmissionId"
             LIMIT @batchSize),
         updated AS (
             UPDATE {{table}} AS f
             SET "SearchJson" = {{PostgreSqlSearchCopy()}}, "SearchKeysRevision" = @revision
             FROM batch
-            WHERE f."SubmissionId" = batch."SubmissionId" AND f."SearchKeysRevision" < @revision
+            WHERE f."SubmissionId" = batch."SubmissionId" AND (f."SearchKeysRevision" < @revision OR f."SearchJson" IS NULL)
             RETURNING f."SubmissionId")
         SELECT max("SubmissionId"), count(*) FROM updated;
         """;
@@ -67,7 +68,7 @@ internal static class SearchCopyRebuildSql
         WITH batch AS (
             SELECT TOP (@batchSize) SubmissionId, DataJson, SearchJson, SearchKeysRevision FROM {{table}}
             WHERE TenantId = @tenantId AND FormId = @formId AND SubmissionId > @afterId AND DataJson IS NOT NULL
-              AND SearchKeysRevision < @revision
+              AND (SearchKeysRevision < @revision OR SearchJson IS NULL)
             ORDER BY SubmissionId)
         UPDATE batch
         SET SearchJson = CAST({{SqlServerSearchCopy(searchKeys)}} AS json), SearchKeysRevision = @revision

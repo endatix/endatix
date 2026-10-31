@@ -165,11 +165,11 @@ position). `FormSchemas.SearchKeys` decides which keys the copy holds, as a JSON
   forward whenever existing rows need a value they were not written with (a key added for a column they hold, a
   person's key, a changed filter type), and that key's `revision` takes the new value. A flatten stamps its row with the
   revision of the keys it read, and the rebuild stamps each row it rewrites
-  (`FlattenedSubmissions.SearchKeysRevision`). The rebuild rewrites only rows stamped older than the schema, so running
-  it again finishes a run that was cut off, and a rebuild that read older keys never overwrites a newer row. A flatten
+  (`FlattenedSubmissions.SearchKeysRevision`). The rebuild rewrites only rows stamped older than the schema, and rows with
+  no copy whatever their stamp, so running it again finishes a run that was cut off, and a rebuild that read older keys never overwrites a newer row. A flatten
   that read the keys before a change and writes after that change's rebuild passed its row reads the schema's revision
   after its write, and runs the rebuild when it wrote an older one. A key is pending while some live processed row is
-  stamped below its revision, a row without a copy yet included. A filter
+  stamped below its revision or has no copy. A filter
   on keys `K` checks a row only when its stamp is at least `FormSearchKeys.RevisionNeededFor(K)`
   (`SearchCopyRows.HoldingSearchKeys`); any other row counts as not checked, not as not matching. Removing a key needs
   no new revision: filters stop reading it at once, and its stale values are never read.

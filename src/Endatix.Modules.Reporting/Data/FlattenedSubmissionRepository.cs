@@ -58,7 +58,10 @@ internal sealed class FlattenedSubmissionRepository(
             .AsNoTracking()
             .Where(row => row.TenantId == tenantId && row.FormId == formId && !row.IsDeleted &&
                           row.Integration.Code == SubmissionIntegrationStatusCodes.Processed && row.DataJson != null)
-            .MinAsync(row => (int?)row.SearchKeysRevision, cancellationToken);
+            .MinAsync(row => row.SearchJson == null ? (int?)NoSearchCopyRevision : row.SearchKeysRevision, cancellationToken);
+
+    // Below every key's revision: a row without a copy holds none of the keys, whatever it is stamped with.
+    private const int NoSearchCopyRevision = -1;
 
     /// <inheritdoc />
     public Task<int> DeleteBySubmissionIdAsync(

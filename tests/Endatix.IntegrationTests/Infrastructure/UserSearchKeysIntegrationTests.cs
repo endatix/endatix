@@ -111,6 +111,24 @@ public sealed class UserSearchKeysIntegrationTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
+    public async Task A_prepared_row_without_a_search_copy_at_the_current_revision_keeps_the_keys_pending()
+    {
+        // Arrange — as an old pod leaves a row during a rolling deploy: stamped with the schema's revision, no copy.
+        var form = await _world.SeedFlattenedFormAsync(Mixed, new { company = "Acme" });
+        await using (var db = _world.CreateReportingDbContext())
+        {
+            await db.FlattenedSubmissions.Where(row => row.FormId == form.FormId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, (string?)null), Cancellation);
+        }
+
+        // Act
+        var column = (await ColumnsAsync(form)).Columns.Single(column => column.Key == "company");
+
+        // Assert
+        column.SearchPending.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Adding_the_key_again_finishes_a_rebuild_that_was_cut_off()
     {
         // Arrange

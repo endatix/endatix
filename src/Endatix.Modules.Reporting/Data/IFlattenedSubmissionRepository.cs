@@ -45,8 +45,8 @@ public interface IFlattenedSubmissionRepository
 
     /// <summary>
     /// The oldest <see cref="FlattenedSubmission.SearchKeysRevision"/> among a form's live processed rows: a search key
-    /// added after it is still missing from some rows. A processed row without a search copy counts, as the rebuild
-    /// rewrites it and the answer filters cannot check it until then.
+    /// added after it is still missing from some rows. A processed row without a search copy counts as older than every
+    /// key (-1), as the answer filters cannot check it on any key until the rebuild writes its copy.
     /// </summary>
     /// <returns>The revision, or <c>null</c> when the form has no such row.</returns>
     Task<int?> OldestSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken);

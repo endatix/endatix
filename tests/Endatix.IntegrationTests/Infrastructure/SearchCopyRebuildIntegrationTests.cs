@@ -117,6 +117,27 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
     }
 
     [Fact]
+    public async Task A_rebuild_gives_a_copy_to_a_row_without_one_at_the_current_revision()
+    {
+        // Arrange — as an old pod leaves a row during a rolling deploy: stamped with the schema's revision, no copy.
+        var form = await FlattenAllAsync();
+        var flattened = await ReadRowsAsync(form.FormId);
+        await using (var db = _world.CreateReportingDbContext())
+        {
+            await db.FlattenedSubmissions.Where(row => row.FormId == form.FormId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, (string?)null), Cancellation);
+        }
+
+        // Act
+        var rebuilt = await RebuildAsync(form.FormId);
+
+        // Assert
+        rebuilt.Should().Be(Answers.Length);
+        (await ReadRowsAsync(form.FormId)).Select(row => Normalized(row.SearchJson))
+            .Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
+    }
+
+    [Fact]
     public async Task A_key_that_holds_a_quote_and_a_backslash_is_found_in_the_flattened_copy()
     {
         // Arrange
