@@ -1,14 +1,19 @@
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Reports a disposal failure that must not be thrown, because another failure is already on its way to the test, as a
-/// warning on the running test. xUnit prints the warning next to the test's outcome. Outside a test, xUnit only sends it
-/// as a diagnostic message, which is off by default, so a failure reported there is not shown.
+/// Disposes what a test host built without letting a disposal's failure replace a failure that is already on its way
+/// to the test. Such a disposal failure is reported as a warning on the running test, which xUnit prints next to the
+/// test's outcome. Outside a test, xUnit only sends it as a diagnostic message, which is off by default, so a failure
+/// reported there is not shown.
 /// </summary>
 internal static class DisposalFailures
 {
-    /// <summary>Runs <paramref name="dispose"/>, reporting its failure instead of throwing it.</summary>
-    public static async Task DisposeReportingFailureAsync(Func<ValueTask> dispose)
+    private const string DatabaseDrop = "dropping the database of a host whose disposal failed";
+
+    /// <summary>
+    /// Runs <paramref name="dispose"/>, reporting its failure as <paramref name="what"/> failing instead of throwing it.
+    /// </summary>
+    public static async ValueTask DisposeReportingFailureAsync(string what, Func<ValueTask> dispose)
     {
         try
         {
@@ -16,7 +21,7 @@ internal static class DisposalFailures
         }
         catch (Exception disposalFailure)
         {
-            Report(disposalFailure);
+            Report(what, disposalFailure);
         }
     }
 
@@ -35,19 +40,19 @@ internal static class DisposalFailures
         }
         catch (Exception)
         {
-            await DisposeReportingFailureAsync(database.DisposeAsync);
+            await DisposeReportingFailureAsync(DatabaseDrop, database.DisposeAsync);
             throw;
         }
 
         await database.DisposeAsync();
     }
 
-    public static void Report(Exception disposalFailure)
+    private static void Report(string what, Exception disposalFailure)
     {
         try
         {
             var test = TestContext.Current.Test?.TestDisplayName ?? "outside a test";
-            TestContext.Current.AddWarning($"{test}: a test host's disposal failed: {disposalFailure}");
+            TestContext.Current.AddWarning($"{test}: {what} failed: {disposalFailure}");
         }
         catch (Exception)
         {

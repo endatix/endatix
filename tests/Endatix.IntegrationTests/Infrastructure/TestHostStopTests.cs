@@ -36,11 +36,11 @@ public sealed class TestHostStopTests(EndatixIntegrationWebHostFixture fixture)
     }
 
     [Fact]
-    public async Task Disposing_a_test_host_whose_hosted_service_fails_to_stop_throws_that_failure_once()
+    public async Task Disposing_a_test_host_with_a_hosted_service_whose_StopAsync_throws_throws_that_failure_once()
     {
         // Arrange
         await using var root = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider);
-        var failure = new InvalidOperationException("The hosted service failed to stop.");
+        var failure = new InvalidOperationException("The hosted service's StopAsync threw.");
         var host = root.WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services => services.AddSingleton<IHostedService>(new FailingStop(failure))));
         _ = host.Services;

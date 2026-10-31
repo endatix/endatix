@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -17,10 +18,11 @@ namespace Endatix.IntegrationTests;
 /// <c>app.Run()</c>'s.
 /// </para>
 /// <para>
-/// That stop throws a hosted service's failure to <c>app.Run()</c>, and from there to the entry point, which
-/// <c>WebApplicationFactory</c> no longer watches once the host has started. <c>ApplicationStopped</c> does not
-/// carry it either: the host raises it before it throws. So this host waits for <see cref="HostStopOutcome"/>, the
-/// message the host logs as its stop's last step, and throws the failure that message carries.
+/// When a hosted service's <c>StopAsync</c> throws, that stop throws the failure to <c>app.Run()</c>, and from there to
+/// the entry point, which <c>WebApplicationFactory</c> no longer watches once the host has started.
+/// <c>ApplicationStopped</c> does not carry it either: the host raises it before it throws. So this host waits for
+/// <see cref="HostStopOutcome"/>, the message the host logs as its stop's last step, and throws the failure that
+/// message carries.
 /// </para>
 /// <para>
 /// If a .NET release renumbers those events, renames the host's logging category or logs them below Debug, no stop
@@ -38,14 +40,21 @@ internal sealed class StopOnceHost : IHost
     private readonly Lock _stopGate = new();
     private Task? _stopped;
 
+    /// <summary>Waits for the stop as long as the host's shutdown timeout, and a margin for the stop's own work.</summary>
     public StopOnceHost(IHost inner)
+        : this(inner, inner.Services.GetRequiredService<IOptions<HostOptions>>().Value.ShutdownTimeout + StopMargin)
+    {
+    }
+
+    /// <summary>Waits for the stop no longer than <paramref name="stopBound"/>.</summary>
+    public StopOnceHost(IHost inner, TimeSpan stopBound)
     {
         _inner = inner;
+        _stopBound = stopBound;
 
         // Read while the host runs: app.Run() disposes the container once it has stopped.
         _lifetime = inner.Services.GetRequiredService<IHostApplicationLifetime>();
         _outcome = inner.Services.GetRequiredService<HostStopOutcome>();
-        _stopBound = inner.Services.GetRequiredService<IOptions<HostOptions>>().Value.ShutdownTimeout + StopMargin;
     }
 
     public IServiceProvider Services => _inner.Services;
@@ -68,17 +77,39 @@ internal sealed class StopOnceHost : IHost
         await stopped.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
     }
 
+    // After a stop that has not ended, a hosted service may still be running: disposing the container under it can
+    // block, or throw and replace the timeout the test already has. app.Run() disposes the host itself once its stop
+    // ends, so leaving it is safe.
+    public void Dispose()
+    {
+        if (_outcome.Stopped.IsCompleted)
+        {
+            _inner.Dispose();
+        }
+    }
+
     /// <summary>The one wait for the stop's outcome, and whether this call started it.</summary>
     private bool StartsWaiting(CancellationToken cancellationToken, out Task stopped)
     {
         lock (_stopGate)
         {
             var first = _stopped is null;
-            _stopped ??= _outcome.Stopped.WaitAsync(_stopBound, cancellationToken);
+            _stopped ??= WaitForOutcomeAsync(cancellationToken);
             stopped = _stopped;
             return first;
         }
     }
 
-    public void Dispose() => _inner.Dispose();
+    private async Task WaitForOutcomeAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _outcome.Stopped.WaitAsync(_stopBound, cancellationToken);
+        }
+        catch (TimeoutException timeout) when (!_outcome.Stopped.IsCompleted)
+        {
+            var bound = _stopBound.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
+            throw new TimeoutException($"The test host did not stop within {bound} s.", timeout);
+        }
+    }
 }

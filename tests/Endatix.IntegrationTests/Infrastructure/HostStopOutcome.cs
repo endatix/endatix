@@ -8,12 +8,13 @@ namespace Endatix.IntegrationTests;
 /// How the host's stop ended, read from the message the host logs as the stop's last step.
 /// </summary>
 /// <remarks>
-/// The host stops in the application's own <c>app.Run()</c> (see <see cref="StopOnceHost"/>), which throws a hosted
-/// service's stop failure to the entry point, and <c>WebApplicationFactory</c> stops watching the entry point once the
-/// host has started, so nothing else sees it. <c>Host.StopAsync</c> raises <c>ApplicationStopped</c> before it is
-/// done; the last thing it does is log <c>Stopped</c> or, with the failure it then throws,
-/// <c>StoppedWithException</c>, both at Debug. The tests log at Warning, so this provider alone hears that category at
-/// Debug.
+/// The host stops in the application's own <c>app.Run()</c> (see <see cref="StopOnceHost"/>). When a hosted service's
+/// <c>StopAsync</c> throws, that stop throws the failure to the entry point, and <c>WebApplicationFactory</c> stops
+/// watching the entry point once the host has started, so nothing else sees it. <c>Host.StopAsync</c> raises
+/// <c>ApplicationStopped</c> before it is done; the last thing it does is log <c>Stopped</c> or, with the failure it
+/// then throws, <c>StoppedWithException</c>, both at Debug. The tests log at Warning, so this provider alone hears that
+/// category at Debug. A <c>BackgroundService</c> whose <c>ExecuteAsync</c> faults while it stops is not such a
+/// failure: its <c>StopAsync</c> does not throw the fault, and the host only logs it.
 /// </remarks>
 internal sealed class HostStopOutcome : ILoggerProvider, ILogger
 {

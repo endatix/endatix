@@ -18,7 +18,7 @@ internal static class FailedHostStart
         {
             foreach (var dispose in disposals)
             {
-                await DisposalFailures.DisposeReportingFailureAsync(dispose);
+                await DisposalFailures.DisposeReportingFailureAsync("a disposal after the failed start", dispose);
             }
 
             throw;
