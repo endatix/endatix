@@ -147,6 +147,12 @@
         "es": "¿Todavía te gusta {panel.itemText}?"
       },
       "parentPanelTitle": "Loop Question (Based on Brands)",
+      "parentPanels": [
+        {
+          "name": "qLoop",
+          "title": "Loop Question (Based on Brands)"
+        }
+      ],
       "pageName": "page1",
       "exportShape": "scalar"
     },
@@ -161,6 +167,12 @@
         "es": "Seleccione de qué color era {panel.itemText}"
       },
       "parentPanelTitle": "Loop Question (Based on Brands)",
+      "parentPanels": [
+        {
+          "name": "qLoop",
+          "title": "Loop Question (Based on Brands)"
+        }
+      ],
       "pageName": "page1",
       "exportShape": "categorical",
       "choices": [
@@ -229,6 +241,12 @@
         "es": "¿Cuánto te gusta?"
       },
       "parentPanelTitle": "Loop Question (Based on Brands)",
+      "parentPanels": [
+        {
+          "name": "qLoop",
+          "title": "Loop Question (Based on Brands)"
+        }
+      ],
       "pageName": "page1",
       "exportShape": "scalar"
     },
@@ -466,6 +484,12 @@
         "es": "Texto dentro del panel"
       },
       "parentPanelTitle": "Internal Panel Group",
+      "parentPanels": [
+        {
+          "name": "qPanel",
+          "title": "Internal Panel Group"
+        }
+      ],
       "pageName": "page1",
       "exportShape": "scalar"
     },

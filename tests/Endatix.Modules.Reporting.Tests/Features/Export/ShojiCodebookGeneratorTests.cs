@@ -75,8 +75,7 @@ public sealed partial class ShojiCodebookGeneratorTests
 
         table.GetProperty("metadata").GetProperty("questionCities").GetProperty("type").GetString()
             .Should().Be("text");
-        table.GetProperty("order").EnumerateArray().Select(e => e.GetString())
-            .Should().Contain("questionCities");
+        ReadOrder(table).Should().Contain("questionCities");
     }
 
     [Fact]
@@ -129,18 +128,11 @@ public sealed partial class ShojiCodebookGeneratorTests
                 compiled.FlatteningMapJson,
                 compiled.CodebookJson,
                 ExportFormatSettings.InterimCrunchKeySeparator));
-        var order = document.RootElement
-            .GetProperty("body")
-            .GetProperty("table")
-            .GetProperty("order")
-            .EnumerateArray()
-            .Select(element => element.GetString()!)
-            .ToList();
+        var order = ReadOrder(document.RootElement.GetProperty("body").GetProperty("table"));
 
-        // Assert — calculated values after the system columns, then the definition walk (not
+        // Assert — calculated values after the system columns but FormId, then the definition walk (not
         // alphabetical / writer-phase order)
-        order.Take(11).Should().Equal(
-            "FormId",
+        order.Take(OrderedSystemColumnCount).Should().Equal(
             "Id",
             "IsComplete",
             "CollectionStatus",
@@ -151,7 +143,7 @@ public sealed partial class ShojiCodebookGeneratorTests
             "DurationSeconds",
             "SubmitterId",
             "SubmitterDisplayId");
-        order.Skip(SubmissionExportRow.SystemColumns.Count).Take(7).Should().Equal(
+        order.Skip(OrderedSystemColumnCount).Take(7).Should().Equal(
             "qCalculatedTotal",
             "qRadioGroup",
             "qRating",

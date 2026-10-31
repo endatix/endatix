@@ -8,7 +8,9 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 /// <summary>
 /// What Crunch checks when it imports a Shoji codebook with its CSV: every CSV header is a variable alias (or a
 /// subvariable alias), every alias has a column, and every non-empty cell fits its variable's type. Crunch accepts an
-/// empty cell as missing and rejects anything else that does not parse ("CSV numeric format error").
+/// empty cell as missing and rejects anything else that does not parse ("CSV numeric format error"). Every variable is
+/// placed once: in <c>order</c>, folders included, or in <c>hidden</c>, never both ("FormId cannot be in multiple
+/// orders"). Every folder has a name no sibling shares, and something in it.
 /// </summary>
 internal static partial class CrunchImportCheck
 {
@@ -23,8 +25,45 @@ internal static partial class CrunchImportCheck
         problems.AddRange(header.Where(alias => !variables.ContainsKey(alias)).Select(alias => $"header '{alias}' has no Shoji variable"));
         problems.AddRange(variables.Keys.Where(alias => !header.Contains(alias)).Select(alias => $"Shoji alias '{alias}' has no CSV column"));
         problems.AddRange(CellProblems(new Columns(header, variables), rows));
+        problems.AddRange(PlacementProblems(shojiJson));
         return problems;
     }
+
+    private static List<string> PlacementProblems(string shojiJson)
+    {
+        using var document = JsonDocument.Parse(shojiJson);
+        var table = document.RootElement.GetProperty("body").GetProperty("table");
+        var variables = table.GetProperty("metadata").EnumerateObject().Select(variable => variable.Name).ToHashSet(StringComparer.Ordinal);
+        var ordered = ShojiOrder.Aliases(table.GetProperty("order"));
+        List<string> hidden = table.TryGetProperty("hidden", out var hiddenAliases)
+            ? [.. hiddenAliases.EnumerateArray().Select(alias => alias.GetString()!)]
+            : [];
+        HashSet<string> placed = [.. ordered, .. hidden];
+        return
+        [
+            .. placed.Where(alias => !variables.Contains(alias)).Select(alias => $"placed alias '{alias}' has no Shoji variable"),
+            .. variables.Where(alias => !placed.Contains(alias)).Select(alias => $"Shoji alias '{alias}' is neither ordered nor hidden"),
+            .. ordered.Intersect(hidden).Select(alias => $"Shoji alias '{alias}' is both hidden and ordered"),
+            .. Repeated(ordered).Select(alias => $"Shoji alias '{alias}' is ordered more than once"),
+            .. Repeated(hidden).Select(alias => $"Shoji alias '{alias}' is hidden more than once"),
+            .. FolderProblems(table.GetProperty("order")),
+        ];
+    }
+
+    private static IEnumerable<string> FolderProblems(JsonElement entities)
+    {
+        var folders = entities.EnumerateArray().Where(entry => entry.ValueKind == JsonValueKind.Object).ToList();
+        var names = folders.Select(folder => folder.GetProperty("group").GetString() ?? string.Empty).ToList();
+        return names.Where(string.IsNullOrWhiteSpace).Select(_ => "a folder has no name")
+            .Concat(Repeated(names.Where(name => !string.IsNullOrWhiteSpace(name)))
+                .Select(name => $"folder '{name}' has a sibling of the same name"))
+            .Concat(folders.Where(folder => folder.GetProperty("entities").GetArrayLength() == 0)
+                .Select(folder => $"folder '{folder.GetProperty("group").GetString()}' is empty"))
+            .Concat(folders.SelectMany(folder => FolderProblems(folder.GetProperty("entities"))));
+    }
+
+    private static IEnumerable<string> Repeated(IEnumerable<string> aliases) =>
+        aliases.GroupBy(alias => alias, StringComparer.Ordinal).Where(group => group.Count() > 1).Select(group => group.Key);
 
     /// <summary>The CSV header and the Shoji variable each alias names.</summary>
     private sealed record Columns(IReadOnlyList<string> Header, IReadOnlyDictionary<string, JsonElement> Variables);
