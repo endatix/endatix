@@ -45,7 +45,7 @@ public sealed class DisposalFailuresTests
         Assert.Same(hostFailure, thrown);
         var warning = Assert.Single(TestContext.Current.Warnings ?? []);
         Assert.StartsWith(TestContext.Current.Test!.TestDisplayName, warning, StringComparison.Ordinal);
-        Assert.Contains("dropping the database", warning, StringComparison.Ordinal);
+        Assert.Contains("the database drop after a failed host disposal failed:", warning, StringComparison.Ordinal);
         Assert.Contains(DeliberateDropFailure, warning, StringComparison.Ordinal);
     }
 

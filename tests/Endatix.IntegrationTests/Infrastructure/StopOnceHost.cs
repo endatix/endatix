@@ -25,6 +25,10 @@ namespace Endatix.IntegrationTests;
 /// message carries.
 /// </para>
 /// <para>
+/// Not caught: a <c>BackgroundService</c> that ignores its stopping token, which the host abandons at its shutdown
+/// timeout, or whose <c>ExecuteAsync</c> faults while it stops, since the host logs either stop as clean.
+/// </para>
+/// <para>
 /// If a .NET release renumbers those events, renames the host's logging category or logs them below Debug, no stop
 /// ever ends here: every teardown fails with a timeout, rather than passing without seeing the stop.
 /// </para>
@@ -102,14 +106,14 @@ internal sealed class StopOnceHost : IHost
 
     private async Task WaitForOutcomeAsync(CancellationToken cancellationToken)
     {
-        try
+        await Task.WhenAny(_outcome.Stopped, Task.Delay(_stopBound, cancellationToken));
+        if (!_outcome.Stopped.IsCompleted)
         {
-            await _outcome.Stopped.WaitAsync(_stopBound, cancellationToken);
-        }
-        catch (TimeoutException timeout) when (!_outcome.Stopped.IsCompleted)
-        {
+            cancellationToken.ThrowIfCancellationRequested();
             var bound = _stopBound.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
-            throw new TimeoutException($"The test host did not stop within {bound} s.", timeout);
+            throw new TimeoutException($"The test host did not stop within {bound} s.");
         }
+
+        await _outcome.Stopped;
     }
 }

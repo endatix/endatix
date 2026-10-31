@@ -57,7 +57,8 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var runs = new NamedProbeRuns();
         var setup = JobQueueWith(SlowSubscriber(runs)) with { Settings = OneSecondJobShutdownWait };
-        // Disposed again at the end only so a failure before the timed stop still stops it; a second dispose does nothing.
+        // Disposed again at the end only so a failure before the timed stop still stops it. A second dispose stops
+        // nothing and only runs the database drop again, which drops nothing once the database is gone.
         await using var host = await FanOutHost.StartAsync(fixture, setup, ct);
         var shutdownTimeout = host.Services.GetRequiredService<IOptions<HostOptions>>().Value.ShutdownTimeout;
         await host.InsertMessageAsync(new OutboxRow(99, "slow.happened", TenantId: 5), ct);

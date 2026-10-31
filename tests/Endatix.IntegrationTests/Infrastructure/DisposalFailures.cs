@@ -8,7 +8,7 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 internal static class DisposalFailures
 {
-    private const string DatabaseDrop = "dropping the database of a host whose disposal failed";
+    private const string DatabaseDrop = "the database drop after a failed host disposal";
 
     /// <summary>
     /// Runs <paramref name="dispose"/>, reporting its failure as <paramref name="what"/> failing instead of throwing it.
