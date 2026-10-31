@@ -8,9 +8,12 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 public sealed class EndatixIntegrationWebHostFixture : IAsyncLifetime, IIntegrationTestHostFixture
 {
+    private IEndatixWebApplicationFactory? _factory;
+
     public DatabaseInfrastructureFixture Database { get; } = new();
 
-    public IEndatixWebApplicationFactory Factory { get; private set; } = null!;
+    public IEndatixWebApplicationFactory Factory =>
+        _factory ?? throw new InvalidOperationException("The fixture is not initialized, so it has no host.");
 
     public DatabaseCheckpoint Checkpoint => Database.Checkpoint;
 
@@ -31,15 +34,26 @@ public sealed class EndatixIntegrationWebHostFixture : IAsyncLifetime, IIntegrat
     public async ValueTask InitializeAsync()
     {
         await Database.InitializeAsync();
-        Factory = new EndatixWebApplicationFactory(Database.ConnectionString, Database.Provider);
+        _factory = new EndatixWebApplicationFactory(Database.ConnectionString, Database.Provider);
         Seed = new IntegrationSeedBuilder(Factory.Services);
 
         await IntegrationHostWarmup.EnsureReadyAsync(Factory.Services, Factory.CreateClient);
     }
 
+    // xUnit disposes a collection fixture whose InitializeAsync failed too, so the factory may never have been created;
+    // its database session is released either way.
     public async ValueTask DisposeAsync()
     {
-        await Factory.DisposeAsync();
-        await Database.DisposeAsync();
+        try
+        {
+            if (_factory is not null)
+            {
+                await _factory.DisposeAsync();
+            }
+        }
+        finally
+        {
+            await Database.DisposeAsync();
+        }
     }
 }

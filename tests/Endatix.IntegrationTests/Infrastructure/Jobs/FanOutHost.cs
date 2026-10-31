@@ -49,19 +49,14 @@ internal sealed class FanOutHost : IAsyncDisposable
         // Reading the services builds and starts the host, and with it the migrations. The relay and the scheduler are
         // then switched on: this host is the only one on its database, and they are what its tests exercise.
         // A start that fails returns no host to dispose, so it stops the host and drops its database here.
-        try
-        {
-            _ = factory.Services;
-            await BackgroundWork.Of(factory.Services).StartAsync(cancellationToken);
-        }
-        catch
-        {
-            await factory.DisposeAsync();
-            await database.DisposeAsync();
-            throw;
-        }
-
-        return new FanOutHost(database, factory, logs);
+        return await FailedHostStart.DisposeOnFailureAsync(
+            async () =>
+            {
+                await BackgroundWork.Of(factory.Services).StartAsync(cancellationToken);
+                return new FanOutHost(database, factory, logs);
+            },
+            factory.DisposeAsync,
+            database.DisposeAsync);
     }
 
     private static void Configure(IWebHostBuilder builder, FanOutHostSetup setup, CapturingLoggerProvider logs)
@@ -111,9 +106,20 @@ internal sealed class FanOutHost : IAsyncDisposable
             reader => (reader.GetInt32(0), reader.GetInt32(1), reader.IsDBNull(2) ? null : reader.GetString(2)),
             cancellationToken)).Single();
 
+    // A host that does not stop fails its test, and its database is dropped either way. When both fail, the host's
+    // failure is the one thrown and the drop's is reported, since a throw from the drop would replace it.
     public async ValueTask DisposeAsync()
     {
-        await _factory.DisposeAsync();
+        try
+        {
+            await _factory.DisposeAsync();
+        }
+        catch (Exception)
+        {
+            await DisposalFailures.DisposeReportingFailureAsync(Database.DisposeAsync);
+            throw;
+        }
+
         await Database.DisposeAsync();
     }
 }
