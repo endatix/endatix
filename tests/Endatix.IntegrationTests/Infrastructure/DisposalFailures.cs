@@ -20,6 +20,28 @@ internal static class DisposalFailures
         }
     }
 
+    /// <summary>
+    /// Disposes a host and then drops the database it ran on, whatever the host's disposal did.
+    /// </summary>
+    /// <remarks>
+    /// A host that does not stop fails its test. When the drop fails too, the host's failure is the one thrown and the
+    /// drop's is reported, since a throw from the drop would replace it.
+    /// </remarks>
+    public static async ValueTask DisposeHostThenDatabaseAsync(IAsyncDisposable host, IAsyncDisposable database)
+    {
+        try
+        {
+            await host.DisposeAsync();
+        }
+        catch (Exception)
+        {
+            await DisposeReportingFailureAsync(database.DisposeAsync);
+            throw;
+        }
+
+        await database.DisposeAsync();
+    }
+
     public static void Report(Exception disposalFailure)
     {
         try

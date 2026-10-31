@@ -106,22 +106,7 @@ internal sealed class FanOutHost : IAsyncDisposable
             reader => (reader.GetInt32(0), reader.GetInt32(1), reader.IsDBNull(2) ? null : reader.GetString(2)),
             cancellationToken)).Single();
 
-    // A host that does not stop fails its test, and its database is dropped either way. When both fail, the host's
-    // failure is the one thrown and the drop's is reported, since a throw from the drop would replace it.
-    public async ValueTask DisposeAsync()
-    {
-        try
-        {
-            await _factory.DisposeAsync();
-        }
-        catch (Exception)
-        {
-            await DisposalFailures.DisposeReportingFailureAsync(Database.DisposeAsync);
-            throw;
-        }
-
-        await Database.DisposeAsync();
-    }
+    public ValueTask DisposeAsync() => DisposalFailures.DisposeHostThenDatabaseAsync(_factory, Database);
 }
 
 /// <summary>How a <see cref="FanOutHost"/> delivers outbox messages, and what each test adds to its services.</summary>
