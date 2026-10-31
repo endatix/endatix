@@ -34,6 +34,9 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
 
     public DbSet<SurveyTypeExportMapping> SurveyTypeExportMappings => Set<SurveyTypeExportMapping>();
 
+    /// <inheritdoc />
+    public DbSet<SubmissionView> SubmissionViews => Set<SubmissionView>();
+
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
     /// <inheritdoc />
@@ -61,6 +64,7 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
         modelBuilder.ApplyConfiguration(new FlattenedSubmissionConfiguration());
         modelBuilder.ApplyConfiguration(new FormSchemaConfiguration());
         modelBuilder.ApplyConfiguration(new SurveyTypeExportMappingConfiguration());
+        modelBuilder.ApplyConfiguration(new SubmissionViewConfiguration());
     }
 
     /// <summary>

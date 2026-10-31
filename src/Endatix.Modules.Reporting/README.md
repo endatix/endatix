@@ -37,12 +37,23 @@ Database schema: `reporting`
 | `FlattenedSubmissions` | Flat submission answers aligned to form schema |
 | `ExportFormats` | Tenant export rows (CSV, JSON, Excel/XLSX, codebook) |
 | `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
+| `SubmissionViews` | Saved submissions grid view per tenant + form + owner (`OwnerUserId` `0` = shared form view) |
 
 `FlattenedSubmissions.SubmissionId` is the row key. Backfill and the completion outbox both update that row; they do not insert a second one.
 
 `POST …/reporting/submissions/backfill` pages one scope per call. Omitted `completionScope` is `completed`. `incomplete` flattens drafts. The outbox still skips drafts. A processed row is skipped when the submission's `ModifiedAt ?? CreatedAt` is not newer than the row's `SourceModifiedAt` (the stamp of the version that was flattened), unless `force` is true. The row's own `ModifiedAt` is not used: the worker sets it after reading the submission, so a save during flattening would look older and never be refreshed. Rows without `SourceModifiedAt` (processed before it existed) are reprocessed once. A flatten whose submission is gone removes an existing row only when the submission was soft-deleted in the same tenant and form; otherwise it throws, so the outbox retries and backfill reports it as failed. With background jobs on (`Endatix:Outbox:DeliverToJobQueue`), the flatten job retries instead and then dead-letters. A submission or its form deleted after the flatten read the submission loses the row the flatten wrote, hard-deleted as its deletion sync removes it: whether the row ended processed or skipped, lost to a newer flatten's write, or the flatten failed or was cancelled after marking it processing (its schema gone with the form included). Such a failure then ends the flatten as a success, since there is nothing left to retry; a cancelled flatten still ends cancelled. Export drops soft-deleted submissions.
 
 Flattens of one submission can run out of order, as retries or as jobs, so each write is guarded by `SourceRevision`: the submission's `Revision` the row was written from. A write lands only when the row has no `SourceRevision` or one not newer than the write's, so an older flatten finishing last changes nothing, and a forced rebuild at the same revision still lands. `SourceRevision` orders writes; `SourceModifiedAt` only tells backfill whether a row is stale. A draft's saves raise no events and so share one revision: among them, the last flatten to write wins.
+
+### Saved submissions grid view
+
+`GET forms/{formId}/reporting/submission-view` (`submissions.view`) returns the form's shared view and its `version`, or `version` `0` and `{"v":1,"columns":[]}` when nobody saved one. `PUT` (`forms.edit`) takes `{ version, settings }`: version `0` creates the view, the current version replaces it, and any other version is 409. Both are 404 for a form that is not in the caller's tenant.
+
+- **Settings v1:** `{"v":1,"columns":[{"key","visible","width"}],"pageSize","sort":{"key","direction"}}`. `columns` lists only the columns someone changed, in grid order. Unknown properties are stored as written. Malformed settings, or more than `SubmissionViewSettings.MaxJsonLength` characters, are 400.
+- **Reads drop stale columns.** A column whose key is neither in the form's compiled `FlatteningMap` nor one of the grid's own columns (`SubmissionViewColumns.MetadataKeys`) is left out of the response. The stored row keeps it. A save's response is filtered the same way. Before the form's schema is compiled there is nothing to judge the columns by, so they come back as stored.
+- **Concurrency.** `Version` is an EF concurrency token (not `xmin`), and `(TenantId, FormId, OwnerUserId)` is unique. Two saves from the same version cannot both win: the losing update changes no row and the losing create hits the index; both are 409.
+- **Owner `0`, not `NULL`:** SQL Server allows one `NULL` in a unique index, PostgreSQL many. Personal views will use the user id in the same table.
+- `form.deleted` removes the form's views together with its schema and flattened rows.
 
 ### FormSchema compile modes
 
@@ -71,6 +82,28 @@ The schema is read untracked, and tracked only while it is saved, so a long-live
 A flatten rebuilds the schema only for a submission on a definition newer than the schema's revision, or on an older one whose columns the schema lacks (a replace dropped them). A merge keeps every column, so an older definition is normally already in the schema; rebuilding from it would save the schema again for every such submission and put the older definition's labels and locales back.
 
 A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
+
+### Submission Grid columns
+
+`GET forms/{formId}/reporting/columns?locale=` (`submissions.view`) lists the columns of the form's compiled schema in flattening-map order, for the Submission Grid's headers, column picker and answer filters. Each column has its key and kind, a title in `locale` (falling back to the default), the SurveyJS question type, an answer `filterType` (`text`, `date`, `datetime` or none) and its page and panel. The filter type is worked out at read time from the column kind and the codebook question's type and `inputType`, so a schema needs no recompile for it and export is unchanged. A form without a compiled schema answers `schemaReady: false` with no columns.
+
+`readiness` counts the form's live submissions (`submissions`, `completedSubmissions`, `inProgress`) from core and its flattened rows by status (`prepared`, `pending` including `not_processed`, `failed`, `skippedInProgress`). An out-of-date count is not there yet.
+
+Codebook question entries carry the question's place in the form: `pageName`, `pageTitle` (a locale map like `title`, left out when the page has no title), `parentPanelTitle` (default locale) and `parentPanels` (see below). They are written at compile time, so a schema compiled before these keys existed has no page until its next compile. Codebook `version` stays 1.
+
+### Submission Grid rows
+
+`GET forms/{formId}/reporting/submissions` (`submissions.view`) lists one page of a form's submissions for the Submission Grid. It takes the same filters, sort and paging as `GET forms/{formId}/submissions` (both build their query with `ListByFormIdRequest.ToQuery()`), so the rows, their order, the 404 for an unknown form and the tenant scope match the submissions list. `columns` is a comma-separated list of column keys from `GET forms/{formId}/reporting/columns`: at most 500 keys, each up to 512 characters. A key that contains a comma cannot be requested.
+
+Each row carries the list fields plus:
+
+- `rowState`, from the submission's flattened row: `prepared` (processed from the submission's current `ModifiedAt ?? CreatedAt`, and has data), `stale` (processed from an older version, or has no data), `pending` (`not_processed`, queued or being prepared), `failed`, `skipped` (in progress when the flatten ran) or `none` (no flattened row).
+- `answers`, the requested columns that have a value.
+- `answersSource`: `prepared` when the row is `prepared`, otherwise `raw`. Raw answers come from the submission's own `jsonData`, which is keyed by question name, so only simple question columns can be found there. Choice indicators, matrix cells and other flattened keys are left out until the row is prepared.
+
+The page comes from the core list; its flattened rows are then read by id, with `DataJson` only when `columns` is set.
+
+`submitterProfile.{field}` filters, on this list and on the submissions list, read the profile snapshot with `JSON_VALUE` on SQL Server. They compare under the `Latin1_General_100_BIN2` collation, so matching is case-sensitive as on PostgreSQL, whatever the database collation. Unlike PostgreSQL, SQL Server ignores trailing spaces when it compares strings, and `JSON_VALUE` returns NULL for a value over 4,000 characters, so such a value never matches `=` and always matches `!=`.
 
 ### Codebook panels and Crunch folders
 
@@ -131,13 +164,13 @@ Run the commands from the `oss` folder.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`)
+- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`, `AddSubmissionViews`)
 
   Tenant export formats are rows, not code. Runtime catalog: `DefaultExportFormats.All`
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in
   `SeedDefaultExportFormats` — do not generate that migration from the catalog; a new default
   needs a new data migration. **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder`.
-- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`)
+- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`, `AddSubmissionViews`)
 
   One migration creates the schema and, at the end of its `Up()`, seeds the same default formats and CSV default
   mapping for every existing tenant as the PostgreSQL `SeedDefaultExportFormats` migration: frozen T-SQL in `SeedDefaultExportFormatsSqlServerSql`,

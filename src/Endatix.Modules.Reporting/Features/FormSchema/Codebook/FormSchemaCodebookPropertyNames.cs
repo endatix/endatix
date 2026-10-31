@@ -18,6 +18,8 @@ internal static class FormSchemaCodebookPropertyNames
     public const string ParentPanels = "parentPanels";
     public const string PanelName = "name";
     public const string PanelTitle = "title";
+    public const string PageName = "pageName";
+    public const string PageTitle = "pageTitle";
     public const string SurveyJsType = "surveyJsType";
     public const string ExportShape = "exportShape";
     public const string ChoiceLabel = "choiceLabel";

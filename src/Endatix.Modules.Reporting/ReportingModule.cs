@@ -25,6 +25,8 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Features.Outbox;
+using Endatix.Modules.Reporting.Features.SubmissionGrid;
+using Endatix.Modules.Reporting.Features.SubmissionViews;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Infrastructure;
 using FastEndpoints;
@@ -54,11 +56,9 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     public void ConfigureServices(EndatixModuleBuilder builder)
     {
         AddPersistence(builder);
-
-        builder.Services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
-        builder.Services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
-        builder.Services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
-        builder.Services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
+        AddRepositories(builder.Services);
+        builder.Services.AddScoped<ListSubmissionGridColumns>();
+        builder.Services.AddScoped<ListSubmissionGridRows>();
         AddExports(builder.Services);
         AddFormSchemaCompiler(builder.Services);
         builder.Services.AddScoped<IFormSchemaProcessor, FormSchemaProcessor>();
@@ -69,6 +69,16 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
         builder.Services.AddReportingOutboxWork();
         builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
+    }
+
+    private static void AddRepositories(IServiceCollection services)
+    {
+        services.AddScoped<IReportingUnitOfWork, ReportingUnitOfWork>();
+        services.AddScoped<IFormSchemaRepository, FormSchemaRepository>();
+        services.AddScoped<IFlattenedSubmissionRepository, FlattenedSubmissionRepository>();
+        services.AddScoped<IReportingExportRepository, ReportingExportRepository>();
+        services.AddScoped<ISubmissionViewRepository, SubmissionViewRepository>();
+        services.AddScoped<SubmissionViewReader>();
     }
 
     // The configured submitter profile fields; the flatten appends their columns, and copies only those fields.

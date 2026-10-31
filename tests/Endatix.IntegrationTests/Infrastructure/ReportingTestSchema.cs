@@ -4,8 +4,12 @@ using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Persistence.PostgreSql.Locking;
+using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.SqlServer.Locking;
+using Endatix.Persistence.SqlServer.Querying;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -16,6 +20,7 @@ internal static class ReportingTestSchema
 {
     // SQL Server has no DROP SCHEMA … CASCADE: the tables go first, the mappings before the formats they reference.
     private const string DropSqlServerSchemaSql = """
+        DROP TABLE IF EXISTS [reporting].[SubmissionViews];
         DROP TABLE IF EXISTS [reporting].[SurveyTypeExportMappings];
         DROP TABLE IF EXISTS [reporting].[ExportFormats];
         DROP TABLE IF EXISTS [reporting].[FlattenedSubmissions];
@@ -71,13 +76,31 @@ internal static class ReportingTestSchema
     internal static ReportingDbContextBase CreateContext(
         string connectionString,
         TestDatabaseProvider provider,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext) =>
+        CreateContext(new TestDatabase(connectionString, provider), tenantContext, []);
+
+    /// <summary>
+    /// <see cref="CreateContext(string, TestDatabaseProvider, ITenantContext)"/> with interceptors, for a test that
+    /// forces an interleaving at a chosen command.
+    /// </summary>
+    internal static ReportingDbContextBase CreateContext(
+        DbIntegrationFixture fixture,
+        ITenantContext tenantContext,
+        params IInterceptor[] interceptors) =>
+        CreateContext(new TestDatabase(fixture.ConnectionString, fixture.Provider), tenantContext, interceptors);
+
+    private static ReportingDbContextBase CreateContext(
+        TestDatabase database,
+        ITenantContext tenantContext,
+        IInterceptor[] interceptors)
     {
-        var configuration = BuildTestConfiguration(connectionString, provider);
-        return provider == TestDatabaseProvider.SqlServer
-            ? new ReportingSqlServerDbContext(HostOptions<ReportingSqlServerDbContext>(configuration), tenantContext)
-            : new ReportingPostgreSqlDbContext(HostOptions<ReportingPostgreSqlDbContext>(configuration), tenantContext);
+        var configuration = BuildTestConfiguration(database.ConnectionString, database.Provider);
+        return database.Provider == TestDatabaseProvider.SqlServer
+            ? new ReportingSqlServerDbContext(HostOptions<ReportingSqlServerDbContext>(configuration, interceptors), tenantContext)
+            : new ReportingPostgreSqlDbContext(HostOptions<ReportingPostgreSqlDbContext>(configuration, interceptors), tenantContext);
     }
+
+    private sealed record TestDatabase(string ConnectionString, TestDatabaseProvider Provider);
 
     /// <summary>
     /// The transaction lock a host on the context's provider registers (<c>TransactionLockTests</c> pins that
@@ -97,11 +120,24 @@ internal static class ReportingTestSchema
         return context.Database.ExecuteSqlRawAsync(seed.Replace("{", "{{").Replace("}", "}}"), cancellationToken);
     }
 
-    private static DbContextOptions<TContext> HostOptions<TContext>(IConfiguration configuration)
+    private static DbContextOptions<TContext> HostOptions<TContext>(
+        IConfiguration configuration,
+        IInterceptor[] interceptors)
         where TContext : DbContext
     {
         DbContextOptionsBuilder<TContext> optionsBuilder = new();
         optionsBuilder.ConfigureModuleDbContext(configuration, ReportingPersistence.ConfigureDbContextOptions);
+        optionsBuilder.AddInterceptors(interceptors);
+
+        if (DatabaseProviderResolver.IsPostgreSql(configuration))
+        {
+            optionsBuilder.ReplaceService<IModelCustomizer, NpgsqlEndatixModelCustomizer>();
+        }
+        else
+        {
+            optionsBuilder.ReplaceService<IModelCustomizer, SqlServerEndatixModelCustomizer>();
+        }
+
         return optionsBuilder.Options;
     }
 
