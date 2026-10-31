@@ -59,7 +59,7 @@ public sealed class ReportingModuleStartupMigrationTests
 
         // Assert
         response.Should().BeSuccessful();
-        foreach (var table in new[] { "ExportFormats", "FlattenedSubmissions", "FormSchemas", "SurveyTypeExportMappings" })
+        foreach (var table in new[] { "ExportFormats", "FlattenedSubmissions", "FormSchemas", "SurveyTypeExportMappings", "SubmissionViews" })
         {
             (await ReportingTableExistsAsync(table, cancellationToken)).Should().BeTrue($"startup must create {table}");
         }

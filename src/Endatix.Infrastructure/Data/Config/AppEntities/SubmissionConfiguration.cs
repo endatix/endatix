@@ -9,8 +9,10 @@ namespace Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 {
-    private const int IDENTIFIER_MAX_LENGTH = 64;
-    private const int SUBMITTER_DISPLAY_ID_MAX_LENGTH = 256;
+    /// <summary>The longest <c>SubmittedBy</c>; the Reporting contexts map the same column read-only.</summary>
+    public const int IDENTIFIER_MAX_LENGTH = 64;
+    /// <summary>The longest <c>SubmitterDisplayId</c>; the Reporting contexts map the same column read-only.</summary>
+    public const int SUBMITTER_DISPLAY_ID_MAX_LENGTH = 256;
     private const int RESTRICTION_KEY_MAX_LENGTH = 256;
     private const int TOKEN_VALUE_MAX_LENGTH = 64;
 
@@ -23,6 +25,11 @@ public class SubmissionConfiguration : IEntityTypeConfiguration<Submission>
 
         builder.Property(s => s.FormId)
            .IsRequired();
+
+        // Every tracked UPDATE carries "AND IsDeleted = false", so a write that read the submission before its form's
+        // deletion soft-deleted it by form matches no row and rolls back, instead of landing on a deleted submission.
+        builder.Property(s => s.IsDeleted)
+            .IsConcurrencyToken();
 
         builder.Property(s => s.JsonData)
             .IsRequired();

@@ -23,7 +23,6 @@ public sealed class ListSubmissionGridColumns(
     IRepository<Form> formsRepository,
     IRepository<Submission> submissionsRepository)
 {
-
     private static readonly FilterParameters NoFilters = new();
     private static readonly FilterParameters CompletedOnly = new(["isComplete:true"]);
     private static readonly FormSearchKeyStatus NoSearchKeys = new(FormSearchKeys.Empty, OldestRowRevision: null);
@@ -41,9 +40,12 @@ public sealed class ListSubmissionGridColumns(
             return Result.Unauthorized();
         }
 
-        return await IsTenantFormAsync(query, cancellationToken)
-            ? Result.Success(await ReadColumnsAsync(query, cancellationToken))
-            : Result.NotFound(TenantFormExtensions.FormNotFoundMessage);
+        if (!await formsRepository.ExistsAsync(query.TenantId, query.FormId, cancellationToken))
+        {
+            return Result.NotFound(TenantForms.FormNotFoundMessage);
+        }
+
+        return Result.Success(await ReadColumnsAsync(query, cancellationToken));
     }
 
     private async Task<SubmissionGridColumns> ReadColumnsAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken)
@@ -57,9 +59,6 @@ public sealed class ListSubmissionGridColumns(
 
         return new SubmissionGridColumns(query.FormId, schema is not null, readiness, columns, search.Slots);
     }
-
-    private Task<bool> IsTenantFormAsync(SubmissionGridColumnsQuery query, CancellationToken cancellationToken) =>
-        formsRepository.IsTenantFormAsync(query.TenantId, query.FormId, cancellationToken);
 
     private async Task<SubmissionGridReadiness> ReadReadinessAsync(
         SubmissionGridColumnsQuery query,
@@ -75,10 +74,15 @@ public sealed class ListSubmissionGridColumns(
         return new SubmissionGridReadiness(
             Submissions: submissions,
             CompletedSubmissions: completed,
+            InProgress: submissions - completed,
             Prepared: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Processed),
-            Pending: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Pending) +
-                     rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Processing),
+            Pending: NotPreparedYet(rowsByStatus),
             Failed: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Failed),
             SkippedInProgress: rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Skipped));
     }
+
+    private static int NotPreparedYet(IReadOnlyDictionary<string, int> rowsByStatus) =>
+        rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.NotProcessed) +
+        rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Pending) +
+        rowsByStatus.GetValueOrDefault(SubmissionIntegrationStatusCodes.Processing);
 }

@@ -40,4 +40,7 @@ internal static class FormSchemaCodebookPropertyNames
 
     /// <summary>Not a SurveyJS class: an audience value frozen on the response, which a survey reads as a variable.</summary>
     public const string PersonalizationSurveyJsType = "personalization";
+
+    /// <summary>Not a SurveyJS class: a submitter profile field captured with the response.</summary>
+    public const string SubmitterProfileSurveyJsType = "submitter_profile";
 }

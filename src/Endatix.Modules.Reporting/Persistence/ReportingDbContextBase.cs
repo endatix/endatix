@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence.Config;
 using Endatix.Infrastructure.Data;
+using Endatix.ApplicationCore.Infrastructure.Data.Config.AppEntities;
 
 namespace Endatix.Modules.Reporting.Persistence;
 
@@ -40,6 +41,9 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
     /// <inheritdoc />
     public DbSet<CoreSubmissionRow> CoreSubmissionRows => Set<CoreSubmissionRow>();
 
+    /// <inheritdoc />
+    public DbSet<SubmissionView> SubmissionViews => Set<SubmissionView>();
+
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
     /// <inheritdoc />
@@ -62,14 +66,23 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
     }
 
     // The same name the core context resolves for Submission: its configured ToTable("Submissions"), which a table
-    // prefix leaves as is.
-    private void MapCoreSubmissions(ModelBuilder modelBuilder) =>
-        modelBuilder.Entity<CoreSubmissionRow>()
-            .HasNoKey()
+    // prefix leaves as is. The CoreSubmissionRows DbSet puts the entity in the model before OnModelCreating, so the
+    // tenant and soft-delete query filters already apply to it (CoreSubmissionRowsIntegrationTests).
+    private void MapCoreSubmissions(ModelBuilder modelBuilder)
+    {
+        var row = modelBuilder.Entity<CoreSubmissionRow>();
+        row.HasNoKey()
             .ToTable(
                 TableNamePrefix.GetTableName(typeof(Submission).FullName ?? nameof(Submission), CoreSubmissionsTable),
                 CoreSchema,
                 table => table.ExcludeFromMigrations());
+
+        // The core lengths, so parameters compared with these columns get the same store type (CoreSubmissionRowMappingTests).
+        row.Property(x => x.Status).HasMaxLength(SubmissionStatus.STATUS_CODE_MAX_LENGTH);
+        row.Property(x => x.CollectionStatus).HasMaxLength(CollectionStatus.CODE_MAX_LENGTH);
+        row.Property(x => x.SubmittedBy).HasMaxLength(SubmissionConfiguration.IDENTIFIER_MAX_LENGTH);
+        row.Property(x => x.SubmitterDisplayId).HasMaxLength(SubmissionConfiguration.SUBMITTER_DISPLAY_ID_MAX_LENGTH);
+    }
 
     // Applied explicitly rather than by attribute scan: the shared configurations belong to every derived
     // context, and an [ApplyConfigurationFor<T>] attribute can only name one of them.
@@ -79,6 +92,7 @@ public abstract class ReportingDbContextBase : DbContext, IReportingDbContext
         modelBuilder.ApplyConfiguration(new FlattenedSubmissionConfiguration());
         modelBuilder.ApplyConfiguration(new FormSchemaConfiguration());
         modelBuilder.ApplyConfiguration(new SurveyTypeExportMappingConfiguration());
+        modelBuilder.ApplyConfiguration(new SubmissionViewConfiguration());
     }
 
     /// <summary>

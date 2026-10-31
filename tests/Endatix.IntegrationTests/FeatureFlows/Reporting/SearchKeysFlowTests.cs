@@ -194,7 +194,7 @@ public sealed class SearchKeysFlowTests(EndatixIntegrationWebHostFixture fixture
         var handler = scope.ServiceProvider.GetRequiredService<RebuildSearchCopyOutboxHandler>();
         foreach (var request in requests)
         {
-            await handler.HandleAsync(new OutboxMessageView(request), ct);
+            await handler.Read(new OutboxMessageView(request)).RunAsync(ct);
         }
     }
 

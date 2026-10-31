@@ -202,6 +202,55 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.ToTable("FormSchemas", "reporting");
                 });
 
+            modelBuilder.Entity("Endatix.Modules.Reporting.Domain.SubmissionView", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("ModifiedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OwnerUserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<string>("SettingsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "FormId", "OwnerUserId")
+                        .IsUnique();
+
+                    b.ToTable("SubmissionViews", "reporting");
+                });
+
             modelBuilder.Entity("Endatix.Modules.Reporting.Domain.SurveyTypeExportMapping", b =>
                 {
                     b.Property<long>("Id")
@@ -254,7 +303,8 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                 {
                     b.Property<string>("CollectionStatus")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -300,13 +350,16 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
                     b.Property<string>("SubmittedBy")
-                        .HasColumnType("text");
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("SubmitterDisplayId")
-                        .HasColumnType("text");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<long?>("SubmitterId")
                         .HasColumnType("bigint");

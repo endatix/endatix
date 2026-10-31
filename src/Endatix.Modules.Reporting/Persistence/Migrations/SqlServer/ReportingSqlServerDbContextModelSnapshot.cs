@@ -202,6 +202,55 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                     b.ToTable("FormSchemas", "reporting");
                 });
 
+            modelBuilder.Entity("Endatix.Modules.Reporting.Domain.SubmissionView", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("ModifiedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OwnerUserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<string>("SettingsJson")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "FormId", "OwnerUserId")
+                        .IsUnique();
+
+                    b.ToTable("SubmissionViews", "reporting");
+                });
+
             modelBuilder.Entity("Endatix.Modules.Reporting.Domain.SurveyTypeExportMapping", b =>
                 {
                     b.Property<long>("Id")
@@ -254,7 +303,8 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
                 {
                     b.Property<string>("CollectionStatus")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
@@ -300,13 +350,16 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.Property<string>("SubmittedBy")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("SubmitterDisplayId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<long?>("SubmitterId")
                         .HasColumnType("bigint");

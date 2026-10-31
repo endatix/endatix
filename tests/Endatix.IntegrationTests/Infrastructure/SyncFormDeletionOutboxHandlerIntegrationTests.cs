@@ -36,7 +36,7 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
     }
 
     [Fact]
-    public async Task HandleAsync_DeletesFormSchemaAndFlattenedRowsForFormOnly()
+    public async Task HandleAsync_DeletesFormSchemaFlattenedRowsAndViewsForFormOnly()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -46,59 +46,25 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         ReportingUnitOfWork unitOfWork = new(dbContext);
         FormSchemaRepository schemaRepository = new(dbContext, unitOfWork, ReportingTestSchema.TransactionLockFor(dbContext));
         FlattenedSubmissionRepository flattenedRepository = new(dbContext, unitOfWork, new DateTimeProvider());
+        SubmissionViewRepository viewRepository = new(dbContext, new UniqueConstraintViolationChecker());
 
-        FormSchemaCompiler compiler = new();
-        var compiled = compiler.CompilePersisted(
-            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
-
-        FormSchema targetSchema = new(
-            TenantId,
-            FormId,
-            FormDefinitionId,
-            compiled.FlatteningMapJson,
-            compiled.CodebookJson,
-            compiled.LocalesJson);
-        FormSchema otherSchema = new(
-            TenantId,
-            OtherFormId,
-            FormDefinitionId,
-            compiled.FlatteningMapJson,
-            compiled.CodebookJson,
-            compiled.LocalesJson);
-        await schemaRepository.SaveAsync(targetSchema, cancellationToken);
-        await schemaRepository.SaveAsync(otherSchema, cancellationToken);
-
-        FlattenedRowSeed rows = new(dbContext);
-        await rows.ProcessedAsync(new(TenantId, FormId, SubmissionId: 5001), """{"q1":"a"}""", cancellationToken);
-        await rows.ProcessedAsync(new(TenantId, OtherFormId, SubmissionId: 5002), """{"q1":"b"}""", cancellationToken);
+        await SeedFormRowsAsync(dbContext, new(TenantId, FormId, SubmissionId: 5001), cancellationToken);
+        await SeedFormRowsAsync(dbContext, new(TenantId, OtherFormId, SubmissionId: 5002), cancellationToken);
 
         SyncFormDeletionOutboxHandler handler = new(
             schemaRepository,
             flattenedRepository,
+            viewRepository,
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
 
         // Act
-        await handler.HandleAsync(CreateMessage(), cancellationToken);
+        await handler.Read(CreateMessage()).RunAsync(cancellationToken);
 
         // Assert
         dbContext.ChangeTracker.Clear();
-        (await dbContext.FormSchemas
-                .IgnoreQueryFilters()
-                .CountAsync(row => row.TenantId == TenantId && row.FormId == FormId, cancellationToken))
-            .Should().Be(0);
-        (await dbContext.FlattenedSubmissions
-                .IgnoreQueryFilters()
-                .CountAsync(row => row.TenantId == TenantId && row.FormId == FormId, cancellationToken))
-            .Should().Be(0);
-        (await dbContext.FormSchemas
-                .IgnoreQueryFilters()
-                .CountAsync(row => row.FormId == OtherFormId, cancellationToken))
-            .Should().Be(1);
-        (await dbContext.FlattenedSubmissions
-                .IgnoreQueryFilters()
-                .CountAsync(row => row.FormId == OtherFormId, cancellationToken))
-            .Should().Be(1);
+        (await RowCountsAsync(dbContext, FormId, cancellationToken)).Should().Be(new FormRowCounts(0, 0, 0));
+        (await RowCountsAsync(dbContext, OtherFormId, cancellationToken)).Should().Be(new FormRowCounts(1, 1, 1));
     }
 
     [Fact]
@@ -112,13 +78,49 @@ public sealed class SyncFormDeletionOutboxHandlerIntegrationTests
         SyncFormDeletionOutboxHandler handler = new(
             new FormSchemaRepository(dbContext, unitOfWork, ReportingTestSchema.TransactionLockFor(dbContext)),
             new FlattenedSubmissionRepository(dbContext, unitOfWork, new DateTimeProvider()),
+            new SubmissionViewRepository(dbContext, new UniqueConstraintViolationChecker()),
             unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
 
-        Func<Task> act = () => handler.HandleAsync(CreateMessage(), cancellationToken);
+        Func<Task> act = () => handler.Read(CreateMessage()).RunAsync(cancellationToken);
 
         await act.Should().NotThrowAsync();
     }
+
+    // A compiled schema, one processed flattened row and a saved grid view: every form-scoped Reporting row.
+    private static async Task SeedFormRowsAsync(
+        ReportingDbContextBase dbContext,
+        FlattenedSubmissionKey submission,
+        CancellationToken cancellationToken)
+    {
+        var formId = submission.FormId;
+        var compiled = new FormSchemaCompiler().CompilePersisted(
+            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"q1"}]}]}""");
+        dbContext.FormSchemas.Add(new FormSchema(
+            TenantId,
+            formId,
+            FormDefinitionId,
+            compiled.FlatteningMapJson,
+            compiled.CodebookJson,
+            compiled.LocalesJson));
+        dbContext.SubmissionViews.Add(SubmissionView.CreateShared(
+            new SubmissionViewCreateArgs(TenantId, formId, SubmissionViewSettings.DefaultJson, ModifiedBy: null)));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        FlattenedRowSeed rows = new(dbContext);
+        await rows.ProcessedAsync(submission, """{"q1":"a"}""", cancellationToken);
+    }
+
+    private static async Task<FormRowCounts> RowCountsAsync(
+        ReportingDbContextBase dbContext,
+        long formId,
+        CancellationToken cancellationToken) =>
+        new(
+            await dbContext.FormSchemas.IgnoreQueryFilters().CountAsync(row => row.FormId == formId, cancellationToken),
+            await dbContext.FlattenedSubmissions.IgnoreQueryFilters().CountAsync(row => row.FormId == formId, cancellationToken),
+            await dbContext.SubmissionViews.IgnoreQueryFilters().CountAsync(row => row.FormId == formId, cancellationToken));
+
+    private sealed record FormRowCounts(int Schemas, int Flattened, int Views);
 
     private async Task ResetReportingSchemaAsync(CancellationToken cancellationToken)
     {

@@ -1,0 +1,392 @@
+---
+title: Audience
+description: Add the people a form is for and the properties kept about each one, import up to 100,000 participants from a CSV, generate and download personalized links, preview the saved form as any participant, and try it with test people, Test as this participant, Copy test link, and Start over before you send links.
+sidebar_label: Audience
+---
+
+import PeopleLight from "./audience-people_light.webp";
+import PeopleDark from "./audience-people_dark.webp";
+import PropertiesLight from "./audience-properties_light.webp";
+import PropertiesDark from "./audience-properties_dark.webp";
+import ParticipantLight from "./audience-participant_light.webp";
+import ParticipantDark from "./audience-participant_dark.webp";
+import ImportFileLight from "./audience-import-file_light.webp";
+import ImportFileDark from "./audience-import-file_dark.webp";
+import ImportReviewLight from "./audience-import-review_light.webp";
+import ImportReviewDark from "./audience-import-review_dark.webp";
+import LinksPanelLight from "./audience-links-panel_light.webp";
+import LinksPanelDark from "./audience-links-panel_dark.webp";
+import LinksOutcomeLight from "./audience-links-outcome_light.webp";
+import LinksOutcomeDark from "./audience-links-outcome_dark.webp";
+import AddTestPersonLight from "./audience-add-test-person_light.webp";
+import AddTestPersonDark from "./audience-add-test-person_dark.webp";
+import ImportAsTestLight from "./audience-import-as-test_light.webp";
+import ImportAsTestDark from "./audience-import-as-test_dark.webp";
+import TestFilterLight from "./audience-test-filter_light.webp";
+import TestFilterDark from "./audience-test-filter_dark.webp";
+import CopyTestLinkRowLight from "./audience-copy-test-link-row_light.webp";
+import CopyTestLinkRowDark from "./audience-copy-test-link-row_dark.webp";
+import CopyTestLinkLight from "./audience-copy-test-link_light.webp";
+import CopyTestLinkDark from "./audience-copy-test-link_dark.webp";
+import PreviewAsLight from "./audience-preview-as_light.webp";
+import PreviewAsDark from "./audience-preview-as_dark.webp";
+
+# Audience
+
+The **Audience** tab of a form holds the people the form is for and the facts you keep about each of them. Each person's values fill the form when they open it, so a form can greet someone by name or ask about their own company. Test people let you try that personalized form as someone, without sending a link or counting the result as a real response.
+
+To use the properties in the form and check it in the designer, see [Personalized Forms](/docs/end-users/forms/personalized-forms). To run a whole personalized survey, from import to export, follow [Run a personalized survey](/docs/end-users/guides/run-a-personalized-survey).
+
+To open it, open the form from the **Forms** list, click the section menu next to the form name (it shows **Overview**), and choose **Audience**. The tab appears when your Endatix deployment has personalization turned on.
+
+## People and properties
+
+The tab has two views, **People** and **Properties**. Each shows its count in the view switch. A form with properties also has a third view, [**Preview as**](#preview-as), for people who can edit the form.
+
+- A **property** is one fact kept for each person on this form, such as a first name, a company, or a plan. Each property is a column in the people table.
+- A **person** is someone in the form's audience. Endatix recognizes the same person on every form in your organization by the **match key**, for example their email. Removing someone takes them off this form only.
+
+### Add a property
+
+1. On the **Properties** view, click **Add property**.
+2. Enter a **Name**, such as `First name`. Endatix builds the **variable name** from it (`first_name`). The variable name never changes, even if you rename the property later.
+3. Choose a **Type**. Values are checked against the type when people are added or edited.
+4. Click **Add property**.
+
+Use the variable name in the form the same way as any other variable, in braces: a title of `Welcome, {first_name}` shows each person their own first name. See [Text Piping](/docs/end-users/forms/form-builder/text-piping) for where you can use it. To start a question with each person's value, use [Prefill from](/docs/end-users/forms/prefilling-and-personalization#prefill-from-a-property) in the designer.
+
+### Check which values the form uses
+
+If you can edit the form, the **Properties** view also shows how the saved form uses each property:
+
+- **Used in form** is **Used** when the form reads the variable, and **Not used** when nothing in it does.
+- **Filled in (real)** counts the real people who have a value for it, for example **2 of 3 filled**. Test people are not counted. With no real people yet, it says **No real participants**.
+
+<Shot
+  alt="Properties view of the Audience tab with First name and Company, their variable names first_name and company, the type Text, Used in form showing Used for both, and Filled in (real) showing 3 of 3 filled and 2 of 3 filled"
+  sources={{ light: PropertiesLight, dark: PropertiesDark }}
+/>
+
+The counts follow the last saved version of the form. Save the form in the designer to update them. The designer's **Diagnostics** tab shows the same gaps as warnings while you edit: see [Fix the Personalization warnings](/docs/end-users/forms/personalized-forms#fix-the-personalization-warnings).
+
+### Add people
+
+The **People** view lists everyone on the form, with one column per property.
+
+<Shot
+  alt="People view of the Audience tab: Import CSV, Personalized links and Add person buttons, the All people filter, and a table of four people. jordan.lee@example.com carries a 1 not filled in mark and qa.tester@example.com a Test badge. The Link column shows Opened for alex.kim@example.com and Issued for the other real people, and each row has Test as this participant, Edit and Remove actions"
+  sources={{ light: PeopleLight, dark: PeopleDark }}
+/>
+
+- **Add person** adds one person: enter their identifier (the match key, for example **Email**) and, optionally, a value for each property.
+- **Import CSV** adds many at once from a file with one participant per row. Nothing is written until you confirm. See [Import participants from a CSV](#import-participants-from-a-csv).
+- **Personalized links** creates one link per real person who has none yet and downloads them as a file to send from your own email or panel tool. See [Personalized links](#personalized-links).
+
+Two marks help you check the list before you send links:
+
+- **Link** shows each real person's link: **Not issued**, **Issued**, or **Opened**. Click **Opened** to see the response the link started. A test person never gets a link. The column appears once anyone on the form has a link.
+- **N not filled in** next to a person means the saved form reads values they don't have. Hover over it to see which ones. Fill them in with **Edit**, or the form shows those places empty for that person. Only people who can edit the form see this mark.
+
+## Import participants from a CSV
+
+**Import CSV** adds or updates many participants from one file. The import runs in three steps, **File**, **Columns**, and **Review**, and writes nothing until you confirm it.
+
+1. On the **People** view, click **Import CSV**.
+2. Under **CSV file**, choose the file. The first row names the columns. Before you choose, the help line says how large a file this deployment takes, for example *Up to 100,000 rows and 50 MB.* After you choose, it says what Hub read, for example *acme-panel.csv: 12,000 rows, 4 columns.*
+3. Click **Continue**. Under **Identifier**, choose the column that holds the match key, such as **Email**. Under **Columns**, choose the property each other column fills, or **Don't import**. Columns named like a property are matched already.
+4. Click **Continue**. Hub sends the file and checks every row.
+5. Read the preview, for example *11,950 new participants, 40 already on this form, 10 rejected*, and the **Rejected rows** below it.
+6. Click **Import N participants**, for example **Import 11,990 participants**.
+
+<Shot
+  alt="Import participants panel on the File step: Add participants from a CSV file. Nothing is written until you confirm. The CSV file field, with the help line Up to 100,000 rows and 50 MB. The first row names the columns."
+  sources={{ light: ImportFileLight, dark: ImportFileDark }}
+/>
+
+### Limits
+
+The file help line names this deployment's limits. A deployment that runs imports as background jobs takes up to **100,000 rows and 50 MB** per file. One without background jobs takes up to 5,000 rows and 20 MB. Split a larger file and import the parts one after the other.
+
+### Follow the import
+
+The **Review** step counts each phase as it runs:
+
+- **Sending the file**: *2,000 of 12,000 rows sent*. Keep the tab open until the file is sent.
+- **Checking rows**: *6,000 of 12,000 rows checked*. Nothing is written yet.
+- **Writing participants**: *4,000 of 11,990 rows written*, with what was written so far, for example *3,960 added, 40 updated so far*.
+
+<Shot
+  alt="Import participants panel on the Review step after the check: acme-panel.csv, 11 rows, the preview 8 new participants, 2 already on this form, 1 rejected, the Cancel import button, Rejected rows with row 10 and the reason not-an-email is not a valid email address, the note Existing participants are updated, and the Close and Import 10 participants buttons"
+  sources={{ light: ImportReviewLight, dark: ImportReviewDark }}
+/>
+
+When it ends, the panel says **Import finished**, or **Import finished with rejected rows**, with the counts, for example *11,950 added, 40 updated, 10 rejected*. The **People** list behind the panel is already up to date.
+
+### How rows meet participants already on the form
+
+Rows are matched by the match key. A participant already on the form gets the file's values, and an empty cell keeps the value they have. A test import works differently: see [Import test people](#import-test-people).
+
+A **rejected** row is left out, and the other rows still import. **Rejected rows** lists the first 50 by their row in the file, with the reason. Fix those rows in the file and import it again: participants already imported are matched, not added twice.
+
+### Cancel before you confirm
+
+Until you click **Import N participants**, **Cancel import** stops the import: the panel says *Import canceled. Nothing was written.* Closing the panel does not cancel it.
+
+An import that waits more than a day for its upload to finish, or for you to confirm it, expires and writes nothing. Import the file again.
+
+### Close the tab while it runs
+
+Once the file is sent, a deployment with background jobs keeps checking and writing without the browser. The panel says *You can close this panel or this tab: the import keeps going.*
+
+A form runs one import at a time. While one is running, the button on the **People** view reads **Import in progress**, and opening it shows the import where it stands, from any browser. Starting a second import shows the running one instead, with *An import of this form is already running, so it is shown instead of your file.*
+
+On a deployment without background jobs, keep the tab open until the import finishes.
+
+### Resume a cut-off upload
+
+If the tab closes or the connection drops while the file is being sent, open **Import in progress** again. The panel says how far the upload got, for example *The upload stopped before the whole file was sent (4,000 of 12,000 rows). Choose acme-panel.csv again to continue it.* Choose the same file, and Hub sends only the rows still missing.
+
+The file must be the same one: same name, same number of rows, and the same columns. Another file is refused, for example *This file is acme-panel-v2.csv, but the import is of acme-panel.csv. Choose acme-panel.csv again.*
+
+### Resume a stopped write
+
+If writing stops before it finishes, the button reads **Import stopped** and the panel says **The import stopped**. Participants written so far stay on the form.
+
+- **Resume import** continues from where it stopped, and writes each participant once.
+- **Start a new import** discards the stopped one. Participants it already wrote stay on this form; its other rows are not written.
+
+A stopped write can be resumed for 7 days.
+
+## Personalized links
+
+**Personalized links** creates one link for each real person on the form who has none yet, and downloads them as a file. Each link opens that person's own response, filled in with their values. Send the file's links from your own email or panel tool.
+
+1. On the **People** view, click **Personalized links**.
+2. Check **Who gets a link**. **People on this form** counts everyone on the form, test people included; only real people without a link get one.
+3. Click **Generate and download**.
+
+<Shot
+  alt="Personalized links panel: Who gets a link, Everyone on this form who has no link yet. People who already have one keep it, People on this form 12, and the note The file is the only copy, with Cancel and Generate and download"
+  sources={{ light: LinksPanelLight, dark: LinksPanelDark }}
+/>
+
+The panel then says, for example, **10 links downloaded**, offers **Download CSV** again while it is open, and lists the first five links so you can try one before you send them.
+
+<Shot
+  alt="Personalized links panel after Generate and download: 10 links downloaded, the file name personalized-links followed by the form ID and the date, a Download CSV button, and a Links table with the first 5 of 10, each email with its link on forms.acme.com and a copy button"
+  sources={{ light: LinksOutcomeLight, dark: LinksOutcomeDark }}
+/>
+
+### The links file
+
+The file is named `personalized-links-<form ID>-<date>.csv`, for example `personalized-links-1234567890-2026-10-26.csv`, so a later batch never overwrites an earlier one. It has one row per person, with two columns: the match key (`email` or `external_id`) and `link`.
+
+```csv
+email,link
+alex.kim@acme.com,https://forms.acme.com/share/1234567890/a/...
+jordan.lee@acme.com,https://forms.acme.com/share/1234567890/a/...
+```
+
+**The file is the only copy.** Endatix keeps a fingerprint of each link, never the link itself, so it cannot show a link again once the panel closes. Anyone with a link can open that person's response, so keep the file safe until the links are sent.
+
+### Links for people added later
+
+People who already have a link keep it. After you add more people, click **Personalized links** again: the new file holds links for the new people only. With no one left without a link, the panel says **Everyone already has a link**.
+
+### What a link opens
+
+- **The first open** starts the person's response, with the form and their values as they are at that moment.
+- **Every later open** resumes that same response. A person never gets a second response from their link.
+- **A finished response** is not opened again: the page says *This form has already been completed.*
+- **On a private form**, the link opens without a sign-in. See [Personalized links on a private form](/docs/end-users/sharing/public-and-private-forms#personalized-links-on-a-private-form).
+
+The **Link** column of the **People** view shows each link's status.
+
+### Up to 5,000 people per form
+
+Hub issues links for up to 5,000 real people on one form. On a form with more, **Generate and download** creates no links and the panel says *This form has more than 5,000 people to send links to.* Test people do not count.
+
+## Preview as
+
+**Preview as** shows the saved form the way one participant gets it, with their values filled in. Use it to check a real participant's form before you send links, without opening their link or creating a submission. It needs permission to edit the form.
+
+1. On the **Audience** tab, click **Preview as** in the view switch.
+2. Pick a participant on the left. **Test participants** are listed first. To find anyone else, real participants included, type part of their identifier in **Find any participant**.
+3. Read the form on the right. Use the arrow keys to move to the next or previous participant.
+
+<Shot
+  alt="Preview as view: Find any participant above a Test participants list with qa.tester@example.com selected; on the right, qa.tester@example.com with a Test badge, Test as this participant and Edit values buttons, the values First name Sam, Company Contoso, Tier Gold and Region empty, the note Every value is filled in, Saved form, last saved 17 seconds ago, and the form starting Welcome, Sam"
+  sources={{ light: PreviewAsLight, dark: PreviewAsDark }}
+/>
+
+Above the form, the participant's values are listed, with a dash for an empty one, and a note names the values the form reads that they don't have (**Not filled in: …**), or says **Every value is filled in**. Below that is when the form was last saved: the preview always shows the saved version, so save in the designer first. Answers you type in the preview are not saved.
+
+- **Edit values** changes the participant's values; the preview updates with them.
+- **Test as this participant** opens a test submission with the same values, as from the **People** view. It needs permission to test forms.
+
+The choice is kept in the page address, so you can share a link to one participant's preview with someone who can edit the form. To preview a draft before you save it, use [Preview as in the designer](/docs/end-users/forms/personalized-forms#preview-the-form-as-a-participant).
+
+## Open a participant's page
+
+Click a person's identifier to open their page on this form. It needs permission to edit the form.
+
+<Shot
+  alt="Participant page for alex.kim@example.com: Test as this participant, Edit values and Remove buttons, a Values card with First name Alex and Company Fabrikam, a Link card with status Opened, when it was opened and a View response link, and a Submissions table with one In progress submission from a Personalized link"
+  sources={{ light: ParticipantLight, dark: ParticipantDark }}
+/>
+
+- **Values** lists the person's value for each property.
+- **Link** shows their personalized link's status, when it was opened, and the response it started. It appears only once a link was issued, so a test person never has it.
+- **Submissions** lists their newest submissions on this form, up to 50, with the status and where each came from: **Personalized link**, **On behalf**, or **Test as this participant**. Click **View** to open one.
+
+The page has the same actions as the row: **Copy test link** for a test person, **Test as this participant**, **Edit values**, and **Remove**. Click **Audience** at the top to go back to the list.
+
+## Test people
+
+A **test person** exists only for testing on this form. They are never sent a personalized link and do not count as part of the audience. Use test people to see the form the way a respondent with those values sees it.
+
+You choose whether someone is a test person when you add them. It cannot be changed later: to turn a test person into a real one, remove them and add them again.
+
+### Add a test person
+
+1. On the **People** view, click **Add person**.
+2. Enter the identifier and the property values you want to test with.
+3. Select **Add as test participant**.
+4. Click **Add person**.
+
+<Shot
+  alt="Add person panel with Email qa.reviewer@example.com, First name Robin, Company Contoso, and the Add as test participant checkbox selected"
+  sources={{ light: AddTestPersonLight, dark: AddTestPersonDark }}
+/>
+
+The person appears in the table with a **Test** badge next to their identifier.
+
+### Import test people
+
+1. On the **People** view, click **Import CSV** and choose the file.
+2. Click **Continue**, and map the columns.
+3. Select **Import as test participants**, below the columns.
+4. Click **Continue**. On **Review**, the note says **Existing participants are skipped**.
+5. Click **Import N participants**, for example **Import 2 participants**.
+
+<Shot
+  alt="Import participants panel on the Columns step: Identifier column email, the columns first_name and company mapped to First name and Company, and Import as test participants selected, with its help Test participants are never sent a personalized link"
+  sources={{ light: ImportAsTestLight, dark: ImportAsTestDark }}
+/>
+
+With **Import as test participants** on, only participants new to this form are added, as test participants. A participant already on the form is skipped and keeps their values, so a test import never changes a real person. The outcome counts both, for example *1 added as test participants, 1 skipped because they are already on this form*.
+
+### Filter real and test people
+
+Once the form has people, a filter above the table shows **All people**, **Real people**, or **Test people**. The choice is kept in the page address, so you can bookmark or share a filtered view.
+
+<Shot
+  alt="People filter open, with All people selected and Real people and Test people as the other options"
+  sources={{ light: TestFilterLight, dark: TestFilterDark }}
+/>
+
+## Test as this participant
+
+**Test as this participant** opens the form as that person, with their current values, in a new browser tab. It is the flask icon in the row's actions and a button on the participant's page, and it needs permission to test forms.
+
+1. On the **People** view, find the person. A test person is the usual choice, but any person works.
+2. Click **Test as this participant** in their row, or on their page.
+
+Each click creates a new test submission for that person, on the latest saved version of the form.
+
+<Shot
+  src={require("./audience-test-as-this-participant.webp").default}
+  alt="The form opened as the test person Sam from Contoso: the heading reads Welcome, Sam, the first question asks how easy it was to set up Endatix at Contoso, and the round Test inspector button with its TEST tag sits at the bottom right"
+/>
+
+Testing as a real person does not use up their personalized link. When they open it, they still get a new real response of their own.
+
+A test submission does not count toward [**Limit one per user**](/docs/end-users/sharing/single-submission). On the Submissions page, the **Submission Type** filter shows or hides test submissions, and an export includes them only when **Include test submissions** is on.
+
+## Test inspector
+
+The round button with a **TEST** tag at the bottom right of a test submission is the **Test inspector**. Click it to see who you are submitting as and the values the form was opened with, to open the submission or the participant in Hub, and to **Start over**.
+
+You see it when you can test forms. Anyone else who opens the same test submission sees only *You are submitting a test submission*, and real respondents see neither. See [Testing Submissions](/docs/end-users/submissions/testing-submissions#read-the-test-inspector) for each row and panel.
+
+## Start over
+
+**Start over** is in the Test inspector of a test submission opened with **Test as this participant**. It discards the current test submission and opens a new one for the same person.
+
+Use it after you change the person's values or edit the form: the new test submission picks up the person's current values and the latest saved form. To try different values, edit the person on the **People** view, then click **Start over** in the form's tab.
+
+If the person was removed from the form in the meantime, **Start over** goes away and the Test inspector says *This person is no longer on this form, so this test submission cannot start over.* Add a test person again and use **Test as this participant**.
+
+## Copy test link
+
+**Copy test link** gives you a link to a new test submission as a test person, to send to a colleague who has no Endatix login. They open it in any browser and fill in the form with that person's values, also on a private form.
+
+It is the link icon, first in a test person's row actions, and the first button on a test person's page. Real people do not have it. You see it when you can test forms, edit the form, and view, edit, or export submissions.
+
+<Shot
+  alt="People table with qa.tester@example.com, marked Test, and alex.kim@example.com. The test person's row actions start with the link icon, Copy test link, before Test as this participant, Edit and Remove; the real person's row has no link icon, so the other three line up"
+  sources={{ light: CopyTestLinkRowLight, dark: CopyTestLinkRowDark }}
+/>
+
+1. On the **People** view, click **Copy test link** in a test person's row, or on their page.
+2. Choose the **Link lifetime**, from **1 hour** to **60 days**. It starts at **7 days**.
+3. Click **Create and copy link**. Hub creates the test submission and copies its link.
+
+<Shot
+  alt="Copy test link panel for qa.tester@example.com after a copy: Link lifetime 7 days, the Test link with its share address and a copy button, Expires in 7 days, and the Create and copy another button"
+  sources={{ light: CopyTestLinkLight, dark: CopyTestLinkDark }}
+/>
+
+The panel also shows the link with **Copy this link**, in case your browser did not allow the copy. Click **Create and copy another** for a second link: each copy opens its own new test submission, with the person's current values and the latest saved form.
+
+Anyone with the link can fill in that one test submission until it is completed or the link expires, with no sign-in. It opens nothing else. The submission is a test submission like any other: it shows under **Submission Type: Test** on the Submissions page, stays out of exports unless you include test submissions, and can be deleted there.
+
+## Limitations
+
+- **Test status is set once.** You cannot switch a person between test and real. Remove them and add them again.
+- **Imports have a size limit.** Up to 100,000 rows and 50 MB per file on a deployment with background jobs, or 5,000 rows and 20 MB without. One import runs per form at a time.
+- **Personalized links stop at 5,000 people.** A form with more real people gets no links.
+- **Links are shown once.** The downloaded file is the only copy.
+- **Test people get no personalized links.** **Personalized links** skips them; use **Copy test link** to share a test, and a test import never touches people already on the form.
+- **Start over needs the person.** It works only while the person is still on the form.
+- **No Test inspector in embeds.** An embedded form shows the plain test notice with **Start over**.
+
+## Related documentation
+
+<CardGrid compact>
+  <LinkCard
+    to="/docs/end-users/guides/run-a-personalized-survey"
+    title="Run a personalized survey"
+    description="Import a panel, test as one of them, send links, and export real responses."
+  />
+  <LinkCard
+    to="/docs/end-users/forms/personalized-forms"
+    title="Personalized Forms"
+    description="Use properties in the designer, preview as a participant, and fix the Personalization warnings."
+  />
+  <LinkCard
+    to="/docs/end-users/forms/prefilling-and-personalization"
+    title="Prefilling and Personalization"
+    description="Pass values in the link instead, with query string variables."
+  />
+  <LinkCard
+    to="/docs/end-users/forms/form-builder/text-piping"
+    title="Text Piping"
+    description="Show a property's value in a title, description, or choice."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/testing-submissions"
+    title="Testing Submissions"
+    description="Read the Test inspector and keep test submissions out of your data."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/viewing-submissions"
+    title="Viewing Submissions"
+    description="Find test submissions with the Submission Type filter."
+  />
+  <LinkCard
+    to="/docs/end-users/submissions/exporting-submissions"
+    title="Exporting Submissions"
+    description="Include or leave out test submissions in an export."
+  />
+</CardGrid>

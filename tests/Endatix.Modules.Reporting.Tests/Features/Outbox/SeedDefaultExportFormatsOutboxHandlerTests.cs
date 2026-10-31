@@ -17,7 +17,7 @@ public sealed class SeedDefaultExportFormatsOutboxHandlerTests
     [Fact]
     public void EventTypes_IncludesTenantCreated()
     {
-        CreateSut().EventTypes.Should().Contain(TenantCreatedEvent.EventTypeName);
+        SeedDefaultExportFormatsOutboxHandler.HandledEventTypes.Should().Contain(TenantCreatedEvent.EventTypeName);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class SeedDefaultExportFormatsOutboxHandlerTests
             Payload: payload,
             TenantId: AuthConstants.DEFAULT_TENANT_ID);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _seeder.Received(1).SeedAsync(TenantId, Arg.Any<CancellationToken>());
     }
@@ -45,7 +45,7 @@ public sealed class SeedDefaultExportFormatsOutboxHandlerTests
             Payload: """{"name":"Acme"}""",
             TenantId: AuthConstants.DEFAULT_TENANT_ID);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()

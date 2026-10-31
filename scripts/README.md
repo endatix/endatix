@@ -16,6 +16,7 @@ Optional syntax check:
 node --check ./scripts/lib/secret-generation.mjs
 node --check ./scripts/lib/bicepparam-utils.mjs
 node --check ./scripts/lib/console-format.mjs
+node --check ./scripts/sonar-gate.mjs
 ```
 
 ## Conventions

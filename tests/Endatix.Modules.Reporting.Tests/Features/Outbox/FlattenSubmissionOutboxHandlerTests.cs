@@ -23,7 +23,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [Fact]
     public void EventTypes_IncludesSubmissionCompletedAndUpdated()
     {
-        IReadOnlyCollection<string> eventTypes = CreateSut().EventTypes;
+        IReadOnlyCollection<string> eventTypes = FlattenSubmissionOutboxHandler.HandledEventTypes;
 
         eventTypes.Should().Contain(SubmissionCompletedEvent.EventTypeName);
         eventTypes.Should().Contain(SubmissionUpdatedEvent.EventTypeName);
@@ -40,7 +40,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _flatteningProcessor.Received(1).ProcessAsync(
             TenantId,
@@ -53,7 +53,10 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [InlineData("answers")]
     [InlineData("definition")]
     [InlineData("answers,metadata")]
-    public async Task HandleAsync_WithSubmissionUpdated_DataAffectingChangeKind_CallsProcessor(string changeKind)
+    [InlineData("submitter")]
+    [InlineData("metadata,submitter")]
+    [InlineData("test")]
+    public async Task HandleAsync_WithSubmissionUpdated_FlattenedDataChangeKind_CallsProcessor(string changeKind)
     {
         Submission submission = CreateSubmission();
         string payload = ReportingOutboxTestHelpers.SerializePayload(
@@ -64,7 +67,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _flatteningProcessor.Received(1).ProcessAsync(
             TenantId,
@@ -75,9 +78,8 @@ public sealed class FlattenSubmissionOutboxHandlerTests
 
     [Theory]
     [InlineData("metadata")]
-    [InlineData("submitter")]
     [InlineData("")]
-    public async Task HandleAsync_WithSubmissionUpdated_NonDataChangeKind_DoesNotCallProcessor(string changeKind)
+    public async Task HandleAsync_WithSubmissionUpdated_NonFlattenedChangeKind_DoesNotCallProcessor(string changeKind)
     {
         Submission submission = CreateSubmission();
         SubmissionChangeKinds parsedChangeKind = string.IsNullOrEmpty(changeKind)
@@ -91,7 +93,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: payload,
             TenantId: TenantId);
 
-        await CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await _flatteningProcessor.DidNotReceive().ProcessAsync(
             Arg.Any<long>(),
@@ -109,7 +111,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: """{"tenantId":"42","formId":"100"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().HandleAsync(message, TestContext.Current.CancellationToken);
+        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()

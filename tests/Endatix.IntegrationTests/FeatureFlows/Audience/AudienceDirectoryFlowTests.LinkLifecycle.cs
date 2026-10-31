@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -82,7 +83,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Opening_a_link_after_the_person_was_removed_resumes_the_submission()
+    public async Task Opening_a_link_after_the_person_was_removed_is_not_found_and_writes_nothing()
     {
         // Arrange
         var world = await WorldAsync();
@@ -90,16 +91,28 @@ public sealed partial class AudienceDirectoryFlowTests
         var link = await LinkForPersonWithCityAsync(admin, "Toledo");
         (var formId, var token) = link;
         using var anonymous = world.AnonymousClient();
-        var opened = await RedeemAsync(anonymous, formId, token);
+        var submissionId = IdOf(await RedeemAsync(anonymous, formId, token), "submissionId");
         using var removed = await admin.Client.DeleteAsync(link.PersonUrl, admin.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+        var before = await StoredTokenAsync(world.Services, submissionId);
 
         // Act
-        var again = await RedeemAsync(anonymous, formId, token);
+        using var again = await anonymous.PostAsJsonAsync(RedeemUrl(formId, token), new { }, admin.CancellationToken);
 
         // Assert
-        Assert.False(again.GetProperty("created").GetBoolean());
-        Assert.Equal(IdOf(opened, "submissionId"), IdOf(again, "submissionId"));
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+        Assert.Equal(before, await StoredTokenAsync(world.Services, submissionId));
+        await AssertOnlySubmissionAsync(world.Services, formId, submissionId);
+    }
+
+    /// <summary>The submission's stored token and its expiry: an open that extends it changes the expiry.</summary>
+    private static async Task<(string? Value, DateTime? ExpiresAt)> StoredTokenAsync(IServiceProvider services, long submissionId)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var app = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var submission = await app.Submissions.AsNoTracking().IgnoreQueryFilters()
+            .SingleAsync(item => item.Id == submissionId, TestContext.Current.CancellationToken);
+        return (submission.Token?.Value, submission.Token?.ExpiresAt);
     }
 
     [Fact]

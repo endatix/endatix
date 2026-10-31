@@ -17,7 +17,16 @@ internal sealed class MembershipConfiguration(AudienceSqlDialect dialect) : IEnt
         builder.Property(membership => membership.TenantId).IsRequired();
         builder.Property(membership => membership.FormId).IsRequired();
         builder.Property(membership => membership.MemberId).IsRequired();
+        HasIndexes(builder);
 
+        // The key a cell's FK_PropertyValues_Membership points at, so a cell carries its participant's tenant and test
+        // flag. Unfiltered: a foreign key cannot target a filtered index. EF also keeps these columns read-only.
+        builder.HasAlternateKey(membership => new { membership.TenantId, membership.Id, membership.IsTest })
+            .HasName("AK_Memberships_TestFlag");
+    }
+
+    private void HasIndexes(EntityTypeBuilder<Membership> builder)
+    {
         builder.HasIndex(membership => new { membership.TenantId, membership.FormId })
             .HasDatabaseName("IX_Memberships_Form")
             .HasFilter(dialect.ActiveRowsFilter);

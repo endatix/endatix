@@ -8,22 +8,25 @@ using Microsoft.Extensions.Logging;
 namespace Endatix.Modules.Reporting.Features.Outbox;
 
 /// <summary>
-/// Hard-deletes form-scoped Reporting rows when a form is deleted.
+/// Hard-deletes form-scoped Reporting rows when a form is deleted: its schema, flattened submissions and saved grid views.
 /// </summary>
 internal sealed class SyncFormDeletionOutboxHandler(
     IFormSchemaRepository formSchemaRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
+    ISubmissionViewRepository submissionViewRepository,
     IReportingUnitOfWork unitOfWork,
-    ILogger<SyncFormDeletionOutboxHandler> logger) : IOutboxIntegrationEventHandler
+    ILogger<SyncFormDeletionOutboxHandler> logger) : IOutboxWork<SyncFormDeletionOutboxHandler>
 {
-    public static readonly IReadOnlyCollection<string> HandledEventTypes = [FormDeletedEvent.EventTypeName];
+    public static string JobType => "ReportingSyncFormDeletion";
+
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } = [FormDeletedEvent.EventTypeName];
 
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
-
-    /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), message.Id, cancellationToken);
+    public OutboxWork Read(IOutboxMessage message)
+    {
+        var input = Parse(message);
+        return OutboxWork.For(cancellationToken => ProcessAsync(input, message.Id, cancellationToken));
+    }
 
     /// <summary>Reads the work from the message; throws <see cref="InvalidOperationException"/> when it cannot.</summary>
     public static Input Parse(IOutboxMessage message)
@@ -37,19 +40,23 @@ internal sealed class SyncFormDeletionOutboxHandler(
     public async Task ProcessAsync(Input input, long outboxMessageId, CancellationToken cancellationToken)
     {
         var (tenantId, formId) = input;
-        var (schemasDeleted, flattenedDeleted) = await unitOfWork.InTransactionAsync(
-            async () => (
+        var deleted = await unitOfWork.InTransactionAsync(
+            async () => new DeletedRows(
                 await formSchemaRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken),
-                await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken)),
+                await flattenedSubmissionRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken),
+                await submissionViewRepository.DeleteByFormIdAsync(tenantId, formId, cancellationToken)),
             cancellationToken);
 
         logger.LogInformation(
-            "Cleaned reporting rows for form {FormId} (schemasDeleted={SchemasDeleted}, flattenedDeleted={FlattenedDeleted}, outboxMessageId={OutboxMessageId})",
+            "Cleaned reporting rows for form {FormId} (schemasDeleted={SchemasDeleted}, flattenedDeleted={FlattenedDeleted}, viewsDeleted={ViewsDeleted}, outboxMessageId={OutboxMessageId})",
             formId,
-            schemasDeleted,
-            flattenedDeleted,
+            deleted.Schemas,
+            deleted.Flattened,
+            deleted.Views,
             outboxMessageId);
     }
 
     public sealed record Input(long TenantId, long FormId);
+
+    private sealed record DeletedRows(int Schemas, int Flattened, int Views);
 }

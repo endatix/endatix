@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;

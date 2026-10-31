@@ -177,6 +177,31 @@ public sealed class SubmissionGridColumnCatalogTests
         email.PageTitle.Should().Be("Contact details");
     }
 
+    [Theory]
+    [InlineData("es", "Datos de contacto")]
+    [InlineData("fr", "Contact details")]
+    public void Build_PageWithLocalizedTitle_ReturnsPageTitleInLocaleOrDefault(string locale, string expectedTitle)
+    {
+        // Arrange
+        var schema = Compile("""
+            {
+              "pages": [
+                {
+                  "name": "contact",
+                  "title": { "default": "Contact details", "es": "Datos de contacto" },
+                  "elements": [ { "type": "text", "name": "email" } ]
+                }
+              ]
+            }
+            """);
+
+        // Act
+        var columns = SubmissionGridColumnCatalog.Build(schema, locale, NoSearchKeys);
+
+        // Assert
+        columns.Single(column => column.Key == "email").PageTitle.Should().Be(expectedTitle);
+    }
+
     private static FormSearchKeyStatus SearchWith(FormSchemaEntity schema, SearchableColumn userColumn, int oldestRowRevision) =>
         new(FormSearchKeys.Of(schema).AddUser(userColumn, AddedAt).Value, oldestRowRevision);
 

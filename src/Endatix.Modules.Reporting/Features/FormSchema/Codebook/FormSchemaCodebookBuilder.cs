@@ -60,7 +60,12 @@ internal static partial class FormSchemaCodebookBuilder
     // No name fallback for the page title: the grid falls back to pageName itself, and a copied name would look
     // like a real title.
     private static QuestionPlacement PlacementOnPage(JsonElement page) =>
-        new(page.GetSurveyJsName(), ResolvePanelTitle(page, fallbackName: null), ParentPanelTitle: null);
+        new(page.GetSurveyJsName(), PageTitleInEveryLocale(page), ParentPanelTitle: null);
+
+    private static Dictionary<string, string> PageTitleInEveryLocale(JsonElement page) =>
+        SurveyJsLocalizationHelper.ReadLocalizedStrings(page, SurveyJsPropertyNames.Title)
+            .Where(title => !string.IsNullOrWhiteSpace(title.Value))
+            .ToDictionary(title => title.Key, title => title.Value, StringComparer.Ordinal);
 
     private static void CollectElements(
         JsonElement elementList,
@@ -197,20 +202,17 @@ internal static partial class FormSchemaCodebookBuilder
 
     // These entries come from the column alone, so rebuilding them is cheap and drops stale ones.
     private static bool IsDescribedByColumnAlone(FormSchemaColumn column) =>
-        column.Kind is FormSchemaColumnKind.Calculated or FormSchemaColumnKind.Personalization;
+        column.Kind is FormSchemaColumnKind.Calculated
+            or FormSchemaColumnKind.Personalization
+            or FormSchemaColumnKind.SubmitterProfile;
 
     private static JsonElement CreateColumnEntry(
         FormSchemaColumn column,
         IReadOnlyDictionary<string, CollectedQuestion> questionElements)
     {
-        if (column.Kind is FormSchemaColumnKind.Calculated)
+        if (IsDescribedByColumnAlone(column))
         {
-            return CreateCalculatedColumnEntry(column);
-        }
-
-        if (column.Kind is FormSchemaColumnKind.Personalization)
-        {
-            return CreatePersonalizationColumnEntry(column);
+            return CreateNonQuestionColumnEntry(column);
         }
 
         var parentKey = column.SourceQuestion ?? column.Key;

@@ -4,7 +4,7 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// Raised when a completed submission's material fields change. Captured to the outbox for durable
+/// Raised when a completed submission's material fields change, or when any submission is marked as test or real. Captured to the outbox for durable
 /// reporting re-flatten and future stats subscribers (not a customer webhook in phase 1).
 /// </summary>
 public sealed class SubmissionUpdatedEvent(Submission submission, SubmissionChangeKinds changeKind)

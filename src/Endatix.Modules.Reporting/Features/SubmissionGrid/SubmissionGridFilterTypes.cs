@@ -33,8 +33,8 @@ public static class SubmissionGridFilterTypes
 
     private static readonly HashSet<string> DateTimeInputTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "datetime",
-        "datetime-local",
+        SurveyJsPropertyNames.InputTypeDateTime,
+        SurveyJsPropertyNames.InputTypeDateTimeLocal,
     };
 
     /// <summary>
@@ -65,7 +65,7 @@ public static class SubmissionGridFilterTypes
             return Text;
         }
 
-        if (string.Equals(inputType, "date", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(inputType, SurveyJsPropertyNames.InputTypeDate, StringComparison.OrdinalIgnoreCase))
         {
             return Date;
         }

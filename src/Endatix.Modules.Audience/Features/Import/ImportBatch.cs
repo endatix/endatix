@@ -13,6 +13,9 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 {
     public ImportTally Tally { get; } = new();
 
+    /// <summary>
+    /// A test import never writes to a person already on the form, so real people's data stays as it was.
+    /// </summary>
     public void Stage(ImportRow row)
     {
         Member member = existing.MembersByMatchKey.GetValueOrDefault(row.NormalizedIdentifier) ?? AddMember(row);
@@ -23,7 +26,7 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
             return;
         }
 
-        if (UpdateIfChanged(membership, row.Values))
+        if (!target.IsTest && UpdateIfChanged(membership, row.Values))
         {
             Tally.Updated++;
         }
@@ -34,19 +37,20 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
     }
 
     /// <summary>
-    /// Writes the row's values when any differs from the stored cell, so re-importing the same
-    /// file reports its people as unchanged and leaves their cells untouched.
+    /// Writes the row's values, and clears the stored cells the import's options clear, when any differs from the
+    /// stored cell, so re-importing the same file reports its people as unchanged and leaves their cells untouched.
     /// </summary>
-    private bool UpdateIfChanged(Membership membership, IReadOnlyDictionary<long, string> values)
+    private bool UpdateIfChanged(Membership membership, IReadOnlyDictionary<long, string> rowValues)
     {
-        IReadOnlyDictionary<long, PropertyValue> cells =
+        Dictionary<long, PropertyValue> cells =
             existing.CellsByMembershipId.GetValueOrDefault(membership.Id) ?? new Dictionary<long, PropertyValue>();
+        IReadOnlyDictionary<long, string> values = ImportClears.Apply(rowValues, target.Clears, cells.Keys);
         if (!Changes(values, cells))
         {
             return false;
         }
 
-        PropertyValuesWriter.Upsert(new PropertyValueWrite(db, target.TenantId, membership.Id, values), cells);
+        PropertyValuesWriter.Upsert(new PropertyValueWrite(db, membership, values), cells);
         return true;
     }
 
@@ -65,16 +69,20 @@ internal sealed class ImportBatch(IAudienceDbContext db, ImportTarget target, Ex
 
     private void AddMembership(Member member, IReadOnlyDictionary<long, string> values)
     {
-        Membership membership = new(target.TenantId, target.FormId, member.Id);
+        Membership membership = new(new MembershipCreateArgs(target.TenantId, target.FormId, member.Id, target.IsTest));
         db.Memberships.Add(membership);
-        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, target.TenantId, membership.Id, values));
+        PropertyValuesWriter.AddAll(new PropertyValueWrite(db, membership, values));
     }
 }
 
 /// <summary>
-/// The tenant, form and match key one import writes to.
+/// The tenant, form and match key one import writes to, whether the memberships it adds are test persons, and the
+/// Properties a row with no value for them clears (<see cref="ImportClears"/>).
 /// </summary>
-internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey);
+internal sealed record ImportTarget(long TenantId, long FormId, ImportMatchKey MatchKey, bool IsTest)
+{
+    public IReadOnlySet<long> Clears { get; init; } = new HashSet<long>();
+}
 
 /// <summary>
 /// Members, memberships and value cells that the import rows already match.
@@ -84,6 +92,11 @@ internal sealed record ExistingAudience(
     IReadOnlyDictionary<long, Membership> MembershipsByMemberId,
     IReadOnlyDictionary<long, Dictionary<long, PropertyValue>> CellsByMembershipId)
 {
+    /// <summary>Whether the row's person is already on the form: <see cref="ImportBatch"/> then updates or skips them.</summary>
+    public bool IsOnForm(ImportRow row) =>
+        MembersByMatchKey.TryGetValue(row.NormalizedIdentifier, out Member? member)
+        && MembershipsByMemberId.ContainsKey(member.Id);
+
     public static async Task<ExistingAudience> LoadAsync(AudienceQuery query, IReadOnlyList<ImportRow> rows)
     {
         List<string> matchKeys = rows.Select(row => row.NormalizedIdentifier).ToList();

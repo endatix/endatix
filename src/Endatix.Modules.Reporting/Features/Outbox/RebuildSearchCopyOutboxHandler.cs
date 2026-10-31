@@ -9,19 +9,19 @@ namespace Endatix.Modules.Reporting.Features.Outbox;
 /// Rebuilds a form's search copies after a person added a search key (<see cref="SearchCopyRebuildRequests"/>).
 /// </summary>
 /// <remarks>
-/// The same work runs inline in the relay or as a background job; both read the message with <see cref="Parse"/>
-/// and do the work with <see cref="ProcessAsync"/>. A rebuild cut off part way throws or stops, and the retry
-/// rewrites only the rows not yet stamped.
+/// The same work runs inline in the relay or as a background job; both run the work <see cref="Read"/> returns. A
+/// rebuild cut off part way throws or stops, and the retry rewrites only the rows not yet stamped.
 /// </remarks>
-internal sealed class RebuildSearchCopyOutboxHandler(SearchCopyRebuilder rebuilder) : IOutboxIntegrationEventHandler
+internal sealed class RebuildSearchCopyOutboxHandler(SearchCopyRebuilder rebuilder)
+    : IOutboxWork<RebuildSearchCopyOutboxHandler>
 {
-    public static readonly IReadOnlyCollection<string> HandledEventTypes = [SearchCopyRebuildRequests.EventTypeName];
+    public static string JobType => "ReportingRebuildSearchCopy";
 
-    public IReadOnlyCollection<string> EventTypes => HandledEventTypes;
+    public static IReadOnlyCollection<string> HandledEventTypes { get; } = [SearchCopyRebuildRequests.EventTypeName];
 
     /// <inheritdoc />
-    public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-        ProcessAsync(Parse(message), cancellationToken);
+    public OutboxWork Read(IOutboxMessage message) =>
+        OutboxWork.For(Parse(message), ProcessAsync);
 
     /// <summary>Reads the work from the message; throws <see cref="InvalidOperationException"/> when it cannot.</summary>
     public static Input Parse(IOutboxMessage message)
@@ -32,7 +32,7 @@ internal sealed class RebuildSearchCopyOutboxHandler(SearchCopyRebuilder rebuild
         return new Input(message.GetRequiredTenantId(payload), message.GetRequiredIdProp(payload, "formId"));
     }
 
-    public Task<int> ProcessAsync(Input input, CancellationToken cancellationToken) =>
+    public Task ProcessAsync(Input input, CancellationToken cancellationToken) =>
         rebuilder.RebuildFormAsync(input.TenantId, input.FormId, cancellationToken);
 
     public sealed record Input(long TenantId, long FormId);

@@ -15,6 +15,10 @@ public interface IAudienceDbContext : ITenantDbContext
     DbSet<Membership> Memberships { get; }
     DbSet<PropertyValue> PropertyValues { get; }
     DbSet<AudienceImport> AudienceImports { get; }
+    /// <summary>Staged chunks of imports.</summary>
+    DbSet<AudienceImportChunk> ImportChunks { get; }
+    /// <summary>Rows imports will not write.</summary>
+    DbSet<AudienceImportRejection> ImportRejections { get; }
     DbSet<AudienceLink> Links { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

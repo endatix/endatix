@@ -50,7 +50,7 @@ public class SubmissionTokenServiceResolveTokenTests
     {
         // Arrange
         var token = "invalid-token";
-        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns((Submission)null!);
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns((Submission)null!);
 
         // Act
         var result = await _sut.ResolveTokenAsync(token, CancellationToken.None);
@@ -69,7 +69,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var submissionId = 1L;
         var submission = new Submission(TENANT_ID, SampleData.FORM_DEFINITION_JSON_DATA_1, 2, 3, false) { Id = submissionId };
         submission.UpdateToken(new Token(24));
-        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
 
         // Act
         var result = await _sut.ResolveTokenAsync(token, CancellationToken.None);
@@ -89,7 +89,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var token = "valid-token";
         var submission = new Submission(TENANT_ID, "{ }", formId, formDefinitionId, isComplete: true);
         submission.UpdateToken(new Token(24));
-        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
 
         // Configure tenant settings to NOT allow token access after completion
         var tenantSettings = new TenantSettings(TENANT_ID, submissionTokenExpiryHours: 24, isSubmissionTokenValidAfterCompletion: false);
@@ -111,7 +111,7 @@ public class SubmissionTokenServiceResolveTokenTests
         // Arrange
         var submission = new Submission(TENANT_ID, "{ }", 1L, 2L, isComplete: true);
         submission.UpdateToken(new Token(24));
-        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
         _tenantSettingsRepository.FirstOrDefaultAsync(
             Arg.Any<TenantSettingsByTenantIdSpec>(),
             Arg.Any<CancellationToken>()).Returns((TenantSettings)null!);
@@ -134,7 +134,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var token = "valid-token";
         var submission = new Submission(TENANT_ID, "{ }", formId, formDefinitionId, isComplete: true) { Id = submissionId };
         submission.UpdateToken(new Token(24));
-        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
 
         // Configure tenant settings to allow token access after completion
         var tenantSettings = new TenantSettings(TENANT_ID, submissionTokenExpiryHours: 24, isSubmissionTokenValidAfterCompletion: true);
@@ -158,7 +158,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var submission = new Submission(TENANT_ID, "{ }", 1, 2, isComplete: false);
         submission.ScreenOut();
         submission.UpdateToken(new Token(24));
-        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>()).Returns(submission);
+        _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
 
         // Act
         var result = await _sut.ResolveTokenAsync(token, CancellationToken.None);

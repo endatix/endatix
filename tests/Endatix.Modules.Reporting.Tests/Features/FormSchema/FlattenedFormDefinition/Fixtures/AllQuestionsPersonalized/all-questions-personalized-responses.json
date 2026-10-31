@@ -13,7 +13,7 @@
       "variables": {
         "full_name": "John Smith",
         "age": 65,
-        "city": "03. MIDWEST - COLUMBUS",
+        "hometown": "03. MIDWEST - COLUMBUS",
         "panel_member": true,
         "joined": "2024-03-14",
         "last_seen": "2026-10-01T10:00:00",
@@ -22,7 +22,7 @@
       "values": [
         { "propertyId": 1, "variableName": "full_name", "name": "Full name", "dataType": "text", "value": "John Smith" },
         { "propertyId": 2, "variableName": "age", "name": "Age", "dataType": "number", "value": 65 },
-        { "propertyId": 3, "variableName": "city", "name": "City", "dataType": "text", "value": "03. MIDWEST - COLUMBUS" },
+        { "propertyId": 3, "variableName": "hometown", "name": "Hometown", "dataType": "text", "value": "03. MIDWEST - COLUMBUS" },
         { "propertyId": 4, "variableName": "panel_member", "name": "Panel member", "dataType": "boolean", "value": true },
         { "propertyId": 5, "variableName": "joined", "name": "Joined", "dataType": "date", "value": "2024-03-14" },
         { "propertyId": 6, "variableName": "last_seen", "name": "Last seen", "dataType": "date_time", "value": "2026-10-01T10:00:00" },
@@ -46,10 +46,10 @@
       "capturedAt": "2026-10-14T11:00:15Z",
       "identifier": "CG-000002-01",
       "memberId": 12,
-      "variables": { "age": 36, "city": "07. PACIFIC - PORTLAND", "panel_member": false },
+      "variables": { "age": 36, "hometown": "07. PACIFIC - PORTLAND", "panel_member": false },
       "values": [
         { "propertyId": 2, "variableName": "age", "name": "Age", "dataType": "number", "value": 36 },
-        { "propertyId": 3, "variableName": "city", "name": "City", "dataType": "text", "value": "07. PACIFIC - PORTLAND" },
+        { "propertyId": 3, "variableName": "hometown", "name": "Hometown", "dataType": "text", "value": "07. PACIFIC - PORTLAND" },
         { "propertyId": 4, "variableName": "panel_member", "name": "Panel member", "dataType": "boolean", "value": false }
       ]
     },

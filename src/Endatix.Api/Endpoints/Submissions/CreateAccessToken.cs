@@ -1,9 +1,11 @@
 using FastEndpoints;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.UseCases.Submissions.CreateAccessToken;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -64,5 +66,38 @@ public class CreateAccessToken(IMediator mediator)
         return TypedResultsBuilder
             .MapResult(result, dto => new CreateAccessTokenResponse(dto.Token, dto.ExpiresAt, dto.Permissions))
             .SetTypedResults<Ok<CreateAccessTokenResponse>, ProblemHttpResult>();
+    }
+}
+
+/// <summary>
+/// Validation rules for the <c>CreateAccessTokenRequest</c> class.
+/// </summary>
+public class CreateAccessTokenValidator : Validator<CreateAccessTokenRequest>
+{
+    /// <summary>Maximum allowed token lifetime: 60 days.</summary>
+    public const int MaxExpiryMinutes = ISubmissionAccessTokenService.MAX_EXPIRY_MINUTES;
+
+    /// <summary>
+    /// Default constructor
+    /// </summary>
+    public CreateAccessTokenValidator()
+    {
+        RuleFor(x => x.FormId)
+            .GreaterThan(0);
+
+        RuleFor(x => x.SubmissionId)
+            .GreaterThan(0);
+
+        RuleFor(x => x.ExpiryMinutes)
+            .NotEmpty()
+            .GreaterThan(0)
+            .LessThanOrEqualTo(MaxExpiryMinutes);
+
+        RuleFor(x => x.Permissions)
+            .NotEmpty();
+
+        RuleForEach(x => x.Permissions)
+            .Must(SubmissionAccessTokenPermissions.IsValid)
+            .WithMessage($"Invalid permission. Valid permissions are: {string.Join(", ", SubmissionAccessTokenPermissions.AllNames)}");
     }
 }

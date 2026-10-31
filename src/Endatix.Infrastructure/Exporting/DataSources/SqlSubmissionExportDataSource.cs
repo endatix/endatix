@@ -34,10 +34,8 @@ internal sealed class SqlSubmissionExportDataSource(ISubmissionExportRepository 
 
         return SqlSubmissionExportStreamHelper.StreamAsync(
             exportRepository,
-            context.FormId,
-            context.Request.ItemType,
+            context,
             context.Request.SqlFunctionName,
-            context.ExportPageSize,
             cancellationToken);
     }
 }
@@ -64,10 +62,8 @@ internal sealed class SqlDefaultSubmissionExportDataSource(ISubmissionExportRepo
         CancellationToken cancellationToken) =>
         SqlSubmissionExportStreamHelper.StreamAsync(
             exportRepository,
-            context.FormId,
-            context.Request.ItemType,
+            context,
             sqlFunctionName: null,
-            context.ExportPageSize,
             cancellationToken);
 }
 
@@ -81,18 +77,19 @@ internal static class SqlSubmissionExportStreamHelper
 
     internal static async IAsyncEnumerable<IExportItem> StreamAsync(
         ISubmissionExportRepository exportRepository,
-        long formId,
-        Type itemType,
+        ExportDataSourceContext context,
         string? sqlFunctionName,
-        int? exportPageSize,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var itemType = context.Request.ItemType;
+
         if (itemType == typeof(SubmissionExportRow))
         {
             await foreach (SubmissionExportRow row in exportRepository.GetExportRowsAsync<SubmissionExportRow>(
-                               formId,
+                               context.FormId,
                                sqlFunctionName,
-                               exportPageSize,
+                               context.ExportPageSize,
+                               context.IncludeTestSubmissions,
                                cancellationToken))
             {
                 yield return row;
@@ -104,9 +101,10 @@ internal static class SqlSubmissionExportStreamHelper
         if (itemType == typeof(DynamicExportRow))
         {
             await foreach (DynamicExportRow row in exportRepository.GetExportRowsAsync<DynamicExportRow>(
-                               formId,
+                               context.FormId,
                                sqlFunctionName,
-                               exportPageSize,
+                               context.ExportPageSize,
+                               context.IncludeTestSubmissions,
                                cancellationToken))
             {
                 yield return row;

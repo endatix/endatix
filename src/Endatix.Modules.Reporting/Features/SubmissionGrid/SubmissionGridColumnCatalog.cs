@@ -42,7 +42,9 @@ internal static class SubmissionGridColumnCatalog
                 QuestionType: question?.GetStringProperty(FormSchemaCodebookPropertyNames.SurveyJsType),
                 FilterType: SubmissionGridFilterTypes.Resolve(column, question),
                 PageName: question?.GetStringProperty(FormSchemaCodebookPropertyNames.PageName),
-                PageTitle: question?.GetStringProperty(FormSchemaCodebookPropertyNames.PageTitle),
+                PageTitle: question is { } entry
+                    ? FormSchemaCodebookReader.ReadLocalizedString(entry, FormSchemaCodebookPropertyNames.PageTitle, Locale)
+                    : null,
                 PanelTitle: question?.GetStringProperty(FormSchemaCodebookPropertyNames.ParentPanelTitle),
                 Searchable: searchKey is not null,
                 SearchPending: searchKey is not null && Search.IsPending(searchKey),

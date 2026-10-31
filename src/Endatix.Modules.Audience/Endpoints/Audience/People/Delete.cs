@@ -29,10 +29,12 @@ public sealed class Delete(
                 "Removes the person from this form only. The tenant member and other forms stay.";
             summary.Responses[200] = "Person removed from this form.";
             summary.Responses[404] = "Form or membership not found.";
+            summary.Responses[503] = "The person is being changed, or the form's people are being imported; try again shortly.";
         });
         Description(builder => builder
             .Produces<string>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(404));
+            .ProducesProblem(404)
+            .ProducesProblem(503));
     }
 
     public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(

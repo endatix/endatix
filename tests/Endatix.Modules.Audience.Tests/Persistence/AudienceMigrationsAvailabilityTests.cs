@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Modules.Audience.Persistence.Migrations.PostgreSql;
@@ -6,14 +5,9 @@ using Endatix.Modules.Audience.Persistence.Migrations.SqlServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.Extensions.Configuration;
 
 namespace Endatix.Modules.Audience.Tests.Persistence;
 
-/// <summary>
-/// The contexts are configured the way the host configures them, so they discover migrations and the
-/// snapshot exactly as startup does. No connection is opened.
-/// </summary>
 public sealed class AudienceMigrationsAvailabilityTests
 {
     private const string MigrationsRootNamespace = "Endatix.Modules.Audience.Persistence.Migrations";
@@ -31,11 +25,17 @@ public sealed class AudienceMigrationsAvailabilityTests
         migrationIds.Should().Equal(
             "20260930105720_InitialPersonalization",
             "20260930112557_AddAudienceImports",
-            "20261008074014_AddAudienceLinks");
+            "20261008074014_AddAudienceLinks",
+            "20261019002103_AddMembershipIsTest",
+            "20261024135627_AddPropertyValueIsTest",
+            "20261025201021_AddStagedAudienceImports",
+            "20261025215922_FenceImportWritesOnWriteRun",
+            "20261026191842_AddImportRunsInRequest",
+            "20261026221758_AddImportOptions");
     }
 
     [Fact]
-    public void GetMigrations_SqlServerContext_ReturnsOnlyItsInitialMigration()
+    public void GetMigrations_SqlServerContext_ReturnsItsOwnShippedIds()
     {
         // Arrange
         using var context = CreateSqlServerContext();
@@ -45,7 +45,14 @@ public sealed class AudienceMigrationsAvailabilityTests
         var migrationIds = context.Database.GetMigrations().ToList();
 
         // Assert
-        migrationIds.Should().ContainSingle().Which.Should().EndWith("_InitialPersonalization");
+        migrationIds.Should().Equal(
+            "20261012154511_InitialPersonalization",
+            "20261019002106_AddMembershipIsTest",
+            "20261024135630_AddPropertyValueIsTest",
+            "20261025201026_AddStagedAudienceImports",
+            "20261025215942_FenceImportWritesOnWriteRun",
+            "20261026191848_AddImportRunsInRequest",
+            "20261026221808_AddImportOptions");
         migrationIds.Should().NotIntersectWith(postgreSqlContext.Database.GetMigrations());
     }
 
@@ -93,32 +100,7 @@ public sealed class AudienceMigrationsAvailabilityTests
         options.SqlServerMigrationsNamespace.Should().Be(MigrationsRootNamespace);
     }
 
-    private static AudiencePostgreSqlDbContext CreatePostgreSqlContext() =>
-        new(
-            HostOptions<AudiencePostgreSqlDbContext>(
-                "postgresql",
-                "Host=127.0.0.1;Database=not_connected;Username=postgres;Password=not-connected"),
-            Substitute.For<ITenantContext>());
+    private static AudiencePostgreSqlDbContext CreatePostgreSqlContext() => NotConnectedAudienceContexts.CreatePostgreSql();
 
-    private static AudienceSqlServerDbContext CreateSqlServerContext() =>
-        new(
-            HostOptions<AudienceSqlServerDbContext>(
-                "sqlserver",
-                "Server=127.0.0.1;Database=not_connected;User Id=sa;Password=not-connected"),
-            Substitute.For<ITenantContext>());
-
-    private static DbContextOptions<TContext> HostOptions<TContext>(string provider, string connectionString)
-        where TContext : DbContext
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["ConnectionStrings:DefaultConnection"] = connectionString,
-                ["ConnectionStrings:DefaultConnection_DbProvider"] = provider,
-            })
-            .Build();
-        var optionsBuilder = new DbContextOptionsBuilder<TContext>();
-        optionsBuilder.ConfigureModuleDbContext(configuration, AudiencePersistence.ConfigureDbContextOptions);
-        return optionsBuilder.Options;
-    }
+    private static AudienceSqlServerDbContext CreateSqlServerContext() => NotConnectedAudienceContexts.CreateSqlServer();
 }

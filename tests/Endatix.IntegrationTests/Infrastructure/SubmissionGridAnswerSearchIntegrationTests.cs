@@ -39,7 +39,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     private TestDatabaseProvider Provider => fixture.Provider;
 
     [Fact]
-    public async Task Contains_ignores_case_and_counts_the_rows_it_could_not_check()
+    public async Task ExecuteAsync_ContainsInAnotherCase_MatchesAndCountsUncheckedRows()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -58,7 +58,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task Rows_not_rebuilt_for_a_key_added_since_count_as_not_checked()
+    public async Task ExecuteAsync_RowsNotRebuiltForAKeyAddedSince_CountAsNotChecked()
     {
         // Arrange — a person added "notes"; one row was rebuilt with it, the other not yet.
         var world = await SeedAsync(withSchema: true);
@@ -76,7 +76,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task A_key_added_since_does_not_hold_back_filters_on_other_keys()
+    public async Task ExecuteAsync_KeyAddedSince_DoesNotHoldBackFiltersOnOtherKeys()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -92,7 +92,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task From_and_to_keep_whole_calendar_days_for_dates_and_date_times()
+    public async Task ExecuteAsync_FromAndToOneDay_KeepWholeDayForDatesAndDateTimes()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -110,7 +110,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task To_on_the_last_calendar_day_keeps_every_dated_answer()
+    public async Task ExecuteAsync_ToTheLastCalendarDay_KeepsEveryDatedAnswer()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -125,7 +125,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task A_value_that_is_not_a_date_never_matches_a_range()
+    public async Task ExecuteAsync_ValueThatIsNotADate_NeverMatchesARange()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -143,7 +143,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task Filters_on_two_columns_combine_with_and()
+    public async Task ExecuteAsync_FiltersOnTwoColumns_CombineWithAnd()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -159,7 +159,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task Metadata_filters_sort_and_paging_apply_to_the_matches()
+    public async Task ExecuteAsync_WithMetadataFiltersSortAndPaging_AppliesThemToTheMatches()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -186,7 +186,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task Rows_return_prepared_answers_for_the_requested_columns()
+    public async Task ExecuteAsync_WithColumns_ReturnsPreparedAnswers()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -202,7 +202,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task A_key_that_is_not_a_search_key_or_an_operator_its_column_lacks_is_invalid()
+    public async Task ExecuteAsync_UnknownKeyOrUnsupportedOperator_ReturnsInvalid()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -219,7 +219,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task A_form_without_a_prepared_schema_is_a_conflict()
+    public async Task ExecuteAsync_FormWithoutSchema_ReturnsConflict()
     {
         // Arrange
         var world = await SeedAsync(withSchema: false);
@@ -232,7 +232,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     }
 
     [Fact]
-    public async Task A_form_that_does_not_exist_is_not_found()
+    public async Task ExecuteAsync_UnknownForm_ReturnsNotFound()
     {
         // Arrange
         var world = await SeedAsync(withSchema: true);
@@ -240,6 +240,26 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
 
         // Act
         var result = await world.ExecuteAsync([Answer("contains", "city", "x")], unknownForm);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DeletedFormWithSchema_ReturnsNotFound()
+    {
+        // Arrange
+        var world = await SeedAsync(withSchema: true);
+        await world.PreparedAsync("""{"city":"columbus"}""");
+        await using (var appDb = CreateAppDbContext())
+        {
+            var form = await appDb.Forms.SingleAsync(form => form.Id == world.FormId, Cancellation);
+            form.Delete();
+            await appDb.SaveChangesAsync(Cancellation);
+        }
+
+        // Act
+        var result = await world.ExecuteAsync([Answer("contains", "city", "columbus")]);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);

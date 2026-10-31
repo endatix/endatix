@@ -5,6 +5,7 @@ using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -35,7 +36,7 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city");
-        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -49,7 +50,7 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
-        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -82,7 +83,7 @@ public sealed class FormSchemaPersonalizationTests
         await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -131,7 +132,7 @@ public sealed class FormSchemaPersonalizationTests
         await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -145,8 +146,8 @@ public sealed class FormSchemaPersonalizationTests
 
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city");
-        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, default);
-        await _forms.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), default);
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
+        await _forms.DidNotReceiveWithAnyArgs().SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -167,7 +168,43 @@ public sealed class FormSchemaPersonalizationTests
         // Assert
         result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
         await _schemas.Received(1).LockAndGetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>());
-        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, default);
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IncludeAsync_ListedSubmitterFieldMissing_SavesItsColumnAtTheSchemasOwnRevision()
+    {
+        // Arrange
+        var locked = Compiled();
+        GivenLocked(locked);
+        GivenDefinition();
+        FormSchemaCompiler compiler = new(submitterProfileFields: new SubmitterProfileFields(["email"]));
+
+        // Act
+        var result = await Personalization(compiler).IncludeAsync(Compiled(), null, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Columns.Select(column => column.Key).Should().Equal("city", "submitter_email");
+        locked.FormDefinitionRevision.Should().Be(FormDefinitionId);
+        locked.Codebook.Should().Contain("\"submitter_profile\"");
+        await _schemas.Received(1).SaveAsync(locked, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task IncludeAsync_FormAtTheColumnLimitWithAListedSubmitterField_ReturnsTheSchemaWithoutItAndDoesNotLock()
+    {
+        // Arrange: the form's one question fills the column limit.
+        FormSchemaCompiler compiler = new(
+            new SchemaCompilationLimits { MaxColumns = 1 },
+            new SubmitterProfileFields(["email"]));
+
+        // Act
+        var result = await Personalization(compiler).IncludeAsync(Compiled(), null, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Columns.Select(column => column.Key).Should().Equal("city");
+        await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
+        await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     private FormSchemaPersonalization Personalization(FormSchemaCompiler? compiler = null) =>

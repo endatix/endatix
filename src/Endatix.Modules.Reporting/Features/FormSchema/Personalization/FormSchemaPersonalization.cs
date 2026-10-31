@@ -9,6 +9,9 @@ using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 namespace Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 
 /// <remarks>
+/// Adds the audience columns a response carries and the configured submitter profile columns
+/// (<see cref="FormSchemaCompiler.SubmitterProfileColumns"/>), so a field listed after a form was compiled reaches its
+/// schema at the schema's own revision, never through a compile of the response's older definition.
 /// Only adds: a column stays once a response carried it, like every column of a form with real submissions. It runs
 /// under the same per-form lock as a definition rebuild, so the two take turns and neither loses the other's columns.
 /// The codebook is compiled again from the definition the schema is at, so it describes the new columns.
@@ -25,7 +28,8 @@ internal sealed class FormSchemaPersonalization(
         PersonalizationRead? personalization,
         CancellationToken cancellationToken)
     {
-        var columns = PersonalizationColumns.From(personalization);
+        IReadOnlyList<FormSchemaColumn> columns =
+            [.. PersonalizationColumns.From(personalization), .. compiler.SubmitterProfileColumns];
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         if (IsCovered(flatteningMap, columns) || !Fits(schema, flatteningMap, columns))
         {
@@ -91,8 +95,8 @@ internal sealed class FormSchemaPersonalization(
             ? readBeforeLock
             : await ReadDefinitionAsync(existing, cancellationToken);
 
-    // Over a compile limit the response is still flattened with its answers, only without the new audience columns,
-    // as it was before audience columns existed. Reached when another flatten added columns while this one waited.
+    // Over a compile limit the response is still flattened with its answers, only without the new audience and
+    // submitter columns, as it was before they existed. Reached when another flatten added columns while this one waited.
     private bool TryApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
     {
         try
@@ -110,7 +114,7 @@ internal sealed class FormSchemaPersonalization(
     private void LogOverLimit(FormSchemaEntity schema, SchemaCompilationLimitExceededException ex) =>
         logger.LogWarning(
             ex,
-            "Audience columns not added to the schema of form {FormId}: the schema would exceed its {LimitKind} limit of {Limit}",
+            "Audience or submitter profile columns not added to the schema of form {FormId}: the schema would exceed its {LimitKind} limit of {Limit}",
             schema.FormId,
             ex.LimitKind,
             ex.Limit);
@@ -136,7 +140,7 @@ internal sealed class FormSchemaPersonalization(
         if (definition is null)
         {
             logger.LogWarning(
-                "Audience columns not added to the schema of form {FormId}: definition {FormDefinitionId} was not found",
+                "Audience or submitter profile columns not added to the schema of form {FormId}: definition {FormDefinitionId} was not found",
                 schema.FormId,
                 schema.FormDefinitionRevision);
         }

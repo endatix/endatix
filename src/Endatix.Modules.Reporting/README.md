@@ -37,12 +37,23 @@ Database schema: `reporting`
 | `FlattenedSubmissions` | Flat submission answers aligned to form schema (`DataJson`), and their search copy (`SearchJson`) |
 | `ExportFormats` | Tenant export rows (CSV, JSON, Excel/XLSX, codebook) |
 | `SurveyTypeExportMappings` | Allowed export formats per survey type (with optional default and tenant fallback) |
+| `SubmissionViews` | Saved submissions grid view per tenant + form + owner (`OwnerUserId` `0` = shared form view) |
 
 `FlattenedSubmissions.SubmissionId` is the row key. Backfill and the completion outbox both update that row; they do not insert a second one.
 
 `POST …/reporting/submissions/backfill` pages one scope per call. Omitted `completionScope` is `completed`. `incomplete` flattens drafts. The outbox still skips drafts. A processed row is skipped when the submission's `ModifiedAt ?? CreatedAt` is not newer than the row's `SourceModifiedAt` (the stamp of the version that was flattened), unless `force` is true. The row's own `ModifiedAt` is not used: the worker sets it after reading the submission, so a save during flattening would look older and never be refreshed. Rows without `SourceModifiedAt` (processed before it existed) are reprocessed once. A flatten whose submission is gone removes an existing row only when the submission was soft-deleted in the same tenant and form; otherwise it throws, so the outbox retries and backfill reports it as failed. With background jobs on (`Endatix:Outbox:DeliverToJobQueue`), the flatten job retries instead and then dead-letters. A submission or its form deleted after the flatten read the submission loses the row the flatten wrote, hard-deleted as its deletion sync removes it: whether the row ended processed or skipped, lost to a newer flatten's write, or the flatten failed or was cancelled after marking it processing (its schema gone with the form included). Such a failure then ends the flatten as a success, since there is nothing left to retry; a cancelled flatten still ends cancelled. Export drops soft-deleted submissions.
 
 Flattens of one submission can run out of order, as retries or as jobs, so each write is guarded by `SourceRevision`: the submission's `Revision` the row was written from. A write lands only when the row has no `SourceRevision` or one not newer than the write's, so an older flatten finishing last changes nothing, and a forced rebuild at the same revision still lands. `SourceRevision` orders writes; `SourceModifiedAt` only tells backfill whether a row is stale. A draft's saves raise no events and so share one revision: among them, the last flatten to write wins.
+
+### Saved submissions grid view
+
+`GET forms/{formId}/reporting/submission-view` (`submissions.view`) returns the form's shared view and its `version`, or `version` `0` and `{"v":1,"columns":[]}` when nobody saved one. `PUT` (`forms.edit`) takes `{ version, settings }`: version `0` creates the view, the current version replaces it, and any other version is 409. Both are 404 for a form that is not in the caller's tenant.
+
+- **Settings v1:** `{"v":1,"columns":[{"key","visible","width"}],"pageSize","sort":{"key","direction"}}`. `columns` lists only the columns someone changed, in grid order. Unknown properties are stored as written. Malformed settings, or more than `SubmissionViewSettings.MaxJsonLength` characters, are 400.
+- **Reads drop stale columns.** A column whose key is neither in the form's compiled `FlatteningMap` nor one of the grid's own columns (`SubmissionViewColumns.MetadataKeys`) is left out of the response. The stored row keeps it. A save's response is filtered the same way. Before the form's schema is compiled there is nothing to judge the columns by, so they come back as stored.
+- **Concurrency.** `Version` is an EF concurrency token (not `xmin`), and `(TenantId, FormId, OwnerUserId)` is unique. Two saves from the same version cannot both win: the losing update changes no row and the losing create hits the index; both are 409.
+- **Owner `0`, not `NULL`:** SQL Server allows one `NULL` in a unique index, PostgreSQL many. Personal views will use the user id in the same table.
+- `form.deleted` removes the form's views together with its schema and flattened rows.
 
 ### FormSchema compile modes
 
@@ -71,6 +82,54 @@ The schema is read untracked, and tracked only while it is saved, so a long-live
 A flatten rebuilds the schema only for a submission on a definition newer than the schema's revision, or on an older one whose columns the schema lacks (a replace dropped them). A merge keeps every column, so an older definition is normally already in the schema; rebuilding from it would save the schema again for every such submission and put the older definition's labels and locales back.
 
 A form deleted after a compile read it loses the schema that compile wrote, hard-deleted as its deletion sync removes it.
+
+### Submission Grid columns
+
+`GET forms/{formId}/reporting/columns?locale=` (`submissions.view`) lists the columns of the form's compiled schema in flattening-map order, for the Submission Grid's headers, column picker and answer filters. Each column has its key and kind, a title in `locale` (falling back to the default), the SurveyJS question type, an answer `filterType` (`text`, `date`, `datetime` or none) and its page and panel. The filter type is worked out at read time from the column kind and the codebook question's type and `inputType`, so a schema needs no recompile for it and export is unchanged. A form without a compiled schema answers `schemaReady: false` with no columns.
+
+`readiness` counts the form's live submissions (`submissions`, `completedSubmissions`, `inProgress`) from core and its flattened rows by status (`prepared`, `pending` including `not_processed`, `failed`, `skippedInProgress`). An out-of-date count is not there yet.
+
+Codebook question entries carry the question's place in the form: `pageName`, `pageTitle` (a locale map like `title`, left out when the page has no title) and `parentPanelTitle` (default locale). They are written at compile time, so a schema compiled before these keys existed has no page until its next compile. Codebook `version` stays 1.
+
+### Submission Grid rows
+
+`GET forms/{formId}/reporting/submissions` (`submissions.view`) lists one page of a form's submissions for the Submission Grid. It takes the same filters, sort and paging as `GET forms/{formId}/submissions` (both build their query with `ListByFormIdRequest.ToQuery()`), so the rows, their order, the 404 for an unknown form and the tenant scope match the submissions list. `columns` is a comma-separated list of column keys from `GET forms/{formId}/reporting/columns`: at most 500 keys, each up to 512 characters. A key that contains a comma cannot be requested.
+
+Each row carries the list fields plus:
+
+- `rowState`, from the submission's flattened row: `prepared` (processed from the submission's current `ModifiedAt ?? CreatedAt`, and has data), `stale` (processed from an older version, or has no data), `pending` (`not_processed`, queued or being prepared), `failed`, `skipped` (in progress when the flatten ran) or `none` (no flattened row).
+- `answers`, the requested columns that have a value.
+- `answersSource`: `prepared` when the row is `prepared`, otherwise `raw`. Raw answers come from the submission's own `jsonData`, which is keyed by question name, so only simple question columns can be found there. Choice indicators, matrix cells and other flattened keys are left out until the row is prepared.
+
+Without `answer=` filters, the page comes from the core list; its flattened rows are then read by id, with `DataJson` only when `columns` is set. With them, see [Answer filters on the submissions grid](#answer-filters-on-the-submissions-grid).
+
+`submitterProfile.{field}` filters, on this list and on the submissions list, read the profile snapshot with `JSON_VALUE` on SQL Server. They compare under the `Latin1_General_100_BIN2` collation, so matching is case-sensitive as on PostgreSQL, whatever the database collation. Unlike PostgreSQL, SQL Server ignores trailing spaces when it compares strings, and `JSON_VALUE` returns NULL for a value over 4,000 characters, so such a value never matches `=` and always matches `!=`.
+
+### Submitter profile fields
+
+`Customizations:Reporting:SubmitterProfileFields` lists the keys of `Submission.SubmitterProfileSnapshot` (the claims `Endatix:Submitter:ProfileSnapshotFields` captures) that prepared submissions carry. It is empty by default, and empty adds no column: schemas, flattened rows and exports stay as they were.
+
+```json
+"Customizations": {
+  "Reporting": {
+    "SubmitterProfileFields": ["email", "department"]
+  }
+}
+```
+
+- **Columns.** Each listed field is a `submitter_<field>` column of kind `SubmitterProfile`, data type `string`, label `Submitter <field>`. A compile adds only the definition's columns. Like audience columns, the submitter columns join the schema when a flatten finds them missing: under the form's lock, appended at the schema's own definition revision, so listing a field never rebuilds a schema from an older definition and its labels stay the current ones. A schema at its column limit is flattened without them, with a warning, instead of failing. The limit is checked once for a flatten's audience and submitter columns together, so near the limit a listed field can also hold back the audience columns a response carries. A replace that clears the flattened rows drops them until the next flatten adds them back. A question already named `submitter_<field>` keeps the key, and the profile value is not exported: the schema keeps the first column a key had, the same rule that lets a question win over an `audience_` key.
+- **Values.** A flatten copies only the fields listed now, as text. A field the snapshot lacks, or one no longer listed whose column a merge kept, is null.
+- **Export.** The submitter columns close the row after the audience columns, under their keys as stored (no alias profile or key separator), so listing a field moves no existing column. Shoji writes them as text variables.
+- **Freshness.** A `submission.updated` event whose `changeKind` has `submitter` flattens the row again, as `answers` and `definition` do.
+
+The snapshot holds personal data: list only the fields reports need.
+
+To roll out a field:
+
+1. **Deploy this version to every node first.** A node on an older version drops a column kind it does not know, so while a rolling deploy runs it writes rows, and can save a schema, without the submitter columns.
+2. **Set the option with exactly the names in `Endatix:Submitter:ProfileSnapshotFields`**, in the same case: a field the snapshot does not capture is always null. For saved grid views migrated from the Hub's legacy grid to keep their submitter columns, the Hub's `ENDATIX_SUBMITTER_GRID_PROFILE_FIELDS` must name the same fields, in the same case.
+3. **Restart.** The option is read once at startup.
+4. **Run a forced backfill per form** (`POST …/reporting/submissions/backfill` with `force`). The first flatten adds the columns; the backfill fills the rows flattened before the field was listed, or during the deploy.
 
 ### Search copy (`SearchJson`)
 
@@ -130,8 +189,8 @@ with each other and with the list's metadata filters (`SubmissionGridAnswerSearc
   because a column key can contain `:`. At most 10 filters.
 - **Errors.** A malformed filter is 400 on `answer`. A key that is not one of the form's search keys
   (`answer_key_not_filterable`), or an operator its filter type lacks (`answer_operator_not_supported`), is 400 with
-  `fields.answer`. A form with no compiled schema is 409 `reporting_not_prepared`; without answer filters the same
-  form lists normally.
+  `fields.answer`. A missing, deleted or another tenant's form is 404 first, as without answer filters. A form with
+  no compiled schema is 409 `reporting_not_prepared`; without answer filters the same form lists normally.
 - **Which rows are checked.** Only rows processed from the submission's current version (`SourceModifiedAt` equals the
   submission's `ModifiedAt ?? CreatedAt`) with a search copy. Every other submission inside the metadata filters is
   left out of the page and counted in `answerFilterCoverage` (`uncheckedCompleted`, `uncheckedInProgress`), so the
@@ -140,14 +199,24 @@ with each other and with the list's metadata filters (`SubmissionGridAnswerSearc
   from migrations, at the name the core context resolves). The list's metadata filters run on it with the core rules
   (`SubmissionGridMetadataSpec`; submitter profile filters through `IRelationalSubmitterProfileFilter`, the same
   provider SQL as the core list), joined to the matching prepared rows. The ordered ids of every match are read once;
-  the count and the page come from that list, then the page's rows load by id. Coverage is one more statement.
+  the count and the page come from that list, then the page's rows load by id. Answer-filter coverage is one more statement.
 
 **Upgrading:** existing forms get their keys on their next compile (`POST …/reporting/compile-schema`), which then
 rebuilds their rows' copies. Until then their copies are empty.
 
+**Rolling deploy.** `AddSearchCopy` is an expand-only migration ([Schema changes during a rolling deploy](../../ARCHITECTURE.md#schema-changes-during-a-rolling-deploy)):
+`FormSchemas.SearchKeys` defaults to `[]` and `FlattenedSubmissions.SearchJson` is nullable, so the previous release's
+writes still succeed, and no contract migration follows. The expand release is the first stable release after `v0.9.0`
+that ships it. During its rollout an old pod still flattens without knowing the copy: a row it writes after a new pod
+compiled the form keeps `SearchJson` as it was (`NULL` for a new row, the previous copy for one it rewrites) until the row
+is flattened again, and the compile that rebuilt the form's copies does not see it. #1265 (endatix#1273) closes that
+window for rows an old pod creates: each row stamps the search keys revision it was written with, and an old pod
+leaves a new row at 0, so it counts as not yet checked and the next rebuild catches it up. A row an old pod rewrites
+keeps the stamp and copy it had, so it stays as it was until it is flattened again.
+
 **Performance.** `tests/Endatix.IntegrationTests/Performance` measures the filters at scale (opt-in, see
 `tests/README.md`). p95 of the whole request (ids and sort key of every match, count, page of 50), 50,000 rows, flattened
-rows only for the first tables; the grid answer search rows below add the core join and the coverage count:
+rows only for the first tables; the grid answer search rows below add the core join and the answer-filter coverage count:
 
 | Shape (2026-10-16, Testcontainers, 8 vCPU) | No answer filter | 1–3 filters, 1 caller | 1–3 filters, 4 callers | Rebuild of 50k copies |
 | --- | --- | --- | --- | --- |
@@ -156,20 +225,22 @@ rows only for the first tables; the grid answer search rows below add the core j
 | SQL Server realistic | 200 ms | 220–423 ms | 584–790 ms | 53 s |
 | SQL Server worst | 295 ms | 163–269 ms | 609–754 ms | 69 s |
 
-Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, coverage count), same data:
+Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, answer-filter coverage count), same data:
 
 | Shape (Testcontainers, 8 vCPU) | 1–3 filters, 1 caller | 1–3 filters, 4 callers | No match, 1 caller |
 | --- | --- | --- | --- |
-| PostgreSQL realistic, 2026-10-16 | 64–106 ms | 101–127 ms | 81 ms |
-| PostgreSQL realistic, 2026-10-19 (ranges check the date shape) | 106–188 ms | 125–222 ms | 94 ms |
-| SQL Server realistic, 2026-10-16 | 307–400 ms | 786–805 ms | 188 ms |
-| SQL Server realistic, 2026-10-19 (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
+| PostgreSQL realistic, 2026-10-16, `bc271d63` | 64–106 ms | 101–127 ms | 81 ms |
+| PostgreSQL realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 106–188 ms | 125–222 ms | 94 ms |
+| SQL Server realistic, 2026-10-16, `bc271d63` | 307–400 ms | 786–805 ms | 188 ms |
+| SQL Server realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
 
 64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
 is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (305–567 ms once the copies were
 rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range included (3 deep contains:
-805 → 861 ms), so the date shape check is within run-to-run noise. Measure again before raising the key cap or adding
-work to the grid query.
+805 → 861 ms), so the date shape check is within run-to-run noise. Each p95 is taken over 7 runs per scenario after
+2 warm-ups, so it is the slowest of the 7, and the two runs spread 777–861 ms: the 805 ms miss is inside that spread.
+The harness calls the search in process against one Testcontainer, without HTTP. Measure again before raising the key
+cap or adding work to the grid query.
 
 #### Keys people choose
 
@@ -191,8 +262,9 @@ Both answer `200` with `{ formId, keys: [{ key, source, filterType, pending }], 
   Reporting commit, so the two are not atomic, and the write is best-effort: it ignores the caller going away, and a
   failed write is logged, not returned as a 5xx. A message lost that way leaves the rows pending, never wrong. Every
   add, including a repeat of a key the form has, writes a message, and every compile runs the rebuild, so either
-  finishes a rebuild that was cut off or lost; the rebuild skips rows already stamped. Inline in the relay, a rebuild of a large form (tens of seconds,
-  "Rebuild of 50k copies" above) holds up the messages behind it, as a compile's rebuild does.
+  finishes a rebuild that was cut off or lost; the rebuild skips rows already stamped. Inline in the relay, a rebuild of
+  a large form (tens of seconds, "Rebuild of 50k copies" above) holds up the messages behind it, as a compile's
+  rebuild does.
 - **Remove.** Only a key with `source: "user"` (an automatic key is 400; a column that is not a key is 404). Filters
   stop reading it at once.
 - **Concurrency.** Both hold the form's schema lock (`IFormSchemaRepository.LockAndGetByFormIdAsync`), the one a
@@ -225,13 +297,13 @@ Run the commands from the `oss` folder.
 
 Migrations live in provider-specific subfolders under `Persistence/Migrations/`:
 
-- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`, `AddSearchCopy`, `AddSearchKeysRevision`)
+- `Persistence/Migrations/PostgreSql/` (`ReportingPostgreSqlDbContext`) — **available** (`InitialReporting`, `SeedDefaultExportFormats`, `AddFlattenedSubmissionSourceModifiedAt`, `AddFlattenedSubmissionSourceRevision`, `AddSubmissionViews`, `AddSearchCopy`, `AddSearchKeysRevision`)
 
   Tenant export formats are rows, not code. Runtime catalog: `DefaultExportFormats.All`
   (`SeedDefaultsAsync` / `tenant.created`). **Existing tenants:** frozen SQL in
   `SeedDefaultExportFormats` — do not generate that migration from the catalog; a new default
   needs a new data migration. **New tenants:** outbox `tenant.created` → `IDefaultExportFormatsSeeder`.
-- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`, `AddSearchCopy`, `AddSearchKeysRevision`)
+- `Persistence/Migrations/SqlServer/` (`ReportingSqlServerDbContext`) — **available** (`InitialReporting`, `AddSubmissionViews`, `AddSearchCopy`, `AddSearchKeysRevision`)
 
   One migration creates the schema and, at the end of its `Up()`, seeds the same default formats and CSV default
   mapping for every existing tenant as the PostgreSQL `SeedDefaultExportFormats` migration: frozen T-SQL in `SeedDefaultExportFormatsSqlServerSql`,

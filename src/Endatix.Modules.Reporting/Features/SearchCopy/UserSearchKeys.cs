@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.SearchCopy;
@@ -36,9 +37,9 @@ internal sealed class UserSearchKeys(
             return Result<FormSchemaEntity>.Unauthorized();
         }
 
-        if (!await formsRepository.IsTenantFormAsync(target.TenantId, target.FormId, cancellationToken))
+        if (!await formsRepository.ExistsAsync(target.TenantId, target.FormId, cancellationToken))
         {
-            return Result<FormSchemaEntity>.NotFound(TenantFormExtensions.FormNotFoundMessage);
+            return Result<FormSchemaEntity>.NotFound(TenantForms.FormNotFoundMessage);
         }
 
         return await ChangeInTransactionAsync(target, change, cancellationToken);

@@ -1,4 +1,4 @@
-external_id,full_name,age,city,panel_member,joined,last_seen,tags__sports,tags__music,tags__travel,tags__food
+external_id,full_name,age,hometown,panel_member,joined,last_seen,tags__sports,tags__music,tags__travel,tags__food
 AQ-000001-01,John Smith,65,03. MIDWEST - COLUMBUS,true,2024-03-14,2026-10-01T10:00:00Z,1,1,,
 AQ-000002-01,,36,07. PACIFIC - PORTLAND,false,,,,,,
 AQ-000003-01,Grace Hopper,17,05. SOUTH - AUSTIN,true,2021-04-04,2026-04-04T11:21:00Z,1,,,1

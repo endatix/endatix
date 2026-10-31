@@ -44,12 +44,16 @@ public sealed class SubmissionGridAnswerSearch(
         SubmissionGridRowsQuery query,
         CancellationToken cancellationToken)
     {
+        // First, as the list without answer filters does: a deleted form keeps its schema until its deletion sync runs.
+        if (!await formsRepository.ExistsAsync(query.TenantId, query.List.FormId, cancellationToken))
+        {
+            return Result.NotFound(TenantForms.FormNotFoundMessage);
+        }
+
         var searchKeys = await ReadSearchKeysAsync(query, cancellationToken);
         if (searchKeys is null)
         {
-            return await formsRepository.IsTenantFormAsync(query.TenantId, query.List.FormId, cancellationToken)
-                ? Result.Conflict(NotPreparedMessage)
-                : Result.NotFound(TenantFormExtensions.FormNotFoundMessage);
+            return Result.Conflict(NotPreparedMessage);
         }
 
         var invalid = AnswerFilterRules.Check(query.Answers, searchKeys);
