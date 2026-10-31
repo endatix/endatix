@@ -191,10 +191,11 @@ with each other and with the list's metadata filters (`SubmissionGridAnswerSearc
   (`answer_key_not_filterable`), or an operator its filter type lacks (`answer_operator_not_supported`), is 400 with
   `fields.answer`. A missing, deleted or another tenant's form is 404 first, as without answer filters. A form with
   no compiled schema is 409 `reporting_not_prepared`; without answer filters the same form lists normally.
-- **Which rows are checked.** Only rows processed from the submission's current version (`SourceModifiedAt` equals the
-  submission's `ModifiedAt ?? CreatedAt`) with a search copy. Every other submission inside the metadata filters is
-  left out of the page and counted in `answerFilterCoverage` (`uncheckedCompleted`, `uncheckedInProgress`), so the
-  grid can offer to prepare them. The field is absent without answer filters.
+- **Which rows are checked.** Only rows prepared since the submission's last change (`SourceModifiedAt` equals the
+  submission's `ModifiedAt ?? CreatedAt`) that have a search copy. Every other submission inside the metadata filters
+  is left out of the page and counted in answer-filter coverage (`answerFilterCoverage`: `uncheckedCompleted`,
+  `uncheckedInProgress`): the rows not prepared since the submission's last change, or not rebuilt for the form's
+  current search keys, so the grid can offer to prepare them. The field is absent without answer filters.
 - **One query.** The Reporting context maps the core `Submissions` table read-only (`CoreSubmissionRow`, excluded
   from migrations, at the name the core context resolves). The list's metadata filters run on it with the core rules
   (`SubmissionGridMetadataSpec`; submitter profile filters through `IRelationalSubmitterProfileFilter`, the same
@@ -235,12 +236,13 @@ Grid answer search (`SubmissionGridAnswerSearch`: core join, metadata filters, a
 | SQL Server realistic, 2026-10-19, `2beee763` (ranges check the date shape) | 325–413 ms | 777–861 ms | 209 ms |
 
 64 search keys (50 automatic, 14 people's keys with the deep filtered questions). SQL Server with 4 concurrent callers
-is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (305–567 ms once the copies were
-rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range included (3 deep contains:
-805 → 861 ms), so the date shape check is within run-to-run noise. Each p95 is taken over 7 runs per scenario after
-2 warm-ups, so it is the slowest of the 7, and the two runs spread 777–861 ms: the 805 ms miss is inside that spread.
-The harness calls the search in process against one Testcontainer, without HTTP. Measure again before raising the key
-cap or adding work to the grid query.
+is the edge: 805–861 ms for 3 deep contains filters against an 800 ms target (567 ms at `bc271d63` and 305 ms at
+`2beee763` once the copies were rebuilt). The 2026-10-19 run was slower in every scenario, the ones without a date range
+included (3 deep contains: 805 → 861 ms), so the date shape check is within run-to-run noise. Each p95 is taken over 7
+runs per scenario after 2 warm-ups, so it is the slowest of the 7, and the two runs spread 777–861 ms: the 805 ms miss
+is inside that spread. The harness calls the search in process against one Testcontainer, without HTTP. The form-exists
+read (one indexed `Forms` row per answer-filter request) was added after these runs, so it is not in the numbers;
+endatix#1451 re-measures. Measure again before raising the key cap or adding work to the grid query.
 
 #### Keys people choose
 
