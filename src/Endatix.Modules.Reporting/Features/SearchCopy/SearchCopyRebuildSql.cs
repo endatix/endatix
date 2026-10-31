@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 
 namespace Endatix.Modules.Reporting.Features.SearchCopy;
@@ -95,8 +96,9 @@ internal static class SearchCopyRebuildSql
         _ => $"LOWER({text})",
     };
 
-    private static string SqlServerJsonPath(string key) =>
-        "$.\"" + key.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+    // SQL Server matches a path against a key as it is escaped in the document, and the flatten writes the answers
+    // with System.Text.Json's default encoder, so the path escapes the key the same way ("\u0022" for a quote).
+    private static string SqlServerJsonPath(string key) => "$.\"" + JsonEncodedText.Encode(key) + "\"";
 
     private static string SqlServerLiteral(string value) => $"N'{value.Replace("'", "''", StringComparison.Ordinal)}'";
 

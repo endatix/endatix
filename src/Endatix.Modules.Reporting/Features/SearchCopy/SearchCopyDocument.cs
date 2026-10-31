@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 
 namespace Endatix.Modules.Reporting.Features.SearchCopy;
@@ -11,10 +12,15 @@ namespace Endatix.Modules.Reporting.Features.SearchCopy;
 /// </summary>
 internal static class SearchCopyDocument
 {
+    // SQL Server matches a JSON path against a key as it is escaped in the document. The answer filter and the SQL
+    // rebuild (JSON_OBJECT) escape only quotes, backslashes and control characters, so the copy is written the same
+    // way. It is never embedded in HTML, which is what the default encoder guards.
+    private static readonly JsonWriterOptions WriterOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     public static string Build(IReadOnlyDictionary<string, JsonElement?> flattened, FormSearchKeys searchKeys)
     {
         ArrayBufferWriter<byte> buffer = new();
-        using (Utf8JsonWriter writer = new(buffer))
+        using (Utf8JsonWriter writer = new(buffer, WriterOptions))
         {
             writer.WriteStartObject();
             WriteAnsweredKeys(writer, flattened, searchKeys);

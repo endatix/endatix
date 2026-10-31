@@ -14,7 +14,7 @@ public sealed class SearchCopyRebuildSqlTests
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
 
     [Fact]
-    public void SqlServer_KeyWithQuotesAndBackslash_EscapesItsJsonPath()
+    public void SqlServer_KeyWithQuotesAndBackslash_EscapesItsJsonPathAsTheAnswersAreWritten()
     {
         // Arrange
         var keys = Keys(QuotedKey);
@@ -22,8 +22,8 @@ public sealed class SearchCopyRebuildSqlTests
         // Act
         var sql = SearchCopyRebuildSql.SqlServer(Table, keys);
 
-        // Assert
-        sql.Should().Contain("""JSON_VALUE(batch.DataJson, N'$."it''s \"x\"\\y"' RETURNING nvarchar(max)) AS a0""");
+        // Assert — SQL Server matches the key as escaped in the answers, which System.Text.Json's default encoder wrote.
+        sql.Should().Contain("""JSON_VALUE(batch.DataJson, N'$."it\u0027s \u0022x\u0022\\y"' RETURNING nvarchar(max)) AS a0""");
     }
 
     [Fact]

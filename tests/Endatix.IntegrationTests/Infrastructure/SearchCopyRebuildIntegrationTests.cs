@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
@@ -115,6 +116,33 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
         rows.Select(row => Normalized(row.SearchJson)).Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
     }
 
+    [Fact]
+    public async Task A_key_that_holds_a_quote_and_a_backslash_is_found_in_the_flattened_copy()
+    {
+        // Arrange
+        var formId = await FlattenEscapedKeyAsync();
+
+        // Act
+        var found = await CountMatchingAsync(formId, EscapedKey, "acme");
+
+        // Assert
+        found.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_key_that_holds_a_quote_and_a_backslash_is_found_in_the_rebuilt_copy()
+    {
+        // Arrange
+        var formId = await FlattenEscapedKeyAsync();
+        await ClearSearchCopiesAsync(formId);
+
+        // Act
+        await RebuildAsync(formId);
+
+        // Assert
+        (await CountMatchingAsync(formId, EscapedKey, "acme")).Should().Be(1);
+    }
+
     private async Task<RebuildForm> FlattenAllAsync()
     {
         var form = await _world.SeedFormAsync([Mixed]);
@@ -126,6 +154,37 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
         }
 
         return form;
+    }
+
+    // SQL Server matches a JSON path against a key as it is escaped in the document, so the rebuild's read of the
+    // answers and the filter's read of the copy each depend on how that key was written.
+    private const string EscapedKey = "say \"hi\" C:\\temp";
+
+    private async Task<long> FlattenEscapedKeyAsync()
+    {
+        var definition = new JsonObject
+        {
+            ["pages"] = new JsonArray(new JsonObject
+            {
+                ["elements"] = new JsonArray(new JsonObject { ["type"] = "text", ["name"] = EscapedKey }),
+            }),
+        }.ToJsonString();
+        var form = await _world.SeedFormAsync([definition]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        var submissionId = await _world.AddRealSubmissionAsync(
+            form.FormId, form.DefinitionIds[0], new JsonObject { [EscapedKey] = "Acme Corp" }.ToJsonString());
+        await _world.FlattenAsync(form.FormId, submissionId);
+        return form.FormId;
+    }
+
+    // The filter the answer search applies to the copy.
+    private async Task<int> CountMatchingAsync(long formId, string key, string text)
+    {
+        await using var db = _world.CreateReportingDbContext();
+        var rows = db.FlattenedSubmissions.AsNoTracking().Where(row => row.FormId == formId);
+        return await KeyFilter(fixture.Provider)
+            .WhereKeyMatches(rows, nameof(FlattenedSubmission.SearchJson), key, text)
+            .CountAsync(Cancellation);
     }
 
     private async Task<int> RebuildAsync(long formId)
