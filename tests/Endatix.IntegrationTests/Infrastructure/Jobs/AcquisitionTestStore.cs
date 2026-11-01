@@ -60,23 +60,31 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         var database = await JobsTestDatabase.CreateAsync(provider, serverConnectionString, cancellationToken);
-        try
-        {
-            var configuration = Configuration(provider, database.ConnectionString);
-            await MigrateAsync(provider, configuration, cancellationToken);
-            var services = SchedulerServices(configuration);
-            var scheduler = await SchedulerOf(services, cancellationToken);
-            foreach (var jobType in JobTypes)
-            {
-                await scheduler.AddJob(QuartzRegistration.DurableJobFor(jobType), AddJobOptions.Replacing, cancellationToken);
-            }
+        ServiceProvider? services = null;
+        IScheduler? scheduler = null;
 
-            return new AcquisitionTestStore(database, services, scheduler);
-        }
-        catch
+        // The caller gets no store to dispose until this returns one, so a step that fails disposes what the steps
+        // before it built, the last first.
+        return await FailedHostStart.DisposeOnFailureAsync(
+            async () =>
+            {
+                var configuration = Configuration(provider, database.ConnectionString);
+                await MigrateAsync(provider, configuration, cancellationToken);
+                services = SchedulerServices(configuration);
+                scheduler = await SchedulerOf(services, cancellationToken);
+                await AddDurableJobsAsync(scheduler, cancellationToken);
+                return new AcquisitionTestStore(database, services, scheduler);
+            },
+            () => scheduler?.Shutdown(cancellationToken: CancellationToken.None) ?? ValueTask.CompletedTask,
+            () => services?.DisposeAsync() ?? ValueTask.CompletedTask,
+            database.DisposeAsync);
+    }
+
+    private static async Task AddDurableJobsAsync(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        foreach (var jobType in JobTypes)
         {
-            await database.DisposeAsync();
-            throw;
+            await scheduler.AddJob(QuartzRegistration.DurableJobFor(jobType), AddJobOptions.Replacing, cancellationToken);
         }
     }
 
@@ -235,11 +243,22 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
         return options.Options;
     }
 
-    public async ValueTask DisposeAsync()
+    /// <summary>
+    /// Shuts the scheduler down and disposes its services, then drops the database whatever they did; when both fail,
+    /// the scheduler's failure is thrown and the drop's is reported as a test warning.
+    /// </summary>
+    public ValueTask DisposeAsync() => DisposalFailures.DisposeHostThenDatabaseAsync(ShutDownAsync, Database);
+
+    private async ValueTask ShutDownAsync()
     {
-        await _scheduler.Shutdown(cancellationToken: CancellationToken.None);
-        await _services.DisposeAsync();
-        await Database.DisposeAsync();
+        try
+        {
+            await _scheduler.Shutdown(cancellationToken: CancellationToken.None);
+        }
+        finally
+        {
+            await _services.DisposeAsync();
+        }
     }
 
     private sealed class NoopHandler(string jobType) : IBackgroundJobHandler
