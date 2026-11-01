@@ -16,5 +16,7 @@ internal sealed class FormSchemaConfigurationPostgreSql : IEntityTypeConfigurati
             .HasColumnType("jsonb");
         builder.Property(x => x.Locales)
             .HasColumnType("jsonb");
+        builder.Property(x => x.SearchKeys)
+            .HasColumnType("jsonb");
     }
 }

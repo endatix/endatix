@@ -7,11 +7,16 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 /// <param name="SchemaReady">Whether the form has a compiled schema. Without one, <paramref name="Columns"/> is empty.</param>
 /// <param name="Readiness">How many of the form's submissions are prepared.</param>
 /// <param name="Columns">The columns in schema order.</param>
+/// <param name="SearchSlots">
+/// How many columns answer filters can read, and how many more people may add; all zero but the caps without a
+/// compiled schema.
+/// </param>
 public sealed record SubmissionGridColumns(
     long FormId,
     bool SchemaReady,
     SubmissionGridReadiness Readiness,
-    IReadOnlyList<SubmissionGridColumn> Columns);
+    IReadOnlyList<SubmissionGridColumn> Columns,
+    SubmissionGridSearchSlots SearchSlots);
 
 /// <summary>
 /// One submissions-grid column.
@@ -26,6 +31,15 @@ public sealed record SubmissionGridColumns(
 /// <param name="PageName">The page the question is on.</param>
 /// <param name="PageTitle">The page title in the requested locale, falling back to the default locale.</param>
 /// <param name="PanelTitle">The nearest titled panel around the question, in the default locale.</param>
+/// <param name="Searchable">Whether answer filters can read the column: it is one of the form's search keys.</param>
+/// <param name="SearchPending">
+/// Whether some prepared rows have not been rebuilt with the column's search key yet; filters on it count them as not
+/// checked.
+/// </param>
+/// <param name="SearchSource">
+/// <c>auto</c> when the schema made the column searchable, <c>user</c> when a person did (and may undo it), or
+/// <see langword="null"/> when it is not searchable.
+/// </param>
 public sealed record SubmissionGridColumn(
     string Key,
     string Kind,
@@ -34,7 +48,10 @@ public sealed record SubmissionGridColumn(
     string? FilterType,
     string? PageName,
     string? PageTitle,
-    string? PanelTitle);
+    string? PanelTitle,
+    bool Searchable,
+    bool SearchPending,
+    string? SearchSource);
 
 /// <summary>
 /// How many of a form's submissions are prepared. Deleted submissions are not counted.

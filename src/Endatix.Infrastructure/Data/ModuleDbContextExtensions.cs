@@ -29,8 +29,11 @@ public static class ModuleDbContextExtensions
 
         ModuleDesignTimeConfiguration.GetDefaultConnectionString(configuration);
 
-        services.AddDbContext<TContext>(options =>
-            options.ConfigureModuleDbContext(configuration, moduleOptions));
+        services.AddDbContext<TContext>((serviceProvider, options) =>
+        {
+            options.ConfigureModuleDbContext(configuration, moduleOptions);
+            serviceProvider.GetService<IModuleDbContextProviderOptions>()?.Apply(options);
+        });
 
         return services;
     }

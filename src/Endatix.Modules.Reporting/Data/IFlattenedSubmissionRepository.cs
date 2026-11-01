@@ -44,6 +44,14 @@ public interface IFlattenedSubmissionRepository
     Task<IReadOnlyDictionary<string, int>> CountByStatusAsync(long tenantId, long formId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// The oldest <see cref="FlattenedSubmission.SearchKeysRevision"/> among a form's live processed rows: a search key
+    /// added after it is still missing from some rows. A processed row without a search copy counts as older than every
+    /// key (-1), as the answer filters cannot check it on any key until the rebuild writes its copy.
+    /// </summary>
+    /// <returns>The revision, or <c>null</c> when the form has no such row.</returns>
+    Task<int?> OldestSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Hard-deletes the flattened submission row for a submission (including soft-deleted rows).
     /// Used when a submission is deleted so the reporting read model does not keep orphans.
     /// </summary>
@@ -71,15 +79,15 @@ public interface IFlattenedSubmissionRepository
     Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Stores the flattened data built from the write's revision, with the revision and the submission's stamp it
-    /// was built from.
+    /// Stores the flattened data and its search copy built from the write's revision, in one update, with the
+    /// revision and the submission's stamp it was built from.
     /// </summary>
     /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
-    Task<bool> TryMarkProcessedAsync(FlattenedRevision write, string dataJson, CancellationToken cancellationToken);
+    Task<bool> TryMarkProcessedAsync(FlattenedRevision write, FlattenedRowData data, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Marks the row skipped for a submission that was incomplete at the write's revision, and clears its data and
-    /// its submission stamp.
+    /// Marks the row skipped for a submission that was incomplete at the write's revision, and clears its data, its
+    /// search copy and its submission stamp.
     /// </summary>
     /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
     Task<bool> TryMarkSkippedAsync(FlattenedRevision write, CancellationToken cancellationToken);

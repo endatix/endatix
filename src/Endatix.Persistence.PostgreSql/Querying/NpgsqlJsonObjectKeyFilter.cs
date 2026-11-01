@@ -1,4 +1,6 @@
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,8 +11,16 @@ namespace Endatix.Persistence.PostgreSql.Querying;
 /// </summary>
 public sealed class NpgsqlJsonObjectKeyFilter : RelationalJsonObjectKeyFilterBase
 {
+    private const string IsoDatePrefix = "^[0-9]{4}-[0-9]{2}-[0-9]{2}";
+
+    private static readonly MethodInfo IsMatchMethod =
+        typeof(Regex).GetMethod(nameof(Regex.IsMatch), [typeof(string), typeof(string)])!;
+
     /// <inheritdoc />
     protected override bool UsesSqlServerLikeSyntax => false;
+
+    /// <inheritdoc />
+    protected override string OrdinalCollation => "C";
 
     /// <inheritdoc />
     protected override Expression ExtractKeyText(Expression jsonProperty, string jsonObjectKey) =>
@@ -20,13 +30,17 @@ public sealed class NpgsqlJsonObjectKeyFilter : RelationalJsonObjectKeyFilterBas
             Expression.Constant(jsonObjectKey));
 
     /// <inheritdoc />
-    protected override Expression MatchesPattern(Expression text, string pattern) =>
+    protected override Expression MatchesPattern(Expression text, Expression lowercasedPattern) =>
         Expression.Call(
             typeof(NpgsqlDbFunctionsExtensions),
             nameof(NpgsqlDbFunctionsExtensions.ILike),
             typeArguments: Type.EmptyTypes,
             Expression.Constant(EF.Functions),
             text,
-            Expression.Constant(pattern),
+            lowercasedPattern,
             Expression.Constant("\\"));
+
+    /// <inheritdoc />
+    protected override Expression StartsWithIsoDate(Expression ordinalText) =>
+        Expression.Call(IsMatchMethod, ordinalText, Expression.Constant(IsoDatePrefix));
 }

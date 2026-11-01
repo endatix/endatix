@@ -1,6 +1,7 @@
 using System.Reflection;
 using Ardalis.Specification;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Data.Querying;
 using Endatix.Infrastructure.Features.Outbox;
@@ -133,6 +134,8 @@ public class PostgreSqlPersistenceBuilder
     {
         Services.AddScoped<IRelationalSubstringLikeFilter, NpgsqlSubstringLikeFilter>();
         Services.AddScoped<IRelationalJsonObjectKeyFilter, NpgsqlJsonObjectKeyFilter>();
+        Services.TryAddSingleton<IModuleDbContextProviderOptions, NpgsqlModuleDbContextProviderOptions>();
+        Services.AddScoped<IRelationalSubmitterProfileFilter, NpgsqlSubmitterProfileFilter>();
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();

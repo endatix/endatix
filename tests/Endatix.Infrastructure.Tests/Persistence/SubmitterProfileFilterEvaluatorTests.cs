@@ -38,17 +38,17 @@ public class SubmitterProfileFilterEvaluatorTests
     }
 
     [Fact]
-    public void SqlServerEvaluator_WithSubmitterProfileFilter_ThrowsNotSupportedException()
+    public void SqlServerEvaluator_WithSubmitterProfileFilter_AppliesJsonValuePredicate()
     {
         using ServiceProvider serviceProvider = CreateSqlServerProvider();
         IEvaluator evaluator = serviceProvider.GetRequiredService<IEvaluator>();
         IQueryable<Submission> query = Enumerable.Empty<Submission>().AsQueryable();
         SubmissionsByFormIdCountSpec specification = CreateCountSpec("submitterProfile.email:test@example.com");
 
-        Action act = () => _ = evaluator.GetQuery(query, specification);
+        IQueryable<Submission> result = evaluator.GetQuery(query, specification);
 
-        act.Should().Throw<NotSupportedException>()
-            .WithMessage("*submitterProfile filters*PostgreSQL*");
+        result.Expression.ToString().Should().Contain("JsonValue");
+        result.Expression.ToString().Should().Contain(nameof(Submission.SubmitterProfileSnapshot));
     }
 
     [Fact]

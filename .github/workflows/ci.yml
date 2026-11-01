@@ -197,9 +197,9 @@ jobs:
           GITHUB_EVENT_NAME_SAFE: ${{ github.event_name }}
         run: |
           if [ "$GITHUB_REF_SAFE" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME_SAFE" != "pull_request" ]; then
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Category!=Performance&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           else
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
+            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Category!=Performance&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
           fi
       # Debug, like the unit run: Debug gives braces their own sequence points, so a
       # Release report would leave them 0-hit in the merged Sonar coverage.
@@ -246,7 +246,7 @@ jobs:
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             --no-build --verbosity minimal \
-            --filter "Category!=Keycloak&DbSpecific!=PostgreSql" \
+            --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql" \
             --collect:"XPlat Code Coverage;Format=opencover" \
             --results-directory:.coverage \
             --settings coverlet.runsettings

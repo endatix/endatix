@@ -15,12 +15,15 @@ public sealed class SyncFormDeletionOutboxHandlerTests
         Substitute.For<IFormSchemaRepository>();
     private readonly IFlattenedSubmissionRepository _flattenedSubmissionRepository =
         Substitute.For<IFlattenedSubmissionRepository>();
+    private readonly ISubmissionViewRepository _submissionViewRepository =
+        Substitute.For<ISubmissionViewRepository>();
     private readonly IReportingUnitOfWork _unitOfWork = Substitute.For<IReportingUnitOfWork>();
 
     private SyncFormDeletionOutboxHandler CreateSut() =>
         new(
             _formSchemaRepository,
             _flattenedSubmissionRepository,
+            _submissionViewRepository,
             _unitOfWork,
             NullLogger<SyncFormDeletionOutboxHandler>.Instance);
 
@@ -31,7 +34,7 @@ public sealed class SyncFormDeletionOutboxHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_DeletesSchemaAndFlattenedRowsInsideTransaction()
+    public async Task HandleAsync_DeletesSchemaFlattenedRowsAndViewsInsideTransaction()
     {
         // Arrange
         _formSchemaRepository
@@ -51,6 +54,7 @@ public sealed class SyncFormDeletionOutboxHandlerTests
             _unitOfWork.BeginTransactionAsync(Arg.Any<CancellationToken>());
             _formSchemaRepository.DeleteByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>());
             _flattenedSubmissionRepository.DeleteByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>());
+            _submissionViewRepository.DeleteByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>());
             _unitOfWork.CommitTransactionAsync(Arg.Any<CancellationToken>());
         });
         await _unitOfWork.DidNotReceive().RollbackTransactionAsync(Arg.Any<CancellationToken>());

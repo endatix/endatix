@@ -17,7 +17,7 @@ dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Re
 # SQL Server (second process; one DB container per `dotnet test`)
 ENDATIX_TEST_DB_PROVIDER=SqlServer \
   dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release \
-  --filter "Category!=Keycloak&DbSpecific!=PostgreSql"
+  --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql"
 ```
 
 Filter constants: `Endatix.IntegrationTests.Shared/IntegrationTestFilters.cs`. CI runs both legs via `.github/workflows/ci.yml` (provider matrix).
@@ -44,7 +44,7 @@ Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-sp
 
 | Trait        | Values                                                      | Purpose                                             |
 | ------------ | ----------------------------------------------------------- | --------------------------------------------------- |
-| `Category`   | `CriticalPath`, `FeatureFlow`, `Infrastructure`, `Keycloak` | Suite grouping / CI                                 |
+| `Category`   | `CriticalPath`, `FeatureFlow`, `Infrastructure`, `Keycloak`, `Performance` | Suite grouping / CI; `Performance` never runs in CI |
 | `Priority`   | `P0`, `P1`, `P2`                                            | PR gate excludes `P2`                               |
 | `DbSpecific` | `PostgreSql`, `SqlServer`                                   | Only when the test cannot run on the other provider |
 
@@ -54,6 +54,19 @@ Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-sp
 | ------------------------------- | ------------ | ------------------------------ |
 | `ENDATIX_TEST_DB_PROVIDER`      | `PostgreSql` | `SqlServer` for SQL Server leg |
 | `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only                 |
+
+### Performance suite
+
+`Performance/` holds opt-in measurements at scale (`Category=Performance`), excluded by every CI filter and skipped unless
+`ENDATIX_PERF=1`. The submissions-grid run loads one form's flattened rows and times answer filters on the search copy:
+
+```bash
+ENDATIX_PERF=1 ENDATIX_PERF_SHAPE=realistic ENDATIX_PERF_ROWS=50000 \
+  dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release --filter "Category=Performance"
+```
+
+Shapes: `realistic` (1,000 questions, 20% answered), `worst` (1,000, all answered), `mid` (200, 50%). Add
+`ENDATIX_TEST_DB_PROVIDER=SqlServer` for SQL Server. Reports go to `ENDATIX_PERF_OUT` (default `$TMPDIR/endatix-perf`).
 
 `xunit.runner.json` disables parallelism — collections share one DB per process; tests reset via Respawn.
 

@@ -39,20 +39,7 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
     /// <inheritdoc/>
     public override async Task<Results<Ok<Paged<SubmissionModel>>, ProblemHttpResult>> ExecuteAsync(ListByFormIdRequest request, CancellationToken ct)
     {
-        var sort = request.ToNullableSortRequest(SubmissionListSortBy.CreatedAt, SortDirection.Desc);
-        var getSubmissionsQuery = new ListByFormIdQuery(
-            request.FormId,
-            request.Page,
-            request.PageSize,
-            request.Filter,
-            sort?.Field,
-            sort?.IsDescending ?? false,
-            request.ToCreatedRange(),
-            request.ToModifiedRange(),
-            request.ToStartedRange(),
-            request.ToCompletedRange());
-
-        var result = await mediator.Send(getSubmissionsQuery, ct);
+        var result = await mediator.Send(request.ToQuery(), ct);
 
         return TypedResultsBuilder
             .MapResult(result, submissions => submissions.MapToPaged(SubmissionMapper.MapFromDto))

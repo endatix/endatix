@@ -78,6 +78,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
 
         builder.ConfigureServices(AddTestServices);
         builder.ConfigureTestServices(BackgroundWorkRegistration.AddSwitchedOff);
+        builder.ConfigureTestServices(HostStopOutcome.Register);
 
         builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
         builder.UseSetting("ConnectionStrings:DefaultConnection_DbProvider", provider.ToString());

@@ -13,6 +13,12 @@ public interface IFormSchemaRepository
     Task<FormSchema?> GetByFormIdAsync(long tenantId, long formId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Gets the schema's <see cref="FormSchema.SearchKeysRevision"/> alone, without its JSON.
+    /// </summary>
+    /// <returns>The revision, or <c>null</c> when the form has no compiled schema.</returns>
+    Task<int?> GetSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Takes the form's schema rebuild lock, then gets its compiled schema as last saved. The lock is held until the
     /// open transaction ends, so rebuilds of one form run one after another and each starts from the one before.
     /// </summary>

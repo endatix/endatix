@@ -99,6 +99,7 @@ internal sealed class SubmissionFlatteningWorld(DbIntegrationFixture fixture)
                 new FormSchemaCompiler(),
                 NullLogger<FormSchemaPersonalization>.Instance),
             SubmitterProfileFields.None,
+            ReportingTestSchema.SearchCopyRebuilderFor(reportingDb),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     public static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase reportingDb) =>

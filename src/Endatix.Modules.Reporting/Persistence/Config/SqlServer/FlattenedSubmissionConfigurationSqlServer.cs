@@ -12,5 +12,7 @@ internal sealed class FlattenedSubmissionConfigurationSqlServer : IEntityTypeCon
     {
         builder.Property(x => x.DataJson)
             .HasColumnType("json");
+        builder.Property(x => x.SearchJson)
+            .HasColumnType("json");
     }
 }

@@ -59,4 +59,23 @@ public class ListByFormIdRequest :
 
     /// <inheritdoc />
     public string? CompletedTo { get; set; }
+
+    /// <summary>
+    /// The list query this request asks for. The default sort is newest first.
+    /// </summary>
+    public ListByFormIdQuery ToQuery()
+    {
+        var sort = this.ToNullableSortRequest(SubmissionListSortBy.CreatedAt, SortDirection.Desc);
+        return new ListByFormIdQuery(
+            FormId,
+            Page,
+            PageSize,
+            Filter,
+            sort?.Field,
+            sort?.IsDescending ?? false,
+            this.ToCreatedRange(),
+            this.ToModifiedRange(),
+            this.ToStartedRange(),
+            this.ToCompletedRange());
+    }
 }
