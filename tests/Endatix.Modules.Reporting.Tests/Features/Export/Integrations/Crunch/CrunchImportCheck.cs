@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using CsvHelper;
+using Endatix.Core.Entities;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 
@@ -15,13 +16,25 @@ internal static partial class CrunchImportCheck
     private static readonly string[] _datetimeFormats =
         ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm", "yyyy-MM-ddTHH:mm:ssZ", "yyyy-MM-ddTHH:mm:ss.FFFFFFFK", "yyyy-MM-dd"];
 
-    public static IReadOnlyList<string> Problems(string shojiJson, string csv)
+    public static IReadOnlyList<string> Problems(string shojiJson, string csv) =>
+        Problems(shojiJson, csv, requiredAliases: null);
+
+    /// <summary>
+    /// The checks for a CSV exported with a column scope. The codebook is not scoped, so a variable outside the scope
+    /// has no column; but every system key and every <paramref name="scopedAliases"/> entry (the scoped questions'
+    /// aliases and the audience keys the export keeps) must have one, every header is a variable, and every cell fits it.
+    /// </summary>
+    public static IReadOnlyList<string> ScopedProblems(string shojiJson, string csv, IEnumerable<string> scopedAliases) =>
+        Problems(shojiJson, csv, [.. SubmissionExportRow.SystemColumns.OrderedKeys, .. scopedAliases]);
+
+    // With no required aliases, every Shoji alias needs a column.
+    private static List<string> Problems(string shojiJson, string csv, IReadOnlyCollection<string>? requiredAliases)
     {
         var variables = VariablesByAlias(shojiJson);
         var (header, rows) = Read(csv);
         List<string> problems = [];
         problems.AddRange(header.Where(alias => !variables.ContainsKey(alias)).Select(alias => $"header '{alias}' has no Shoji variable"));
-        problems.AddRange(variables.Keys.Where(alias => !header.Contains(alias)).Select(alias => $"Shoji alias '{alias}' has no CSV column"));
+        problems.AddRange((requiredAliases ?? variables.Keys).Where(alias => !header.Contains(alias)).Select(alias => $"Shoji alias '{alias}' has no CSV column"));
         problems.AddRange(CellProblems(new Columns(header, variables), rows));
         return problems;
     }

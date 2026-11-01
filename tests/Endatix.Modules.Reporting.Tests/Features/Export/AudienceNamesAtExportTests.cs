@@ -94,7 +94,8 @@ public sealed class AudienceNamesAtExportTests
             new ExportSchemas(_schemas, _catalog),
             rows,
             _settingsParser,
-            ColumnAliasTransformerRegistry.Default);
+            ColumnAliasTransformerRegistry.Default,
+            NullLogger<TabularExportDataSource>.Instance);
         var context = Context("csv", typeof(SubmissionExportRow));
 
         // Act

@@ -33,4 +33,35 @@ public sealed class CrunchImportConformanceTests
         // Assert
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task CrunchImport_ScopeLeavesOutTheQuestionThatTakesAnAudienceKey_EveryColumnMeansItsShojiVariable()
+    {
+        // Arrange: with "_" as the separator, multipletext "audience" item "region" exports as "audience_region", the
+        // key of the audience variable "region". The codebook gives the alias to the question.
+        const string definition = """
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"qName"},
+              {"type":"multipletext","name":"audience","items":[{"name":"region"},{"name":"city"}]}]}]}
+            """;
+        const string settings = """{"aliasProfile":"native","keySeparator":"_"}""";
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("north", """{"qName":"Ada","audience":{"region":"South","city":"Sofia"}}""",
+                """{"identifier":"CG-1","variables":{"region":"North"}}"""),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        pipeline.FlattenAll(definition, responses);
+        var schema = pipeline.Entity();
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        var shoji = await CrunchExport.ShojiCodebookAsync(schema, cancellationToken, settings);
+        var csv = await CrunchExport.CsvAsync(
+            new(schema, pipeline.ExportRows(responses), settings, ColumnScope: ["qName"]),
+            cancellationToken);
+
+        // Assert: the codebook's "audience_region" is the question's, so the CSV has no column under it.
+        CrunchImportCheck.ScopedProblems(shoji, csv, ["qName", "AudienceIdentifier"]).Should().BeEmpty();
+        csv.Split('\n')[0].TrimEnd('\r').Split(',').Should().EndWith(["qName", "AudienceIdentifier"]);
+    }
 }
