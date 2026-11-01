@@ -132,32 +132,45 @@ internal sealed class JobsTestNode : IAsyncDisposable
     }
 
     /// <summary>
-    /// Stops the node unless it was stopped already, and disposes it whatever the stop did. A stop that fails throws,
-    /// unless the node's start failed: the start's failure is the one the test has, so the stop's is reported as a
-    /// warning on the test.
+    /// Stops the node unless it was stopped already, and disposes it whatever the stop did. When the stop fails, its
+    /// failure is thrown and a failing disposal is reported as a test warning.
     /// </summary>
-    public async ValueTask DisposeAsync()
+    /// <remarks>
+    /// A node whose start failed is stopped too: the services that started before the failure are still running, and
+    /// .NET disposes a host whose start failed without stopping it. Under
+    /// <c>await using var node = Create(); await node.StartAsync(ct);</c> the start's failure is on its way out of the
+    /// test when this runs, and a throw from here would replace it, so the stop's and the disposal's failures are
+    /// reported as test warnings instead.
+    /// </remarks>
+    public ValueTask DisposeAsync() =>
+        _startFailed
+            ? DisposeAfterFailedStartAsync()
+            : DisposalFailures.DisposeInOrderAsync(
+                StopOnceAsync, DisposeHostAsync, "the node's disposal after its failed stop");
+
+    private async ValueTask DisposeAfterFailedStartAsync()
     {
-        try
-        {
-            if (!_stopped)
-            {
-                await StopForDisposalAsync();
-            }
-        }
-        finally
-        {
-            _host.Dispose();
-        }
+        await DisposalFailures.DisposeReportingFailureAsync("the stop after the failed start", StopOnceAsync);
+        await DisposalFailures.DisposeReportingFailureAsync("the disposal after the failed start", DisposeHostAsync);
     }
 
-    // Services that started before a failed start are still running, so a node whose start failed is stopped too.
-    private ValueTask StopForDisposalAsync() =>
-        _startFailed
-            ? DisposalFailures.DisposeReportingFailureAsync(
-                "the stop after the failed start",
-                () => new ValueTask(_host.StopAsync(CancellationToken.None)))
-            : new ValueTask(_host.StopAsync(CancellationToken.None));
+    // A second disposal does not stop the node again, so a stop that failed fails its test once.
+    private ValueTask StopOnceAsync()
+    {
+        if (_stopped)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        _stopped = true;
+        return new ValueTask(_host.StopAsync(CancellationToken.None));
+    }
+
+    private ValueTask DisposeHostAsync()
+    {
+        _host.Dispose();
+        return ValueTask.CompletedTask;
+    }
 
     private sealed class MigrateJobsSchema(IServiceProvider services, ILogger<MigrateJobsSchema> logger) : IHostedService
     {
