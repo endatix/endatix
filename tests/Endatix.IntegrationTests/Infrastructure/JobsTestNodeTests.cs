@@ -80,14 +80,17 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task A_node_whose_start_failed_as_expected_throws_its_start_failure_and_its_failing_stop_when_disposed()
+    public async Task A_node_whose_start_failed_as_expected_throws_its_start_failure_with_its_failing_stop_and_disposal_when_disposed()
     {
-        // Arrange — a service that starts and throws while it stops, then one whose start fails, which the test expects.
+        // Arrange — a service whose disposal throws, one that starts and throws while it stops, then one whose start
+        // fails, which the test expects. Services are disposed in the reverse of their creation, so the throwing
+        // disposal comes last.
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var started = new RecordingService(DeliberateStopFailure);
         var node = JobsTestNode.Create(database, configureServices: services =>
         {
+            services.AddHostedService<FailingDisposalService>();
             services.AddHostedService(_ => started);
             services.AddHostedService<FailingStartService>();
         });
@@ -100,7 +103,8 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
         Assert.Collection(
             Assert.IsType<AggregateException>(thrown).InnerExceptions,
             failure => Assert.Same(startFailure, failure),
-            failure => Assert.Equal(DeliberateStopFailure, Assert.IsType<InvalidOperationException>(failure).Message));
+            failure => Assert.Equal(DeliberateStopFailure, Assert.IsType<InvalidOperationException>(failure).Message),
+            failure => Assert.Equal(DeliberateDisposalFailure, Assert.IsType<InvalidOperationException>(failure).Message));
         Assert.True(started.Disposed);
     }
 
