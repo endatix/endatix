@@ -175,22 +175,19 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
 
     private static Dictionary<string, string?> OneAttempt() => new() { [ProbeKey("MaxAttempts")] = "1" };
 
-    private static async Task<JobsTestNode> StartNodeFailingAsync(
+    private static Task<JobsTestNode> StartNodeFailingAsync(
         ProbeNodeSetup setup,
         Action<IServiceCollection> registerFailures,
-        CancellationToken ct)
-    {
-        var node = JobsTestNode.Create(
+        CancellationToken ct) =>
+        JobsTestNode.Create(
             setup.Database,
             setup.Settings,
             services =>
             {
                 services.AddProbe(setup.Invocations);
                 registerFailures(services);
-            });
-        await node.StartAsync(ct);
-        return node;
-    }
+            })
+            .StartedAsync(ct);
 
     private static int CountOf(JobLifecycleEventListener lifecycle, string lifecycleEvent) =>
         lifecycle.Events.Count(entry => entry.Event == lifecycleEvent && entry.JobType == ProbePayload.JobType);

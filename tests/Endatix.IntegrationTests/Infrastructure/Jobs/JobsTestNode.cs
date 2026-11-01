@@ -19,6 +19,7 @@ internal sealed class JobsTestNode : IAsyncDisposable
 {
     private readonly IHost _host;
     private bool _stopped;
+    private bool _startFailed;
 
     private JobsTestNode(IHost host) => _host = host;
 
@@ -83,7 +84,31 @@ internal sealed class JobsTestNode : IAsyncDisposable
         bool migrate = true) =>
         Create(new JobsTestNodeDatabase(database.Provider, database.ConnectionString), settings, configureServices, migrate);
 
-    public Task StartAsync(CancellationToken cancellationToken) => _host.StartAsync(cancellationToken);
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _host.StartAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            _startFailed = true;
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Starts the node and returns it; a start that fails stops and disposes the node before its failure reaches the
+    /// caller, which never gets a node to dispose.
+    /// </summary>
+    public Task<JobsTestNode> StartedAsync(CancellationToken cancellationToken) =>
+        FailedHostStart.DisposeOnFailureAsync(
+            async () =>
+            {
+                await StartAsync(cancellationToken);
+                return this;
+            },
+            DisposeAsync);
 
     /// <summary>A graceful stop, as a host shutting down does.</summary>
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -106,22 +131,33 @@ internal sealed class JobsTestNode : IAsyncDisposable
         _host.Dispose();
     }
 
+    /// <summary>
+    /// Stops the node unless it was stopped already, and disposes it whatever the stop did. A stop that fails throws,
+    /// unless the node's start failed: the start's failure is the one the test has, so the stop's is reported as a
+    /// warning on the test.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (!_stopped)
+        try
         {
-            try
+            if (!_stopped)
             {
-                await _host.StopAsync(CancellationToken.None);
-            }
-            catch (Exception)
-            {
-                // A node that failed to start has nothing to stop.
+                await StopForDisposalAsync();
             }
         }
-
-        _host.Dispose();
+        finally
+        {
+            _host.Dispose();
+        }
     }
+
+    // Services that started before a failed start are still running, so a node whose start failed is stopped too.
+    private ValueTask StopForDisposalAsync() =>
+        _startFailed
+            ? DisposalFailures.DisposeReportingFailureAsync(
+                "the stop after the failed start",
+                () => new ValueTask(_host.StopAsync(CancellationToken.None)))
+            : new ValueTask(_host.StopAsync(CancellationToken.None));
 
     private sealed class MigrateJobsSchema(IServiceProvider services, ILogger<MigrateJobsSchema> logger) : IHostedService
     {
