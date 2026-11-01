@@ -247,7 +247,8 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
     /// Shuts the scheduler down and disposes its services, then drops the database whatever they did; when both fail,
     /// the scheduler's failure is thrown and the drop's is reported as a test warning.
     /// </summary>
-    public ValueTask DisposeAsync() => DisposalFailures.DisposeHostThenDatabaseAsync(ShutDownAsync, Database);
+    public ValueTask DisposeAsync() =>
+        DisposalFailures.DisposeInOrderAsync(ShutDownAsync, Database.DisposeAsync, "the database drop after a failed shutdown");
 
     private async ValueTask ShutDownAsync()
     {

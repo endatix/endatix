@@ -116,11 +116,10 @@ public sealed partial class JobsSchedulerStartupTests
             {string.Format(System.Globalization.CultureInfo.InvariantCulture, grantSql, Name)}
             """, ct);
 
-        // The database is dropped even when the role's drop fails; when both fail, the role's failure is thrown and the
-        // database's is reported as a test warning.
-        public ValueTask DisposeAsync() => DisposalFailures.DisposeHostThenDatabaseAsync(DropAsync, database);
+        public ValueTask DisposeAsync() =>
+            DisposalFailures.DisposeInOrderAsync(DropRoleAsync, database.DisposeAsync, "the database drop after a failed role drop");
 
-        private async ValueTask DropAsync()
+        private async ValueTask DropRoleAsync()
         {
             NpgsqlConnection.ClearAllPools();
             await database.ExecuteAsync($"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{Name}') THEN DROP OWNED BY {Name}; DROP ROLE {Name}; END IF; END $$", CancellationToken.None);
