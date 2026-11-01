@@ -147,7 +147,7 @@ internal static partial class ShojiCodebookGenerator
         QuestionFolders folders = new();
         foreach (var column in sources.Args.FlatteningMap.Columns)
         {
-            var aliases = OrderAliases(column, sources.Args)
+            var aliases = ColumnOrderAliases(column, sources.Args)
                 .Where(alias => sources.Written.Contains(alias) && placed.Add(alias))
                 .Select(alias => new ShojiOrderAlias(alias))
                 .ToList();
@@ -209,7 +209,7 @@ internal static partial class ShojiCodebookGenerator
         return new ShojiPanel(string.IsNullOrWhiteSpace(name) ? label : name, label);
     }
 
-    private static IEnumerable<string> OrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args)
+    private static IEnumerable<string> ColumnOrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args)
     {
         if (!IsNeutralRangeSliderColumn(column, args.Questions))
         {
