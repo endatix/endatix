@@ -146,7 +146,8 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
             },
             cancellationToken);
 
-    // A start that fails returns no host to dispose, so it stops the host and drops its database here.
+    // A start that fails returns no host to dispose, so it drops its database here. The factory needs no disposal then:
+    // it keeps a host only once the host has started, and the application's own app.Run() disposes one that did not.
     private static async Task<HostOnItsDatabase> StartedHostAsync(
         DbIntegrationFixture fixture,
         Action<IWebHostBuilder> configure,
@@ -163,7 +164,6 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
                 _ = factory.Services;
                 return Task.FromResult(new HostOnItsDatabase(factory, database));
             },
-            factory.DisposeAsync,
             database.DisposeAsync);
     }
 
