@@ -33,22 +33,26 @@ internal static class DisposalFailures
     /// drop's is reported, since a throw from the drop would replace it.
     /// </remarks>
     public static ValueTask DisposeHostThenDatabaseAsync(IAsyncDisposable host, IAsyncDisposable database) =>
-        DisposeHostThenDatabaseAsync(host.DisposeAsync, database);
+        DisposeInOrderAsync(host.DisposeAsync, database.DisposeAsync, DatabaseDrop);
 
-    /// <inheritdoc cref="DisposeHostThenDatabaseAsync(IAsyncDisposable, IAsyncDisposable)"/>
-    public static async ValueTask DisposeHostThenDatabaseAsync(Func<ValueTask> disposeHost, IAsyncDisposable database)
+    /// <summary>
+    /// Runs <paramref name="first"/> and then <paramref name="then"/>, whatever the first did. When the first fails, its
+    /// failure is thrown and the second's is reported as <paramref name="thenName"/> failing, since a throw from the
+    /// second would replace it.
+    /// </summary>
+    public static async ValueTask DisposeInOrderAsync(Func<ValueTask> first, Func<ValueTask> then, string thenName)
     {
         try
         {
-            await disposeHost();
+            await first();
         }
         catch (Exception)
         {
-            await DisposeReportingFailureAsync(DatabaseDrop, database.DisposeAsync);
+            await DisposeReportingFailureAsync(thenName, then);
             throw;
         }
 
-        await database.DisposeAsync();
+        await then();
     }
 
     private static void Report(string what, Exception disposalFailure)
