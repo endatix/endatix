@@ -25,17 +25,9 @@ internal sealed class ReportingWebHost : IIntegrationTestHostFixture, IAsyncDisp
         _factory = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider)
             .WithWebHostBuilder(builder => builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true"));
 
-        // Reading Services starts the host; a failed start would otherwise leave it running, since the caller never
-        // gets an instance to dispose.
-        try
-        {
-            Seed = new IntegrationSeedBuilder(_factory.Services);
-        }
-        catch
-        {
-            _factory.Dispose();
-            throw;
-        }
+        // Reading Services starts the host. A start that fails leaves the factory with no host to dispose: the
+        // application's own app.Run() disposes the host it failed to start.
+        Seed = new IntegrationSeedBuilder(_factory.Services);
     }
 
     public DatabaseInfrastructureFixture Database { get; }
