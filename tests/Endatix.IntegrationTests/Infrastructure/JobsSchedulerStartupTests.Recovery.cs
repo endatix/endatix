@@ -88,12 +88,19 @@ public sealed partial class JobsSchedulerStartupTests
     {
         await database.TakeAwayAsync(ct);
         var node = JobsTestNode.Create(database, configureServices: configureServices, migrate: false);
-        await node.StartAsync(ct);
-        var enqueueWhileAway = () => node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), ct);
-        await enqueueWhileAway.Should().ThrowAsync<Exception>();
-        await enqueueWhileAway.Should().ThrowAsync<Exception>("a rebuild while the database is still away fails too");
-        await database.BringBackAsync(ct);
-        return node;
+
+        // The caller gets no node to dispose until this returns it, so a step that fails disposes it here.
+        return await FailedHostStart.DisposeOnFailureAsync(
+            async () =>
+            {
+                await node.StartAsync(ct);
+                var enqueueWhileAway = () => node.EnqueueAsync(BackgroundJobRequest.Create(new ProbePayload(), tenantId: 5), ct);
+                await enqueueWhileAway.Should().ThrowAsync<Exception>();
+                await enqueueWhileAway.Should().ThrowAsync<Exception>("a rebuild while the database is still away fails too");
+                await database.BringBackAsync(ct);
+                return node;
+            },
+            node.DisposeAsync);
     }
 
     // Enqueues fail until the scheduler is back; the first that succeeds returns its job.
