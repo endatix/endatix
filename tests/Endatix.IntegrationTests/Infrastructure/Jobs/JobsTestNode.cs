@@ -19,7 +19,7 @@ internal sealed class JobsTestNode : IAsyncDisposable
 {
     private readonly IHost _host;
     private bool _stopped;
-    private bool _startFailed;
+    private Exception? _startFailure;
 
     private JobsTestNode(IHost host) => _host = host;
 
@@ -90,9 +90,9 @@ internal sealed class JobsTestNode : IAsyncDisposable
         {
             await _host.StartAsync(cancellationToken);
         }
-        catch (Exception)
+        catch (Exception failure)
         {
-            _startFailed = true;
+            _startFailure = failure;
             throw;
         }
     }
@@ -136,22 +136,40 @@ internal sealed class JobsTestNode : IAsyncDisposable
     /// failure is thrown and a failing disposal is reported as a test warning.
     /// </summary>
     /// <remarks>
-    /// A node whose start failed is stopped too: the services that started before the failure are still running, and
-    /// .NET disposes a host whose start failed without stopping it. Under
-    /// <c>await using var node = Create(); await node.StartAsync(ct);</c> the start's failure is on its way out of the
-    /// test when this runs, and a throw from here would replace it, so the stop's and the disposal's failures are
-    /// reported as test warnings instead.
+    /// A node whose start failed is stopped and disposed too: the services that started before the failure are still
+    /// running, and .NET disposes a host whose start failed without stopping it. When either fails, an
+    /// <see cref="AggregateException"/> is thrown with the start's failure first. A test that expected the start to
+    /// fail still fails on a broken teardown, and under <c>await using var node = Create(); await node.StartAsync(ct);</c>
+    /// a test whose start failed unexpectedly still sees that failure, which a throw of the teardown's alone would
+    /// replace.
     /// </remarks>
     public ValueTask DisposeAsync() =>
-        _startFailed
-            ? DisposeAfterFailedStartAsync()
-            : DisposalFailures.DisposeInOrderAsync(
-                StopOnceAsync, DisposeHostAsync, "the node's disposal after its failed stop");
+        _startFailure is null
+            ? DisposalFailures.DisposeInOrderAsync(
+                StopOnceAsync, DisposeHostAsync, "the node's disposal after its failed stop")
+            : DisposeAfterFailedStartAsync(_startFailure);
 
-    private async ValueTask DisposeAfterFailedStartAsync()
+    private async ValueTask DisposeAfterFailedStartAsync(Exception startFailure)
     {
-        await DisposalFailures.DisposeReportingFailureAsync("the stop after the failed start", StopOnceAsync);
-        await DisposalFailures.DisposeReportingFailureAsync("the disposal after the failed start", DisposeHostAsync);
+        List<Exception> failures = [startFailure];
+        await RecordFailureAsync(StopOnceAsync, failures);
+        await RecordFailureAsync(DisposeHostAsync, failures);
+        if (failures.Count > 1)
+        {
+            throw new AggregateException("The node's start failed, and so did its teardown.", failures);
+        }
+    }
+
+    private static async ValueTask RecordFailureAsync(Func<ValueTask> step, List<Exception> failures)
+    {
+        try
+        {
+            await step();
+        }
+        catch (Exception failure)
+        {
+            failures.Add(failure);
+        }
     }
 
     // A second disposal does not stop the node again, so a stop that failed fails its test once.
