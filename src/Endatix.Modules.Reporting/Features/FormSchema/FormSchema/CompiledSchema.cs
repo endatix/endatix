@@ -1,10 +1,11 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
-/// <summary>A compiled schema and the revision it is saved at.</summary>
-internal sealed record CompiledSchema(long Revision, FormSchemaCompileResult Result)
+/// <summary>A compiled schema, the revision it is saved at, and its search keys after the compile.</summary>
+internal sealed record CompiledSchema(long Revision, FormSchemaCompileResult Result, FormSearchKeys SearchKeys)
 {
     /// <summary>
     /// The revision only moves forward, except on a replace: that holds one definition's columns only, so it takes
@@ -23,13 +24,16 @@ internal sealed record CompiledSchema(long Revision, FormSchemaCompileResult Res
         existing.FormDefinitionRevision == Revision &&
         JsonEquals(existing.FlatteningMap, Result.FlatteningMapJson) &&
         JsonEquals(existing.Codebook, Result.CodebookJson) &&
-        JsonEquals(existing.Locales, Result.LocalesJson);
+        JsonEquals(existing.Locales, Result.LocalesJson) &&
+        existing.SearchKeysRevision == SearchKeys.Revision &&
+        JsonEquals(existing.SearchKeys, SearchKeys.ToJson());
 
     /// <summary>Writes this schema onto the stored one, at its revision; the caller saves it.</summary>
     public void ApplyTo(FormSchemaEntity existing)
     {
         existing.RevertRevisionTo(Revision);
         existing.UpdateSchema(Revision, Result.FlatteningMapJson, Result.CodebookJson, Result.LocalesJson);
+        existing.UpdateSearchKeys(SearchKeys.ToJson(), SearchKeys.Revision);
     }
 
     private static bool JsonEquals(string stored, string compiled)

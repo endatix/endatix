@@ -133,6 +133,7 @@ public class SqlServerPersistenceBuilder
         Services.AddScoped<IRelationalSubstringLikeFilter, SqlServerSubstringLikeFilter>();
         Services.AddScoped<IRelationalJsonObjectKeyFilter, SqlServerJsonObjectKeyFilter>();
         Services.TryAddSingleton<IModuleDbContextProviderOptions, SqlServerModuleDbContextProviderOptions>();
+        Services.AddScoped<IRelationalSubmitterProfileFilter, SqlServerSubmitterProfileFilter>();
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();

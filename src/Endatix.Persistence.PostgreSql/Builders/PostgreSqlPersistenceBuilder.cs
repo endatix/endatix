@@ -135,6 +135,7 @@ public class PostgreSqlPersistenceBuilder
         Services.AddScoped<IRelationalSubstringLikeFilter, NpgsqlSubstringLikeFilter>();
         Services.AddScoped<IRelationalJsonObjectKeyFilter, NpgsqlJsonObjectKeyFilter>();
         Services.TryAddSingleton<IModuleDbContextProviderOptions, NpgsqlModuleDbContextProviderOptions>();
+        Services.AddScoped<IRelationalSubmitterProfileFilter, NpgsqlSubmitterProfileFilter>();
         Services.AddScoped<IEvaluator, SubmitterProfileFilterEvaluator>();
         Services.AddScoped<ISubmissionExportRepository, SubmissionExportRepository>();
         Services.AddScoped<IStorageStatsRepository, StorageStatsRepository>();

@@ -43,6 +43,22 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// </summary>
     public string? DataJson { get; private set; }
 
+    /// <summary>
+    /// The search copy of <see cref="DataJson"/>: the answered search keys, text lowercased and dates normalised, so
+    /// answer filters read a small document instead of every answer. Written with <see cref="DataJson"/>, and null
+    /// whenever it is. It holds the keys the schema had when the row was last written; a key dropped since stays
+    /// until the row is flattened or rebuilt again, and filters read only the schema's current keys.
+    /// </summary>
+    public string? SearchJson { get; }
+
+    /// <summary>
+    /// The <see cref="Domain.FormSchema.SearchKeysRevision"/> of the search keys <see cref="SearchJson"/> was written
+    /// from; 0 before any. A key added at a later revision has no value in this row until the row is rebuilt, so
+    /// filters on that key count the row as not checked. Written by the repository's conditional writes and by the
+    /// search copy rebuild, never by the entity itself.
+    /// </summary>
+    public int SearchKeysRevision { get; }
+
     /// <summary>Reporting pipeline sync state (source of truth for integration/export readiness).</summary>
     public SubmissionIntegrationState Integration { get; private set; } = null!;
 

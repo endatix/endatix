@@ -10,6 +10,8 @@ using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.SearchCopy;
+using Endatix.Modules.Reporting.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Modules.Reporting.Tests.Features.BackgroundJobs;
@@ -23,6 +25,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
     private readonly IRepository<OutboxMessage> _outbox = Substitute.For<IRepository<OutboxMessage>>();
     private readonly ISubmissionFlatteningProcessor _flattening = Substitute.For<ISubmissionFlatteningProcessor>();
     private readonly IDefaultExportFormatsSeeder _seeder = Substitute.For<IDefaultExportFormatsSeeder>();
+    private readonly IFormSchemaRepository _schemas = Substitute.For<IFormSchemaRepository>();
     private readonly List<OutboxMessage> _messages = [];
     private readonly ServiceProvider _provider;
 
@@ -38,7 +41,9 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         services.AddSingleton(_flattening);
         services.AddSingleton(_seeder);
         services.AddSingleton(Substitute.For<IFormSchemaProcessor>());
-        services.AddSingleton(Substitute.For<IFormSchemaRepository>());
+        services.AddSingleton(_schemas);
+        services.AddSingleton(Substitute.For<IReportingDbContext>());
+        services.AddScoped<SearchCopyRebuilder>();
         services.AddSingleton(Substitute.For<IFlattenedSubmissionRepository>());
         services.AddSingleton(Substitute.For<ISubmissionViewRepository>());
         services.AddSingleton(Substitute.For<IReportingUnitOfWork>());
@@ -115,6 +120,34 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _seeder.Received(1).SeedAsync(TenantA, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RebuildSearchCopyJob_RequestOfTheJobsTenant_RebuildsTheForm()
+    {
+        // Arrange — the rebuild reads the form's schema first, so a rebuild that ran shows as that read.
+        Seed(SearchCopyRebuildRequests.EventTypeName, $$"""{"tenantId":"{{TenantA}}","formId":"100"}""", TenantA);
+
+        // Act
+        var result = await RunAsync(RebuildSearchCopyOutboxHandler.JobType, TenantA);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _schemas.Received(1).GetByFormIdAsync(TenantA, 100, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RebuildSearchCopyJob_RequestWithoutForm_FailsWithoutRebuilding()
+    {
+        // Arrange
+        Seed(SearchCopyRebuildRequests.EventTypeName, $$"""{"tenantId":"{{TenantA}}"}""", TenantA);
+
+        // Act
+        var result = await RunAsync(RebuildSearchCopyOutboxHandler.JobType, TenantA);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        await _schemas.DidNotReceiveWithAnyArgs().GetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
     }
 
     [Theory]

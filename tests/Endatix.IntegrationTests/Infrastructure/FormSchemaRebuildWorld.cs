@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -19,6 +20,8 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Features.Outbox;
+using Endatix.Modules.Reporting.Features.SearchCopy;
+using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -95,9 +98,19 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
         await ReportingTestSchema.EnsureMigratedAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
 
+        await using (var tenantDb = CreateAppDbContext())
+        {
+            tenantDb.Set<Tenant>().Add(new Tenant("form-schema-rebuild-tenant", "tnntfsrb") { Id = TenantId });
+            await tenantDb.SaveChangesAsync(Cancellation);
+        }
+
+        return await AddFormAsync(definitionsOldestFirst);
+    }
+
+    /// <summary>Another form of the world's tenant, beside the ones already seeded.</summary>
+    public async Task<RebuildForm> AddFormAsync(string[] definitionsOldestFirst)
+    {
         await using var appDb = CreateAppDbContext();
-        appDb.Set<Tenant>().Add(new Tenant("form-schema-rebuild-tenant", "tnntfsrb") { Id = TenantId });
-        await appDb.SaveChangesAsync(Cancellation);
 
         // Saved before its definitions, which avoids the Form <-> ActiveDefinition circular insert.
         var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Rebuilt form"));
@@ -105,6 +118,15 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
         await appDb.SaveChangesAsync(Cancellation);
         return new RebuildForm(form.Id, await AddDefinitionsAsync(appDb, form, definitionsOldestFirst), SubmissionId: 0);
     }
+
+    /// <summary>A completed real submission, so every compile of its form merges.</summary>
+    public Task<long> AddRealSubmissionAsync(long formId, long formDefinitionId, string jsonData) =>
+        AddSubmissionAsync(Submission.Create(new SubmissionCreateArgs(
+            TenantId: TenantId,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData,
+            IsComplete: true)));
 
     public Task<long> AddTestSubmissionAsync(long formId, long formDefinitionId, string jsonData) =>
         AddSubmissionAsync(Submission.Create(new SubmissionCreateArgs(
@@ -133,6 +155,19 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
         await scope.Processor(schemas).ProcessAsync(TenantId, formId, formDefinitionId, cancellationToken: Cancellation);
     }
 
+    public async Task<RebuildForm> SeedFlattenedFormAsync(string definition, params object[] answers)
+    {
+        var form = await SeedFormAsync([definition]);
+        await CompileAsync(form.FormId, form.DefinitionIds[0]);
+        foreach (var answer in answers)
+        {
+            var submissionId = await AddRealSubmissionAsync(form.FormId, form.DefinitionIds[0], JsonSerializer.Serialize(answer));
+            await FlattenAsync(form.FormId, submissionId);
+        }
+
+        return form;
+    }
+
     public async Task ReplaceAsync(long formId, long formDefinitionId)
     {
         await using var scope = OpenScope();
@@ -146,6 +181,13 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
     {
         await using var scope = OpenScope();
         await scope.Flattening(scope.TransactionLock, wrapPersonalizationSchemas)
+            .ProcessAsync(TenantId, formId, submissionId, Cancellation);
+    }
+
+    public async Task FlattenReadingAsync(long formId, long submissionId, FormSchema schemaAsRead)
+    {
+        await using var scope = OpenScope();
+        await scope.Flattening(new SchemaAsRead(scope.Schemas(), schemaAsRead))
             .ProcessAsync(TenantId, formId, submissionId, Cancellation);
     }
 
@@ -256,7 +298,7 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
         return submission.Id;
     }
 
-    private AppDbContext CreateAppDbContext()
+    internal AppDbContext CreateAppDbContext()
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
@@ -295,15 +337,20 @@ internal sealed class RebuildScope(
 
     public SubmissionFlatteningProcessor Flattening(
         ITransactionLock transactionLock,
+        Func<IFormSchemaRepository, IFormSchemaRepository>? wrapPersonalizationSchemas = null) =>
+        Flattening(Schemas(transactionLock), wrapPersonalizationSchemas);
+
+    public SubmissionFlatteningProcessor Flattening(
+        IFormSchemaRepository schemas,
         Func<IFormSchemaRepository, IFormSchemaRepository>? wrapPersonalizationSchemas = null)
     {
-        var schemas = Schemas(transactionLock);
         return new(
             Submissions(),
             FlattenedRows(),
             Provider(schemas),
             Personalization(wrapPersonalizationSchemas is null ? schemas : wrapPersonalizationSchemas(schemas)),
             submitterProfileFields,
+            ReportingTestSchema.SearchCopyRebuilderFor(reportingDb),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
     }
 
@@ -327,6 +374,30 @@ internal sealed class RebuildScope(
             NullLogger<OutboxJobHandler<FlattenSubmissionOutboxHandler>>.Instance);
     }
 
+    public UserSearchKeys UserSearchKeys() => new(FormsRepository(), Schemas(), new ReportingUnitOfWork(reportingDb));
+
+    public AddSearchKeyHandler AddSearchKey() =>
+        new(UserSearchKeys(), ReportingTestSchema.SearchCopyFor(reportingDb, OutboxMessages()), FlattenedRows());
+
+    public Task<int> CountSearchCopyRebuildRequestsAsync() =>
+        SearchCopyRebuildRequests().CountAsync(TestContext.Current.CancellationToken);
+
+    public async Task<int> RunSearchCopyRebuildsAsync()
+    {
+        var requests = await SearchCopyRebuildRequests().ToListAsync(TestContext.Current.CancellationToken);
+        RebuildSearchCopyOutboxHandler handler = new(ReportingTestSchema.SearchCopyRebuilderFor(reportingDb));
+        foreach (var request in requests)
+        {
+            await handler.Read(new OutboxMessageView(request)).RunAsync(TestContext.Current.CancellationToken);
+        }
+
+        return requests.Count;
+    }
+
+    public RemoveSearchKeyHandler RemoveSearchKey() => new(UserSearchKeys(), FlattenedRows());
+
+    public ListSubmissionGridColumns GridColumns() => new(Schemas(), FlattenedRows(), FormsRepository(), Submissions());
+
     public SubmissionBackfillProcessor Backfill(ITransactionLock transactionLock) =>
         new(Submissions(), FlattenedRows(), Flattening(transactionLock), NullLogger<SubmissionBackfillProcessor>.Instance);
 
@@ -349,10 +420,16 @@ internal sealed class RebuildScope(
             unitOfWork,
             appDb,
             compiler,
+            ReportingTestSchema.SearchCopyFor(reportingDb),
             NullLogger<FormSchemaProcessor>.Instance);
     }
 
     private FormSchemaCompiler Compiler() => new(submitterProfileFields: submitterProfileFields);
+    private IQueryable<OutboxMessage> SearchCopyRebuildRequests() =>
+        appDb.OutboxMessages.AsNoTracking()
+            .Where(message => message.EventType == Endatix.Modules.Reporting.Features.SearchCopy.SearchCopyRebuildRequests.EventTypeName);
+
+    private EfRepository<OutboxMessage> OutboxMessages() => new(appDb, new EndatixSpecificationEvaluator([]));
 
     private FlattenedSubmissionRepository FlattenedRows() =>
         new(reportingDb, new ReportingUnitOfWork(reportingDb), new DateTimeProvider());

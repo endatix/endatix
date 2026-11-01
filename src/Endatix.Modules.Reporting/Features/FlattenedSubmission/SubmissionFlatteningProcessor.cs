@@ -9,6 +9,7 @@ using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -38,6 +39,7 @@ internal sealed class SubmissionFlatteningProcessor(
     IFormSchemaProvider schemaProvider,
     IFormSchemaPersonalization schemaPersonalization,
     SubmitterProfileFields submitterProfileFields,
+    SearchCopyRebuilder searchCopyRebuilder,
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
     private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
@@ -123,10 +125,11 @@ internal sealed class SubmissionFlatteningProcessor(
         }
 
         var schema = await SchemaOfAsync(run, cancellationToken);
-        var dataJson = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
-        LogUnlessLanded(
-            await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, dataJson, cancellationToken),
-            run.Write);
+        var data = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
+        if (LogUnlessLanded(await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken), run.Write))
+        {
+            await searchCopyRebuilder.CatchUpAsync(run.Key, data.SearchKeysRevision, cancellationToken);
+        }
     }
 
     // A form deleted after its submission was read, with its cleanup already run, leaves no schema to flatten with;
@@ -141,7 +144,7 @@ internal sealed class SubmissionFlatteningProcessor(
         ?? throw new InvalidOperationException(
             $"Form export schema is not available for form {run.Key.FormId}, definition {run.Submission.FormDefinitionId}.");
 
-    private async Task<string> FlattenedDataAsync(
+    private async Task<FlattenedRowData> FlattenedDataAsync(
         Submission submission,
         Domain.FormSchema schema,
         CancellationToken cancellationToken)
@@ -151,7 +154,11 @@ internal sealed class SubmissionFlatteningProcessor(
         ResponseSnapshots snapshots = new(personalization, submitterProfileFields.Read(submission.SubmitterProfileSnapshot));
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
         var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, snapshots);
-        return FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened);
+        var searchKeys = FormSearchKeys.Of(schema);
+        return new FlattenedRowData(
+            FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened),
+            SearchCopyDocument.Build(flattened, searchKeys),
+            searchKeys.Revision);
     }
 
     // A soft-delete of the submission or its form after the submission was queued or paged removes its row, as the

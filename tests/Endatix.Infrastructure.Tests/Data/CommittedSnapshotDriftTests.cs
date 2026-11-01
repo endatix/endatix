@@ -136,7 +136,7 @@ public sealed class CommittedSnapshotDriftTests
             .Select(path => File.ReadAllText(path).ReplaceLineEndings("\n"))
             .Single(code => code.Contains($"namespace {snapshotType.Namespace}\n", StringComparison.Ordinal));
 
-    private static ServiceProvider ServicesFor(string provider)
+    internal static ServiceProvider ServicesFor(string provider)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>

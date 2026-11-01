@@ -14,6 +14,8 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
     public const string EmptyFlatteningMapJson = """{"version":1,"columns":[]}""";
     public const string EmptyCodebookJson = """{"version":1,"locales":["default"],"questions":{},"columns":{},"choiceCatalogs":{}}""";
     public const string EmptyLocalesJson = """["default"]""";
+    /// <summary>The search keys of a form that has none: an empty JSON array.</summary>
+    public const string EmptySearchKeysJson = "[]";
 
     private FormSchema() { }
 
@@ -63,6 +65,34 @@ public sealed class FormSchema : BaseEntity, ITenantOwned, IAggregateRoot
     /// Discovered SurveyJS locales for this form (JSON string array). Replaced on each compile.
     /// </summary>
     public string Locales { get; private set; } = EmptyLocalesJson;
+
+    /// <summary>
+    /// Append-only list of the keys copied into each flattened row's search copy, the only keys answer filters read
+    /// (JSON array of <c>{ key, source, filterType, addedAt }</c>).
+    /// </summary>
+    public string SearchKeys { get; private set; } = EmptySearchKeysJson;
+
+    /// <summary>
+    /// Counts the changes to <see cref="SearchKeys"/> that left existing rows without a value they need. Each
+    /// flattened row is stamped with the revision it was written from (<see cref="FlattenedSubmission.SearchKeysRevision"/>).
+    /// </summary>
+    public int SearchKeysRevision { get; private set; }
+
+    /// <summary>
+    /// Replaces the search keys at <paramref name="revision"/>; the caller has applied the append-only and cap rules.
+    /// </summary>
+    public void UpdateSearchKeys(string searchKeys, int revision)
+    {
+        Guard.Against.NullOrWhiteSpace(searchKeys);
+        if (revision < SearchKeysRevision)
+        {
+            throw new InvalidOperationException(
+                $"Cannot roll back SearchKeysRevision from {SearchKeysRevision} to {revision}.");
+        }
+
+        SearchKeys = searchKeys;
+        SearchKeysRevision = revision;
+    }
 
     public void UpdateSchema(
         long formDefinitionRevision,

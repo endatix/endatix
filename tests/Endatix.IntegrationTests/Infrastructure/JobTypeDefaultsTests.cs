@@ -51,9 +51,8 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     {
         // Arrange — the webhook handler is swapped for one that holds its slot, leaving the declared settings.
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runs = new NamedProbeRuns();
-        await using var host = HostWithoutJobSettings(database, services => ReplaceWebHookHandler(services, runs));
+        await using var host = await HostWithoutJobSettingsAsync(fixture, services => ReplaceWebHookHandler(services, runs), ct);
         await BackgroundWork.Of(host.Services).StartJobsAsync(ct);
 
         // Act
@@ -63,7 +62,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
             ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(runs.Count >= 4), TimeSpan.FromSeconds(15), ct);
         await Task.Delay(TimeSpan.FromSeconds(3), ct);
-        var processing = await database.CountAsync(
+        var processing = await host.Database.CountAsync(
             $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 1 AND "Id" IN ({webhooks.IdList()})""", ct);
 
         // Assert
@@ -78,8 +77,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
-        await using var host = HostWithoutJobSettings(database, _ => { });
+        await using var host = await HostWithoutJobSettingsAsync(fixture, _ => { }, ct);
 
         // Act
         var policies = host.Services.GetRequiredService<JobTypePolicies>();
@@ -99,8 +97,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
-        await using var host = StartedHost(database, ReportingOn);
+        await using var host = await StartedHostAsync(fixture, ReportingOn, ct);
 
         // Act
         var policies = host.Services.GetRequiredService<JobTypePolicies>();
@@ -117,12 +114,14 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
-        await using var host = StartedHost(database, builder =>
-        {
-            ReportingOn(builder);
-            builder.UseSetting("Endatix:BackgroundJobs:RetentionDays", "30");
-        });
+        await using var host = await StartedHostAsync(
+            fixture,
+            builder =>
+            {
+                ReportingOn(builder);
+                builder.UseSetting("Endatix:BackgroundJobs:RetentionDays", "30");
+            },
+            ct);
 
         // Act
         var policies = host.Services.GetRequiredService<JobTypePolicies>();
@@ -133,26 +132,39 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
     }
 
     // The full web host with Reporting on and no appsettings file, so nothing configures a job type.
-    private static WebApplicationFactory<EndatixWebHost::Program> HostWithoutJobSettings(
-        JobsTestDatabase database,
-        Action<IServiceCollection> configureServices) =>
-        StartedHost(database, builder =>
-        {
-            ReportingOn(builder);
-            builder.ConfigureAppConfiguration((_, configuration) => RemoveAppSettingsFiles(configuration));
-            builder.ConfigureTestServices(configureServices);
-        });
+    private static Task<HostOnItsDatabase> HostWithoutJobSettingsAsync(
+        DbIntegrationFixture fixture,
+        Action<IServiceCollection> configureServices,
+        CancellationToken cancellationToken) =>
+        StartedHostAsync(
+            fixture,
+            builder =>
+            {
+                ReportingOn(builder);
+                builder.ConfigureAppConfiguration((_, configuration) => RemoveAppSettingsFiles(configuration));
+                builder.ConfigureTestServices(configureServices);
+            },
+            cancellationToken);
 
-    private static WebApplicationFactory<EndatixWebHost::Program> StartedHost(
-        JobsTestDatabase database,
-        Action<IWebHostBuilder> configure)
+    // A start that fails returns no host to dispose, so it stops the host and drops its database here.
+    private static async Task<HostOnItsDatabase> StartedHostAsync(
+        DbIntegrationFixture fixture,
+        Action<IWebHostBuilder> configure,
+        CancellationToken cancellationToken)
     {
+        var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider)
             .WithWebHostBuilder(configure);
 
         // Reading the services builds and starts the host, and with it the migrations; the scheduler waits in standby.
-        _ = factory.Services;
-        return factory;
+        return await FailedHostStart.DisposeOnFailureAsync(
+            () =>
+            {
+                _ = factory.Services;
+                return Task.FromResult(new HostOnItsDatabase(factory, database));
+            },
+            factory.DisposeAsync,
+            database.DisposeAsync);
     }
 
     private static void ReportingOn(IWebHostBuilder builder) =>
@@ -184,6 +196,16 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         descriptor.ServiceType == typeof(IBackgroundJobHandler)
         && (descriptor.IsKeyedService ? descriptor.KeyedImplementationType : descriptor.ImplementationType)
             == typeof(WebHookDeliveryJobHandler);
+
+    private sealed class HostOnItsDatabase(WebApplicationFactory<EndatixWebHost::Program> factory, JobsTestDatabase database)
+        : IAsyncDisposable
+    {
+        public IServiceProvider Services => factory.Services;
+
+        public JobsTestDatabase Database => database;
+
+        public ValueTask DisposeAsync() => DisposalFailures.DisposeHostThenDatabaseAsync(factory, database);
+    }
 
     private static async Task<IReadOnlyList<long>> EnqueueAsync(
         IServiceProvider services,

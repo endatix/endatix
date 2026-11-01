@@ -374,6 +374,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             unitOfWork,
             appDb,
             new FormSchemaCompiler(),
+            ReportingTestSchema.SearchCopyFor(reportingDb),
             NullLogger<FormSchemaProcessor>.Instance);
     }
 

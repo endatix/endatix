@@ -13,22 +13,38 @@ namespace Endatix.Modules.Reporting.Features.SubmissionGrid;
 /// <param name="TenantId">The caller's tenant.</param>
 /// <param name="List">The same query the submissions list runs: filters, sort and paging.</param>
 /// <param name="Columns">The answer columns to return per row.</param>
-public sealed record SubmissionGridRowsQuery(long TenantId, ListByFormIdQuery List, IReadOnlyList<string> Columns);
+/// <param name="Answers">The answer filters, AND-combined; none lists every submission the list's filters keep.</param>
+public sealed record SubmissionGridRowsQuery(
+    long TenantId,
+    ListByFormIdQuery List,
+    IReadOnlyList<string> Columns,
+    IReadOnlyList<AnswerFilter> Answers)
+{
+    /// <summary>A query without answer filters.</summary>
+    public SubmissionGridRowsQuery(long tenantId, ListByFormIdQuery list, IReadOnlyList<string> columns)
+        : this(tenantId, list, columns, [])
+    {
+    }
+}
 
 /// <summary>
 /// Reads one page of a form's submissions with their answers for the requested columns.
 /// </summary>
 /// <remarks>
-/// The page comes from the core list, then its prepared rows are read by id. Filtering on answers needs both in
-/// one statement; see endatix#1091.
+/// Without answer filters, the page comes from the core submissions list, so filters, sort and paging are the
+/// list's own, and prepared rows are then read for that page only, by id. Answer filters need the submissions and
+/// their prepared rows in one statement, so <see cref="SubmissionGridAnswerSearch"/> runs those.
 /// </remarks>
-public sealed class ListSubmissionGridRows(IMediator mediator, IReportingDbContext reportingDbContext)
+public sealed class ListSubmissionGridRows(
+    IMediator mediator,
+    IReportingDbContext reportingDbContext,
+    SubmissionGridAnswerSearch answerSearch)
 {
     /// <summary>Reads the page and the answers of its rows.</summary>
-    /// <param name="query">The tenant, the list query and the answer columns.</param>
+    /// <param name="query">The tenant, the list query, the answer columns and the answer filters.</param>
     /// <param name="cancellationToken">Cancels the reads.</param>
-    /// <returns>The page of rows, or the list's own failure; unauthorized without a tenant.</returns>
-    public async Task<Result<Paged<SubmissionGridRow>>> ExecuteAsync(
+    /// <returns>The page of rows, or why it could not be read; unauthorized without a tenant.</returns>
+    public async Task<Result<SubmissionGridPage>> ExecuteAsync(
         SubmissionGridRowsQuery query,
         CancellationToken cancellationToken)
     {
@@ -37,14 +53,21 @@ public sealed class ListSubmissionGridRows(IMediator mediator, IReportingDbConte
             return Result.Unauthorized();
         }
 
+        return query.Answers.Count > 0
+            ? await answerSearch.ExecuteAsync(query, cancellationToken)
+            : await ListAsync(query, cancellationToken);
+    }
+
+    private async Task<Result<SubmissionGridPage>> ListAsync(SubmissionGridRowsQuery query, CancellationToken cancellationToken)
+    {
         var page = await mediator.Send(query.List, cancellationToken);
         if (!page.IsSuccess)
         {
-            return page.ToErrorResult<Paged<SubmissionGridRow>>();
+            return page.ToErrorResult<SubmissionGridPage>();
         }
 
         var preparedRows = await ReadPreparedRowsAsync(query, page.Value.Items, cancellationToken);
-        return Result.Success(ToGridPage(page.Value, preparedRows, query.Columns));
+        return Result.Success(new SubmissionGridPage(ToGridPage(page.Value, preparedRows, query.Columns), null));
     }
 
     private static Paged<SubmissionGridRow> ToGridPage(
@@ -76,6 +99,7 @@ public sealed class ListSubmissionGridRows(IMediator mediator, IReportingDbConte
         return await PreparedRowsOf(query, ids).ToDictionaryAsync(row => row.SubmissionId, cancellationToken);
     }
 
+    // Answers are read only when columns were asked for; the state never needs them.
     private IQueryable<PreparedRow> PreparedRowsOf(SubmissionGridRowsQuery query, List<long> ids)
     {
         var readAnswers = query.Columns.Count > 0;

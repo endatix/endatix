@@ -18,6 +18,9 @@ public sealed class ReportingPostgreSqlDbContext(
         Database.EnsureNpgsql(typeof(ReportingPostgreSqlDbContext));
 
     /// <inheritdoc />
+    protected override string CoreSchema => "public";
+
+    /// <inheritdoc />
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFor<ReportingPostgreSqlDbContext>(typeof(ReportingPostgreSqlDbContext).Assembly);
 }

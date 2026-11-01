@@ -53,6 +53,17 @@ internal sealed class FlattenedSubmissionRepository(
             .ToDictionaryAsync(entry => entry.Code, entry => entry.Count, cancellationToken);
 
     /// <inheritdoc />
+    public Task<int?> OldestSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        dbContext.FlattenedSubmissions
+            .AsNoTracking()
+            .Where(row => row.TenantId == tenantId && row.FormId == formId && !row.IsDeleted &&
+                          row.Integration.Code == SubmissionIntegrationStatusCodes.Processed && row.DataJson != null)
+            .MinAsync(row => row.SearchJson == null ? (int?)NoSearchCopyRevision : row.SearchKeysRevision, cancellationToken);
+
+    // Below every key's revision: a row without a copy holds none of the keys, whatever it is stamped with.
+    private const int NoSearchCopyRevision = -1;
+
+    /// <inheritdoc />
     public Task<int> DeleteBySubmissionIdAsync(
         long tenantId,
         long submissionId,
@@ -95,15 +106,15 @@ internal sealed class FlattenedSubmissionRepository(
     }
 
     /// <inheritdoc />
-    public Task<bool> TryMarkProcessedAsync(FlattenedRevision write, string dataJson, CancellationToken cancellationToken)
+    public Task<bool> TryMarkProcessedAsync(FlattenedRevision write, FlattenedRowData data, CancellationToken cancellationToken)
     {
-        Guard.Against.NullOrEmpty(dataJson);
-
         var now = UtcNow;
         return TryWriteAsync(
             write,
             setters => setters
-                .SetProperty(row => row.DataJson, dataJson)
+                .SetProperty(row => row.DataJson, data.DataJson)
+                .SetProperty(row => row.SearchJson, data.SearchJson)
+                .SetProperty(row => row.SearchKeysRevision, data.SearchKeysRevision)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Processed)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.ProcessedAt, now)
@@ -123,6 +134,7 @@ internal sealed class FlattenedSubmissionRepository(
             write,
             setters => setters
                 .SetProperty(row => row.DataJson, (string?)null)
+                .SetProperty(row => row.SearchJson, (string?)null)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Skipped)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.ProcessedAt, (DateTime?)null)

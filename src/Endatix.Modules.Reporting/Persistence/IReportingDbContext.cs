@@ -23,6 +23,9 @@ public interface IReportingDbContext : ITenantDbContext
 
     DbSet<SurveyTypeExportMapping> SurveyTypeExportMappings { get; }
 
+    /// <summary>The core submissions, read-only, for queries that join them to their prepared rows.</summary>
+    DbSet<CoreSubmissionRow> CoreSubmissionRows { get; }
+
     /// <summary>Saved submissions grid views, one per tenant, form and owner.</summary>
     DbSet<SubmissionView> SubmissionViews { get; }
 

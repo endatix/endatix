@@ -36,6 +36,14 @@ internal sealed class FormSchemaRepository(
             .FirstOrDefaultAsync(cancellationToken);
 
     /// <inheritdoc />
+    public Task<int?> GetSearchKeysRevisionAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        dbContext.FormSchemas
+            .AsNoTracking()
+            .Where(schema => schema.TenantId == tenantId && schema.FormId == formId)
+            .Select(schema => (int?)schema.SearchKeysRevision)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <inheritdoc />
     public async Task<FormSchema?> LockAndGetByFormIdAsync(
         long tenantId,
         long formId,

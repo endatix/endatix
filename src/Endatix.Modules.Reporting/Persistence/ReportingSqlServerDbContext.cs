@@ -18,6 +18,9 @@ public sealed class ReportingSqlServerDbContext(
         Database.EnsureSqlServer(typeof(ReportingSqlServerDbContext));
 
     /// <inheritdoc />
+    protected override string CoreSchema => "dbo";
+
+    /// <inheritdoc />
     protected override void ApplyProviderConfigurations(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFor<ReportingSqlServerDbContext>(typeof(ReportingSqlServerDbContext).Assembly);
 }

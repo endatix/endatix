@@ -4,7 +4,9 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
@@ -117,6 +119,96 @@ public sealed class ExportColumnPlanBuilderTests
             .Select(column => column.CanonicalKey)
             .Should().Equal("audience__region");
         plan.Columns.Should().Contain(column => column.ExportKey == PersonalizationColumns.IdentifierKey);
+    }
+
+    [Fact]
+    public void Build_ShojiScopeLeavesOutTheQuestionThatTakesAnAudienceKey_TheAudienceColumnStaysOut()
+    {
+        // Arrange: with "_" as the separator, multipletext "audience" item "region" exports as "audience_region".
+        var schema = AudienceRegionCollisionSchema();
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, ScopedToQName(readWithShojiCodebook: true));
+
+        // Assert
+        plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
+            "qName", PersonalizationColumns.IdentifierKey);
+        plan.OmittedKeys.Audience.Should().Equal("audience_region");
+    }
+
+    [Fact]
+    public void Build_PlainScopeLeavesOutTheQuestionThatTakesAnAudienceKey_KeepsTheAudienceColumn()
+    {
+        // Arrange: no codebook reads a plain export, so the scoped-out question does not take the key.
+        var schema = AudienceRegionCollisionSchema();
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, ScopedToQName(readWithShojiCodebook: false));
+
+        // Assert
+        plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
+            "qName", PersonalizationColumns.IdentifierKey, "audience_region");
+        plan.OmittedKeys.Audience.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Build_NoQuestionTakesAnAudienceKey_OmitsNoAudienceKey()
+    {
+        // Arrange
+        var schema = PersonalizedSchema();
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, keySeparator: "_");
+
+        // Assert
+        plan.OmittedKeys.Audience.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Build_ShojiScopeLeavesOutTheQuestionThatTakesASubmitterKey_TheSubmitterColumnStaysOut()
+    {
+        // Arrange: with "_" as the separator, multipletext "submitter" item "region" exports as "submitter_region".
+        var schema = SubmitterRegionCollisionSchema();
+
+        // Act
+        var plan = ExportColumnPlanBuilder.Build(schema, ScopedToQName(readWithShojiCodebook: true));
+
+        // Assert
+        plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
+            "qName", "submitter_email");
+        plan.OmittedKeys.SubmitterProfile.Should().Equal("submitter_region");
+    }
+
+    internal static FormSchemaEntity SubmitterRegionCollisionSchema()
+    {
+        const string definitionJson = """
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"qName"},
+              {"type":"multipletext","name":"submitter","items":[{"name":"region"}]}]}]}
+            """;
+        var pipeline = PersonalizationPipeline.Compile(definitionJson, new SubmitterProfileFields(["region", "email"]));
+        pipeline.Flatten(definitionJson, new FixtureResponse("r1", "{}", null, SubmitterProfile: """{"region":"EMEA"}"""));
+        return pipeline.Entity();
+    }
+
+    private static ExportColumnPlanRequest ScopedToQName(bool readWithShojiCodebook) =>
+        new(
+            ColumnScope: new HashSet<string>(["qName"], StringComparer.Ordinal),
+            KeySeparator: "_",
+            ReadWithShojiCodebook: readWithShojiCodebook);
+
+    internal static FormSchemaEntity AudienceRegionCollisionSchema()
+    {
+        const string definitionJson = """
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"qName"},
+              {"type":"multipletext","name":"audience","items":[{"name":"region"},{"name":"city"}]}]}]}
+            """;
+        FormSchemaCompiler compiler = new();
+        var compiled = compiler.CompilePersisted(definitionJson);
+        compiled = compiler.IncludePersonalization(
+            definitionJson,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            PersonalizationColumns.From(PersonalizationReader.Read("""{"identifier":"CG-1","variables":{"region":"North"}}""")));
+        return new FormSchemaEntity(1, 100, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
     }
 
     private static FormSchemaEntity PersonalizedSchema()

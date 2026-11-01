@@ -18,6 +18,8 @@ internal sealed class FlattenedSubmissionConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.FormId).IsRequired();
         builder.Property(x => x.DataJson)
             .IsRequired(false);
+        builder.Property(x => x.SearchJson).IsRequired(false);
+        builder.Property(x => x.SearchKeysRevision).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.ModifiedAt).IsRequired(false);
