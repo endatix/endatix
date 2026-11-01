@@ -32,11 +32,15 @@ internal static class DisposalFailures
     /// A host that does not stop fails its test. When the drop fails too, the host's failure is the one thrown and the
     /// drop's is reported, since a throw from the drop would replace it.
     /// </remarks>
-    public static async ValueTask DisposeHostThenDatabaseAsync(IAsyncDisposable host, IAsyncDisposable database)
+    public static ValueTask DisposeHostThenDatabaseAsync(IAsyncDisposable host, IAsyncDisposable database) =>
+        DisposeHostThenDatabaseAsync(host.DisposeAsync, database);
+
+    /// <inheritdoc cref="DisposeHostThenDatabaseAsync(IAsyncDisposable, IAsyncDisposable)"/>
+    public static async ValueTask DisposeHostThenDatabaseAsync(Func<ValueTask> disposeHost, IAsyncDisposable database)
     {
         try
         {
-            await host.DisposeAsync();
+            await disposeHost();
         }
         catch (Exception)
         {
