@@ -64,7 +64,7 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var started = new RecordingService();
-        var node = JobsTestNode.Create(database, configureServices: services =>
+        await using var node = JobsTestNode.Create(database, configureServices: services =>
         {
             services.AddHostedService(_ => started);
             services.AddHostedService<FailingStartService>();
