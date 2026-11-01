@@ -244,23 +244,17 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
     }
 
     /// <summary>
-    /// Shuts the scheduler down and disposes its services, then drops the database whatever they did; when both fail,
-    /// the scheduler's failure is thrown and the drop's is reported as a test warning.
+    /// Shuts the scheduler down, disposes its services and drops the database, each whatever the steps before it did;
+    /// the first failure is thrown and a later one is reported as a test warning.
     /// </summary>
     public ValueTask DisposeAsync() =>
         DisposalFailures.DisposeInOrderAsync(ShutDownAsync, Database.DisposeAsync, "the database drop after a failed shutdown");
 
-    private async ValueTask ShutDownAsync()
-    {
-        try
-        {
-            await _scheduler.Shutdown(cancellationToken: CancellationToken.None);
-        }
-        finally
-        {
-            await _services.DisposeAsync();
-        }
-    }
+    private ValueTask ShutDownAsync() =>
+        DisposalFailures.DisposeInOrderAsync(
+            () => _scheduler.Shutdown(cancellationToken: CancellationToken.None),
+            _services.DisposeAsync,
+            "the scheduler's services after its failed shutdown");
 
     private sealed class NoopHandler(string jobType) : IBackgroundJobHandler
     {

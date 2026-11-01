@@ -17,6 +17,7 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
     // Named so that a reader of the test output sees these failures were produced on purpose.
     private const string DeliberateStartFailure = "Deliberate start failure (JobsTestNodeTests)";
     private const string DeliberateStopFailure = "Deliberate stop failure (JobsTestNodeTests)";
+    private const string DeliberateDisposalFailure = "Deliberate disposal failure (JobsTestNodeTests)";
 
     [Fact]
     public async Task A_node_with_a_service_that_throws_while_it_stops_fails_its_teardown_and_is_still_disposed()
@@ -25,8 +26,8 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var service = new RecordingService(DeliberateStopFailure);
-        var node = JobsTestNode.Create(database, configureServices: services => services.AddHostedService(_ => service));
-        await node.StartAsync(ct);
+        var node = await JobsTestNode.Create(database, configureServices: services => services.AddHostedService(_ => service))
+            .StartedAsync(ct);
 
         // Act
         var thrown = await Record.ExceptionAsync(() => node.DisposeAsync().AsTask());
@@ -34,6 +35,26 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
         // Assert
         Assert.Equal(DeliberateStopFailure, Assert.IsType<InvalidOperationException>(thrown).Message);
         Assert.True(service.Disposed);
+    }
+
+    [Fact]
+    public async Task A_node_whose_stop_and_disposal_both_fail_throws_the_stop_failure_and_reports_the_disposal()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        var node = await JobsTestNode.Create(database, configureServices: services =>
+        {
+            services.AddHostedService<FailingDisposalService>();
+            services.AddHostedService(_ => new RecordingService(DeliberateStopFailure));
+        }).StartedAsync(ct);
+
+        // Act
+        var thrown = await Record.ExceptionAsync(() => node.DisposeAsync().AsTask());
+
+        // Assert
+        Assert.Equal(DeliberateStopFailure, Assert.IsType<InvalidOperationException>(thrown).Message);
+        Assert.Contains(DeliberateDisposalFailure, Assert.Single(TestContext.Current.Warnings ?? []), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -59,28 +80,32 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task A_node_whose_start_failed_reports_a_failing_stop_as_a_warning_when_disposed()
+    public async Task A_node_whose_start_failed_reports_a_failing_stop_and_disposal_as_warnings_when_disposed()
     {
-        // Arrange — a service that starts and throws while it stops, then one whose start fails.
+        // Arrange — a service whose disposal throws, one that starts and throws while it stops, then one whose start
+        // fails. Services are disposed in the reverse of their creation, so the throwing disposal comes last.
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var started = new RecordingService(DeliberateStopFailure);
         var node = JobsTestNode.Create(database, configureServices: services =>
         {
+            services.AddHostedService<FailingDisposalService>();
             services.AddHostedService(_ => started);
             services.AddHostedService<FailingStartService>();
         });
-        await Assert.ThrowsAsync<InvalidOperationException>(() => node.StartAsync(ct));
+        var startFailure = await Record.ExceptionAsync(() => node.StartAsync(ct));
 
         // Act
         var thrown = await Record.ExceptionAsync(() => node.DisposeAsync().AsTask());
 
         // Assert
+        Assert.Equal(DeliberateStartFailure, Assert.IsType<InvalidOperationException>(startFailure).Message);
         Assert.Null(thrown);
         Assert.True(started.Disposed);
-        var warning = Assert.Single(TestContext.Current.Warnings ?? []);
-        Assert.Contains("the stop after the failed start failed:", warning, StringComparison.Ordinal);
-        Assert.Contains(DeliberateStopFailure, warning, StringComparison.Ordinal);
+        Assert.Collection(
+            TestContext.Current.Warnings ?? [],
+            warning => Assert.Contains("the stop after the failed start failed:", warning, StringComparison.Ordinal),
+            warning => Assert.Contains("the disposal after the failed start failed:", warning, StringComparison.Ordinal));
     }
 
     // Records its stop and its disposal, and throws stopFailure, when it has one, from its stop.
@@ -99,6 +124,15 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
         }
 
         public void Dispose() => Disposed = true;
+    }
+
+    private sealed class FailingDisposalService : IHostedService, IDisposable
+    {
+        public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public void Dispose() => throw new InvalidOperationException(DeliberateDisposalFailure);
     }
 
     private sealed class FailingStartService : IHostedService
