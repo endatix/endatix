@@ -105,6 +105,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                     b.Property<string>("SearchJson")
                         .HasColumnType("jsonb");
 
+                    b.Property<int>("SearchKeysRevision")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("SourceModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -184,6 +187,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
                         .ValueGeneratedOnAdd()
                         .HasColumnType("jsonb")
                         .HasDefaultValue("[]");
+
+                    b.Property<int>("SearchKeysRevision")
+                        .HasColumnType("integer");
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");

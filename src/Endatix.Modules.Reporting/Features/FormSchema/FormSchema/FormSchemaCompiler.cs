@@ -126,7 +126,9 @@ internal sealed record PersistedSchemaJson(string FlatteningMap, string Codebook
 /// <param name="CodebookJson">The codebook, as JSON.</param>
 /// <param name="LocalesJson">The schema's locales, as JSON.</param>
 /// <param name="FlatteningMap">The flattening map.</param>
-/// <param name="SearchableColumns">The columns the search copy may hold, in schema order.</param>
+/// <param name="SearchableColumns">
+/// The columns the search copy may hold, in schema order, each marked whether the compile may choose it on its own.
+/// </param>
 internal sealed record FormSchemaCompileResult(
     string FlatteningMapJson,
     string CodebookJson,

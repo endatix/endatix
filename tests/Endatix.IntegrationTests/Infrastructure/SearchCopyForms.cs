@@ -24,8 +24,7 @@ internal static class SearchCopyForms
         ] } ] }
         """;
 
-    /// <summary><paramref name="count"/> text questions named <c>q001</c>, <c>q002</c>, … in that order.</summary>
-    public static string TextQuestions(int count)
+    public static string TextQuestions(int count, int readOnly = 0)
     {
         JsonArray elements = [];
         foreach (var name in QuestionNames(count))
@@ -33,8 +32,16 @@ internal static class SearchCopyForms
             elements.Add(new JsonObject { ["type"] = "text", ["name"] = name });
         }
 
+        foreach (var name in ReadOnlyNames(readOnly))
+        {
+            elements.Add(new JsonObject { ["type"] = "text", ["name"] = name, ["readOnly"] = true });
+        }
+
         return new JsonObject { ["pages"] = new JsonArray(new JsonObject { ["elements"] = elements }) }.ToJsonString();
     }
+
+    public static IEnumerable<string> ReadOnlyNames(int count) =>
+        Enumerable.Range(1, count).Select(index => $"r{index:D3}");
 
     public static IEnumerable<string> QuestionNames(int count) =>
         Enumerable.Range(1, count).Select(index => $"q{index:D3}");

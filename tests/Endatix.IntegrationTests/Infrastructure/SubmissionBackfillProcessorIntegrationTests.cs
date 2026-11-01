@@ -1,3 +1,4 @@
+using Endatix.Modules.Reporting.Features.SearchCopy;
 using System.Text.Json.Nodes;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Repositories;
@@ -240,6 +241,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             schemaProvider,
             NoSnapshotPersonalization(formSchemaRepository),
             SubmitterProfileFields.None,
+            new SearchCopyRebuilder(Substitute.For<IReportingDbContext>(), formSchemaRepository, NullLogger<SearchCopyRebuilder>.Instance),
             NullLogger<SubmissionFlatteningProcessor>.Instance);
 
         return new SubmissionBackfillProcessor(

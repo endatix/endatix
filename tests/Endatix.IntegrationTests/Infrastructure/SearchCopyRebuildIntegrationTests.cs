@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
@@ -97,6 +98,72 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
             .Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
     }
 
+    [Fact]
+    public async Task A_compile_after_a_rebuild_that_did_not_finish_runs_it_again()
+    {
+        // Arrange — the keys moved to a new revision, but the rebuild that should follow never ran.
+        var form = await FlattenAllAsync();
+        var flattened = await ReadRowsAsync(form.FormId);
+        await ClearSearchCopiesAsync(form.FormId);
+
+        // Act — the definition has not changed, so the compile leaves the schema as it is.
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+
+        // Assert
+        var revision = (await _world.ReadSchemaAsync(form.FormId)).SearchKeysRevision;
+        var rows = await ReadRowsAsync(form.FormId);
+        rows.Should().OnlyContain(row => row.SearchKeysRevision == revision);
+        rows.Select(row => Normalized(row.SearchJson)).Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
+    }
+
+    [Fact]
+    public async Task A_rebuild_gives_a_copy_to_a_row_without_one_at_the_current_revision()
+    {
+        // Arrange — as an old pod leaves a row during a rolling deploy: stamped with the schema's revision, no copy.
+        var form = await FlattenAllAsync();
+        var flattened = await ReadRowsAsync(form.FormId);
+        await using (var db = _world.CreateReportingDbContext())
+        {
+            await db.FlattenedSubmissions.Where(row => row.FormId == form.FormId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, (string?)null), Cancellation);
+        }
+
+        // Act
+        var rebuilt = await RebuildAsync(form.FormId);
+
+        // Assert
+        rebuilt.Should().Be(Answers.Length);
+        (await ReadRowsAsync(form.FormId)).Select(row => Normalized(row.SearchJson))
+            .Should().Equal(flattened.Select(row => Normalized(row.SearchJson)));
+    }
+
+    [Fact]
+    public async Task A_key_that_holds_a_quote_and_a_backslash_is_found_in_the_flattened_copy()
+    {
+        // Arrange
+        var formId = await FlattenEscapedKeyAsync();
+
+        // Act
+        var found = await CountMatchingAsync(formId, EscapedKey, "acme");
+
+        // Assert
+        found.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_key_that_holds_a_quote_and_a_backslash_is_found_in_the_rebuilt_copy()
+    {
+        // Arrange
+        var formId = await FlattenEscapedKeyAsync();
+        await ClearSearchCopiesAsync(formId);
+
+        // Act
+        await RebuildAsync(formId);
+
+        // Assert
+        (await CountMatchingAsync(formId, EscapedKey, "acme")).Should().Be(1);
+    }
+
     private async Task<RebuildForm> FlattenAllAsync()
     {
         var form = await _world.SeedFormAsync([Mixed]);
@@ -108,6 +175,37 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
         }
 
         return form;
+    }
+
+    // SQL Server matches a JSON path against a key as it is escaped in the document, so the rebuild's read of the
+    // answers and the filter's read of the copy each depend on how that key was written.
+    private const string EscapedKey = "say \"hi\" C:\\temp";
+
+    private async Task<long> FlattenEscapedKeyAsync()
+    {
+        var definition = new JsonObject
+        {
+            ["pages"] = new JsonArray(new JsonObject
+            {
+                ["elements"] = new JsonArray(new JsonObject { ["type"] = "text", ["name"] = EscapedKey }),
+            }),
+        }.ToJsonString();
+        var form = await _world.SeedFormAsync([definition]);
+        await _world.CompileAsync(form.FormId, form.DefinitionIds[0]);
+        var submissionId = await _world.AddRealSubmissionAsync(
+            form.FormId, form.DefinitionIds[0], new JsonObject { [EscapedKey] = "Acme Corp" }.ToJsonString());
+        await _world.FlattenAsync(form.FormId, submissionId);
+        return form.FormId;
+    }
+
+    // The filter the answer search applies to the copy.
+    private async Task<int> CountMatchingAsync(long formId, string key, string text)
+    {
+        await using var db = _world.CreateReportingDbContext();
+        var rows = db.FlattenedSubmissions.AsNoTracking().Where(row => row.FormId == formId);
+        return await KeyFilter(fixture.Provider)
+            .WhereKeyMatches(rows, nameof(FlattenedSubmission.SearchJson), key, text)
+            .CountAsync(Cancellation);
     }
 
     private async Task<int> RebuildAsync(long formId)
@@ -123,7 +221,7 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
         await using var db = ReportingTestSchema.CreateContext(fixture.ConnectionString, fixture.Provider, new IntegrationTenantContext(key.TenantId));
         await new FlattenedRowSeed(db).ProcessedAsync(
             key,
-            new FlattenedRowData("""{"company":"Other Tenant"}""", """{"company":"other tenant"}"""),
+            new FlattenedRowData("""{"company":"Other Tenant"}""", """{"company":"other tenant"}""", searchKeysRevision: 0),
             Cancellation);
     }
 
@@ -149,11 +247,14 @@ public sealed class SearchCopyRebuildIntegrationTests(DbIntegrationFixture fixtu
             .ToListAsync(Cancellation);
     }
 
+    // As if the keys changed after the rows were written: the copies are empty and the schema's revision is newer.
     private async Task ClearSearchCopiesAsync(long formId)
     {
         await using var db = _world.CreateReportingDbContext();
         await db.FlattenedSubmissions.Where(row => row.FormId == formId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(row => row.SearchJson, "{}"), Cancellation);
+        await db.FormSchemas.Where(schema => schema.FormId == formId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(schema => schema.SearchKeysRevision, schema => schema.SearchKeysRevision + 1), Cancellation);
     }
 
     private async Task<List<FlattenedSubmission>> ReadRowsAsync(long formId)
