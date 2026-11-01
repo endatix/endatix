@@ -106,7 +106,10 @@ internal sealed class StopOnceHost : IHost
 
     private async Task WaitForOutcomeAsync(CancellationToken cancellationToken)
     {
-        await Task.WhenAny(_outcome.Stopped, Task.Delay(_stopBound, cancellationToken));
+        // The bound's timer is cancelled once the stop has ended, so it does not outlive the host by a full bound.
+        using var boundTimer = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        await Task.WhenAny(_outcome.Stopped, Task.Delay(_stopBound, boundTimer.Token));
+        await boundTimer.CancelAsync();
         if (!_outcome.Stopped.IsCompleted)
         {
             cancellationToken.ThrowIfCancellationRequested();

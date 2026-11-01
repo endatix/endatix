@@ -42,18 +42,6 @@ public sealed class EndatixIntegrationWebHostFixture : IAsyncLifetime, IIntegrat
 
     // xUnit disposes a collection fixture whose InitializeAsync failed too, so the factory may never have been created;
     // its database session is released either way.
-    public async ValueTask DisposeAsync()
-    {
-        try
-        {
-            if (_factory is not null)
-            {
-                await _factory.DisposeAsync();
-            }
-        }
-        finally
-        {
-            await Database.DisposeAsync();
-        }
-    }
+    public ValueTask DisposeAsync() =>
+        _factory is null ? Database.DisposeAsync() : DisposalFailures.DisposeHostThenDatabaseAsync(_factory, Database);
 }
