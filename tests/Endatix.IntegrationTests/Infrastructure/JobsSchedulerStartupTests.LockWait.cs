@@ -116,11 +116,14 @@ public sealed partial class JobsSchedulerStartupTests
             {string.Format(System.Globalization.CultureInfo.InvariantCulture, grantSql, Name)}
             """, ct);
 
-        public async ValueTask DisposeAsync()
+        // The database is dropped even when the role's drop fails; when both fail, the role's failure is thrown and the
+        // database's is reported as a test warning.
+        public ValueTask DisposeAsync() => DisposalFailures.DisposeHostThenDatabaseAsync(DropAsync, database);
+
+        private async ValueTask DropAsync()
         {
             NpgsqlConnection.ClearAllPools();
             await database.ExecuteAsync($"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{Name}') THEN DROP OWNED BY {Name}; DROP ROLE {Name}; END IF; END $$", CancellationToken.None);
-            await database.DisposeAsync();
         }
     }
 
