@@ -126,13 +126,13 @@ public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
         public void Dispose() => Disposed = true;
     }
 
-    private sealed class FailingDisposalService : IHostedService, IDisposable
+    private sealed class FailingDisposalService : IHostedService, IAsyncDisposable
     {
         public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-        public void Dispose() => throw new InvalidOperationException(DeliberateDisposalFailure);
+        public ValueTask DisposeAsync() => ValueTask.FromException(new InvalidOperationException(DeliberateDisposalFailure));
     }
 
     private sealed class FailingStartService : IHostedService
