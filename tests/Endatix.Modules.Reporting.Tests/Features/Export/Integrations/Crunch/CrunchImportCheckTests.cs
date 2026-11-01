@@ -87,6 +87,18 @@ public sealed class CrunchImportCheckTests
         CrunchImportCheck.Problems(shoji, Csv).Should().Equal("a folder has no name");
     }
 
+    [Fact]
+    public void Problems_FolderWithoutEntities_ReportsItAndTheOtherProblems()
+    {
+        // Arrange
+        var shoji = Codebook("""["Id",{"group":"Broken"}]""", """["FormId"]""");
+
+        // Act & Assert
+        CrunchImportCheck.Problems(shoji, Csv).Should().BeEquivalentTo(
+            "folder 'Broken' has no entities",
+            "Shoji alias 'q1' is neither ordered nor hidden");
+    }
+
     private static string Codebook(string order, string hidden) => $$$$"""
         {"element":"shoji:entity","body":{"table":{"element":"crunch:table","metadata":{
           "FormId":{"type":"numeric","alias":"FormId","name":"Form ID"},

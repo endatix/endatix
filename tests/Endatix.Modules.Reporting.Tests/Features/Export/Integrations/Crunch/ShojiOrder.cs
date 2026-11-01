@@ -5,12 +5,16 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 /// <summary>Reads a Shoji <c>order</c>: aliases and <c>{"group", "entities"}</c> folders, nested.</summary>
 internal static class ShojiOrder
 {
-    /// <summary>Every alias in the order, folders walked depth first, duplicates kept.</summary>
+    /// <summary>Every alias in the order, folders walked depth first, duplicates kept; a folder without entities adds none.</summary>
     public static List<string> Aliases(JsonElement order) =>
         order.EnumerateArray()
-            .SelectMany(entry => entry.ValueKind == JsonValueKind.String
-                ? [entry.GetString()!]
-                : Aliases(entry.GetProperty("entities")))
+            .SelectMany(entry => entry.ValueKind switch
+            {
+                JsonValueKind.String => [entry.GetString()!],
+                JsonValueKind.Object when entry.TryGetProperty("entities", out var entities) &&
+                                          entities.ValueKind == JsonValueKind.Array => Aliases(entities),
+                _ => [],
+            })
             .ToList();
 
     /// <summary>The names of the folders directly in this order, in order.</summary>

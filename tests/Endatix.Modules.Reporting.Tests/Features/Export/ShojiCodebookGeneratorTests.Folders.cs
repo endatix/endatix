@@ -270,7 +270,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         var question = codebook.RootElement.GetProperty("questions").GetProperty("qI1");
         question.GetProperty("parentPanelTitle").GetString().Should().Be("pInner");
         question.GetProperty("parentPanels").GetRawText().Should().Be(
-            """[{"name":"pOuter","title":"Outer"},{"name":"pInner","title":"pInner"}]""");
+            """[{"key":"pOuter","title":"Outer"},{"key":"pInner","title":"pInner"}]""");
     }
 
     [Fact]
@@ -310,8 +310,8 @@ public sealed partial class ShojiCodebookGeneratorTests
         var codebook = System.Text.Json.Nodes.JsonNode.Parse(compiled.CodebookJson)!;
         var questionsNode = codebook["questions"]!;
         questionsNode["qInner"]!["parentPanels"] = System.Text.Json.Nodes.JsonNode.Parse(
-            """[{"name":"pOuter","title":" "},{"name":"","title":""}]""");
-        questionsNode["qOuter"]!["parentPanels"] = System.Text.Json.Nodes.JsonNode.Parse("""[{"name":"pOuter","title":" "}]""");
+            """[{"key":"pOuter","title":" "},{"key":"","title":""}]""");
+        questionsNode["qOuter"]!["parentPanels"] = System.Text.Json.Nodes.JsonNode.Parse("""[{"key":"pOuter","title":" "}]""");
 
         // Act
         using var document = JsonDocument.Parse(ShojiCodebookGenerator.Generate(
@@ -354,6 +354,102 @@ public sealed partial class ShojiCodebookGeneratorTests
         loopAliases.Should().NotBeEmpty();
         ShojiOrder.FolderNames(questions).Should().Equal("Brands");
         ShojiOrder.Aliases(ShojiOrder.Folder(questions, "Brands")).Should().BeEquivalentTo(loopAliases);
+    }
+
+    [Fact]
+    public void Generate_CodebookMixingPanelTitlesAndPanelPaths_KeepsOnePanelInOneFolder()
+    {
+        // Arrange: a merge keeps a stale entry that has only the nearest panel's title next to current ones.
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","name":"pOuter","title":"Outer","elements":[
+                {"type":"panel","name":"pDetails","title":"Details","elements":[{"type":"text","name":"qA"},{"type":"text","name":"qB"}]}
+              ]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var codebook = System.Text.Json.Nodes.JsonNode.Parse(compiled.CodebookJson)!;
+        codebook["questions"]!["qB"]!.AsObject().Remove("parentPanels");
+
+        // Act
+        var order = GenerateOrder(compiled, codebook.ToJsonString());
+
+        // Assert
+        var outer = ShojiOrder.Folder(order, ShojiFolderNames.Questions, "Outer");
+        ShojiOrder.FolderNames(outer).Should().Equal("Details");
+        ShojiOrder.Aliases(ShojiOrder.Folder(outer, "Details")).Should().Equal("qA", "qB");
+    }
+
+    [Fact]
+    public void Generate_TwoUnnamedPanelsWithOneTitle_GetTwoSubFoldersInSurveyOrder()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","title":"Details","elements":[{"type":"text","name":"qA"}]},
+              {"type":"text","name":"qMiddle"},
+              {"type":"panel","title":"Details","elements":[{"type":"text","name":"qB"}]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var questions = ShojiOrder.Folder(GenerateTable(compiled).GetProperty("order"), ShojiFolderNames.Questions);
+
+        // Assert
+        ShojiOrder.FolderNames(questions).Should().Equal("Details", "Details (2)");
+        ShojiOrder.Aliases(questions).Should().Equal("qA", "qMiddle", "qB");
+    }
+
+    [Fact]
+    public void Generate_LoopColumnWhoseQuestionTheCodebookLacks_JoinsTheLoopsSubFolder()
+    {
+        // Arrange: the loop's value name differs from its name, and one of its questions has no codebook entry.
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"checkbox","name":"qBrands","choices":["nike","puma"]},
+              {"type":"paneldynamic","name":"pLoop","valueName":"brandAnswers","title":"Brands","loopSource":["qBrands"],
+               "templateElements":[{"type":"boolean","name":"qLike"},{"type":"text","name":"qWhy"}]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var codebook = System.Text.Json.Nodes.JsonNode.Parse(compiled.CodebookJson)!;
+        codebook["questions"]!.AsObject().Remove("qLike");
+
+        // Act
+        var questions = ShojiOrder.Folder(GenerateOrder(compiled, codebook.ToJsonString()), ShojiFolderNames.Questions);
+
+        // Assert
+        ShojiOrder.FolderNames(questions).Should().Equal("Brands");
+        ShojiOrder.Aliases(ShojiOrder.Folder(questions, "Brands")).Should().Contain(alias => alias.Contains("qLike"));
+    }
+
+    [Fact]
+    public void Generate_PanelTitlesThatDifferOnlyInCaseOrSpacing_GetDistinctFolderNames()
+    {
+        // Arrange
+        const string definitionJson = """
+            {"pages":[{"name":"page1","elements":[
+              {"type":"panel","name":"p1","title":"Contact\n   details","elements":[{"type":"text","name":"q1"}]},
+              {"type":"panel","name":"p2","title":"contact details","elements":[{"type":"text","name":"q2"}]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        var questions = ShojiOrder.Folder(GenerateTable(compiled).GetProperty("order"), ShojiFolderNames.Questions);
+
+        // Assert
+        ShojiOrder.FolderNames(questions).Should().Equal("Contact details", "contact details (2)");
+    }
+
+    private static JsonElement GenerateOrder(FormSchemaCompileResult compiled, string codebookJson)
+    {
+        using var document = JsonDocument.Parse(ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson,
+            codebookJson,
+            ExportFormatSettings.InterimCrunchKeySeparator));
+        return document.RootElement.GetProperty("body").GetProperty("table").GetProperty("order").Clone();
     }
 
     private static JsonElement AllQuestionsTable() =>

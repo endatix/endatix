@@ -63,17 +63,43 @@ internal static partial class CrunchImportCheck
         ];
     }
 
+    // Reads every folder with TryGetProperty, so a malformed one is reported beside the other problems.
     private static IEnumerable<string> FolderProblems(JsonElement entities)
     {
         var folders = entities.EnumerateArray().Where(entry => entry.ValueKind == JsonValueKind.Object).ToList();
-        var names = folders.Select(folder => folder.GetProperty("group").GetString() ?? string.Empty).ToList();
-        return names.Where(string.IsNullOrWhiteSpace).Select(_ => "a folder has no name")
-            .Concat(Repeated(names.Where(name => !string.IsNullOrWhiteSpace(name)))
-                .Select(name => $"folder '{name}' has a sibling of the same name"))
-            .Concat(folders.Where(folder => folder.GetProperty("entities").GetArrayLength() == 0)
-                .Select(folder => $"folder '{folder.GetProperty("group").GetString()}' is empty"))
-            .Concat(folders.SelectMany(folder => FolderProblems(folder.GetProperty("entities"))));
+        var names = folders.Select(FolderName).ToList();
+        foreach (var name in names.Where(string.IsNullOrWhiteSpace))
+        {
+            yield return "a folder has no name";
+        }
+
+        foreach (var name in Repeated(names.Where(name => !string.IsNullOrWhiteSpace(name))))
+        {
+            yield return $"folder '{name}' has a sibling of the same name";
+        }
+
+        foreach (var folder in folders)
+        {
+            if (!folder.TryGetProperty("entities", out var children) || children.ValueKind != JsonValueKind.Array)
+            {
+                yield return $"folder '{FolderName(folder)}' has no entities";
+                continue;
+            }
+
+            if (children.GetArrayLength() == 0)
+            {
+                yield return $"folder '{FolderName(folder)}' is empty";
+            }
+
+            foreach (var problem in FolderProblems(children))
+            {
+                yield return problem;
+            }
+        }
     }
+
+    private static string FolderName(JsonElement folder) =>
+        folder.TryGetProperty("group", out var name) && name.ValueKind == JsonValueKind.String ? name.GetString()! : string.Empty;
 
     private static IEnumerable<string> Repeated(IEnumerable<string> aliases) =>
         aliases.GroupBy(alias => alias, StringComparer.Ordinal).Where(group => group.Count() > 1).Select(group => group.Key);

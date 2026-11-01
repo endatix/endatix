@@ -111,11 +111,11 @@ Without `answer=` filters, the page comes from the core list; its flattened rows
 
 ### Codebook panels and Crunch folders
 
-Each question entry in the codebook names the panels it sits in, outermost first: `parentPanels: [{ "name", "title" }]`, where the title is the panel's default-locale title, or its name when it has none. `parentPanelTitle` (the nearest panel's title) stays for readers of older codebooks. A panel with neither a name nor a title adds no entry.
+Each question entry in the codebook names the panels it sits in, outermost first: `parentPanels: [{ "key", "title" }]`. The key tells panels apart: the panel's name, or its position (`page1#2`, the third element on `page1`) when it has none. The title is the panel's default-locale title, or its name when it has none. `parentPanelTitle` (the nearest panel's title) stays for readers of older codebooks. A panel with neither a name nor a title adds no entry. `ParentPanel` (`QuestionPlacement.cs`) is the one place a key and title are worked out, for a compile and for a codebook read back.
 
 The Shoji codebook (`codebook-shoji`) groups its `order` into folders Crunch shows on import: Meta-data (system columns), Participant variables (`AudienceIdentifier`, `audience_*`), Submitter (`submitter_*`), Calculated values and Questions; an empty folder is left out. The names are in `ShojiFolderNames`. Panels and loops become sub-folders of Questions, nested along `parentPanels` and keyed by panel name. A repeated title among siblings is numbered ("Details (2)"). `FormId` goes in `table.hidden` instead: Crunch refuses an alias that is both hidden and ordered.
 
-A codebook saved before `parentPanels` existed keeps one folder per panel title, without nesting, until the form's schema is compiled again. A compile's new question entries win over the stored ones, in both replace and merge.
+An entry with only `parentPanelTitle` (a codebook saved before `parentPanels` existed, or a stale entry a merge kept) takes the path of the panel with that title when the codebook's other entries name exactly one; otherwise it gets one folder per title, without nesting, until the form's schema is compiled again. A loop column with no question entry takes the loop's path from its other columns. Folder names are the title on one line, unique among siblings without regard to case. A compile's new question entries win over the stored ones, in both replace and merge.
 
 ### Submitter profile fields
 

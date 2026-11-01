@@ -77,7 +77,7 @@ internal static partial class FormSchemaCodebookBuilder
             return;
         }
 
-        foreach (var element in elementList.EnumerateArray())
+        foreach (var (element, position) in elementList.EnumerateArray().Select((element, position) => (element, position)))
         {
             var type = element.GetSurveyJsType();
             if (SurveyJsElementType.IsNonData(type))
@@ -95,7 +95,7 @@ internal static partial class FormSchemaCodebookBuilder
             {
                 CollectElements(
                     panelChildren,
-                    placement.InPanel(name, ResolvePanelTitle(element, name)),
+                    placement.InPanel(name, ResolvePanelTitle(element, name), position),
                     elements);
             }
 
@@ -104,7 +104,7 @@ internal static partial class FormSchemaCodebookBuilder
             {
                 CollectElements(
                     templateElements,
-                    placement.InPanel(name, ResolvePanelTitle(element, name)),
+                    placement.InPanel(name, ResolvePanelTitle(element, name), position),
                     elements);
             }
         }

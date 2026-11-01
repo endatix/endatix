@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -22,14 +23,40 @@ internal static partial class ShojiCodebookGenerator
         public void WriteTo(Utf8JsonWriter writer) => writer.WriteStringValue(Alias);
     }
 
-    private sealed class ShojiFolder(string name, List<IShojiOrderEntry> entries) : IShojiOrderEntry
+    private sealed class ShojiFolder(string name) : IShojiOrderEntry
     {
+        private readonly Dictionary<string, ShojiFolder> _subFoldersByPanel = new(StringComparer.Ordinal);
+
+        // Crunch may compare folder names without case, so "Details" and "details" count as one name.
+        private readonly HashSet<string> _subFolderNames = new(StringComparer.OrdinalIgnoreCase);
+
         public string Name { get; } = name;
 
-        public List<IShojiOrderEntry> Entries { get; } = entries;
+        public List<IShojiOrderEntry> Entries { get; } = [];
 
-        public static ShojiFolder Of(string name, IEnumerable<string> aliases) =>
-            new(name, [.. aliases.Select(alias => new ShojiOrderAlias(alias))]);
+        public static ShojiFolder Of(string name, IEnumerable<string> aliases)
+        {
+            ShojiFolder folder = new(name);
+            folder.Entries.AddRange(aliases.Select(alias => new ShojiOrderAlias(alias)));
+            return folder;
+        }
+
+        // A sub-folder takes its place where its first alias appears. Two panels with one title stay apart, the
+        // second numbered ("Details (2)"), so no question moves out of survey order.
+        public ShojiFolder SubFolder(ParentPanel panel)
+        {
+            if (!_subFoldersByPanel.TryGetValue(panel.Key, out var subFolder))
+            {
+                subFolder = new ShojiFolder(UniqueSubFolderName(FolderName(panel.Title)));
+                _subFoldersByPanel.Add(panel.Key, subFolder);
+                Entries.Add(subFolder);
+            }
+
+            return subFolder;
+        }
+
+        public ShojiFolder SubFolderAt(IEnumerable<ParentPanel> panels) =>
+            panels.Aggregate(this, (parent, panel) => parent.SubFolder(panel));
 
         public void WriteTo(Utf8JsonWriter writer)
         {
@@ -38,6 +65,20 @@ internal static partial class ShojiCodebookGenerator
             writer.WritePropertyName(ShojiCodebookPropertyNames.Entities);
             WriteOrderEntries(writer, Entries);
             writer.WriteEndObject();
+        }
+
+        // Numbered until no sibling has the name, so a panel titled "Details (2)" cannot meet a numbered repeat.
+        private string UniqueSubFolderName(string folderName)
+        {
+            var unique = folderName;
+            var repeat = 1;
+            while (!_subFolderNames.Add(unique))
+            {
+                repeat++;
+                unique = $"{folderName} ({repeat})";
+            }
+
+            return unique;
         }
     }
 
@@ -50,55 +91,83 @@ internal static partial class ShojiCodebookGenerator
         public HashSet<string> Written { get; } = new(WrittenAliases, StringComparer.Ordinal);
     }
 
-    /// <summary>A panel or loop a question sits in: the panel name it is told apart by, and the title it shows.</summary>
-    private sealed record ShojiPanel(string Key, string Label);
-
-    /// <summary>The Questions folder, and a sub-folder for each panel and loop, nested as the panels are.</summary>
-    private sealed class QuestionFolders
+    /// <summary>
+    /// Panel paths learned from the codebook's own <c>parentPanels</c>, to place a question whose entry has only the
+    /// nearest panel's title (a codebook compiled before panel paths, or a stale entry a merge kept), and a loop
+    /// column whose question the codebook lacks. A title two different panels share stays unresolved.
+    /// </summary>
+    private sealed class KnownPanelPaths(IReadOnlyDictionary<string, JsonElement> questions)
     {
-        private readonly Dictionary<(ShojiFolder Parent, string Key), ShojiFolder> _subFolders = [];
-        private readonly Dictionary<ShojiFolder, HashSet<string>> _siblingLabels = [];
+        private readonly Dictionary<string, List<ParentPanel>?> _byTitle = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<ParentPanel>> _byLoop = new(StringComparer.Ordinal);
 
-        public ShojiFolder Root { get; } = new(ShojiFolderNames.Questions, []);
-
-        // A sub-folder takes its place where its first alias appears. Two panels with one title stay apart, the
-        // second numbered ("Details (2)"), so no question moves out of survey order.
-        public ShojiFolder For(IReadOnlyList<ShojiPanel> panels)
+        public static KnownPanelPaths From(ShojiCodebookWriteArgs args)
         {
-            var folder = Root;
-            foreach (var panel in panels)
+            KnownPanelPaths known = new(args.Questions);
+            foreach (var question in args.Questions.Values)
             {
-                if (!_subFolders.TryGetValue((folder, panel.Key), out var subFolder))
-                {
-                    subFolder = new ShojiFolder(UniqueLabel(folder, panel.Label.Trim()), []);
-                    _subFolders.Add((folder, panel.Key), subFolder);
-                    folder.Entries.Add(subFolder);
-                }
-
-                folder = subFolder;
+                known.AddTitles(ParentPanel.ReadAll(question));
             }
 
-            return folder;
+            foreach (var column in args.FlatteningMap.Columns.Where(column => column.LoopPath is { Count: > 0 }))
+            {
+                args.Questions.TryGetValue(column.SourceQuestion ?? column.Key, out var question);
+                known.AddLoop(column.LoopPath![0].PanelValueName, ParentPanel.ReadAll(question));
+            }
+
+            return known;
         }
 
-        // Numbered until no sibling has the label, so a panel titled "Details (2)" cannot meet a numbered repeat.
-        private string UniqueLabel(ShojiFolder parent, string label)
+        public IReadOnlyDictionary<string, JsonElement> Questions { get; } = questions;
+
+        // For a question entry with no panel list: its nearest panel's title, else its loop.
+        public List<ParentPanel> ForUnlisted(FormSchemaColumn column, JsonElement question)
         {
-            if (!_siblingLabels.TryGetValue(parent, out var labels))
+            var title = ReadParentPanelTitle(question);
+            if (!string.IsNullOrWhiteSpace(title))
             {
-                labels = new HashSet<string>(StringComparer.Ordinal);
-                _siblingLabels.Add(parent, labels);
+                return _byTitle.TryGetValue(title, out var path) && path is not null ? path : [new ParentPanel(title, title)];
             }
 
-            var unique = label;
-            var repeat = 1;
-            while (!labels.Add(unique))
+            if (column.LoopPath is not { Count: > 0 } loopPath)
             {
-                repeat++;
-                unique = $"{label} ({repeat})";
+                return [];
             }
 
-            return unique;
+            var loopValueName = loopPath[0].PanelValueName;
+            return _byLoop.GetValueOrDefault(loopValueName) ?? [LoopPanel(loopValueName)];
+        }
+
+        private ParentPanel LoopPanel(string loopValueName)
+        {
+            var loopTitle = Questions.TryGetValue(loopValueName, out var loop) ? ReadQuestionTitle(loop) : null;
+            return ParentPanel.Of(loopValueName, loopTitle)!;
+        }
+
+        private void AddTitles(List<ParentPanel> panels)
+        {
+            for (var depth = 1; depth <= panels.Count; depth++)
+            {
+                var path = panels[..depth];
+                var title = path[^1].Title;
+                if (!_byTitle.TryGetValue(title, out var known))
+                {
+                    _byTitle[title] = path;
+                }
+                else if (known is not null && known[^1].Key != path[^1].Key)
+                {
+                    _byTitle[title] = null;
+                }
+            }
+        }
+
+        // The loop's own path is the shortest one its columns give: a panel inside the loop only lengthens it.
+        private void AddLoop(string loopValueName, List<ParentPanel> panels)
+        {
+            if (panels.Count > 0 && (!_byLoop.TryGetValue(loopValueName, out var known) || panels.Count < known.Count))
+            {
+                _byLoop[loopValueName] = panels;
+            }
         }
     }
 
@@ -144,70 +213,41 @@ internal static partial class ShojiCodebookGenerator
     /// </summary>
     private static ShojiFolder BuildQuestionsFolder(ShojiOrderSources sources, HashSet<string> placed)
     {
-        QuestionFolders folders = new();
+        ShojiFolder questions = new(ShojiFolderNames.Questions);
+        var known = KnownPanelPaths.From(sources.Args);
         foreach (var column in sources.Args.FlatteningMap.Columns)
         {
-            var aliases = ColumnOrderAliases(column, sources.Args)
-                .Where(alias => sources.Written.Contains(alias) && placed.Add(alias))
-                .Select(alias => new ShojiOrderAlias(alias))
-                .ToList();
+            var aliases = UnplacedAliases(column, sources, placed);
             if (aliases.Count > 0)
             {
-                folders.For(PanelsOf(column, sources.Args.Questions)).Entries.AddRange(aliases);
+                questions.SubFolderAt(PanelsOf(column, known)).Entries.AddRange(aliases);
             }
         }
 
-        folders.Root.Entries.AddRange(sources.WrittenAliases.Where(placed.Add).Select(alias => new ShojiOrderAlias(alias)));
-        return folders.Root;
+        questions.Entries.AddRange(sources.WrittenAliases.Where(placed.Add).Select(alias => new ShojiOrderAlias(alias)));
+        return questions;
     }
 
-    // Folders take the codebook's panel titles, which are default-locale. A codebook compiled before parentPanels
-    // existed has only the nearest panel's title, so there panels are told apart by title and do not nest. A loop
-    // column whose question the codebook lacks goes in a folder named by the loop.
-    private static List<ShojiPanel> PanelsOf(FormSchemaColumn column, IReadOnlyDictionary<string, JsonElement> questions)
+    private static List<ShojiOrderAlias> UnplacedAliases(FormSchemaColumn column, ShojiOrderSources sources, HashSet<string> placed) =>
+        [.. ColumnOrderAliases(column, sources.Args)
+            .Where(alias => sources.Written.Contains(alias) && placed.Add(alias))
+            .Select(alias => new ShojiOrderAlias(alias))];
+
+    // Folders take the codebook's panel titles, which are default-locale. An entry with only the nearest panel's
+    // title, or a loop column with no question entry, takes a path the codebook's panel lists give.
+    private static List<ParentPanel> PanelsOf(FormSchemaColumn column, KnownPanelPaths known)
     {
-        questions.TryGetValue(column.SourceQuestion ?? column.Key, out var question);
-        var panels = ReadParentPanels(question);
-        if (panels.Count > 0 || column.LoopPath is not { Count: > 0 } loopPath)
-        {
-            return panels;
-        }
-
-        var loopName = loopPath[0].PanelValueName;
-        var loopTitle = questions.TryGetValue(loopName, out var loop) ? ReadQuestionTitle(loop) : null;
-        return [new ShojiPanel(loopName, string.IsNullOrWhiteSpace(loopTitle) ? loopName : loopTitle)];
+        known.Questions.TryGetValue(column.SourceQuestion ?? column.Key, out var question);
+        var panels = ParentPanel.ReadAll(question);
+        return panels.Count > 0 ? panels : known.ForUnlisted(column, question);
     }
 
-    private static List<ShojiPanel> ReadParentPanels(JsonElement question)
-    {
-        if (question.ValueKind != JsonValueKind.Object)
-        {
-            return [];
-        }
+    // A folder name is the panel title on one line: Crunch shows it as a label, and a line break or a run of spaces
+    // would make two titles that read the same look different.
+    private static string FolderName(string title) => Whitespace().Replace(title, " ").Trim();
 
-        if (question.TryGetProperty(FormSchemaCodebookPropertyNames.ParentPanels, out var panels) &&
-            panels.ValueKind == JsonValueKind.Array)
-        {
-            return [.. panels.EnumerateArray().Select(ReadPanel).OfType<ShojiPanel>()];
-        }
-
-        var title = ReadParentPanelTitle(question);
-        return string.IsNullOrWhiteSpace(title) ? [] : [new ShojiPanel(title, title)];
-    }
-
-    // A blank title shows the name; a panel with neither leaves its questions in the folder around it.
-    private static ShojiPanel? ReadPanel(JsonElement panel)
-    {
-        var name = panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelName);
-        var title = panel.GetStringProperty(FormSchemaCodebookPropertyNames.PanelTitle);
-        var label = string.IsNullOrWhiteSpace(title) ? name : title;
-        if (string.IsNullOrWhiteSpace(label))
-        {
-            return null;
-        }
-
-        return new ShojiPanel(string.IsNullOrWhiteSpace(name) ? label : name, label);
-    }
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
 
     private static IEnumerable<string> ColumnOrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args)
     {

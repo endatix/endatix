@@ -132,7 +132,7 @@
       "parentPanelTitle": "Loop Question (Based on Brands)",
       "parentPanels": [
         {
-          "name": "qLoop",
+          "key": "qLoop",
           "title": "Loop Question (Based on Brands)"
         }
       ],
@@ -152,7 +152,7 @@
       "parentPanelTitle": "Loop Question (Based on Brands)",
       "parentPanels": [
         {
-          "name": "qLoop",
+          "key": "qLoop",
           "title": "Loop Question (Based on Brands)"
         }
       ],
@@ -226,7 +226,7 @@
       "parentPanelTitle": "Loop Question (Based on Brands)",
       "parentPanels": [
         {
-          "name": "qLoop",
+          "key": "qLoop",
           "title": "Loop Question (Based on Brands)"
         }
       ],
@@ -469,7 +469,7 @@
       "parentPanelTitle": "Internal Panel Group",
       "parentPanels": [
         {
-          "name": "qPanel",
+          "key": "qPanel",
           "title": "Internal Panel Group"
         }
       ],
