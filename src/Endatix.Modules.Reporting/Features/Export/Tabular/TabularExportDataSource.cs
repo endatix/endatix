@@ -363,7 +363,7 @@ internal sealed partial class TabularExportDataSource(
             EncodeBooleansAsCategoryIds: encodeBooleansAsCategoryIds);
     }
 
-    private static SubmissionExportColumnPlan MapColumnPlan(IExportColumnPlan plan) =>
+    private static SubmissionExportColumnPlan MapColumnPlan(ExportColumnPlan plan) =>
         new(plan.Columns.Select(column => new SubmissionExportColumnPlanEntry(
             column.CanonicalKey,
             column.ExportKey,
