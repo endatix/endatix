@@ -7,10 +7,10 @@ namespace Endatix.Infrastructure.Utils;
 /// <summary>
 /// Utility class to extract JSON data from a string.
 /// </summary>
-public class JsonExtractor : IDisposable
+public sealed class JsonExtractor : IDisposable
 {
     private readonly JsonDocument _document;
-    private bool _disposed = false;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JsonExtractor"/> class.
@@ -103,10 +103,13 @@ public class JsonExtractor : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (_disposed)
         {
-            _document?.Dispose();
-            _disposed = true;
+            return;
         }
+
+        _document.Dispose();
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }
