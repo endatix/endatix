@@ -104,7 +104,7 @@ public class EmailVerificationServiceTests
         user.EmailConfirmed.Should().BeTrue();
         verificationToken.IsUsed.Should().BeTrue();
 
-        _userManager.Received(1).UpdateAsync(user);
+        await _userManager.Received(1).UpdateAsync(user);
         await _tokenRepository.Received(1).UpdateAsync(verificationToken, Arg.Any<CancellationToken>());
     }
 
@@ -210,7 +210,7 @@ public class EmailVerificationServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.Email.Should().Be(user.Email);
         await _tokenRepository.DidNotReceive().UpdateAsync(Arg.Any<EmailVerificationToken>(), Arg.Any<CancellationToken>());
-        _userManager.DidNotReceive().UpdateAsync(Arg.Any<AppUser>());
+        await _userManager.DidNotReceive().UpdateAsync(Arg.Any<AppUser>());
     }
 
     [Fact]
@@ -276,7 +276,7 @@ public class EmailVerificationServiceTests
 
         await _userManager.Received(1).GeneratePasswordResetTokenAsync(user);
         await _userManager.Received(1).ResetPasswordAsync(user, resetToken, newPassword);
-        _userManager.Received(1).UpdateAsync(user);
+        await _userManager.Received(1).UpdateAsync(user);
         await _tokenRepository.Received(1).UpdateAsync(verificationToken, Arg.Any<CancellationToken>());
     }
 

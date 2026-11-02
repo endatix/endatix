@@ -92,7 +92,14 @@ public sealed class SaveTestParticipantsValidator : Validator<SaveTestParticipan
     {
         try
         {
-            return variables is null || variables.Count >= 0;
+            if (variables is null)
+            {
+                return true;
+            }
+
+            // Touch Count so a JsonObject with duplicate names throws here (400), not later.
+            _ = variables.Count;
+            return true;
         }
         catch (ArgumentException)
         {

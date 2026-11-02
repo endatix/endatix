@@ -7,8 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using System;
-using System.Threading.Tasks;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -40,36 +38,25 @@ public static class DataSeedingExtensions
         var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
         var logger = loggerFactory?.CreateLogger<DataSeedingLogger>();
 
-        try
-        {
-            logger?.LogInformation("Seeding initial user data");
+        logger?.LogInformation("Seeding initial user data");
 
-            // Get required services
-            using var scope = serviceProvider.CreateScope();
-            var scopedProvider = scope.ServiceProvider;
+        using var scope = serviceProvider.CreateScope();
+        var scopedProvider = scope.ServiceProvider;
 
-            var userManager = scopedProvider.GetRequiredService<UserManager<AppUser>>();
-            var userRegistrationService = scopedProvider.GetRequiredService<IUserRegistrationService>();
-            var roleManagementService = scopedProvider.GetRequiredService<IRoleManagementService>();
-            var dataOptions = scopedProvider.GetRequiredService<IOptions<DataOptions>>().Value;
+        var userManager = scopedProvider.GetRequiredService<UserManager<AppUser>>();
+        var userRegistrationService = scopedProvider.GetRequiredService<IUserRegistrationService>();
+        var roleManagementService = scopedProvider.GetRequiredService<IRoleManagementService>();
+        var dataOptions = scopedProvider.GetRequiredService<IOptions<DataOptions>>().Value;
 
-            // Create a suitable logger for IdentitySeed (ILogger instead of ILogger<T>)
-            ILogger seedLogger = logger != null ? (ILogger)logger : NullLogger.Instance;
+        var seedLogger = logger != null ? (ILogger)logger : NullLogger.Instance;
 
-            // Call the implementation in IdentitySeed
-            await IdentitySeed.SeedInitialUser(
-                userManager,
-                userRegistrationService,
-                roleManagementService,
-                dataOptions,
-                seedLogger);
+        await IdentitySeed.SeedInitialUser(
+            userManager,
+            userRegistrationService,
+            roleManagementService,
+            dataOptions,
+            seedLogger);
 
-            logger?.LogInformation("Initial user data seeded successfully");
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "An error occurred while seeding initial user data");
-            throw; // Rethrow for explicit seeding calls
-        }
+        logger?.LogInformation("Initial user data seeded successfully");
     }
 }

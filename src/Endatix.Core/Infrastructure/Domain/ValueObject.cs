@@ -13,8 +13,6 @@ namespace Endatix.Core.Infrastructure.Domain;
 [Serializable]
 public abstract class ValueObject : IComparable, IComparable<ValueObject>
 {
-    private int? _cachedHashCode;
-
     protected abstract IEnumerable<object> GetEqualityComponents();
 
     public override bool Equals(object? obj)
@@ -32,19 +30,15 @@ public abstract class ValueObject : IComparable, IComparable<ValueObject>
 
     public override int GetHashCode()
     {
-        if (!_cachedHashCode.HasValue)
-        {
-            _cachedHashCode = GetEqualityComponents()
-                .Aggregate(1, (current, obj) =>
+        // No cache: a cached field is mutable and trips S2328; value objects are small.
+        return GetEqualityComponents()
+            .Aggregate(1, (current, obj) =>
+            {
+                unchecked
                 {
-                    unchecked
-                    {
-                        return current * 23 + (obj?.GetHashCode() ?? 0);
-                    }
-                });
-        }
-
-        return _cachedHashCode.Value;
+                    return current * 23 + (obj?.GetHashCode() ?? 0);
+                }
+            });
     }
 
     public int CompareTo(object? obj)

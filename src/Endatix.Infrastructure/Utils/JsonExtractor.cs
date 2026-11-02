@@ -10,7 +10,7 @@ namespace Endatix.Infrastructure.Utils;
 public class JsonExtractor : IDisposable
 {
     private readonly JsonDocument _document;
-    private bool _disposed = false;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JsonExtractor"/> class.
@@ -103,10 +103,23 @@ public class JsonExtractor : IDisposable
 
     public void Dispose()
     {
-        if (!_disposed)
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>Releases the parsed document once; safe to call repeatedly.</summary>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
         {
-            _document?.Dispose();
-            _disposed = true;
+            return;
         }
+
+        if (disposing)
+        {
+            _document.Dispose();
+        }
+
+        _disposed = true;
     }
 }

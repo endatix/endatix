@@ -18,8 +18,6 @@ public static class PiiRedactor
     internal const byte PHONE_NUMBER_VISIBLE_DIGITS = 4;
     internal const byte PHONE_NUMBER_COUNTRY_CODE_MAX_LENGTH = 3;
 
-    private static readonly int _phoneNumberWithCountryCodeMinCharsCount = PHONE_NUMBER_COUNTRY_CODE_MAX_LENGTH + 1 + PHONE_NUMBER_VISIBLE_DIGITS;
-
     private static readonly Random _randomGenerator = new();
 
     /// <summary>
