@@ -11,6 +11,53 @@ updates:
       github-actions:
         patterns: ["*"]
 
+  # NuGet via Central Package Management (Directory.Packages.props at repo root).
+  # Without this entry, NuGet vulns only surface as NU190x build warnings — Dependabot
+  # never opened version PRs for the .NET graph.
+  - package-ecosystem: nuget
+    directory: /
+    labels: ["dependencies"]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Sofia
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      microsoft-runtime:
+        applies-to: version-updates
+        # Majors (a new .NET) come as their own PRs, not inside this group.
+        update-types: ["minor", "patch"]
+        patterns:
+          - "Microsoft.*"
+          - "System.*"
+        # Versioned independently of the runtime, or test tooling (see test-deps).
+        exclude-patterns:
+          - "Microsoft.NET.Test.Sdk"
+          - "Microsoft.ApplicationInsights*"
+          - "Microsoft.FeatureManagement*"
+          - "Microsoft.Data.SqlClient"
+      test-deps:
+        applies-to: version-updates
+        patterns:
+          - "Microsoft.NET.Test.Sdk"
+          - "xunit*"
+          - "NSubstitute*"
+          - "FluentAssertions*"
+          - "Testcontainers*"
+          - "coverlet*"
+      analyzers-sonar:
+        applies-to: version-updates
+        patterns:
+          - "SonarAnalyzer*"
+      # One PR for all open NuGet security fixes (version groups must not swallow these).
+      nuget-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
   # Docs site (Docusaurus, pnpm). Most Dependabot alerts come from transitive
   # packages in docs/endatix-docs/pnpm-lock.yaml. Without this entry the docs
   # got no version updates, so the lockfile drifted and security updates had
