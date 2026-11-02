@@ -24,9 +24,12 @@ updates:
       time: "06:00"
       timezone: Europe/Sofia
     open-pull-requests-limit: 5
+    # Hold version updates for two days so a release that gets yanked or
+    # compromised soon after publishing is never proposed (security updates skip this).
+    cooldown:
+      default-days: 2
     commit-message:
       prefix: chore
-      prefix-development: chore
       include: scope
     groups:
       # One PR for all open security fixes in the docs lockfile.
@@ -43,3 +46,5 @@ updates:
         applies-to: version-updates
         update-types: ["minor", "patch"]
         patterns: ["*"]
+        # Still 0.x: a minor bump can rename or drop icons, so it gets its own PR.
+        exclude-patterns: ["lucide-react"]
