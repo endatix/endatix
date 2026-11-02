@@ -28,13 +28,13 @@ updates:
       include: scope
     groups:
       microsoft-runtime:
+        applies-to: version-updates
         patterns:
           - "Microsoft.*"
           - "System.*"
           - "AspNetCore.*"
-          - "Microsoft.AspNetCore.*"
-          - "Microsoft.EntityFrameworkCore*"
       test-deps:
+        applies-to: version-updates
         patterns:
           - "xunit*"
           - "NSubstitute*"
@@ -42,11 +42,13 @@ updates:
           - "Testcontainers*"
           - "coverlet*"
       analyzers-sonar:
+        applies-to: version-updates
         patterns:
           - "SonarAnalyzer*"
+      # One PR for all open NuGet security fixes (version groups must not swallow these).
       nuget-security:
-        dependency-type: "production"
-        update-types: ["security"]
+        applies-to: security-updates
+        patterns: ["*"]
 
   # Docs site (Docusaurus, pnpm). Most Dependabot alerts come from transitive
   # packages in docs/endatix-docs/pnpm-lock.yaml. Without this entry the docs
