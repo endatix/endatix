@@ -7,7 +7,7 @@ namespace Endatix.Infrastructure.Utils;
 /// <summary>
 /// Utility class to extract JSON data from a string.
 /// </summary>
-public sealed class JsonExtractor : IDisposable
+public class JsonExtractor : IDisposable
 {
     private readonly JsonDocument _document;
     private bool _disposed;
@@ -103,13 +103,23 @@ public sealed class JsonExtractor : IDisposable
 
     public void Dispose()
     {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>Releases the parsed document once; safe to call repeatedly.</summary>
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
-        _document.Dispose();
+        if (disposing)
+        {
+            _document.Dispose();
+        }
+
         _disposed = true;
-        GC.SuppressFinalize(this);
     }
 }

@@ -113,7 +113,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
             builder,
             allowedOrigins,
             (builder, allowedOrigins) => builder.WithOrigins(allowedOrigins),
-            // S5122: operator-configured "*" origin; default policy remains DisallowAll outside Development.
+            // S5122: operator-configured "*" origin; DisallowAll is only the fallback when no configured policy matches DefaultPolicyName, so production can opt into wildcard origins.
 #pragma warning disable S5122
             (builder) => builder.AllowAnyOrigin()
 #pragma warning restore S5122
@@ -162,7 +162,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
     /// <param name="options">The <see cref="CorsOptions"/> passed by the DI via the <see cref="IConfigureOptions"/> interface</param>
     private void AddPredefinedPolicies(CorsOptions options)
     {
-        // S5122: named AllowAll policy is opt-in (Development default); production default is DisallowAll.
+        // S5122: named AllowAll policy is opt-in (Development fallback); outside Development the fallback is DisallowAll unless a configured policy is selected.
 #pragma warning disable S5122
         options.AddPolicy(ALLOW_ALL_POLICY_NAME, policy =>
         {
