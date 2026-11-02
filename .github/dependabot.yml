@@ -29,13 +29,21 @@ updates:
     groups:
       microsoft-runtime:
         applies-to: version-updates
+        # Majors (a new .NET) come as their own PRs, not inside this group.
+        update-types: ["minor", "patch"]
         patterns:
           - "Microsoft.*"
           - "System.*"
-          - "AspNetCore.*"
+        # Versioned independently of the runtime, or test tooling (see test-deps).
+        exclude-patterns:
+          - "Microsoft.NET.Test.Sdk"
+          - "Microsoft.ApplicationInsights*"
+          - "Microsoft.FeatureManagement*"
+          - "Microsoft.Data.SqlClient"
       test-deps:
         applies-to: version-updates
         patterns:
+          - "Microsoft.NET.Test.Sdk"
           - "xunit*"
           - "NSubstitute*"
           - "FluentAssertions*"
