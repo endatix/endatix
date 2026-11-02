@@ -93,7 +93,7 @@ Audience values close an export row as one block, under their keys as stored (`A
 
 `readiness` counts the form's live submissions (`submissions`, `completedSubmissions`, `inProgress`) from core and its flattened rows by status (`prepared`, `pending` including `not_processed`, `failed`, `skippedInProgress`). An out-of-date count is not there yet.
 
-Codebook question entries carry the question's place in the form: `pageName`, `pageTitle` (a locale map like `title`, left out when the page has no title) and `parentPanelTitle` (default locale). They are written at compile time, so a schema compiled before these keys existed has no page until its next compile. Codebook `version` stays 1.
+Codebook question entries carry the question's place in the form: `pageName`, `pageTitle` (a locale map like `title`, left out when the page has no title), `parentPanelTitle` (default locale) and `parentPanels` (see below). They are written at compile time, so a schema compiled before these keys existed has no page until its next compile. Codebook `version` stays 1.
 
 ### Submission Grid rows
 
@@ -108,6 +108,14 @@ Each row carries the list fields plus:
 Without `answer=` filters, the page comes from the core list; its flattened rows are then read by id, with `DataJson` only when `columns` is set. With them, see [Answer filters on the submissions grid](#answer-filters-on-the-submissions-grid).
 
 `submitterProfile.{field}` filters, on this list and on the submissions list, read the profile snapshot with `JSON_VALUE` on SQL Server. They compare under the `Latin1_General_100_BIN2` collation, so matching is case-sensitive as on PostgreSQL, whatever the database collation. Unlike PostgreSQL, SQL Server ignores trailing spaces when it compares strings, and `JSON_VALUE` returns NULL for a value over 4,000 characters, so such a value never matches `=` and always matches `!=`.
+
+### Codebook panels and Crunch folders
+
+Each question entry in the codebook names the panels it sits in, outermost first: `parentPanels: [{ "key", "title" }]`. The key tells panels apart: the panel's name, or its position (`page1#2`, the third element on `page1`) when it has none. The title is the panel's default-locale title, or its name when it has none. `parentPanelTitle` (the nearest panel's title) stays for readers of older codebooks. A panel with neither a name nor a title adds no entry. `ParentPanel` (`QuestionPlacement.cs`) is the one place a key and title are worked out, for a compile and for a codebook read back.
+
+The Shoji codebook (`codebook-shoji`) groups its `order` into folders Crunch shows on import: Meta-data (system columns), Participant variables (`AudienceIdentifier`, `audience_*`), Submitter (`submitter_*`), Calculated values and Questions; an empty folder is left out. The names are in `ShojiFolderNames`. Panels and loops become sub-folders of Questions, nested along `parentPanels` and keyed by panel name. A repeated title among siblings is numbered ("Details (2)"). `FormId` goes in `table.hidden` instead: Crunch refuses an alias that is both hidden and ordered.
+
+An entry with only `parentPanelTitle` (a codebook saved before `parentPanels` existed, or a stale entry a merge kept) takes the path of the panel with that title when the codebook's other entries name exactly one; otherwise it gets one folder per title, without nesting, until the form's schema is compiled again. A loop column with no question entry takes the loop's path from its other columns. Folder names are the title on one line, unique among siblings without regard to case. A compile's new question entries win over the stored ones, in both replace and merge.
 
 ### Submitter profile fields
 

@@ -32,7 +32,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         var metadata = table.GetProperty("metadata");
         metadata.GetProperty("qCity").GetProperty("name").GetString().Should().Be("City");
         metadata.GetProperty("audience_city").GetProperty("name").GetString().Should().Be("City -- audience_city");
-        ReadOrder(table).Skip(SubmissionExportRow.SystemColumns.Count)
+        ReadOrder(table).Skip(OrderedSystemColumnCount)
             .Should().Equal(PersonalizationColumns.IdentifierKey, "audience_city", "qCity");
     }
 
@@ -57,7 +57,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         var table = GenerateTable(compiled, keySeparator: "_");
 
         // Assert
-        ReadOrder(table).Skip(SubmissionExportRow.SystemColumns.Count)
+        ReadOrder(table).Skip(OrderedSystemColumnCount)
             .Should().Equal(PersonalizationColumns.IdentifierKey, "qFirst", "audience_region");
     }
 }

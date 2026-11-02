@@ -115,77 +115,10 @@ internal static partial class ShojiCodebookGenerator
         List<string> writtenAliases = [];
         var nonQuestionAliases = WriteShojiVariables(writer, args, writtenAliases);
         writer.WriteEndObject();
-        WriteOrder(writer, BuildAppearanceOrder(args, writtenAliases, nonQuestionAliases));
+        WriteOrderAndHidden(writer, new ShojiOrderSources(args, writtenAliases, nonQuestionAliases));
         writer.WriteEndObject();
         writer.WriteEndObject();
         writer.WriteEndObject();
-    }
-
-    /// <summary>
-    /// Survey-definition appearance order: system columns, calculated values, then first Shoji
-    /// alias for each flattening-map column in compile order (page/element walk). Not SurveyJS
-    /// visibleIndex.
-    /// </summary>
-    private static List<string> BuildAppearanceOrder(
-        ShojiCodebookWriteArgs args,
-        IReadOnlyList<string> writtenAliases,
-        NonQuestionAliases nonQuestionAliases)
-    {
-        HashSet<string> written = new(writtenAliases, StringComparer.Ordinal);
-        List<string> order = [];
-        HashSet<string> seen = new(StringComparer.Ordinal);
-
-        order.AddRange(_systemColumnOrder.Where(alias => written.Contains(alias) && seen.Add(alias)));
-        // Audience values, submitter profile fields, then calculated values, sit between the system block and the
-        // questions. The CSV keeps them last; Crunch matches CSV columns to variables by alias, so the orders may differ.
-        order.AddRange(nonQuestionAliases.InAppearanceOrder.Where(seen.Add));
-
-        foreach (var column in args.FlatteningMap.Columns)
-        {
-            if (TryAddRangeSliderOrderAliases(column, args.Questions, written, seen, order, args.KeySeparator))
-            {
-                continue;
-            }
-
-            var alias = ResolveShojiOrderAlias(column, args.Questions, args.KeySeparator);
-            if (alias is null || !written.Contains(alias) || !seen.Add(alias))
-            {
-                continue;
-            }
-
-            order.Add(alias);
-        }
-
-        order.AddRange(writtenAliases.Where(seen.Add));
-
-        return order;
-    }
-
-    private static bool TryAddRangeSliderOrderAliases(
-        FormSchemaColumn column,
-        IReadOnlyDictionary<string, JsonElement> questions,
-        HashSet<string> written,
-        HashSet<string> seen,
-        List<string> order,
-        string keySeparator)
-    {
-        if (!IsNeutralRangeSliderColumn(column, questions))
-        {
-            return false;
-        }
-
-        foreach (var bound in (string[])["min", "max"])
-        {
-            var alias = ExportKeyTransformer.Transform(
-                ExportPathBuilder.Join(column.Key, bound),
-                keySeparator);
-            if (written.Contains(alias) && seen.Add(alias))
-            {
-                order.Add(alias);
-            }
-        }
-
-        return true;
     }
 
     private static string? ResolveShojiOrderAlias(
@@ -220,33 +153,6 @@ internal static partial class ShojiCodebookGenerator
         }
 
         return ExportKeyTransformer.Transform(column.Key, keySeparator);
-    }
-
-    private static readonly string[] _systemColumnOrder =
-    [
-        SubmissionExportRow.SystemColumns.FormId,
-        SubmissionExportRow.SystemColumns.Id,
-        SubmissionExportRow.SystemColumns.IsComplete,
-        SubmissionExportRow.SystemColumns.CollectionStatus,
-        SubmissionExportRow.SystemColumns.CreatedAt,
-        SubmissionExportRow.SystemColumns.ModifiedAt,
-        SubmissionExportRow.SystemColumns.StartedAt,
-        SubmissionExportRow.SystemColumns.CompletedAt,
-        SubmissionExportRow.SystemColumns.DurationSeconds,
-        SubmissionExportRow.SystemColumns.SubmitterId,
-        SubmissionExportRow.SystemColumns.SubmitterDisplayId,
-    ];
-
-    private static void WriteOrder(Utf8JsonWriter writer, IReadOnlyList<string> orderAliases)
-    {
-        writer.WritePropertyName(ShojiCodebookPropertyNames.Order);
-        writer.WriteStartArray();
-        foreach (var alias in orderAliases)
-        {
-            writer.WriteStringValue(alias);
-        }
-
-        writer.WriteEndArray();
     }
 
     /// <summary>
@@ -2069,6 +1975,9 @@ internal static partial class ShojiCodebookGenerator
 
         public const string InputTypeNumber = "number";
         public const string Order = "order";
+        public const string Hidden = "hidden";
+        public const string Group = "group";
+        public const string Entities = "entities";
         public const string Selected = "selected";
 
         public const string SelectedCategoryName = "selected";

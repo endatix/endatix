@@ -148,24 +148,46 @@
         }
       },
       "order": [
-        "FormId",
-        "Id",
-        "IsComplete",
-        "CollectionStatus",
-        "CreatedAt",
-        "ModifiedAt",
-        "StartedAt",
-        "CompletedAt",
-        "DurationSeconds",
-        "SubmitterId",
-        "SubmitterDisplayId",
-        "AudienceIdentifier",
-        "audience_city",
-        "submitter_email",
-        "submitter_department",
-        "department",
-        "submitter_region",
-        "recommend"
+        {
+          "group": "Meta-data",
+          "entities": [
+            "Id",
+            "IsComplete",
+            "CollectionStatus",
+            "CreatedAt",
+            "ModifiedAt",
+            "StartedAt",
+            "CompletedAt",
+            "DurationSeconds",
+            "SubmitterId",
+            "SubmitterDisplayId"
+          ]
+        },
+        {
+          "group": "Participant variables",
+          "entities": [
+            "AudienceIdentifier",
+            "audience_city"
+          ]
+        },
+        {
+          "group": "Submitter",
+          "entities": [
+            "submitter_email",
+            "submitter_department"
+          ]
+        },
+        {
+          "group": "Questions",
+          "entities": [
+            "department",
+            "submitter_region",
+            "recommend"
+          ]
+        }
+      ],
+      "hidden": [
+        "FormId"
       ]
     }
   }

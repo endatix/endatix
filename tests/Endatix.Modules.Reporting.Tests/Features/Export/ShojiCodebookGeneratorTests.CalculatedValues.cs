@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 using FluentAssertions;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
@@ -28,7 +29,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         var order = ReadOrder(GenerateTable(compiled));
 
         // Assert
-        order.Skip(SubmissionExportRow.SystemColumns.Count).Should().Equal("totalAmount", "averageAmount", "qName");
+        order.Skip(OrderedSystemColumnCount).Should().Equal("totalAmount", "averageAmount", "qName");
     }
 
     [Fact]
@@ -84,7 +85,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         // Assert
         metadata.GetProperty("colors").GetProperty("type").GetString().Should().Be("multiple_response");
         metadata.GetProperty("qMatrix").GetProperty("type").GetString().Should().Be("categorical_array");
-        order.Skip(SubmissionExportRow.SystemColumns.Count).Should().Equal("colors", "qMatrix");
+        order.Skip(OrderedSystemColumnCount).Should().Equal("colors", "qMatrix");
     }
 
     [Fact]
@@ -114,7 +115,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         metadata.GetProperty("qRanking").GetProperty("type").GetString().Should().Be("text");
         metadata.GetProperty("qRanking").GetProperty("name").GetString().Should().Be("qRanking");
         metadata.GetProperty("qMultipleText").GetProperty("type").GetString().Should().Be("text");
-        order.Skip(SubmissionExportRow.SystemColumns.Count).Take(2).Should().Equal("qRanking", "qMultipleText");
+        order.Skip(OrderedSystemColumnCount).Take(2).Should().Equal("qRanking", "qMultipleText");
         order.Should().Contain(["qRanking--apple", "qMultipleText--phone"]);
     }
 
@@ -140,7 +141,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         // Assert
         metadata.GetProperty("qInner").GetProperty("type").GetString().Should().Be("text");
         metadata.GetProperty("qInner").GetProperty("name").GetString().Should().Be("qInner");
-        order[SubmissionExportRow.SystemColumns.Count].Should().Be("qInner");
+        order[OrderedSystemColumnCount].Should().Be("qInner");
         order.Should().Contain("qLoop--0--qInner");
     }
 
@@ -167,7 +168,7 @@ public sealed partial class ShojiCodebookGeneratorTests
 
         // Assert
         table.GetProperty("metadata").GetProperty("score").GetProperty("name").GetString().Should().Be("Your score");
-        order.Skip(SubmissionExportRow.SystemColumns.Count).Should().Equal("qName", "score");
+        order.Skip(OrderedSystemColumnCount).Should().Equal("qName", "score");
     }
 
     [Fact]
@@ -202,6 +203,8 @@ public sealed partial class ShojiCodebookGeneratorTests
         return document.RootElement.GetProperty("body").GetProperty("table").Clone();
     }
 
-    private static List<string> ReadOrder(JsonElement table) =>
-        table.GetProperty("order").EnumerateArray().Select(element => element.GetString()!).ToList();
+    // FormId is hidden, so it is not in the order.
+    private static int OrderedSystemColumnCount => SubmissionExportRow.SystemColumns.Count - 1;
+
+    private static List<string> ReadOrder(JsonElement table) => ShojiOrder.Aliases(table.GetProperty("order"));
 }

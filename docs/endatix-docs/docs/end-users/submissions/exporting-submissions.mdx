@@ -96,6 +96,22 @@ Every new workspace starts with four formats — **CSV** (the tenant default), *
   sources={{ light: createCodebookLight, dark: createCodebookDark }}
 />
 
+### Crunch.io Folders
+
+When you import a **Codebook (Shoji)** file into Crunch.io with its CSV, Crunch shows the variables in folders:
+
+| Folder | What it holds |
+| --- | --- |
+| **Meta-data** | The submission's system fields, such as its ID, status, and timestamps |
+| **Participant variables** | The participant identifier and the participant's values, on a personalized form |
+| **Submitter** | The submitter fields your workspace captures |
+| **Calculated values** | The form's calculated values |
+| **Questions** | The questions, in survey order. A panel or a loop becomes a sub-folder named by its title, nested as the panels are in the form |
+
+A folder with nothing in it is left out. If two panels at the same level have the same title, the second folder gets a number, such as **Details (2)**. **Form ID** is the same in every row, so it goes under Crunch's hidden variables instead of a folder.
+
+If a form was prepared before this layout existed, its panels become folders named by their titles but do not nest. **Rebuild reporting data…** brings the nesting back.
+
 Each format also has **Column naming** and a **key separator** (under **Advanced**) that control how nested question keys — a choice within a multi-select question, for example — are joined into one column header, such as `question__choice`. As a regular user exporting submissions, you don't need to touch any of this. It's here so you know who to ask if a format you need isn't in the list, or if you're the one setting up a new workspace.
 
 ## Exporting a Single Submission as PDF
