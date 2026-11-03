@@ -261,6 +261,7 @@ Each webhook message contains:
 - `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`, `submission_collection_status_changed`)
 - `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
 - `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events, and a `revision` field - a per-entity counter that increases with every change, which consumers can use to order events for the same form or submission and detect missed updates
+  - Every submission event's payload carries `isTestSubmission`: `true` for a test run, `false` for a real response. It is the value when the event was raised, so a receiver can tell a test run from a real response without looking the submission up
 
 ## Request Headers
 

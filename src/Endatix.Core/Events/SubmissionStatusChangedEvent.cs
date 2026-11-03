@@ -15,19 +15,21 @@ public sealed class SubmissionStatusChangedEvent(Submission submission, Submissi
 
     public SubmissionStatus PreviousStatus { get; } = previousStatus;
 
-    private readonly long _revision = submission.Revision;
+    private readonly SubmissionEventCapture _capture = SubmissionEventCapture.Of(submission);
 
     public string EventType => EventTypeName;
 
-    public object GetPayload() => new Payload(Submission, _revision, PreviousStatus);
+    /// <inheritdoc />
+    public object GetPayload() => new Payload(Submission, _capture, PreviousStatus);
 
     /// <summary>Outbox contract for <c>submission.status_changed</c> — adds <c>previousStatus</c>.</summary>
     public sealed record Payload : SubmissionCompletedEvent.Payload
     {
         public string PreviousStatus { get; init; } = null!;
 
-        public Payload(Submission submission, long revision, SubmissionStatus previousStatus)
-            : base(submission, revision)
+        /// <summary>Builds the payload from the submission and the state its event captured when raised.</summary>
+        public Payload(Submission submission, SubmissionEventCapture capture, SubmissionStatus previousStatus)
+            : base(submission, capture)
         {
             PreviousStatus = previousStatus.Code;
         }

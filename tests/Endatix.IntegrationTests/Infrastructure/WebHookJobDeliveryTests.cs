@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
@@ -119,6 +121,39 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         // Assert
         var jobs = await WebHookJobsAsync(host, ct);
         jobs.Should().ContainSingle().Which.DedupKey.Should().Be($"503:{WebHookEndpointKey.Of(formUrl)}");
+    }
+
+    [Fact]
+    public async Task Submission_webhook_body_carries_isTestSubmission_beside_the_existing_fields()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using var receiver = new StubWebHookReceiver();
+        await using var host = await StartHostAsync(ct);
+        var tenantId = await SeedTenantAsync(host, new TenantSeed("webhook-test-flag", Config(receiver.UrlFor("a"))), ct);
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: tenantId,
+            FormId: MissingFormId,
+            FormDefinitionId: 1,
+            JsonData: """{"q1":"a"}""",
+            IsComplete: true,
+            IsTestSubmission: true));
+        submission.Id = 77;
+        var captured = new OutboxIntegrationEventDispatcher().Capture([submission]).Single();
+
+        // Act
+        await host.InsertMessageAsync(new OutboxRow(504, captured.EventType, tenantId, captured.Payload), ct);
+        await JobsTestWait.UntilAsync(() => Task.FromResult(receiver.CountFor("a") == 1), Patience, ct);
+
+        // Assert
+        using var body = JsonDocument.Parse(receiver.Received.Single().Body);
+        body.RootElement.GetProperty("eventName").GetString().Should().Be("submission_completed");
+        var payload = body.RootElement.GetProperty("payload");
+        payload.GetProperty("isTestSubmission").GetBoolean().Should().BeTrue();
+        payload.GetProperty("submissionId").GetString().Should().Be("77");
+        payload.GetProperty("formId").GetString().Should().Be(MissingFormId.ToString(CultureInfo.InvariantCulture));
+        payload.GetProperty("jsonData").GetString().Should().Be("""{"q1":"a"}""");
+        payload.GetProperty("isComplete").GetBoolean().Should().BeTrue();
     }
 
     private Task<FanOutHost> StartHostAsync(CancellationToken ct, IReadOnlyDictionary<string, string?>? settings = null) =>

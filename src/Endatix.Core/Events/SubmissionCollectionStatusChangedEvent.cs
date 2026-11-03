@@ -19,11 +19,12 @@ public sealed class SubmissionCollectionStatusChangedEvent(Submission submission
 
     public string EventType => EventTypeName;
 
-    private readonly long _revision = submission.Revision;
+    private readonly SubmissionEventCapture _capture = SubmissionEventCapture.Of(submission);
 
     private readonly string _collectionStatus = submission.CollectionStatus.Code;
 
-    public object GetPayload() => new Payload(Submission, _revision, _collectionStatus, PreviousCollectionStatus);
+    /// <inheritdoc />
+    public object GetPayload() => new Payload(Submission, _capture, _collectionStatus, PreviousCollectionStatus);
 
     /// <summary>
     /// Outbox contract for <c>submission.collection_status_changed</c> — adds <c>collectionStatus</c>
@@ -35,8 +36,9 @@ public sealed class SubmissionCollectionStatusChangedEvent(Submission submission
 
         public string? PreviousCollectionStatus { get; init; }
 
-        public Payload(Submission submission, long revision, string collectionStatus, string? previousCollectionStatus)
-            : base(submission, revision)
+        /// <summary>Builds the payload from the submission and the state its event captured when raised.</summary>
+        public Payload(Submission submission, SubmissionEventCapture capture, string collectionStatus, string? previousCollectionStatus)
+            : base(submission, capture)
         {
             CollectionStatus = collectionStatus;
             PreviousCollectionStatus = previousCollectionStatus;

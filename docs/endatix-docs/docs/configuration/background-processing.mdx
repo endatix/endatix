@@ -152,8 +152,10 @@ These integration events flow through the outbox. The `EventType` column is what
 | `form.definition.updated` | - | Active form definition schema changes or a new active definition is published | Reporting: compile export schema |
 | `submission.completed` | `SubmissionCompleted` | A submission is completed (first time) | Reporting: flatten |
 | `submission.collection_status_changed` | `SubmissionCollectionStatusChanged` | A submission is screened out (`screen_out`, `IsComplete` stays false) | - |
-| `submission.updated` | - | A completed submission's answers, metadata, definition, or submitter identity change | Reporting: re-flatten when answers or definition change; Audience: free the personalized link of a submission marked as test |
+| `submission.updated` | - | A completed submission's answers, metadata, definition, or submitter identity change, or any submission is marked as test or real | Reporting: re-flatten when answers or definition change; Audience: free the personalized link of a submission marked as test |
 | `submission.deleted` | - | A submission is deleted on its own. A form's deletion raises `form.deleted` only, not one per submission | Reporting: sync flattened row deletion |
+
+Every `submission.*` payload carries `isTestSubmission`, the submission's test flag when the event was raised. A submission marked as test or real arrives as `submission.updated` with `changeKind` `test` and the new value.
 
 Webhook-mapped events use the same webhook configuration described in the [Webhooks guide](/docs/guides/webhooks): tenant- or form-level endpoints and API key auth. `DeliverToJobQueue` defaults to `false`. Turn it on to deliver each endpoint as its own background job (`Endatix:BackgroundJobs:JobTypes:WebHookDelivery`). Duplicate URLs in one event collapse to one job. A URL that changes after the job is queued ends that job without a call.
 
