@@ -306,11 +306,16 @@ internal sealed class RedeemLinkHandler(
         return redeemed;
     }
 
-    /// <summary>Only the soft-delete filter is lifted; a deleted form still hides its submissions.</summary>
+    /// <summary>
+    /// Deleted on its own: a form's deletion soft-deletes its submissions too, and lifting the soft-delete filter
+    /// lifts the form's, so that case is excluded here and stays refused.
+    /// </summary>
     private Task<bool> IsDeletedAsync(long submissionId, CancellationToken cancellationToken) =>
         app.Submissions
             .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete])
-            .AnyAsync(submission => submission.Id == submissionId && submission.IsDeleted, cancellationToken);
+            .AnyAsync(
+                submission => submission.Id == submissionId && submission.IsDeleted && !submission.Form.IsDeleted,
+                cancellationToken);
 
     private Task<long?> ClaimedIdAsync(long linkId, CancellationToken cancellationToken) =>
         db.Links.AsNoTracking()

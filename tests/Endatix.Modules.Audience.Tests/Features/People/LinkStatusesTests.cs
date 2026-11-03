@@ -35,7 +35,7 @@ public sealed class LinkStatusesTests
     }
 
     [Fact]
-    public void Of_LinkWhoseSubmissionIsGone_IsOpenedWithoutIt()
+    public void Of_LinkWhoseSubmissionIsGoneWithItsForm_IsOpenedWithoutIt()
     {
         LinkStatuses.Of(new LinkClaim(OpenedAt, 7), null).Should().Be(new LinkStatusDto(LinkStatusKind.Opened, OpenedAt));
     }

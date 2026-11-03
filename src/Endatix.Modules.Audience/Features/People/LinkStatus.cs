@@ -74,7 +74,7 @@ internal sealed class LinkStatuses(IAudienceDbContext db, AppDbContext app)
             ({ SubmissionId: null }, _) => LinkStatusDto.Issued,
             (_, { IsTest: true } or { IsDeleted: true }) => LinkStatusDto.Issued,
             (_, not null) => new LinkStatusDto(LinkStatusKind.Opened, link.OpenedAt, submission.Id),
-            _ => new LinkStatusDto(LinkStatusKind.Opened, link.OpenedAt),
+            (_, null) => new LinkStatusDto(LinkStatusKind.Opened, link.OpenedAt),
         };
 
     private Task<Dictionary<long, LinkClaim>> LinksAsync(
@@ -87,7 +87,10 @@ internal sealed class LinkStatuses(IAudienceDbContext db, AppDbContext app)
                 link => new LinkClaim(link.OpenedAt, link.SubmissionId),
                 cancellationToken);
 
-    /// <summary>Only the soft-delete filter is lifted, as in redeem: a deleted submission still frees its link.</summary>
+    /// <summary>
+    /// Only the soft-delete filter is lifted, as in redeem: a deleted submission still frees its link. One deleted with
+    /// its form is left out, so it reads as gone.
+    /// </summary>
     private async Task<Dictionary<long, ClaimedSubmission>> ClaimedSubmissionsAsync(
         IEnumerable<LinkClaim> links,
         CancellationToken cancellationToken)
@@ -103,7 +106,7 @@ internal sealed class LinkStatuses(IAudienceDbContext db, AppDbContext app)
 
         return await app.Submissions.AsNoTracking()
             .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete])
-            .Where(submission => submissionIds.Contains(submission.Id))
+            .Where(submission => submissionIds.Contains(submission.Id) && !submission.Form.IsDeleted)
             .Select(submission => new ClaimedSubmission(submission.Id, submission.IsDeleted, submission.IsTestSubmission))
             .ToDictionaryAsync(submission => submission.Id, cancellationToken);
     }

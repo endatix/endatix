@@ -29,7 +29,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var opened = await RedeemAsync(anonymous, link.FormId, link.Token);
 
         // Assert
-        await AssertNewLiveResponseAsync(world.Services, link.FormId, opened, deletedId);
+        await AssertNewLiveResponseAsync(world.Services, (link.FormId, deletedId), opened);
         await AssertFillsInAsync(anonymous, (link.FormId, IdOf(opened, "submissionId")), SubmissionAccessTokenOf(opened));
     }
 
@@ -49,7 +49,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var reopened = await RedeemAsync(anonymous, link.FormId, token);
 
         // Assert
-        await AssertNewLiveResponseAsync(world.Services, link.FormId, opened, deletedId);
+        await AssertNewLiveResponseAsync(world.Services, (link.FormId, deletedId), opened);
         Assert.False(reopened.GetProperty("created").GetBoolean());
         Assert.Equal(IdOf(opened, "submissionId"), IdOf(reopened, "submissionId"));
     }
@@ -73,24 +73,23 @@ public sealed partial class AudienceDirectoryFlowTests
     /// <summary>The open created a response other than the deleted one, the link names it, and it is the form's only live one.</summary>
     private static async Task AssertNewLiveResponseAsync(
         IServiceProvider services,
-        long formId,
-        JsonElement opened,
-        long deletedId)
+        (long FormId, long DeletedId) form,
+        JsonElement opened)
     {
         var submissionId = IdOf(opened, "submissionId");
         Assert.True(opened.GetProperty("created").GetBoolean());
-        Assert.NotEqual(deletedId, submissionId);
+        Assert.NotEqual(form.DeletedId, submissionId);
 
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var scope = services.CreateAsyncScope();
         var live = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Submissions.AsNoTracking()
             .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
-            .Where(item => item.FormId == formId)
+            .Where(item => item.FormId == form.FormId)
             .Select(item => item.Id)
             .ToListAsync(cancellationToken);
         Assert.Equal([submissionId], live);
         var linked = await scope.ServiceProvider.GetRequiredService<IAudienceDbContext>().Links.AsNoTracking()
-            .Where(item => item.FormId == formId)
+            .Where(item => item.FormId == form.FormId)
             .Select(item => item.SubmissionId)
             .SingleAsync(cancellationToken);
         Assert.Equal(submissionId, linked);
