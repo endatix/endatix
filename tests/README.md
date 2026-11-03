@@ -11,8 +11,10 @@
 ### Run
 
 ```bash
-# PostgreSQL (default) — bare `dotnet test` is safe
-dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release
+# PostgreSQL (default provider). Always pass a filter: Microsoft.Testing.Platform has no
+# project default, so a bare run also starts the Keycloak and SQL Server–only tests.
+dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj -c Release \
+  --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=SqlServer"
 
 # SQL Server (second process; one DB container per `dotnet test`)
 ENDATIX_TEST_DB_PROVIDER=SqlServer \

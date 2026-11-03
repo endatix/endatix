@@ -1,6 +1,4 @@
-using System.Globalization;
 using CsvHelper;
-using CsvHelper.Configuration;
 using Endatix.Modules.Audience.Shared;
 
 namespace Endatix.Modules.Audience.Features.Import;
@@ -12,51 +10,40 @@ internal static class CsvFileParser
 {
     public static CsvFileParseResult Parse(string csvText)
     {
-        HashSet<int> malformedRows = [];
+        HashSet<long> malformedLines = [];
         using StringReader reader = new(csvText);
-        using CsvReader csv = CreateReader(reader, malformedRows);
+        using CsvReader csv = CreateReader(reader, malformedLines);
         if (!TryReadHeaders(csv, out string[] headers))
         {
             return CsvFileParseResult.Invalid("CSV must include a header row.");
         }
 
-        return ReadRows(csv, headers, malformedRows);
+        return ReadRows(csv, headers, malformedLines);
     }
 
     /// <summary>
     /// A stray quote marks its row instead of failing the file: the row is rejected with its
     /// number, and the rest of the file still imports.
     /// </summary>
-    private static CsvReader CreateReader(TextReader reader, HashSet<int> malformedRows) =>
-        new(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+    private static CsvReader CreateReader(TextReader reader, HashSet<long> malformedLines) =>
+        CsvReader.Create(reader, new CsvReaderOptions
         {
-            HasHeaderRecord = true,
-            TrimOptions = TrimOptions.Trim,
-            MissingFieldFound = null,
-            BadDataFound = args =>
-            {
-                if (args.Context.Parser is { } parser)
-                {
-                    malformedRows.Add(parser.Row);
-                }
-            },
+            Separator = ',',
+            TrimWhitespace = true,
+            TrackLineNumbers = true,
+            OnMalformedRecord = record => malformedLines.Add(record.LineNumber),
         });
 
     private static bool TryReadHeaders(CsvReader csv, out string[] headers)
     {
-        headers = [];
-        if (!csv.Read() || !csv.ReadHeader() || csv.HeaderRecord is null)
-        {
-            return false;
-        }
-
-        headers = csv.HeaderRecord;
-        return true;
+        headers = csv.Headers.Count == 0 ? [] : [.. csv.Headers];
+        return headers.Length > 0;
     }
 
-    private static CsvFileParseResult ReadRows(CsvReader csv, string[] headers, HashSet<int> malformedRows)
+    private static CsvFileParseResult ReadRows(CsvReader csv, string[] headers, HashSet<long> malformedLines)
     {
         List<CsvDataRow> rows = [];
+        long newlinesInsideQuotes = 0;
         while (csv.Read())
         {
             if (rows.Count >= ImportLimits.MaxRows)
@@ -65,11 +52,28 @@ internal static class CsvFileParser
                     $"CSV exceeds the maximum of {ImportLimits.MaxRows} data rows.");
             }
 
-            int row = csv.Parser.Row;
-            rows.Add(new CsvDataRow(row, ReadCells(csv, headers), malformedRows.Contains(row)));
+            // LineNumber counts every physical line. A quoted cell that spans lines is still one
+            // spreadsheet row, so those inner newlines are not part of the row number.
+            int row = checked((int)(csv.LineNumber - newlinesInsideQuotes));
+            newlinesInsideQuotes += NewlinesInside(csv.RawRecord);
+            rows.Add(new CsvDataRow(row, ReadCells(csv, headers), malformedLines.Contains(csv.LineNumber)));
         }
 
         return CsvFileParseResult.Ok(headers, rows);
+    }
+
+    private static int NewlinesInside(ReadOnlySpan<byte> rawRecord)
+    {
+        int count = 0;
+        foreach (byte b in rawRecord)
+        {
+            if (b == '\n')
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     private static IReadOnlyDictionary<string, string> ReadCells(CsvReader csv, string[] headers)
@@ -77,7 +81,7 @@ internal static class CsvFileParser
         Dictionary<string, string> row = new(StringComparer.OrdinalIgnoreCase);
         foreach (string header in headers)
         {
-            row[header] = csv.GetField(header) ?? string.Empty;
+            row[header] = csv.GetString(header);
         }
 
         return row;

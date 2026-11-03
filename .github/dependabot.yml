@@ -26,6 +26,10 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      # FluentAssertions 8+ is under a commercial license; stay on 7.x.
+      - dependency-name: "FluentAssertions"
+        update-types: ["version-update:semver-major"]
     groups:
       microsoft-runtime:
         applies-to: version-updates
@@ -36,14 +40,12 @@ updates:
           - "System.*"
         # Versioned independently of the runtime, or test tooling (see test-deps).
         exclude-patterns:
-          - "Microsoft.NET.Test.Sdk"
           - "Microsoft.ApplicationInsights*"
           - "Microsoft.FeatureManagement*"
           - "Microsoft.Data.SqlClient"
       test-deps:
         applies-to: version-updates
         patterns:
-          - "Microsoft.NET.Test.Sdk"
           - "xunit*"
           - "NSubstitute*"
           - "FluentAssertions*"

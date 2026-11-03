@@ -61,6 +61,8 @@ Thumbs.db
 .coverage/
 .secrets
 .coverage-test/
+# `dotnet test` without --results-directory writes coverage next to each test project
+TestResults/
 
 # Rider/ReSharper per-developer editor state
 *.DotSettings.user
