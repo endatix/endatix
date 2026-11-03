@@ -26,6 +26,10 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      # FluentAssertions 8+ is under a commercial license; stay on 7.x.
+      - dependency-name: "FluentAssertions"
+        update-types: ["version-update:semver-major"]
     groups:
       microsoft-runtime:
         applies-to: version-updates
