@@ -1,8 +1,6 @@
-using System.Globalization;
 using System.IO.Pipelines;
 using Ardalis.GuardClauses;
 using CsvHelper;
-using CsvHelper.Configuration;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -34,7 +32,7 @@ public class SubmissionCsvExporter(
         {
             using var stream = writer.AsStream();
             using var streamWriter = new StreamWriter(stream, leaveOpen: true);
-            using var csv = new CsvWriter(streamWriter, new CsvConfiguration(CultureInfo.InvariantCulture));
+            using var csv = CsvWriter.Create(streamWriter);
 
             SubmissionExportRow? firstRow = null;
             var headerWritten = false;
@@ -52,7 +50,7 @@ public class SubmissionCsvExporter(
                         {
                             csv.WriteField(col.Name);
                         }
-                        await csv.NextRecordAsync();
+                        await csv.EndRecordAsync();
                         headerWritten = true;
                     }
 
@@ -71,7 +69,7 @@ public class SubmissionCsvExporter(
                             csv.WriteField(MissingValue(options));
                         }
                     }
-                    await csv.NextRecordAsync();
+                    await csv.EndRecordAsync();
                 }
             }
 
