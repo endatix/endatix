@@ -253,11 +253,13 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         Metadata = content.Metadata;
     }
 
+    /// <summary>Sets the token a respondent resumes the submission with.</summary>
     public void UpdateToken(Token token)
     {
         Token = token;
     }
 
+    /// <summary>Sets the reviewer status. A change raises <c>submission.status_changed</c> with one revision bump.</summary>
     public void UpdateStatus(SubmissionStatus newStatus)
     {
         Guard.Against.Null(newStatus);
