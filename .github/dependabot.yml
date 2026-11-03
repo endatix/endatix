@@ -2,13 +2,27 @@ version: 2
 updates:
   # Keeps GitHub Actions references (including the SHA-pinned
   # endatix/release-workflows reusable workflows) up to date via PRs.
+  # "/" covers .github/workflows; composite actions are not scanned unless listed
+  # (this repo has none under .github/actions yet).
   - package-ecosystem: github-actions
     labels: ["dependencies"]
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Sofia
+    cooldown:
+      default-days: 2
+    commit-message:
+      prefix: chore
+      include: scope
     groups:
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
       github-actions:
+        applies-to: version-updates
         patterns: ["*"]
 
   # NuGet via Central Package Management (Directory.Packages.props at repo root).
@@ -23,6 +37,10 @@ updates:
       time: "06:00"
       timezone: Europe/Sofia
     open-pull-requests-limit: 5
+    # Hold version updates for two days so a release that gets yanked or
+    # compromised soon after publishing is never proposed (security updates skip this).
+    cooldown:
+      default-days: 2
     commit-message:
       prefix: chore
       include: scope
@@ -97,3 +115,27 @@ updates:
         patterns: ["*"]
         # Still 0.x: a minor bump can rename or drop icons, so it gets its own PR.
         exclude-patterns: ["lucide-react"]
+
+  # WebHost container image (mcr.microsoft.com/dotnet/sdk and aspnet). The tags
+  # float on 10.0, so patches arrive through the image itself; this entry only
+  # flags a tag change. A new .NET is a deliberate change, so majors are ignored.
+  - package-ecosystem: docker
+    directory: /src/Endatix.WebHost
+    labels: ["dependencies"]
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Sofia
+    cooldown:
+      default-days: 2
+    commit-message:
+      prefix: chore
+      include: scope
+    ignore:
+      - dependency-name: "dotnet/*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      docker-security:
+        applies-to: security-updates
+        patterns: ["*"]
