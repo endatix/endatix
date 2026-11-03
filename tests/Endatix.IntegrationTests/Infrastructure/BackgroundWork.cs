@@ -17,8 +17,6 @@ internal sealed class BackgroundWork(IServiceProvider services, OutboxRelaySwitc
     // Not the relay's own instance id, so a lease this delivery takes is never mistaken for one of the relay's.
     private const string DeliveringInstance = "integration-test-delivery";
 
-    private static readonly TimeSpan GiveBackHeadStart = TimeSpan.FromSeconds(1);
-
     /// <summary>The background work of the host <paramref name="hostServices"/> belongs to.</summary>
     public static BackgroundWork Of(IServiceProvider hostServices) => hostServices.GetRequiredService<BackgroundWork>();
 
@@ -133,7 +131,7 @@ internal sealed class BackgroundWork(IServiceProvider services, OutboxRelaySwitc
         IEnumerable<IOutboxMessage> messages,
         Exception deliveryFailure)
     {
-        var due = DateTimeOffset.UtcNow - GiveBackHeadStart;
+        var due = DateTimeOffset.UtcNow.AddSeconds(-1);
         foreach (var message in messages)
         {
             try
