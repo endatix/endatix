@@ -5,7 +5,7 @@ using System.Net.Sockets;
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
 /// <summary>
-/// A local HTTP endpoint that records every webhook POST it receives and answers with the status configured for
+/// A local HTTP endpoint that records every webhook POST it receives, with its body, and answers with the status configured for
 /// its path.
 /// </summary>
 internal sealed class StubWebHookReceiver : IAsyncDisposable
@@ -65,7 +65,8 @@ internal sealed class StubWebHookReceiver : IAsyncDisposable
             }
 
             var path = context.Request.Url!.AbsolutePath.Trim('/');
-            _received.Enqueue(new ReceivedWebHook(path, context.Request.Headers["X-Endatix-Hook-Id"]));
+            using var body = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            _received.Enqueue(new ReceivedWebHook(path, context.Request.Headers["X-Endatix-Hook-Id"], await body.ReadToEndAsync()));
             context.Response.StatusCode = (int)_statuses.GetValueOrDefault(path, HttpStatusCode.OK);
             context.Response.Close();
         }
@@ -79,4 +80,4 @@ internal sealed class StubWebHookReceiver : IAsyncDisposable
     }
 }
 
-internal sealed record ReceivedWebHook(string Path, string? HookId);
+internal sealed record ReceivedWebHook(string Path, string? HookId, string Body);

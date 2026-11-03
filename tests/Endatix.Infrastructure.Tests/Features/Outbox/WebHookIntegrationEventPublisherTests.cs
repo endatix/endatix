@@ -96,6 +96,38 @@ public class WebHookIntegrationEventPublisherTests
     }
 
     [Fact]
+    public async Task Submission_webhook_delivers_the_captured_isTestSubmission()
+    {
+        // Arrange
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 42,
+            FormId: 555,
+            FormDefinitionId: 1,
+            JsonData: "{}",
+            IsComplete: true,
+            IsTestSubmission: true));
+        submission.Id = 77;
+        var captured = new OutboxIntegrationEventDispatcher().Capture([submission]).Single();
+        var message = new FakeOutboxMessage(Id: 3, EventType: captured.EventType, Payload: captured.Payload, TenantId: 42);
+        string? delivered = null;
+        _webHooks.DeliverWebHookAsync(42L, Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), 555L)
+            .Returns(call =>
+            {
+                // The handler disposes the payload document after delivery, so read it during the call.
+                delivered = call.Arg<WebHookMessage<JsonElement>>().payload.GetRawText();
+                return true;
+            });
+
+        // Act
+        await CreateSut().HandleAsync(message, CancellationToken.None);
+
+        // Assert
+        using var payload = JsonDocument.Parse(delivered!);
+        payload.RootElement.GetProperty("isTestSubmission").GetBoolean().Should().BeTrue();
+        payload.RootElement.GetProperty("submissionId").GetString().Should().Be("77");
+    }
+
+    [Fact]
     public async Task Unmapped_event_type_is_skipped_and_not_delivered()
     {
         // Arrange

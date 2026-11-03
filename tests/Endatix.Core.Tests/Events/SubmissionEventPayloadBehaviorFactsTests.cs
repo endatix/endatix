@@ -33,7 +33,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
         Submission submission = CreateCompleteSubmission();
         submission.Id = 501;
 
-        SubmissionCompletedEvent.Payload payload = new(submission, revision: 2);
+        SubmissionCompletedEvent.Payload payload = new(submission, new SubmissionEventCapture(Revision: 2, IsTestSubmission: false));
 
         payload.SubmissionId.Should().Be(501);
         payload.FormId.Should().Be(100);
@@ -58,7 +58,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
 
         SubmissionUpdatedEvent.Payload payload = new(
             submission,
-            revision: 3,
+            new SubmissionEventCapture(Revision: 3, IsTestSubmission: false),
             SubmissionChangeKinds.Answers | SubmissionChangeKinds.Metadata);
 
         payload.Should().BeAssignableTo<SubmissionCompletedEvent.Payload>();
@@ -71,7 +71,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
     {
         Submission submission = CreateCompleteSubmission();
 
-        SubmissionStatusChangedEvent.Payload payload = new(submission, revision: 4, SubmissionStatus.New);
+        SubmissionStatusChangedEvent.Payload payload = new(submission, new SubmissionEventCapture(Revision: 4, IsTestSubmission: false), SubmissionStatus.New);
 
         payload.Should().BeAssignableTo<SubmissionCompletedEvent.Payload>();
         payload.PreviousStatus.Should().Be("new");
@@ -141,7 +141,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
 
         object[] payloads =
         [
-            new SubmissionCompletedEvent.Payload(submission, revision: 2),
+            new SubmissionCompletedEvent.Payload(submission, new SubmissionEventCapture(Revision: 2, IsTestSubmission: false)),
             submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single().GetPayload(),
             submission.DomainEvents.OfType<SubmissionStatusChangedEvent>().Single().GetPayload(),
         ];
@@ -161,7 +161,7 @@ public class SubmissionEventPayloadBehaviorFactsTests
     public void SubmissionUpdatedEvent_Payload_WireJson_RoundTripsSuccessfully()
     {
         Submission submission = CreateCompleteSubmission();
-        SubmissionUpdatedEvent.Payload original = new(submission, revision: 5, SubmissionChangeKinds.Definition);
+        SubmissionUpdatedEvent.Payload original = new(submission, new SubmissionEventCapture(Revision: 5, IsTestSubmission: false), SubmissionChangeKinds.Definition);
         string wireJson = JsonSerializer.Serialize(original, original.GetType(), WireOptions);
 
         wireJson.Should().Contain("\"changeKind\":\"definition\"");

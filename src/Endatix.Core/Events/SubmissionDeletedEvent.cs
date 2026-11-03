@@ -14,7 +14,10 @@ public sealed class SubmissionDeletedEvent(Submission submission) : DomainEventB
 
     public string EventType => EventTypeName;
 
-    public object GetPayload() => new Payload(Submission);
+    private readonly SubmissionEventCapture _capture = SubmissionEventCapture.Of(submission);
+
+    /// <inheritdoc />
+    public object GetPayload() => new Payload(Submission, _capture);
 
     /// <summary>Outbox contract for <c>submission.deleted</c>.</summary>
     public sealed record Payload
@@ -25,11 +28,16 @@ public sealed class SubmissionDeletedEvent(Submission submission) : DomainEventB
 
         public long TenantId { get; init; }
 
-        public Payload(Submission submission)
+        /// <summary>Whether the submission was a test when the event was raised.</summary>
+        public bool IsTestSubmission { get; init; }
+
+        /// <summary>Builds the payload from the submission and the test flag its event captured when raised.</summary>
+        public Payload(Submission submission, SubmissionEventCapture capture)
         {
             SubmissionId = submission.Id;
             FormId = submission.FormId;
             TenantId = submission.TenantId;
+            IsTestSubmission = capture.IsTestSubmission;
         }
     }
 }

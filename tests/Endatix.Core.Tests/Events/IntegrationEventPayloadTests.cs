@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Infrastructure.Domain;
 using FluentAssertions;
 
 namespace Endatix.Core.Tests.Events;
@@ -218,5 +219,114 @@ public class IntegrationEventPayloadTests
         json.GetProperty("previousStatus").GetString().Should().Be("new");
         json.GetProperty("status").GetString().Should().Be("approved");
         json.GetProperty("revision").GetInt64().Should().BeGreaterThan(1);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Every_submission_event_carries_isTestSubmission(bool isTestSubmission)
+    {
+        // Arrange
+        var screenedOut = CreateSubmission(isComplete: false, isTestSubmission);
+        screenedOut.ScreenOut();
+        var completed = CreateSubmission(isComplete: true, isTestSubmission);
+        completed.UpdateStatus(SubmissionStatus.Approved);
+        completed.Update("""{"a":2}""", 200, formDefinitionFormId: 100, isComplete: true, metadata: null);
+        completed.Delete();
+
+        // Act
+        var payloads = screenedOut.DomainEvents.Concat(completed.DomainEvents)
+            .OfType<IIntegrationEvent>()
+            .ToDictionary(evt => evt.EventType, evt => Payload(evt.GetPayload()));
+
+        // Assert
+        payloads.Keys.Should().BeEquivalentTo(
+            "submission.collection_status_changed",
+            "submission.completed",
+            "submission.status_changed",
+            "submission.updated",
+            "submission.deleted");
+        payloads.Values.Should().OnlyContain(json => json.GetProperty("isTestSubmission").GetBoolean() == isTestSubmission);
+    }
+
+    [Fact]
+    public void Marking_as_test_raises_updated_with_isTestSubmission_true()
+    {
+        // Arrange
+        var submission = CreateSubmission(isComplete: true, isTestSubmission: false);
+        submission.ClearDomainEvents();
+
+        // Act
+        submission.MarkAsTest();
+
+        // Assert
+        var updated = submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single();
+        var json = Payload(updated.GetPayload());
+        updated.EventType.Should().Be("submission.updated");
+        json.GetProperty("changeKind").GetString().Should().Be("test");
+        json.GetProperty("isTestSubmission").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public void Marking_as_real_raises_updated_with_isTestSubmission_false()
+    {
+        // Arrange
+        var submission = CreateSubmission(isComplete: true, isTestSubmission: true);
+        submission.ClearDomainEvents();
+
+        // Act
+        submission.MarkAsReal(enforceSingleSubmissionGate: false);
+
+        // Assert
+        var json = Payload(submission.DomainEvents.OfType<SubmissionUpdatedEvent>().Single().GetPayload());
+        json.GetProperty("changeKind").GetString().Should().Be("test");
+        json.GetProperty("isTestSubmission").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public void Events_queued_in_one_transaction_keep_the_test_flag_they_were_raised_with()
+    {
+        // Arrange
+        var submission = CreateSubmission(isComplete: true, isTestSubmission: false);
+        submission.ClearDomainEvents();
+
+        // Act
+        submission.MarkAsTest();
+        submission.MarkAsReal(enforceSingleSubmissionGate: false);
+
+        // Assert
+        submission.DomainEvents.OfType<SubmissionUpdatedEvent>()
+            .Select(evt => Payload(evt.GetPayload()).GetProperty("isTestSubmission").GetBoolean())
+            .Should().Equal(true, false);
+    }
+
+    [Fact]
+    public void Base_payload_keeps_the_test_flag_it_was_raised_with()
+    {
+        // Arrange
+        var submission = CreateSubmission(isComplete: true, isTestSubmission: false);
+
+        // Act
+        submission.MarkAsTest();
+        submission.Delete();
+
+        // Assert
+        Payload(submission.DomainEvents.OfType<SubmissionCompletedEvent>().Single().GetPayload())
+            .GetProperty("isTestSubmission").GetBoolean().Should().BeFalse();
+        Payload(submission.DomainEvents.OfType<SubmissionDeletedEvent>().Single().GetPayload())
+            .GetProperty("isTestSubmission").GetBoolean().Should().BeTrue();
+    }
+
+    private static Submission CreateSubmission(bool isComplete, bool isTestSubmission)
+    {
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: 100,
+            FormDefinitionId: 200,
+            JsonData: """{"a":1}""",
+            IsComplete: isComplete,
+            IsTestSubmission: isTestSubmission));
+        submission.Id = 501;
+        return submission;
     }
 }

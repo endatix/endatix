@@ -16,10 +16,10 @@ public sealed class SubmissionCompletedEvent(Submission submission) : DomainEven
     /// <inheritdoc />
     public string EventType => EventTypeName;
 
-    private readonly long _revision = submission.Revision;
+    private readonly SubmissionEventCapture _capture = SubmissionEventCapture.Of(submission);
 
     /// <inheritdoc />
-    public object GetPayload() => new Payload(Submission, _revision);
+    public object GetPayload() => new Payload(Submission, _capture);
 
     /// <summary>
     /// Base outbox/webhook contract for submission integration events.
@@ -59,11 +59,15 @@ public sealed class SubmissionCompletedEvent(Submission submission) : DomainEven
 
         public long Revision { get; init; }
 
+        /// <summary>Whether the submission was a test when the event was raised.</summary>
+        public bool IsTestSubmission { get; init; }
+
         protected Payload()
         {
         }
 
-        public Payload(Submission submission, long revision)
+        /// <summary>Builds the payload from the submission and the state its event captured when raised.</summary>
+        public Payload(Submission submission, SubmissionEventCapture capture)
         {
             SubmissionId = submission.Id;
             FormId = submission.FormId;
@@ -80,7 +84,8 @@ public sealed class SubmissionCompletedEvent(Submission submission) : DomainEven
             ModifiedAt = submission.ModifiedAt;
             StartedAt = submission.StartedAt;
             CompletedAt = submission.CompletedAt;
-            Revision = revision;
+            Revision = capture.Revision;
+            IsTestSubmission = capture.IsTestSubmission;
         }
     }
 }

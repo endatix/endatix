@@ -140,6 +140,32 @@ public class OutboxIntegrationEventDispatcherTests
         ]);
     }
 
+    [Fact]
+    public void Capture_SubmissionEvents_StoreIsTestSubmissionAsABooleanBesideTheExistingFields()
+    {
+        // Arrange
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 7,
+            FormId: 10,
+            FormDefinitionId: 99,
+            JsonData: "{}",
+            IsComplete: true,
+            IsTestSubmission: true));
+        submission.Id = 501;
+        submission.Delete();
+
+        // Act
+        var messages = _sut.Capture([submission]);
+
+        // Assert
+        messages.Select(m => m.EventType).Should().Equal("submission.completed", "submission.deleted");
+        messages.Should().OnlyContain(m =>
+            m.Payload.Contains("\"isTestSubmission\":true")
+            && m.Payload.Contains("\"submissionId\":\"501\"")
+            && m.Payload.Contains("\"formId\":\"10\"")
+            && m.Payload.Contains("\"tenantId\":\"7\""));
+    }
+
     private sealed record TestPayload(long FormId, string Name);
 
     private sealed class TestIntegrationEvent(long formId, string name) : DomainEventBase, IIntegrationEvent

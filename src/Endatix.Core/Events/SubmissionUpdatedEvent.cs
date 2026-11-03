@@ -16,19 +16,21 @@ public sealed class SubmissionUpdatedEvent(Submission submission, SubmissionChan
 
     public SubmissionChangeKinds ChangeKind { get; } = changeKind;
 
-    private readonly long _revision = submission.Revision;
+    private readonly SubmissionEventCapture _capture = SubmissionEventCapture.Of(submission);
 
     public string EventType => EventTypeName;
 
-    public object GetPayload() => new Payload(Submission, _revision, ChangeKind);
+    /// <inheritdoc />
+    public object GetPayload() => new Payload(Submission, _capture, ChangeKind);
 
     /// <summary>Outbox contract for <c>submission.updated</c> — adds <c>changeKind</c>.</summary>
     public sealed record Payload : SubmissionCompletedEvent.Payload
     {
         public string ChangeKind { get; init; } = null!;
 
-        public Payload(Submission submission, long revision, SubmissionChangeKinds changeKind)
-            : base(submission, revision)
+        /// <summary>Builds the payload from the submission and the state its event captured when raised.</summary>
+        public Payload(Submission submission, SubmissionEventCapture capture, SubmissionChangeKinds changeKind)
+            : base(submission, capture)
         {
             ChangeKind = changeKind.ToWireValue();
         }
