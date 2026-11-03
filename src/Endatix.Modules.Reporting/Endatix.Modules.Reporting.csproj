@@ -24,7 +24,6 @@
     <PackageReference Include="FastEndpoints" />
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
     <!-- GHSA-w3x6-4m5h-cxqf: pins transitive 9.0.0 from EF Design; design-time only (PrivateAssets). -->
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="System.Security.Cryptography.Xml">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

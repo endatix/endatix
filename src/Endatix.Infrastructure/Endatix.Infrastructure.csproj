@@ -39,7 +39,6 @@
 		<PackageReference Include="Endatix.Outbox.Engine" />
 		<PackageReference Include="OpenFeature" />
 		<PackageReference Include="OpenFeature.Hosting" />
-		<PackageReference Include="System.IdentityModel.Tokens.Jwt" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="../Endatix.Core/Endatix.Core.csproj" />

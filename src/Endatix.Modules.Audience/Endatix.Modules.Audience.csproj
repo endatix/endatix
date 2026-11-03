@@ -27,7 +27,6 @@
     <PackageReference Include="FastEndpoints" />
     <PackageReference Include="Ardalis.GuardClauses" />
     <PackageReference Include="MediatR" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="System.Security.Cryptography.Xml">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
