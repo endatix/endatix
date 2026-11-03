@@ -9,13 +9,15 @@ namespace Endatix.Core.Entities;
 /// <param name="FormDefinitionId">Form definition version used for the submission.</param>
 /// <param name="JsonData">Submission answer payload JSON.</param>
 /// <param name="IsComplete">Whether the submission is complete on create.</param>
-/// <param name="CurrentPage">Current page index when incomplete; optional.</param>
+/// <param name="CurrentPage">Current page index; optional. Stored as given, also for a complete submission.</param>
 /// <param name="Metadata">Optional metadata JSON.</param>
 /// <param name="SubmitterId">Optional linked submitter id.</param>
 /// <param name="SubmitterDisplayId">Optional display id for the submitter.</param>
 /// <param name="SubmitterProfileSnapshot">Optional frozen submitter profile JSON.</param>
 /// <param name="IsTestSubmission">Marks the submission as a test submission.</param>
-/// <param name="EnforceSingleSubmissionGate">When true, enforces single-submission rules on create.</param>
+/// <param name="EnforceSingleSubmissionGate">
+/// When true, enforces single-submission rules on create. Ignored for a test submission.
+/// </param>
 /// <param name="StartSubmission">
 /// When true, stamps <see cref="Submission.StartedAt"/> on create (respondent <c>Create</c> path).
 /// Leave false for prefill / create-on-behalf so start remains null until first engagement update.

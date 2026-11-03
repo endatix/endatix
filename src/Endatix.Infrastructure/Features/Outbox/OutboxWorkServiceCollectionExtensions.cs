@@ -13,7 +13,9 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// </summary>
 public static class OutboxWorkServiceCollectionExtensions
 {
-    /// <summary>The retry policy of one short outbox update, used when a call omits job defaults.</summary>
+    /// <summary>
+    /// The retry policy of one short outbox update, used when <see cref="AddOutboxWork{TWork}"/> gets no defaults.
+    /// </summary>
     public static BackgroundJobTypeDefaults DefaultJob { get; } = new()
     {
         MaxAttempts = 5,
