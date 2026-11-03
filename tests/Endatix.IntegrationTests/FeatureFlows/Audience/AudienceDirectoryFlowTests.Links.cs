@@ -130,7 +130,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Opening_a_link_whose_submission_was_deleted_is_not_found()
+    public async Task Opening_a_link_whose_submission_was_deleted_opens_a_new_one()
     {
         // Arrange
         var world = await WorldAsync();
@@ -141,11 +141,10 @@ public sealed partial class AudienceDirectoryFlowTests
         await DeleteSubmissionAsync(world.Services, IdOf(opened, "submissionId"));
 
         // Act
-        using var again = await anonymous.PostAsJsonAsync(
-            RedeemUrl(formId, token), new { }, admin.CancellationToken);
+        var again = await RedeemAsync(anonymous, formId, token);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+        await AssertNewLiveResponseAsync(world.Services, formId, again, IdOf(opened, "submissionId"));
     }
 
     /// <summary>

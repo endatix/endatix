@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// Each person's Link status on the people list and the update response: none, issued, or opened with the submission
-/// while it is live, read in a fixed number of statements per page.
+/// while it is live, read in a fixed number of statements per page. A link whose submission was deleted reads issued.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
@@ -41,9 +41,9 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal("opened", StatusOf(links["opened@example.com"]));
         Assert.Equal(mix.OpenedSubmissionId, IdOf(links["opened@example.com"], "submissionId"));
         Assert.True(links["opened@example.com"].TryGetProperty("openedAt", out _));
-        Assert.Equal("opened", StatusOf(links["deleted@example.com"]));
+        Assert.Equal("issued", StatusOf(links["deleted@example.com"]));
         Assert.False(links["deleted@example.com"].TryGetProperty("submissionId", out _));
-        Assert.True(links["deleted@example.com"].TryGetProperty("openedAt", out _));
+        Assert.False(links["deleted@example.com"].TryGetProperty("openedAt", out _));
         Assert.False(links["issued@example.com"].TryGetProperty("openedAt", out _));
     }
 

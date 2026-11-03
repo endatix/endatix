@@ -10,7 +10,7 @@ public enum LinkStatusKind
     /// <summary>No link: never issued, or a test participant, who is never issued one.</summary>
     None,
 
-    /// <summary>Issued and not opened, or freed again because the submission it opened was marked as test.</summary>
+    /// <summary>Issued and not opened, or freed again because the submission it opened was marked as test or deleted.</summary>
     Issued,
 
     /// <summary>Opened a submission.</summary>
@@ -19,7 +19,7 @@ public enum LinkStatusKind
 
 /// <summary>
 /// A participant's Link status. <see cref="SubmissionId"/> is the submission the link opened while it is live; an
-/// opened link whose submission was deleted keeps <see cref="LinkStatusKind.Opened"/> without it.
+/// opened link whose submission is gone with its form keeps <see cref="LinkStatusKind.Opened"/> without it.
 /// </summary>
 public sealed record LinkStatusDto(LinkStatusKind Status, DateTime? OpenedAt = null, long? SubmissionId = null)
 {
@@ -63,17 +63,17 @@ internal sealed class LinkStatuses(IAudienceDbContext db, AppDbContext app)
         Of(link, link?.SubmissionId is long submissionId ? submissions.GetValueOrDefault(submissionId) : null);
 
     /// <summary>
-    /// A claim on a submission marked as test, deleted or not, is stale: redeem clears it and opens afresh, so the
-    /// link reads <see cref="LinkStatusKind.Issued"/> before the outbox gets there. A deleted real response, or one
-    /// that is gone, still holds the link: redeem refuses it.
+    /// A claim on a submission marked as test, or on a deleted one, is stale: redeem clears it and opens afresh, so
+    /// the link reads <see cref="LinkStatusKind.Issued"/> before the outbox gets there. A submission that is gone with
+    /// its form still holds the link: redeem refuses it.
     /// </summary>
     internal static LinkStatusDto Of(LinkClaim? link, ClaimedSubmission? submission) =>
         (link, submission) switch
         {
             (null, _) => LinkStatusDto.None,
             ({ SubmissionId: null }, _) => LinkStatusDto.Issued,
-            (_, { IsTest: true }) => LinkStatusDto.Issued,
-            (_, { IsDeleted: false }) => new LinkStatusDto(LinkStatusKind.Opened, link.OpenedAt, submission.Id),
+            (_, { IsTest: true } or { IsDeleted: true }) => LinkStatusDto.Issued,
+            (_, not null) => new LinkStatusDto(LinkStatusKind.Opened, link.OpenedAt, submission.Id),
             _ => new LinkStatusDto(LinkStatusKind.Opened, link.OpenedAt),
         };
 
@@ -87,7 +87,7 @@ internal sealed class LinkStatuses(IAudienceDbContext db, AppDbContext app)
                 link => new LinkClaim(link.OpenedAt, link.SubmissionId),
                 cancellationToken);
 
-    /// <summary>Only the soft-delete filter is lifted, as in redeem: a deleted test still frees its link.</summary>
+    /// <summary>Only the soft-delete filter is lifted, as in redeem: a deleted submission still frees its link.</summary>
     private async Task<Dictionary<long, ClaimedSubmission>> ClaimedSubmissionsAsync(
         IEnumerable<LinkClaim> links,
         CancellationToken cancellationToken)

@@ -115,8 +115,8 @@ internal sealed class RedeemLinkHandler(
 
     /// <summary>
     /// The lock covers only what must not interleave; resuming a claimed link never waits. A claim on a submission
-    /// marked as test, deleted or not, is no longer the person's: it is cleared here, without waiting for the outbox,
-    /// and the link opens afresh, so the person never resumes a test submission or meets a dead link.
+    /// marked as test, or on a deleted one, is no longer the person's: it is cleared here, without waiting for the
+    /// outbox, and the link opens afresh, so the person never resumes a test submission or meets a dead link.
     /// </summary>
     private async Task<Result<OpenedLink>> OpenOrResumeAsync(
         AudienceLink link,
@@ -269,7 +269,7 @@ internal sealed class RedeemLinkHandler(
     /// <summary>
     /// A link claimed before tokens were issued under the lock can name a submission without one. Its first
     /// token is issued under the lock, so parallel opens do not each write their own. <see langword="null"/> when the
-    /// claim is stale: the submission is a test, live or deleted. A deleted real response keeps the link refused.
+    /// claim is stale: the submission is a test or was deleted.
     /// </summary>
     private async Task<Result<OpenedLink>?> ResumeAsync(
         long linkId,
@@ -277,7 +277,7 @@ internal sealed class RedeemLinkHandler(
         CancellationToken cancellationToken)
     {
         var state = await submissions.FirstOrDefaultAsync(new SubmissionResumeSpec(submissionId), cancellationToken);
-        if (state is null && !await IsDeletedTestAsync(submissionId, cancellationToken))
+        if (state is null && !await IsDeletedAsync(submissionId, cancellationToken))
         {
             return Result.NotFound(LinkNotFound);
         }
@@ -307,12 +307,10 @@ internal sealed class RedeemLinkHandler(
     }
 
     /// <summary>Only the soft-delete filter is lifted; a deleted form still hides its submissions.</summary>
-    private Task<bool> IsDeletedTestAsync(long submissionId, CancellationToken cancellationToken) =>
+    private Task<bool> IsDeletedAsync(long submissionId, CancellationToken cancellationToken) =>
         app.Submissions
             .IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete])
-            .AnyAsync(
-                submission => submission.Id == submissionId && submission.IsDeleted && submission.IsTestSubmission,
-                cancellationToken);
+            .AnyAsync(submission => submission.Id == submissionId && submission.IsDeleted, cancellationToken);
 
     private Task<long?> ClaimedIdAsync(long linkId, CancellationToken cancellationToken) =>
         db.Links.AsNoTracking()
