@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json;
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.WebHooks;
@@ -139,7 +140,8 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
             IsComplete: true,
             IsTestSubmission: true));
         submission.Id = 77;
-        var captured = new OutboxIntegrationEventDispatcher().Capture([submission]).Single();
+        var captured = new OutboxIntegrationEventDispatcher().Capture([submission])
+            .Single(row => row.EventType == SubmissionCompletedEvent.EventTypeName);
 
         // Act
         await host.InsertMessageAsync(new OutboxRow(504, captured.EventType, tenantId, captured.Payload), ct);
