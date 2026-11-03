@@ -27,15 +27,15 @@ public sealed class LinkStatusesTests
     }
 
     [Fact]
-    public void Of_LinkWhoseSubmissionWasDeleted_IsOpenedWithoutIt()
+    public void Of_LinkWhoseSubmissionWasDeleted_IsIssued()
     {
         var status = LinkStatuses.Of(new LinkClaim(OpenedAt, 7), new ClaimedSubmission(7, IsDeleted: true, IsTest: false));
 
-        status.Should().Be(new LinkStatusDto(LinkStatusKind.Opened, OpenedAt));
+        status.Should().Be(new LinkStatusDto(LinkStatusKind.Issued));
     }
 
     [Fact]
-    public void Of_LinkWhoseSubmissionIsGone_IsOpenedWithoutIt()
+    public void Of_LinkWhoseSubmissionIsGoneWithItsForm_IsOpenedWithoutIt()
     {
         LinkStatuses.Of(new LinkClaim(OpenedAt, 7), null).Should().Be(new LinkStatusDto(LinkStatusKind.Opened, OpenedAt));
     }

@@ -130,7 +130,7 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Opening_a_link_whose_submission_was_deleted_is_not_found()
+    public async Task Opening_a_link_whose_submission_was_deleted_opens_a_new_one()
     {
         // Arrange
         var world = await WorldAsync();
@@ -141,11 +141,10 @@ public sealed partial class AudienceDirectoryFlowTests
         await DeleteSubmissionAsync(world.Services, IdOf(opened, "submissionId"));
 
         // Act
-        using var again = await anonymous.PostAsJsonAsync(
-            RedeemUrl(formId, token), new { }, admin.CancellationToken);
+        var again = await RedeemAsync(anonymous, formId, token);
 
         // Assert
-        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+        await AssertNewLiveResponseAsync(world.Services, (formId, IdOf(opened, "submissionId")), again);
     }
 
     /// <summary>
@@ -169,6 +168,36 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+    }
+
+    /// <summary>
+    /// A form delete soft-deletes the form's submissions too. Such a submission is not one an editor deleted, so the
+    /// open is refused and the link keeps its claim.
+    /// </summary>
+    [Fact]
+    public async Task Opening_a_link_whose_form_was_deleted_is_not_found_and_keeps_its_claim()
+    {
+        // Arrange
+        var world = await WorldAsync();
+        var admin = await AsAsync(world, TestPersona.TenantAdmin);
+        (var formId, var token) = await LinkForPersonWithCityAsync(admin, "Medina");
+        using var anonymous = world.AnonymousClient();
+        var submissionId = IdOf(await RedeemAsync(anonymous, formId, token), "submissionId");
+        using var deleted = await admin.Client.DeleteAsync($"/api/forms/{formId}", admin.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
+
+        // Act
+        using var again = await anonymous.PostAsJsonAsync(
+            RedeemUrl(formId, token), new { }, admin.CancellationToken);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, again.StatusCode);
+        await using var scope = world.Services.CreateAsyncScope();
+        var claimed = await scope.ServiceProvider.GetRequiredService<IAudienceDbContext>().Links.AsNoTracking()
+            .Where(item => item.FormId == formId)
+            .Select(item => item.SubmissionId)
+            .SingleAsync(admin.CancellationToken);
+        Assert.Equal(submissionId, claimed);
     }
 
     /// <summary>A committed submission for the link, with the link still unopened.</summary>
