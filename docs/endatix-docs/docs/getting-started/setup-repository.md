@@ -123,8 +123,10 @@ Here's an overview of the key projects in the repository:
 To run the unit tests:
 
 ```bash
-dotnet test
+dotnet test --filter "FullyQualifiedName!~Endatix.IntegrationTests" --ignore-exit-code 8
 ```
+
+`--ignore-exit-code 8` keeps the integration test project, where the filter matches no tests, from failing the run.
 
 ## Troubleshooting
 

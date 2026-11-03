@@ -43,7 +43,6 @@ on:
       - "global.json"
       - "NuGet.config"
       - ".editorconfig"
-      - "coverlet.runsettings"
       - "*.slnx"
       - ".github/workflows/ci.yml"
       - ".github/workflows/release-*.yml"
@@ -103,7 +102,7 @@ jobs:
             || everything "3000 or more files (the API's limit): running everything."
 
           # Same set as `paths` on push. A file that matches runs the whole pipeline.
-          product='^(src/|tests/|samples/|templates/|helm/|scripts/|Directory\.[^/]+$|global\.json$|NuGet\.config$|\.editorconfig$|coverlet\.runsettings$|[^/]*\.slnx$|\.github/workflows/ci\.yml$|\.github/workflows/release-[^/]+\.yml$)'
+          product='^(src/|tests/|samples/|templates/|helm/|scripts/|Directory\.[^/]+$|global\.json$|NuGet\.config$|\.editorconfig$|[^/]*\.slnx$|\.github/workflows/ci\.yml$|\.github/workflows/release-[^/]+\.yml$)'
           code=false
           printf '%s\n' "$files" | grep -qE "$product" && code=true
           echo "code=${code}" >> "$GITHUB_OUTPUT"
@@ -131,16 +130,17 @@ jobs:
         run: dotnet build --no-restore
       - name: 🧪 Run unit tests
         run: |
+          # Exit code 8 is the integration project, where this filter matches zero tests.
           dotnet test --no-build \
             --filter "FullyQualifiedName!~Endatix.IntegrationTests" \
-            --collect:"XPlat Code Coverage;Format=cobertura,opencover" \
-            --results-directory:.coverage \
-            --settings coverlet.runsettings
+            --ignore-exit-code 8 \
+            --coverlet \
+            --results-directory .coverage
       - name: 📊 Upload unit coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-unit
-          path: .coverage/**/coverage.opencover.xml
+          path: .coverage/**/coverage.opencover.*.xml
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: error
           retention-days: 7 # long enough to re-run the sonar job
@@ -150,7 +150,7 @@ jobs:
       # that only integration tests reach. SonarCloud gets them (opencover above).
       - name: 📊 Merge Coverage Reports
         run: >-
-          reportgenerator -reports:".coverage/**/coverage.cobertura.xml" -targetdir:".coverage/report"
+          reportgenerator -reports:".coverage/**/coverage.cobertura.*.xml" -targetdir:".coverage/report"
           -reporttypes:"Cobertura;MarkdownSummaryGithub"
           -assemblyfilters:"-Endatix.Hosting;-Endatix.WebHost;-Endatix.Api.Host;-Endatix.Persistence.SqlServer;-Endatix.Persistence.PostgreSql"
       # Re-merge through dotnet-coverage as before: it writes branch="True", which
@@ -208,16 +208,15 @@ jobs:
       - name: Run integration tests
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
-            --no-build --verbosity minimal \
+            --no-build \
             --filter "$INTEGRATION_TEST_FILTER" \
-            --collect:"XPlat Code Coverage;Format=opencover" \
-            --results-directory:.coverage \
-            --settings coverlet.runsettings
+            --coverlet \
+            --results-directory .coverage
       - name: 📊 Upload integration coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-integration
-          path: .coverage/**/coverage.opencover.xml
+          path: .coverage/**/coverage.opencover.*.xml
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: error
           retention-days: 7 # long enough to re-run the sonar job
@@ -245,16 +244,15 @@ jobs:
       - name: Run SQL Server integration tests
         run: |
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
-            --no-build --verbosity minimal \
+            --no-build \
             --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql" \
-            --collect:"XPlat Code Coverage;Format=opencover" \
-            --results-directory:.coverage \
-            --settings coverlet.runsettings
+            --coverlet \
+            --results-directory .coverage
       - name: 📊 Upload SQL Server coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-integration-sqlserver
-          path: .coverage/**/coverage.opencover.xml
+          path: .coverage/**/coverage.opencover.*.xml
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: error
           retention-days: 7 # long enough to re-run the sonar job
@@ -329,7 +327,7 @@ jobs:
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
           for a in unit integration integration-sqlserver; do
-            if ! find ".sonar-coverage/coverage-$a" -name coverage.opencover.xml 2>/dev/null | grep -q .; then
+            if ! find ".sonar-coverage/coverage-$a" -name "coverage.opencover.*.xml" 2>/dev/null | grep -q .; then
               echo "::error::No coverage-$a report (artifacts expire after 7 days: re-run the whole workflow)."
               exit 1
             fi
@@ -340,7 +338,7 @@ jobs:
           dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" /v:"${tag#v}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
-            /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.xml" \
+            /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.*.xml" \
             /d:sonar.exclusions="tests/**,**/Migrations/**" \
             /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,scripts/**,docs/**,samples/**" \
             /d:sonar.cpd.exclusions="tests/**,**/*Tests.cs,**/*Test.cs,**/Endatix.Persistence.*/**,**/Migrations/**,**/Endpoints/**" \
