@@ -1,0 +1,11 @@
+{
+  "platformOptions": {
+    "Coverlet": {
+      "format": "cobertura,opencover",
+      "exclude": "[*.Tests]*,[*]*.Migrations.*,[Endatix.IntegrationTests]*,[Endatix.IntegrationTests.Shared]*",
+      "excludeByAttribute": "Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute",
+      "excludeByFile": "**/tests/**/*.cs,**/obj/**/*.cs,**/Migrations/**/*.cs,**/Scripts/**/*.cs",
+      "excludeAssembliesWithoutSources": "MissingAll"
+    }
+  }
+}

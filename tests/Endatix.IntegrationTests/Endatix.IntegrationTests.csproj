@@ -1,9 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <!-- Default: PostgreSQL leg. SQL Server: second process with IntegrationTestFilters.SqlServer -->
-    <VSTestTestCaseFilter>Category!=Keycloak&amp;DbSpecific!=SqlServer</VSTestTestCaseFilter>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

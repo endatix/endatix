@@ -18,6 +18,7 @@
          it ships as a package and contains no tests of its own. -->
     <IsPackable>true</IsPackable>
     <IsTestProject>false</IsTestProject>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -30,11 +31,11 @@
   <ItemGroup>
     <!-- Inherited from tests/Directory.Build.props and needed to build here, but they are
          test-host and assertion concerns that must not become dependencies of consumers.
-         PrivateAssets keeps them out of the nuspec, so consumers pick their own xunit runner
-         package (xunit.v3, mtp-v2, mtp-off). The fixtures implement IAsyncLifetime, so
-         xunit.v3.extensibility.core is the one genuine public dependency. -->
-    <PackageReference Update="xunit.v3.mtp-v2" PrivateAssets="all" />
-    <PackageReference Update="coverlet.MTP" PrivateAssets="all" />
+         PrivateAssets keeps them out of the nuspec. The xunit runner and coverage packages are
+         removed: xunit requires them in an Exe, and consumers pick their own runner. The fixtures
+         implement IAsyncLifetime, so xunit.v3.extensibility.core is the one public dependency. -->
+    <PackageReference Remove="xunit.v3.mtp-v2" />
+    <PackageReference Remove="coverlet.MTP" />
     <PackageReference Update="FluentAssertions" PrivateAssets="all" />
     <PackageReference Update="NSubstitute" PrivateAssets="all" />
   </ItemGroup>

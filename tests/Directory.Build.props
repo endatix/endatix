@@ -5,6 +5,10 @@
     <PropertyGroup>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+        <!-- xunit v3 test projects are self-hosted Microsoft.Testing.Platform executables; `dotnet test`
+             uses MTP via global.json, and running the exe directly takes the same MTP options. -->
+        <OutputType>Exe</OutputType>
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <!-- Test methods carry no XML docs. Without a doc file the compiler skips CS1591, which
@@ -17,6 +21,11 @@
              Arg.Any<CancellationToken>() in an NSubstitute call) so no test adds one. -->
         <WarningsAsErrors>$(WarningsAsErrors);xUnit1051</WarningsAsErrors>
     </PropertyGroup>
+
+    <ItemGroup>
+        <!-- One coverage config for every test project (coverlet.MTP reads it next to the test exe). -->
+        <None Include="$(MSBuildThisFileDirectory)testconfig.json" Link="testconfig.json" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
 
     <ItemGroup>
         <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute" />
