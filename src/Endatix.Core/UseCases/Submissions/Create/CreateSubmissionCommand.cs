@@ -18,6 +18,7 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// <param name="RequiredPermission"></param>
 /// <param name="SubmitterPrincipal"></param>
 /// <param name="Submitter"></param>
+/// <param name="CollectionOutcome">Optional collection outcome for the new submission.</param>
 /// <param name="PersonalizationSnapshot">Frozen audience values for a trusted on-behalf create.</param>
 public record CreateSubmissionCommand(
     long FormId,

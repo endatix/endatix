@@ -93,8 +93,8 @@ public class Result<T> : IResult
     /// <summary>
     /// Represents a successful operation that resulted in the creation of a new resource.
     /// </summary>
-    /// <typeparam name="T">The type of the resource created.</typeparam>
-    /// <returns>A Result<typeparamref name="T"/> with status Created.</returns>
+    /// <param name="value">The value of the resource created.</param>
+    /// <returns>A Result&lt;T&gt; with status Created.</returns>
     public static Result<T> Created(T value)
     {
         return new Result<T>(ResultStatus.Created) { Value = value };
@@ -104,10 +104,9 @@ public class Result<T> : IResult
     /// Represents a successful operation that resulted in the creation of a new resource.
     /// Sets the SuccessMessage property to the provided value.
     /// </summary>
-    /// <typeparam name="T">The type of the resource created.</typeparam>
     /// <param name="value">The value of the resource created.</param>
     /// <param name="location">The URL indicating where the newly created resource can be accessed.</param>
-    /// <returns>A Result<typeparamref name="T"/> with status Created.</returns>
+    /// <returns>A Result&lt;T&gt; with status Created.</returns>
     public static Result<T> Created(T value, string location)
     {
         return new Result<T>(ResultStatus.Created) { Value = value, Location = location };
@@ -292,8 +291,7 @@ public class Result<T> : IResult
     /// <summary>
     /// Represents a situation where the server has successfully fulfilled the request, but there is no content to send back in the response body.
     /// </summary>
-    /// <typeparam name="T">The type parameter representing the expected response data.</typeparam>
-    /// <returns>A Result object</returns>
+    /// <returns>A Result&lt;T&gt; object</returns>
     public static Result<T> NoContent()
     {
         return new Result<T>(ResultStatus.NoContent);

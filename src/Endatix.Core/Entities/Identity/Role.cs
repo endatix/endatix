@@ -7,7 +7,7 @@ namespace Endatix.Core.Entities.Identity;
 /// Represents the Role entity in the application domain.
 /// This class is not meant for direct persistence, but to handle domain logic related to roles.
 /// It encapsulates the core attributes and behaviors of a role within the application.
-/// Persistence implementation is done via the <see cref="AppRole"/>
+/// Persistence implementation is done via the <c>AppRole</c>
 /// </summary>
 public sealed class Role : BaseEntity, IAggregateRoot
 {

@@ -158,7 +158,7 @@ public static class DbContextModelBuilderExtensions
     /// Re-applies each entity's table name so it resolves against the context's default schema.
     /// </summary>
     /// <remarks>
-    /// Needed by module contexts that call <see cref="ModelBuilder.HasDefaultSchema"/>: entities
+    /// Needed by module contexts that call <c>ModelBuilder.HasDefaultSchema</c>: entities
     /// mapped with an explicit <c>ToTable(name)</c> keep the schema they were configured with, so
     /// without this pass a module's tables can land outside its own schema.
     /// </remarks>

@@ -6,7 +6,7 @@ namespace Endatix.Framework.Hosting;
 public interface IAppEnvironment
 {
     /// <summary>
-    /// True if the environment name is Development, otherwise false. <see cref="https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.hosting.hostingenvironmentextensions.isdevelopment"/>
+    /// True if the environment name is Development, otherwise false. See <see href="https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.hosting.hostingenvironmentextensions.isdevelopment">IsDevelopment</see>.
     /// </summary>
     /// <returns></returns>
     public bool IsDevelopment();

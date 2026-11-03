@@ -159,7 +159,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
     /// <summary>
     /// Adds predefined CORS policies that will be available for use in the system
     /// </summary>
-    /// <param name="options">The <see cref="CorsOptions"/> passed by the DI via the <see cref="IConfigureOptions"/> interface</param>
+    /// <param name="options">The <see cref="CorsOptions"/> passed by DI via <see cref="Microsoft.Extensions.Options.IConfigureOptions{TOptions}"/>.</param>
     private void AddPredefinedPolicies(CorsOptions options)
     {
         // S5122: named AllowAll policy is opt-in (Development fallback); outside Development the fallback is DisallowAll unless a configured policy is selected.
