@@ -26,7 +26,7 @@ public class DataSeeder(ILogger<DataSeeder> logger)
     }
 
     /// <summary>
-    /// This method seeds the database with sample data for demonstration purposes. It leverages the EF Core <see cref="DbContextOptionsBuilder.UseAsyncSeeding(Func{DbContext, CancellationToken, Task})"/> method for asynchronous seeding. For a comprehensive overview, refer to https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding#configuration-options-useseeding-and-useasyncseeding-methods
+    /// This method seeds the database with sample data for demonstration purposes. It leverages EF Core <c>UseAsyncSeeding</c> for asynchronous seeding. See <see href="https://learn.microsoft.com/en-us/ef/core/modeling/data-seeding#configuration-options-useseeding-and-useasyncseeding-methods">EF Core data seeding</see>.
     /// </summary>
     /// <param name="dbContext">The DbContext instance to use for database operations.</param>
     /// <param name="cancellationToken">A CancellationToken to observe while executing the operation.</param>

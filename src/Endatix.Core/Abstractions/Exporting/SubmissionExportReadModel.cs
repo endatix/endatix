@@ -16,6 +16,9 @@ public static class SubmissionExportMetadataKeys
 
 /// <summary>
 /// Per-request export execution settings resolved from format definition and request overrides.
+/// When <c>EncodeBooleansAsCategoryIds</c> is true, export writers emit boolean values as category
+/// ids <c>0</c>/<c>1</c> (Crunch/Shoji); when false, CSV writes lowercase <c>true</c>/<c>false</c>
+/// and XLSX writes a native Excel boolean cell.
 /// </summary>
 public sealed record SubmissionExportExecutionSettings(
     long? ExportFormatId = null,
@@ -23,12 +26,6 @@ public sealed record SubmissionExportExecutionSettings(
     bool? IncludeTestSubmissions = null,
     IReadOnlyList<string>? ColumnScope = null,
     string? Locale = null,
-
-    /// <summary>
-    /// When true, export writers emit boolean values as category ids <c>0</c>/<c>1</c>
-    /// (Crunch/Shoji). When false, CSV writes lowercase <c>true</c>/<c>false</c> and XLSX
-    /// writes a native Excel boolean cell.
-    /// </summary>
     bool EncodeBooleansAsCategoryIds = false,
     UtcDateTimeRange Created = default,
     UtcDateTimeRange Modified = default,

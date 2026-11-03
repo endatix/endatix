@@ -7,7 +7,7 @@ namespace Endatix.Core.Entities.Identity;
 /// Represents the User entity in the application domain.
 /// This class is not meant for direct persistence, but to handle domain logic related to users.
 /// It encapsulates the core attributes and behaviors of a user within the application.
-/// Persistence implementation is done via the <see cref="AppUser"/>
+/// Persistence implementation is done via the <c>AppUser</c>
 /// </summary>
 public sealed class User : TenantEntity, IAggregateRoot
 {

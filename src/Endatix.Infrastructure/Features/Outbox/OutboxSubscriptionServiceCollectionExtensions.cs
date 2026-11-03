@@ -20,6 +20,9 @@ public static class OutboxSubscriptionServiceCollectionExtensions
     /// Subscribes one job of <typeparamref name="TPayload"/>'s job type to <paramref name="eventType"/>: each
     /// message becomes one job, identified among the message's subscribers by that job type.
     /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="eventType">Outbox event type to subscribe to.</param>
+    /// <param name="createPayload">Builds the job payload from the outbox message.</param>
     /// <param name="resolveTenantId">
     /// Reads the tenant the job belongs to from the message. Defaults to the message's own tenant; an app-level
     /// message has none, so its subscription must say whose work it is.

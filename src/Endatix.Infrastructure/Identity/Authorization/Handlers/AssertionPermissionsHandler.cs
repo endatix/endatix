@@ -18,7 +18,7 @@ namespace Endatix.Infrastructure.Identity.Authorization.Handlers;
 /// Handles hierarchical authorization rules:
 /// - Platform/Tenant admins bypass all permission checks
 /// - Enforces entity ownership for ".owned" permissions
-/// - Delegates to FastEndpoints' built-in AssertionRequirement for normal permissions/roles/claims and other authorization checks. See more at <see cref="https://github.com/FastEndpoints/FastEndpoints/blob/main/Src/Library/Main/MainExtensions.cs"/>
+/// - Delegates to FastEndpoints' built-in AssertionRequirement for normal permissions/roles/claims and other authorization checks. See <see href="https://github.com/FastEndpoints/FastEndpoints/blob/main/Src/Library/Main/MainExtensions.cs">FastEndpoints MainExtensions</see>.
 /// </summary>
 public sealed class AssertionPermissionsHandler : AuthorizationHandler<AssertionRequirement>
 {

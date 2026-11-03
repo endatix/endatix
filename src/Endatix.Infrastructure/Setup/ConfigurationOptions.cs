@@ -31,7 +31,7 @@ public class ConfigurationOptions
         /// Call this method to add Authentication for the Endatix API using default SecuritySettings
         /// </summary>
         /// <exception cref="ArgumentNullException">If configurationManager is null</exception>
-        /// <param name="configurationManager">Pass ConfigurationManager <see cref="Builder.Configuration"/></param>
+        /// <param name="configurationManager">The host <see cref="ConfigurationManager"/> (e.g. from the web application builder).</param>
         /// <returns>modified SecurityOptions</returns>
         public SecurityOptions AddApiAuthentication(ConfigurationManager configurationManager)
         {
@@ -45,7 +45,7 @@ public class ConfigurationOptions
         /// Call this method to add Authentication for the Endatix API
         /// </summary>
         /// <exception cref="ArgumentNullException">If securitySection is null</exception>
-        /// <param name="securitySection">Custom config section storing the security options. For detailed structure check <see cref="SecuritySettings"/></param>
+        /// <param name="securitySection">Custom config section for the security options. Only null-checked today; its values are not read.</param>
         /// <returns>modified SecurityOptions</returns>
         public SecurityOptions AddApiAuthentication(IConfigurationSection securitySection)
         {

@@ -13,7 +13,9 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// </summary>
 public static class OutboxWorkServiceCollectionExtensions
 {
-    /// <summary>The retry policy of one short outbox update, when a call passes no <paramref name="defaults"/>.</summary>
+    /// <summary>
+    /// The retry policy of one short outbox update, used when <see cref="AddOutboxWork{TWork}"/> gets no defaults.
+    /// </summary>
     public static BackgroundJobTypeDefaults DefaultJob { get; } = new()
     {
         MaxAttempts = 5,
@@ -29,6 +31,7 @@ public static class OutboxWorkServiceCollectionExtensions
     /// <see cref="IOutboxWork{TSelf}.JobType"/> with <paramref name="defaults"/>, and a job subscription for every
     /// event type in <see cref="IOutboxWork{TSelf}.HandledEventTypes"/>.
     /// </summary>
+    /// <param name="services">The service collection.</param>
     /// <param name="defaults">The job's retry policy. Omitted uses <see cref="DefaultJob"/>.</param>
     /// <param name="appLevelTenant">
     /// Reads the job's tenant from an app-level row, whose stored tenant is none. Omitted, the row carries the tenant.

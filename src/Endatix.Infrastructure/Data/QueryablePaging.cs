@@ -13,6 +13,7 @@ public static class QueryablePaging
     /// <param name="paging">The requested page.</param>
     /// <param name="orderBy">Total order for the fetch; end with a unique key so pages cannot skip or repeat rows.</param>
     /// <param name="map">Maps each fetched row in memory.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     public static async Task<Paged<TResult>> ToPagedAsync<TSource, TResult>(
         this IQueryable<TSource> filtered,
         PageRequest paging,
