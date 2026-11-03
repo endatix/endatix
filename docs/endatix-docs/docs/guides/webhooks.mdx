@@ -251,6 +251,7 @@ To test your webhooks:
   - Endpoints that can trigger the event: the same public create and token update calls, with `collectionOutcome` set to `screen_out`
   - A normal complete does not send this event
   - A reviewer-status change does not send this event
+  - Other collection status changes, such as `not_started` to `in_progress`, are outbox events only (`submission.collection_status_changed`) and do not send this webhook
   - An in-process `INotificationHandler` does not run for this event. Code in the API host implements `IOutboxIntegrationEventHandler`. See [React to a screen-out](/docs/configuration/background-processing#react-to-a-screen-out).
 
 ## Webhook Message Structure

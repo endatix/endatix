@@ -92,7 +92,7 @@ Durable integration events (webhooks, Reporting, Audience) are driven by the out
 To run code in the API host when a submission is screened out:
 
 1. Implement `IOutboxIntegrationEventHandler` (`Endatix.Outbox.Engine`). Set `EventTypes` to `SubmissionCollectionStatusChangedEvent.EventTypeName` (`submission.collection_status_changed`).
-2. Read `message.Payload`. It is camelCase JSON. Long ids are strings. `collectionStatus` is `screen_out` and `previousCollectionStatus` is the status before it, such as `in_progress`. `isComplete` is `false`. Answers are in `jsonData`.
+2. Read `message.Payload`. It is camelCase JSON. Long ids are strings. The event is raised on every collection status change, so check that `collectionStatus` is `screen_out`. `previousCollectionStatus` is the status before it, such as `in_progress`. `isComplete` is `false`. Answers are in `jsonData`.
 3. Register it on the API host: `builder.Services.AddScoped<IOutboxIntegrationEventHandler, ScreenOutHandler>()`.
 4. Keep the in-process relay on (`Endatix:Outbox:RunInProcess`). The handler runs after the submission transaction commits. A throw fails the outbox delivery and the relay retries it.
 
@@ -111,7 +111,12 @@ public sealed class ScreenOutHandler : IOutboxIntegrationEventHandler
         using JsonDocument document = JsonDocument.Parse(message.Payload);
         string? submissionId = document.RootElement.GetProperty("submissionId").GetString();
         string? status = document.RootElement.GetProperty("collectionStatus").GetString();
-        // status is "screen_out"
+        if (status != "screen_out")
+        {
+            return Task.CompletedTask;
+        }
+
+        // React to the screen-out of submissionId
         return Task.CompletedTask;
     }
 }
@@ -150,8 +155,9 @@ These integration events flow through the outbox. The `EventType` column is what
 | `form.enabled_state_changed` | `FormEnabledStateChanged` | A form's enabled state changes | - |
 | `form.deleted` | `FormDeleted` | A form is deleted, with all its submissions | Reporting: drop the form's rows; Audience: drop the form's audience |
 | `form.definition.updated` | - | Active form definition schema changes or a new active definition is published | Reporting: compile export schema |
+| `submission.created` | - | A submission is created, from any entry point: public create, create on behalf, a personalized link's first open, a test submission. `collectionStatus` is the status it starts in, such as `in_progress` or `not_started` | - |
 | `submission.completed` | `SubmissionCompleted` | A submission is completed (first time) | Reporting: flatten |
-| `submission.collection_status_changed` | `SubmissionCollectionStatusChanged` | A submission is screened out (`screen_out`, `IsComplete` stays false) | - |
+| `submission.collection_status_changed` | `SubmissionCollectionStatusChanged`, only for a terminal outcome other than complete | A submission's collection status changes after it is created, complete included. One event per change; saving answers while it stays `in_progress` raises none | - |
 | `submission.updated` | - | A completed submission's answers, metadata, definition, or submitter identity change, or any submission is marked as test or real | Reporting: re-flatten when answers or definition change; Audience: free the personalized link of a submission marked as test |
 | `submission.deleted` | - | A submission is deleted on its own. A form's deletion raises `form.deleted` only, not one per submission | Reporting: sync flattened row deletion |
 
