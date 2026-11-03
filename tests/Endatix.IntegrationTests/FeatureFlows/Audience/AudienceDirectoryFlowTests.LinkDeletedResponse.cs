@@ -70,7 +70,7 @@ public sealed partial class AudienceDirectoryFlowTests
         return submissionId;
     }
 
-    /// <summary>The open created a response other than the deleted one, the link names it, and it is the form's only live one.</summary>
+    /// <summary>The open created an empty response other than the deleted one, the link names it, and it is the form's only live one.</summary>
     private static async Task AssertNewLiveResponseAsync(
         IServiceProvider services,
         (long FormId, long DeletedId) form,
@@ -85,9 +85,9 @@ public sealed partial class AudienceDirectoryFlowTests
         var live = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Submissions.AsNoTracking()
             .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
             .Where(item => item.FormId == form.FormId)
-            .Select(item => item.Id)
+            .Select(item => new { item.Id, item.JsonData })
             .ToListAsync(cancellationToken);
-        Assert.Equal([submissionId], live);
+        Assert.Equal([new { Id = submissionId, JsonData = "{}" }], live);
         var linked = await scope.ServiceProvider.GetRequiredService<IAudienceDbContext>().Links.AsNoTracking()
             .Where(item => item.FormId == form.FormId)
             .Select(item => item.SubmissionId)
