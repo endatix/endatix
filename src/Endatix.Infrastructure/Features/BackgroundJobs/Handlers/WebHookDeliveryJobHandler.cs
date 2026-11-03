@@ -49,7 +49,7 @@ internal sealed class WebHookDeliveryJobHandler(
         CancellationToken cancellationToken)
     {
         var message = await ReadMessageAsync(job, payload, cancellationToken);
-        if (message is null || !WebHookEvents.OperationsByEventType.TryGetValue(message.EventType, out var operation))
+        if (message is null || !WebHookEvents.TryGetOperation(message.EventType, message.Payload, out var operation))
         {
             return Refused(MessageGone);
         }

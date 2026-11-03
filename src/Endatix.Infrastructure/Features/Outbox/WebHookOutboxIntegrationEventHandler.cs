@@ -13,19 +13,13 @@ internal sealed class WebHookOutboxIntegrationEventHandler(
     IWebHookService webHookService,
     ILogger<WebHookOutboxIntegrationEventHandler> logger) : IOutboxIntegrationEventHandler
 {
-    private static readonly IReadOnlyDictionary<string, WebHookOperation> _operationsByEventType =
-        WebHookEvents.OperationsByEventType;
-
-    private static readonly IReadOnlyCollection<string> _handledEventTypes =
-        _operationsByEventType.Keys.ToArray();
-
     /// <inheritdoc />
-    public IReadOnlyCollection<string> EventTypes => _handledEventTypes;
+    public IReadOnlyCollection<string> EventTypes => WebHookEvents.EventTypes;
 
     /// <inheritdoc />
     public async Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
-        if (!_operationsByEventType.TryGetValue(message.EventType, out var operation))
+        if (!WebHookEvents.TryGetOperation(message.EventType, message.Payload, out var operation))
         {
             return;
         }

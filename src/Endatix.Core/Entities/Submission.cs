@@ -7,9 +7,12 @@ using CollectionStatusValue = Endatix.Core.Entities.CollectionStatus;
 
 namespace Endatix.Core.Entities;
 
-public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
+public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
 {
     private const string SINGLE_SUBMISSION_RESTRICTION_PREFIX = "SingleSubmission";
+
+    // While true, collection status changes raise nothing: submission.created carries the initial status.
+    private bool _constructing;
 
     private Submission() { } // For EF Core
 
@@ -20,6 +23,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         Guard.Against.NegativeOrZero(args.FormId);
         Guard.Against.NegativeOrZero(args.FormDefinitionId);
 
+        _constructing = true;
         FormId = args.FormId;
         FormDefinitionId = args.FormDefinitionId;
         JsonData = args.JsonData;
@@ -31,17 +35,9 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
-        SetCompletionStatus(args.IsComplete);
-
-        if (args.StartSubmission)
-        {
-            EnsureStarted();
-        }
-        else if (!args.IsComplete)
-        {
-            // Created on behalf (prefill): no respondent engagement yet, StartedAt stays null.
-            SetCollectionStatus(CollectionStatusValue.NotStarted);
-        }
+        SetInitialCollectionStatus(args.IsComplete, args.StartSubmission);
+        _constructing = false;
+        RaiseCreated();
     }
 
     private Submission(long id, SubmissionCreateArgs args) : this(args)
@@ -93,6 +89,19 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     {
         Guard.Against.Null(args);
         return new Submission(id, args);
+    }
+
+    /// <summary>
+    /// One revision for the new submission: <c>submission.created</c>, and <c>submission.completed</c> when it was
+    /// created complete.
+    /// </summary>
+    private void RaiseCreated()
+    {
+        RegisterRevisedDomainEvent(() => new SubmissionCreatedEvent(this));
+        if (IsComplete)
+        {
+            RegisterDomainEvent(new SubmissionCompletedEvent(this));
+        }
     }
 
     public void FreezePersonalization(long audienceLinkId, string snapshot)
@@ -190,27 +199,6 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     /// <summary>True when <see cref="StartedAt"/> has been recorded.</summary>
     public bool HasStarted => StartedAt is not null;
 
-    /// <summary>
-    /// Records first engagement once. Subsequent calls do not move <see cref="StartedAt"/>.
-    /// An unengaged row (<c>not_started</c> / <c>viewed</c>) moves to <c>in_progress</c>, so a
-    /// recorded start never sits next to an unengaged collection status. Terminal and custom
-    /// statuses are left alone.
-    /// </summary>
-    public void EnsureStarted(DateTime? at = null)
-    {
-        if (IsUnengagedCollection())
-        {
-            SetCollectionStatus(CollectionStatusValue.InProgress);
-        }
-
-        if (HasStarted)
-        {
-            return;
-        }
-
-        StartedAt = at ?? DateTime.UtcNow;
-    }
-
     /// <summary>Updates submission content; the target definition must belong to this submission's form (<see cref="FormId"/>).</summary>
     public void Update(string jsonData, long formDefinitionId, long formDefinitionFormId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
@@ -272,80 +260,6 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         Status = newStatus.CreateInstance();
 
         RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
-    }
-
-    /// <summary>Owner or system void. Does not mark the interview complete.</summary>
-    /// <exception cref="InvalidOperationException">The submission is already complete.</exception>
-    public void Cancel()
-    {
-        // A complete row stays complete: cancelled with IsComplete true would contradict the dual-write.
-        if (IsComplete)
-        {
-            throw new InvalidOperationException("A complete submission cannot be cancelled.");
-        }
-
-        // Screen-out is a final outcome; cancelling would silently lose it.
-        if (IsScreenedOut)
-        {
-            throw new InvalidOperationException("A screened-out submission cannot be cancelled.");
-        }
-
-        SetCollectionStatus(CollectionStatusValue.Cancelled);
-    }
-
-    /// <summary>True when the interview ended as screened out. A screened-out submission can't be changed.</summary>
-    public bool IsScreenedOut => CollectionStatus?.Code == CollectionStatusCodes.ScreenOut;
-
-    /// <summary>
-    /// Saves the respondent's last answers and ends the interview as screened out, checking first so a
-    /// rejected screen-out leaves the aggregate untouched. A repeat on a screened-out submission is a no-op.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The submission is complete, or its collection status is not resumable.</exception>
-    public void ScreenOut(string jsonData, long formDefinitionId, long formDefinitionFormId, int currentPage = 1, string? metadata = null)
-    {
-        EnsureScreenOutAllowed();
-        if (IsScreenedOut)
-        {
-            return;
-        }
-
-        Update(jsonData, formDefinitionId, formDefinitionFormId, isComplete: false, currentPage, metadata);
-        ScreenOut();
-    }
-
-    /// <summary>
-    /// Ends the interview as screened out. Does not mark it complete and does not raise
-    /// <c>submission.completed</c>. Records the start if none was recorded. A later update is rejected.
-    /// A repeat on a screened-out submission is a no-op.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The submission is complete, or its collection status is not resumable.</exception>
-    public void ScreenOut()
-    {
-        EnsureScreenOutAllowed();
-        if (IsScreenedOut)
-        {
-            return;
-        }
-
-        var previousCollectionStatus = CollectionStatus;
-        EnsureStarted();
-        SetCollectionStatus(CollectionStatusValue.ScreenOut);
-        RegisterRevisedDomainEvent(() => new SubmissionCollectionStatusChangedEvent(this, previousCollectionStatus));
-    }
-
-    private void EnsureScreenOutAllowed()
-    {
-        if (IsComplete)
-        {
-            throw new InvalidOperationException("A complete submission cannot be screened out.");
-        }
-
-        // Another terminal outcome (e.g. cancelled) is not overwritten.
-        if (!IsScreenedOut && !IsResumableCollection())
-        {
-            throw new InvalidOperationException(
-                "Cannot screen out a submission whose collection status is not resumable.");
-        }
     }
 
     /// <summary>
@@ -443,50 +357,6 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
                 "Cannot complete a submission whose collection status is not resumable.");
         }
     }
-
-    private void SetCompletionStatus(bool newIsCompleteValue)
-    {
-        if (!IsComplete && newIsCompleteValue)
-        {
-            IsComplete = true;
-            CompletedAt = DateTime.UtcNow;
-            if (!HasStarted)
-            {
-                // Complete without a prior engagement save (e.g. complete-on-create): duration ≈ 0
-                StartedAt = CompletedAt;
-            }
-
-            // false→true transition (ctor or Update); captured to outbox → submission.completed webhook
-            RegisterRevisedDomainEvent(() => new SubmissionCompletedEvent(this));
-            SetCollectionStatus(CollectionStatusValue.Complete);
-            return;
-        }
-
-        if (!IsComplete && IsResumableCollection())
-        {
-            SetCollectionStatus(CollectionStatusValue.InProgress);
-        }
-    }
-
-    private bool IsResumableCollection()
-    {
-        var code = CollectionStatus?.Code;
-        return code is null
-            || code == CollectionStatusCodes.NotStarted
-            || code == CollectionStatusCodes.Viewed
-            || code == CollectionStatusCodes.InProgress
-            || code == CollectionStatusCodes.Expired;
-    }
-
-    private bool IsUnengagedCollection()
-    {
-        var code = CollectionStatus?.Code;
-        return code == CollectionStatusCodes.NotStarted
-            || code == CollectionStatusCodes.Viewed;
-    }
-
-    private void SetCollectionStatus(CollectionStatus status) =>
-        CollectionStatus = status.CreateInstance();
 
     public string? OwnerId => SubmitterId?.ToString() ?? SubmittedBy;
 

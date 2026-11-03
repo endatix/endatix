@@ -107,7 +107,8 @@ public class WebHookIntegrationEventPublisherTests
             IsComplete: true,
             IsTestSubmission: true));
         submission.Id = 77;
-        var captured = new OutboxIntegrationEventDispatcher().Capture([submission]).Single();
+        var captured = new OutboxIntegrationEventDispatcher().Capture([submission])
+            .Single(row => row.EventType == SubmissionCompletedEvent.EventTypeName);
         var message = new FakeOutboxMessage(Id: 3, EventType: captured.EventType, Payload: captured.Payload, TenantId: 42);
         string? delivered = null;
         _webHooks.DeliverWebHookAsync(42L, Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), 555L)

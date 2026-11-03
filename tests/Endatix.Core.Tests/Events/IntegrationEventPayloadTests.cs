@@ -235,18 +235,20 @@ public class IntegrationEventPayloadTests
         completed.Delete();
 
         // Act
-        var payloads = screenedOut.DomainEvents.Concat(completed.DomainEvents)
+        var events = screenedOut.DomainEvents.Concat(completed.DomainEvents)
             .OfType<IIntegrationEvent>()
-            .ToDictionary(evt => evt.EventType, evt => Payload(evt.GetPayload()));
+            .ToList();
+        var payloads = events.Select(evt => Payload(evt.GetPayload())).ToList();
 
         // Assert
-        payloads.Keys.Should().BeEquivalentTo(
+        events.Select(evt => evt.EventType).Distinct().Should().BeEquivalentTo(
+            "submission.created",
             "submission.collection_status_changed",
             "submission.completed",
             "submission.status_changed",
             "submission.updated",
             "submission.deleted");
-        payloads.Values.Should().OnlyContain(json => json.GetProperty("isTestSubmission").GetBoolean() == isTestSubmission);
+        payloads.Should().OnlyContain(json => json.GetProperty("isTestSubmission").GetBoolean() == isTestSubmission);
     }
 
     [Fact]

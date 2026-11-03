@@ -43,7 +43,7 @@ public class SubmissionIntegrationEventTests
         // Assert
         submission.DomainEvents.OfType<SubmissionCompletedEvent>().Should().BeEmpty();
         submission.IsComplete.Should().BeFalse();
-        submission.Revision.Should().Be(1);
+        submission.Revision.Should().Be(2, "submission.created is one revision");
     }
 
     [Fact]

@@ -192,7 +192,7 @@ public static class ServiceCollectionExtensions
     {
         AddWebHookJobHttpClient(services);
         services.AddBackgroundJobHandler<WebHookDeliveryJobHandler, WebHookDeliveryPayload>(WebHookDeliveryDefaults);
-        foreach (var eventType in WebHookEvents.OperationsByEventType.Keys)
+        foreach (var eventType in WebHookEvents.EventTypes)
         {
             services.AddOutboxJobSubscription<WebHookDeliveryPayload, WebHookEndpointExpander>(eventType);
         }

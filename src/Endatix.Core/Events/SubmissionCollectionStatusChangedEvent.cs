@@ -4,8 +4,9 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// Raised when a submission is screened out (<c>screen_out</c>). A normal complete stays on
-/// <see cref="SubmissionCompletedEvent"/> and does not raise this. Cancellation does not raise it.
+/// Raised once on every collection status change after creation, complete included (alongside
+/// <see cref="SubmissionCompletedEvent"/>). Delivered as the <c>submission_collection_status_changed</c> webhook only
+/// for a terminal outcome other than complete.
 /// </summary>
 public sealed class SubmissionCollectionStatusChangedEvent(Submission submission, CollectionStatus? previousCollectionStatus)
     : DomainEventBase, IIntegrationEvent
