@@ -300,6 +300,23 @@ public class IntegrationEventPayloadTests
             .Should().Equal(true, false);
     }
 
+    [Fact]
+    public void Base_payload_keeps_the_test_flag_it_was_raised_with()
+    {
+        // Arrange
+        var submission = CreateSubmission(isComplete: true, isTestSubmission: false);
+
+        // Act
+        submission.MarkAsTest();
+        submission.Delete();
+
+        // Assert
+        Payload(submission.DomainEvents.OfType<SubmissionCompletedEvent>().Single().GetPayload())
+            .GetProperty("isTestSubmission").GetBoolean().Should().BeFalse();
+        Payload(submission.DomainEvents.OfType<SubmissionDeletedEvent>().Single().GetPayload())
+            .GetProperty("isTestSubmission").GetBoolean().Should().BeTrue();
+    }
+
     private static Submission CreateSubmission(bool isComplete, bool isTestSubmission)
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
