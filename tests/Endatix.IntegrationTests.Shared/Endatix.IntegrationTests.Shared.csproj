@@ -30,16 +30,17 @@
   <ItemGroup>
     <!-- Inherited from tests/Directory.Build.props and needed to build here, but they are
          test-host and assertion concerns that must not become dependencies of consumers.
-         PrivateAssets keeps them out of the nuspec. xunit.v3.mtp-off is deliberately NOT listed —
-         the fixtures implement IAsyncLifetime, so it is a genuine public dependency. -->
-    <PackageReference Update="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
-    <PackageReference Update="xunit.runner.visualstudio" PrivateAssets="all" />
-    <PackageReference Update="coverlet.collector" PrivateAssets="all" />
+         PrivateAssets keeps them out of the nuspec, so consumers pick their own xunit runner
+         package (xunit.v3, mtp-v2, mtp-off). The fixtures implement IAsyncLifetime, so
+         xunit.v3.extensibility.core is the one genuine public dependency. -->
+    <PackageReference Update="xunit.v3.mtp-v2" PrivateAssets="all" />
+    <PackageReference Update="coverlet.MTP" PrivateAssets="all" />
     <PackageReference Update="FluentAssertions" PrivateAssets="all" />
     <PackageReference Update="NSubstitute" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="xunit.v3.extensibility.core" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.MsSql" />
     <PackageReference Include="Testcontainers.Keycloak" />

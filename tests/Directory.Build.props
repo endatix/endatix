@@ -13,8 +13,6 @@
         <!-- Do not inherit oss RuntimeFrameworkVersion (10.0.6); use the SDK default so tests run on locally installed 10.0.x. -->
         <RuntimeFrameworkVersion />
         <RollForward>LatestMinor</RollForward>
-        <!-- Keep dotnet test on VSTest (coverlet.collector, trait filters). .NET 10 defaults to MTP otherwise. -->
-        <TestingPlatformDotnetTestSupport>false</TestingPlatformDotnetTestSupport>
         <!-- Sonar imports xUnit1051 from the build. Pass TestContext.Current.CancellationToken (or
              Arg.Any<CancellationToken>() in an NSubstitute call) so no test adds one. -->
         <WarningsAsErrors>$(WarningsAsErrors);xUnit1051</WarningsAsErrors>
@@ -31,13 +29,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="coverlet.collector" />
+        <PackageReference Include="coverlet.MTP" />
         <PackageReference Include="FluentAssertions" />
         <PackageReference Include="NSubstitute" />
-        <!-- mtp-off keeps xunit 4 on VSTest: `dotnet test` on .NET 10 rejects the default MTP v2
-             build in VSTest mode, and CI relies on VSTest filters and coverlet.collector. -->
-        <PackageReference Include="xunit.v3.mtp-off" />
-        <PackageReference Include="xunit.runner.visualstudio" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="xunit.v3.mtp-v2" />
     </ItemGroup>
 </Project>
