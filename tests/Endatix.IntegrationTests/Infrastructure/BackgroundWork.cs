@@ -124,16 +124,19 @@ internal sealed class BackgroundWork(IServiceProvider services, OutboxRelaySwitc
 
     // Each message is given back on its own, so one that cannot be still leaves the rest claimable. A failure to give one
     // back is kept on the delivery's exception rather than thrown in its place: the delivery's failure is the finding.
+    // It is given back due a second ago rather than now: on SQL Server the store binds timestamps as datetime, whose
+    // 1/300 s rounding can store "now" a fraction of a millisecond after the next claim's "now".
     private static async Task GiveBackAsync(
         IOutboxClaimStore store,
         IEnumerable<IOutboxMessage> messages,
         Exception deliveryFailure)
     {
+        var due = DateTimeOffset.UtcNow.AddSeconds(-1);
         foreach (var message in messages)
         {
             try
             {
-                await store.RescheduleAsync(message, DateTimeOffset.UtcNow, DeliveringInstance, CancellationToken.None);
+                await store.RescheduleAsync(message, due, DeliveringInstance, CancellationToken.None);
             }
             catch (Exception giveBackFailure)
             {
