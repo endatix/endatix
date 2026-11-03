@@ -2,6 +2,8 @@ using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Outbox.Engine;
@@ -61,16 +63,19 @@ public sealed class WebHookEventsTests
     }
 
     [Fact]
-    public void TryGetOperation_RealTransitions_DeliverOnlyTheScreenOut()
+    public void TryGetOperation_RealTransitions_DeliverTheScreenOutTheCancelAndTheCompletedEvent()
     {
-        // Every transition the entity raises on the way to a screen-out and to a complete, as captured to the outbox.
-        var prefilledThenScreenedOut = NewSubmission(startSubmission: false);
+        // Every transition the entity raises on the way to each outcome it can reach, as captured to the outbox.
+        var prefilledThenScreenedOut = NewSubmission(id: 1, startSubmission: false);
         prefilledThenScreenedOut.EnsureStarted();
         prefilledThenScreenedOut.ScreenOut();
-        var completed = NewSubmission(startSubmission: true);
+        var completed = NewSubmission(id: 2, startSubmission: false);
+        completed.Update("""{"a":1}""", 1, FormId, isComplete: false);
         completed.Update("""{"a":1}""", 1, FormId, isComplete: true);
+        var cancelled = NewSubmission(id: 3, startSubmission: true);
+        cancelled.Cancel();
 
-        var captured = new OutboxIntegrationEventDispatcher().Capture([prefilledThenScreenedOut, completed]);
+        var captured = new OutboxIntegrationEventDispatcher().Capture([prefilledThenScreenedOut, completed, cancelled]);
 
         var webHooks = captured
             .Select(row => Message(row.EventType, row.Payload))
@@ -79,7 +84,8 @@ public sealed class WebHookEventsTests
             .ToList();
         webHooks.Should().Equal(
             (SubmissionCollectionStatusChangedEvent.EventTypeName, CollectionStatusCodes.ScreenOut),
-            (SubmissionCompletedEvent.EventTypeName, null));
+            (SubmissionCompletedEvent.EventTypeName, null),
+            (SubmissionCollectionStatusChangedEvent.EventTypeName, CollectionStatusCodes.Cancelled));
         captured.Select(row => row.EventType).Should().Contain(SubmissionCreatedEvent.EventTypeName);
     }
 
@@ -107,7 +113,41 @@ public sealed class WebHookEventsTests
             FormId);
     }
 
-    private static Submission NewSubmission(bool startSubmission)
+    [Theory]
+    [InlineData(CollectionStatusCodes.ScreenOut, 1)]
+    [InlineData(CollectionStatusCodes.Complete, 0)]
+    [InlineData(CollectionStatusCodes.NotStarted, 0)]
+    public async Task Expander_QueuesAJobOnlyForATerminalOutcomeOtherThanComplete(string collectionStatus, int jobs)
+    {
+        var forms = Substitute.For<IRepository<Form>>();
+        var tenantSettings = Substitute.For<IRepository<TenantSettings>>();
+        tenantSettings
+            .FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new TenantSettings(TenantId, webHookSettingsJson: JsonSerializer.Serialize(new WebHookConfiguration
+            {
+                Events = new Dictionary<string, WebHookEventConfig>
+                {
+                    ["SubmissionCollectionStatusChanged"] = new()
+                    {
+                        IsEnabled = true,
+                        WebHookEndpoints = [new WebHookEndpointConfig { Url = "https://hooks.example.test/receive" }],
+                    },
+                },
+            })));
+        WebHookEndpointExpander expander = new(
+            new WebHookEventConfigReader(forms, tenantSettings, NullLogger<WebHookEventConfigReader>.Instance));
+
+        var subscribers = await expander.ExpandAsync(
+            Message(
+                SubmissionCollectionStatusChangedEvent.EventTypeName,
+                $$"""{"formId":"555","collectionStatus":"{{collectionStatus}}"}"""),
+            TenantId,
+            CancellationToken.None);
+
+        subscribers.Should().HaveCount(jobs);
+    }
+
+    private static Submission NewSubmission(long id, bool startSubmission)
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TenantId,
@@ -116,7 +156,7 @@ public sealed class WebHookEventsTests
             JsonData: "{}",
             IsComplete: false,
             StartSubmission: startSubmission));
-        submission.Id = startSubmission ? 2 : 1;
+        submission.Id = id;
         return submission;
     }
 

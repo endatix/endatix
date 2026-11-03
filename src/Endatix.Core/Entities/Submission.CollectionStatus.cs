@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Endatix.Core.Events;
 using CollectionStatusValue = Endatix.Core.Entities.CollectionStatus;
 
@@ -60,7 +61,9 @@ public sealed partial class Submission
             return;
         }
 
-        Update(jsonData, formDefinitionId, formDefinitionFormId, isComplete: false, currentPage, metadata);
+        // Saves the answers without an in_progress step, so the screen-out is the one transition.
+        EnsureScreenOutAnswersAllowed(jsonData, formDefinitionId, formDefinitionFormId);
+        ApplyContent(new SubmissionContent(jsonData, formDefinitionId, currentPage, metadata));
         ScreenOut();
     }
 
@@ -81,6 +84,14 @@ public sealed partial class Submission
         // Records the start without an in_progress step, so an unengaged submission screens out in one transition.
         StartedAt ??= DateTime.UtcNow;
         TransitionTo(CollectionStatusValue.ScreenOut);
+    }
+
+    private void EnsureScreenOutAnswersAllowed(string jsonData, long formDefinitionId, long formDefinitionFormId)
+    {
+        Guard.Against.NullOrEmpty(jsonData);
+        Guard.Against.NegativeOrZero(formDefinitionId);
+        Guard.Against.NegativeOrZero(formDefinitionFormId);
+        EnsureUpdateAllowed(formDefinitionFormId, isComplete: false);
     }
 
     private void EnsureScreenOutAllowed()

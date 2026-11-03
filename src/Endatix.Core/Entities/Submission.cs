@@ -207,38 +207,50 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         Guard.Against.NegativeOrZero(formDefinitionFormId);
 
         EnsureUpdateAllowed(formDefinitionFormId, isComplete);
-        EnsureStarted();
-
-        var changeKind = SubmissionChangeKinds.None;
-        if (IsComplete)
+        if (IsComplete || !isComplete)
         {
-            if (!string.Equals(JsonData, jsonData, StringComparison.Ordinal))
-            {
-                changeKind |= SubmissionChangeKinds.Answers;
-            }
-
-            if (!string.Equals(Metadata, metadata, StringComparison.Ordinal))
-            {
-                changeKind |= SubmissionChangeKinds.Metadata;
-            }
-
-            if (FormDefinitionId != formDefinitionId)
-            {
-                changeKind |= SubmissionChangeKinds.Definition;
-            }
+            // A save that completes records its start inside the one transition to complete.
+            EnsureStarted();
         }
 
-        FormDefinitionId = formDefinitionId;
-        JsonData = jsonData;
-        CurrentPage = currentPage;
-        Metadata = metadata;
-
+        SubmissionContent content = new(jsonData, formDefinitionId, currentPage, metadata);
+        var changeKind = IsComplete ? ChangesTo(content) : SubmissionChangeKinds.None;
+        ApplyContent(content);
         SetCompletionStatus(isComplete);
 
         if (changeKind != SubmissionChangeKinds.None)
         {
             RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, changeKind));
         }
+    }
+
+    /// <summary>The answers, definition, page and metadata one save writes.</summary>
+    private readonly record struct SubmissionContent(string JsonData, long FormDefinitionId, int CurrentPage, string? Metadata);
+
+    private SubmissionChangeKinds ChangesTo(SubmissionContent content)
+    {
+        var changeKind = SubmissionChangeKinds.None;
+        if (!string.Equals(JsonData, content.JsonData, StringComparison.Ordinal))
+        {
+            changeKind |= SubmissionChangeKinds.Answers;
+        }
+
+        if (!string.Equals(Metadata, content.Metadata, StringComparison.Ordinal))
+        {
+            changeKind |= SubmissionChangeKinds.Metadata;
+        }
+
+        return FormDefinitionId != content.FormDefinitionId
+            ? changeKind | SubmissionChangeKinds.Definition
+            : changeKind;
+    }
+
+    private void ApplyContent(SubmissionContent content)
+    {
+        FormDefinitionId = content.FormDefinitionId;
+        JsonData = content.JsonData;
+        CurrentPage = content.CurrentPage;
+        Metadata = content.Metadata;
     }
 
     public void UpdateToken(Token token)
@@ -248,7 +260,7 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
 
     public void UpdateStatus(SubmissionStatus newStatus)
     {
-        Guard.Against.Null(newStatus, nameof(newStatus));
+        Guard.Against.Null(newStatus);
 
         if (Status == newStatus)
         {

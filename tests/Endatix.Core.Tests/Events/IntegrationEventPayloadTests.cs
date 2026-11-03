@@ -241,9 +241,10 @@ public class IntegrationEventPayloadTests
         var payloads = events.Select(evt => Payload(evt.GetPayload())).ToList();
 
         // Assert
-        events.Select(evt => evt.EventType).Distinct().Should().BeEquivalentTo(
+        events.Select(evt => evt.EventType).Should().Equal(
             "submission.created",
             "submission.collection_status_changed",
+            "submission.created",
             "submission.completed",
             "submission.status_changed",
             "submission.updated",

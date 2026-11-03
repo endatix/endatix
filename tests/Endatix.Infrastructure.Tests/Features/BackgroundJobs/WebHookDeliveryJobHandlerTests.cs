@@ -124,6 +124,32 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
         _http.Requests.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(CollectionStatusCodes.ScreenOut, true)]
+    [InlineData(CollectionStatusCodes.Complete, false)]
+    [InlineData(CollectionStatusCodes.InProgress, false)]
+    public async Task ExecuteAsync_CollectionStatusChanged_DeliversOnlyATerminalOutcomeOtherThanComplete(
+        string collectionStatus,
+        bool delivered)
+    {
+        // Arrange
+        var messageId = await SeedMessageAsync(
+            TenantId,
+            "submission.collection_status_changed",
+            $$"""{"formId":"12","submissionId":"34","tenantId":"5","collectionStatus":"{{collectionStatus}}"}""");
+        _tenantSettings
+            .FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new TenantSettings(TenantId, webHookSettingsJson: ConfigJson(EndpointUrl, eventName: "SubmissionCollectionStatusChanged")));
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.ExecuteAsync(Job(messageId, WebHookEndpointKey.Of(EndpointUrl)), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().Be(delivered);
+        _http.Requests.Should().HaveCount(delivered ? 1 : 0);
+    }
+
     private WebHookDeliveryJobHandler CreateHandler()
     {
         var clients = Substitute.For<IHttpClientFactory>();
@@ -136,11 +162,14 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
             NullLogger<WebHookDeliveryJobHandler>.Instance);
     }
 
-    private Task<long> SeedMessageAsync(long tenantId)
+    private Task<long> SeedMessageAsync(
+        long tenantId,
+        string eventType = "submission.completed",
+        string payload = """{"formId":"12","submissionId":"34","tenantId":"5"}""")
     {
         var message = new OutboxMessage(
-            "submission.completed",
-            """{"formId":"12","submissionId":"34","tenantId":"5"}""",
+            eventType,
+            payload,
             tenantId,
             DateTime.UtcNow,
             1);
@@ -154,12 +183,12 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
         new(1, WebHookDeliveryPayload.JobType, TenantId,
             BackgroundJobPayloadSerializer.Serialize(new WebHookDeliveryPayload(messageId, endpointKey)), 1);
 
-    private static string ConfigJson(string url, bool isEnabled = true) =>
+    private static string ConfigJson(string url, bool isEnabled = true, string eventName = "SubmissionCompleted") =>
         JsonSerializer.Serialize(new WebHookConfiguration
         {
             Events = new Dictionary<string, WebHookEventConfig>
             {
-                ["SubmissionCompleted"] = new()
+                [eventName] = new()
                 {
                     IsEnabled = isEnabled,
                     WebHookEndpoints = [new WebHookEndpointConfig { Url = url }],

@@ -25,6 +25,7 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
         // Arrange
         var (world, admin) = await AdminAsync();
         var formId = await CreateEnabledFormAsync(admin);
+        await PatchAsync(admin, $"/api/forms/{formId}", new { isPublic = true });
         using var anonymous = world.AnonymousClient();
 
         // Act

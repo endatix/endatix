@@ -93,6 +93,40 @@ public class SubmissionLifecycleEventTests
     }
 
     [Fact]
+    public void FirstSave_ThatCompletesAPrefilledSubmission_RaisesOneTransitionToComplete()
+    {
+        // Arrange
+        var submission = CreateCleared(startSubmission: false);
+        var revision = submission.Revision;
+
+        // Act
+        SaveAnswers(submission, """{"a":1}""", isComplete: true);
+
+        // Assert
+        AssertSingleTransition(submission, CollectionStatusCodes.NotStarted, CollectionStatusCodes.Complete);
+        submission.DomainEvents.OfType<SubmissionCompletedEvent>().Should().ContainSingle();
+        submission.Revision.Should().Be(revision + 1);
+        submission.StartedAt.Should().Be(submission.CompletedAt);
+    }
+
+    [Fact]
+    public void ScreenOut_WithAnswers_OfAPrefilledSubmission_RaisesOneTransition()
+    {
+        // Arrange
+        var submission = CreateCleared(startSubmission: false);
+        var revision = submission.Revision;
+
+        // Act
+        submission.ScreenOut("""{"age":"under_18"}""", FormDefinitionId, formDefinitionFormId: FormId);
+
+        // Assert
+        AssertSingleTransition(submission, CollectionStatusCodes.NotStarted, CollectionStatusCodes.ScreenOut);
+        submission.Revision.Should().Be(revision + 1);
+        submission.JsonData.Should().Be("""{"age":"under_18"}""");
+        submission.HasStarted.Should().BeTrue();
+    }
+
+    [Fact]
     public void InProgressSaves_RaiseNothingAndKeepTheRevision()
     {
         // Arrange
