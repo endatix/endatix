@@ -16,6 +16,7 @@
 	<ItemGroup>
 		<PackageReference Include="CsvHelper" />
 		<PackageReference Include="DocumentFormat.OpenXml" />
+		<PackageReference Include="FastEndpoints" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
 		<PackageReference Include="Microsoft.Extensions.Caching.Hybrid" />
 		<PackageReference Include="Microsoft.Extensions.Http.Resilience" />
