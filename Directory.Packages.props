@@ -17,8 +17,8 @@
     <PackageVersion Include="Endatix.Outbox.Engine" Version="1.0.0" />
     <PackageVersion Include="FastEndpoints" Version="8.3.0" />
     <PackageVersion Include="FastEndpoints.Security" Version="8.3.0" />
-    <PackageVersion Include="FastEndpoints.Swagger" Version="7.1.1" />
-    <PackageVersion Include="FastEndpoints.Testing" Version="7.1.1" />
+    <PackageVersion Include="FastEndpoints.Swagger" Version="8.3.0" />
+    <PackageVersion Include="FastEndpoints.Testing" Version="8.3.0" />
     <PackageVersion Include="FluentAssertions" Version="7.2.0" />
     <PackageVersion Include="FluentValidation" Version="12.0.0" />
     <PackageVersion Include="IdGen" Version="3.0.7" />
