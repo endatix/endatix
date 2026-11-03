@@ -34,7 +34,9 @@
         <PackageReference Include="coverlet.collector" />
         <PackageReference Include="FluentAssertions" />
         <PackageReference Include="NSubstitute" />
-        <PackageReference Include="xunit.v3" />
+        <!-- mtp-off keeps xunit 4 on VSTest: `dotnet test` on .NET 10 rejects the default MTP v2
+             build in VSTest mode, and CI relies on VSTest filters and coverlet.collector. -->
+        <PackageReference Include="xunit.v3.mtp-off" />
         <PackageReference Include="xunit.runner.visualstudio" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" />
     </ItemGroup>

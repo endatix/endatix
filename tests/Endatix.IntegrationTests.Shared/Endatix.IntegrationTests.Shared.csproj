@@ -30,7 +30,7 @@
   <ItemGroup>
     <!-- Inherited from tests/Directory.Build.props and needed to build here, but they are
          test-host and assertion concerns that must not become dependencies of consumers.
-         PrivateAssets keeps them out of the nuspec. xunit.v3 is deliberately NOT listed —
+         PrivateAssets keeps them out of the nuspec. xunit.v3.mtp-off is deliberately NOT listed —
          the fixtures implement IAsyncLifetime, so it is a genuine public dependency. -->
     <PackageReference Update="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
     <PackageReference Update="xunit.runner.visualstudio" PrivateAssets="all" />

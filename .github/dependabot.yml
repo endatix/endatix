@@ -30,12 +30,6 @@ updates:
       # FluentAssertions 8+ is under a commercial license; stay on 7.x.
       - dependency-name: "FluentAssertions"
         update-types: ["version-update:semver-major"]
-      # xunit.v3 4.x defaults to Microsoft.Testing.Platform, which `dotnet test` on .NET 10
-      # rejects in VSTest mode; CI (filters, coverlet.runsettings) needs a migration first.
-      - dependency-name: "xunit.v3"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "xunit.runner.visualstudio"
-        update-types: ["version-update:semver-major"]
     groups:
       microsoft-runtime:
         applies-to: version-updates
