@@ -50,7 +50,7 @@ public class SubmissionCsvExporter(
                         {
                             csv.WriteField(col.Name);
                         }
-                        await csv.EndRecordAsync();
+                        await csv.EndRecordAsync(cancellationToken);
                         headerWritten = true;
                     }
 
@@ -69,7 +69,7 @@ public class SubmissionCsvExporter(
                             csv.WriteField(MissingValue(options));
                         }
                     }
-                    await csv.EndRecordAsync();
+                    await csv.EndRecordAsync(cancellationToken);
                 }
             }
 
