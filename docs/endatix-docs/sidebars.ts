@@ -257,6 +257,7 @@ const sidebars: SidebarsConfig = {
         "end-users/forms/prefilling-and-personalization",
         "end-users/forms/audience",
         "end-users/forms/personalized-forms",
+        "end-users/forms/exporting-importing-forms",
       ],
     },
     "end-users/data-lists/index",
