@@ -1,6 +1,4 @@
-using System.Globalization;
 using CsvHelper;
-using CsvHelper.Configuration;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Audience.Domain;
 
@@ -22,14 +20,12 @@ public sealed class PanelCsvCompatibilityTests
     {
         string path = Path.Combine(AppContext.BaseDirectory, "Features", "Import", "Fixtures", fileName);
         using StreamReader reader = new(path);
-        using CsvReader csv = new(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+        using CsvReader csv = CsvReader.Create(reader, new CsvReaderOptions
         {
-            HasHeaderRecord = true,
-            TrimOptions = TrimOptions.Trim,
+            Separator = ',',
+            TrimWhitespace = true,
         });
-        csv.Read();
-        csv.ReadHeader();
-        string[] headers = csv.HeaderRecord!;
+        string[] headers = [.. csv.Headers];
         headers.Should().Contain("external_id");
 
         int rows = 0;
@@ -40,11 +36,11 @@ public sealed class PanelCsvCompatibilityTests
             {
                 if (header == "external_id")
                 {
-                    csv.GetField(header).Should().NotBeNullOrWhiteSpace();
+                    csv.GetString(header).Should().NotBeNullOrWhiteSpace();
                     continue;
                 }
 
-                string value = csv.GetField(header) ?? "";
+                string value = csv.GetString(header);
                 Property property = new(new PropertyCreateArgs(1, 1, header, DataType(header), 0));
                 PropertyValueRules.ValueError(property, value).Should().BeNull(because: $"{fileName} row {rows} {header}");
             }

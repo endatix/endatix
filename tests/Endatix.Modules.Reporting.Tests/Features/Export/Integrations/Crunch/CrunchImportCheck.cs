@@ -163,11 +163,21 @@ internal static partial class CrunchImportCheck
 
     private static (List<string> Header, List<string[]> Rows) Read(string csv)
     {
-        using var reader = new CsvReader(new StringReader(csv), CultureInfo.InvariantCulture);
+        using var reader = CsvReader.Create(new StringReader(csv), new CsvReaderOptions
+        {
+            Separator = ',',
+            HasHeader = false,
+        });
         List<string[]> records = [];
         while (reader.Read())
         {
-            records.Add(reader.Parser.Record ?? []);
+            var fields = new string[reader.FieldCount];
+            for (var i = 0; i < fields.Length; i++)
+            {
+                fields[i] = reader.GetString(i);
+            }
+
+            records.Add(fields);
         }
 
         return ([.. records[0]], records.Skip(1).ToList());
