@@ -126,6 +126,15 @@ jobs:
           global-json-file: global.json
       - name: Restore dependencies
         run: dotnet restore
+      # Informational only — NuGetAudit + WarningsAsErrors(NU1903;NU1904) is the failing ratchet
+      # (Directory.Build.props). This step surfaces the human-readable package list in the log.
+      # It runs after a failed restore too (the case it exists for); restore still writes the
+      # assets files. --no-restore: a second restore under CI=true fails the same way and
+      # prints only the errors, never the table.
+      - name: List vulnerable NuGet packages (informational)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: dotnet package list --project Endatix.slnx --no-restore --vulnerable --include-transitive
       - name: Build
         run: dotnet build --no-restore
       - name: 🧪 Run unit tests

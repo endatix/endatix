@@ -63,6 +63,23 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+        <!-- Explicit NuGet audit policy (net10 defaults: Mode=all, Level=low). Pin so the
+             ratchet is reviewable and does not silently change with the SDK. -->
+        <NuGetAudit>true</NuGetAudit>
+        <NuGetAuditMode>all</NuGetAuditMode>
+        <NuGetAuditLevel>low</NuGetAuditLevel>
+    </PropertyGroup>
+
+    <!-- GitHub Actions / most CI runners set CI=true. Map it so ContinuousIntegrationBuild
+         (and the NU1903/NU1904 ratchet below) apply without every workflow repeating -p:. -->
+    <PropertyGroup Condition="'$(CI)' == 'true' And '$(ContinuousIntegrationBuild)' == ''">
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    </PropertyGroup>
+
+    <!-- Stage 1: high/critical vulnerable packages fail CI only; local restore stays warnings.
+         NU1901/NU1902 stay warnings until triage capacity after docs npm batches. -->
+    <PropertyGroup Condition="'$(ContinuousIntegrationBuild)' == 'true'">
+        <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
     </PropertyGroup>
 
     <!-- Lift transitive vulnerable Pkcs (SqlClient / OpenXml / etc.) to the CPM pin; do not flow into packed deps. -->
