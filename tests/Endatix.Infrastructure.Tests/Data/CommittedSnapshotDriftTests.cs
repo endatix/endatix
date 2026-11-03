@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Identity;
@@ -25,7 +26,7 @@ namespace Endatix.Infrastructure.Tests.Data;
 /// The contexts are registered the way the hosts register them, so each one reads the snapshot the runtime reads;
 /// no connection is opened. <see cref="CommittedModelProviderAnnotationsTests"/> covers migration designers.
 /// </summary>
-public sealed class CommittedSnapshotDriftTests
+public sealed partial class CommittedSnapshotDriftTests
 {
     private const string PostgreSql = "postgresql";
     private const string SqlServer = "sqlserver";
@@ -82,8 +83,8 @@ public sealed class CommittedSnapshotDriftTests
         var scaffoldedCode = ScaffoldedSnapshotCode(context, snapshotType.Namespace).ReplaceLineEndings("\n");
 
         // Assert
-        scaffoldedCode.Should().Be(
-            committedCode,
+        WithoutProductVersion(scaffoldedCode).Should().Be(
+            WithoutProductVersion(committedCode),
             "migrations add must leave the committed snapshot unchanged; scaffold a probe migration to see the difference");
     }
 
@@ -128,6 +129,14 @@ public sealed class CommittedSnapshotDriftTests
             .ScaffoldMigration("Probe", snapshotNamespace, dryRun: true)
             .SnapshotCode;
     }
+
+    // The ProductVersion annotation records the EF Core version that last scaffolded the snapshot. It moves with every
+    // EF Core patch and has no effect on the model, so a runtime upgrade must not require editing every snapshot.
+    private static string WithoutProductVersion(string snapshotCode) =>
+        ProductVersionAnnotation().Replace(snapshotCode, "\"ProductVersion\", \"<version>\"");
+
+    [GeneratedRegex("\"ProductVersion\", \"[^\"]*\"")]
+    private static partial Regex ProductVersionAnnotation();
 
     // Both provider assemblies hold a file named AppDbContextModelSnapshot.cs, so the namespace picks one. Line
     // endings follow the checkout and the OS, not the model, so both sides compare with \n.

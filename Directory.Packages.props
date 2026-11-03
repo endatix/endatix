@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <AspNetVersion>10.0.0</AspNetVersion>
-    <EFCoreVersion>10.0.0</EFCoreVersion>
+    <AspNetVersion>10.0.14</AspNetVersion>
+    <EFCoreVersion>10.0.14</EFCoreVersion>
     <OpenTelemetryVersion>1.17.0</OpenTelemetryVersion>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
@@ -54,7 +54,8 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite.Core" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="$(EFCoreVersion)" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EFCoreVersion)" />
+    <!-- Provider does not publish a 10.0.x build for every EF Core patch. Keep it on the latest stable 10.0 line. -->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="SQLite3MC.PCLRaw.bundle" Version="2.3.5" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="SendGrid" Version="9.29.3" />
@@ -90,7 +91,7 @@
     <PackageVersion Include="Respawn" Version="7.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
-    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
     <!-- Build-time only: reports SonarCloud S-rules as build warnings in non-test projects. -->
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" />
   </ItemGroup>
