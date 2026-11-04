@@ -88,7 +88,7 @@ internal sealed class ChoiceSet
     ];
 
     // An inline choice that already stores a special value keeps it; the special item is not added twice.
-    private static IEnumerable<ChoiceSetItem> SpecialItems(JsonElement question, List<ChoiceSetItem> inline)
+    private static List<ChoiceSetItem> SpecialItems(JsonElement question, List<ChoiceSetItem> inline)
     {
         var supportsAllSpecials = SupportsAllSpecialItems(question);
         return SpecialChoices.All
