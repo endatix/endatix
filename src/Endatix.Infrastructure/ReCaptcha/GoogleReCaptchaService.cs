@@ -114,10 +114,10 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     {
         { Success: false } => Rejected(token),
         { Action: null or "" } => ActionMissing(token),
-        { Action: not EXPECTED_ACTION } => ActionMismatch(token),
-        { Score: null } => ScoreMissing(token),
-        { Score: { } score } when score < _options.MinimumScore => ScoreTooLow(token, score),
-        { Score: { } score } => ReCaptchaVerificationResult.Success(score, token.Action),
+        { Action: not EXPECTED_ACTION and var action } => ActionMismatch(token, action),
+        { Score: null } => ScoreMissing(token, EXPECTED_ACTION),
+        { Score: { } score } when score < _options.MinimumScore => ScoreTooLow(EXPECTED_ACTION, score),
+        { Score: { } score } => ReCaptchaVerificationResult.Success(score, EXPECTED_ACTION),
     };
 
     private ReCaptchaVerificationResult Rejected(GoogleReCaptchaResponse token)
@@ -150,12 +150,12 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
             ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING);
     }
 
-    private ReCaptchaVerificationResult ActionMismatch(GoogleReCaptchaResponse token)
+    private ReCaptchaVerificationResult ActionMismatch(GoogleReCaptchaResponse token, string action)
     {
-        _logger.LogReCaptchaActionMismatch(token.Action!, EXPECTED_ACTION);
+        _logger.LogReCaptchaActionMismatch(action, EXPECTED_ACTION, token.Hostname);
         return ReCaptchaVerificationResult.InvalidResponse(
             token.Score ?? 0.0,
-            token.Action,
+            action,
             ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISMATCH);
     }
 
@@ -163,21 +163,21 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     /// v3 always returns <c>score</c> with a successful token, so a missing score points at a
     /// key of the wrong type, not at the visitor.
     /// </summary>
-    private ReCaptchaVerificationResult ScoreMissing(GoogleReCaptchaResponse token)
+    private ReCaptchaVerificationResult ScoreMissing(GoogleReCaptchaResponse token, string action)
     {
-        _logger.LogReCaptchaScoreMissing(token.Action!, token.Hostname);
+        _logger.LogReCaptchaScoreMissing(action, token.Hostname);
         return ReCaptchaVerificationResult.InvalidResponse(
             0.0,
-            token.Action,
+            action,
             ReCaptchaConstants.ErrorCodes.ERROR_SCORE_MISSING);
     }
 
-    private ReCaptchaVerificationResult ScoreTooLow(GoogleReCaptchaResponse token, double score)
+    private ReCaptchaVerificationResult ScoreTooLow(string action, double score)
     {
-        _logger.LogReCaptchaScoreTooLow(score, _options.MinimumScore, token.Action!);
+        _logger.LogReCaptchaScoreTooLow(score, _options.MinimumScore, action);
         return ReCaptchaVerificationResult.InvalidResponse(
             score,
-            token.Action,
+            action,
             [ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW, $"{score} < {_options.MinimumScore}"]);
     }
 

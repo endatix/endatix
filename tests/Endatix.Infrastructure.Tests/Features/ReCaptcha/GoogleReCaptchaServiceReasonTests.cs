@@ -45,10 +45,24 @@ public class GoogleReCaptchaServiceReasonTests
     }
 
     [Fact]
+    public async Task VerifyTokenAsync_ReturnsActionMissing_NotScoreTooLow_WhenTokenHasNoActionAndZeroScore()
+    {
+        // Arrange
+        var noAction = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 0.0, null, null);
+        var service = new GoogleReCaptchaService(new StubReCaptchaHttpClient(noAction), _options, _userContext);
+
+        // Act
+        var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal([ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING], result.ErrorCodes);
+    }
+
+    [Fact]
     public async Task VerifyTokenAsync_ReturnsActionMismatch_WhenActionIsNotSubmitForm()
     {
         // Arrange
-        var wrongAction = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 0.1, ReCaptchaConstants.Actions.SIGN_IN, null);
+        var wrongAction = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 0.9, ReCaptchaConstants.Actions.SIGN_IN, null);
         var logger = new RecordingLogger<GoogleReCaptchaService>();
         var service = new GoogleReCaptchaService(new StubReCaptchaHttpClient(wrongAction), _options, _userContext, logger);
 

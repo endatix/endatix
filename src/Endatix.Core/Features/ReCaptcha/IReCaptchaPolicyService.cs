@@ -15,9 +15,10 @@ public interface IReCaptchaPolicyService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result indicating if the token is valid</returns>
     Task<Result> ValidateReCaptchaAsync(SubmissionVerificationContext context, CancellationToken cancellationToken);
-    
+
     /// <summary>
-    /// Verifies a reCAPTCHA token with Google's API
+    /// Verifies a reCAPTCHA token with Google's API. The token must have been issued for
+    /// <see cref="ReCaptchaConstants.Actions.SUBMIT_FORM"/>, the action of a public form completion.
     /// </summary>
     /// <param name="token">The reCAPTCHA token to verify</param>
     /// <param name="cancellationToken">Cancellation token</param>

@@ -43,6 +43,6 @@ internal static partial class ReCaptchaLoggerExtensions
     [LoggerMessage(
         EventId = EndatixEventIds.ReCaptcha.ActionMismatch,
         Level = LogLevel.Warning,
-        Message = "reCAPTCHA token was issued for action {Action}, expected {ExpectedAction}. Check the action the client passes to grecaptcha.execute")]
-    public static partial void LogReCaptchaActionMismatch(this ILogger logger, string action, string expectedAction);
+        Message = "reCAPTCHA token was issued for action {Action}, expected {ExpectedAction}. Check the action the client passes to grecaptcha.execute. Hostname: {Hostname}")]
+    public static partial void LogReCaptchaActionMismatch(this ILogger logger, string action, string expectedAction, string? hostname);
 }
