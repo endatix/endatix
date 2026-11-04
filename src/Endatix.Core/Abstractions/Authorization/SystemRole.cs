@@ -11,9 +11,9 @@ public sealed record SystemRole
 {
     private SystemRole(string name, string description, bool isSystemDefined, bool hasHubAccess, string[] permissions, bool isPersisted = true)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
-        Guard.Against.NullOrWhiteSpace(description, nameof(description));
-        Guard.Against.Null(permissions, nameof(permissions));
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrWhiteSpace(description);
+        Guard.Against.Null(permissions);
 
         Name = name;
         Description = description;

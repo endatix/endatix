@@ -16,7 +16,7 @@ public record DeleteRoleCommand : ICommand<Result<string>>
 
     public DeleteRoleCommand(string roleName)
     {
-        Guard.Against.NullOrWhiteSpace(roleName, nameof(roleName));
+        Guard.Against.NullOrWhiteSpace(roleName);
 
         RoleName = roleName;
     }

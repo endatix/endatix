@@ -32,7 +32,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
 
     public TenantSettings(long tenantId, int? submissionTokenExpiryHours = DefaultSubmissionTokenExpiryHours, bool isSubmissionTokenValidAfterCompletion = false, string? slackSettingsJson = null, string? webHookSettingsJson = null, string? customExportsJson = null)
     {
-        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
+        Guard.Against.NegativeOrZero(tenantId);
 
         TenantId = tenantId;
         SubmissionTokenExpiryHours = submissionTokenExpiryHours;
@@ -173,7 +173,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     {
         if (hours.HasValue)
         {
-            Guard.Against.NegativeOrZero(hours.Value, nameof(hours));
+            Guard.Against.NegativeOrZero(hours.Value);
         }
 
         SubmissionTokenExpiryHours = hours;

@@ -28,8 +28,7 @@ public static class SpecificationHelper
 
         Guard.Against.Null(
             propertyInfo,
-            nameof(filter.Field),
-            $"Property '{filter.Field}' does not exist on type '{entityType.Name}'");
+            message: $"Property '{filter.Field}' does not exist on type '{entityType.Name}'");
 
         var entity = Expression.Parameter(entityType, "entity");
         var property = Expression.Property(entity, propertyInfo);

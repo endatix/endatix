@@ -69,7 +69,7 @@ public class EmailVerificationToken : BaseEntity, IAggregateRoot
 
     public static string HashToken(string token)
     {
-        Guard.Against.NullOrWhiteSpace(token, nameof(token));
+        Guard.Against.NullOrWhiteSpace(token);
 
         byte[] tokenBytes = Encoding.UTF8.GetBytes(token);
         byte[] hashBytes = SHA256.HashData(tokenBytes);

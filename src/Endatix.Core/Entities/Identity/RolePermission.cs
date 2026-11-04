@@ -10,8 +10,8 @@ public sealed class RolePermission : BaseEntity
 
     public RolePermission(long roleId, long permissionId, DateTime? expiresAt = null)
     {
-        Guard.Against.NegativeOrZero(roleId, nameof(roleId));
-        Guard.Against.NegativeOrZero(permissionId, nameof(permissionId));
+        Guard.Against.NegativeOrZero(roleId);
+        Guard.Against.NegativeOrZero(permissionId);
 
         RoleId = roleId;
         PermissionId = permissionId;

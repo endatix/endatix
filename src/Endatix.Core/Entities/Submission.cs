@@ -260,7 +260,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
     public void UpdateStatus(SubmissionStatus newStatus)
     {
-        Guard.Against.Null(newStatus, nameof(newStatus));
+        Guard.Against.Null(newStatus);
 
         if (Status == newStatus)
         {

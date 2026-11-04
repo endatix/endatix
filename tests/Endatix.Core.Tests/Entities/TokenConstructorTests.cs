@@ -10,7 +10,7 @@ public class TokenConstructorTests
     public void Constructor_InvalidExpiryHours_ThrowsArgumentException(int expiryHours)
     {
         // Arrange
-        var expectedMessage = ErrorMessages.GetErrorMessage("expiryInHours", ErrorType.ZeroOrNegative);
+        var expectedMessage = ErrorMessages.GetErrorMessage("expiryInHours.Value", ErrorType.ZeroOrNegative);
 
         // Act
         var action = () => new Token(expiryHours);
@@ -43,7 +43,7 @@ public class TokenConstructorTests
     {
         // Arrange
         var expiryHours = 1;
-        
+
         // Act
         var token1 = new Token(expiryHours);
         var token2 = new Token(expiryHours);
@@ -53,4 +53,4 @@ public class TokenConstructorTests
         token2.Should().NotBeNull();
         token1.Value.Should().NotBe(token2.Value);
     }
-} 
+}

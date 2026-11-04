@@ -11,7 +11,7 @@ public sealed class Permission : BaseEntity, IAggregateRoot
 
     public Permission(string name, string? description = null, string? category = null)
     {
-        Guard.Against.NullOrEmpty(name, nameof(name));
+        Guard.Against.NullOrEmpty(name);
 
         Name = name;
         Description = description;
@@ -29,9 +29,9 @@ public sealed class Permission : BaseEntity, IAggregateRoot
     /// <returns>The created permission</returns>
     public static Permission CreateSystemPermission(string name, string description, string category)
     {
-        Guard.Against.NullOrEmpty(name, nameof(name));
-        Guard.Against.NullOrEmpty(description, nameof(description));
-        Guard.Against.NullOrEmpty(category, nameof(category));
+        Guard.Against.NullOrEmpty(name);
+        Guard.Against.NullOrEmpty(description);
+        Guard.Against.NullOrEmpty(category);
 
         var permission = new Permission(name, description, category)
         {

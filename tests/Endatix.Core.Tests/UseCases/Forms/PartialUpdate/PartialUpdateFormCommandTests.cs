@@ -27,7 +27,7 @@ public class PartialUpdateFormCommandTests
 
         // Assert
         act.Should().Throw<ArgumentException>()
-            .WithMessage(GetErrorMessage(nameof(formId), ZeroOrNegative));
+            .WithMessage(GetErrorMessage("value", ZeroOrNegative));
     }
 
     [Fact]

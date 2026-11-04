@@ -57,7 +57,7 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
     /// </summary>
     public static SubmissionStatus FromCode(string code)
     {
-        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.NullOrWhiteSpace(code);
 
         var catalog = code.ToLowerInvariant() switch
         {
