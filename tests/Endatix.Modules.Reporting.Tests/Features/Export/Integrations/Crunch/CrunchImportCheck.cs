@@ -161,7 +161,8 @@ internal static partial class CrunchImportCheck
             ? subvariables.EnumerateArray().Select(subvariable => subvariable.GetProperty("alias").GetString()!)
             : [variable.GetProperty("alias").GetString()!];
 
-    private static (List<string> Header, List<string[]> Rows) Read(string csv)
+    /// <summary>The CSV's header and rows, quoted fields unquoted.</summary>
+    internal static (List<string> Header, List<string[]> Rows) Read(string csv)
     {
         using var reader = CsvReader.Create(new StringReader(csv), new CsvReaderOptions
         {

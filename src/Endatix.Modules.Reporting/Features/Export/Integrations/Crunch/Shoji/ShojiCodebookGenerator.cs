@@ -2,6 +2,7 @@ using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
@@ -54,7 +55,7 @@ internal static partial class ShojiCodebookGenerator
             using var codebookDocument = JsonDocument.Parse(codebookJson);
             var codebook = codebookDocument.RootElement;
 
-            var questions = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Questions);
+            var questions = CodebookQuestions.Read(codebook);
             var codebookColumns = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Columns);
             var flatteningMap = ShojiFlatteningMap(flatteningMapJson, codebook, codebookColumns);
             var groupedColumnKeys = BuildGroupedColumnKeys(flatteningMap);
@@ -1573,7 +1574,9 @@ internal static partial class ShojiCodebookGenerator
                     ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text).Trim());
                 writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
                 writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
-                writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);
+                writer.WriteBoolean(
+                    ShojiCodebookPropertyNames.Missing,
+                    CatalogChoice.Read(choice)?.Kind.IsNonResponse() ?? false);
                 writer.WriteEndObject();
             }
         }
