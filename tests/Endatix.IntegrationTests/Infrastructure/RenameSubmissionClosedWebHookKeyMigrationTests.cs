@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
@@ -56,6 +57,58 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         up.NoWebHooksForm.Should().BeNull();
         AssertMoved(down.OldKeyForm, from: NewKey, to: OldKey);
         AssertMoved(down.Tenant, from: NewKey, to: OldKey);
+    }
+
+    // The validator's matching: any JSON value, and Events and the key in any case.
+    [Theory]
+    [InlineData("""{"Events":{"SubmissionCollectionStatusChanged":null}}""", "Events", "null")]
+    [InlineData("""{"events":{"SubmissionCollectionStatusChanged":{"IsEnabled":true}}}""", "events", """{"IsEnabled":true}""")]
+    [InlineData("""{"Events":{"submissioncollectionstatuschanged":"on"}}""", "Events", "\"on\"")]
+    [InlineData("""{"Events":{"SubmissionCollectionStatusChanged":1}}""", "Events", "1")]
+    [InlineData("""{"Events":{"SubmissionCollectionStatusChanged":true}}""", "Events", "true")]
+    public async Task Migrate_Up_MovesAnyValueOfTheKeyInAnyCase(string stored, string eventsKey, string expectedValue)
+    {
+        // Arrange
+        await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
+        var services = IntegrationCoreMigrationTestHelper.BuildServiceProvider(fixture.ConnectionString, fixture.Provider);
+        await services.ApplyDbMigrationsAsync(NullLogger.Instance, Cancellation);
+        using var scope = services.CreateScope();
+        var migrationDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var migrator = migrationDb.GetService<IMigrator>();
+        var (previous, rename) = MigrationIds(migrationDb);
+        await migrator.MigrateAsync(previous, Cancellation);
+        var formId = await SeedFormAsync(stored);
+
+        // Act
+        await migrator.MigrateAsync(rename, Cancellation);
+
+        // Assert
+        var migrated = JsonNode.Parse((await ReadFormAsync(formId))!)!;
+        var events = migrated[eventsKey]!.AsObject();
+        events.Select(pair => pair.Key).Should().Equal(NewKey);
+        JsonNode.DeepEquals(events[NewKey], JsonNode.Parse(expectedValue)).Should().BeTrue(events.ToJsonString());
+        WebHookConfiguration.RetiredKeyError(migrated.ToJsonString()).Should().BeNull();
+    }
+
+    private async Task<long> SeedFormAsync(string stored)
+    {
+        await using var db = CreateAppDbContext();
+        db.Set<Tenant>().Add(new Tenant("webhook-key-rename", "tnntwk91") { Id = TenantId });
+        await db.SaveChangesAsync(Cancellation);
+        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "stored"));
+        db.Forms.Add(form);
+        await db.SaveChangesAsync(Cancellation);
+        await StoreAsync(db.Forms.Where(candidate => candidate.Id == form.Id), stored);
+        return form.Id;
+    }
+
+    private async Task<string?> ReadFormAsync(long formId)
+    {
+        await using var db = CreateAppDbContext();
+        return await db.Forms.IgnoreQueryFilters().AsNoTracking()
+            .Where(form => form.Id == formId)
+            .Select(form => form.WebHookSettingsJson)
+            .SingleAsync(Cancellation);
     }
 
     private static (string Previous, string Rename) MigrationIds(AppDbContext db)
