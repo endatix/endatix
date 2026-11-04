@@ -4,13 +4,13 @@ using System.Threading.Tasks;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Submissions.GetFiles;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions.GetFiles;
 using FluentAssertions;
 using NSubstitute;
 using Xunit;
-using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetFiles;
 
@@ -59,7 +59,11 @@ public class GetFilesHandlerTests
         var prefix = "prefix";
         var query = new GetFilesQuery(formId, submissionId, prefix);
 
-        var submission = new Submission(1, "{}", formId, 1) { Id = submissionId };
+        var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: formId,
+            FormDefinitionId: 1,
+            JsonData: "{}"));
         var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "TestForm"));
 
         _submissionRepo
@@ -96,7 +100,11 @@ public class GetFilesHandlerTests
         var submissionId = 2L;
         var query = new GetFilesQuery(formId, submissionId, null);
 
-        var submission = new Submission(1, "{}", formId, 1) { Id = submissionId };
+        var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
+            TenantId: 1,
+            FormId: formId,
+            FormDefinitionId: 1,
+            JsonData: "{}"));
         var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "TestForm"));
 
         _submissionRepo

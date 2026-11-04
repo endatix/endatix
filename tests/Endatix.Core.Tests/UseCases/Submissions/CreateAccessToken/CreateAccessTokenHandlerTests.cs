@@ -34,7 +34,7 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "view", "edit" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
         var tokenDto = new SubmissionAccessTokenDto(
             "token123",
             DateTime.UtcNow.AddMinutes(expiryMinutes),
@@ -156,7 +156,7 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "view" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
 
         _authorizationService.ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
@@ -187,7 +187,7 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "export" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
         var tokenDto = new SubmissionAccessTokenDto("token", DateTime.UtcNow.AddMinutes(expiryMinutes), permissions);
 
         _authorizationService.ValidateAccessAsync("submissions.export", Arg.Any<CancellationToken>())
@@ -218,7 +218,7 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "view", "edit", "export" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
         var tokenDto = new SubmissionAccessTokenDto("token", DateTime.UtcNow.AddMinutes(expiryMinutes), permissions);
 
         _authorizationService.ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -249,7 +249,7 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "view" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
         var tokenDto = new SubmissionAccessTokenDto("token", DateTime.UtcNow.AddMinutes(expiryMinutes), permissions);
 
         _authorizationService.ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>())
