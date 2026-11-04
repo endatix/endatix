@@ -1,4 +1,5 @@
-﻿using FastEndpoints;
+﻿using Endatix.Core.Entities;
+using FastEndpoints;
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
 using Endatix.Api.Common;
@@ -26,5 +27,9 @@ public class UpdateFormValidator : Validator<UpdateFormRequest>
         RuleFor(x => x.Metadata)
             .ValidJsonString()
             .When(x => x.Metadata != null);
+
+        RuleFor(x => x.WebHookSettingsJson)
+            .Must(json => WebHookConfiguration.RetiredKeyError(json) is null)
+            .WithMessage(x => WebHookConfiguration.RetiredKeyError(x.WebHookSettingsJson));
     }
 }

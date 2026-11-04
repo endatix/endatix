@@ -201,8 +201,10 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     /// <summary>
     /// Updates the webhook configuration settings.
     /// </summary>
+    /// <exception cref="ArgumentException">The settings use a retired event key.</exception>
     public void UpdateWebHookSettings(WebHookConfiguration settings)
     {
+        WebHookConfiguration.EnsureNoRetiredKeys(settings);
         _webHookSettings = settings;
         WebHookSettingsJson = JsonSerializer.Serialize(settings);
     }
