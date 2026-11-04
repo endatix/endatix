@@ -17,7 +17,7 @@ namespace Endatix.Core.Tests.UseCases.Submissions.Create;
 /// An on-behalf create as a test submission: an explicit <c>isTest</c> needs <c>forms.test</c>; without one, the
 /// Audience test-participant flag decides. A test create holds no one-response slot.
 /// </summary>
-public sealed class CreateSubmissionTestRunTests
+public sealed class CreateTestSubmissionOnBehalfTests
 {
     private const long SUBMITTER_ID = 123;
 
@@ -27,7 +27,7 @@ public sealed class CreateSubmissionTestRunTests
     private readonly ISubmitterResolver _submitterResolver = Substitute.For<ISubmitterResolver>();
     private readonly CreateSubmissionHandler _handler;
 
-    public CreateSubmissionTestRunTests()
+    public CreateTestSubmissionOnBehalfTests()
     {
         var form = Form.Create(new FormCreateArgs(
             TenantId: SampleData.TENANT_ID, Name: "Panel", IsEnabled: true, IsPublic: false, LimitOnePerUser: true));

@@ -189,7 +189,7 @@ Use this endpoint when the integration is already trusted. Do not accept submitt
 
 ### Create a test submission
 
-Testers can run a form many times without their runs counting as real responses. Create a test submission in the same call with `isTest`:
+Testers can fill in a form many times without counting as real respondents. Create a test submission in the same call with `isTest`:
 
 ```json
 {
@@ -206,7 +206,7 @@ Testers can run a form many times without their runs counting as real responses.
 * A test submission skips the one-submission-per-user limit and does not use the person's slot, so a later real create for the same person still succeeds.
 * A test submission is personalized like a real one. Exports leave it out unless you include test submissions.
 
-Set the flag at create time rather than marking the submission as test afterwards: until it is marked, a real response exists, counts toward the limit, and a completed one has already been reported as real.
+Prefer `isTest` over marking the submission as test afterwards. Until it is marked, the submission counts as real: it takes the person's slot, and a completed one has already been reported as real.
 
 ## Recipe 3: Customize submitter extraction
 

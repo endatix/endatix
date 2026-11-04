@@ -6,13 +6,13 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// A backend creates a test submission on behalf of a tester in one call: an explicit <c>isTest</c> (with
-/// <c>forms.test</c>), or the person's test-participant flag on the form. It is personalised as a real one, holds no
+/// <c>forms.test</c>), or the person's test-participant flag on the form. It is personalized as a real one, holds no
 /// one-response slot, and stays out of a default export.
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
     [Fact]
-    public async Task An_on_behalf_test_create_is_personalised_and_leaves_the_persons_real_slot_free()
+    public async Task An_on_behalf_test_create_is_personalized_and_leaves_the_persons_real_slot_free()
     {
         // Arrange
         var admin = await AdminAsync();
@@ -31,6 +31,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.True(test.GetProperty("isTestSubmission").GetBoolean());
         Assert.Equal("on_behalf", test.GetProperty("personalization").GetProperty("source").GetString());
         Assert.Equal("Columbus", CityOf(test));
+        Assert.True((await admin.ReadAsync(secondTest)).GetProperty("isTestSubmission").GetBoolean());
         Assert.False((await admin.ReadAsync(real)).GetProperty("isTestSubmission").GetBoolean());
     }
 
@@ -63,17 +64,38 @@ public sealed partial class AudienceDirectoryFlowTests
         using var first = await OnBehalfAsync(creator, formId, tester);
         using var second = await OnBehalfAsync(creator, formId, tester);
         using var real = await OnBehalfAsync(admin, formId, tester, isTest: false);
-        using var afterReal = await OnBehalfAsync(admin, formId, tester, isTest: false);
+        using var secondReal = await OnBehalfAsync(admin, formId, tester, isTest: false);
+        using var afterReal = await OnBehalfAsync(creator, formId, tester);
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
-        Assert.Equal(HttpStatusCode.Created, second.StatusCode);
         var test = await SubmissionAsync(admin, formId, IdOf(await admin.ReadAsync(first), "id"));
         Assert.True(test.GetProperty("isTestSubmission").GetBoolean());
         Assert.Equal("Quito", CityOf(test));
+        Assert.True(await IsCreatedTestAsync(admin, second));
         Assert.Equal(HttpStatusCode.Created, real.StatusCode);
         Assert.False((await admin.ReadAsync(real)).GetProperty("isTestSubmission").GetBoolean());
-        Assert.Equal(HttpStatusCode.Conflict, afterReal.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, secondReal.StatusCode);
+        Assert.True(await IsCreatedTestAsync(admin, afterReal));
+    }
+
+    [Fact]
+    public async Task On_behalf_of_a_test_participant_on_a_form_without_properties_creates_test_submissions()
+    {
+        // Arrange
+        var admin = await AdminAsync();
+        var formId = await admin.CreateFormAsync(limitOnePerUser: true);
+        var tester = $"{Guid.NewGuid():N}@example.com";
+        using var added = await admin.PostAsync($"/api/forms/{formId}/audience/people", new { identifier = tester, isTest = true });
+        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
+
+        // Act
+        using var first = await OnBehalfAsync(admin, formId, tester);
+        using var second = await OnBehalfAsync(admin, formId, tester);
+
+        // Assert
+        Assert.True(await IsCreatedTestAsync(admin, first));
+        Assert.True(await IsCreatedTestAsync(admin, second));
     }
 
     [Fact]
@@ -122,6 +144,12 @@ public sealed partial class AudienceDirectoryFlowTests
             new { identifier = email, values = new Dictionary<string, string> { [$"{propertyId}"] = city }, isTest });
         Assert.Equal(HttpStatusCode.Created, added.StatusCode);
         return email;
+    }
+
+    private static async Task<bool> IsCreatedTestAsync(AudienceApi admin, HttpResponseMessage created)
+    {
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        return (await admin.ReadAsync(created)).GetProperty("isTestSubmission").GetBoolean();
     }
 
     private static Task<HttpResponseMessage> OnBehalfAsync(AudienceApi caller, long formId, string businessId, bool isTest) =>

@@ -20,9 +20,7 @@ internal sealed class OnBehalfPersonalizer(
         SubmissionPersonalizationRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.Submitter is not SubmitterInput submitter
-            || !CanFreeze(submitter)
-            || !await HasPropertiesAsync(request, cancellationToken))
+        if (request.Submitter is not SubmitterInput submitter || !CanFreeze(submitter))
         {
             return null;
         }
@@ -67,6 +65,12 @@ internal sealed class OnBehalfPersonalizer(
         if (member is null || membership is null)
         {
             return Unknown(subjectId, request.FormId);
+        }
+
+        if (!await HasPropertiesAsync(request, cancellationToken))
+        {
+            // Nothing to freeze, but a test participant's create is still a test one.
+            return membership.IsTest ? new PersonalizationFreeze(member.Id, null, IsTestParticipant: true) : null;
         }
 
         var snapshot = await SnapshotAsync(member, membership.Snapshot, cancellationToken);

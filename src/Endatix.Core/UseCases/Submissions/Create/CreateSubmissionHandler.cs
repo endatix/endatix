@@ -56,10 +56,10 @@ public class CreateSubmissionHandler(
             return accessResult;
         }
 
-        var requestedTest = await RequestedTestAsync(request, cancellationToken);
-        if (!requestedTest.IsSuccess)
+        var testAccess = await AuthorizeRequestedTestAsync(request, cancellationToken);
+        if (testAccess.Status != ResultStatus.Ok)
         {
-            return requestedTest.ToErrorResult<Submission>();
+            return testAccess.ToErrorResult<Submission>();
         }
 
         var submitterResolution = await submitterResolver.EnsureSubmitterAsync(
@@ -70,7 +70,7 @@ public class CreateSubmissionHandler(
             cancellationToken);
 
         var submitterId = submitterResolution.SubmitterId;
-        var isTest = await IsTestAsync(requestedTest.Value, request, formWithActiveDefinition, submitterId, cancellationToken);
+        var isTest = await IsTestAsync(request, formWithActiveDefinition, submitterId, cancellationToken);
         if (!isTest.IsSuccess)
         {
             return isTest.ToErrorResult<Submission>();
@@ -117,22 +117,22 @@ public class CreateSubmissionHandler(
             ? Result.Success()
             : await authorizationService.ValidateAccessAsync(requiredPermission, cancellationToken);
 
-    /// <summary>The caller's explicit choice of a test or a real submission; a test one needs <c>forms.test</c>.</summary>
-    private async Task<Result<bool?>> RequestedTestAsync(CreateSubmissionCommand request, CancellationToken cancellationToken)
+    /// <summary>An explicit request for a test submission needs <c>forms.test</c>.</summary>
+    private async Task<IResult> AuthorizeRequestedTestAsync(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
         if (request.IsTest is not true)
         {
-            return Result.Success(request.IsTest);
+            return Result.Success();
         }
 
         var permission = await HasTestPermissionAsync(cancellationToken);
         if (!permission.IsSuccess)
         {
-            return permission.ToErrorResult<bool?>();
+            return permission;
         }
 
         return permission.Value
-            ? Result.Success<bool?>(true)
+            ? Result.Success()
             : Result.Forbidden($"Permission '{Actions.Forms.Test}' required to create a test submission.");
     }
 
@@ -141,13 +141,12 @@ public class CreateSubmissionHandler(
     /// when a signed-in caller who may test the form creates on a one-response form.
     /// </summary>
     private async Task<Result<bool>> IsTestAsync(
-        bool? requested,
         CreateSubmissionCommand request,
         Form form,
         long? submitterId,
         CancellationToken cancellationToken)
     {
-        if (requested is bool asked)
+        if (request.IsTest is bool asked)
         {
             return Result.Success(asked);
         }

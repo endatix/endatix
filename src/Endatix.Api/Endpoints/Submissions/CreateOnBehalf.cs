@@ -34,7 +34,7 @@ public sealed class CreateOnBehalf(
             s.Description = "Creates a new form submission with an optional trusted submitter. Only submitter.externalSubjectId is required: displayId labels a new submitter with the subject when omitted, and authProvider defaults to Integration.";
             s.Responses[201] = "The submission was successfully created.";
             s.Responses[400] = "Invalid input data.";
-            s.Responses[403] = "isTest is true and the caller lacks forms.test.";
+            s.Responses[403] = "The caller lacks submissions.create.onbehalf, or isTest is true and the caller lacks forms.test.";
             s.Responses[404] = "Form not found. Cannot create a submission.";
             s.Responses[409] = "A submission already exists for this user and form.";
             s.Responses[503] = "The form is busy; try again shortly.";
