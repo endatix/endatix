@@ -1,0 +1,34 @@
+name: Dependency Review
+
+# Fails a PR that introduces a new high/critical dependency vulnerability
+# (NuGet CPM, docs npm, Actions). Complements Dependabot version PRs and the
+# NuGetAudit NU1903/NU1904 CI ratchet in Directory.Build.props. Existing
+# advisories already on the base branch are not re-flagged.
+
+on:
+  pull_request:
+
+# Least privilege: only what the action needs to read the diff and graph.
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-review-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Review dependency changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          # Match NuGetAudit CI ratchet (NU1903/NU1904); leave low/moderate as
+          # informational for triage capacity (docs npm batches B7–B9).
+          fail-on-severity: high
+          show-patched-versions: true
