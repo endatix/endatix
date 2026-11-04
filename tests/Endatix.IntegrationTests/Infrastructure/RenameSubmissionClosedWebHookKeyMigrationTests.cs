@@ -94,19 +94,27 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
     private static WebHookEventConfig ScreenOut() =>
         new() { IsEnabled = true, WebHookEndpoints = [new WebHookEndpointConfig { Url = ScreenOutUrl }] };
 
+    // The entities refuse the retired key now, so the rows an older version stored are written as data.
     private async Task<SeededRows> SeedAsync()
     {
         await using var db = CreateAppDbContext();
         db.Set<Tenant>().Add(new Tenant("webhook-key-rename", "tnntwk91") { Id = TenantId });
         await db.SaveChangesAsync(Cancellation);
-        db.Set<TenantSettings>().Add(new TenantSettings(TenantId, webHookSettingsJson: Settings(OldKey)));
-        var oldKey = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "old-key", WebHookSettingsJson: Settings(OldKey)));
-        var bothKeys = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "both-keys", WebHookSettingsJson: Settings(OldKey, NewKey)));
+        db.Set<TenantSettings>().Add(new TenantSettings(TenantId));
+        var oldKey = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "old-key"));
+        var bothKeys = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "both-keys"));
         var noWebHooks = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "no-webhooks"));
         db.Forms.AddRange(oldKey, bothKeys, noWebHooks);
         await db.SaveChangesAsync(Cancellation);
+        await StoreAsync(db.Forms.Where(form => form.Id == oldKey.Id), Settings(OldKey));
+        await StoreAsync(db.Forms.Where(form => form.Id == bothKeys.Id), Settings(OldKey, NewKey));
+        await db.Set<TenantSettings>().Where(settings => settings.TenantId == TenantId)
+            .ExecuteUpdateAsync(update => update.SetProperty(settings => settings.WebHookSettingsJson, Settings(OldKey)), Cancellation);
         return new SeededRows(oldKey.Id, bothKeys.Id, noWebHooks.Id);
     }
+
+    private static Task<int> StoreAsync(IQueryable<Form> forms, string json) =>
+        forms.ExecuteUpdateAsync(update => update.SetProperty(form => form.WebHookSettingsJson, json), Cancellation);
 
     private async Task<StoredSettings> ReadAsync(SeededRows rows)
     {
