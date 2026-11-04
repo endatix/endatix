@@ -127,6 +127,18 @@ See [Submission Details](/docs/end-users/submissions/submission-details#the-top-
 
 To hand that PDF to someone who has no Hub account, generate an **Export PDF** share link instead: [Sharing Submissions](/docs/end-users/submissions/sharing-submissions).
 
+## None, Refused, Don't Know, and Other
+
+A choice question can show special items next to its own choices: **None**, **Refuse to answer**, **Don't know**, and **Other**. Every export format writes them the same way:
+
+* **Multi-select (checkbox, tag box):** each special item gets its own column after the question's choices, such as `question__none`, `question__refused`, and `question__dontknow`, marked like any other choice. **Select All** has no column: it only ticks the other choices.
+* **Single-select (radio group, dropdown):** the column holds the stored value, `none`, `refused`, `dontknow`, or `other`.
+* **Other:** the text the respondent typed goes in the `question__other_text` column, whether the form keeps that text in a separate comment or in the answer itself.
+
+In a codebook, special items are listed after the question's choices and **Other**. In a **Codebook (Shoji)** file for Crunch.io, **Refuse to answer** and **Don't know** are missing categories, so Crunch leaves them out of percentages; **None** counts as an answer.
+
+A form prepared before these items were exported needs **Rebuild reporting data…** once to add their columns.
+
 ## Important Considerations
 
 * **Prepare is per form, not per user.** Once anyone prepares a form for export, every user exporting that form skips the prepare step.
@@ -134,6 +146,7 @@ To hand that PDF to someone who has no Hub account, generate an **Export PDF** s
 * **The export panel refreshes drafts before an Incomplete or All download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included.
 * **Refreshing drafts needs permission to edit the form.** Without that permission the download still runs, and incomplete submissions stay as of their last update. If only some drafts can be updated in one export, the file still downloads and the panel says so.
 * **A codebook has no rows to filter.** Status, test-submission, and date filters apply only to Submissions formats.
+* **Crunch.io category ids never move.** A choice keeps the id it was first exported with, even after choices are added or removed. A form that removed a choice before this rule existed has its later choices renumbered once, in its next Shoji export.
 * **Full recompile discards export history.** It rebuilds the export structure from the form's current questions only. A question that was removed or renamed loses its column history in future exports.
 
 :::warning[Data list multi-select is one column of ids]
