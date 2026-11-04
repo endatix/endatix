@@ -52,18 +52,21 @@ internal static partial class FormSchemaCodebookBuilder
                 choiceCatalogs.TryGetValue(name, out var catalog) &&
                 catalog.TryGetProperty(FormSchemaCodebookPropertyNames.Multiple, out _))
             {
-                choiceCatalogs[name] = WriteQuestionEntry(writer =>
-                {
-                    foreach (var property in catalog.EnumerateObject().Where(property =>
-                                 !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
-                                 !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage)))
-                    {
-                        property.WriteTo(writer);
-                    }
-                });
+                choiceCatalogs[name] = WithoutSelectFields(catalog);
             }
         }
     }
+
+    private static JsonElement WithoutSelectFields(JsonElement catalog) =>
+        WriteQuestionEntry(writer =>
+        {
+            foreach (var property in catalog.EnumerateObject().Where(property =>
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage)))
+            {
+                property.WriteTo(writer);
+            }
+        });
 
     // An inline choice keeps reading its label by value, as before choice kinds; a special item reads the question's
     // text property (otherText, noneText, refuseText, dontKnowText).
