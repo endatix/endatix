@@ -19,7 +19,7 @@ public static class ScriptReader
     /// <exception cref="InvalidOperationException">Thrown when the script content is invalid</exception>
     public static string ReadSqlScript(string scriptPath, Assembly assembly)
     {
-        Guard.Against.NullOrWhiteSpace(scriptPath, nameof(scriptPath));
+        Guard.Against.NullOrWhiteSpace(scriptPath);
         Guard.Against.Null(assembly);
 
         // Normalize the path to use dots instead of slashes for resource names

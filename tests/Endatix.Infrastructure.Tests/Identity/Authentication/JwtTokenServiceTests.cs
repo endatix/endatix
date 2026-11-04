@@ -55,7 +55,7 @@ public class JwtTokenServiceTests
 
         // Assert
         act.Should().Throw<ArgumentNullException>()
-            .WithMessage(ErrorMessages.GetErrorMessage("SigningKey", ErrorType.SigningKeyEmpty));
+            .WithMessage(ErrorMessages.GetErrorMessage("_endatixJwtOptions.SigningKey", ErrorType.SigningKeyEmpty));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class JwtTokenServiceTests
 
         // Assert
         act.Should().Throw<ArgumentException>()
-            .WithMessage(ErrorMessages.GetErrorMessage("Issuer", ErrorType.IssuerEmpty));
+            .WithMessage(ErrorMessages.GetErrorMessage("_endatixJwtOptions.Issuer", ErrorType.IssuerEmpty));
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public class JwtTokenServiceTests
 
         // Assert
         act.Should().Throw<ArgumentException>()
-            .WithMessage(ErrorMessages.GetErrorMessage("Audiences", ErrorType.AudienceEmpty));
+            .WithMessage(ErrorMessages.GetErrorMessage("_endatixJwtOptions.Audiences", ErrorType.AudienceEmpty));
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class JwtTokenServiceTests
 
         // Assert
         act.Should().Throw<ArgumentException>()
-            .WithMessage(ErrorMessages.GetErrorMessage("AccessExpiryInMinutes", ErrorType.AccessTokenZeroOrNegative));
+            .WithMessage(ErrorMessages.GetErrorMessage("_endatixJwtOptions.AccessExpiryInMinutes", ErrorType.AccessTokenZeroOrNegative));
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public class JwtTokenServiceTests
 
         // Assert
         act.Should().Throw<ArgumentException>()
-            .WithMessage(ErrorMessages.GetErrorMessage("RefreshExpiryInDays", ErrorType.RefreshTokenZeroOrNegative));
+            .WithMessage(ErrorMessages.GetErrorMessage("_endatixJwtOptions.RefreshExpiryInDays", ErrorType.RefreshTokenZeroOrNegative));
     }
 
     [Fact]

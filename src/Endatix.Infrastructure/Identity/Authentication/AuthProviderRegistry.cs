@@ -56,7 +56,7 @@ public sealed class AuthProviderRegistry
         Guard.Against.Null(services);
         Guard.Against.Null(configuration);
         Guard.Against.NullOrWhiteSpace(provider.SchemeName);
-        Guard.Against.Null(typeof(TConfig), nameof(TConfig));
+        Guard.Against.Null(typeof(TConfig));
 
         var configType = typeof(TConfig);
         var configPath = provider.ConfigurationSectionPath;
