@@ -7,24 +7,39 @@
           "type": "checkbox",
           "name": "cb",
           "title": "Checkbox",
-          "choices": [ "a", { "value": "b", "text": "B", "isExclusive": true } ],
+          "choices": [
+            "a",
+            {
+              "value": "b",
+              "text": "B",
+              "isExclusive": true
+            }
+          ],
           "showSelectAllItem": true,
           "showOtherItem": true,
           "showNoneItem": true,
-          "noneText": { "default": "Nothing", "es": "Nada" },
+          "noneText": {
+            "default": "Nothing",
+            "es": "Nada"
+          },
           "showRefuseItem": true,
           "showDontKnowItem": true
         },
         {
           "type": "tagbox",
           "name": "tb",
-          "choices": [ "x" ],
+          "choices": [
+            "x"
+          ],
           "showNoneItem": true
         },
         {
           "type": "radiogroup",
           "name": "rg",
-          "choices": [ "a", "b" ],
+          "choices": [
+            "a",
+            "b"
+          ],
           "showOtherItem": true,
           "storeOthersAsComment": false,
           "showNoneItem": true,
@@ -33,39 +48,68 @@
         {
           "type": "dropdown",
           "name": "dd",
-          "choices": [ "a" ],
+          "choices": [
+            "a"
+          ],
           "showDontKnowItem": true
         },
         {
           "type": "tagbox",
           "name": "lazy",
-          "choicesByUrl": { "url": "https://example.test/items" },
+          "choicesByUrl": {
+            "url": "https://example.test/items"
+          },
           "showNoneItem": true
         },
         {
           "type": "checkbox",
           "name": "brands",
-          "choices": [ "nike", "puma" ],
+          "choices": [
+            "nike",
+            "puma"
+          ],
           "showNoneItem": true
         },
         {
           "type": "paneldynamic",
           "name": "loop",
-          "loopSource": [ "brands" ],
+          "loopSource": [
+            "brands"
+          ],
           "templateElements": [
             {
               "type": "radiogroup",
               "name": "loopRg",
-              "choices": [ "1", "2" ],
+              "choices": [
+                "1",
+                "2"
+              ],
               "showOtherItem": true,
               "showRefuseItem": true
             },
             {
               "type": "checkbox",
               "name": "loopCb",
-              "choices": [ "p" ],
+              "choices": [
+                "p"
+              ],
               "showNoneItem": true,
               "showDontKnowItem": true
+            }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "pd",
+          "maxPanelCount": 1,
+          "templateElements": [
+            {
+              "type": "radiogroup",
+              "name": "pdRg",
+              "choices": [
+                "a"
+              ],
+              "showNoneItem": true
             }
           ]
         }

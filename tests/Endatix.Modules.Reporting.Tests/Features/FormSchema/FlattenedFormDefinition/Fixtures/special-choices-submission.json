@@ -1,13 +1,45 @@
 {
-  "cb": [ "a", "other" ],
+  "cb": [
+    "a",
+    "other"
+  ],
   "cb-Comment": "typed",
-  "tb": [ "none" ],
+  "tb": [
+    "none"
+  ],
   "rg": "my own text",
   "dd": "dontknow",
-  "lazy": [ "none" ],
-  "brands": [ "nike", "puma" ],
+  "lazy": [
+    "none"
+  ],
+  "brands": [
+    "nike",
+    "puma"
+  ],
   "loop": [
-    { "itemValue": "nike", "loopRg": { "value": "other", "comment": "loop other" }, "loopCb": [ "dontknow" ] },
-    { "itemValue": "puma", "loopRg": "refused", "loopCb": [ { "value": "p" } ] }
+    {
+      "itemValue": "nike",
+      "loopRg": {
+        "value": "other",
+        "comment": "loop other"
+      },
+      "loopCb": [
+        "dontknow"
+      ]
+    },
+    {
+      "itemValue": "puma",
+      "loopRg": "refused",
+      "loopCb": [
+        {
+          "value": "p"
+        }
+      ]
+    }
+  ],
+  "pd": [
+    {
+      "pdRg": "none"
+    }
   ]
 }

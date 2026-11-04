@@ -133,6 +133,7 @@ A choice question can show special items next to its own choices: **None**, **Re
 
 * **Multi-select (checkbox, tag box):** each special item gets its own column after the question's choices, such as `question__none`, `question__refused`, and `question__dontknow`, marked like any other choice. **Select All** has no column: it only ticks the other choices.
 * **Single-select (radio group, dropdown):** the column holds the stored value, `none`, `refused`, `dontknow`, or `other`.
+* **Inside a dynamic panel without a loop source, or in a data-list multi-select:** the answer stays in its single column as stored, so a special item appears as its value, such as `none`.
 * **Other:** the text the respondent typed goes in the `question__other_text` column, whether the form keeps that text in a separate comment or in the answer itself.
 
 In a codebook, special items are listed after the question's choices and **Other**. In a **Codebook (Shoji)** file for Crunch.io, **Refuse to answer** and **Don't know** are missing categories, so Crunch leaves them out of percentages; **None** counts as an answer.
