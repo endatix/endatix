@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using Endatix.Core.Entities;
 
@@ -21,6 +22,14 @@ internal static class HostCollectionStatuses
         [UnderReview] = CollectionPhase.Active,
     };
 
+    // Other test projects load this assembly for its helpers, after their own tests read the catalog: register only when
+    // this is the test assembly being run.
     [ModuleInitializer]
-    internal static void Register() => CollectionStatusCatalog.Configure(Codes);
+    internal static void Register()
+    {
+        if (Assembly.GetEntryAssembly() == typeof(HostCollectionStatuses).Assembly)
+        {
+            CollectionStatusCatalog.Configure(Codes);
+        }
+    }
 }
