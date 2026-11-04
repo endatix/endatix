@@ -1,4 +1,3 @@
-using MediatR;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -7,6 +6,7 @@ using Endatix.Core.Specifications;
 using Endatix.Core.Tests;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByAccessToken;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.PartialUpdateByAccessToken;
 
@@ -29,7 +29,7 @@ public class PartialUpdateByAccessTokenHandlerTests
     {
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: isFormEnabled));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{}"));
 
         var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
         formProperty.SetValue(submission, form);
@@ -62,14 +62,14 @@ public class PartialUpdateByAccessTokenHandlerTests
 
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{}"));
 
         var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
         formProperty.SetValue(submission, form);
         var formDefinitionProperty = typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!;
         formDefinitionProperty.SetValue(submission, formDefinition);
 
-        var updatedSubmission = new Submission(SampleData.TENANT_ID, "{\"field\":\"value\"}", formId, formDefinitionId);
+        var updatedSubmission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{\"field\":\"value\"}"));
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
@@ -130,7 +130,7 @@ public class PartialUpdateByAccessTokenHandlerTests
 
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: false));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{}"));
 
         var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
         formProperty.SetValue(submission, form);
@@ -235,7 +235,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
-        var updatedSubmission = new Submission(SampleData.TENANT_ID, jsonData, formId, 1L);
+        var updatedSubmission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: jsonData));
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
@@ -275,7 +275,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
-        var updatedSubmission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var updatedSubmission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
@@ -306,7 +306,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             new[] { "view", "edit", "export" },
             DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
-        var updatedSubmission = new Submission(SampleData.TENANT_ID, "{}", formId, 1L);
+        var updatedSubmission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));

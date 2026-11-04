@@ -29,7 +29,7 @@ public class UpdateSubmissionHandlerTests
         // Arrange
         var request = new UpdateSubmissionCommand(1, 1, true, 2, "{ }", "metadata");
         _repository.SingleOrDefaultAsync(
-            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), 
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
             Arg.Any<CancellationToken>())
             .Returns((Submission?)null);
 
@@ -46,13 +46,17 @@ public class UpdateSubmissionHandlerTests
     public async Task Handle_ValidRequest_UpdatesSubmission()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
+        var submission = Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 2,
+            FormDefinitionId: 3,
+            JsonData: "{ }"));
         var request = new UpdateSubmissionCommand(
             1, 2, true, 1, "{ \"updated\": true }", "metadata"
         );
-        
+
         _repository.SingleOrDefaultAsync(
-            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), 
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
             Arg.Any<CancellationToken>())
             .Returns(submission);
 
@@ -68,7 +72,7 @@ public class UpdateSubmissionHandlerTests
         result.Value.CurrentPage.Should().Be(request.CurrentPage);
         result.Value.Metadata.Should().Be(request.Metadata);
         result.Value.FormId.Should().Be(request.FormId);
-        
+
         await _repository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -76,7 +80,11 @@ public class UpdateSubmissionHandlerTests
     public async Task Handle_JsonDataChanged_CreatesSubmissionVersion()
     {
         // Arrange
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 2, 3) { Id = 1 };
+        var submission = Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 2,
+            FormDefinitionId: 3,
+            JsonData: "{ }"));
         var request = new UpdateSubmissionCommand(1, 2, true, 1, "{ \"updated\": true }", "metadata");
 
         _repository.SingleOrDefaultAsync(
@@ -98,7 +106,11 @@ public class UpdateSubmissionHandlerTests
     {
         // Arrange
         var originalJson = "{ }";
-        var submission = new Submission(SampleData.TENANT_ID, originalJson, 2, 3) { Id = 1 };
+        var submission = Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 2,
+            FormDefinitionId: 3,
+            JsonData: originalJson));
         var request = new UpdateSubmissionCommand(1, 2, true, 1, originalJson, "metadata");
 
         _repository.SingleOrDefaultAsync(

@@ -1,9 +1,9 @@
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Submissions.GetByToken;
-using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions.GetByToken;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetByToken;
 
@@ -56,7 +56,7 @@ public class GetByTokenHandlerTests
 
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{}"));
 
         var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
         formProperty.SetValue(submission, form);
@@ -97,7 +97,7 @@ public class GetByTokenHandlerTests
 
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: false));
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
-        var submission = new Submission(SampleData.TENANT_ID, "{}", formId, formDefinitionId);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{}"));
 
         var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
         formProperty.SetValue(submission, form);
