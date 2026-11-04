@@ -64,6 +64,45 @@ public sealed class SpecialChoicesCrunchExportTests
         Column(csv, "cb--refused").Should().Equal("1", "0");
     }
 
+    // SurveyJS demo "Exclusive choice options for multiple-choice question": a custom isExclusive choice is still an
+    // inline choice; only showRefuseItem makes a special item. Exclusivity alone never makes a choice special.
+    [Fact]
+    public async Task Export_CustomExclusiveChoiceWithRefused_CustomStaysInlineAndRefusedIsSpecial()
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"name":"p1","elements":[{"type":"checkbox","name":"work","choices":["office","travel",
+              {"value":"home","text":"I work from home","isExclusive":true}],"showRefuseItem":true},
+              {"type":"radiogroup","name":"where","choices":["office",{"value":"home","isExclusive":true}],"showRefuseItem":true}]}]}
+            """;
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("home", """{"work":["home"],"where":"home"}""", null),
+            new("refused", """{"work":["refused"],"where":"refused"}""", null),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        pipeline.FlattenAll(definition, responses);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, Settings);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), Settings), cancellationToken);
+
+        // Assert: the catalog marks home exclusive without a kind, refused with its kind.
+        using var codebook = JsonDocument.Parse(pipeline.Entity().Codebook);
+        codebook.RootElement.GetProperty("choiceCatalogs").GetProperty("work").GetProperty("choices").EnumerateArray()
+            .Select(choice => choice.GetRawText()).Should().Equal(
+                """{"value":"office","id":1,"text":{"default":"office"}}""",
+                """{"value":"travel","id":2,"text":{"default":"travel"}}""",
+                """{"value":"home","id":3,"exclusive":true,"text":{"default":"I work from home"}}""",
+                """{"value":"refused","id":4,"kind":"refused","exclusive":true,"text":{"default":"Refuse to answer"}}""");
+        Column(csv, "work--home").Should().Equal("1", "0");
+        Column(csv, "work--refused").Should().Equal("0", "1");
+        Categories(shoji, "where").Should().Equal((1, "office", false), (2, "home", false), (3, "Refuse to answer", true));
+        Column(csv, "where").Should().Equal("2", "3");
+        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Export_AfterAChoiceIsRemovedAndNoneAdded_IdsComeFromTheMergedCatalog()
     {
