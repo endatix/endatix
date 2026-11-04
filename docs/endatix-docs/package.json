@@ -13,7 +13,6 @@
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
     "typecheck": "tsc",
-    "pnpm:comments": "node ./scripts/echo-pnpm-comments.mjs",
     "indexnow": "node ./scripts/submit-indexnow.mjs"
   },
   "dependencies": {
@@ -54,28 +53,5 @@
   "engines": {
     "node": ">=22.13.0"
   },
-  "pnpm": {
-    "overrides": {
-      "serialize-javascript": "^7.0.5",
-      "fast-xml-builder": "^1.1.7",
-      "fast-xml-parser": "^5.7.0",
-      "fast-uri": "^3.1.2",
-      "uuid": "^11.1.1",
-      "dompurify": "^3.4.17",
-      "proxy-addr": "^2.0.8",
-      "shell-quote": "^1.11.0",
-      "tinypool": "^2.1.2",
-      "ws@>=7.0.0 <7.5.11": "^7.5.11",
-      "ws@>=8.0.0 <8.21.0": "^8.21.0"
-    },
-    "comments": {
-      "overrides": "[serialize-javascript] to 7.0.5 to fix CVE-2020-7660 & CVE-2026-34043. Remove on @docusaurus 4x bump | [fast-xml-builder] to 1.1.7 to fix CVE-2026-44665. Remove on next redocusaurus bump | [fast-xml-parser] to 5.7.0 to fix CVE-2026-41650. Remove on next redocusaurus bump | [fast-uri] to 3.1.2 to fix CVE-2026-6322. Remove on next docusaurus bump | [uuid] to 11.1.1 to fix CVE-2026-41907. Remove on next docusaurus bump | [dompurify] to 3.4.17 to fix GHSA-cg2g-xh64-v4q7. Remove on next mermaid/redoc bump | [proxy-addr] to 2.0.8 to fix CVE-2026-90711. Remove on next express bump | [shell-quote] to 1.11.0 to fix CVE-2026-102422. Remove on next docusaurus bump | [tinypool] to 2.1.2 to fix CVE-2026-104848 and CVE-2026-104849. Remove on next docusaurus bump | [ws] to 7.5.11 to fix CVE-2026-48779. Remove on next docusaurus bump | [ws] to 8.21.0 to fix CVE-2026-48779. Remove on next docusaurus bump"
-    },
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "core-js",
-      "core-js-pure"
-    ]
-  },
-  "packageManager": "pnpm@10.25.0+sha256.0f3726654b0b5e52e5800904de168afc3c667e2abf84bdb06d9ac1386104bd90"
+  "packageManager": "pnpm@12.4.1+sha256.6276298e9af576b7a7f5e9044bfafbe2678209250cd10b1705ea5d3aa64d4882"
 }
