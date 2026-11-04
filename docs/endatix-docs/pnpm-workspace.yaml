@@ -1,0 +1,43 @@
+# pnpm 11+ ignores package.json#pnpm and reads only auth/registry keys from
+# .npmrc, so every setting lives here. pnpm 10.34.5+ reads this file too.
+
+# Supply-chain defaults. pnpm 11+ ships these; pnpm 10 defaults are laxer
+# (minimumReleaseAge 0, blockExoticSubdeps false), so set them explicitly and both
+# majors behave identically. For a genuine same-day CVE patch add the package to
+# minimumReleaseAgeExclude rather than lowering the age.
+minimumReleaseAge: 1440 # minutes - no same-day publishes
+blockExoticSubdeps: true
+strictDepBuilds: true
+verifyDepsBeforeRun: install
+
+# Lifecycle-script allowlist. Replaces pnpm.onlyBuiltDependencies (removed in pnpm 11);
+# a map, not a list.
+allowBuilds:
+  "@swc/core": true
+  core-js: true
+  core-js-pure: true
+
+# Every override records why it is here and what removes it. Keep the note on the entry.
+overrides:
+  # serialize-javascript 7.0.5 fixes CVE-2020-7660 and CVE-2026-34043. Remove on the @docusaurus 4x bump.
+  serialize-javascript: ^7.0.5
+  # fast-xml-builder 1.1.7 fixes CVE-2026-44665. Remove on the next redocusaurus bump.
+  fast-xml-builder: ^1.1.7
+  # fast-xml-parser 5.7.0 fixes CVE-2026-41650. Remove on the next redocusaurus bump.
+  fast-xml-parser: ^5.7.0
+  # fast-uri 3.1.2 fixes CVE-2026-6322. Remove on the next docusaurus bump.
+  fast-uri: ^3.1.2
+  # uuid 11.1.1 fixes CVE-2026-41907. Remove on the next docusaurus bump.
+  uuid: ^11.1.1
+  # dompurify 3.4.17 fixes GHSA-cg2g-xh64-v4q7. Remove on the next mermaid/redoc bump.
+  dompurify: ^3.4.17
+  # proxy-addr 2.0.8 fixes CVE-2026-90711. Remove on the next express bump.
+  proxy-addr: ^2.0.8
+  # shell-quote 1.11.0 fixes CVE-2026-102422. Remove on the next docusaurus bump.
+  shell-quote: ^1.11.0
+  # tinypool 2.1.2 fixes CVE-2026-104848 and CVE-2026-104849. Remove on the next docusaurus bump.
+  tinypool: ^2.1.2
+  # ws 7.5.11 fixes CVE-2026-48779. Remove on the next docusaurus bump.
+  "ws@>=7.0.0 <7.5.11": ^7.5.11
+  # ws 8.21.0 fixes CVE-2026-48779. Remove on the next docusaurus bump.
+  "ws@>=8.0.0 <8.21.0": ^8.21.0

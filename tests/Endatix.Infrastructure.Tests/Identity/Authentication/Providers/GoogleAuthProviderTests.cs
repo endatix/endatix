@@ -188,7 +188,7 @@ public class GoogleAuthProviderTests
         // Act & Assert
         var action = () => _provider.Configure(_authBuilder, config, false);
         action.Should().Throw<ArgumentException>()
-            .WithMessage("Value cannot be null. (Parameter 'Issuer')");
+            .WithMessage("Value cannot be null. (Parameter 'googleIssuer')");
     }
 
      [Fact]

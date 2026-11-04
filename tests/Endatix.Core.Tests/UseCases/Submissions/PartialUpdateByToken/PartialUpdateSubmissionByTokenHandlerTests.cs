@@ -1,11 +1,11 @@
-using MediatR;
+using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
 using Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Features.ReCaptcha;
-using Endatix.Core.Abstractions.Repositories;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.PartialUpdateByToken;
 
@@ -86,7 +86,11 @@ public class PartialUpdateSubmissionByTokenHandlerTests
         );
 
         var tokenResult = Result.Success(submissionId);
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, formDefinitionId) { Id = submissionId };
+        var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData));
         var updateResult = Result.Success(submission);
 
         _tokenService.ResolveTokenAsync(token, Arg.Any<CancellationToken>())
@@ -199,8 +203,13 @@ public class PartialUpdateSubmissionByTokenHandlerTests
             Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
+        var updatedSubmission = Submission.Create(submissionId, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData));
         _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new Submission(SampleData.TENANT_ID, jsonData, formId, formDefinitionId) { Id = submissionId }));
+            .Returns(Result.Success(updatedSubmission));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

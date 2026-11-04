@@ -4,10 +4,10 @@ using static Endatix.Core.Tests.ErrorType;
 
 namespace Endatix.Core.Tests.Entities;
 
-public class SubmissionConstructorTests
+public class SubmissionCreateTests
 {
     [Fact]
-    public void Constructor_NullJsonData_ThrowsArgumentNullException()
+    public void Create_NullJsonData_ThrowsArgumentNullException()
     {
         // Arrange  
         var formId = 123;
@@ -15,7 +15,7 @@ public class SubmissionConstructorTests
         string? nullJsonData = null;
 
         // Act
-        var action = () => new Submission(SampleData.TENANT_ID, nullJsonData!, formId, formDefinitionId);
+        var action = () => Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: nullJsonData!));
 
         // Assert
         action.Should().Throw<ArgumentNullException>()
@@ -23,7 +23,7 @@ public class SubmissionConstructorTests
     }
 
     [Fact]
-    public void Constructor_EmptyJsonData_ThrowsArgumentException()
+    public void Create_EmptyJsonData_ThrowsArgumentException()
     {
         // Arrange
         var emptyJsonData = string.Empty;
@@ -31,7 +31,7 @@ public class SubmissionConstructorTests
         var formDefinitionId = 456;
 
         // Act
-        var action = () => new Submission(SampleData.TENANT_ID, emptyJsonData, formId, formDefinitionId);
+        var action = () => Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: emptyJsonData));
 
         // Assert
         action.Should().Throw<ArgumentException>()
@@ -39,7 +39,7 @@ public class SubmissionConstructorTests
     }
 
     [Fact]
-    public void Constructor_NegativeFormDefinitionId_ThrowsArgumentException()
+    public void Create_NegativeFormDefinitionId_ThrowsArgumentException()
     {
         // Arrange
         const long invalidFormDefinitionId = -1;
@@ -48,7 +48,7 @@ public class SubmissionConstructorTests
         const string jsonData = SampleData.SUBMISSION_JSON_DATA_1;
 
         // Act
-        var action = () => new Submission(SampleData.TENANT_ID, jsonData, form.Id, invalidFormDefinitionId);
+        var action = () => Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: form.Id, FormDefinitionId: invalidFormDefinitionId, JsonData: jsonData));
 
         // Assert
         action.Should().Throw<ArgumentException>()
@@ -63,7 +63,7 @@ public class SubmissionConstructorTests
     }
 
     [Fact]
-    public void Constructor_ValidInput_SetsPropertiesCorrectly()
+    public void Create_ValidInput_SetsPropertiesCorrectly()
     {
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
@@ -76,7 +76,14 @@ public class SubmissionConstructorTests
         form.AddFormDefinition(formDefinition);
 
         // Act
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, form.Id, formDefinition.Id, isComplete: false, currentPage: 2, metadata: "Test");
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: form.Id,
+            FormDefinitionId: formDefinition.Id,
+            JsonData: jsonData,
+            IsComplete: false,
+            CurrentPage: 2,
+            Metadata: "Test"));
 
         // Assert
         submission.Should().NotBeNull();
@@ -90,7 +97,7 @@ public class SubmissionConstructorTests
     }
 
     [Fact]
-    public void Constructor_CompleteSubmission_SetsCompletedAt()
+    public void Create_CompleteSubmission_SetsCompletedAt()
     {
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
@@ -103,7 +110,7 @@ public class SubmissionConstructorTests
         const string jsonData = SampleData.SUBMISSION_JSON_DATA_1;
 
         // Act
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, form.Id, formDefinition.Id, isComplete: true);
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: form.Id, FormDefinitionId: formDefinition.Id, JsonData: jsonData, IsComplete: true));
 
         // Assert
         submission.Should().NotBeNull();
@@ -188,30 +195,14 @@ public class SubmissionConstructorTests
     }
 
     [Fact]
-    public void Constructor_WhenSubmittedByIsNumeric_ForwardsSubmitterAndRestrictionGate()
+    public void Create_WhenSubmitterDisplayId_PreservesSubmittedByMirror()
     {
-        var submission = new Submission(
-            SampleData.TENANT_ID,
-            SampleData.SUBMISSION_JSON_DATA_1,
-            formId: 123,
-            formDefinitionId: 456,
-            submittedBy: "789",
-            enforceSingleSubmissionGate: true);
-
-        submission.SubmitterId.Should().Be(789);
-        submission.SubmittedBy.Should().Be("789");
-        submission.RestrictionKey.Should().Be("SingleSubmission:Form:123:Submitter:789");
-    }
-
-    [Fact]
-    public void Constructor_WhenSubmittedByIsOpaqueString_PreservesSubmittedByMirror()
-    {
-        var submission = new Submission(
-            SampleData.TENANT_ID,
-            SampleData.SUBMISSION_JSON_DATA_1,
-            formId: 123,
-            formDefinitionId: 456,
-            submittedBy: "user123");
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: SampleData.SUBMISSION_JSON_DATA_1,
+            SubmitterDisplayId: "user123"));
 
         submission.SubmitterId.Should().BeNull();
         submission.SubmitterDisplayId.Should().Be("user123");

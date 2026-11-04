@@ -27,7 +27,7 @@ public class ModuleDbContextExtensionsTests
 
         // Assert
         action.Should().Throw<ArgumentException>()
-            .WithParameterName("DefaultConnection");
+            .WithParameterName("connectionString");
     }
 
     [Fact]

@@ -24,7 +24,7 @@ public static class MigrationBuilderExtensions
     /// <exception cref="InvalidOperationException">Thrown when the script content is invalid</exception>
     public static string ReadEmbeddedSqlScript(this MigrationBuilder migrationBuilder, string scriptPath, Assembly assembly)
     {
-        Guard.Against.Null(migrationBuilder, nameof(migrationBuilder));
+        Guard.Against.Null(migrationBuilder);
 
         return ScriptReader.ReadSqlScript(scriptPath, assembly);
     }

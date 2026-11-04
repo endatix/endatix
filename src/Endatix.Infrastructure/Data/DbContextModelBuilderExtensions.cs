@@ -181,8 +181,8 @@ public static class DbContextModelBuilderExtensions
     /// <param name="assembly">The assembly containing the configurations.</param>
     public static void ApplyConfigurationsFor<TDbContext>(this ModelBuilder builder, Assembly assembly) where TDbContext : DbContext
     {
-        Guard.Against.Null(builder, nameof(builder));
-        Guard.Against.Null(assembly, nameof(assembly));
+        Guard.Against.Null(builder);
+        Guard.Against.Null(assembly);
 
         var targetAttributeType = typeof(ApplyConfigurationForAttribute<>).MakeGenericType(typeof(TDbContext));
 
