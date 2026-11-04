@@ -48,7 +48,7 @@ public record SubmissionDto(
 
     public static SubmissionDto FromSubmission(Submission submission)
     {
-        Guard.Against.Null(submission, nameof(submission));
+        Guard.Against.Null(submission);
 
         return new SubmissionDto(
             Id: submission.Id,

@@ -48,7 +48,7 @@ public class FilterCriterion
     /// <exception cref="ArgumentNullException">Thrown when the filter expression is null or empty.</exception>
     public FilterCriterion(string filterExpression)
     {
-        Guard.Against.NullOrWhiteSpace(filterExpression, nameof(filterExpression));
+        Guard.Against.NullOrWhiteSpace(filterExpression);
 
         var operatorMatch = _operatorMap.Keys
             .Select(op => new
@@ -63,15 +63,13 @@ public class FilterCriterion
 
         Guard.Against.Null(
             operatorMatch,
-            nameof(filterExpression),
-            $"Filter must have a valid operator after the field name. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
+            message: $"Filter must have a valid operator after the field name. Valid operators are: {string.Join(", ", _operatorMap.Keys)}");
 
         var fieldEndIndex = operatorMatch.Index;
 
         Field = Guard.Against.NullOrWhiteSpace(
             filterExpression[..fieldEndIndex],
-            nameof(filterExpression),
-            "Filter must have a field name");
+            message: "Filter must have a field name");
 
         Guard.Against.InvalidInput(
             Field,

@@ -16,8 +16,8 @@ public sealed record ReplaceUserRolesCommand : ICommand<Result<string>>
     /// <param name="roleNames">The full replacement role set.</param>
     public ReplaceUserRolesCommand(long userId, IReadOnlyList<string> roleNames)
     {
-        Guard.Against.NegativeOrZero(userId, nameof(userId));
-        Guard.Against.Null(roleNames, nameof(roleNames));
+        Guard.Against.NegativeOrZero(userId);
+        Guard.Against.Null(roleNames);
 
         UserId = userId;
         RoleNames = roleNames;

@@ -1,4 +1,4 @@
-﻿using Ardalis.GuardClauses;
+using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -16,7 +16,7 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
     public long FormId
     {
         get => _formId;
-        init => _formId = Guard.Against.NegativeOrZero(value, nameof(FormId));
+        init => _formId = Guard.Against.NegativeOrZero(value);
     }
 
     public string? Name { get; init; }
@@ -43,7 +43,7 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
         {
             if (value.HasValue)
             {
-                Guard.Against.Negative(value.Value, nameof(ThemeId));
+                Guard.Against.Negative(value.Value);
             }
 
             _themeId = value;

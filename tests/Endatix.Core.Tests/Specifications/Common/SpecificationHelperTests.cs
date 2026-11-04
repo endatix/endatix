@@ -29,7 +29,7 @@ public class SpecificationHelperTests
 
         // Assert
         act.Should().Throw<ArgumentException>()
-            .WithMessage(ErrorMessages.GetErrorMessage(ErrorType.PropertyNotExist, "NonExistentProperty", "Field"));
+            .WithMessage(ErrorMessages.GetErrorMessage(ErrorType.PropertyNotExist, "NonExistentProperty", "propertyInfo"));
     }
 
     [Fact]

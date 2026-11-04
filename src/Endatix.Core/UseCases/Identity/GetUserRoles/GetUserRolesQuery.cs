@@ -16,7 +16,7 @@ public record GetUserRolesQuery : IQuery<Result<IList<string>>>
 
     public GetUserRolesQuery(long userId)
     {
-        Guard.Against.NegativeOrZero(userId, nameof(userId));
+        Guard.Against.NegativeOrZero(userId);
         UserId = userId;
     }
 }

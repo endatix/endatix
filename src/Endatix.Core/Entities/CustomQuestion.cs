@@ -11,8 +11,8 @@ public class CustomQuestion : TenantEntity, IAggregateRoot
     public CustomQuestion(long tenantId, string name, string jsonData, string? description = null)
         : base(tenantId)
     {
-        Guard.Against.NullOrEmpty(name, nameof(name));
-        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
+        Guard.Against.NullOrEmpty(name);
+        Guard.Against.NullOrEmpty(jsonData);
 
         Name = name;
         Description = description;
@@ -33,7 +33,7 @@ public class CustomQuestion : TenantEntity, IAggregateRoot
     /// </summary>
     public void UpdateName(string name)
     {
-        Guard.Against.NullOrEmpty(name, nameof(name));
+        Guard.Against.NullOrEmpty(name);
         Name = name;
     }
 
@@ -50,7 +50,7 @@ public class CustomQuestion : TenantEntity, IAggregateRoot
     /// </summary>
     public void UpdateJsonData(string jsonData)
     {
-        Guard.Against.NullOrEmpty(jsonData, nameof(jsonData));
+        Guard.Against.NullOrEmpty(jsonData);
         JsonData = jsonData;
     }
 
@@ -61,4 +61,4 @@ public class CustomQuestion : TenantEntity, IAggregateRoot
             base.Delete();
         }
     }
-} 
+}

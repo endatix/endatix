@@ -15,7 +15,7 @@ public partial class FormTemplate : TenantEntity, IAggregateRoot, IHasFolder
     public FormTemplate(long tenantId, string name, string? description = null, string? jsonData = null, long? folderId = null)
         : base(tenantId)
     {
-        Guard.Against.NullOrEmpty(name, null, "Form Template name cannot be null.");
+        Guard.Against.NullOrEmpty(name, message: "Form Template name cannot be null.");
         jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;
 
         Name = name;

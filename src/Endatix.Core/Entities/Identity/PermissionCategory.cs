@@ -34,8 +34,8 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
 
     private PermissionCategory(string name, string code)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
-        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrWhiteSpace(code);
 
         if (code.Length > CATEGORY_CODE_MAX_LENGTH)
         {
@@ -54,7 +54,7 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
     /// <exception cref="ArgumentException">Thrown when the code is invalid</exception>
     public static PermissionCategory FromCode(string code)
     {
-        Guard.Against.NullOrWhiteSpace(code, nameof(code));
+        Guard.Against.NullOrWhiteSpace(code);
 
         var category = code.ToLowerInvariant() switch
         {

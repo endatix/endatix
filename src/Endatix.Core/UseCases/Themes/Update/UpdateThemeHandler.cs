@@ -22,7 +22,7 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository) : ICommandH
     /// <returns>Result containing the updated theme.</returns>
     public async Task<Result<Theme>> Handle(UpdateThemeCommand request, CancellationToken cancellationToken)
     {
-        Guard.Against.NegativeOrZero(request.ThemeId, nameof(request.ThemeId));
+        Guard.Against.NegativeOrZero(request.ThemeId);
 
         var theme = await themesRepository.GetByIdAsync(request.ThemeId, cancellationToken);
         if (theme == null)
