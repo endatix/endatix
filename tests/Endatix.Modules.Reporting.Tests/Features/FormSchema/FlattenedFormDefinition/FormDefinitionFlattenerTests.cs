@@ -714,6 +714,24 @@ public class FormDefinitionFlattenerTests
   }
 
   [Fact]
+  public void Flatten_OtherAtTheChoiceLimit_StillCompilesAsBefore()
+  {
+    // Arrange: Other never counted toward the limit; a form at the limit with Other must keep compiling.
+    using var document = JsonDocument.Parse("""
+        {"pages":[{"elements":[
+          {"type":"checkbox","name":"q","choices":["a","b"],"showOtherItem":true}
+        ]}]}
+        """);
+    SchemaCompilationLimits limits = new() { MaxChoicesPerQuestion = 2 };
+
+    // Act
+    var columns = FormDefinitionFlattener.Flatten(document.RootElement.Clone(), limits);
+
+    // Assert
+    columns.Select(c => c.Key).Should().Equal("q__a", "q__b", "q__other", "q__other_text");
+  }
+
+  [Fact]
   public void Flatten_SpecialItemIndicators_AreChoiceIndicatorsLabelledByTheirText()
   {
     // Arrange

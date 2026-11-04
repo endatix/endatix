@@ -550,8 +550,10 @@ internal static class FormDefinitionFlattener
             "string",
             SourceQuestion: name));
 
-    private static void CountChoice(string name, int count, SchemaCompilationLimits limits)
+    // Other never counted toward the limit (it was added after the counted choices); special items do.
+    private static void CountChoices(string name, ChoiceSet choices, SchemaCompilationLimits limits)
     {
+        var count = choices.Items.Count(item => item.Kind != ChoiceKind.Other);
         if (count > limits.MaxChoicesPerQuestion)
         {
             ThrowLimitExceeded(
@@ -597,10 +599,9 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        var choiceCount = 0;
+        CountChoices(name, choices, limits);
         foreach (var item in choices.Items)
         {
-            CountChoice(name, ++choiceCount, limits);
             AddChoiceIndicatorColumn(collected, name, item.Value, item.FallbackLabel, columns, seenKeys, limits);
             if (item.Kind == ChoiceKind.Other)
             {
@@ -1383,10 +1384,9 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        var choiceCount = 0;
+        CountChoices(childName, choices, limits);
         foreach (var item in choices.Items)
         {
-            CountChoice(childName, ++choiceCount, limits);
             AddLoopSourceChoiceIndicatorColumn(
                 template, childName, item.Value, item.FallbackLabel, keyPrefix, loopPath, columns, seenKeys, limits);
             if (item.Kind == ChoiceKind.Other)

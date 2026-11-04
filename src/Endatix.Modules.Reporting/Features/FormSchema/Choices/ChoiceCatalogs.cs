@@ -161,7 +161,7 @@ internal sealed class SelectChoices
     private static JsonElement? LegacyOtherText(JsonElement? raw) =>
         raw is { ValueKind: JsonValueKind.Object } legacy ? legacy.TryGetPropertyValue(SurveyJsPropertyNames.Other) : null;
 
-    private static readonly JsonElement OtherJson = JsonDocument.Parse("\"other\"").RootElement.Clone();
+    private static readonly JsonElement OtherJson = JsonSerializer.SerializeToElement(SurveyJsPropertyNames.Other);
 
     private bool IsTypedOtherText(SelectAnswer.Token token) =>
         OtherStorage == Storage.Value &&
@@ -199,7 +199,7 @@ internal sealed class SelectChoices
     private static JsonElement StringJson(JsonElement element) =>
         element.ValueKind == JsonValueKind.String
             ? element
-            : JsonDocument.Parse(JsonSerializer.Serialize(element.GetRawText())).RootElement.Clone();
+            : JsonSerializer.SerializeToElement(element.GetRawText());
 }
 
 /// <summary>A normalized answer: the stored values ("other" for typed text), plus the Other text if any.</summary>

@@ -44,6 +44,8 @@ internal static class SurveyJsPropertyNames
     public const string HasComment = "hasComment";
     public const string IsExclusive = "isExclusive";
     public const string ChoicesByUrl = "choicesByUrl";
+    public const string ChoicesFromQuestion = "choicesFromQuestion";
+    public const string ChoiceValuesFromQuestion = "choiceValuesFromQuestion";
     public const string Comment = "comment";
 
     /// <summary>SurveyJS <c>settings.commentSuffix</c>: the key of a question's Other text or comment.</summary>

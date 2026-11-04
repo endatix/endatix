@@ -155,6 +155,18 @@ public sealed class ChoiceSetTests
         set.OtherStorage.Should().Be(Enum.Parse<OtherStorage>(expected));
     }
 
+    // Typed text in the value is told apart from a choice only when every choice is on the form. Choices copied from
+    // another question or loaded later are not, so a value the catalog lacks may be a real choice: keep it.
+    [Theory]
+    [InlineData("""{"type":"radiogroup","name":"q","choicesFromQuestion":"src","showOtherItem":true,"storeOthersAsComment":false}""")]
+    [InlineData("""{"type":"radiogroup","name":"q","choices":["a"],"choicesFromQuestion":"src","showOtherItem":true,"storeOthersAsComment":false}""")]
+    [InlineData("""{"type":"checkbox","name":"q","choiceValuesFromQuestion":"src","showOtherItem":true,"storeOthersAsComment":false}""")]
+    [InlineData("""{"type":"tagbox","name":"q","showOtherItem":true,"storeOthersAsComment":false}""")]
+    public void Read_ChoicesNotOnTheForm_NeverReadsTheValueAsOtherText(string question)
+    {
+        Read(question).OtherStorage.Should().Be(OtherStorage.Comment);
+    }
+
     [Fact]
     public void Read_NoOtherItem_HasNoOtherStorage()
     {
