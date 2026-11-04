@@ -56,6 +56,10 @@ public class EndatixMiddlewareBuilder
         {
             UseForwardedHeaders();
         }
+        else
+        {
+            App.UseMiddleware<ClientIpHeaderMiddleware>();
+        }
 
         if (options.UseExceptionHandler)
         {
@@ -176,13 +180,15 @@ public class EndatixMiddlewareBuilder
     }
 
     /// <summary>
-    /// Adds forwarded headers middleware.
+    /// Adds forwarded headers middleware, then rewrites <c>X-Forwarded-For</c> to the resolved client IP
+    /// so rate limits cannot be keyed on a caller-supplied chain.
     /// </summary>
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseForwardedHeaders()
     {
         _logger?.LogInformation("Adding forwarded headers middleware");
         App.UseForwardedHeaders();
+        App.UseMiddleware<ClientIpHeaderMiddleware>();
         return this;
     }
 
