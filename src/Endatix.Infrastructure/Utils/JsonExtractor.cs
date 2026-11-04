@@ -19,7 +19,7 @@ public class JsonExtractor : IDisposable
     /// <exception cref="InvalidOperationException">Thrown when the JSON content is invalid or parsing fails.</exception>
     public JsonExtractor(string content)
     {
-        Guard.Against.NullOrWhiteSpace(content, nameof(content));
+        Guard.Against.NullOrWhiteSpace(content);
 
         try
         {

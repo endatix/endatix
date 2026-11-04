@@ -288,7 +288,7 @@ public class InfrastructureSecurityBuilder
 
     private void ConfigureEnabledAuthProviders()
     {
-        Guard.Against.Null(_authenticationBuilder, nameof(_authenticationBuilder), "AuthenticationBuilder is not configured. Call ConfigureAspNetCoreAuthentication() first.");
+        Guard.Against.Null(_authenticationBuilder, message: "AuthenticationBuilder is not configured. Call ConfigureAspNetCoreAuthentication() first.");
 
         var isDevelopment = _parentBuilder.AppEnvironment?.IsDevelopment() ?? false;
 

@@ -29,7 +29,7 @@ public static class ModuleDesignTimeConfiguration
         Guard.Against.Null(configuration);
 
         var connectionString = configuration.GetConnectionString("DefaultConnection");
-        Guard.Against.NullOrEmpty(connectionString, "DefaultConnection");
+        Guard.Against.NullOrEmpty(connectionString);
 
         return connectionString;
     }

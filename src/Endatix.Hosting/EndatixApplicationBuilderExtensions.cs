@@ -21,7 +21,7 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The configured application builder.</returns>
     public static IApplicationBuilder UseEndatix(this IApplicationBuilder app)
     {
-        Guard.Against.Null(app, nameof(app));
+        Guard.Against.Null(app);
 
         app.GetLogger()?.LogInformation("Configuring Endatix middleware with default settings");
 
@@ -61,7 +61,7 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseEndatix(this IApplicationBuilder app, Action<EndatixMiddlewareOptions> configure)
     {
-        Guard.Against.Null(app, nameof(app));
+        Guard.Against.Null(app);
 
         var options = EndatixMiddlewareOptionsFactory.Create(app.ApplicationServices);
         configure(options);
@@ -110,7 +110,7 @@ public static class EndatixApplicationBuilderExtensions
     /// <returns>The application builder for chaining.</returns>
     public static IApplicationBuilder UseHealthChecks(this IApplicationBuilder app, string path = "/health")
     {
-        Guard.Against.Null(app, nameof(app));
+        Guard.Against.Null(app);
 
         new EndatixMiddlewareBuilder(app).UseHealthChecks(path);
         return app;

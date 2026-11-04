@@ -47,11 +47,11 @@ internal sealed class JwtTokenService : IUserTokenService
         }
 
         // Validate EndatixJwt Options options to ensure they are correctly configured
-        Guard.Against.NullOrEmpty(_endatixJwtOptions.SigningKey, nameof(_endatixJwtOptions.SigningKey), "Signing key cannot be empty. Please check your appSettings.");
-        Guard.Against.NullOrEmpty(_endatixJwtOptions.Issuer, nameof(_endatixJwtOptions.Issuer), "Issuer cannot be empty. Please check your appSettings");
-        Guard.Against.NullOrEmpty(_endatixJwtOptions.Audiences, nameof(_endatixJwtOptions.Audiences), "You need at least one audience in your appSettings.");
-        Guard.Against.NegativeOrZero(_endatixJwtOptions.AccessExpiryInMinutes, nameof(_endatixJwtOptions.AccessExpiryInMinutes), "Access Token expiration must be positive number representing minutes for access token lifetime");
-        Guard.Against.NegativeOrZero(_endatixJwtOptions.RefreshExpiryInDays, nameof(_endatixJwtOptions.RefreshExpiryInDays), "Refresh Token expiration must be positive number representing days for refresh token lifetime");
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.SigningKey, message: "Signing key cannot be empty. Please check your appSettings.");
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.Issuer, message: "Issuer cannot be empty. Please check your appSettings");
+        Guard.Against.NullOrEmpty(_endatixJwtOptions.Audiences, message: "You need at least one audience in your appSettings.");
+        Guard.Against.NegativeOrZero(_endatixJwtOptions.AccessExpiryInMinutes, message: "Access Token expiration must be positive number representing minutes for access token lifetime");
+        Guard.Against.NegativeOrZero(_endatixJwtOptions.RefreshExpiryInDays, message: "Refresh Token expiration must be positive number representing days for refresh token lifetime");
     }
 
     /// <inheritdoc />

@@ -33,7 +33,7 @@ public class GoogleAuthProvider : IAuthProvider
         }
 
         var googleIssuer = googleOptions.Issuer;
-        Guard.Against.NullOrWhiteSpace(googleIssuer, nameof(GoogleOptions.Issuer));
+        Guard.Against.NullOrWhiteSpace(googleIssuer);
 
         _cachedIssuer = googleIssuer;
 

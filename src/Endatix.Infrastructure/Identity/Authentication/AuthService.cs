@@ -30,8 +30,8 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
     /// <inheritdoc/>
     public async Task<Result<User>> ValidateCredentials(string email, string password, CancellationToken cancellationToken)
     {
-        Guard.Against.NullOrEmpty(email, nameof(email));
-        Guard.Against.NullOrEmpty(password, nameof(password));
+        Guard.Against.NullOrEmpty(email);
+        Guard.Against.NullOrEmpty(password);
 
         var user = await _userManager.FindByEmailAsync(email);
 
@@ -94,8 +94,8 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
     /// <inheritdoc/>
     public async Task<Result<User>> ValidateRefreshToken(long userId, string token, CancellationToken cancellationToken)
     {
-        Guard.Against.NegativeOrZero(userId, nameof(userId));
-        Guard.Against.NullOrEmpty(token, nameof(token));
+        Guard.Against.NegativeOrZero(userId);
+        Guard.Against.NullOrEmpty(token);
 
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null || user.RefreshTokenHash is null || user.RefreshTokenExpireAt is null)
@@ -115,8 +115,8 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
     /// <inheritdoc/>
     public async Task<Result> StoreRefreshToken(long userId, string token, DateTime expireAt, CancellationToken cancellationToken)
     {
-        Guard.Against.NegativeOrZero(userId, nameof(userId));
-        Guard.Against.NullOrEmpty(token, nameof(token));
+        Guard.Against.NegativeOrZero(userId);
+        Guard.Against.NullOrEmpty(token);
 
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null)
