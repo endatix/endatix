@@ -42,12 +42,19 @@ public sealed class SubmissionLifecycleEvent : DomainEventBase, IIntegrationEven
     /// <summary>The outbox event types of the submission lifecycle.</summary>
     public static class EventTypes
     {
+        /// <summary>A submission was created.</summary>
         public const string Created = "submission.created";
+        /// <summary>pending → active.</summary>
         public const string Started = "submission.started";
+        /// <summary>The submission was completed. A webhook (<c>submission_completed</c>).</summary>
         public const string Completed = "submission.completed";
+        /// <summary>The submission ended in a closed outcome. A webhook (<c>submission_closed</c>).</summary>
         public const string Closed = "submission.closed";
+        /// <summary>pending or active → lapsed.</summary>
         public const string Lapsed = "submission.lapsed";
+        /// <summary>lapsed → active.</summary>
         public const string Resumed = "submission.resumed";
+        /// <summary>A move between two codes of one phase.</summary>
         public const string CollectionStatusMoved = "submission.collection_status_moved";
 
         /// <summary>Every lifecycle event type, one per <see cref="SubmissionLifecycleEventKind"/>.</summary>
@@ -122,22 +129,28 @@ public readonly record struct CollectionStatusRef(string Code, string Phase)
 /// <summary>The payload every submission lifecycle event carries.</summary>
 public record SubmissionLifecyclePayload
 {
+    /// <summary>The submission. Read when the event is written to the outbox.</summary>
     public long SubmissionId { get; init; }
 
+    /// <summary>The submission's tenant.</summary>
     public long TenantId { get; init; }
 
+    /// <summary>The submission's form.</summary>
     public long FormId { get; init; }
 
+    /// <summary>The form definition the answers belong to.</summary>
     public long FormDefinitionId { get; init; }
 
     /// <summary>The submission's revision this event raised it to. One event, one revision.</summary>
     public long Revision { get; init; }
 
+    /// <summary>When the event was raised (UTC).</summary>
     public DateTime OccurredAt { get; init; }
 
     /// <summary>Whether the submission was a test when the event was raised.</summary>
     public bool IsTestSubmission { get; init; }
 
+    /// <summary>The status after the change.</summary>
     public CollectionStatusRef CollectionStatus { get; init; }
 
     /// <summary>The status before the change. Absent on <c>submission.created</c>.</summary>
@@ -164,27 +177,37 @@ public record SubmissionLifecyclePayload
 /// </summary>
 public sealed record SubmissionCompletedPayload : SubmissionLifecyclePayload
 {
+    /// <summary>Whether the submission is complete.</summary>
     public bool IsComplete { get; init; }
 
+    /// <summary>The answers.</summary>
     public string JsonData { get; init; } = null!;
 
+    /// <summary>The page the respondent was on.</summary>
     public int? CurrentPage { get; init; }
 
+    /// <summary>The submission metadata JSON.</summary>
     public string? Metadata { get; init; }
 
+    /// <summary>Who submitted it, when known.</summary>
     public string? SubmittedBy { get; init; }
 
+    /// <summary>The submitter's display id.</summary>
     public string? SubmitterDisplayId { get; init; }
 
     /// <summary>The reviewer status code.</summary>
     public string Status { get; init; } = null!;
 
+    /// <summary>When the submission was created. Read when the event is written to the outbox.</summary>
     public DateTime CreatedAt { get; init; }
 
+    /// <summary>When the submission was last modified. Read when the event is written to the outbox.</summary>
     public DateTime? ModifiedAt { get; init; }
 
+    /// <summary>When the respondent started.</summary>
     public DateTime? StartedAt { get; init; }
 
+    /// <summary>When the submission was completed.</summary>
     public DateTime? CompletedAt { get; init; }
 
     internal static new SubmissionCompletedPayload Raised(SubmissionLifecycleEvent raised) =>

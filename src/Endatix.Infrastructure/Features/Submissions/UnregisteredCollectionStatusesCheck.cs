@@ -44,6 +44,7 @@ internal sealed partial class UnregisteredCollectionStatusesCheck(
         var stored = await dbContext.Submissions
             .IgnoreQueryFilters()
             .AsNoTracking()
+            .Where(submission => !submission.IsDeleted)
             .Select(submission => submission.CollectionStatus)
             .Distinct()
             .ToListAsync(cancellationToken);
@@ -54,6 +55,6 @@ internal sealed partial class UnregisteredCollectionStatusesCheck(
         Message = "Collection status '{Code}' is stored but not registered in Endatix:Submissions:CollectionStatuses; its submissions read as closed.")]
     private partial void LogUnregistered(string code);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Could not check stored collection statuses at startup.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Could not check stored collection statuses at startup.")]
     private partial void LogCheckFailed(Exception exception);
 }

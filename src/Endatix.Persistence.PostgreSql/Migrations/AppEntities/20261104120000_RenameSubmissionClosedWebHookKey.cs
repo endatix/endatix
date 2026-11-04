@@ -19,6 +19,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             foreach (var table in Tables)
             {
                 migrationBuilder.Sql(MoveKey(table, from: "SubmissionCollectionStatusChanged", to: "SubmissionClosed"));
+                migrationBuilder.Sql(DropRetiredKey(table));
             }
         }
 
@@ -30,6 +31,14 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                 migrationBuilder.Sql(MoveKey(table, from: "SubmissionClosed", to: "SubmissionCollectionStatusChanged"));
             }
         }
+
+        // Where both keys were stored, SubmissionClosed is the one delivery reads; the old one would only make a later
+        // write of the same document a 400. Down can't bring it back.
+        private static string DropRetiredKey(string table) => $$"""
+            UPDATE "{{table}}"
+            SET "WebHookSettingsJson" = "WebHookSettingsJson" #- '{Events,SubmissionCollectionStatusChanged}'
+            WHERE "WebHookSettingsJson" #> '{Events,SubmissionCollectionStatusChanged}' IS NOT NULL;
+            """;
 
         // The column is jsonb. Re-running matches nothing: no document has the old key and lacks the new one.
         private static string MoveKey(string table, string from, string to) => $$"""

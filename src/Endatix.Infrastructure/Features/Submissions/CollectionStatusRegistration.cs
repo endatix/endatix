@@ -20,7 +20,15 @@ public static class CollectionStatusRegistration
     /// <exception cref="InvalidOperationException">A code names no phase, or the catalog refuses it.</exception>
     public static IServiceCollection AddCollectionStatuses(this IServiceCollection services, IConfiguration configuration)
     {
-        CollectionStatusCatalog.Configure(Read(configuration.GetSection(SectionPath)));
+        try
+        {
+            CollectionStatusCatalog.Configure(Read(configuration.GetSection(SectionPath)));
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidOperationException($"{SectionPath} is not valid: {ex.Message}", ex);
+        }
+
         services.AddHostedService<UnregisteredCollectionStatusesCheck>();
         return services;
     }

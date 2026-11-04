@@ -19,6 +19,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             foreach (var table in Tables)
             {
                 migrationBuilder.Sql(MoveKey(table, from: "SubmissionCollectionStatusChanged", to: "SubmissionClosed"));
+                migrationBuilder.Sql(DropRetiredKey(table));
             }
         }
 
@@ -30,6 +31,16 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 migrationBuilder.Sql(MoveKey(table, from: "SubmissionClosed", to: "SubmissionCollectionStatusChanged"));
             }
         }
+
+        // Where both keys were stored, SubmissionClosed is the one delivery reads; the old one would only make a later
+        // write of the same document a 400. Down can't bring it back.
+        private static string DropRetiredKey(string table) => $"""
+            UPDATE [{table}]
+            SET [WebHookSettingsJson] = CAST(
+                JSON_MODIFY(CAST([WebHookSettingsJson] AS nvarchar(max)), '$.Events.SubmissionCollectionStatusChanged', NULL)
+                AS json)
+            WHERE JSON_QUERY(CAST([WebHookSettingsJson] AS nvarchar(max)), '$.Events.SubmissionCollectionStatusChanged') IS NOT NULL;
+            """;
 
         // The column is the native json type. It round-trips through nvarchar(max), so the statement doesn't depend on
         // JSON_MODIFY accepting json. JSON_QUERY keeps the setting an object; JSON_MODIFY with NULL removes the old key.

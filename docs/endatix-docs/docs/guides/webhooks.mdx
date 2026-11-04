@@ -277,7 +277,7 @@ Each webhook message contains:
 - `Id`: Unique Snowflake-generated webhook message id
 - `EventName`: The type of event (e.g., `form_created`, `form_updated`, `form_enabled_state_changed`, `form_deleted`, `submission_completed`, `submission_closed`)
 - `Action`: The action that triggered the event (e.g., `created`, `updated`, `deleted`)
-- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events, and a `revision` field - a per-entity counter that increases with every change, which consumers can use to order events for the same form or submission and detect missed updates
+- `Payload`: The event data specific to the operation, containing the complete entity data. It includes explicit entity identifier fields, such as `formId` for form events and `submissionId` for submission events, and a `revision` field - a per-entity counter that increases with every change, which consumers can use to order events for the same form or submission. A submission's revision also rises with lifecycle events that are not webhooks (`submission.created`, `submission.started`), so a webhook-only consumer sees gaps that are not missed updates
   - Submission event payloads (`submission_completed`, `submission_closed`) carry `isTestSubmission`: `true` for a test submission, `false` for a real one. It is the value when the event was raised. Marking a submission as test or real later does not send a webhook: it raises the outbox event `submission.updated`, which carries the new value to [outbox subscribers](/docs/configuration/background-processing)
 
 ## Request Headers

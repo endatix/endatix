@@ -202,7 +202,7 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
             return;
         }
 
-        var step = SubmissionLifecycle.Move(this, isComplete ? CollectionStatusValue.Complete : CollectionStatusValue.InProgress);
+        var step = SubmissionLifecycle.Move(this, isComplete ? CollectionStatusValue.Complete : SubmissionLifecycle.SavedInProgress(this));
         ApplyContent(content);
         var now = DateTime.UtcNow;
         if (isComplete)

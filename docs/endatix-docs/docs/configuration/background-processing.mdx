@@ -115,6 +115,8 @@ Each lifecycle change raises exactly one outbox event, named by the phases befor
 
 {/* lifecycle-events:end */}
 
+The built-in endpoints raise `created`, `started`, `completed` and `closed`. `resumed` follows a save of a submission stored in a lapsed status, and nothing built in moves a submission to a lapsed status or between two codes of one phase yet: `submission.lapsed` and `submission.collection_status_moved` are reserved for host code that sets such statuses.
+
 The lifecycle fields every payload carries are `submissionId`, `tenantId`, `formId`, `formDefinitionId`, `revision`, `occurredAt`, `isTestSubmission`, `collectionStatus` and `previousCollectionStatus`. Both statuses are objects with the exact `code` and its `phase`, for example `{ "code": "screen_out", "phase": "closed" }`. The values are the ones when the event was raised.
 
 A create that lands in an outcome raises two events in one transaction: `submission.created`, carrying the status the row is saved in, then the outcome's event at the next revision. A public create with `collectionOutcome` set to `screen_out` raises `submission.created` (`screen_out`), then `submission.closed`. A create that is complete raises `submission.created`, then `submission.completed`.
@@ -134,7 +136,7 @@ A host adds its own status codes, each with a phase, under `Endatix:Submissions:
 }
 ```
 
-A code is 1 to 32 characters, stored lowercase. A custom code raises its phase's event: moving to `panel_overquota` raises `submission.closed`. A save whose `collectionOutcome` is not a registered `closed` code gets a 400. A stored code that is no longer registered still loads, reads as `closed`, and is logged as a warning at startup.
+A code is 1 to 32 characters, stored lowercase. Through the API a host code is set only as a closed `collectionOutcome`; a code of another phase is recognised when it is stored, and a save keeps an active one as it is. A custom code raises its phase's event: moving to `panel_overquota` raises `submission.closed`. A save whose `collectionOutcome` is not a registered `closed` code gets a 400. A stored code that is no longer registered still loads, reads as `closed`, and is logged as a warning at startup.
 
 #### React to a screen-out
 

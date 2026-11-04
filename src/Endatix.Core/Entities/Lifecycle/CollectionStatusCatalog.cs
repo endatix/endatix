@@ -82,14 +82,23 @@ public static class CollectionStatusCatalog
 
     /// <summary>
     /// The phase of a code. A stored code that is not registered reads as <see cref="CollectionPhase.Closed"/>: it
-    /// loads, can't resume, and raises nothing until a registered move.
+    /// loads, and like any closed status it can't be changed or moved, so it raises no event.
     /// </summary>
     internal static CollectionPhase PhaseOf(string code) =>
         Read().TryGetValue(code, out var phase) ? phase : CollectionPhase.Closed;
 
+    // The first read freezes the table under the lock Configure takes, so a reader never keeps a table Configure
+    // replaces afterwards. Later reads take no lock and write nothing.
     private static FrozenDictionary<string, CollectionPhase> Read()
     {
-        _frozen = true;
+        if (!_frozen)
+        {
+            lock (_configureLock)
+            {
+                _frozen = true;
+            }
+        }
+
         return _phases;
     }
 

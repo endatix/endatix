@@ -38,6 +38,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         SubmissionTokenExpiryHours = submissionTokenExpiryHours;
         IsSubmissionTokenValidAfterCompletion = isSubmissionTokenValidAfterCompletion;
         SlackSettingsJson = slackSettingsJson;
+        DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(webHookSettingsJson), nameof(webHookSettingsJson));
         WebHookSettingsJson = webHookSettingsJson;
         CustomExportsJson = customExportsJson;
         RequireFolderAssignment = false;

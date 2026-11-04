@@ -211,6 +211,22 @@ public class SubmissionLifecycleEventTests
     }
 
     [Fact]
+    public void Update_InProgressOnAHostActiveCode_KeepsTheCodeAndRaisesNothing()
+    {
+        // Arrange
+        var submission = Loaded(Lifecycle.HostCollectionStatuses.UnderReview);
+        var revision = submission.Revision;
+
+        // Act
+        SaveAnswers(submission, """{"a":1}""");
+
+        // Assert
+        submission.CollectionStatus.Code.Should().Be(Lifecycle.HostCollectionStatuses.UnderReview);
+        submission.DomainEvents.Should().BeEmpty();
+        submission.Revision.Should().Be(revision);
+    }
+
+    [Fact]
     public void Update_CompletingADriftedRow_RaisesCompletedAtItsOwnRevision()
     {
         // Arrange
@@ -444,19 +460,6 @@ public class SubmissionLifecycleEventTests
         var revisions = submission.DomainEvents.Select(RevisionOf).ToList();
         revisions.Should().Equal(2, 3, 4, 5, 6);
         submission.Revision.Should().Be(6);
-    }
-
-    [Fact]
-    public void IncrementRevision_ThroughTheInterface_IsNotSupported()
-    {
-        // Arrange
-        Core.Abstractions.IHasRevision submission = CreateCleared();
-
-        // Act
-        var increment = () => submission.IncrementRevision();
-
-        // Assert
-        increment.Should().Throw<NotSupportedException>();
     }
 
     private static long RevisionOf(Core.Infrastructure.Domain.DomainEventBase domainEvent) => domainEvent switch

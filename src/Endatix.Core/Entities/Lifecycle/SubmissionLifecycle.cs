@@ -58,6 +58,16 @@ internal static class SubmissionLifecycle
         return new LifecycleStep(next, [new LifecycleChange(kind, submission.CollectionStatus, submission.Revision + 1)]);
     }
 
+    /// <summary>
+    /// The status an in-progress save leaves the submission in: an active status stays as it is (a host's own active
+    /// code included); pending and lapsed become <c>in_progress</c>.
+    /// </summary>
+    public static CollectionStatus SavedInProgress(Submission submission)
+    {
+        var current = Effective(submission);
+        return current.Phase == CollectionPhase.Active ? current : CollectionStatus.InProgress;
+    }
+
     /// <summary>Whether answers may still change and the status may still move: pending, active or lapsed.</summary>
     public static bool CanResume(Submission submission) => CanResume(Effective(submission).Phase);
 

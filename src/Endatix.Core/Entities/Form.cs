@@ -32,6 +32,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         LimitOnePerUser = !args.IsPublic && args.LimitOnePerUser;
         SubmissionTokenExpiryHours = args.SubmissionTokenExpiryHours;
         Metadata = args.Metadata;
+        DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(args.WebHookSettingsJson), nameof(args));
         WebHookSettingsJson = args.WebHookSettingsJson;
         FolderId = args.FolderId;
     }

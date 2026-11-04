@@ -20,6 +20,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
     private SubmissionChangeSaver Saver => new(repository, versions);
 
+    /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);

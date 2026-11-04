@@ -20,6 +20,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
 
     private SubmissionChangeSaver Saver => new(repository, versions);
 
+    /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);

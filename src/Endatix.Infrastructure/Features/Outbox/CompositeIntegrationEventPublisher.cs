@@ -7,7 +7,7 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// Fans a claimed outbox row out to every registered <see cref="IOutboxIntegrationEventHandler"/>
 /// whose <see cref="IOutboxIntegrationEventHandler.EventTypes"/> includes the message event type.
 /// </summary>
-internal sealed class CompositeIntegrationEventPublisher(
+internal sealed partial class CompositeIntegrationEventPublisher(
     IEnumerable<IOutboxIntegrationEventHandler> handlers,
     ILogger<CompositeIntegrationEventPublisher> logger) : IIntegrationEventPublisher
 {
@@ -49,9 +49,8 @@ internal sealed class CompositeIntegrationEventPublisher(
         }
     }
 
-    private void LogNoHandler(IOutboxMessage message) =>
-        logger.LogInformation(
-            "Outbox message {MessageId} has no handler for event type '{EventType}'.",
-            message.Id,
-            message.EventType);
+    private void LogNoHandler(IOutboxMessage message) => LogNoHandler(message.Id, message.EventType);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Outbox message {MessageId} has no handler for event type '{EventType}'.")]
+    private partial void LogNoHandler(long messageId, string eventType);
 }

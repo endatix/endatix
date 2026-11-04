@@ -17,7 +17,7 @@ public sealed partial class Submission
     /// </summary>
     public void EnsureStarted(DateTime? at = null)
     {
-        var step = CollectionStatus.Phase == CollectionPhase.Pending
+        var step = SubmissionLifecycle.Effective(this).Phase == CollectionPhase.Pending
             ? SubmissionLifecycle.Move(this, CollectionStatusValue.InProgress)
             : LifecycleStep.None(CollectionStatus);
         StartedAt ??= at ?? DateTime.UtcNow;
@@ -116,8 +116,9 @@ public sealed partial class Submission
     /// <summary>The guard every content save shares: valid content, a definition of this form, an open submission.</summary>
     private void EnsureContentAllowed(SubmissionContent content, long formDefinitionFormId)
     {
-        Guard.Against.NullOrEmpty(content.JsonData, nameof(content.JsonData));
-        Guard.Against.NegativeOrZero(content.FormDefinitionId, nameof(content.FormDefinitionId));
+        var (jsonData, formDefinitionId, _, _) = content;
+        Guard.Against.NullOrEmpty(jsonData);
+        Guard.Against.NegativeOrZero(formDefinitionId);
         Guard.Against.NegativeOrZero(formDefinitionFormId);
         if (formDefinitionFormId != FormId)
         {

@@ -52,7 +52,7 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         // Assert
         AssertMoved(up.OldKeyForm, from: OldKey, to: NewKey);
         AssertMoved(up.Tenant, from: OldKey, to: NewKey);
-        EventKeys(up.BothKeysForm).Should().BeEquivalentTo(OldKey, NewKey, "a document that has the new key is left alone");
+        EventKeys(up.BothKeysForm).Should().Contain(NewKey).And.NotContain(OldKey, "the new key wins and the old one is dropped");
         up.NoWebHooksForm.Should().BeNull();
         AssertMoved(down.OldKeyForm, from: NewKey, to: OldKey);
         AssertMoved(down.Tenant, from: NewKey, to: OldKey);
