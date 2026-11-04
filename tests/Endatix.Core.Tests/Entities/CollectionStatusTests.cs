@@ -308,8 +308,7 @@ public class CollectionStatusTests
     [Theory]
     [InlineData(CollectionStatusCodes.ScreenOut)]
     [InlineData(CollectionStatusCodes.QuotaFull)]
-    [InlineData(CollectionStatusCodes.Abandoned)]
-    [InlineData("panel_hold")]
+    [InlineData(CollectionStatusCodes.Cancelled)]
     public void Update_CompleteFromNonResumable_Throws(string from)
     {
         var submission = SubmissionWithStatus(from);

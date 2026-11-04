@@ -258,6 +258,49 @@ public class SubmissionLifecycleEventTests
     }
 
     [Fact]
+    public void Update_InProgressOnAbandoned_RaisesResumed()
+    {
+        // Arrange
+        var submission = Loaded(CollectionStatusCodes.Abandoned);
+
+        // Act
+        SaveAnswers(submission, """{"a":1}""");
+
+        // Assert
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Resumed, CollectionStatusCodes.Abandoned, CollectionStatusCodes.InProgress));
+    }
+
+    [Fact]
+    public void Update_InProgressOnAnUnregisteredCode_KeepsTheCodeAndRaisesNothing()
+    {
+        // Arrange
+        var submission = Loaded("removed_from_config");
+
+        // Act
+        SaveAnswers(submission, """{"a":1}""");
+
+        // Assert
+        submission.CollectionStatus.Code.Should().Be("removed_from_config");
+        submission.JsonData.Should().Be("""{"a":1}""");
+        submission.DomainEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Update_CompletingAnUnregisteredCode_RaisesCompletedFromActive()
+    {
+        // Arrange
+        var submission = Loaded("removed_from_config");
+
+        // Act
+        SaveAnswers(submission, """{"a":1}""", isComplete: true);
+
+        // Assert
+        var payload = (SubmissionLifecyclePayload)SingleLifecycleEvent(submission).GetPayload();
+        SingleLifecycleEvent(submission).EventType.Should().Be(SubmissionLifecycleEvent.EventTypes.Completed);
+        payload.PreviousCollectionStatus.Should().Be(new CollectionStatusRef("removed_from_config", "active"));
+    }
+
+    [Fact]
     public void Update_InProgressOnLapsed_RaisesResumed()
     {
         // Arrange
@@ -273,7 +316,7 @@ public class SubmissionLifecycleEventTests
     [Theory]
     [InlineData(CollectionStatusCodes.ScreenOut)]
     [InlineData(CollectionStatusCodes.Cancelled)]
-    [InlineData("unregistered_code")]
+    [InlineData(CollectionStatusCodes.QuotaFull)]
     public void Update_OnClosed_ThrowsAndChangesNothing(string code)
     {
         // Arrange

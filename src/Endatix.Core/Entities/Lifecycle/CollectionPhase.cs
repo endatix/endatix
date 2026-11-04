@@ -15,10 +15,10 @@ public enum CollectionPhase
     /// <summary>Answered to the end: <c>complete</c>. Final.</summary>
     Completed,
 
-    /// <summary>Ended without completing: <c>screen_out</c>, <c>quota_full</c>, <c>abandoned</c>, <c>cancelled</c>. Final.</summary>
+    /// <summary>Ended without completing: <c>screen_out</c>, <c>quota_full</c>, <c>cancelled</c>. Final.</summary>
     Closed,
 
-    /// <summary>Timed out, but can resume: <c>expired</c>.</summary>
+    /// <summary>Stopped, but can resume: <c>expired</c>, <c>abandoned</c>.</summary>
     Lapsed,
 }
 

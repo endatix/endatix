@@ -14,8 +14,8 @@ public static class CollectionStatusRegistration
     public const string SectionPath = "Endatix:Submissions:CollectionStatuses";
 
     /// <summary>
-    /// Reads the host's codes and registers them in <see cref="CollectionStatusCatalog"/>, and adds the startup check
-    /// that logs stored codes nobody registered.
+    /// Reads the host's codes and registers them in <see cref="CollectionStatusCatalog"/>, and gives the catalog the
+    /// host's logger for its warning about stored codes nobody registered.
     /// </summary>
     /// <exception cref="InvalidOperationException">A code names no phase, or the catalog refuses it.</exception>
     public static IServiceCollection AddCollectionStatuses(this IServiceCollection services, IConfiguration configuration)
@@ -29,7 +29,7 @@ public static class CollectionStatusRegistration
             throw new InvalidOperationException($"{SectionPath} is not valid: {ex.Message}", ex);
         }
 
-        services.AddHostedService<UnregisteredCollectionStatusesCheck>();
+        services.AddHostedService<CollectionStatusCatalogLogging>();
         return services;
     }
 

@@ -1,12 +1,15 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.Entities;
 
 /// <summary>
 /// The one owner of collection status code → <see cref="CollectionPhase"/>. Built-in codes are fixed; a host adds its
 /// own codes once at startup (<c>Endatix:Submissions:CollectionStatuses</c>). The table freezes on first read, so the EF
-/// value converter, the API validator and the entity all see one table.
+/// value converter, the API validator and the entity all see one table. It is process-wide, so every host in one
+/// process registers the same codes.
 /// </summary>
 public static class CollectionStatusCatalog
 {
@@ -19,48 +22,78 @@ public static class CollectionStatusCatalog
             [CollectionStatusCodes.Complete] = CollectionPhase.Completed,
             [CollectionStatusCodes.ScreenOut] = CollectionPhase.Closed,
             [CollectionStatusCodes.QuotaFull] = CollectionPhase.Closed,
-            [CollectionStatusCodes.Abandoned] = CollectionPhase.Closed,
             [CollectionStatusCodes.Cancelled] = CollectionPhase.Closed,
             [CollectionStatusCodes.Expired] = CollectionPhase.Lapsed,
+            [CollectionStatusCodes.Abandoned] = CollectionPhase.Lapsed,
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
     private static readonly Lock _configureLock = new();
     private static FrozenDictionary<string, CollectionPhase> _phases = _builtIn;
     private static FrozenDictionary<string, CollectionPhase> _custom = FrozenDictionary<string, CollectionPhase>.Empty;
     private static volatile bool _frozen;
-
-    /// <summary>Every registered code, built-in and host, with its phase.</summary>
-    public static IReadOnlyDictionary<string, CollectionPhase> Registered => Read();
+    private static readonly ConcurrentDictionary<string, byte> _unregisteredSeen = new(StringComparer.Ordinal);
+    private static ILogger? _logger;
 
     /// <summary>
     /// Adds host codes with their phases. Codes are normalized like <see cref="CollectionStatus.FromCode"/>. Calling it
-    /// again with the same codes, or with none, changes nothing.
+    /// again with the same codes changes nothing, and so does calling it with none while no host codes are registered.
     /// </summary>
     /// <exception cref="ArgumentException">A code is empty or longer than 32, or gives a built-in code another phase.</exception>
-    /// <exception cref="InvalidOperationException">The table was read already and this adds different codes.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Other host codes are registered already (another host in this process), or the table was read already.
+    /// </exception>
     public static void Configure(IReadOnlyDictionary<string, CollectionPhase> customCodes)
     {
         ArgumentNullException.ThrowIfNull(customCodes);
         var requested = Normalize(customCodes);
         lock (_configureLock)
         {
-            if (requested.Count == 0 || SameCodes(requested, _custom))
+            if (SameCodes(requested, _custom))
             {
                 return;
             }
 
-            EnsureNotRead();
+            EnsureNotRegisteredOrRead();
             _custom = requested.ToFrozenDictionary(StringComparer.Ordinal);
             _phases = _builtIn.Concat(requested).ToFrozenDictionary(StringComparer.Ordinal);
         }
     }
 
-    private static void EnsureNotRead()
+    private static void EnsureNotRegisteredOrRead()
     {
+        if (_custom.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Other collection status codes are registered in this process; every host in one process registers the same codes.");
+        }
+
         if (_frozen)
         {
             throw new InvalidOperationException(
                 "Collection status codes were already read; register host codes once, at startup.");
+        }
+    }
+
+    /// <summary>Where the warning for an unregistered stored code goes. Warnings already due are written now.</summary>
+    public static void UseLogger(ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _logger = logger;
+        foreach (var code in _unregisteredSeen.Keys)
+        {
+            LogUnregistered(logger, code);
+        }
+    }
+
+    /// <summary>Clears host codes, the freeze and the warnings, so a test can configure the catalog again.</summary>
+    internal static void ResetForTests()
+    {
+        lock (_configureLock)
+        {
+            _custom = FrozenDictionary<string, CollectionPhase>.Empty;
+            _phases = _builtIn;
+            _frozen = false;
+            _unregisteredSeen.Clear();
         }
     }
 
@@ -81,11 +114,28 @@ public static class CollectionStatusCatalog
     }
 
     /// <summary>
-    /// The phase of a code. A stored code that is not registered reads as <see cref="CollectionPhase.Closed"/>: it
-    /// loads, and like any closed status it can't be changed or moved, so it raises no event.
+    /// The phase of a code. A stored code that is not registered reads as <see cref="CollectionPhase.Active"/>, so its
+    /// submission can still be saved and completed; the first read of each such code logs a warning.
     /// </summary>
-    internal static CollectionPhase PhaseOf(string code) =>
-        Read().TryGetValue(code, out var phase) ? phase : CollectionPhase.Closed;
+    internal static CollectionPhase PhaseOf(string code)
+    {
+        if (Read().TryGetValue(code, out var phase))
+        {
+            return phase;
+        }
+
+        if (_unregisteredSeen.TryAdd(code, 0) && _logger is { } logger)
+        {
+            LogUnregistered(logger, code);
+        }
+
+        return CollectionPhase.Active;
+    }
+
+    private static void LogUnregistered(ILogger logger, string code) =>
+        logger.LogWarning(
+            "Collection status '{Code}' is stored but not registered in Endatix:Submissions:CollectionStatuses; it reads as active.",
+            code);
 
     // The first read freezes the table under the lock Configure takes, so a reader never keeps a table Configure
     // replaces afterwards. Later reads take no lock and write nothing.

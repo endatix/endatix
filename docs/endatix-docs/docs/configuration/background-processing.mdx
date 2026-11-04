@@ -95,8 +95,8 @@ A submission's collection status belongs to one of five **phases**. The phase de
 | `pending` | `not_started`, `viewed` | Yes |
 | `active` | `in_progress` | Yes |
 | `completed` | `complete` | No, final |
-| `closed` | `screen_out`, `quota_full`, `abandoned`, `cancelled` | No, final |
-| `lapsed` | `expired` | Yes |
+| `closed` | `screen_out`, `quota_full`, `cancelled` | No, final |
+| `lapsed` | `expired`, `abandoned` | Yes |
 
 {/* lifecycle-phases:end */}
 
@@ -136,7 +136,7 @@ A host adds its own status codes, each with a phase, under `Endatix:Submissions:
 }
 ```
 
-A code is 1 to 32 characters, stored lowercase. Through the API a host code is set only as a closed `collectionOutcome`; a code of another phase is recognised when it is stored, and a save keeps an active one as it is. A custom code raises its phase's event: moving to `panel_overquota` raises `submission.closed`. A save whose `collectionOutcome` is not a registered `closed` code gets a 400. A stored code that is no longer registered still loads, reads as `closed`, and is logged as a warning at startup.
+A code is 1 to 32 characters, stored lowercase. Through the API a host code is set only as a closed `collectionOutcome`; a code of another phase is recognised when it is stored, and a save keeps an active one as it is. A custom code raises its phase's event: moving to `panel_overquota` raises `submission.closed`. A save whose `collectionOutcome` is not a registered `closed` code gets a 400. A stored code that is not registered (or no longer is) still loads and reads as `active`, so its submission can still be saved and completed; the first read of each such code logs a warning.
 
 #### React to a screen-out
 

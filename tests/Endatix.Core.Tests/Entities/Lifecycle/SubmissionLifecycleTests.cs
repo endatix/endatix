@@ -104,6 +104,19 @@ public class SubmissionLifecycleTests
     }
 
     [Fact]
+    public void Move_ToAbandoned_IsOneLapsed()
+    {
+        // Arrange
+        var submission = Open();
+
+        // Act
+        var step = SubmissionLifecycle.Move(submission, CollectionStatus.Abandoned);
+
+        // Assert
+        step.Changes.Should().ContainSingle().Which.Kind.Should().Be(Kind.Lapsed);
+    }
+
+    [Fact]
     public void Move_OutOfComplete_Throws()
     {
         // Arrange

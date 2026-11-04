@@ -251,11 +251,11 @@ To test your webhooks:
   - A screen-out does not send this event
   - Can be used to process form responses, trigger workflows, or update external systems
 
-- `SubmissionClosed`: Triggered once when a submission ends in a closed outcome without completing: `screen_out`, `quota_full`, `abandoned`, `cancelled`, or a closed code your host registered. `isComplete` stays false
+- `SubmissionClosed`: Triggered once when a submission ends in a closed outcome without completing: `screen_out`, `quota_full`, `cancelled`, or a closed code your host registered. `isComplete` stays false
   - Endpoints that can trigger the event: the same public create and token update calls, with `collectionOutcome` set to a closed status such as `screen_out`
   - The payload carries `collectionStatus` and `previousCollectionStatus`, each as `{ "code": "screen_out", "phase": "closed" }`. It carries no answers (`jsonData`)
   - A closed submission can't move again, so it sends this event at most once
-  - `expired` is a lapsed status, not a closed one: the submission can still resume, and it sends no webhook
+  - `expired` and `abandoned` are lapsed statuses, not closed ones: the submission can still resume, and they send no webhook
   - An in-process `INotificationHandler` does not run for this event. Code in the API host implements `IOutboxIntegrationEventHandler`. See [Submission lifecycle events](/docs/configuration/background-processing#submission-lifecycle-events).
 
 Delivery depends on the event type only. These are the submission webhooks and the outbox events they deliver:

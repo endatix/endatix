@@ -12,7 +12,7 @@ public class CollectionStatusCatalogTests
     [InlineData(CollectionStatusCodes.Complete, CollectionPhase.Completed)]
     [InlineData(CollectionStatusCodes.ScreenOut, CollectionPhase.Closed)]
     [InlineData(CollectionStatusCodes.QuotaFull, CollectionPhase.Closed)]
-    [InlineData(CollectionStatusCodes.Abandoned, CollectionPhase.Closed)]
+    [InlineData(CollectionStatusCodes.Abandoned, CollectionPhase.Lapsed)]
     [InlineData(CollectionStatusCodes.Cancelled, CollectionPhase.Closed)]
     [InlineData(CollectionStatusCodes.Expired, CollectionPhase.Lapsed)]
     [InlineData(HostCollectionStatuses.PanelOverquota, CollectionPhase.Closed)]
@@ -45,7 +45,7 @@ public class CollectionStatusCatalogTests
     }
 
     [Fact]
-    public void Phase_UnregisteredStoredCode_ReadsAsClosed()
+    public void Phase_UnregisteredStoredCode_ReadsAsActive()
     {
         // Arrange
         var stored = CollectionStatus.FromCode("removed_from_config");
@@ -54,7 +54,7 @@ public class CollectionStatusCatalogTests
         var phase = stored.Phase;
 
         // Assert
-        phase.Should().Be(CollectionPhase.Closed);
+        phase.Should().Be(CollectionPhase.Active);
     }
 
     [Fact]
@@ -65,18 +65,18 @@ public class CollectionStatusCatalogTests
 
         // Assert
         configure.Should().NotThrow();
-        CollectionStatusCatalog.Registered.Should().ContainKey(HostCollectionStatuses.InviteSent);
+        CollectionStatusCatalog.TryGet(HostCollectionStatuses.InviteSent, out _).Should().BeTrue();
     }
 
     [Fact]
-    public void Configure_NoCodes_ChangesNothing()
+    public void Configure_NoCodesAfterHostCodes_Throws()
     {
         // Act
         var configure = () => CollectionStatusCatalog.Configure(new Dictionary<string, CollectionPhase>());
 
         // Assert
-        configure.Should().NotThrow();
-        CollectionStatusCatalog.Registered.Should().ContainKey(HostCollectionStatuses.PanelOverquota);
+        configure.Should().Throw<InvalidOperationException>();
+        CollectionStatusCatalog.TryGet(HostCollectionStatuses.PanelOverquota, out _).Should().BeTrue();
     }
 
     [Fact]
