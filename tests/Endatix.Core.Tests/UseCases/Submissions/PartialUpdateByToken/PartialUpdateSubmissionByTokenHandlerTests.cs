@@ -203,12 +203,13 @@ public class PartialUpdateSubmissionByTokenHandlerTests
             Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(Submission.Create(submissionId, new SubmissionCreateArgs(
+        var updatedSubmission = Submission.Create(submissionId, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
-            JsonData: jsonData))));
+            JsonData: jsonData));
+        _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(updatedSubmission));
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

@@ -64,7 +64,7 @@ public class UpdateStatusHandlerTests
     {
         // Arrange
         var command = new UpdateStatusCommand(1, 1, "approved");
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: 1, FormDefinitionId: 1, JsonData: "{}"));
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: 1, FormDefinitionId: 1, JsonData: "{}", IsComplete: true));
 
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
@@ -90,7 +90,7 @@ public class UpdateStatusHandlerTests
     {
         // Arrange
         var command = new UpdateStatusCommand(1, 1, statusCode);
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: 1, FormDefinitionId: 1, JsonData: "{}"));
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: 1, FormDefinitionId: 1, JsonData: "{}", IsComplete: true));
 
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);

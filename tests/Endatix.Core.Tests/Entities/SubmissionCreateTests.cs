@@ -4,7 +4,7 @@ using static Endatix.Core.Tests.ErrorType;
 
 namespace Endatix.Core.Tests.Entities;
 
-public class SubmissionConstructorTests
+public class SubmissionCreateTests
 {
     [Fact]
     public void Create_NullJsonData_ThrowsArgumentNullException()
@@ -110,7 +110,7 @@ public class SubmissionConstructorTests
         const string jsonData = SampleData.SUBMISSION_JSON_DATA_1;
 
         // Act
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: form.Id, FormDefinitionId: formDefinition.Id, JsonData: jsonData));
+        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: form.Id, FormDefinitionId: formDefinition.Id, JsonData: jsonData, IsComplete: true));
 
         // Assert
         submission.Should().NotBeNull();

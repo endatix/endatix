@@ -60,14 +60,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
 
-        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
-        var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{}"));
-
-        var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
-        formProperty.SetValue(submission, form);
-        var formDefinitionProperty = typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!;
-        formDefinitionProperty.SetValue(submission, formDefinition);
+        var submission = CreateSubmissionWithForm(formId, formDefinitionId, isFormEnabled: true);
 
         var updatedSubmission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{\"field\":\"value\"}"));
 
@@ -128,14 +121,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             new[] { "edit" },
             DateTime.UtcNow.AddHours(1));
 
-        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: false));
-        var formDefinition = new FormDefinition(SampleData.TENANT_ID, false, "{}");
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: formDefinitionId, JsonData: "{}"));
-
-        var formProperty = typeof(Submission).GetProperty(nameof(Submission.Form))!;
-        formProperty.SetValue(submission, form);
-        var formDefinitionProperty = typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!;
-        formDefinitionProperty.SetValue(submission, formDefinition);
+        var submission = CreateSubmissionWithForm(formId, formDefinitionId, isFormEnabled: false);
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
