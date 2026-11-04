@@ -243,6 +243,21 @@ public class SubmissionLifecycleEventTests
     }
 
     [Fact]
+    public void Update_CompletingADriftedRow_ReportsTheEffectiveStatusAsPrevious()
+    {
+        // Arrange
+        var submission = Loaded(CollectionStatusCodes.Complete);
+
+        // Act
+        SaveAnswers(submission, """{"a":1}""", isComplete: true);
+
+        // Assert
+        var payload = (SubmissionLifecyclePayload)SingleLifecycleEvent(submission).GetPayload();
+        payload.PreviousCollectionStatus.Should().Be(new CollectionStatusRef(CollectionStatusCodes.InProgress, "active"));
+        payload.CollectionStatus.Should().Be(new CollectionStatusRef(CollectionStatusCodes.Complete, "completed"));
+    }
+
+    [Fact]
     public void Update_InProgressOnLapsed_RaisesResumed()
     {
         // Arrange

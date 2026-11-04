@@ -40,8 +40,8 @@ internal static class SubmissionLifecycle
     }
 
     /// <summary>
-    /// The step that moves the submission to <paramref name="next"/>: one event at the next revision. Moving to the
-    /// status it is in is no step.
+    /// The step that moves the submission to <paramref name="next"/>: one event at the next revision, whose previous
+    /// status is the effective one the event was chosen from. Moving to the status it is in is no step.
     /// </summary>
     /// <exception cref="InvalidOperationException">The move is refused; nothing has changed yet.</exception>
     public static LifecycleStep Move(Submission submission, CollectionStatus next)
@@ -55,7 +55,7 @@ internal static class SubmissionLifecycle
         var kind = Decide(from.Phase, next.Phase)
             ?? throw new InvalidOperationException(
                 $"A submission that is {from.Phase.ToWireName()} ({from.Code}) can't move to {next.Code}.");
-        return new LifecycleStep(next, [new LifecycleChange(kind, submission.CollectionStatus, submission.Revision + 1)]);
+        return new LifecycleStep(next, [new LifecycleChange(kind, from, submission.Revision + 1)]);
     }
 
     /// <summary>
