@@ -3,6 +3,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -42,10 +43,13 @@ public sealed class AllQuestionsCompileTests
         JsonElement submission = FormSchemaFixtureLoader.LoadAllQuestions("all-questions-submission.json");
         JsonElement expectedFlat = FormSchemaFixtureLoader.LoadAllQuestions("all-questions-expected-flat.json");
         FormSchemaCompiler compiler = new();
-        MergedFormSchema merged = compiler.Compile(definitionJson);
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
 
         // Act
-        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(submission, merged);
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submission,
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson));
 
         // Assert
         FormSchemaFixtureAssertions.AssertFlatMatchesExpected(
@@ -93,7 +97,8 @@ public sealed class AllQuestionsCompileTests
 
         Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
             submissionDocument.RootElement,
-            compiled.FlatteningMap);
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson));
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-flat.json"),
             JsonSerializer.Serialize(
