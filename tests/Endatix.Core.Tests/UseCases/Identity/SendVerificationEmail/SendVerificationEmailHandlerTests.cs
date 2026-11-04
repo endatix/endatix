@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
@@ -7,7 +8,6 @@ using Endatix.Core.UseCases.Identity.SendVerificationEmail;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using System.Collections.Generic;
 
 namespace Endatix.Core.Tests.UseCases.Identity.SendVerificationEmail;
 
@@ -137,4 +137,42 @@ public class SendVerificationEmailHandlerTests
         await _userService.Received(1).GetUserAsync(email, Arg.Any<CancellationToken>());
         await _emailVerificationService.Received(1).CreateVerificationTokenAsync(userId, Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_ValidEmail_DoesNotLogRecipientOrVerificationSecret()
+    {
+        // Arrange
+        var email = "test@example.com";
+        var userId = 123L;
+        var secret = "verification-secret-value";
+        var user = new User(userId, "testuser", email, false);
+        var token = new EmailVerificationToken(userId, secret, DateTime.UtcNow.AddHours(24));
+        var command = new SendVerificationEmailCommand(email);
+
+        _userService.GetUserAsync(email, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(user));
+        _emailVerificationService.CreateVerificationTokenAsync(userId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(token));
+        _emailTemplateService.CreateVerificationEmail(email, token.RawToken!)
+            .Returns(new EmailWithTemplate
+            {
+                To = email,
+                From = "noreply@example.com",
+                Subject = "Verify Your Email Address",
+                TemplateId = "email-verification",
+                Metadata = new Dictionary<string, object> { ["verificationToken"] = secret }
+            });
+
+        // Act
+        await _sut.Handle(command, CancellationToken.None);
+
+        // Assert
+        LoggedText(_logger).Should().NotContain(email);
+        LoggedText(_logger).Should().NotContain(secret);
+        LoggedText(_logger).Should().NotContain("[redacted-email]");
+    }
+
+    private static string LoggedText(ILogger logger) =>
+        string.Join('\n', logger.ReceivedCalls().Select(call =>
+            string.Join(' ', call.GetArguments().Select(argument => argument?.ToString()))));
 }

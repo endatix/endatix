@@ -1,6 +1,5 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
-using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.Extensions.Logging;
@@ -28,8 +27,7 @@ public class SendVerificationEmailHandler(
         var userResult = await userService.GetUserAsync(request.Email, cancellationToken);
         if (!userResult.IsSuccess)
         {
-            // Log the attempt to send verification email to non-existent user
-            logger.LogWarning("Verification email requested for non-existent user: {Email}", RedactEmail(request.Email));
+            logger.LogWarning("Verification email requested for non-existent user");
 
             // Return success to prevent email enumeration attacks
             return Result.Success();
@@ -38,9 +36,7 @@ public class SendVerificationEmailHandler(
         var user = userResult.Value!;
         if (user.IsVerified)
         {
-            // Log the attempt to send verification email to already verified user
-            logger.LogWarning("Verification email requested for already verified user: {Email} (UserId: {UserId})",
-                RedactEmail(request.Email), user.Id);
+            logger.LogWarning("Verification email requested for already verified user (UserId: {UserId})", user.Id);
 
             // Return success to prevent email enumeration attacks
             return Result.Success();
@@ -57,26 +53,22 @@ public class SendVerificationEmailHandler(
 
                 await emailSender.SendEmailAsync(emailModel, cancellationToken);
 
-                logger.LogInformation("Verification email sent successfully to {Email}", RedactEmail(user.Email));
+                logger.LogInformation("Verification email sent successfully");
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to send verification email to {Email}", RedactEmail(user.Email));
+                logger.LogError(ex, "Failed to send verification email");
             }
         }
         else
         {
-            // Log token creation failure
-            logger.LogError("Failed to create verification token for user: {Email} (UserId: {UserId}). Errors: {Errors}",
-                RedactEmail(request.Email), user.Id, string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
+            logger.LogError(
+                "Failed to create verification token for user {UserId}. Errors: {Errors}",
+                user.Id,
+                string.Join(", ", tokenResult.ValidationErrors.Select(e => e.ErrorMessage)));
         }
 
         // If token creation or email sending fails, we should still return success but log the error
         return Result.Success();
-    }
-
-    private static string RedactEmail(string email)
-    {
-        return PiiRedactor.Redact(email, SensitivityType.Email);
     }
 }
