@@ -16,12 +16,12 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string SeedPassword = "Password123!";
+    private const string SEED_PASSWORD = "Password123!";
 
-    private static readonly string[] ExporterPermissions =
+    private static readonly string[] _exporterPermissions =
         [Actions.Access.Hub, Actions.Forms.View, Actions.Submissions.View, Actions.Submissions.Export];
 
-    private static readonly string[] EditorPermissions =
+    private static readonly string[] _editorPermissions =
         [Actions.Access.Hub, Actions.Forms.View, Actions.Forms.Edit];
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFi
         await using ReportingWebHost host = new(fixture);
         var (admin, world) = await TenantAdminAsync(host, ct);
         var formId = await CreateFormWithSubmissionAsync(admin, ct);
-        using var exporter = await CustomRoleUserAsync(host, world, "Exporter", ExporterPermissions, ct);
+        using var exporter = await CustomRoleUserAsync(host, world, "Exporter", _exporterPermissions, ct);
 
         // Act
         using var compiled = await CompileAsync(exporter, formId, replace: false, ct);
@@ -53,7 +53,7 @@ public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFi
         await using ReportingWebHost host = new(fixture);
         var (admin, world) = await TenantAdminAsync(host, ct);
         var formId = await CreateFormWithSubmissionAsync(admin, ct);
-        using var exporter = await CustomRoleUserAsync(host, world, "Exporter", ExporterPermissions, ct);
+        using var exporter = await CustomRoleUserAsync(host, world, "Exporter", _exporterPermissions, ct);
 
         // Act
         using var replaced = await CompileAsync(exporter, formId, replace: true, ct);
@@ -72,7 +72,7 @@ public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFi
         await using ReportingWebHost host = new(fixture);
         var (admin, world) = await TenantAdminAsync(host, ct);
         var formId = await CreateFormWithSubmissionAsync(admin, ct);
-        using var editor = await CustomRoleUserAsync(host, world, "Editor", EditorPermissions, ct);
+        using var editor = await CustomRoleUserAsync(host, world, "Editor", _editorPermissions, ct);
 
         // Act
         using var replaced = await CompileAsync(editor, formId, replace: true, ct);
@@ -114,7 +114,7 @@ public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFi
         CancellationToken ct)
     {
         var world = await host.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, ct);
         return (await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct), world);
     }
 
@@ -129,7 +129,7 @@ public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFi
         var userName = $"{roleName.ToLowerInvariant()}-user";
         await host.Seed.SeedRoleAsync(tenantId, roleName, ct);
         await host.Seed.SeedRolePermissionsAsync(tenantId, roleName, permissions, ct);
-        await host.Seed.SeedUserAsync(tenantId, userName, $"{userName}@test.local", password: SeedPassword, cancellationToken: ct);
+        await host.Seed.SeedUserAsync(tenantId, userName, $"{userName}@test.local", password: SEED_PASSWORD, cancellationToken: ct);
         await host.Seed.SeedUserRoleAssignmentAsync(tenantId, userName, roleName, ct);
         return await world.AsAsync(TestPersona.CustomRole(roleName), userName: userName, cancellationToken: ct);
     }
