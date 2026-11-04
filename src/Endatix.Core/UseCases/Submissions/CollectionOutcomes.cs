@@ -21,10 +21,12 @@ public static class CollectionOutcomes
     /// <summary>True when the outcome is omitted or is a registered closed-phase status.</summary>
     public static bool IsSupported(string? outcome) => outcome is null || TryResolve(outcome, out _);
 
-    /// <summary>The registered closed-phase status an outcome names, or false.</summary>
+    /// <summary>The registered closed-phase status an outcome names exactly (lowercase code), or false.</summary>
     public static bool TryResolve(string? outcome, [NotNullWhen(true)] out CollectionStatus? status)
     {
-        if (CollectionStatusCatalog.TryGet(outcome, out var registered) && registered.Phase == CollectionPhase.Closed)
+        if (CollectionStatusCatalog.TryGet(outcome, out var registered)
+            && registered.Phase == CollectionPhase.Closed
+            && string.Equals(registered.Code, outcome, StringComparison.Ordinal))
         {
             status = registered;
             return true;
