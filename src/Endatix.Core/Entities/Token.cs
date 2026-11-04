@@ -18,7 +18,7 @@ public class Token
     {
         if (expiryInHours.HasValue)
         {
-            Guard.Against.NegativeOrZero(expiryInHours.Value, nameof(expiryInHours));
+            Guard.Against.NegativeOrZero(expiryInHours.Value);
         }
 
         Value = GenerateToken();
@@ -29,7 +29,7 @@ public class Token
     {
         if (expiryInHours.HasValue)
         {
-            Guard.Against.NegativeOrZero(expiryInHours.Value, nameof(expiryInHours));
+            Guard.Against.NegativeOrZero(expiryInHours.Value);
             ExpiresAt = DateTime.UtcNow.AddHours(expiryInHours.Value);
         }
         else

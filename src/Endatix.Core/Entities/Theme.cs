@@ -14,7 +14,7 @@ public class Theme : TenantEntity, IAggregateRoot
     public Theme(long tenantId, string name, string? description = null, string? jsonData = null)
         : base(tenantId)
     {
-        Guard.Against.NullOrEmpty(name, nameof(name));
+        Guard.Against.NullOrEmpty(name);
 
         Name = name;
         Description = description;
@@ -40,7 +40,7 @@ public class Theme : TenantEntity, IAggregateRoot
     /// </summary>
     public void UpdateName(string name)
     {
-        Guard.Against.NullOrEmpty(name, nameof(name));
+        Guard.Against.NullOrEmpty(name);
         Name = name;
         if (!string.IsNullOrEmpty(JsonData))
         {
@@ -70,7 +70,7 @@ public class Theme : TenantEntity, IAggregateRoot
     /// </summary>
     public void UpdateJsonData(ThemeJsonData jsonData)
     {
-        Guard.Against.Null(jsonData, nameof(jsonData));
+        Guard.Against.Null(jsonData);
         JsonData = jsonData.ToString();
     }
 

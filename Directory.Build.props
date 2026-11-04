@@ -53,8 +53,8 @@
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
-        <!-- GHSA-w3x6-4m5h-cxqf: patched System.Security.Cryptography.Xml in shared framework 10.0.6+. -->
-        <RuntimeFrameworkVersion>10.0.6</RuntimeFrameworkVersion>
+        <!-- GHSA-w3x6-4m5h-cxqf (10.0.6+) and GHSA-p3jp-9v83-76w9 (ILCompiler 10.0.14+). -->
+        <RuntimeFrameworkVersion>10.0.14</RuntimeFrameworkVersion>
         <LangVersion>14</LangVersion>
         <NeutralLanguage>en-US</NeutralLanguage>
         <Nullable>enable</Nullable>

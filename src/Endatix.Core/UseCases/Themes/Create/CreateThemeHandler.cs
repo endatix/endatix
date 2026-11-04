@@ -26,9 +26,9 @@ public class CreateThemeHandler(
     /// <returns>Result containing the created theme.</returns>
     public async Task<Result<Theme>> Handle(CreateThemeCommand request, CancellationToken cancellationToken)
     {
-        Guard.Against.NullOrEmpty(request.Name, nameof(request.Name));
+        Guard.Against.NullOrEmpty(request.Name);
         var tenantId = tenantContext.TenantId;
-        Guard.Against.NegativeOrZero(tenantId, "Current tenant ID");
+        Guard.Against.NegativeOrZero(tenantId);
 
         // Check if a theme with the same name already exists for this tenant
         var existingTheme = await themesRepository.FirstOrDefaultAsync(

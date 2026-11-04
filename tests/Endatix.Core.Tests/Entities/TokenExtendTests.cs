@@ -12,7 +12,7 @@ public class TokenExtendTests
         // Arrange
         var initialExpiryHours = 1;
         var token = new Token(initialExpiryHours);
-        var expectedMessage = ErrorMessages.GetErrorMessage("expiryInHours", ErrorType.ZeroOrNegative);
+        var expectedMessage = ErrorMessages.GetErrorMessage("expiryInHours.Value", ErrorType.ZeroOrNegative);
 
         // Act
         var action = () => token.Extend(expiryHours);

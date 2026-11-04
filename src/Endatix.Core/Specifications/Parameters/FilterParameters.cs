@@ -47,8 +47,8 @@ public class FilterParameters
     /// <exception cref="ArgumentException">Thrown when <paramref name="filterExpression"/> is null or whitespace.</exception>
     public void AddFilter(string filterExpression)
     {
-        Guard.Against.NullOrWhiteSpace(filterExpression, nameof(filterExpression));
-        
+        Guard.Against.NullOrWhiteSpace(filterExpression);
+
         _criteria.Add(FilterCriterion.Parse(filterExpression));
     }
 
@@ -59,8 +59,8 @@ public class FilterParameters
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="criterion"/> is null.</exception>
     public void AddFilter(FilterCriterion criterion)
     {
-        Guard.Against.Null(criterion, nameof(criterion));
-        
+        Guard.Against.Null(criterion);
+
         _criteria.Add(criterion);
     }
 

@@ -26,8 +26,8 @@ public record CreateRoleCommand : ICommand<Result<string>>
 
     public CreateRoleCommand(string name, string? description, List<string> permissions)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
-        Guard.Against.NullOrEmpty(permissions, nameof(permissions));
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrEmpty(permissions);
 
         Name = name;
         Description = description;

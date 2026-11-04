@@ -28,7 +28,7 @@ public class DeleteThemeHandler(
     /// <returns>Success result if deleted, NotFound if theme doesn't exist.</returns>
     public async Task<Result<string>> Handle(DeleteThemeCommand request, CancellationToken cancellationToken)
     {
-        Guard.Against.NegativeOrZero(request.ThemeId, nameof(request.ThemeId));
+        Guard.Against.NegativeOrZero(request.ThemeId);
 
         try
         {

@@ -29,10 +29,10 @@ public record ReCaptchaVerificationResult
 
     private ReCaptchaVerificationResult(bool success, double score, string action, string[] errorCodes)
     {
-        Guard.Against.Null(success, nameof(success));
-        Guard.Against.Null(score, nameof(score));
-        Guard.Against.Null(action, nameof(action));
-        Guard.Against.Null(errorCodes, nameof(errorCodes));
+        Guard.Against.Null(success);
+        Guard.Against.Null(score);
+        Guard.Against.Null(action);
+        Guard.Against.Null(errorCodes);
 
         IsSuccess = success;
         Score = score;

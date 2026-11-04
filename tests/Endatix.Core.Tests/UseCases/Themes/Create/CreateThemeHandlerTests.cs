@@ -75,7 +75,7 @@ public class CreateThemeHandlerTests
         var act = () => _handler.Handle(request, CancellationToken.None);
 
         // Assert
-        var expectedMessage = GetErrorMessage("Current tenant ID", ZeroOrNegative);
+        var expectedMessage = GetErrorMessage("tenantId", ZeroOrNegative);
         await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage(expectedMessage);
     }

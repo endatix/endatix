@@ -29,7 +29,7 @@ public class FilterCriterionTests
         // Assert
         act.Should()
            .Throw<ArgumentException>()
-           .WithMessage(ErrorMessages.GetErrorMessage("filterExpression", ErrorType.FilterNoField));
+           .WithMessage(ErrorMessages.GetErrorMessage("filterExpression[..fieldEndIndex]", ErrorType.FilterNoField));
     }
 
     [Theory]
@@ -45,7 +45,7 @@ public class FilterCriterionTests
         // Assert
         act.Should()
            .Throw<ArgumentException>()
-           .WithParameterName("filterExpression")
+           .WithParameterName("operatorMatch")
            .WithMessage("*Filter must have a valid operator*");
     }
 

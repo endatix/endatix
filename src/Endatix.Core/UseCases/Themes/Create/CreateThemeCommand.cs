@@ -33,7 +33,7 @@ public record CreateThemeCommand : ICommand<Result<Theme>>
     /// <param name="themeData">Optional theme data containing visual properties.</param>
     public CreateThemeCommand(string name, string? description = null, string? themeData = null)
     {
-        Guard.Against.NullOrWhiteSpace(name, nameof(name));
+        Guard.Against.NullOrWhiteSpace(name);
 
         Name = name;
         Description = description;

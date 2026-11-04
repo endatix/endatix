@@ -7,7 +7,7 @@ public abstract class TenantEntity : BaseEntity, ITenantOwned
 {
     protected TenantEntity(long tenantId)
     {
-        Guard.Against.NegativeOrZero(tenantId, nameof(tenantId));
+        Guard.Against.NegativeOrZero(tenantId);
         TenantId = tenantId;
     }
 
