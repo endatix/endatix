@@ -25,6 +25,12 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
         "bad-request",
     };
 
+    /// <summary>
+    /// The action Hub passes to <c>grecaptcha.execute</c> on a public form completion,
+    /// the only flow this service verifies.
+    /// </summary>
+    private const string EXPECTED_ACTION = ReCaptchaConstants.Actions.SUBMIT_FORM;
+
     private readonly IReCaptchaHttpClient _reCaptchaClient;
     private readonly ReCaptchaOptions _options;
     private readonly IUserContext _userContext;
@@ -97,25 +103,22 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
             return ReCaptchaVerificationResult.InvalidResponse(0.0, ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE, ReCaptchaConstants.ErrorCodes.ERROR_INVALID_RESPONSE);
         }
 
-        var reCaptchaToken = googleReCaptchaTokenResult.Value;
-
-        if (!reCaptchaToken.Success)
-        {
-            return Rejected(reCaptchaToken);
-        }
-
-        if (reCaptchaToken.Score < _options.MinimumScore)
-        {
-            return ScoreTooLow(reCaptchaToken);
-        }
-
-        if (string.IsNullOrEmpty(reCaptchaToken.Action))
-        {
-            return ActionMissing(reCaptchaToken);
-        }
-
-        return ReCaptchaVerificationResult.Success(reCaptchaToken.Score, reCaptchaToken.Action);
+        return Evaluate(googleReCaptchaTokenResult.Value);
     }
+
+    /// <summary>
+    /// Checks the siteverify payload in the order that names the cause: action before score,
+    /// so a key of the wrong type is not reported as a low score.
+    /// </summary>
+    private ReCaptchaVerificationResult Evaluate(GoogleReCaptchaResponse token) => token switch
+    {
+        { Success: false } => Rejected(token),
+        { Action: null or "" } => ActionMissing(token),
+        { Action: not EXPECTED_ACTION } => ActionMismatch(token),
+        { Score: null } => ScoreMissing(token),
+        { Score: { } score } when score < _options.MinimumScore => ScoreTooLow(token, score),
+        { Score: { } score } => ReCaptchaVerificationResult.Success(score, token.Action),
+    };
 
     private ReCaptchaVerificationResult Rejected(GoogleReCaptchaResponse token)
     {
@@ -142,21 +145,40 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     {
         _logger.LogReCaptchaActionMissing(token.Hostname);
         return ReCaptchaVerificationResult.InvalidResponse(
-            token.Score,
+            token.Score ?? 0.0,
             ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE,
             ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING);
     }
 
-    private ReCaptchaVerificationResult ScoreTooLow(GoogleReCaptchaResponse token)
+    private ReCaptchaVerificationResult ActionMismatch(GoogleReCaptchaResponse token)
     {
-        _logger.LogReCaptchaScoreTooLow(
-            token.Score,
-            _options.MinimumScore,
-            token.Action ?? ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE);
+        _logger.LogReCaptchaActionMismatch(token.Action!, EXPECTED_ACTION);
         return ReCaptchaVerificationResult.InvalidResponse(
-            token.Score,
+            token.Score ?? 0.0,
             token.Action,
-            [ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW, $"{token.Score} < {_options.MinimumScore}"]);
+            ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISMATCH);
+    }
+
+    /// <summary>
+    /// v3 always returns <c>score</c> with a successful token, so a missing score points at a
+    /// key of the wrong type, not at the visitor.
+    /// </summary>
+    private ReCaptchaVerificationResult ScoreMissing(GoogleReCaptchaResponse token)
+    {
+        _logger.LogReCaptchaScoreMissing(token.Action!, token.Hostname);
+        return ReCaptchaVerificationResult.InvalidResponse(
+            0.0,
+            token.Action,
+            ReCaptchaConstants.ErrorCodes.ERROR_SCORE_MISSING);
+    }
+
+    private ReCaptchaVerificationResult ScoreTooLow(GoogleReCaptchaResponse token, double score)
+    {
+        _logger.LogReCaptchaScoreTooLow(score, _options.MinimumScore, token.Action!);
+        return ReCaptchaVerificationResult.InvalidResponse(
+            score,
+            token.Action,
+            [ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW, $"{score} < {_options.MinimumScore}"]);
     }
 
     public bool IsEnabled { get; }
