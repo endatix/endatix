@@ -16,24 +16,19 @@ public class SubmissionLifecycleEventTests
     private const long FormId = 100;
     private const long FormDefinitionId = 200;
 
-    private static Submission Create(
-        bool isComplete = false,
-        bool startSubmission = true,
-        bool isTest = false,
-        CollectionStatus? outcome = null) =>
-        Submission.Create(new SubmissionCreateArgs(
-            TenantId: TenantId,
-            FormId: FormId,
-            FormDefinitionId: FormDefinitionId,
-            JsonData: "{}",
-            IsComplete: isComplete,
-            IsTestSubmission: isTest,
-            StartSubmission: startSubmission,
-            CollectionOutcome: outcome));
+    private static readonly SubmissionCreateArgs Started = new(
+        TenantId: TenantId,
+        FormId: FormId,
+        FormDefinitionId: FormDefinitionId,
+        JsonData: "{}",
+        IsComplete: false,
+        StartSubmission: true);
+
+    private static Submission Create(SubmissionCreateArgs? args = null) => Submission.Create(args ?? Started);
 
     private static Submission CreateCleared(bool startSubmission = true)
     {
-        var submission = Create(startSubmission: startSubmission);
+        var submission = Create(Started with { StartSubmission = startSubmission });
         submission.ClearDomainEvents();
         return submission;
     }
@@ -59,7 +54,7 @@ public class SubmissionLifecycleEventTests
     public void Create_Open_RaisesOneCreatedEventCarryingTheSavedStatus(bool startSubmission, string expectedCode, string expectedPhase)
     {
         // Act
-        var submission = Create(startSubmission: startSubmission);
+        var submission = Create(Started with { StartSubmission = startSubmission });
 
         // Assert
         var created = submission.DomainEvents.Should().ContainSingle().Which.Should().BeOfType<SubmissionLifecycleEvent>().Subject;
@@ -76,7 +71,7 @@ public class SubmissionLifecycleEventTests
     public void Create_Complete_RaisesCreatedThenCompletedOnTheirOwnRevisions()
     {
         // Act
-        var submission = Create(isComplete: true);
+        var submission = Create(Started with { IsComplete = true });
 
         // Assert
         var events = submission.DomainEvents.OfType<SubmissionLifecycleEvent>().ToList();
@@ -96,7 +91,7 @@ public class SubmissionLifecycleEventTests
     public void Create_WithOutcome_RaisesCreatedInTheOutcomeThenClosed(bool startSubmission, string expectedEntry)
     {
         // Act
-        var submission = Create(startSubmission: startSubmission, outcome: CollectionStatus.ScreenOut);
+        var submission = Create(Started with { StartSubmission = startSubmission, CollectionOutcome = CollectionStatus.ScreenOut });
 
         // Assert
         var events = submission.DomainEvents.OfType<SubmissionLifecycleEvent>().ToList();
@@ -116,7 +111,7 @@ public class SubmissionLifecycleEventTests
     public void Create_WithOutcomeAndComplete_Throws()
     {
         // Act
-        var create = () => Create(isComplete: true, outcome: CollectionStatus.ScreenOut);
+        var create = () => Create(Started with { IsComplete = true, CollectionOutcome = CollectionStatus.ScreenOut });
 
         // Assert
         create.Should().Throw<ArgumentException>();
@@ -126,7 +121,7 @@ public class SubmissionLifecycleEventTests
     public void Create_WithAnOpenStatusAsOutcome_Throws()
     {
         // Act
-        var create = () => Create(outcome: CollectionStatus.InProgress);
+        var create = () => Create(Started with { CollectionOutcome = CollectionStatus.InProgress });
 
         // Assert
         create.Should().Throw<ArgumentException>();
@@ -136,7 +131,7 @@ public class SubmissionLifecycleEventTests
     public void Create_TestSubmission_CreatedPayloadCarriesTheTestFlagAndTenant()
     {
         // Act
-        var submission = Create(isTest: true);
+        var submission = Create(Started with { IsTestSubmission = true });
 
         // Assert
         var payload = (SubmissionLifecyclePayload)SingleLifecycleEvent(submission).GetPayload();
@@ -157,7 +152,7 @@ public class SubmissionLifecycleEventTests
         SaveAnswers(submission, """{"a":1}""");
 
         // Assert
-        AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Started, CollectionStatusCodes.NotStarted, CollectionStatusCodes.InProgress);
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Started, CollectionStatusCodes.NotStarted, CollectionStatusCodes.InProgress));
         submission.Revision.Should().Be(revision + 1);
         submission.HasStarted.Should().BeTrue();
     }
@@ -173,7 +168,7 @@ public class SubmissionLifecycleEventTests
         SaveAnswers(submission, """{"a":1}""", isComplete: true);
 
         // Assert
-        AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Completed, CollectionStatusCodes.NotStarted, CollectionStatusCodes.Complete);
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Completed, CollectionStatusCodes.NotStarted, CollectionStatusCodes.Complete));
         submission.Revision.Should().Be(revision + 1);
         submission.StartedAt.Should().Be(submission.CompletedAt);
     }
@@ -207,7 +202,7 @@ public class SubmissionLifecycleEventTests
         SaveAnswers(submission, """{"a":1}""", isComplete: true);
 
         // Assert
-        var completed = AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Completed, CollectionStatusCodes.InProgress, CollectionStatusCodes.Complete);
+        var completed = AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Completed, CollectionStatusCodes.InProgress, CollectionStatusCodes.Complete));
         submission.Revision.Should().Be(revision + 1, "one event, one revision");
         var payload = completed.GetPayload().Should().BeOfType<SubmissionCompletedPayload>().Subject;
         payload.JsonData.Should().Be("""{"a":1}""");
@@ -241,7 +236,7 @@ public class SubmissionLifecycleEventTests
         SaveAnswers(submission, """{"a":1}""");
 
         // Assert
-        AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Resumed, CollectionStatusCodes.Expired, CollectionStatusCodes.InProgress);
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Resumed, CollectionStatusCodes.Expired, CollectionStatusCodes.InProgress));
     }
 
     [Theory]
@@ -268,7 +263,7 @@ public class SubmissionLifecycleEventTests
     public void Update_EditOfComplete_RaisesUpdatedAtTheNextRevision()
     {
         // Arrange
-        var submission = Create(isComplete: true);
+        var submission = Create(Started with { IsComplete = true });
         submission.ClearDomainEvents();
         var revision = submission.Revision;
 
@@ -293,7 +288,7 @@ public class SubmissionLifecycleEventTests
         submission.ScreenOut();
 
         // Assert
-        AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Closed, expectedPrevious, CollectionStatusCodes.ScreenOut);
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Closed, expectedPrevious, CollectionStatusCodes.ScreenOut));
         submission.Revision.Should().Be(revision + 1);
         submission.HasStarted.Should().BeTrue();
     }
@@ -309,7 +304,7 @@ public class SubmissionLifecycleEventTests
         submission.ScreenOut("""{"age":"under_18"}""", FormDefinitionId, formDefinitionFormId: FormId);
 
         // Assert
-        AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Closed, CollectionStatusCodes.NotStarted, CollectionStatusCodes.ScreenOut);
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Closed, CollectionStatusCodes.NotStarted, CollectionStatusCodes.ScreenOut));
         submission.Revision.Should().Be(revision + 1);
         submission.JsonData.Should().Be("""{"age":"under_18"}""");
         submission.HasStarted.Should().BeTrue();
@@ -353,7 +348,7 @@ public class SubmissionLifecycleEventTests
     public void Close_OnComplete_Throws()
     {
         // Arrange
-        var submission = Create(isComplete: true);
+        var submission = Create(Started with { IsComplete = true });
 
         // Act
         var close = () => submission.Close(CollectionStatus.QuotaFull);
@@ -383,7 +378,7 @@ public class SubmissionLifecycleEventTests
         submission.Cancel();
 
         // Act
-        var close = () => submission.Close(CollectionStatus.ScreenOut, """{"a":1}""", FormDefinitionId, FormId);
+        var close = () => submission.Close(CollectionStatus.ScreenOut, new SubmissionContent("""{"a":1}""", FormDefinitionId), FormId);
 
         // Assert
         close.Should().Throw<InvalidOperationException>();
@@ -401,7 +396,7 @@ public class SubmissionLifecycleEventTests
         submission.Cancel();
 
         // Assert
-        AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Closed, CollectionStatusCodes.InProgress, CollectionStatusCodes.Cancelled);
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Closed, CollectionStatusCodes.InProgress, CollectionStatusCodes.Cancelled));
         submission.Revision.Should().Be(revision + 1);
     }
 
@@ -416,7 +411,7 @@ public class SubmissionLifecycleEventTests
         submission.EnsureStarted();
 
         // Assert
-        AssertSingle(submission, SubmissionLifecycleEvent.EventTypes.Started, CollectionStatusCodes.NotStarted, CollectionStatusCodes.InProgress);
+        AssertSingle(submission, (SubmissionLifecycleEvent.EventTypes.Started, CollectionStatusCodes.NotStarted, CollectionStatusCodes.InProgress));
     }
 
     [Fact]
@@ -437,7 +432,7 @@ public class SubmissionLifecycleEventTests
     public void Revision_AcrossEveryEventKind_RisesByOnePerEvent()
     {
         // Arrange
-        var submission = Create(startSubmission: false);
+        var submission = Create(Started with { StartSubmission = false });
 
         // Act
         submission.EnsureStarted();
@@ -472,8 +467,9 @@ public class SubmissionLifecycleEventTests
         _ => throw new InvalidOperationException(domainEvent.GetType().Name),
     };
 
-    private static SubmissionLifecycleEvent AssertSingle(Submission submission, string eventType, string previous, string next)
+    private static SubmissionLifecycleEvent AssertSingle(Submission submission, (string EventType, string Previous, string Next) expected)
     {
+        var (eventType, previous, next) = expected;
         var lifecycle = SingleLifecycleEvent(submission);
         lifecycle.EventType.Should().Be(eventType);
         var payload = (SubmissionLifecyclePayload)lifecycle.GetPayload();

@@ -70,29 +70,29 @@ public sealed class SubmissionLifecycleEvent : DomainEventBase, IIntegrationEven
 
     private readonly SubmissionLifecyclePayload _payload;
 
-    internal SubmissionLifecycleEvent(
-        SubmissionLifecycleEventKind kind,
-        Submission submission,
-        CollectionStatus status,
-        CollectionStatus? previous,
-        long revision)
+    internal SubmissionLifecycleEvent(Submission submission, CollectionStatus status, LifecycleChange change)
     {
-        Kind = kind;
         Submission = submission;
-        Revision = revision;
-        _payload = kind == SubmissionLifecycleEventKind.Completed
-            ? SubmissionCompletedPayload.Raised(submission, status, previous, revision, DateOccurred)
-            : SubmissionLifecyclePayload.Raised(submission, status, previous, revision, DateOccurred);
+        Status = status;
+        Change = change;
+        _payload = Kind == SubmissionLifecycleEventKind.Completed
+            ? SubmissionCompletedPayload.Raised(this)
+            : SubmissionLifecyclePayload.Raised(this);
     }
 
     /// <summary>What happened.</summary>
-    public SubmissionLifecycleEventKind Kind { get; }
+    public SubmissionLifecycleEventKind Kind => Change.Kind;
+
+    /// <summary>The status the submission is in after the change.</summary>
+    internal CollectionStatus Status { get; }
+
+    internal LifecycleChange Change { get; }
 
     /// <summary>The submission, read for its database-stamped fields when the event is written to the outbox.</summary>
     public Submission Submission { get; }
 
     /// <summary>The submission's revision this event raised it to.</summary>
-    public long Revision { get; }
+    public long Revision => Change.Revision;
 
     /// <inheritdoc />
     public string EventType => EventTypes.Of(Kind);
@@ -144,22 +144,17 @@ public record SubmissionLifecyclePayload
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CollectionStatusRef? PreviousCollectionStatus { get; init; }
 
-    internal static SubmissionLifecyclePayload Raised(
-        Submission submission,
-        CollectionStatus status,
-        CollectionStatus? previous,
-        long revision,
-        DateTime occurredAt) =>
+    internal static SubmissionLifecyclePayload Raised(SubmissionLifecycleEvent raised) =>
         new()
         {
-            TenantId = submission.TenantId,
-            FormId = submission.FormId,
-            FormDefinitionId = submission.FormDefinitionId,
-            Revision = revision,
-            OccurredAt = occurredAt,
-            IsTestSubmission = submission.IsTestSubmission,
-            CollectionStatus = CollectionStatusRef.Of(status),
-            PreviousCollectionStatus = previous is null ? null : CollectionStatusRef.Of(previous),
+            TenantId = raised.Submission.TenantId,
+            FormId = raised.Submission.FormId,
+            FormDefinitionId = raised.Submission.FormDefinitionId,
+            Revision = raised.Revision,
+            OccurredAt = raised.DateOccurred,
+            IsTestSubmission = raised.Submission.IsTestSubmission,
+            CollectionStatus = CollectionStatusRef.Of(raised.Status),
+            PreviousCollectionStatus = raised.Change.Previous is { } previous ? CollectionStatusRef.Of(previous) : null,
         };
 }
 
@@ -192,23 +187,18 @@ public sealed record SubmissionCompletedPayload : SubmissionLifecyclePayload
 
     public DateTime? CompletedAt { get; init; }
 
-    internal static new SubmissionCompletedPayload Raised(
-        Submission submission,
-        CollectionStatus status,
-        CollectionStatus? previous,
-        long revision,
-        DateTime occurredAt) =>
-        new(SubmissionLifecyclePayload.Raised(submission, status, previous, revision, occurredAt))
+    internal static new SubmissionCompletedPayload Raised(SubmissionLifecycleEvent raised) =>
+        new(SubmissionLifecyclePayload.Raised(raised))
         {
-            IsComplete = submission.IsComplete,
-            JsonData = submission.JsonData,
-            CurrentPage = submission.CurrentPage,
-            Metadata = submission.Metadata,
-            SubmittedBy = submission.SubmittedBy,
-            SubmitterDisplayId = submission.SubmitterDisplayId,
-            Status = submission.Status.Code,
-            StartedAt = submission.StartedAt,
-            CompletedAt = submission.CompletedAt,
+            IsComplete = raised.Submission.IsComplete,
+            JsonData = raised.Submission.JsonData,
+            CurrentPage = raised.Submission.CurrentPage,
+            Metadata = raised.Submission.Metadata,
+            SubmittedBy = raised.Submission.SubmittedBy,
+            SubmitterDisplayId = raised.Submission.SubmitterDisplayId,
+            Status = raised.Submission.Status.Code,
+            StartedAt = raised.Submission.StartedAt,
+            CompletedAt = raised.Submission.CompletedAt,
         };
 
     private SubmissionCompletedPayload(SubmissionLifecyclePayload core) : base(core)

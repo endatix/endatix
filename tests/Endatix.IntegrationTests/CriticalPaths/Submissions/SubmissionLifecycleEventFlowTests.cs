@@ -80,7 +80,7 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
         var formId = await CreateEnabledFormAsync(admin);
 
         // Act
-        var created = await CreateAsync(admin, $"/api/forms/{formId}/submissions", isComplete: false, collectionOutcome: CollectionStatusCodes.ScreenOut);
+        var created = await CreateScreenedOutAsync(admin, $"/api/forms/{formId}/submissions");
 
         // Assert
         Assert.Equal(
@@ -171,17 +171,16 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
     private static Task<IReadOnlyList<SubmissionOutboxRow>> RowsAsync(IntegrationTestWorld world, string submissionId) =>
         SubmissionOutboxRows.ReadAsync(world.Services, long.Parse(submissionId), TestContext.Current.CancellationToken);
 
-    private static async Task<SubmissionApiModel> CreateAsync(
-        HttpClient client,
-        string url,
-        bool isComplete,
-        string? collectionOutcome = null)
+    private static Task<SubmissionApiModel> CreateAsync(HttpClient client, string url, bool isComplete) =>
+        PostAsync(client, url, new { isComplete, jsonData = """{"age":"18_or_over"}""", currentPage = 0 });
+
+    private static Task<SubmissionApiModel> CreateScreenedOutAsync(HttpClient client, string url) =>
+        PostAsync(client, url, new { isComplete = false, jsonData = """{"age":"12"}""", currentPage = 0, collectionOutcome = CollectionStatusCodes.ScreenOut });
+
+    private static async Task<SubmissionApiModel> PostAsync(HttpClient client, string url, object body)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        using var response = await client.PostAsJsonAsync(
-            url,
-            new { isComplete, jsonData = """{"age":"18_or_over"}""", currentPage = 0, collectionOutcome },
-            cancellationToken);
+        using var response = await client.PostAsJsonAsync(url, body, cancellationToken);
         response.EnsureSuccessStatusCode();
         var model = await response.Content.ReadFromJsonAsync<SubmissionApiModel>(_jsonOptions, cancellationToken);
         Assert.NotNull(model);

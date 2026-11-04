@@ -67,16 +67,12 @@ public class WebHookConfiguration
         return retired is null ? null : RetiredKeyMessage(retired);
     }
 
-    /// <summary>Throws when a configuration still uses a retired event key.</summary>
-    /// <exception cref="ArgumentException">A retired key is present.</exception>
-    public static void EnsureNoRetiredKeys(WebHookConfiguration? settings)
-    {
-        var retired = settings?.Events.Keys.FirstOrDefault(key => RetiredEventKeys.Keys.Contains(key, StringComparer.OrdinalIgnoreCase));
-        if (retired is not null)
-        {
-            throw new ArgumentException(RetiredKeyMessage(retired), nameof(settings));
-        }
-    }
+    /// <summary>Why a configuration can't be stored because it still uses a retired event key, or null.</summary>
+    public static string? RetiredKeyError(WebHookConfiguration? settings) =>
+        settings?.Events.Keys.FirstOrDefault(key => RetiredEventKeys.Keys.Contains(key, StringComparer.OrdinalIgnoreCase))
+            is { } retired
+            ? RetiredKeyMessage(retired)
+            : null;
 
     private static string RetiredKeyMessage(string retiredKey) =>
         $"The webhook setting '{retiredKey}' was renamed to "

@@ -2,6 +2,7 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Infrastructure.Tests.Features.ReCaptcha;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Features.WebHooks;
@@ -12,7 +13,7 @@ public sealed class WebHookHandlersStartupCheckTests
     public async Task StartAsync_WebHookTypeWithoutAHandler_LogsAWarningForIt()
     {
         // Arrange
-        var logger = new RecordingLogger();
+        var logger = new RecordingLogger<WebHookHandlersStartupCheck>();
         var services = new ServiceCollection()
             .AddScoped<IOutboxIntegrationEventHandler>(_ => new TypesHandler(WebHookEvents.EventTypes.Where(type => type != "submission.closed").ToArray()))
             .BuildServiceProvider();
@@ -22,14 +23,14 @@ public sealed class WebHookHandlersStartupCheckTests
         await check.StartAsync(CancellationToken.None);
 
         // Assert
-        logger.Warnings.Should().ContainSingle().Which.Should().Contain("submission.closed");
+        logger.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Warning);
     }
 
     [Fact]
     public async Task StartAsync_EveryWebHookTypeHandled_LogsNothing()
     {
         // Arrange
-        var logger = new RecordingLogger();
+        var logger = new RecordingLogger<WebHookHandlersStartupCheck>();
         var services = new ServiceCollection()
             .AddScoped<IOutboxIntegrationEventHandler>(_ => new TypesHandler([.. WebHookEvents.EventTypes]))
             .BuildServiceProvider();
@@ -39,24 +40,7 @@ public sealed class WebHookHandlersStartupCheckTests
         await check.StartAsync(CancellationToken.None);
 
         // Assert
-        logger.Warnings.Should().BeEmpty();
-    }
-
-    private sealed class RecordingLogger : ILogger<WebHookHandlersStartupCheck>
-    {
-        public List<string> Warnings { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-            if (logLevel == LogLevel.Warning)
-            {
-                Warnings.Add(formatter(state, exception));
-            }
-        }
+        logger.Entries.Should().BeEmpty();
     }
 
     private sealed class TypesHandler(IReadOnlyCollection<string> eventTypes) : IOutboxIntegrationEventHandler

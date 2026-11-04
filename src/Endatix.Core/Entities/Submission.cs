@@ -215,9 +215,6 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         Apply(step);
     }
 
-    /// <summary>The answers, definition, page and metadata one save writes.</summary>
-    private readonly record struct SubmissionContent(string JsonData, long FormDefinitionId, int CurrentPage, string? Metadata);
-
     private SubmissionChangeKinds ChangesTo(SubmissionContent content)
     {
         var changeKind = SubmissionChangeKinds.None;
@@ -243,6 +240,22 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         CurrentPage = content.CurrentPage;
         Metadata = content.Metadata;
     }
+
+    /// <summary>Owner or system void. Same as <see cref="Close(CollectionStatus)"/> with <c>cancelled</c>.</summary>
+    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
+    public void Cancel() => Close(CollectionStatusValue.Cancelled);
+
+    /// <summary>True when the interview ended as screened out.</summary>
+    public bool IsScreenedOut => CollectionStatus?.Code == CollectionStatusCodes.ScreenOut;
+
+    /// <summary>Saves the last answers and screens out. Same as <see cref="Close(CollectionStatus, SubmissionContent, long)"/> with <c>screen_out</c>.</summary>
+    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
+    public void ScreenOut(string jsonData, long formDefinitionId, long formDefinitionFormId, int currentPage = 1, string? metadata = null) =>
+        Close(CollectionStatusValue.ScreenOut, new SubmissionContent(jsonData, formDefinitionId, currentPage, metadata), formDefinitionFormId);
+
+    /// <summary>Ends the interview as screened out. Same as <see cref="Close(CollectionStatus)"/> with <c>screen_out</c>.</summary>
+    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
+    public void ScreenOut() => Close(CollectionStatusValue.ScreenOut);
 
     /// <summary>Sets the token a respondent resumes the submission with.</summary>
     public void UpdateToken(Token token)

@@ -24,10 +24,7 @@ internal sealed class CompositeIntegrationEventPublisher(
 
         if (matched.Length == 0)
         {
-            logger.LogInformation(
-                "Outbox message {MessageId} has no handler for event type '{EventType}'.",
-                message.Id,
-                message.EventType);
+            LogNoHandler(message);
             return;
         }
 
@@ -51,4 +48,10 @@ internal sealed class CompositeIntegrationEventPublisher(
             }
         }
     }
+
+    private void LogNoHandler(IOutboxMessage message) =>
+        logger.LogInformation(
+            "Outbox message {MessageId} has no handler for event type '{EventType}'.",
+            message.Id,
+            message.EventType);
 }

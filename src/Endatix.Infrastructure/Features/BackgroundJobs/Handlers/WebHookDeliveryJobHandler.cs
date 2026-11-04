@@ -51,21 +51,12 @@ internal sealed class WebHookDeliveryJobHandler(
         CancellationToken cancellationToken)
     {
         var message = await ReadMessageAsync(job, payload, cancellationToken);
-        if (message is null)
+        if (RefusalOf(message) is { } refused)
         {
-            return Refused(MessageGone);
+            return Refused(refused);
         }
 
-        if (RetiredEventTypes.IsRetired(message.EventType))
-        {
-            return Refused(RetiredEventType);
-        }
-
-        if (!WebHookEvents.TryGetOperation(message.EventType, out var operation))
-        {
-            return Refused(NotAWebHookEvent);
-        }
-
+        WebHookEvents.TryGetOperation(message!.EventType, out var operation);
         using var document = JsonDocument.Parse(message.Payload);
         var delivery = new EndpointDelivery(message, operation, document.RootElement, payload.EndpointKey);
         var endpoint = await FindEndpointAsync(job.TenantId, delivery, cancellationToken);
@@ -84,6 +75,15 @@ internal sealed class WebHookDeliveryJobHandler(
             cancellationToken);
 
     private static Result Refused(string reason) => Result.Invalid(new ValidationError(reason));
+
+    // Why a row can't be delivered to any endpoint: it is gone, of a retired type, or no webhook event.
+    private static string? RefusalOf(OutboxMessage? message) => message switch
+    {
+        null => MessageGone,
+        _ when RetiredEventTypes.IsRetired(message.EventType) => RetiredEventType,
+        _ when !WebHookEvents.TryGetOperation(message.EventType, out _) => NotAWebHookEvent,
+        _ => null,
+    };
 
     // The endpoint as it is configured now, or why the event can no longer be sent to it.
     private async Task<EndpointLookup> FindEndpointAsync(

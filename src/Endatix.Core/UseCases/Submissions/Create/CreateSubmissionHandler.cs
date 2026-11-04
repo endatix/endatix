@@ -34,14 +34,11 @@ public class CreateSubmissionHandler(
     private const string DEFAULT_JSON_DATA = "{}";
     private const string FORM_NOT_FOUND_MESSAGE = "Form not found. Cannot create a submission";
     private const string BUSY_MESSAGE = "The form is busy; try again shortly.";
-    private const string UNKNOWN_OUTCOME_MESSAGE = "The collection outcome is not a registered closed status.";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
         Guard.Against.NullOrEmpty(request.RequiredPermission);
 
-        // Consider moving Domain event logic to a separate service should we decide to move UseCases in separate project. This way the Domain logic will stay in the core project. Will also centralize it in one place
-        // This way the code will transform to  return await _submissionService.CreateSubmission(createSubmissionDto);
         var activeFormDefinitionSpec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
         var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(activeFormDefinitionSpec, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
@@ -78,15 +75,14 @@ public class CreateSubmissionHandler(
             canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
         }
 
-        if (request.CollectionOutcome is not null && !CollectionOutcomes.IsSupported(request.CollectionOutcome))
+        if (!CollectionOutcomes.IsSupported(request.CollectionOutcome))
         {
-            return Result.Invalid(new ValidationError(UNKNOWN_OUTCOME_MESSAGE));
+            return Result.Invalid(new ValidationError(CollectionOutcomes.UNSUPPORTED_MESSAGE));
         }
 
-        // An outcome ends the interview like a complete, so it gets the same bot check.
         var validationContext = new SubmissionVerificationContext(
             formWithActiveDefinition,
-            request.CollectionOutcome is not null || (request.IsComplete ?? DEFAULT_IS_COMPLETE),
+            EndsInterview(request),
             request.JsonData,
             request.ReCaptchaToken
         );
@@ -115,6 +111,10 @@ public class CreateSubmissionHandler(
 
         return persisted;
     }
+
+    /// <summary>An outcome ends the interview like a complete, so it gets the same bot check.</summary>
+    private static bool EndsInterview(CreateSubmissionCommand request) =>
+        request.CollectionOutcome is not null || (request.IsComplete ?? DEFAULT_IS_COMPLETE);
 
     /// <summary>A public form takes submissions from anyone; any other needs <paramref name="requiredPermission"/>.</summary>
     private async Task<Result> AuthorizeAsync(Form form, string requiredPermission, CancellationToken cancellationToken) =>

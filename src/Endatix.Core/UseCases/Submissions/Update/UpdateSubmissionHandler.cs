@@ -36,8 +36,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
 
         var originalJson = submission.JsonData;
-        var wasScreenedOut = submission.IsScreenedOut;
-        var wasClosed = submission.CollectionStatus.Phase == CollectionPhase.Closed;
+        var previousStatus = submission.CollectionStatus;
 
         try
         {
@@ -52,12 +51,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
         catch (InvalidOperationException)
         {
-            var message = (wasScreenedOut, wasClosed) switch
-            {
-                (true, _) => CollectionOutcomes.SCREENED_OUT_EDIT_REJECTED_MESSAGE,
-                (_, true) => CollectionOutcomes.CLOSED_EDIT_REJECTED_MESSAGE,
-                _ => "This submission cannot be completed.",
-            };
+            var message = CollectionOutcomes.RejectedEditMessage(previousStatus) ?? "This submission cannot be completed.";
             return Result.Invalid(new ValidationError(message));
         }
 

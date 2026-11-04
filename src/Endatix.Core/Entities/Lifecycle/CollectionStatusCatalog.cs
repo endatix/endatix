@@ -49,14 +49,18 @@ public static class CollectionStatusCatalog
                 return;
             }
 
-            if (_frozen)
-            {
-                throw new InvalidOperationException(
-                    "Collection status codes were already read; register host codes once, at startup.");
-            }
-
+            EnsureNotRead();
             _custom = requested.ToFrozenDictionary(StringComparer.Ordinal);
             _phases = _builtIn.Concat(requested).ToFrozenDictionary(StringComparer.Ordinal);
+        }
+    }
+
+    private static void EnsureNotRead()
+    {
+        if (_frozen)
+        {
+            throw new InvalidOperationException(
+                "Collection status codes were already read; register host codes once, at startup.");
         }
     }
 
@@ -89,39 +93,34 @@ public static class CollectionStatusCatalog
         return _phases;
     }
 
-    private static Dictionary<string, CollectionPhase> Normalize(IReadOnlyDictionary<string, CollectionPhase> customCodes)
+    // Host codes only: a built-in repeated with its own phase is dropped.
+    private static Dictionary<string, CollectionPhase> Normalize(IReadOnlyDictionary<string, CollectionPhase> customCodes) =>
+        customCodes
+            .Select(pair => (Code: NormalizeCode(pair.Key), Phase: EnsurePhase(pair.Key, pair.Value)))
+            .Where(entry => !_builtIn.ContainsKey(entry.Code))
+            .ToDictionary(entry => entry.Code, entry => entry.Phase, StringComparer.Ordinal);
+
+    private static string NormalizeCode(string code) =>
+        TryNormalize(code, out var normalized)
+            ? normalized
+            : throw new ArgumentException(
+                $"Collection status code '{code}' must be 1 to {CollectionStatus.CODE_MAX_LENGTH} characters.", nameof(code));
+
+    private static CollectionPhase EnsurePhase(string code, CollectionPhase phase)
     {
-        Dictionary<string, CollectionPhase> normalized = new(StringComparer.Ordinal);
-        foreach (var (code, phase) in customCodes)
+        if (!Enum.IsDefined(phase))
         {
-            if (!TryNormalize(code, out var key))
-            {
-                throw new ArgumentException(
-                    $"Collection status code '{code}' must be 1 to {CollectionStatus.CODE_MAX_LENGTH} characters.",
-                    nameof(customCodes));
-            }
-
-            if (!Enum.IsDefined(phase))
-            {
-                throw new ArgumentException($"Collection status code '{key}' has no valid phase.", nameof(customCodes));
-            }
-
-            if (_builtIn.TryGetValue(key, out var builtInPhase))
-            {
-                if (builtInPhase != phase)
-                {
-                    throw new ArgumentException(
-                        $"Built-in collection status '{key}' is {builtInPhase.ToWireName()}; it can't be registered as {phase.ToWireName()}.",
-                        nameof(customCodes));
-                }
-
-                continue;
-            }
-
-            normalized[key] = phase;
+            throw new ArgumentException($"Collection status code '{code}' has no valid phase.", nameof(phase));
         }
 
-        return normalized;
+        if (_builtIn.TryGetValue(NormalizeCode(code), out var builtInPhase) && builtInPhase != phase)
+        {
+            throw new ArgumentException(
+                $"Built-in collection status '{code}' is {builtInPhase.ToWireName()}; it can't be registered as {phase.ToWireName()}.",
+                nameof(phase));
+        }
+
+        return phase;
     }
 
     private static bool TryNormalize(string? code, [NotNullWhen(true)] out string? normalized)

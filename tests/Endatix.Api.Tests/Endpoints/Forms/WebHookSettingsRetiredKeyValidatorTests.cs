@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Endatix.Api.Endpoints.Forms;
 using FluentValidation.TestHelper;
 
@@ -51,24 +50,5 @@ public class WebHookSettingsRetiredKeyValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.WebHookSettingsJson);
-    }
-
-    [Fact]
-    public void Validate_CreateWithRetiredKeyAsObject_Fails()
-    {
-        // Arrange
-        var request = new CreateFormRequest
-        {
-            Name = "Form",
-            IsEnabled = true,
-            FormDefinitionSchema = JsonDocument.Parse("""{"pages":[]}""").RootElement,
-            WebHookSettings = JsonDocument.Parse(RetiredKeyJson).RootElement,
-        };
-
-        // Act
-        var result = new CreateFormValidator().TestValidate(request);
-
-        // Assert
-        result.ShouldHaveValidationErrorFor(x => x.WebHookSettings);
     }
 }

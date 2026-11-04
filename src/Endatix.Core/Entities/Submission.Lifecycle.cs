@@ -11,9 +11,6 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public sealed partial class Submission
 {
-    /// <summary>True when the interview ended as screened out.</summary>
-    public bool IsScreenedOut => CollectionStatus?.Code == CollectionStatusCodes.ScreenOut;
-
     /// <summary>
     /// Records first engagement once; later calls don't move <see cref="StartedAt"/>. A pending submission moves to
     /// <c>in_progress</c> and raises <c>submission.started</c>. Other phases are left alone.
@@ -55,7 +52,7 @@ public sealed partial class Submission
     /// <paramref name="outcome"/> is not a closed-phase status, or the definition belongs to another form.
     /// </exception>
     /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
-    public void Close(CollectionStatus outcome, string jsonData, long formDefinitionId, long formDefinitionFormId, int currentPage = 1, string? metadata = null)
+    public void Close(CollectionStatus outcome, SubmissionContent content, long formDefinitionFormId)
     {
         EnsureClosedOutcome(outcome);
         if (CollectionStatus.Code == outcome.Code)
@@ -63,26 +60,12 @@ public sealed partial class Submission
             return;
         }
 
-        SubmissionContent content = new(jsonData, formDefinitionId, currentPage, metadata);
         EnsureContentAllowed(content, formDefinitionFormId);
         var step = SubmissionLifecycle.Move(this, outcome);
         ApplyContent(content);
         StartedAt ??= DateTime.UtcNow;
         Apply(step);
     }
-
-    /// <summary>Ends the interview as screened out. Same as <see cref="Close(CollectionStatus)"/> with <c>screen_out</c>.</summary>
-    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
-    public void ScreenOut() => Close(CollectionStatusValue.ScreenOut);
-
-    /// <summary>Saves the last answers and screens out. Same as <see cref="Close(CollectionStatus, string, long, long, int, string?)"/> with <c>screen_out</c>.</summary>
-    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
-    public void ScreenOut(string jsonData, long formDefinitionId, long formDefinitionFormId, int currentPage = 1, string? metadata = null) =>
-        Close(CollectionStatusValue.ScreenOut, jsonData, formDefinitionId, formDefinitionFormId, currentPage, metadata);
-
-    /// <summary>Owner or system void. Same as <see cref="Close(CollectionStatus)"/> with <c>cancelled</c>.</summary>
-    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
-    public void Cancel() => Close(CollectionStatusValue.Cancelled);
 
     /// <summary>
     /// Sets the status a new submission is saved in and raises its events: <c>created</c>, then the outcome's event
@@ -91,16 +74,7 @@ public sealed partial class Submission
     private void Begin(SubmissionCreateArgs args)
     {
         var entry = args.StartSubmission ? CollectionStatusValue.InProgress : CollectionStatusValue.NotStarted;
-        var saved = args.CollectionOutcome ?? (args.IsComplete ? CollectionStatusValue.Complete : entry);
-        if (args.CollectionOutcome is { } outcome)
-        {
-            EnsureClosedOutcome(outcome);
-            if (args.IsComplete)
-            {
-                throw new ArgumentException("A submission is created complete or in an outcome, not both.", nameof(args));
-            }
-        }
-
+        var saved = SavedStatus(args, entry);
         var now = DateTime.UtcNow;
         if (args.IsComplete)
         {
@@ -108,13 +82,26 @@ public sealed partial class Submission
             CompletedAt = now;
         }
 
-        if (args.StartSubmission || args.IsComplete || args.CollectionOutcome is not null)
+        if (saved != entry || args.StartSubmission)
         {
             StartedAt = now;
         }
 
         CollectionStatus = entry.CreateInstance();
         Apply(SubmissionLifecycle.Begin(this, entry, saved));
+    }
+
+    private static CollectionStatus SavedStatus(SubmissionCreateArgs args, CollectionStatus entry)
+    {
+        if (args.CollectionOutcome is not { } outcome)
+        {
+            return args.IsComplete ? CollectionStatusValue.Complete : entry;
+        }
+
+        EnsureClosedOutcome(outcome);
+        return args.IsComplete
+            ? throw new ArgumentException("A submission is created complete or in an outcome, not both.", nameof(args))
+            : outcome;
     }
 
     private static void EnsureClosedOutcome(CollectionStatus outcome)
@@ -157,8 +144,7 @@ public sealed partial class Submission
         CollectionStatus = step.Status.CreateInstance();
         foreach (var change in step.Changes)
         {
-            Record(change.Revision, () => new SubmissionLifecycleEvent(
-                change.Kind, this, step.Status, change.Previous, change.Revision));
+            Record(change.Revision, () => new SubmissionLifecycleEvent(this, step.Status, change));
         }
     }
 

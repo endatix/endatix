@@ -1,5 +1,4 @@
-﻿using Endatix.Core.Entities;
-using FastEndpoints;
+﻿using FastEndpoints;
 using FluentValidation;
 using Endatix.Infrastructure.Data.Config;
 using Endatix.Api.Common;
@@ -36,15 +35,5 @@ public class CreateFormValidator : Validator<CreateFormRequest>
         RuleFor(x => x.Metadata)
             .ValidJsonString()
             .When(x => x.Metadata != null);
-
-#pragma warning disable CS0618 // WebHookSettingsJson is obsolete but still accepted.
-        RuleFor(x => x.WebHookSettingsJson)
-            .Must(json => WebHookConfiguration.RetiredKeyError(json) is null)
-            .WithMessage(x => WebHookConfiguration.RetiredKeyError(x.WebHookSettingsJson));
-#pragma warning restore CS0618
-
-        RuleFor(x => x.WebHookSettings)
-            .Must(settings => settings is null || WebHookConfiguration.RetiredKeyError(settings.Value) is null)
-            .WithMessage(x => WebHookConfiguration.RetiredKeyError(x.WebHookSettings!.Value));
     }
 }

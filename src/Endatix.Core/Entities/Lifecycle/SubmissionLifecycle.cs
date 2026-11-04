@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace Endatix.Core.Entities;
 
 /// <summary>One lifecycle event a step will raise: its kind, the status before it, and the revision it takes.</summary>
@@ -72,30 +74,33 @@ internal static class SubmissionLifecycle
             : submission.CollectionStatus;
     }
 
-    /// <summary>
-    /// The whole policy, rows from, columns to. Null is a refused move.
-    /// <code>
-    ///            Pending   Active    Completed  Closed   Lapsed
-    /// Pending    moved     started   completed  closed   lapsed
-    /// Active     refused   moved     completed  closed   lapsed
-    /// Lapsed     refused   resumed   completed  closed   moved
-    /// Completed  refused   refused   refused    refused  refused
-    /// Closed     refused   refused   refused    refused  refused
-    /// </code>
-    /// </summary>
-    internal static SubmissionLifecycleEventKind? Decide(CollectionPhase from, CollectionPhase to) => (from, to) switch
+    /// <summary>The event a move between two phases raises, or null when the move is refused.</summary>
+    internal static SubmissionLifecycleEventKind? Decide(CollectionPhase from, CollectionPhase to) =>
+        _table.TryGetValue((from, to), out var kind) ? kind : null;
+
+    private const SubmissionLifecycleEventKind Moved = SubmissionLifecycleEventKind.CollectionStatusMoved;
+    private const SubmissionLifecycleEventKind Started = SubmissionLifecycleEventKind.Started;
+    private const SubmissionLifecycleEventKind Completed = SubmissionLifecycleEventKind.Completed;
+    private const SubmissionLifecycleEventKind Closed = SubmissionLifecycleEventKind.Closed;
+    private const SubmissionLifecycleEventKind Lapsed = SubmissionLifecycleEventKind.Lapsed;
+    private const SubmissionLifecycleEventKind Resumed = SubmissionLifecycleEventKind.Resumed;
+
+    // The whole policy: rows from, columns to (pending, active, completed, closed, lapsed); null refuses the move.
+    // Completed and closed are final, so their rows refuse everything.
+    private static readonly SubmissionLifecycleEventKind?[,] _cells =
     {
-        (CollectionPhase.Completed or CollectionPhase.Closed, _) => null,
-        (_, CollectionPhase.Completed) => SubmissionLifecycleEventKind.Completed,
-        (_, CollectionPhase.Closed) => SubmissionLifecycleEventKind.Closed,
-        (CollectionPhase.Pending, CollectionPhase.Pending) => SubmissionLifecycleEventKind.CollectionStatusMoved,
-        (CollectionPhase.Pending, CollectionPhase.Active) => SubmissionLifecycleEventKind.Started,
-        (CollectionPhase.Active, CollectionPhase.Active) => SubmissionLifecycleEventKind.CollectionStatusMoved,
-        (CollectionPhase.Lapsed, CollectionPhase.Active) => SubmissionLifecycleEventKind.Resumed,
-        (CollectionPhase.Lapsed, CollectionPhase.Lapsed) => SubmissionLifecycleEventKind.CollectionStatusMoved,
-        (_, CollectionPhase.Lapsed) => SubmissionLifecycleEventKind.Lapsed,
-        _ => null,
+        /* pending   */ { Moved, Started, Completed, Closed, Lapsed },
+        /* active    */ { null, Moved, Completed, Closed, Lapsed },
+        /* completed */ { null, null, null, null, null },
+        /* closed    */ { null, null, null, null, null },
+        /* lapsed    */ { null, Resumed, Completed, Closed, Moved },
     };
+
+    private static readonly FrozenDictionary<(CollectionPhase From, CollectionPhase To), SubmissionLifecycleEventKind> _table =
+        Enum.GetValues<CollectionPhase>()
+            .SelectMany(from => Enum.GetValues<CollectionPhase>().Select(to => (From: from, To: to)))
+            .Where(move => _cells[(int)move.From, (int)move.To] is not null)
+            .ToFrozenDictionary(move => move, move => _cells[(int)move.From, (int)move.To]!.Value);
 
     private static bool CanResume(CollectionPhase phase) =>
         phase is CollectionPhase.Pending or CollectionPhase.Active or CollectionPhase.Lapsed;

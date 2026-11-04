@@ -22,7 +22,6 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var mustPublishEvent = false;
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         if (submission == null)
@@ -30,18 +29,13 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
-        CollectionStatus? outcome = null;
-        if (request.CollectionOutcome is not null && !CollectionOutcomes.TryResolve(request.CollectionOutcome, out outcome))
+        if (!CollectionOutcomes.IsSupported(request.CollectionOutcome, out var outcome))
         {
-            return Result.Invalid(new ValidationError("The collection outcome is not a registered closed status."));
+            return Result.Invalid(new ValidationError(CollectionOutcomes.UNSUPPORTED_MESSAGE));
         }
 
-        var wasClosed = submission.CollectionStatus.Phase == CollectionPhase.Closed;
-        var wasScreenedOut = submission.IsScreenedOut;
-        if (outcome is null && !submission.IsComplete && (request.IsComplete ?? false))
-        {
-            mustPublishEvent = true;
-        }
+        var previousStatus = submission.CollectionStatus;
+        var mustPublishEvent = outcome is null && !submission.IsComplete && (request.IsComplete ?? false);
 
         // Each given property replaces the stored one whole, JsonData included; only Metadata is merged, at its top level.
         // IsComplete and CurrentPage come from the request as they are, not derived from the answers.
@@ -57,7 +51,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             if (outcome is not null)
             {
                 // An outcome never completes; a repeat (e.g. a retried request) is a no-op.
-                submission.Close(outcome, jsonData, submission.FormDefinitionId, submission.FormId, currentPage, mergedMetadata);
+                submission.Close(outcome, new SubmissionContent(jsonData, submission.FormDefinitionId, currentPage, mergedMetadata), submission.FormId);
             }
             else
             {
@@ -73,7 +67,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
         catch (InvalidOperationException)
         {
-            return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, wasClosed, outcome is not null)));
+            return Result.Invalid(new ValidationError(RejectionMessage(previousStatus, outcome is not null)));
         }
 
         var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
@@ -90,16 +84,11 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         return Result.Success(submission);
     }
 
-    private static string RejectionMessage(bool wasScreenedOut, bool wasClosed, bool closing)
+    private static string RejectionMessage(CollectionStatus previous, bool closing)
     {
-        if (wasScreenedOut)
+        if (CollectionOutcomes.RejectedEditMessage(previous) is { } closedMessage)
         {
-            return CollectionOutcomes.SCREENED_OUT_EDIT_REJECTED_MESSAGE;
-        }
-
-        if (wasClosed)
-        {
-            return CollectionOutcomes.CLOSED_EDIT_REJECTED_MESSAGE;
+            return closedMessage;
         }
 
         if (closing)

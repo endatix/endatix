@@ -64,28 +64,13 @@ public class WebHookIntegrationEventPublisherTests
         const long formId = 555L;
         var form = Form.Create(new FormCreateArgs(TenantId: 42, Name: "f"));
         form.Id = formId;
-        var completed = Submission.Create(new SubmissionCreateArgs(
-            TenantId: 42,
-            FormId: formId,
-            FormDefinitionId: 1,
-            JsonData: "{}",
-            IsComplete: true));
-        var screenedOut = Submission.Create(new SubmissionCreateArgs(
-            TenantId: 42,
-            FormId: formId,
-            FormDefinitionId: 1,
-            JsonData: "{}",
-            IsComplete: false,
-            CollectionOutcome: CollectionStatus.ScreenOut));
-
         IIntegrationEvent[] events =
         [
             new FormCreatedEvent(form),
             new FormUpdatedEvent(form),
             new FormEnabledStateChangedEvent(form, isEnabled: true),
             new FormDeletedEvent(form),
-            LifecycleEvent(completed, SubmissionLifecycleEvent.EventTypes.Completed),
-            LifecycleEvent(screenedOut, SubmissionLifecycleEvent.EventTypes.Closed),
+            .. SubmissionWebHookEvents(formId),
         ];
 
         var sut = CreateSut();
@@ -183,6 +168,18 @@ public class WebHookIntegrationEventPublisherTests
         public int SchemaVersion => 1;
         public int Attempts => 0;
         public string? TraceId => null;
+    }
+
+    // The lifecycle events delivered as webhooks: a completion and a screen-out.
+    private static IEnumerable<SubmissionLifecycleEvent> SubmissionWebHookEvents(long formId)
+    {
+        SubmissionCreateArgs completed = new(TenantId: 42, FormId: formId, FormDefinitionId: 1, JsonData: "{}", IsComplete: true);
+        SubmissionCreateArgs screenedOut = completed with { IsComplete = false, CollectionOutcome = CollectionStatus.ScreenOut };
+        return
+        [
+            LifecycleEvent(Submission.Create(completed), SubmissionLifecycleEvent.EventTypes.Completed),
+            LifecycleEvent(Submission.Create(screenedOut), SubmissionLifecycleEvent.EventTypes.Closed),
+        ];
     }
 
     private static SubmissionLifecycleEvent LifecycleEvent(Submission submission, string eventType) =>
