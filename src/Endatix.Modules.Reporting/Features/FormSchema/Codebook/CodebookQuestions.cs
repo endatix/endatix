@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
@@ -20,10 +21,10 @@ internal static class CodebookQuestions
             return questions;
         }
 
-        codebook.TryGetProperty(FormSchemaCodebookPropertyNames.ChoiceCatalogs, out var catalogs);
+        var catalogs = codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs);
         foreach (var question in entries.EnumerateObject())
         {
-            questions[question.Name] = TryGetCatalogChoices(question.Value, catalogs, question.Name, out var choices)
+            questions[question.Name] = CatalogChoices(question, catalogs) is { } choices
                 ? WithChoices(question.Value, choices)
                 : question.Value.Clone();
         }
@@ -31,43 +32,19 @@ internal static class CodebookQuestions
         return questions;
     }
 
-    private static bool TryGetCatalogChoices(
-        JsonElement question,
-        JsonElement catalogs,
-        string questionName,
-        out JsonElement choices)
-    {
-        choices = default;
-        return question.GetStringProperty(FormSchemaCodebookPropertyNames.ExportShape) ==
-               FormSchemaCodebookExportShape.Categorical.Name &&
-               question.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out _) &&
-               catalogs.ValueKind == JsonValueKind.Object &&
-               catalogs.TryGetProperty(questionName, out var catalog) &&
-               catalog.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out choices);
-    }
+    private static JsonElement? CatalogChoices(JsonProperty question, JsonElement? catalogs) =>
+        question.Value.GetStringProperty(FormSchemaCodebookPropertyNames.ExportShape) ==
+        FormSchemaCodebookExportShape.Categorical.Name &&
+        question.Value.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out _) &&
+        catalogs?.TryGetPropertyValue(question.Name) is { } catalog &&
+        catalog.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out var choices)
+            ? choices
+            : null;
 
     private static JsonElement WithChoices(JsonElement question, JsonElement choices)
     {
-        System.Buffers.ArrayBufferWriter<byte> buffer = new();
-        using (Utf8JsonWriter writer = new(buffer))
-        {
-            writer.WriteStartObject();
-            foreach (var property in question.EnumerateObject())
-            {
-                if (property.NameEquals(SurveyJsPropertyNames.Choices))
-                {
-                    writer.WritePropertyName(SurveyJsPropertyNames.Choices);
-                    choices.WriteTo(writer);
-                    continue;
-                }
-
-                property.WriteTo(writer);
-            }
-
-            writer.WriteEndObject();
-        }
-
-        using var document = JsonDocument.Parse(buffer.WrittenMemory);
-        return document.RootElement.Clone();
+        var entry = JsonNode.Parse(question.GetRawText())!.AsObject();
+        entry[SurveyJsPropertyNames.Choices] = JsonNode.Parse(choices.GetRawText());
+        return JsonSerializer.SerializeToElement(entry);
     }
 }

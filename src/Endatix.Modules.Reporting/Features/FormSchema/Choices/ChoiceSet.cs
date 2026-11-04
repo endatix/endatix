@@ -63,35 +63,8 @@ internal sealed class ChoiceSet
             return null;
         }
 
-        List<ChoiceSetItem> items = [];
-        foreach (var (value, text, element) in SurveyJsChoiceHelper.EnumerateChoiceElements(question))
-        {
-            items.Add(new ChoiceSetItem(
-                value,
-                ChoiceKind.Choice,
-                element.ValueKind == JsonValueKind.Object && element.GetBooleanProperty(SurveyJsPropertyNames.IsExclusive),
-                text,
-                element,
-                SurveyJsPropertyNames.Text));
-        }
-
-        var supportsAllSpecials = SupportsAllSpecialItems(question);
-        foreach (var spec in SpecialChoices.All)
-        {
-            if ((spec.AllTypes || supportsAllSpecials) &&
-                Shows(question, spec) &&
-                items.TrueForAll(item => !string.Equals(item.Value, spec.Value, StringComparison.Ordinal)))
-            {
-                items.Add(new ChoiceSetItem(
-                    spec.Value,
-                    spec.Kind,
-                    spec.Exclusive,
-                    question.GetStringProperty(spec.TextProperty) ?? spec.DefaultText,
-                    question,
-                    spec.TextProperty));
-            }
-        }
-
+        var items = InlineItems(question);
+        items.AddRange(SpecialItems(question, items));
         return new ChoiceSet
         {
             Items = items,
@@ -100,6 +73,36 @@ internal sealed class ChoiceSet
                 ? ResolveOtherStorage(question, survey ?? SurveyChoiceDefaults.Default)
                 : null,
         };
+    }
+
+    private static List<ChoiceSetItem> InlineItems(JsonElement question) =>
+    [
+        .. SurveyJsChoiceHelper.EnumerateChoiceElements(question).Select(choice => new ChoiceSetItem(
+            choice.Value,
+            ChoiceKind.Choice,
+            choice.Element.ValueKind == JsonValueKind.Object &&
+            choice.Element.GetBooleanProperty(SurveyJsPropertyNames.IsExclusive),
+            choice.Text,
+            choice.Element,
+            SurveyJsPropertyNames.Text)),
+    ];
+
+    // An inline choice that already stores a special value keeps it; the special item is not added twice.
+    private static IEnumerable<ChoiceSetItem> SpecialItems(JsonElement question, List<ChoiceSetItem> inline)
+    {
+        var supportsAllSpecials = SupportsAllSpecialItems(question);
+        return SpecialChoices.All
+            .Where(spec => (spec.AllTypes || supportsAllSpecials) &&
+                           Shows(question, spec) &&
+                           inline.TrueForAll(item => !string.Equals(item.Value, spec.Value, StringComparison.Ordinal)))
+            .Select(spec => new ChoiceSetItem(
+                spec.Value,
+                spec.Kind,
+                spec.Exclusive,
+                question.GetStringProperty(spec.TextProperty) ?? spec.DefaultText,
+                question,
+                spec.TextProperty))
+            .ToList();
     }
 
     /// <summary>Writes the catalog: <c>multiple</c>, <c>otherStorage</c>, then <c>choices</c> with id = position + 1.</summary>
@@ -131,6 +134,14 @@ internal sealed class ChoiceSet
         Items.FirstOrDefault(item => string.Equals(item.Value, value, StringComparison.Ordinal));
 
     internal static string ToJsonName(OtherStorage storage) => storage == Storage.Value ? "value" : "comment";
+
+    internal static OtherStorage? ParseOtherStorage(string? name) =>
+        name switch
+        {
+            "value" => Storage.Value,
+            "comment" => Storage.Comment,
+            _ => null,
+        };
 
     // survey-core question_baseselect.ts getStoreOthersAsComment: the question comment owns "-Comment", per-choice
     // comments force comment storage, then the question's own setting, then the survey's; choicesByUrl forces it.

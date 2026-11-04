@@ -389,20 +389,7 @@ internal static partial class FormSchemaCodebookBuilder
                 continue;
             }
 
-            if (ChoiceSet.Read(entry.Value.Element, surveyDefaults) is { } choiceSet)
-            {
-                catalogs[entry.Key] = WriteQuestionEntry(writer =>
-                    choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, entry.Value.Element, item, id)));
-                continue;
-            }
-
-            catalogs[entry.Key] = WriteQuestionEntry(writer =>
-            {
-                writer.WritePropertyName(SurveyJsPropertyNames.Choices);
-                writer.WriteStartArray();
-                WriteCatalogChoices(writer, entry.Value.Element);
-                writer.WriteEndArray();
-            });
+            catalogs[entry.Key] = BuildChoiceCatalog(entry.Value.Element, surveyDefaults);
         }
 
         return catalogs;
@@ -801,15 +788,7 @@ internal static partial class FormSchemaCodebookBuilder
         Dictionary<string, (int Id, JsonElement Entry)> mergedByValue) =>
         WriteQuestionEntry(writer =>
         {
-            foreach (var property in currentCatalog.EnumerateObject())
-            {
-                if (property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) ||
-                    property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage))
-                {
-                    property.WriteTo(writer);
-                }
-            }
-
+            WriteSelectFields(writer, currentCatalog);
             writer.WritePropertyName(SurveyJsPropertyNames.Choices);
             writer.WriteStartArray();
             foreach ((_, var entry) in mergedByValue.Values.OrderBy(pair => pair.Id))
@@ -989,7 +968,15 @@ internal static partial class FormSchemaCodebookBuilder
     {
         writer.WritePropertyName(SurveyJsPropertyNames.Choices);
         writer.WriteStartArray();
-        WriteCatalogChoices(writer, element);
+        if (ChoiceSet.Read(element) is { } choiceSet)
+        {
+            choiceSet.WriteChoices((item, id) => WriteChoice(writer, element, item, id));
+        }
+        else
+        {
+            WriteCatalogChoices(writer, element);
+        }
+
         writer.WriteEndArray();
     }
 
@@ -1012,12 +999,6 @@ internal static partial class FormSchemaCodebookBuilder
                 2,
                 SurveyJsLocalizationHelper.ReadLocalizedStrings(element, SurveyJsPropertyNames.LabelFalse),
                 fallback: "No");
-            return;
-        }
-
-        if (cellType is null && ChoiceSet.Read(element) is { } choiceSet)
-        {
-            choiceSet.WriteChoices((item, id) => WriteChoice(writer, element, item, id));
             return;
         }
 
@@ -1214,13 +1195,6 @@ internal static partial class FormSchemaCodebookBuilder
             return;
         }
 
-        if (choiceValue == SurveyJsPropertyNames.Other)
-        {
-            localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, SurveyJsPropertyNames.OtherText);
-            fallback = "Other";
-            return;
-        }
-
         localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
             FindChoiceElement(questionElement, choiceValue),
             SurveyJsPropertyNames.Text);
@@ -1398,34 +1372,6 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
         writer.WritePropertyName(SurveyJsPropertyNames.Text);
         WriteLocalizedStringsWithFallback(writer, localizedText, fallback);
-        writer.WriteEndObject();
-    }
-
-    // An inline choice keeps reading its label by value, as before choice kinds; a special item reads the question's
-    // text property (otherText, noneText, refuseText, dontKnowText).
-    private static void WriteChoice(Utf8JsonWriter writer, JsonElement question, ChoiceSetItem item, int id)
-    {
-        writer.WriteStartObject();
-        writer.WriteString(SurveyJsPropertyNames.Value, item.Value);
-        writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
-        if (item.Kind.JsonName() is { } kind)
-        {
-            writer.WriteString(FormSchemaCodebookPropertyNames.Kind, kind);
-        }
-
-        if (item.Exclusive)
-        {
-            writer.WriteBoolean(FormSchemaCodebookPropertyNames.Exclusive, true);
-        }
-
-        writer.WritePropertyName(SurveyJsPropertyNames.Text);
-        var label = item.Kind == ChoiceKind.Choice
-            ? FindChoiceElement(question, item.Value)
-            : item.LabelSource;
-        WriteLocalizedStringsWithFallback(
-            writer,
-            SurveyJsLocalizationHelper.ReadLocalizedStrings(label, item.LabelProperty),
-            item.FallbackLabel);
         writer.WriteEndObject();
     }
 

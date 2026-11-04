@@ -1574,9 +1574,7 @@ internal static partial class ShojiCodebookGenerator
                     ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text).Trim());
                 writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
                 writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
-                writer.WriteBoolean(
-                    ShojiCodebookPropertyNames.Missing,
-                    CatalogChoice.Read(choice)?.Kind.IsNonResponse() ?? false);
+                writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, CatalogChoice.IsMissingCategory(choice));
                 writer.WriteEndObject();
             }
         }

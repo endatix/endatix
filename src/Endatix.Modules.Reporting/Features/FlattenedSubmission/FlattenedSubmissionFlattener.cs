@@ -70,39 +70,19 @@ internal static class FlattenedSubmissionFlattener
 
     private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
     {
+        if (IsChoiceColumn(column, choices))
+        {
+            return ExtractChoiceValue(submission, column, choices);
+        }
+
         switch (column.Kind)
         {
-            case FormSchemaColumnKind.Simple when choices.IsSelect(column.SourceQuestion ?? column.Key):
-                return choices.For(column.SourceQuestion ?? column.Key)
-                    .Read(submission, column.SourceQuestion ?? column.Key)
-                    .SingleValueJson();
-
-            case FormSchemaColumnKind.LoopSource when choices.IsSelect(column.SourceQuestion ?? column.Key):
-                return ExtractFromLoopAwareContext(
-                    submission,
-                    column.LoopPath,
-                    context => choices.For(column.SourceQuestion!).Read(context, column.SourceQuestion!).SingleValueJson());
-
             case FormSchemaColumnKind.Simple:
             case FormSchemaColumnKind.Calculated:
                 return ExtractSimpleValue(submission, column);
 
-            case FormSchemaColumnKind.ChoiceIndicator:
-                return ExtractFromLoopAwareContext(
-                    submission,
-                    column.LoopPath,
-                    context => ToBooleanJson(
-                        choices.For(column.SourceQuestion!).Read(context, column.SourceQuestion!).Has(column.ChoiceValue!)))
-                    ?? ToBooleanJson(false);
-
             case FormSchemaColumnKind.RankingChoice:
                 return ExtractRankingChoiceValue(submission, column);
-
-            case FormSchemaColumnKind.CheckboxOtherText:
-                return ExtractFromLoopAwareContext(
-                    submission,
-                    column.LoopPath,
-                    context => choices.For(column.SourceQuestion!).Read(context, column.SourceQuestion!).OtherText);
 
             case FormSchemaColumnKind.MatrixRow:
                 return ExtractMatrixRowValue(submission, column);
@@ -126,6 +106,31 @@ internal static class FlattenedSubmissionFlattener
             default:
                 return null;
         }
+    }
+
+    private static bool IsChoiceColumn(FormSchemaColumn column, ChoiceCatalogs choices) =>
+        column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText ||
+        (column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource &&
+         choices.IsSelect(column.SourceQuestion ?? column.Key));
+
+    private static JsonElement? ExtractChoiceValue(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        var answer = ReadSelectAnswer(submission, column, choices);
+        return column.Kind switch
+        {
+            FormSchemaColumnKind.ChoiceIndicator => ToBooleanJson(answer?.Has(column.ChoiceValue!) ?? false),
+            FormSchemaColumnKind.CheckboxOtherText => answer?.OtherText,
+            _ => answer?.SingleValueJson(),
+        };
+    }
+
+    // A select answer read from the submission, or from the loop panel item the column belongs to; null when the
+    // loop has no such item.
+    private static SelectAnswer? ReadSelectAnswer(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        var context = column.LoopPath is null ? submission : TryResolveLoopContext(submission, column.LoopPath);
+        var question = column.SourceQuestion ?? column.Key;
+        return context is { } found ? choices.For(question).Read(found, question) : null;
     }
 
     private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)

@@ -26,6 +26,9 @@ internal readonly record struct CatalogChoice(string Value, int Id, ChoiceKind K
             SpecialChoices.ParseJsonName(entry.GetStringProperty(FormSchemaCodebookPropertyNames.Kind)),
             entry.GetBooleanProperty(FormSchemaCodebookPropertyNames.Exclusive));
     }
+
+    /// <summary>Refused and Don't know: non-substantive answers, which Crunch keeps out of the valid base.</summary>
+    public static bool IsMissingCategory(JsonElement entry) => Read(entry)?.Kind.IsNonResponse() ?? false;
 }
 
 /// <summary>
@@ -52,23 +55,16 @@ internal sealed class ChoiceCatalogs
         }
 
         using var document = JsonDocument.Parse(codebookJson);
-        if (document.RootElement.ValueKind != JsonValueKind.Object ||
-            !document.RootElement.TryGetProperty(FormSchemaCodebookPropertyNames.ChoiceCatalogs, out var catalogs) ||
-            catalogs.ValueKind != JsonValueKind.Object)
+        if (document.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
+            { ValueKind: JsonValueKind.Object } catalogs)
         {
             return Empty;
         }
 
-        Dictionary<string, SelectChoices> selects = new(StringComparer.Ordinal);
-        foreach (var catalog in catalogs.EnumerateObject())
-        {
-            if (SelectChoices.FromCatalog(catalog.Value) is { } select)
-            {
-                selects[catalog.Name] = select;
-            }
-        }
-
-        return new ChoiceCatalogs(selects);
+        return new ChoiceCatalogs(catalogs.EnumerateObject()
+            .Select(catalog => (catalog.Name, Select: SelectChoices.FromCatalog(catalog.Value)))
+            .Where(entry => entry.Select is not null)
+            .ToDictionary(entry => entry.Name, entry => entry.Select!, StringComparer.Ordinal));
     }
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
@@ -101,31 +97,20 @@ internal sealed class SelectChoices
             return null;
         }
 
-        List<CatalogChoice> choices = [];
-        if (catalog.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out var entries))
-        {
-            foreach (var entry in entries.EnumerateArray())
-            {
-                if (CatalogChoice.Read(entry) is { } choice)
-                {
-                    choices.Add(choice);
-                }
-            }
-        }
-
+        var choices = ReadChoices(catalog);
         SelectChoices select = new()
         {
             Choices = choices,
-            OtherStorage = catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage) switch
-            {
-                "value" => Storage.Value,
-                "comment" => Storage.Comment,
-                _ => null,
-            },
+            OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
         };
         select._values.UnionWith(choices.Select(choice => choice.Value));
         return select;
     }
+
+    private static List<CatalogChoice> ReadChoices(JsonElement catalog) =>
+        catalog.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out var entries)
+            ? [.. entries.EnumerateArray().Select(CatalogChoice.Read).OfType<CatalogChoice>()]
+            : [];
 
     /// <summary>
     /// Reads one answer from a context: the submission root, or a loop panel item. The only code that knows the shapes
@@ -137,54 +122,44 @@ internal sealed class SelectChoices
         var raw = context.TryGetPropertyValue(questionName);
         List<SelectAnswer.Token> tokens = [];
         JsonElement? otherText = null;
-        JsonElement? single = raw;
-        var hasOtherToken = false;
-
         foreach (var item in Items(raw))
         {
-            if (ReadToken(item) is not { } token)
+            if (ReadToken(item) is { } token)
             {
-                continue;
+                var (normalized, itemOtherText) = Normalize(item, token);
+                tokens.Add(normalized);
+                otherText ??= itemOtherText;
             }
-
-            if (IsTypedOtherText(token))
-            {
-                otherText ??= StringJson(token.Element ?? item);
-                token = new SelectAnswer.Token(SurveyJsPropertyNames.Other, FromBoolean: false, OtherJson);
-            }
-
-            if (token.Value == SurveyJsPropertyNames.Other)
-            {
-                hasOtherToken = true;
-                if (item.ValueKind == JsonValueKind.Object && item.TryGetPropertyValue(SurveyJsPropertyNames.Comment) is { } comment)
-                {
-                    otherText ??= comment;
-                }
-            }
-
-            tokens.Add(token);
         }
 
-        if (raw is { ValueKind: not JsonValueKind.Array } && tokens.Count == 1)
-        {
-            single = tokens[0].Element ?? raw;
-        }
-
-        // Comment storage (and an older codebook) keeps reading "-Comment" as the flatten always has. Value storage
-        // reads it only for a stored "other", which a question flipped from comment storage still holds.
-        if (otherText is null && (OtherStorage != Storage.Value || hasOtherToken))
-        {
-            otherText = context.TryGetPropertyValue(questionName + SurveyJsPropertyNames.CommentSuffix);
-        }
-
-        if (otherText is null && raw is { ValueKind: JsonValueKind.Object } legacy &&
-            legacy.TryGetPropertyValue(SurveyJsPropertyNames.Other) is { } legacyOther)
-        {
-            otherText = legacyOther;
-        }
-
+        otherText ??= CommentOtherText(context, questionName, tokens) ?? LegacyOtherText(raw);
+        var single = raw is { ValueKind: not JsonValueKind.Array } && tokens.Count == 1 ? tokens[0].Element ?? raw : raw;
         return new SelectAnswer(tokens, otherText, single);
     }
+
+    // Value storage: a value no definition offered is typed Other text. A 3.x "other" item carries its text itself.
+    private (SelectAnswer.Token Token, JsonElement? OtherText) Normalize(JsonElement item, SelectAnswer.Token token)
+    {
+        if (IsTypedOtherText(token))
+        {
+            return (new SelectAnswer.Token(SurveyJsPropertyNames.Other, FromBoolean: false, OtherJson), StringJson(token.Element ?? item));
+        }
+
+        var comment = token.Value == SurveyJsPropertyNames.Other && item.ValueKind == JsonValueKind.Object
+            ? item.TryGetPropertyValue(SurveyJsPropertyNames.Comment)
+            : null;
+        return (token, comment);
+    }
+
+    // Comment storage (and an older codebook) keeps reading "-Comment" as the flatten always has. Value storage reads
+    // it only for a stored "other", which a question flipped from comment storage still holds.
+    private JsonElement? CommentOtherText(JsonElement context, string questionName, List<SelectAnswer.Token> tokens) =>
+        OtherStorage != Storage.Value || tokens.Exists(token => token.Value == SurveyJsPropertyNames.Other)
+            ? context.TryGetPropertyValue(questionName + SurveyJsPropertyNames.CommentSuffix)
+            : null;
+
+    private static JsonElement? LegacyOtherText(JsonElement? raw) =>
+        raw is { ValueKind: JsonValueKind.Object } legacy ? legacy.TryGetPropertyValue(SurveyJsPropertyNames.Other) : null;
 
     private static readonly JsonElement OtherJson = JsonDocument.Parse("\"other\"").RootElement.Clone();
 
