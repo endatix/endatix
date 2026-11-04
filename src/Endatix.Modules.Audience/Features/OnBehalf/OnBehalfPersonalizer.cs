@@ -69,8 +69,8 @@ internal sealed class OnBehalfPersonalizer(
             return Unknown(subjectId, request.FormId);
         }
 
-        var snapshot = await SnapshotAsync(member, membership.Value, cancellationToken);
-        return new PersonalizationFreeze(member.Id, snapshot);
+        var snapshot = await SnapshotAsync(member, membership.Snapshot, cancellationToken);
+        return new PersonalizationFreeze(member.Id, snapshot, membership.IsTest);
     }
 
     private static bool CanFreeze(SubmitterInput submitter) =>
@@ -105,19 +105,24 @@ internal sealed class OnBehalfPersonalizer(
             cancellationToken);
     }
 
-    /// <summary>The member's membership on the form, as the Snapshot reads it, or <see langword="null"/>.</summary>
-    private async Task<SnapshotMembership?> MembershipAsync(
+    /// <summary>
+    /// The member's membership on the form, as the Snapshot reads it, and whether it is a test participant's; or
+    /// <see langword="null"/>.
+    /// </summary>
+    private async Task<FrozenMembership?> MembershipAsync(
         Member member,
         long formId,
         CancellationToken cancellationToken)
     {
-        var membershipId = await FormParticipants.ByMember(db, new ParticipantKey(member.TenantId, formId, member.Id))
-            .Select(membership => (long?)membership.Id)
+        var found = await FormParticipants.ByMember(db, new ParticipantKey(member.TenantId, formId, member.Id))
+            .Select(membership => new { membership.Id, membership.IsTest })
             .FirstOrDefaultAsync(cancellationToken);
-        return membershipId is long id
-            ? new SnapshotMembership(member.TenantId, id, formId, member.Identifier)
-            : null;
+        return found is null
+            ? null
+            : new FrozenMembership(new SnapshotMembership(member.TenantId, found.Id, formId, member.Identifier), found.IsTest);
     }
+
+    private sealed record FrozenMembership(SnapshotMembership Snapshot, bool IsTest);
 
     private async Task<string> SnapshotAsync(
         Member member,
@@ -129,5 +134,4 @@ internal sealed class OnBehalfPersonalizer(
             new SnapshotHeader(null, member.Identifier, DateTime.UtcNow, PersonalizationSources.OnBehalf, member.Id),
             cells);
     }
-
 }

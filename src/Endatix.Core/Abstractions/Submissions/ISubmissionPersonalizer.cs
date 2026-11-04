@@ -18,8 +18,11 @@ public interface ISubmissionPersonalizer
         CancellationToken cancellationToken);
 }
 
-/// <summary>Snapshot captured before the submission is saved, plus the person it belongs to.</summary>
-public sealed record PersonalizationFreeze(long MemberId, string Snapshot);
+/// <summary>
+/// Snapshot captured before the submission is saved, plus the person it belongs to and whether they are a test
+/// participant on the form.
+/// </summary>
+public sealed record PersonalizationFreeze(long MemberId, string Snapshot, bool IsTestParticipant = false);
 
 /// <summary>Who the on-behalf call is for, and which form's audience to read.</summary>
 public sealed record SubmissionPersonalizationRequest(
