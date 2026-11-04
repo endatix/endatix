@@ -1560,18 +1560,19 @@ internal static partial class ShojiCodebookGenerator
             question.TryGetProperty(SurveyJsPropertyNames.Choices, out var choices) &&
             choices.ValueKind == JsonValueKind.Array)
         {
-            foreach (var choice in choices.EnumerateArray())
+            var categories = choices.EnumerateArray()
+                .Where(choice => choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var id) &&
+                                 id.ValueKind == JsonValueKind.Number)
+                .ToList();
+            var names = ShojiCategoryNames.Unique(categories
+                .Select(choice => (ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text).Trim(),
+                    choice.GetStringProperty(SurveyJsPropertyNames.Value) ?? string.Empty))
+                .ToList());
+            foreach (var (choice, name) in categories.Zip(names))
             {
-                if (!choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var idElement) ||
-                    idElement.ValueKind != JsonValueKind.Number)
-                {
-                    continue;
-                }
-
+                var idElement = choice.GetProperty(FormSchemaCodebookPropertyNames.Id);
                 writer.WriteStartObject();
-                writer.WriteString(
-                    ShojiCodebookPropertyNames.Name,
-                    ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text).Trim());
+                writer.WriteString(ShojiCodebookPropertyNames.Name, name);
                 writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
                 writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
                 writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, CatalogChoice.IsMissingCategory(choice));

@@ -159,7 +159,8 @@ internal sealed class ChoiceSet
         }
 
         // Typed text in the value can only be told apart from a choice when every choice is on the form. Choices
-        // copied from another question or loaded later are not, so record comment storage: the value stays as stored.
+        // copied from another question, loaded later or added by the respondent are not, so record comment storage:
+        // the value stays as stored.
         if (!HasOwnChoices(question))
         {
             return Storage.Comment;
@@ -176,7 +177,8 @@ internal sealed class ChoiceSet
     private static bool HasOwnChoices(JsonElement question) =>
         SurveyJsChoiceHelper.EnumerateChoiceElements(question).Any() &&
         string.IsNullOrWhiteSpace(question.GetStringProperty(SurveyJsPropertyNames.ChoicesFromQuestion)) &&
-        string.IsNullOrWhiteSpace(question.GetStringProperty(SurveyJsPropertyNames.ChoiceValuesFromQuestion));
+        string.IsNullOrWhiteSpace(question.GetStringProperty(SurveyJsPropertyNames.ChoiceValuesFromQuestion)) &&
+        !question.GetBooleanProperty(SurveyJsPropertyNames.AllowCustomChoices);
 
     private static bool HasChoiceComments(JsonElement question) =>
         SurveyJsChoiceHelper.EnumerateChoiceElements(question).Any(choice =>

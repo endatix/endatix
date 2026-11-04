@@ -154,6 +154,23 @@ public sealed class SpecialChoicesCrunchExportTests
     }
 
     [Fact]
+    public async Task ShojiCodebook_ValueRenamedWithTheSameLabel_KeepsCategoryNamesUnique()
+    {
+        // Arrange: v2 renames value "b" to "blue" and keeps the label; Crunch needs unique category names.
+        const string v1 = """{"pages":[{"name":"p1","elements":[{"type":"radiogroup","name":"rg","choices":["a",{"value":"b","text":"Blue"}]}]}]}""";
+        const string v2 = """{"pages":[{"name":"p1","elements":[{"type":"radiogroup","name":"rg","choices":["a",{"value":"blue","text":"Blue"}]}]}]}""";
+        var pipeline = PersonalizationPipeline.Compile(v1);
+        pipeline.Recompile(v2, Endatix.Modules.Reporting.Features.FormSchema.FormSchema.FormSchemaCompileMode.Merge);
+
+        // Act
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken, Settings);
+
+        // Assert
+        Categories(shoji, "rg").Select(category => (category.Id, category.Name)).Should().Equal(
+            (1, "a"), (2, "Blue (b)"), (3, "Blue"));
+    }
+
+    [Fact]
     public async Task ReExport_IntoAnExistingDataset_KeepsEveryAliasAndCategoryId()
     {
         // Arrange: the first export is today's all-questions form; the form then shows special items, merges and is

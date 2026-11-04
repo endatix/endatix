@@ -29,6 +29,7 @@ internal static partial class FormSchemaCodebookBuilder
         if (!string.IsNullOrWhiteSpace(existingCodebookJson))
         {
             MergeExisting(existingCodebookJson, questions, columns, choiceCatalogs);
+            DropStaleSelectFields(choiceCatalogs, questionElements);
         }
 
         return Serialize(locales, questions, columns, choiceCatalogs);
@@ -724,7 +725,7 @@ internal static partial class FormSchemaCodebookBuilder
     {
         var mergedByValue = LoadExistingChoiceCatalogEntries(existingCatalog);
         MergeCurrentChoiceCatalogEntries(mergedByValue, currentCatalog);
-        return WriteMergedChoiceCatalog(currentCatalog, mergedByValue);
+        return WriteMergedChoiceCatalog(existingCatalog, currentCatalog, mergedByValue);
     }
 
     private static Dictionary<string, (int Id, JsonElement Entry)> LoadExistingChoiceCatalogEntries(
@@ -782,13 +783,14 @@ internal static partial class FormSchemaCodebookBuilder
         }
     }
 
-    // The question-level select fields describe the current definition; the choices are the union of every one.
+    // The choices are the union of every definition; the select fields describe the current one (see WriteSelectFields).
     private static JsonElement WriteMergedChoiceCatalog(
+        JsonElement existingCatalog,
         JsonElement currentCatalog,
         Dictionary<string, (int Id, JsonElement Entry)> mergedByValue) =>
         WriteQuestionEntry(writer =>
         {
-            WriteSelectFields(writer, currentCatalog);
+            WriteSelectFields(writer, existingCatalog, currentCatalog);
             writer.WritePropertyName(SurveyJsPropertyNames.Choices);
             writer.WriteStartArray();
             foreach ((_, var entry) in mergedByValue.Values.OrderBy(pair => pair.Id))

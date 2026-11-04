@@ -104,6 +104,51 @@ public sealed class ChoiceCatalogCodebookTests
     }
 
     [Fact]
+    public void CompilePersisted_MergeAfterValueStorageWasDropped_KeepsValueStorage()
+    {
+        // Rows saved under value storage keep their typed text in the value; a later comment-storage definition must
+        // not make the flatten forget that.
+        const string v1 = """{"pages":[{"elements":[{"type":"radiogroup","name":"rg","choices":["a"],"showOtherItem":true,"storeOthersAsComment":false}]}]}""";
+        const string v2 = """{"pages":[{"elements":[{"type":"radiogroup","name":"rg","choices":["a"],"showOtherItem":true}]}]}""";
+        FormSchemaCompiler compiler = new();
+        var first = compiler.CompilePersisted(v1);
+
+        var second = compiler.CompilePersisted(v2, first.FlatteningMapJson, first.CodebookJson, FormSchemaCompileMode.Merge);
+
+        CatalogOf(second.CodebookJson, "rg").GetProperty("otherStorage").GetString().Should().Be("value");
+    }
+
+    [Fact]
+    public void CompilePersisted_MergeAfterASelectBecameText_DropsTheSelectFields()
+    {
+        // The name now holds a text question: its answers are free text, never a select's.
+        const string v1 = """{"pages":[{"elements":[{"type":"dropdown","name":"q","choices":["a"],"showOtherItem":true,"storeOthersAsComment":false}]}]}""";
+        const string v2 = """{"pages":[{"elements":[{"type":"text","name":"q"}]}]}""";
+        FormSchemaCompiler compiler = new();
+        var first = compiler.CompilePersisted(v1);
+
+        var second = compiler.CompilePersisted(v2, first.FlatteningMapJson, first.CodebookJson, FormSchemaCompileMode.Merge);
+
+        var catalog = CatalogOf(second.CodebookJson, "q");
+        catalog.TryGetProperty("multiple", out _).Should().BeFalse();
+        catalog.TryGetProperty("otherStorage", out _).Should().BeFalse();
+        Ids(catalog).Should().Equal(("a", 1), ("other", 2));
+    }
+
+    [Fact]
+    public void CompilePersisted_MergeAfterASelectWasRemoved_KeepsItsSelectFields()
+    {
+        const string v1 = """{"pages":[{"elements":[{"type":"dropdown","name":"q","choices":["a"]},{"type":"text","name":"t"}]}]}""";
+        const string v2 = """{"pages":[{"elements":[{"type":"text","name":"t"}]}]}""";
+        FormSchemaCompiler compiler = new();
+        var first = compiler.CompilePersisted(v1);
+
+        var second = compiler.CompilePersisted(v2, first.FlatteningMapJson, first.CodebookJson, FormSchemaCompileMode.Merge);
+
+        CatalogOf(second.CodebookJson, "q").GetProperty("multiple").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
     public void CompilePersisted_MergeTwice_IsIdempotent()
     {
         FormSchemaCompiler compiler = new();

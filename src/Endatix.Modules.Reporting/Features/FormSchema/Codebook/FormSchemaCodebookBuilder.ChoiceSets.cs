@@ -19,13 +19,49 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteEndArray();
             });
 
-    private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement catalog)
+    // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
+    // the value, so a later comment-storage definition must not make the flatten forget it.
+    private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
     {
-        foreach (var property in catalog.EnumerateObject().Where(property =>
-                     property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) ||
-                     property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage)))
+        if (currentCatalog.TryGetProperty(FormSchemaCodebookPropertyNames.Multiple, out var multiple))
         {
-            property.WriteTo(writer);
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.Multiple, multiple.GetBoolean());
+        }
+
+        var storage = OtherStorageOf(existingCatalog) == OtherStorage.Value
+            ? OtherStorage.Value
+            : OtherStorageOf(currentCatalog);
+        if (storage is { } stored)
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ChoiceSet.ToJsonName(stored));
+        }
+    }
+
+    private static OtherStorage? OtherStorageOf(JsonElement catalog) =>
+        ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage));
+
+    // A name the current definition gives to a question that is not a select (a dropdown turned text) keeps its choice
+    // ids, but its answers are no longer read as a select's. A select that was removed keeps its fields: old rows hold it.
+    private static void DropStaleSelectFields(
+        Dictionary<string, JsonElement> choiceCatalogs,
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements)
+    {
+        foreach (var (name, question) in questionElements)
+        {
+            if (ChoiceSet.Read(question.Element) is null &&
+                choiceCatalogs.TryGetValue(name, out var catalog) &&
+                catalog.TryGetProperty(FormSchemaCodebookPropertyNames.Multiple, out _))
+            {
+                choiceCatalogs[name] = WriteQuestionEntry(writer =>
+                {
+                    foreach (var property in catalog.EnumerateObject().Where(property =>
+                                 !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
+                                 !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage)))
+                    {
+                        property.WriteTo(writer);
+                    }
+                });
+            }
         }
     }
 
