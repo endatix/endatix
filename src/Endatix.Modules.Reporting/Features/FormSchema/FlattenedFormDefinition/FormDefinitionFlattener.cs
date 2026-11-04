@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -530,14 +531,34 @@ internal static class FormDefinitionFlattener
             "string",
             SourceQuestion: name));
 
-        if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        if (ChoiceSet.Read(collected.Element)?.HasOther == true)
         {
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                ExportPathBuilder.ChoiceOtherTextKey(name),
-                FormSchemaColumnKind.CheckboxOtherText,
-                $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
-                "string",
-                SourceQuestion: name));
+            AddOtherTextColumn(collected, name, columns, seenKeys, limits);
+        }
+    }
+
+    private static void AddOtherTextColumn(
+        CollectedElement collected,
+        string name,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits) =>
+        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            ExportPathBuilder.ChoiceOtherTextKey(name),
+            FormSchemaColumnKind.CheckboxOtherText,
+            $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
+            "string",
+            SourceQuestion: name));
+
+    private static void CountChoice(string name, int count, SchemaCompilationLimits limits)
+    {
+        if (count > limits.MaxChoicesPerQuestion)
+        {
+            ThrowLimitExceeded(
+                SchemaCompilationLimitKind.MaxChoicesPerQuestion,
+                limits.MaxChoicesPerQuestion,
+                actual: count,
+                context: name);
         }
     }
 
@@ -555,24 +576,11 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        var choiceCount = 0;
-        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(collected.Element))
-        {
-            if (++choiceCount > limits.MaxChoicesPerQuestion)
-            {
-                ThrowLimitExceeded(
-                    SchemaCompilationLimitKind.MaxChoicesPerQuestion,
-                    limits.MaxChoicesPerQuestion,
-                    actual: choiceCount,
-                    context: name);
-            }
-
-            AddChoiceIndicatorColumn(collected, name, value, text, columns, seenKeys, limits);
-        }
+        var choices = ChoiceSet.Read(collected.Element)!;
 
         // Data-list and other lazy multi-selects have no choices on the form.
-        // One column keeps the selected values (including "other") instead of dropping them.
-        if (choiceCount == 0)
+        // One column keeps the selected values (including "other" and special items) instead of dropping them.
+        if (!choices.HasInlineChoices)
         {
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 name,
@@ -581,36 +589,23 @@ internal static class FormDefinitionFlattener
                 "string",
                 SourceQuestion: name));
 
-            if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+            if (choices.HasOther)
             {
-                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                    ExportPathBuilder.ChoiceOtherTextKey(name),
-                    FormSchemaColumnKind.CheckboxOtherText,
-                    $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
-                    "string",
-                    SourceQuestion: name));
+                AddOtherTextColumn(collected, name, columns, seenKeys, limits);
             }
 
             return;
         }
 
-        if (collected.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        var choiceCount = 0;
+        foreach (var item in choices.Items)
         {
-            var otherLabel = collected.Element.GetStringProperty(SurveyJsPropertyNames.OtherText) ?? "Other";
-            AddChoiceIndicatorColumn(
-                collected,
-                name,
-                SurveyJsPropertyNames.Other,
-                otherLabel,
-                columns,
-                seenKeys,
-                limits);
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                ExportPathBuilder.ChoiceOtherTextKey(name),
-                FormSchemaColumnKind.CheckboxOtherText,
-                $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
-                "string",
-                SourceQuestion: name));
+            CountChoice(name, ++choiceCount, limits);
+            AddChoiceIndicatorColumn(collected, name, item.Value, item.FallbackLabel, columns, seenKeys, limits);
+            if (item.Kind == ChoiceKind.Other)
+            {
+                AddOtherTextColumn(collected, name, columns, seenKeys, limits);
+            }
         }
     }
 
@@ -1167,7 +1162,7 @@ internal static class FormDefinitionFlattener
             }
 
             var choiceCount = 0;
-            foreach (var choiceValue in SurveyJsChoiceHelper.EnumerateLoopSourceDriverChoices(sourceElement.Element))
+            foreach (var choiceValue in ChoiceSet.Read(sourceElement.Element)?.LoopDriverValues ?? [])
             {
                 if (++choiceCount > limits.MaxChoicesPerQuestion)
                 {
@@ -1349,17 +1344,27 @@ internal static class FormDefinitionFlattener
             SourceQuestion: childName,
             LoopPath: loopPath));
 
-        if (template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        if (ChoiceSet.Read(template)?.HasOther == true)
         {
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                ExportPathBuilder.Join([.. keyPrefix, childName, "other_text"]),
-                FormSchemaColumnKind.CheckboxOtherText,
-                $"{template.GetSurveyJsTitle(childName)} — Other text",
-                "string",
-                SourceQuestion: childName,
-                LoopPath: loopPath));
+            AddLoopSourceOtherTextColumn(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
         }
     }
+
+    private static void AddLoopSourceOtherTextColumn(
+        JsonElement template,
+        string childName,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        List<FormSchemaColumn> columns,
+        HashSet<string> seenKeys,
+        SchemaCompilationLimits limits) =>
+        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            ExportPathBuilder.Join([.. keyPrefix, childName, "other_text"]),
+            FormSchemaColumnKind.CheckboxOtherText,
+            $"{template.GetSurveyJsTitle(childName)} — Other text",
+            "string",
+            SourceQuestion: childName,
+            LoopPath: loopPath));
 
     private static void EmitLoopSourceChoiceIndicatorColumns(
         JsonElement template,
@@ -1370,49 +1375,24 @@ internal static class FormDefinitionFlattener
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
     {
-        var choiceCount = 0;
-        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(template))
-        {
-            if (++choiceCount > limits.MaxChoicesPerQuestion)
-            {
-                ThrowLimitExceeded(
-                    SchemaCompilationLimitKind.MaxChoicesPerQuestion,
-                    limits.MaxChoicesPerQuestion,
-                    actual: choiceCount,
-                    context: childName);
-            }
-
-            AddLoopSourceChoiceIndicatorColumn(
-                template, childName, value, text, keyPrefix, loopPath, columns, seenKeys, limits);
-        }
-
-        if (choiceCount == 0)
+        var choices = ChoiceSet.Read(template)!;
+        if (!choices.HasInlineChoices)
         {
             EmitLoopSourceSingleSelectColumn(
                 template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
             return;
         }
 
-        if (template.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
+        var choiceCount = 0;
+        foreach (var item in choices.Items)
         {
-            var otherLabel = template.GetStringProperty(SurveyJsPropertyNames.OtherText) ?? "Other";
+            CountChoice(childName, ++choiceCount, limits);
             AddLoopSourceChoiceIndicatorColumn(
-                template,
-                childName,
-                SurveyJsPropertyNames.Other,
-                otherLabel,
-                keyPrefix,
-                loopPath,
-                columns,
-                seenKeys,
-                limits);
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                ExportPathBuilder.Join([.. keyPrefix, childName, "other_text"]),
-                FormSchemaColumnKind.CheckboxOtherText,
-                $"{template.GetSurveyJsTitle(childName)} — Other text",
-                "string",
-                SourceQuestion: childName,
-                LoopPath: loopPath));
+                template, childName, item.Value, item.FallbackLabel, keyPrefix, loopPath, columns, seenKeys, limits);
+            if (item.Kind == ChoiceKind.Other)
+            {
+                AddLoopSourceOtherTextColumn(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+            }
         }
     }
 

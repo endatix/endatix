@@ -31,6 +31,23 @@ internal static class SurveyJsPropertyNames
     public const string InputTypeDateTimeLocal = "datetime-local";
     public const string ShowOtherItem = "showOtherItem";
     public const string OtherText = "otherText";
+    public const string HasOther = "hasOther";
+    public const string ShowNoneItem = "showNoneItem";
+    public const string HasNone = "hasNone";
+    public const string NoneText = "noneText";
+    public const string ShowRefuseItem = "showRefuseItem";
+    public const string RefuseText = "refuseText";
+    public const string ShowDontKnowItem = "showDontKnowItem";
+    public const string DontKnowText = "dontKnowText";
+    public const string StoreOthersAsComment = "storeOthersAsComment";
+    public const string ShowCommentArea = "showCommentArea";
+    public const string HasComment = "hasComment";
+    public const string IsExclusive = "isExclusive";
+    public const string ChoicesByUrl = "choicesByUrl";
+    public const string Comment = "comment";
+
+    /// <summary>SurveyJS <c>settings.commentSuffix</c>: the key of a question's Other text or comment.</summary>
+    public const string CommentSuffix = "-Comment";
     public const string LabelTrue = "labelTrue";
     public const string LabelFalse = "labelFalse";
     public const string MaxRowCount = "maxRowCount";

@@ -692,4 +692,58 @@ public class FormDefinitionFlattenerTests
 
     columns.Single(c => c.Key == "totalAmount").Kind.Should().Be(FormSchemaColumnKind.Calculated);
   }
+  [Fact]
+  public void Flatten_SpecialItems_CountTowardMaxChoicesPerQuestion()
+  {
+    // Arrange
+    using var document = JsonDocument.Parse("""
+        {"pages":[{"elements":[
+          {"type":"checkbox","name":"q","choices":["a","b"],"showNoneItem":true}
+        ]}]}
+        """);
+    var definition = document.RootElement.Clone();
+    SchemaCompilationLimits limits = new() { MaxChoicesPerQuestion = 2 };
+
+    // Act
+    Action act = () => FormDefinitionFlattener.Flatten(definition, limits);
+
+    // Assert
+    var exception = act.Should().Throw<SchemaCompilationLimitExceededException>().Which;
+    exception.LimitKind.Should().Be(SchemaCompilationLimitKind.MaxChoicesPerQuestion);
+    exception.Context.Should().Be("q");
+  }
+
+  [Fact]
+  public void Flatten_SpecialItemIndicators_AreChoiceIndicatorsLabelledByTheirText()
+  {
+    // Arrange
+    using var document = JsonDocument.Parse("""
+        {"pages":[{"elements":[
+          {"type":"checkbox","name":"q","title":"Q","choices":["a"],
+           "showNoneItem":true,"noneText":"Nothing","showRefuseItem":true,"showDontKnowItem":true}
+        ]}]}
+        """);
+
+    // Act
+    var columns = FormDefinitionFlattener.Flatten(document.RootElement.Clone());
+
+    // Assert
+    columns.Select(c => (c.Key, c.Kind, c.Label, c.ChoiceValue)).Should().Equal(
+        ("q__a", FormSchemaColumnKind.ChoiceIndicator, "Q — a", "a"),
+        ("q__none", FormSchemaColumnKind.ChoiceIndicator, "Q — Nothing", "none"),
+        ("q__refused", FormSchemaColumnKind.ChoiceIndicator, "Q — Refuse to answer", "refused"),
+        ("q__dontknow", FormSchemaColumnKind.ChoiceIndicator, "Q — Don't know", "dontknow"));
+  }
+
+  [Fact]
+  public void Flatten_HasOtherAlias_AddsTheOtherTextColumnToASingleSelect()
+  {
+    using var document = JsonDocument.Parse("""
+        {"pages":[{"elements":[{"type":"dropdown","name":"q","choices":["a"],"hasOther":true}]}]}
+        """);
+
+    var columns = FormDefinitionFlattener.Flatten(document.RootElement.Clone());
+
+    columns.Select(c => c.Key).Should().Equal("q", "q__other_text");
+  }
 }
