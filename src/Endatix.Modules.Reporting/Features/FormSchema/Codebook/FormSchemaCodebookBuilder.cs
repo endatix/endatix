@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -23,7 +24,7 @@ internal static partial class FormSchemaCodebookBuilder
         var questions = BuildQuestions(questionElements);
         var existingColumns = TryParseExistingColumns(existingCodebookJson);
         var columns = BuildColumns(merged, questionElements, existingColumns);
-        var choiceCatalogs = BuildChoiceCatalogs(questionElements);
+        var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition));
 
         if (!string.IsNullOrWhiteSpace(existingCodebookJson))
         {
@@ -376,7 +377,8 @@ internal static partial class FormSchemaCodebookBuilder
     }
 
     private static Dictionary<string, JsonElement> BuildChoiceCatalogs(
-        IReadOnlyDictionary<string, CollectedQuestion> questionElements)
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        SurveyChoiceDefaults surveyDefaults)
     {
         Dictionary<string, JsonElement> catalogs = new(StringComparer.Ordinal);
 
@@ -384,6 +386,13 @@ internal static partial class FormSchemaCodebookBuilder
         {
             if (!HasChoiceCatalog(entry.Value.Element))
             {
+                continue;
+            }
+
+            if (ChoiceSet.Read(entry.Value.Element, surveyDefaults) is { } choiceSet)
+            {
+                catalogs[entry.Key] = WriteQuestionEntry(writer =>
+                    choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, entry.Value.Element, item, id)));
                 continue;
             }
 
@@ -728,7 +737,7 @@ internal static partial class FormSchemaCodebookBuilder
     {
         var mergedByValue = LoadExistingChoiceCatalogEntries(existingCatalog);
         MergeCurrentChoiceCatalogEntries(mergedByValue, currentCatalog);
-        return WriteMergedChoiceCatalog(mergedByValue);
+        return WriteMergedChoiceCatalog(currentCatalog, mergedByValue);
     }
 
     private static Dictionary<string, (int Id, JsonElement Entry)> LoadExistingChoiceCatalogEntries(
@@ -786,10 +795,21 @@ internal static partial class FormSchemaCodebookBuilder
         }
     }
 
+    // The question-level select fields describe the current definition; the choices are the union of every one.
     private static JsonElement WriteMergedChoiceCatalog(
+        JsonElement currentCatalog,
         Dictionary<string, (int Id, JsonElement Entry)> mergedByValue) =>
         WriteQuestionEntry(writer =>
         {
+            foreach (var property in currentCatalog.EnumerateObject())
+            {
+                if (property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) ||
+                    property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage))
+                {
+                    property.WriteTo(writer);
+                }
+            }
+
             writer.WritePropertyName(SurveyJsPropertyNames.Choices);
             writer.WriteStartArray();
             foreach ((_, var entry) in mergedByValue.Values.OrderBy(pair => pair.Id))
@@ -995,6 +1015,12 @@ internal static partial class FormSchemaCodebookBuilder
             return;
         }
 
+        if (cellType is null && ChoiceSet.Read(element) is { } choiceSet)
+        {
+            choiceSet.WriteChoices((item, id) => WriteChoice(writer, element, item, id));
+            return;
+        }
+
         var choiceId = 1;
         foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(element))
         {
@@ -1178,6 +1204,13 @@ internal static partial class FormSchemaCodebookBuilder
                 : SurveyJsPropertyNames.LabelFalse;
             localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, propertyName);
             fallback = choiceValue == FormSchemaCodebookChoiceValues.True ? "Yes" : "No";
+            return;
+        }
+
+        if (ChoiceSet.Read(questionElement)?.Find(choiceValue) is { Kind: not ChoiceKind.Choice } special)
+        {
+            localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(questionElement, special.LabelProperty);
+            fallback = special.FallbackLabel;
             return;
         }
 
@@ -1365,6 +1398,34 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
         writer.WritePropertyName(SurveyJsPropertyNames.Text);
         WriteLocalizedStringsWithFallback(writer, localizedText, fallback);
+        writer.WriteEndObject();
+    }
+
+    // An inline choice keeps reading its label by value, as before choice kinds; a special item reads the question's
+    // text property (otherText, noneText, refuseText, dontKnowText).
+    private static void WriteChoice(Utf8JsonWriter writer, JsonElement question, ChoiceSetItem item, int id)
+    {
+        writer.WriteStartObject();
+        writer.WriteString(SurveyJsPropertyNames.Value, item.Value);
+        writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
+        if (item.Kind.JsonName() is { } kind)
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.Kind, kind);
+        }
+
+        if (item.Exclusive)
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.Exclusive, true);
+        }
+
+        writer.WritePropertyName(SurveyJsPropertyNames.Text);
+        var label = item.Kind == ChoiceKind.Choice
+            ? FindChoiceElement(question, item.Value)
+            : item.LabelSource;
+        WriteLocalizedStringsWithFallback(
+            writer,
+            SurveyJsLocalizationHelper.ReadLocalizedStrings(label, item.LabelProperty),
+            item.FallbackLabel);
         writer.WriteEndObject();
     }
 
