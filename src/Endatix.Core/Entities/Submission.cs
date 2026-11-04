@@ -11,9 +11,6 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
 {
     private const string SINGLE_SUBMISSION_RESTRICTION_PREFIX = "SingleSubmission";
 
-    // While true, collection status changes raise nothing: submission.created carries the initial status.
-    private bool _constructing;
-
     private Submission() { } // For EF Core
 
     private Submission(SubmissionCreateArgs args) : base(args.TenantId)
@@ -23,7 +20,6 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         Guard.Against.NegativeOrZero(args.FormId);
         Guard.Against.NegativeOrZero(args.FormDefinitionId);
 
-        _constructing = true;
         FormId = args.FormId;
         FormDefinitionId = args.FormDefinitionId;
         JsonData = args.JsonData;
@@ -31,13 +27,10 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         Metadata = args.Metadata;
         IsTestSubmission = args.IsTestSubmission;
         Status = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
-        CollectionStatus = CollectionStatusValue.InProgress.CreateInstance();
 
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
-        SetInitialCollectionStatus(args.IsComplete, args.StartSubmission);
-        _constructing = false;
-        RaiseCreated();
+        Begin(args);
     }
 
     private Submission(long id, SubmissionCreateArgs args) : this(args)
@@ -89,19 +82,6 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
     {
         Guard.Against.Null(args);
         return new Submission(id, args);
-    }
-
-    /// <summary>
-    /// One revision for the new submission: <c>submission.created</c>, and <c>submission.completed</c> when it was
-    /// created complete.
-    /// </summary>
-    private void RaiseCreated()
-    {
-        RegisterRevisedDomainEvent(() => new SubmissionCreatedEvent(this));
-        if (IsComplete)
-        {
-            RegisterDomainEvent(new SubmissionCompletedEvent(this));
-        }
     }
 
     public void FreezePersonalization(long audienceLinkId, string snapshot)
@@ -174,10 +154,9 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
     public string? RestrictionKey { get; private set; }
 
     /// <summary>
-    /// Monotonic aggregate revision, bumped on each business mutation (update, status change,
-    /// completion). Carried in integration event payloads so an order-sensitive consumer (e.g. a
-    /// future audit log) can reconstruct order or detect gaps. Increment wiring lands with the
-    /// event-raising work (Phase 5).
+    /// The submission's event sequence: every revised event (each lifecycle event, <c>submission.updated</c>,
+    /// <c>submission.status_changed</c>) raises it by exactly one and carries the new value. A new submission is at 2,
+    /// or 3 when it was created complete or in an outcome.
     /// </summary>
     public long Revision { get; private set; } = 1;
 
@@ -199,29 +178,41 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
     /// <summary>True when <see cref="StartedAt"/> has been recorded.</summary>
     public bool HasStarted => StartedAt is not null;
 
-    /// <summary>Updates submission content; the target definition must belong to this submission's form (<see cref="FormId"/>).</summary>
+    /// <summary>
+    /// Saves content; the target definition must belong to this submission's form (<see cref="FormId"/>). A save that
+    /// completes raises <c>submission.completed</c>. An in-progress save raises <c>submission.started</c> on a pending
+    /// submission, <c>submission.resumed</c> on a lapsed one, and nothing on an active one. An edit of a complete
+    /// submission raises <c>submission.updated</c> when it changes something. A closed submission can't be saved.
+    /// </summary>
+    /// <exception cref="ArgumentException">The definition belongs to another form.</exception>
+    /// <exception cref="InvalidOperationException">The submission is closed.</exception>
     public void Update(string jsonData, long formDefinitionId, long formDefinitionFormId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
-        Guard.Against.NullOrEmpty(jsonData);
-        Guard.Against.NegativeOrZero(formDefinitionId);
-        Guard.Against.NegativeOrZero(formDefinitionFormId);
-
-        EnsureUpdateAllowed(formDefinitionFormId, isComplete);
-        if (IsComplete || !isComplete)
-        {
-            // A save that completes records its start inside the one transition to complete.
-            EnsureStarted();
-        }
-
         SubmissionContent content = new(jsonData, formDefinitionId, currentPage, metadata);
-        var changeKind = IsComplete ? ChangesTo(content) : SubmissionChangeKinds.None;
-        ApplyContent(content);
-        SetCompletionStatus(isComplete);
-
-        if (changeKind != SubmissionChangeKinds.None)
+        EnsureContentAllowed(content, formDefinitionFormId);
+        if (IsComplete)
         {
-            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, changeKind));
+            var changeKind = ChangesTo(content);
+            ApplyContent(content);
+            if (changeKind != SubmissionChangeKinds.None)
+            {
+                RecordNext(() => new SubmissionUpdatedEvent(this, changeKind));
+            }
+
+            return;
         }
+
+        var step = SubmissionLifecycle.Move(this, isComplete ? CollectionStatusValue.Complete : CollectionStatusValue.InProgress);
+        ApplyContent(content);
+        var now = DateTime.UtcNow;
+        if (isComplete)
+        {
+            IsComplete = true;
+            CompletedAt = now;
+        }
+
+        StartedAt ??= now;
+        Apply(step);
     }
 
     /// <summary>The answers, definition, page and metadata one save writes.</summary>
@@ -273,7 +264,7 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         // Clone so callers can pass catalog statics without sharing OwnsOne identity across aggregates
         Status = newStatus.CreateInstance();
 
-        RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
+        RecordNext(() => new SubmissionStatusChangedEvent(this, previousStatus));
     }
 
     /// <summary>
@@ -289,7 +280,7 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
 
         IsTestSubmission = true;
         ApplySingleSubmissionRestriction(FormId, shouldEnforce: false);
-        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
+        RecordNext(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
     }
 
     /// <summary>
@@ -306,17 +297,14 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
 
         IsTestSubmission = false;
         ApplySingleSubmissionRestriction(FormId, enforceSingleSubmissionGate);
-        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
+        RecordNext(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
     }
 
-    /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
-    public void IncrementRevision() => Revision++;
-
-    private void RegisterRevisedDomainEvent(Func<DomainEventBase> eventFactory)
-    {
-        IncrementRevision();
-        RegisterDomainEvent(eventFactory());
-    }
+    /// <summary>Not supported: only the submission's own events raise its revision.</summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    [Obsolete("Retired: a submission raises its own revision with each event it raises.", error: true)]
+    public void IncrementRevision() =>
+        throw new NotSupportedException("A submission raises its own revision with each event it raises.");
 
     /// <summary>
     /// Sets submitter identity on the submission. Raises <c>submission.updated</c> with
@@ -336,7 +324,7 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
 
         if (submitterChangedOnCompleteSubmission)
         {
-            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Submitter));
+            RecordNext(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Submitter));
         }
     }
 
@@ -350,26 +338,6 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
             new(id, displayId.NullIfWhiteSpace(), profileSnapshot.NullIfWhiteSpace());
 
         public string? SubmittedBy => Id?.ToString() ?? DisplayId;
-    }
-
-    private void EnsureUpdateAllowed(long formDefinitionFormId, bool isComplete)
-    {
-        if (formDefinitionFormId != FormId)
-        {
-            throw new ArgumentException(
-                "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
-        }
-
-        if (IsScreenedOut)
-        {
-            throw new InvalidOperationException("A screened-out submission cannot be changed.");
-        }
-
-        if (!IsComplete && isComplete && !IsResumableCollection())
-        {
-            throw new InvalidOperationException(
-                "Cannot complete a submission whose collection status is not resumable.");
-        }
     }
 
     public string? OwnerId => SubmitterId?.ToString() ?? SubmittedBy;

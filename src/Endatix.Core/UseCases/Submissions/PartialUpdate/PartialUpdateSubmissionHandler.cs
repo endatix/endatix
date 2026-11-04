@@ -30,9 +30,15 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
-        var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+        CollectionStatus? outcome = null;
+        if (request.CollectionOutcome is not null && !CollectionOutcomes.TryResolve(request.CollectionOutcome, out outcome))
+        {
+            return Result.Invalid(new ValidationError("The collection outcome is not a registered closed status."));
+        }
+
+        var wasClosed = submission.CollectionStatus.Phase == CollectionPhase.Closed;
         var wasScreenedOut = submission.IsScreenedOut;
-        if (!screenOut && !submission.IsComplete && (request.IsComplete ?? false))
+        if (outcome is null && !submission.IsComplete && (request.IsComplete ?? false))
         {
             mustPublishEvent = true;
         }
@@ -48,10 +54,10 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         try
         {
-            if (screenOut)
+            if (outcome is not null)
             {
-                // A screen-out never completes; a repeat (e.g. a retried request) is a no-op.
-                submission.ScreenOut(jsonData, submission.FormDefinitionId, submission.FormId, currentPage, mergedMetadata);
+                // An outcome never completes; a repeat (e.g. a retried request) is a no-op.
+                submission.Close(outcome, jsonData, submission.FormDefinitionId, submission.FormId, currentPage, mergedMetadata);
             }
             else
             {
@@ -67,7 +73,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
         catch (InvalidOperationException)
         {
-            return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, screenOut)));
+            return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, wasClosed, outcome is not null)));
         }
 
         var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
@@ -78,20 +84,25 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         if (mustPublishEvent)
         {
-            await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
+            await mediator.PublishCompletedAsync(submission, cancellationToken);
         }
 
         return Result.Success(submission);
     }
 
-    private static string RejectionMessage(bool wasScreenedOut, bool screenOut)
+    private static string RejectionMessage(bool wasScreenedOut, bool wasClosed, bool closing)
     {
         if (wasScreenedOut)
         {
             return CollectionOutcomes.SCREENED_OUT_EDIT_REJECTED_MESSAGE;
         }
 
-        if (screenOut)
+        if (wasClosed)
+        {
+            return CollectionOutcomes.CLOSED_EDIT_REJECTED_MESSAGE;
+        }
+
+        if (closing)
         {
             return "This submission cannot be changed.";
         }

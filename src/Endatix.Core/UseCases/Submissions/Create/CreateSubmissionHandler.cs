@@ -34,6 +34,7 @@ public class CreateSubmissionHandler(
     private const string DEFAULT_JSON_DATA = "{}";
     private const string FORM_NOT_FOUND_MESSAGE = "Form not found. Cannot create a submission";
     private const string BUSY_MESSAGE = "The form is busy; try again shortly.";
+    private const string UNKNOWN_OUTCOME_MESSAGE = "The collection outcome is not a registered closed status.";
 
     public async Task<Result<Submission>> Handle(CreateSubmissionCommand request, CancellationToken cancellationToken)
     {
@@ -77,12 +78,15 @@ public class CreateSubmissionHandler(
             canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
         }
 
-        var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+        if (request.CollectionOutcome is not null && !CollectionOutcomes.IsSupported(request.CollectionOutcome))
+        {
+            return Result.Invalid(new ValidationError(UNKNOWN_OUTCOME_MESSAGE));
+        }
 
-        // A screen-out ends the interview like a complete, so it gets the same bot check.
+        // An outcome ends the interview like a complete, so it gets the same bot check.
         var validationContext = new SubmissionVerificationContext(
             formWithActiveDefinition,
-            screenOut || (request.IsComplete ?? DEFAULT_IS_COMPLETE),
+            request.CollectionOutcome is not null || (request.IsComplete ?? DEFAULT_IS_COMPLETE),
             request.JsonData,
             request.ReCaptchaToken
         );
@@ -106,7 +110,7 @@ public class CreateSubmissionHandler(
         var persisted = await PersistAsync(draft, cancellationToken);
         if (persisted.IsSuccess && persisted.Value.IsComplete)
         {
-            await mediator.Publish(new SubmissionCompletedEvent(persisted.Value), cancellationToken);
+            await mediator.PublishCompletedAsync(persisted.Value, cancellationToken);
         }
 
         return persisted;
@@ -225,15 +229,10 @@ public class CreateSubmissionHandler(
 
         public Submission Build(long definitionId)
         {
-            var screenOut = CollectionOutcomes.IsScreenOut(Request.CollectionOutcome);
-            var submission = Submission.Create(CreateArgs(definitionId, screenOut));
+            CollectionOutcomes.TryResolve(Request.CollectionOutcome, out var outcome);
+            var submission = Submission.Create(CreateArgs(definitionId, outcome));
             ApplySnapshot(submission, Request.PersonalizationSnapshot);
             submission.UpdateToken(Token);
-            if (screenOut)
-            {
-                submission.ScreenOut();
-            }
-
             return submission;
         }
 
@@ -245,13 +244,13 @@ public class CreateSubmissionHandler(
             }
         }
 
-        private SubmissionCreateArgs CreateArgs(long definitionId, bool screenOut) =>
+        private SubmissionCreateArgs CreateArgs(long definitionId, CollectionStatus? outcome) =>
             new(
                 TenantId: TenantId,
                 FormId: Request.FormId,
                 FormDefinitionId: definitionId,
                 JsonData: Request.JsonData ?? DEFAULT_JSON_DATA,
-                IsComplete: !screenOut && (Request.IsComplete ?? DEFAULT_IS_COMPLETE),
+                IsComplete: outcome is null && (Request.IsComplete ?? DEFAULT_IS_COMPLETE),
                 CurrentPage: Request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
                 Metadata: Request.Metadata ?? DEFAULT_METADATA,
                 SubmitterId: Submitter.SubmitterId,
@@ -263,7 +262,8 @@ public class CreateSubmissionHandler(
                 StartSubmission: string.Equals(
                     Request.RequiredPermission,
                     Actions.Submissions.Create,
-                    StringComparison.Ordinal));
+                    StringComparison.Ordinal),
+                CollectionOutcome: outcome);
     }
 
     private Task<Result<Submission>> DuplicateConflictAsync(

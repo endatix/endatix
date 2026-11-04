@@ -4,26 +4,22 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// A domain event dispatched whenever a submission is completed. Also an <see cref="IIntegrationEvent"/> —
-/// captured to the outbox and delivered as the <c>submission.completed</c> webhook by the relay.
+/// The in-process notification that a submission was completed, published through MediatR by the create and update
+/// use cases after the save (<see cref="SubmissionCompletedPublishing.PublishCompletedAsync"/>). It never reaches the
+/// outbox: the outbox event is <see cref="SubmissionLifecycleEvent"/> with type
+/// <see cref="SubmissionLifecycleEvent.EventTypes.Completed"/>.
 /// </summary>
-public sealed class SubmissionCompletedEvent(Submission submission) : DomainEventBase, IIntegrationEvent
+public sealed class SubmissionCompletedEvent(Submission submission) : DomainEventBase
 {
-    public const string EventTypeName = "submission.completed";
+    /// <summary>The outbox event type of a completion.</summary>
+    [Obsolete("This event no longer reaches the outbox. Use SubmissionLifecycleEvent.EventTypes.Completed.")]
+    public const string EventTypeName = SubmissionLifecycleEvent.EventTypes.Completed;
 
     public Submission Submission { get; init; } = submission;
 
-    /// <inheritdoc />
-    public string EventType => EventTypeName;
-
-    private readonly SubmissionEventCapture _capture = SubmissionEventCapture.Of(submission);
-
-    /// <inheritdoc />
-    public object GetPayload() => new Payload(Submission, _capture);
-
     /// <summary>
-    /// Base outbox/webhook contract for submission integration events.
-    /// Captures an immutable snapshot of the submission at the exact moment the event occurred.
+    /// The base payload of <c>submission.updated</c> and <c>submission.status_changed</c>. The
+    /// <c>submission.completed</c> payload is <see cref="SubmissionCompletedPayload"/>.
     /// </summary>
     public record Payload
     {

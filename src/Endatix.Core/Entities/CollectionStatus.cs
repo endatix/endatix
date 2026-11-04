@@ -2,7 +2,10 @@ using Ardalis.GuardClauses;
 
 namespace Endatix.Core.Entities;
 
-/// <summary>Built-in wire codes for <see cref="CollectionStatus"/>. Unknown codes stay legal.</summary>
+/// <summary>
+/// Built-in wire codes for <see cref="CollectionStatus"/>. A host registers more through
+/// <see cref="CollectionStatusCatalog.Configure"/>; an unregistered stored code still loads.
+/// </summary>
 public static class CollectionStatusCodes
 {
     public const string NotStarted = "not_started";
@@ -61,10 +64,14 @@ public sealed record CollectionStatus
 
     public string Name { get; private set; } = string.Empty;
 
+    /// <summary>The code's phase, read from <see cref="CollectionStatusCatalog"/>; never stored.</summary>
+    public CollectionPhase Phase => CollectionStatusCatalog.PhaseOf(Code);
+
     public CollectionStatus CreateInstance() => this with { };
 
     /// <summary>
-    /// Built-in codes return the catalog instance. Any other code is accepted.
+    /// Built-in codes return the catalog instance. Any other code is accepted, so every stored row loads; whether a
+    /// code is registered is <see cref="CollectionStatusCatalog.TryGet"/>'s question.
     /// </summary>
     public static CollectionStatus FromCode(string code)
     {
