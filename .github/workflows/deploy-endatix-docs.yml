@@ -10,6 +10,10 @@ on:
 
 jobs:
   deploy-endatix-docs:
+    # CodeQL actions/missing-workflow-permissions (#2): checkout + cache only need read.
+    # Azure deploy uses DOCS_DEPLOYMENT_TOKEN; GITHUB_TOKEN is repo_token for status only.
+    permissions:
+      contents: read
     env:
       STORE_PATH: ""
     runs-on: ubuntu-latest
@@ -89,7 +93,10 @@ jobs:
           echo ">check site at https://docs.endatix.com/" >> $GITHUB_STEP_SUMMARY
 
   close_pull_request_job:
+    # Dead under current triggers (push/workflow_dispatch only); keep for Azure SWA
+    # close action. CodeQL (#4): no GITHUB_TOKEN scopes required.
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    permissions: {}
     runs-on: ubuntu-latest
     name: Close PR Job
     environment:
