@@ -1,15 +1,14 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Entities;
-using Endatix.Core.Events;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Every create entry point captures one <c>submission.created</c> outbox row, every collection status change
-/// one <c>submission.collection_status_changed</c> row on one revision, and in-progress answer saves none.
+/// Every create entry point captures one <c>submission.created</c> outbox row, every lifecycle change one row named
+/// by its phases on its own revision, and in-progress answer saves on an active submission none.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "CriticalPath")]
@@ -34,7 +33,7 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
         // Assert
         var rows = await RowsAsync(world, created.Id);
         var row = Assert.Single(rows);
-        Assert.Equal(new SubmissionOutboxRow(SubmissionCreatedEvent.EventTypeName, CollectionStatusCodes.InProgress, 2, false), row);
+        Assert.Equal(new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Created, CollectionStatusCodes.InProgress, 2, false), row);
     }
 
     [Fact]
@@ -49,12 +48,12 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
 
         // Assert
         var row = Assert.Single(await RowsAsync(world, created.Id));
-        Assert.Equal(SubmissionCreatedEvent.EventTypeName, row.EventType);
+        Assert.Equal(SubmissionLifecycleEvent.EventTypes.Created, row.EventType);
         Assert.Equal(CollectionStatusCodes.NotStarted, row.CollectionStatus);
     }
 
     [Fact]
-    public async Task Admin_create_of_a_complete_submission_captures_created_then_completed_on_one_revision()
+    public async Task Admin_create_of_a_complete_submission_captures_created_then_completed_on_their_own_revisions()
     {
         // Arrange
         var (world, admin) = await AdminAsync();
@@ -66,14 +65,71 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
         // Assert
         var rows = await RowsAsync(world, created.Id);
         Assert.Equal(
-            [SubmissionCreatedEvent.EventTypeName, SubmissionCompletedEvent.EventTypeName],
-            rows.Select(row => row.EventType));
-        Assert.All(rows, row => Assert.Equal(2, row.Revision));
-        Assert.Equal(CollectionStatusCodes.Complete, rows[0].CollectionStatus);
+            [
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Created, CollectionStatusCodes.Complete, 2, false),
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Completed, CollectionStatusCodes.Complete, 3, false),
+            ],
+            rows);
     }
 
     [Fact]
-    public async Task In_progress_saves_capture_nothing_and_completing_captures_one_transition_and_completed()
+    public async Task Public_create_with_a_screen_out_captures_created_in_screen_out_then_closed()
+    {
+        // Arrange
+        var (world, admin) = await AdminAsync();
+        var formId = await CreateEnabledFormAsync(admin);
+
+        // Act
+        var created = await CreateAsync(admin, $"/api/forms/{formId}/submissions", isComplete: false, collectionOutcome: CollectionStatusCodes.ScreenOut);
+
+        // Assert
+        Assert.Equal(
+            [
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Created, CollectionStatusCodes.ScreenOut, 2, false),
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Closed, CollectionStatusCodes.ScreenOut, 3, false),
+            ],
+            await RowsAsync(world, created.Id));
+    }
+
+    [Fact]
+    public async Task Public_create_with_an_unregistered_outcome_is_a_400()
+    {
+        // Arrange
+        var (_, admin) = await AdminAsync();
+        var formId = await CreateEnabledFormAsync(admin);
+
+        // Act
+        using var response = await admin.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions",
+            new { isComplete = false, jsonData = "{}", collectionOutcome = "not_a_registered_code" },
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task First_save_of_a_prefilled_submission_captures_started()
+    {
+        // Arrange
+        var (world, admin) = await AdminAsync();
+        var formId = await CreateEnabledFormAsync(admin);
+        var created = await CreateAsync(admin, $"/api/forms/{formId}/submissions/onbehalf", isComplete: false);
+
+        // Act
+        await PatchAsync(admin, $"/api/forms/{formId}/submissions/{created.Id}", new { jsonData = """{"age":"1"}""", isComplete = false });
+
+        // Assert
+        Assert.Equal(
+            [
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Created, CollectionStatusCodes.NotStarted, 2, false),
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Started, CollectionStatusCodes.InProgress, 3, false),
+            ],
+            await RowsAsync(world, created.Id));
+    }
+
+    [Fact]
+    public async Task In_progress_saves_capture_nothing_and_completing_captures_one_completed()
     {
         // Arrange
         var (world, admin) = await AdminAsync();
@@ -93,13 +149,12 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
         // Act — complete
         await PatchAsync(admin, byToken, new { jsonData = """{"age":"done"}""", currentPage = 3, isComplete = true });
 
-        // Assert — one transition and the completed event, both on the next revision
+        // Assert — one completed event on the next revision
         var rows = await RowsAsync(world, created.Id);
         Assert.Equal(
             [
-                new SubmissionOutboxRow(SubmissionCreatedEvent.EventTypeName, CollectionStatusCodes.InProgress, 2, false),
-                new SubmissionOutboxRow(SubmissionCollectionStatusChangedEvent.EventTypeName, CollectionStatusCodes.Complete, 3, false),
-                new SubmissionOutboxRow(SubmissionCompletedEvent.EventTypeName, null, 3, false),
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Created, CollectionStatusCodes.InProgress, 2, false),
+                new SubmissionOutboxRow(SubmissionLifecycleEvent.EventTypes.Completed, CollectionStatusCodes.Complete, 3, false),
             ],
             rows);
     }
@@ -116,12 +171,16 @@ public sealed class SubmissionLifecycleEventFlowTests(EndatixIntegrationWebHostF
     private static Task<IReadOnlyList<SubmissionOutboxRow>> RowsAsync(IntegrationTestWorld world, string submissionId) =>
         SubmissionOutboxRows.ReadAsync(world.Services, long.Parse(submissionId), TestContext.Current.CancellationToken);
 
-    private static async Task<SubmissionApiModel> CreateAsync(HttpClient client, string url, bool isComplete)
+    private static async Task<SubmissionApiModel> CreateAsync(
+        HttpClient client,
+        string url,
+        bool isComplete,
+        string? collectionOutcome = null)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         using var response = await client.PostAsJsonAsync(
             url,
-            new { isComplete, jsonData = """{"age":"18_or_over"}""", currentPage = 0 },
+            new { isComplete, jsonData = """{"age":"18_or_over"}""", currentPage = 0, collectionOutcome },
             cancellationToken);
         response.EnsureSuccessStatusCode();
         var model = await response.Content.ReadFromJsonAsync<SubmissionApiModel>(_jsonOptions, cancellationToken);

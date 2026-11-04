@@ -39,6 +39,8 @@ internal sealed class WebHookDeliveryJobHandler(
 
     // Each attempt re-reads the outbox row, so outbox retention must allow for it: see background-processing.mdx.
     public const string MessageGone = OutboxJobFailures.MessageGone;
+    public const string NotAWebHookEvent = "The outbox event is not delivered as a webhook.";
+    public const string RetiredEventType = RetiredEventTypes.Reason;
     public const string EndpointGone = "The webhook endpoint is no longer configured.";
     public const string EventDisabled = "Webhook delivery for this event is disabled.";
     public const string InvalidUrl = "The webhook endpoint URL is not valid.";
@@ -49,9 +51,19 @@ internal sealed class WebHookDeliveryJobHandler(
         CancellationToken cancellationToken)
     {
         var message = await ReadMessageAsync(job, payload, cancellationToken);
-        if (message is null || !WebHookEvents.TryGetOperation(message.EventType, message.Payload, out var operation))
+        if (message is null)
         {
             return Refused(MessageGone);
+        }
+
+        if (RetiredEventTypes.IsRetired(message.EventType))
+        {
+            return Refused(RetiredEventType);
+        }
+
+        if (!WebHookEvents.TryGetOperation(message.EventType, out var operation))
+        {
+            return Refused(NotAWebHookEvent);
         }
 
         using var document = JsonDocument.Parse(message.Payload);

@@ -48,8 +48,10 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
     }
 
     /// <inheritdoc />
+    /// <exception cref="RetiredEventTypeException">The message's event type is retired.</exception>
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
+        RetiredEventTypes.EnsureNotRetired(message);
         using var activity = StartFanOut(message);
 
         var requests = await RequestsForAsync(message, cancellationToken);

@@ -37,7 +37,7 @@ internal sealed class WebHookEndpointExpander(WebHookEventConfigReader configRea
         long tenantId,
         CancellationToken cancellationToken)
     {
-        if (!WebHookEvents.TryGetOperation(message.EventType, message.Payload, out var operation))
+        if (!WebHookEvents.TryGetOperation(message.EventType, out var operation))
         {
             return [];
         }

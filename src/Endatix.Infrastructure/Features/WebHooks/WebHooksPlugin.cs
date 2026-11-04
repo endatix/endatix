@@ -11,6 +11,9 @@ public class WebHooksPlugin : IPluginInitializer
         public const string FORM_UPDATED = "form_updated";
         public const string FORM_ENABLED_STATE_CHANGED = "form_enabled_state_changed";
         public const string SUBMISSION_COMPLETED = "submission_completed";
+        public const string SUBMISSION_CLOSED = "submission_closed";
+
+        [Obsolete("Retired: use SUBMISSION_CLOSED.", error: true)]
         public const string SUBMISSION_COLLECTION_STATUS_CHANGED = "submission_collection_status_changed";
         public const string FORM_DELETED = "form_deleted";
     }

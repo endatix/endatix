@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Endatix.Core.Entities;
-using Endatix.Core.Events;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
@@ -13,9 +12,8 @@ using NSubstitute;
 namespace Endatix.Infrastructure.Tests.Features.WebHooks;
 
 /// <summary>
-/// The webhook contract stays as documented while the entity raises more events: the same event types are
-/// subscribed, <c>submission.created</c> is not a webhook, and <c>submission_collection_status_changed</c> is
-/// delivered only for a terminal outcome other than complete.
+/// Webhook delivery depends on the event type only: <c>submission.completed</c> and <c>submission.closed</c> are
+/// webhooks, every other lifecycle event is not, and no payload is read to decide.
 /// </summary>
 public sealed class WebHookEventsTests
 {
@@ -25,47 +23,51 @@ public sealed class WebHookEventsTests
     [Fact]
     public void EventTypes_AreTheDocumentedWebHookEvents()
     {
-        WebHookEvents.EventTypes.Should().BeEquivalentTo(
+        // Act
+        var eventTypes = WebHookEvents.EventTypes;
+
+        // Assert
+        eventTypes.Should().BeEquivalentTo(
             "form.created",
             "form.updated",
             "form.enabled_state_changed",
             "submission.completed",
-            "submission.collection_status_changed",
+            "submission.closed",
             "form.deleted");
     }
 
     [Theory]
-    [InlineData(CollectionStatusCodes.ScreenOut, true)]
-    [InlineData(CollectionStatusCodes.QuotaFull, true)]
-    [InlineData(CollectionStatusCodes.Expired, true)]
-    [InlineData(CollectionStatusCodes.Abandoned, true)]
-    [InlineData(CollectionStatusCodes.Cancelled, true)]
-    [InlineData(CollectionStatusCodes.Complete, false)]
-    [InlineData(CollectionStatusCodes.InProgress, false)]
-    [InlineData(CollectionStatusCodes.NotStarted, false)]
-    [InlineData(CollectionStatusCodes.Viewed, false)]
-    [InlineData("custom_code", false)]
-    public void TryGetOperation_CollectionStatusChanged_IsAWebHookOnlyForATerminalOutcomeOtherThanComplete(
-        string collectionStatus,
-        bool delivered)
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Created, false)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Started, false)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Completed, true)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Closed, true)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Lapsed, false)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Resumed, false)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.CollectionStatusMoved, false)]
+    [InlineData("submission.collection_status_changed", false)]
+    public void TryGetOperation_LifecycleEventType_IsAWebHookByTypeAlone(string eventType, bool delivered)
     {
-        var message = Message(
-            SubmissionCollectionStatusChangedEvent.EventTypeName,
-            $$"""{"formId":"555","collectionStatus":"{{collectionStatus}}"}""");
+        // Act
+        var isWebHook = WebHookEvents.TryGetOperation(eventType, out _);
 
-        var isWebHook = WebHookEvents.TryGetOperation(message.EventType, message.Payload, out var operation);
-
+        // Assert
         isWebHook.Should().Be(delivered);
-        if (delivered)
-        {
-            operation.Should().Be(WebHookOperation.SubmissionCollectionStatusChanged);
-        }
     }
 
     [Fact]
-    public void TryGetOperation_RealTransitions_DeliverTheScreenOutTheCancelAndTheCompletedEvent()
+    public void TryGetOperation_SubmissionClosed_IsTheSubmissionClosedOperation()
     {
-        // Every transition the entity raises on the way to each outcome it can reach, as captured to the outbox.
+        // Act
+        WebHookEvents.TryGetOperation(SubmissionLifecycleEvent.EventTypes.Closed, out var operation);
+
+        // Assert
+        operation.Should().Be(WebHookOperation.SubmissionClosed);
+    }
+
+    [Fact]
+    public void TryGetOperation_CapturedLifecycleRows_DeliverTheClosesAndTheCompletion()
+    {
+        // Arrange
         var prefilledThenScreenedOut = NewSubmission(id: 1, startSubmission: false);
         prefilledThenScreenedOut.EnsureStarted();
         prefilledThenScreenedOut.ScreenOut();
@@ -75,23 +77,26 @@ public sealed class WebHookEventsTests
         var cancelled = NewSubmission(id: 3, startSubmission: true);
         cancelled.Cancel();
 
+        // Act
         var captured = new OutboxIntegrationEventDispatcher().Capture([prefilledThenScreenedOut, completed, cancelled]);
 
-        var webHooks = captured
-            .Select(row => Message(row.EventType, row.Payload))
-            .Where(message => WebHookEvents.TryGetOperation(message.EventType, message.Payload, out _))
-            .Select(message => (message.EventType, CollectionStatusOf(message)))
-            .ToList();
-        webHooks.Should().Equal(
-            (SubmissionCollectionStatusChangedEvent.EventTypeName, CollectionStatusCodes.ScreenOut),
-            (SubmissionCompletedEvent.EventTypeName, null),
-            (SubmissionCollectionStatusChangedEvent.EventTypeName, CollectionStatusCodes.Cancelled));
-        captured.Select(row => row.EventType).Should().Contain(SubmissionCreatedEvent.EventTypeName);
+        // Assert
+        captured.Select(row => row.EventType).Should().Equal(
+            "submission.created", "submission.started", "submission.closed",
+            "submission.created", "submission.started", "submission.completed",
+            "submission.created", "submission.closed");
+        captured.Where(row => WebHookEvents.TryGetOperation(row.EventType, out _))
+            .Select(row => (row.EventType, CollectionStatusOf(row.Payload)))
+            .Should().Equal(
+                ("submission.closed", CollectionStatusCodes.ScreenOut),
+                ("submission.completed", CollectionStatusCodes.Complete),
+                ("submission.closed", CollectionStatusCodes.Cancelled));
     }
 
     [Fact]
-    public async Task InlineHandler_SkipsACollectionStatusChangeToComplete_AndDeliversAScreenOut()
+    public async Task InlineHandler_StartedAndClosed_DeliversOnlyTheClosedWithoutParsingToDecide()
     {
+        // Arrange
         var webHookService = Substitute.For<IWebHookService>();
         webHookService.DeliverWebHookAsync(
                 Arg.Any<long>(), Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), Arg.Any<long?>())
@@ -99,26 +104,25 @@ public sealed class WebHookEventsTests
         WebHookOutboxIntegrationEventHandler handler = new(
             webHookService, NullLogger<WebHookOutboxIntegrationEventHandler>.Instance);
 
-        await handler.HandleAsync(
-            Message(SubmissionCollectionStatusChangedEvent.EventTypeName, """{"formId":"555","collectionStatus":"complete"}"""),
-            CancellationToken.None);
-        await handler.HandleAsync(
-            Message(SubmissionCollectionStatusChangedEvent.EventTypeName, """{"formId":"555","collectionStatus":"screen_out"}"""),
-            CancellationToken.None);
+        // Act
+        await handler.HandleAsync(Message(SubmissionLifecycleEvent.EventTypes.Started, "not json"), CancellationToken.None);
+        await handler.HandleAsync(Message(SubmissionLifecycleEvent.EventTypes.Closed, """{"formId":"555"}"""), CancellationToken.None);
 
+        // Assert
         await webHookService.Received(1).DeliverWebHookAsync(
             TenantId,
-            Arg.Is<WebHookMessage<JsonElement>>(m => m.operation == WebHookOperation.SubmissionCollectionStatusChanged),
+            Arg.Is<WebHookMessage<JsonElement>>(m => m.operation == WebHookOperation.SubmissionClosed),
             Arg.Any<CancellationToken>(),
             FormId);
     }
 
     [Theory]
-    [InlineData(CollectionStatusCodes.ScreenOut, 1)]
-    [InlineData(CollectionStatusCodes.Complete, 0)]
-    [InlineData(CollectionStatusCodes.NotStarted, 0)]
-    public async Task Expander_QueuesAJobOnlyForATerminalOutcomeOtherThanComplete(string collectionStatus, int jobs)
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Closed, 1)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Lapsed, 0)]
+    [InlineData(SubmissionLifecycleEvent.EventTypes.Started, 0)]
+    public async Task Expander_LifecycleEventType_QueuesAJobOnlyForAWebHookType(string eventType, int jobs)
     {
+        // Arrange
         var forms = Substitute.For<IRepository<Form>>();
         var tenantSettings = Substitute.For<IRepository<TenantSettings>>();
         tenantSettings
@@ -127,7 +131,7 @@ public sealed class WebHookEventsTests
             {
                 Events = new Dictionary<string, WebHookEventConfig>
                 {
-                    ["SubmissionCollectionStatusChanged"] = new()
+                    ["SubmissionClosed"] = new()
                     {
                         IsEnabled = true,
                         WebHookEndpoints = [new WebHookEndpointConfig { Url = "https://hooks.example.test/receive" }],
@@ -137,13 +141,11 @@ public sealed class WebHookEventsTests
         WebHookEndpointExpander expander = new(
             new WebHookEventConfigReader(forms, tenantSettings, NullLogger<WebHookEventConfigReader>.Instance));
 
+        // Act
         var subscribers = await expander.ExpandAsync(
-            Message(
-                SubmissionCollectionStatusChangedEvent.EventTypeName,
-                $$"""{"formId":"555","collectionStatus":"{{collectionStatus}}"}"""),
-            TenantId,
-            CancellationToken.None);
+            Message(eventType, """{"formId":"555"}"""), TenantId, CancellationToken.None);
 
+        // Assert
         subscribers.Should().HaveCount(jobs);
     }
 
@@ -160,10 +162,10 @@ public sealed class WebHookEventsTests
         return submission;
     }
 
-    private static string? CollectionStatusOf(IOutboxMessage message)
+    private static string? CollectionStatusOf(string payload)
     {
-        using var document = JsonDocument.Parse(message.Payload);
-        return document.RootElement.TryGetProperty("collectionStatus", out var status) ? status.GetString() : null;
+        using var document = JsonDocument.Parse(payload);
+        return document.RootElement.GetProperty("collectionStatus").GetProperty("code").GetString();
     }
 
     private static FakeOutboxMessage Message(string eventType, string payload) =>

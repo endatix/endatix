@@ -38,6 +38,25 @@ public class CompositeIntegrationEventPublisherTests
     }
 
     [Fact]
+    public async Task PublishAsync_RetiredEventType_ThrowsWithoutInvokingAHandler()
+    {
+        // Arrange
+        RecordingOutboxHandler oldScreenOutHandler = new(["submission.collection_status_changed"]);
+        CompositeIntegrationEventPublisher publisher = new(
+            [oldScreenOutHandler],
+            NullLogger<CompositeIntegrationEventPublisher>.Instance);
+        IOutboxMessage message = new FakeOutboxMessage(4, "submission.collection_status_changed", "{}", 1);
+
+        // Act
+        Func<Task> act = () => publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        (await act.Should().ThrowAsync<RetiredEventTypeException>())
+            .WithMessage("retired event type: submission.collection_status_changed*");
+        oldScreenOutHandler.HandledIds.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task PublishAsync_WhenHandlerFails_StopsAndDoesNotInvokeRemainingHandlers()
     {
         RecordingOutboxHandler succeedingHandler = new(["submission.completed"]);

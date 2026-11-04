@@ -64,12 +64,19 @@ public class WebHookIntegrationEventPublisherTests
         const long formId = 555L;
         var form = Form.Create(new FormCreateArgs(TenantId: 42, Name: "f"));
         form.Id = formId;
-        var submission = Submission.Create(new SubmissionCreateArgs(
+        var completed = Submission.Create(new SubmissionCreateArgs(
             TenantId: 42,
             FormId: formId,
             FormDefinitionId: 1,
             JsonData: "{}",
             IsComplete: true));
+        var screenedOut = Submission.Create(new SubmissionCreateArgs(
+            TenantId: 42,
+            FormId: formId,
+            FormDefinitionId: 1,
+            JsonData: "{}",
+            IsComplete: false,
+            CollectionOutcome: CollectionStatus.ScreenOut));
 
         IIntegrationEvent[] events =
         [
@@ -77,7 +84,8 @@ public class WebHookIntegrationEventPublisherTests
             new FormUpdatedEvent(form),
             new FormEnabledStateChangedEvent(form, isEnabled: true),
             new FormDeletedEvent(form),
-            new SubmissionCompletedEvent(submission),
+            LifecycleEvent(completed, SubmissionLifecycleEvent.EventTypes.Completed),
+            LifecycleEvent(screenedOut, SubmissionLifecycleEvent.EventTypes.Closed),
         ];
 
         var sut = CreateSut();
@@ -108,7 +116,7 @@ public class WebHookIntegrationEventPublisherTests
             IsTestSubmission: true));
         submission.Id = 77;
         var captured = new OutboxIntegrationEventDispatcher().Capture([submission])
-            .Single(row => row.EventType == SubmissionCompletedEvent.EventTypeName);
+            .Single(row => row.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
         var message = new FakeOutboxMessage(Id: 3, EventType: captured.EventType, Payload: captured.Payload, TenantId: 42);
         string? delivered = null;
         _webHooks.DeliverWebHookAsync(42L, Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), 555L)
@@ -176,4 +184,7 @@ public class WebHookIntegrationEventPublisherTests
         public int Attempts => 0;
         public string? TraceId => null;
     }
+
+    private static SubmissionLifecycleEvent LifecycleEvent(Submission submission, string eventType) =>
+        submission.DomainEvents.OfType<SubmissionLifecycleEvent>().Single(e => e.EventType == eventType);
 }

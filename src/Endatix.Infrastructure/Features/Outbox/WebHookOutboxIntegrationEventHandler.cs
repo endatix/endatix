@@ -19,7 +19,7 @@ internal sealed class WebHookOutboxIntegrationEventHandler(
     /// <inheritdoc />
     public async Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
-        if (!WebHookEvents.TryGetOperation(message.EventType, message.Payload, out var operation))
+        if (!WebHookEvents.TryGetOperation(message.EventType, out var operation))
         {
             return;
         }

@@ -124,30 +124,42 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
         _http.Requests.Should().BeEmpty();
     }
 
-    [Theory]
-    [InlineData(CollectionStatusCodes.ScreenOut, true)]
-    [InlineData(CollectionStatusCodes.Complete, false)]
-    [InlineData(CollectionStatusCodes.InProgress, false)]
-    public async Task ExecuteAsync_CollectionStatusChanged_DeliversOnlyATerminalOutcomeOtherThanComplete(
-        string collectionStatus,
-        bool delivered)
+    [Fact]
+    public async Task ExecuteAsync_SubmissionClosed_DeliversWithoutReadingThePayloadToDecide()
     {
         // Arrange
         var messageId = await SeedMessageAsync(
             TenantId,
-            "submission.collection_status_changed",
-            $$"""{"formId":"12","submissionId":"34","tenantId":"5","collectionStatus":"{{collectionStatus}}"}""");
+            "submission.closed",
+            """{"formId":"12","submissionId":"34","tenantId":"5","collectionStatus":{"code":"quota_full","phase":"closed"}}""");
         _tenantSettings
             .FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
-            .Returns(new TenantSettings(TenantId, webHookSettingsJson: ConfigJson(EndpointUrl, eventName: "SubmissionCollectionStatusChanged")));
+            .Returns(new TenantSettings(TenantId, webHookSettingsJson: ConfigJson(EndpointUrl, eventName: "SubmissionClosed")));
         var handler = CreateHandler();
 
         // Act
         var result = await handler.ExecuteAsync(Job(messageId, WebHookEndpointKey.Of(EndpointUrl)), CancellationToken.None);
 
         // Assert
-        result.IsSuccess.Should().Be(delivered);
-        _http.Requests.Should().HaveCount(delivered ? 1 : 0);
+        result.IsSuccess.Should().BeTrue();
+        _http.Requests.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("submission.started", WebHookDeliveryJobHandler.NotAWebHookEvent)]
+    [InlineData("submission.collection_status_changed", WebHookDeliveryJobHandler.RetiredEventType)]
+    public async Task ExecuteAsync_EventThatIsNoWebHook_RefusesWithItsOwnReason(string eventType, string expectedReason)
+    {
+        // Arrange
+        var messageId = await SeedMessageAsync(TenantId, eventType);
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.ExecuteAsync(Job(messageId, WebHookEndpointKey.Of(EndpointUrl)), CancellationToken.None);
+
+        // Assert
+        result.ValidationErrors.Should().ContainSingle().Which.ErrorMessage.Should().Be(expectedReason);
+        _http.Requests.Should().BeEmpty();
     }
 
     private WebHookDeliveryJobHandler CreateHandler()

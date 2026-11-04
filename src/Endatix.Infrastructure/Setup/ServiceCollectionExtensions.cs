@@ -134,6 +134,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WebHookEventConfigReader>();
         services.AddScoped(typeof(IWebHookService), typeof(BackgroundTaskWebHookService));
         services.AddHostedService<WebHookBackgroundWorker>();
+        services.AddHostedService<WebHookHandlersStartupCheck>();
         services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
                {
                    var webHookSettings = serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;

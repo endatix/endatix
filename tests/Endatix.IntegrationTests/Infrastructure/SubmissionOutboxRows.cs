@@ -29,7 +29,7 @@ internal static class SubmissionOutboxRows
                 .Where(row => row.Payload.TryGetProperty("submissionId", out var id) && id.GetString() == submissionId.ToString())
                 .Select(row => new SubmissionOutboxRow(
                     row.EventType,
-                    row.Payload.TryGetProperty("collectionStatus", out var status) ? status.GetString() : null,
+                    row.Payload.TryGetProperty("collectionStatus", out var status) ? status.GetProperty("code").GetString() : null,
                     LongOf(row.Payload.GetProperty("revision")),
                     row.Payload.GetProperty("isTestSubmission").GetBoolean())),
         ];

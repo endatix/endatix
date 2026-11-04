@@ -14,8 +14,10 @@ internal sealed class CompositeIntegrationEventPublisher(
     private readonly IOutboxIntegrationEventHandler[] _handlers = handlers.ToArray();
 
     /// <inheritdoc />
+    /// <exception cref="RetiredEventTypeException">The message's event type is retired.</exception>
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
+        RetiredEventTypes.EnsureNotRetired(message);
         var matched = _handlers
             .Where(handler => handler.EventTypes.Contains(message.EventType, StringComparer.Ordinal))
             .ToArray();

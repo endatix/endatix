@@ -28,7 +28,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var rows = await SubmissionOutboxRows.ReadAsync(
             world.Services, IdOf(opened, "submissionId"), TestContext.Current.CancellationToken);
         var row = Assert.Single(rows);
-        Assert.Equal(SubmissionCreatedEvent.EventTypeName, row.EventType);
+        Assert.Equal(SubmissionLifecycleEvent.EventTypes.Created, row.EventType);
         Assert.Equal(CollectionStatusCodes.InProgress, row.CollectionStatus);
         Assert.False(row.IsTestSubmission);
     }
@@ -48,7 +48,7 @@ public sealed partial class AudienceDirectoryFlowTests
         var rows = await SubmissionOutboxRows.ReadAsync(
             world.Services, IdOf(opened, "submissionId"), TestContext.Current.CancellationToken);
         var row = Assert.Single(rows);
-        Assert.Equal(SubmissionCreatedEvent.EventTypeName, row.EventType);
+        Assert.Equal(SubmissionLifecycleEvent.EventTypes.Created, row.EventType);
         Assert.True(row.IsTestSubmission);
     }
 }

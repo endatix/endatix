@@ -109,8 +109,12 @@ public class WebHookSettings : IEndatixSettings
         public EventSetting SubmissionCompleted { get; set; } = new() { EventName = EventNames.SUBMISSION_COMPLETED };
 
         /// <summary>
-        /// Represents the settings for a collection-status change such as screen-out.
+        /// Represents the settings for the 'SubmissionClosed' event, e.g. a screen-out.
         /// </summary>
+        public EventSetting SubmissionClosed { get; set; } = new() { EventName = EventNames.SUBMISSION_CLOSED };
+
+        /// <summary>Retired: use <see cref="SubmissionClosed"/>.</summary>
+        [Obsolete("Retired: use SubmissionClosed.", error: true)]
         public EventSetting SubmissionCollectionStatusChanged { get; set; } = new() { EventName = EventNames.SUBMISSION_COLLECTION_STATUS_CHANGED };
 
         /// <summary>
