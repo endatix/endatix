@@ -1,7 +1,7 @@
-﻿using FastEndpoints;
-using FluentValidation;
-using Endatix.Infrastructure.Data.Config;
 using Endatix.Api.Common;
+using Endatix.Infrastructure.Data.Config;
+using FastEndpoints;
+using FluentValidation;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -23,6 +23,8 @@ public class CreateFormValidator : Validator<CreateFormRequest>
         RuleFor(x => x.IsEnabled)
             .NotEmpty();
 
+        // Accept either FormDefinitionSchema or the obsolete FormDefinitionJsonData HTTP field.
+#pragma warning disable CS0618
         RuleFor(x => x)
             .Must(x => !string.IsNullOrWhiteSpace(x.FormDefinitionJsonData) || x.FormDefinitionSchema.HasValue)
             .WithMessage("Either FormDefinitionJsonData or FormDefinitionSchema must be provided.")
@@ -31,6 +33,7 @@ public class CreateFormValidator : Validator<CreateFormRequest>
         RuleFor(x => x.FormDefinitionJsonData)
             .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
             .When(x => x.FormDefinitionJsonData != null);
+#pragma warning restore CS0618
 
         RuleFor(x => x.Metadata)
             .ValidJsonString()
