@@ -67,10 +67,10 @@ public sealed class SubmissionLifecycleCatalogTests
     }
 
     [Fact]
-    public void RetiredEventTypes_AreNoLongerRaisedOrDelivered()
+    public void LegacyEventTypes_AreNoLongerRaisedOrDelivered()
     {
         // Act
-        var retired = RetiredEventTypes.All;
+        var retired = LegacyOutboxEvents.All;
 
         // Assert
         retired.Should().NotIntersectWith(SubmissionLifecycleEvent.EventTypes.All);

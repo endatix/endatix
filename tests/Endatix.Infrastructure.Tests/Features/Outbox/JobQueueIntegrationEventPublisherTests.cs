@@ -52,22 +52,23 @@ public sealed class JobQueueIntegrationEventPublisherTests
     }
 
     [Fact]
-    public async Task PublishAsync_RetiredEventType_ThrowsBeforeMatchingSubscriptions()
+    public async Task PublishAsync_LegacyCollectionStatusChangedRow_EnqueuesTheSubmissionClosedSubscriptions()
     {
         // Arrange
         var queue = Substitute.For<IBackgroundJobQueue>();
         await using var provider = Services(queue, services =>
-            services.AddOutboxJobSubscription("submission.collection_status_changed", message => new FirstPayload(message.Id)));
+            services.AddOutboxJobSubscription("submission.closed", message => new FirstPayload(message.Id)));
         var publisher = provider.GetRequiredService<JobQueueIntegrationEventPublisher>();
 
         // Act
-        var publish = () => publisher.PublishAsync(
-            new OutboxMessageStub(79, "submission.collection_status_changed", "{}", 5), TestContext.Current.CancellationToken);
+        await publisher.PublishAsync(
+            new OutboxMessageStub(79, "submission.collection_status_changed", """{"collectionStatus":"screen_out"}""", 5),
+            TestContext.Current.CancellationToken);
 
         // Assert
-        (await publish.Should().ThrowAsync<RetiredEventTypeException>())
-            .WithMessage("retired event type: submission.collection_status_changed*");
-        queue.ReceivedCalls().Should().BeEmpty();
+        await queue.Received(1).EnqueueManyAsync(
+            Arg.Is<IReadOnlyList<BackgroundJobRequest>>(requests => requests.Count == 1),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

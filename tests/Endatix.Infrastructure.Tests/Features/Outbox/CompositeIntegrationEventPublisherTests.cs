@@ -38,22 +38,23 @@ public class CompositeIntegrationEventPublisherTests
     }
 
     [Fact]
-    public async Task PublishAsync_RetiredEventType_ThrowsWithoutInvokingAHandler()
+    public async Task PublishAsync_LegacyCollectionStatusChangedRow_ReachesClosedHandlersAsSubmissionClosed()
     {
         // Arrange
-        RecordingOutboxHandler oldScreenOutHandler = new(["submission.collection_status_changed"]);
+        RecordingOutboxHandler closedHandler = new(["submission.closed"]);
+        RecordingOutboxHandler oldTypeHandler = new(["submission.collection_status_changed"]);
         CompositeIntegrationEventPublisher publisher = new(
-            [oldScreenOutHandler],
+            [closedHandler, oldTypeHandler],
             NullLogger<CompositeIntegrationEventPublisher>.Instance);
-        IOutboxMessage message = new FakeOutboxMessage(4, "submission.collection_status_changed", "{}", 1);
+        IOutboxMessage message = new FakeOutboxMessage(4, "submission.collection_status_changed", """{"submissionId":"9","collectionStatus":"screen_out"}""", 1);
 
         // Act
-        Func<Task> act = () => publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+        await publisher.PublishAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
-        (await act.Should().ThrowAsync<RetiredEventTypeException>())
-            .WithMessage("retired event type: submission.collection_status_changed*");
-        oldScreenOutHandler.HandledIds.Should().BeEmpty();
+        closedHandler.HandledIds.Should().ContainSingle().Which.Should().Be(4);
+        closedHandler.EventTypesSeen.Should().Equal("submission.closed");
+        oldTypeHandler.HandledIds.Should().BeEmpty();
     }
 
     [Fact]
@@ -86,11 +87,14 @@ public class CompositeIntegrationEventPublisherTests
     {
         public List<long> HandledIds { get; } = [];
 
+        public List<string> EventTypesSeen { get; } = [];
+
         public IReadOnlyCollection<string> EventTypes { get; } = eventTypes;
 
         public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
         {
             HandledIds.Add(message.Id);
+            EventTypesSeen.Add(message.EventType);
             return Task.CompletedTask;
         }
     }

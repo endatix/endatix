@@ -68,7 +68,9 @@ This example shows `FormCreated` and `SubmissionCompleted`. `FormUpdated`, `Form
 :::
 
 :::warning[Renamed setting]
-`SubmissionClosed` replaces `SubmissionCollectionStatusChanged`. The upgrade migration moves the stored key on every form and tenant, keeping its enabled flag and endpoints. A form create or update that still sends `SubmissionCollectionStatusChanged` is rejected with a 400: upgrade Endatix Hub together with the API.
+`SubmissionClosed` replaces `SubmissionCollectionStatusChanged`. The upgrade migration moves the stored key on every form and tenant, keeping its enabled flag and endpoints. For this release a stored `SubmissionCollectionStatusChanged` still counts as `SubmissionClosed` when that key is absent, so settings an older instance or Hub saved after the migration keep delivering. A form create or update that sends `SubmissionCollectionStatusChanged` is rejected with a 400: upgrade Endatix Hub together with the API.
+
+Stop every API instance of the previous version before you start this one; don't roll the update. Once the migration has run, an older instance no longer finds endpoints under the renamed key, and it drops the new `submission.closed` outbox rows without sending a webhook.
 :::
 
 ## Tenant-Level Configuration

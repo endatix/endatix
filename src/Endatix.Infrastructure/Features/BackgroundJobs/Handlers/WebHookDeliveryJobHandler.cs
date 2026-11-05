@@ -7,6 +7,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
@@ -40,7 +41,6 @@ internal sealed class WebHookDeliveryJobHandler(
     // Each attempt re-reads the outbox row, so outbox retention must allow for it: see background-processing.mdx.
     public const string MessageGone = OutboxJobFailures.MessageGone;
     public const string NotAWebHookEvent = "The outbox event is not delivered as a webhook.";
-    public const string RetiredEventType = RetiredEventTypes.Reason;
     public const string EndpointGone = "The webhook endpoint is no longer configured.";
     public const string EventDisabled = "Webhook delivery for this event is disabled.";
     public const string InvalidUrl = "The webhook endpoint URL is not valid.";
@@ -65,22 +65,25 @@ internal sealed class WebHookDeliveryJobHandler(
             : await SendAsync(delivery, endpoint.Endpoint!, cancellationToken);
     }
 
-    // Scoped to the job's tenant explicitly: outside a request nothing else scopes this read.
-    private Task<OutboxMessage?> ReadMessageAsync(
+    // Scoped to the job's tenant explicitly: outside a request nothing else scopes this read. A row an earlier version
+    // wrote is read as this version's event, so a job queued for it before the upgrade still delivers.
+    private async Task<IOutboxMessage?> ReadMessageAsync(
         BackgroundJobContext job,
         WebHookDeliveryPayload payload,
-        CancellationToken cancellationToken) =>
-        outboxMessages.FirstOrDefaultAsync(
+        CancellationToken cancellationToken)
+    {
+        var row = await outboxMessages.FirstOrDefaultAsync(
             new OutboxMessageByIdForTenantSpec(payload.OutboxMessageId, job.TenantId),
             cancellationToken);
+        return row is null ? null : LegacyOutboxEvents.Translate(new OutboxMessageView(row));
+    }
 
     private static Result Refused(string reason) => Result.Invalid(new ValidationError(reason));
 
-    // Why a row can't be delivered to any endpoint: it is gone, of a retired type, or no webhook event.
-    private static string? RefusalOf(OutboxMessage? message) => message switch
+    // Why a row can't be delivered to any endpoint: it is gone, or no webhook event.
+    private static string? RefusalOf(IOutboxMessage? message) => message switch
     {
         null => MessageGone,
-        _ when RetiredEventTypes.IsRetired(message.EventType) => RetiredEventType,
         _ when !WebHookEvents.TryGetOperation(message.EventType, out _) => NotAWebHookEvent,
         _ => null,
     };
@@ -91,7 +94,7 @@ internal sealed class WebHookDeliveryJobHandler(
         EndpointDelivery delivery,
         CancellationToken cancellationToken)
     {
-        var formId = new OutboxMessageView(delivery.Message).GetRequiredIdProp(delivery.EventPayload, "formId");
+        var formId = delivery.Message.GetRequiredIdProp(delivery.EventPayload, "formId");
         var eventConfig = await configReader.GetEventConfigAsync(
             new WebHookEventLookup(tenantId, delivery.Operation.EventName, formId), cancellationToken);
         return eventConfig is { IsEnabled: true }
@@ -135,7 +138,7 @@ internal sealed class WebHookDeliveryJobHandler(
 
     /// <summary>The event a job delivers, and the key of the endpoint it delivers to.</summary>
     private sealed record EndpointDelivery(
-        OutboxMessage Message,
+        IOutboxMessage Message,
         WebHookOperation Operation,
         JsonElement EventPayload,
         string EndpointKey);

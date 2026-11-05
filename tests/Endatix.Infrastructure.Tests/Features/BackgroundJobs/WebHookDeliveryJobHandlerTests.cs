@@ -145,9 +145,32 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
         _http.Requests.Should().ContainSingle();
     }
 
+    [Fact]
+    public async Task ExecuteAsync_JobQueuedForALegacyRow_DeliversItAsSubmissionClosed()
+    {
+        // Arrange — a job an earlier version queued for its screen-out row, delivered after the upgrade.
+        var messageId = await SeedMessageAsync(
+            TenantId,
+            "submission.collection_status_changed",
+            """{"formId":"12","submissionId":"34","tenantId":"5","collectionStatus":"screen_out","previousCollectionStatus":"in_progress"}""");
+        _tenantSettings
+            .FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new TenantSettings(TenantId, webHookSettingsJson: ConfigJson(EndpointUrl, eventName: "SubmissionClosed")));
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.ExecuteAsync(Job(messageId, WebHookEndpointKey.Of(EndpointUrl)), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var request = _http.Requests.Should().ContainSingle().Subject;
+        request.Headers.GetValues(WebHookRequestHeaders.Event).Should().Equal("submission_closed");
+        var body = JsonDocument.Parse(_http.Bodies.Single()).RootElement;
+        body.GetProperty("payload").GetProperty("collectionStatus").GetProperty("phase").GetString().Should().Be("closed");
+    }
+
     [Theory]
     [InlineData("submission.started", WebHookDeliveryJobHandler.NotAWebHookEvent)]
-    [InlineData("submission.collection_status_changed", WebHookDeliveryJobHandler.RetiredEventType)]
     public async Task ExecuteAsync_EventThatIsNoWebHook_RefusesWithItsOwnReason(string eventType, string expectedReason)
     {
         // Arrange
@@ -214,10 +237,14 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
 
         public List<HttpRequestMessage> Requests { get; } = [];
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        // The request content is disposed once the send returns, so its body is read here.
+        public List<string> Bodies { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Requests.Add(request);
-            return Task.FromResult(new HttpResponseMessage(Status));
+            Bodies.Add(request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken));
+            return new HttpResponseMessage(Status);
         }
     }
 }
