@@ -59,7 +59,7 @@ public class GoogleReCaptchaServiceReasonTests
     }
 
     [Fact]
-    public async Task VerifyTokenAsync_ReturnsActionMismatch_WhenActionIsNotSubmitForm()
+    public async Task VerifyTokenAsync_PassesAndWarns_WhenActionIsNotSubmitForm()
     {
         // Arrange
         var wrongAction = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 0.9, ReCaptchaConstants.Actions.SIGN_IN, null);
@@ -70,9 +70,9 @@ public class GoogleReCaptchaServiceReasonTests
         var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.False(result.IsSuccess);
+        Assert.True(result.IsSuccess);
         Assert.Equal(ReCaptchaConstants.Actions.SIGN_IN, result.Action);
-        Assert.Equal([ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISMATCH], result.ErrorCodes);
+        Assert.Empty(result.ErrorCodes);
         Assert.Equal([(LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMismatch)], logger.Entries);
     }
 

@@ -204,7 +204,7 @@ public static class EndatixEventIds
         /// <summary>A successful token carried no score: likely a v2 or other non-v3 key.</summary>
         public const int ScoreMissing = 5004;
 
-        /// <summary>A successful token was issued for a different action.</summary>
+        /// <summary>A successful token was issued for a different action; it still passes.</summary>
         public const int ActionMismatch = 5005;
 
         public const int RangeStart = Ranges.ReCaptchaStart;

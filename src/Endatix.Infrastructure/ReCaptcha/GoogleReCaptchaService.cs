@@ -26,8 +26,8 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     };
 
     /// <summary>
-    /// The action Hub passes to <c>grecaptcha.execute</c> on a public form completion,
-    /// the only flow this service verifies.
+    /// The action Hub passes to <c>grecaptcha.execute</c> on a public form completion. A token
+    /// issued for another action still passes, with a warning.
     /// </summary>
     private const string EXPECTED_ACTION = ReCaptchaConstants.Actions.SUBMIT_FORM;
 
@@ -110,15 +110,22 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     /// Checks the siteverify payload in the order that names the cause: action before score,
     /// so a key of the wrong type is not reported as a low score.
     /// </summary>
-    private ReCaptchaVerificationResult Evaluate(GoogleReCaptchaResponse token) => token switch
+    private ReCaptchaVerificationResult Evaluate(GoogleReCaptchaResponse token)
     {
-        { Success: false } => Rejected(token),
-        { Action: null or "" } => ActionMissing(token),
-        { Action: not EXPECTED_ACTION and var action } => ActionMismatch(token, action),
-        { Score: null } => ScoreMissing(token, EXPECTED_ACTION),
-        { Score: { } score } when score < _options.MinimumScore => ScoreTooLow(EXPECTED_ACTION, score),
-        { Score: { } score } => ReCaptchaVerificationResult.Success(score, EXPECTED_ACTION),
-    };
+        if (token is { Success: true, Action: { Length: > 0 } issuedFor and not EXPECTED_ACTION })
+        {
+            _logger.LogReCaptchaActionMismatch(issuedFor, EXPECTED_ACTION, token.Hostname);
+        }
+
+        return token switch
+        {
+            { Success: false } => Rejected(token),
+            { Action: null or "" } => ActionMissing(token),
+            { Action: var action, Score: null } => ScoreMissing(token, action),
+            { Action: var action, Score: { } score } when score < _options.MinimumScore => ScoreTooLow(action, score),
+            { Action: var action, Score: { } score } => ReCaptchaVerificationResult.Success(score, action),
+        };
+    }
 
     private ReCaptchaVerificationResult Rejected(GoogleReCaptchaResponse token)
     {
@@ -148,15 +155,6 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
             token.Score ?? 0.0,
             ReCaptchaConstants.Actions.NO_ACTION_APPLICABLE,
             ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING);
-    }
-
-    private ReCaptchaVerificationResult ActionMismatch(GoogleReCaptchaResponse token, string action)
-    {
-        _logger.LogReCaptchaActionMismatch(action, EXPECTED_ACTION, token.Hostname);
-        return ReCaptchaVerificationResult.InvalidResponse(
-            token.Score ?? 0.0,
-            action,
-            ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISMATCH);
     }
 
     /// <summary>
