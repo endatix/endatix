@@ -59,6 +59,7 @@ public class CreateTests
 
         var submission = Submission.Create(1, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: formId,
             FormDefinitionId: 2,
             JsonData: jsonData));
@@ -95,6 +96,7 @@ public class CreateTests
         };
         var result = Result<Submission>.Created(Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123,
             FormDefinitionId: 456,
             JsonData: """{ "field": "value" }""")));
@@ -135,6 +137,7 @@ public class CreateTests
         };
         var result = Result<Submission>.Created(Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123,
             FormDefinitionId: 456,
             JsonData: """{ "field": "value" }""")));

@@ -81,6 +81,7 @@ public class UpdateTests
 
         var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: formId,
             FormDefinitionId: 456,
             JsonData: jsonData));
@@ -114,6 +115,7 @@ public class UpdateTests
         };
         var result = Result.Success(Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123,
             FormDefinitionId: 456,
             JsonData: """"{ "field": "value" }"""")));

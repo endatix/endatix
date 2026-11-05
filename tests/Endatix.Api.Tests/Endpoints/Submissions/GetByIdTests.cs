@@ -71,6 +71,7 @@ public class GetByIdTests
         var request = new GetByIdRequest { FormId = formId, SubmissionId = submissionId };
         var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 1,
             FormDefinitionId: 2,
             JsonData: "{ }"));
@@ -100,6 +101,7 @@ public class GetByIdTests
         };
         var result = Result.Success(Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 1,
             FormDefinitionId: 2,
             JsonData: "{ }")));

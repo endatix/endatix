@@ -81,6 +81,7 @@ public class PartialUpdateTests
         
         var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: formId,
             FormDefinitionId: 2,
             JsonData: jsonData));
@@ -114,6 +115,7 @@ public class PartialUpdateTests
         };
         var result = Result.Success(Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123,
             FormDefinitionId: 2,
             JsonData: """{ "field": "value" }""")));

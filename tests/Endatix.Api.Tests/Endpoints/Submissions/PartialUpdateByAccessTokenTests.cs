@@ -150,6 +150,7 @@ public class PartialUpdateByAccessTokenTests
 
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123L,
             FormDefinitionId: 1L,
             JsonData: "{}"));
@@ -189,6 +190,7 @@ public class PartialUpdateByAccessTokenTests
 
         var submission = Submission.Create(456, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123L,
             FormDefinitionId: 1L,
             JsonData: "{\"existing\":\"data\"}",
@@ -287,6 +289,7 @@ public class PartialUpdateByAccessTokenTests
 
         var submission = Submission.Create(456, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123L,
             FormDefinitionId: 1L,
             JsonData: "{}"));

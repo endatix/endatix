@@ -69,6 +69,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var submissionId = 1L;
         var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
             TenantId: TENANT_ID,
+            CurrentPage: 0,
             FormId: 2,
             FormDefinitionId: 3,
             JsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
@@ -94,6 +95,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var token = "valid-token";
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TENANT_ID,
+            CurrentPage: 0,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
             JsonData: "{ }",
@@ -121,6 +123,7 @@ public class SubmissionTokenServiceResolveTokenTests
         // Arrange
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TENANT_ID,
+            CurrentPage: 0,
             FormId: 1L,
             FormDefinitionId: 2L,
             JsonData: "{ }",
@@ -149,6 +152,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var token = "valid-token";
         var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
             TenantId: TENANT_ID,
+            CurrentPage: 0,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
             JsonData: "{ }",
@@ -177,6 +181,7 @@ public class SubmissionTokenServiceResolveTokenTests
         var token = "valid-token";
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: TENANT_ID,
+            CurrentPage: 0,
             FormId: 1,
             FormDefinitionId: 2,
             JsonData: "{ }",

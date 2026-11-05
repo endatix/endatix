@@ -108,6 +108,7 @@ public class PartialUpdateByTokenTests
 
         var submission = Submission.Create(1, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
             JsonData: jsonData));
@@ -146,6 +147,7 @@ public class PartialUpdateByTokenTests
         var formDefinitionId = 456;
         var result = Result.Success(Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: request.FormId,
             FormDefinitionId: formDefinitionId,
             JsonData: request.JsonData!)));

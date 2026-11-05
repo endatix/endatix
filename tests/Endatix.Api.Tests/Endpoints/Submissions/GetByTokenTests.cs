@@ -75,6 +75,7 @@ public class GetByTokenTests
         var request = new GetByTokenRequest { FormId = formId, SubmissionToken = submissionToken };
         var submission = Submission.Create(1, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: formId,
             FormDefinitionId: formDefinitionId,
             JsonData: "{}"));
@@ -109,6 +110,7 @@ public class GetByTokenTests
 
         var result = Result.Success(Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: request.FormId,
             FormDefinitionId: formDefinitionId,
             JsonData: "{}")));

@@ -32,6 +32,7 @@ public class GetByAccessTokenTests
 
         var submission = Submission.Create(456, new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123L,
             FormDefinitionId: 1L,
             JsonData: "{\"field\":\"value\"}"));
@@ -135,6 +136,7 @@ public class GetByAccessTokenTests
 
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
             FormId: 123L,
             FormDefinitionId: 1L,
             JsonData: "{}"));
