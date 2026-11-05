@@ -3,7 +3,7 @@ using Endatix.Core.Entities;
 namespace Endatix.Infrastructure.Features.WebHooks;
 
 /// <summary>
-/// One release only (removal: endatix/endatix#REMOVAL_ISSUE): reading webhook settings, a stored retired key counts
+/// One release only (removal: endatix/endatix#1559): reading webhook settings, a stored retired key counts
 /// as the key that replaced it when that one is absent, in any case, as the settings migration matches it. This keeps
 /// delivering settings an earlier instance or an older Hub wrote after the migration ran. Writes with a retired key
 /// are still refused (<see cref="WebHookConfiguration.RetiredKeyError(string?)"/>).

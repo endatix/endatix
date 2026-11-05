@@ -5,7 +5,7 @@ using Endatix.Outbox.Engine;
 namespace Endatix.Infrastructure.Features.Outbox;
 
 /// <summary>
-/// One release only (removal: endatix/endatix#REMOVAL_ISSUE): an outbox row an earlier version wrote as
+/// One release only (removal: endatix/endatix#1559): an outbox row an earlier version wrote as
 /// <c>submission.collection_status_changed</c> is delivered as <c>submission.closed</c>. Earlier versions raised that
 /// type only for a screen-out, so every such row is a closed screen-out. Both publishers and the webhook job read rows
 /// through <see cref="Translate"/>, so a row left in the outbox, or a webhook job queued for one, still reaches its
@@ -30,15 +30,7 @@ internal static class LegacyOutboxEvents
     private static string ClosedPayload(IOutboxMessage message)
     {
         var old = JsonNode.Parse(message.Payload)?.AsObject() ?? [];
-        JsonObject closed = [];
-        foreach (var field in (string[])["submissionId", "tenantId", "formId", "formDefinitionId", "revision", "isTestSubmission"])
-        {
-            if (old.TryGetPropertyValue(field, out var value))
-            {
-                closed[field] = value?.DeepClone();
-            }
-        }
-
+        var closed = CoreFields(old);
         closed["occurredAt"] = message.OccurredAt.UtcDateTime.ToString("O");
         closed["collectionStatus"] = StatusRef(CollectionStatusCodes.ScreenOut);
         if (old["previousCollectionStatus"]?.GetValue<string>() is { Length: > 0 } previous)
@@ -48,6 +40,20 @@ internal static class LegacyOutboxEvents
 
         return closed.ToJsonString();
     }
+
+    private static JsonObject CoreFields(JsonObject old)
+    {
+        JsonObject core = [];
+        foreach (var field in CoreFieldNames.Where(old.ContainsKey))
+        {
+            core[field] = old[field]?.DeepClone();
+        }
+
+        return core;
+    }
+
+    private static readonly string[] CoreFieldNames =
+        ["submissionId", "tenantId", "formId", "formDefinitionId", "revision", "isTestSubmission"];
 
     private static JsonObject StatusRef(string code)
     {
