@@ -57,7 +57,11 @@ public class CreateTests
             Metadata = "test metadata"
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, 2) { Id = 1 };
+        var submission = Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: formId,
+            FormDefinitionId: 2,
+            JsonData: jsonData));
         submission.UpdateToken(new Token(1));
         var result = Result<Submission>.Created(submission);
 
@@ -89,7 +93,11 @@ public class CreateTests
             Metadata = """{ "key", "value" }""",
             ReCaptchaToken = "recaptcha-token"
         };
-        var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+        var result = Result<Submission>.Created(Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: """{ "field": "value" }""")));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);
@@ -125,7 +133,11 @@ public class CreateTests
             Metadata = """{ "key", "value" }""",
             ReCaptchaToken = "recaptcha-token"
         };
-        var result = Result<Submission>.Created(new Submission(SampleData.TENANT_ID, """{ "field": "value" }""", 123, 456));
+        var result = Result<Submission>.Created(Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123,
+            FormDefinitionId: 456,
+            JsonData: """{ "field": "value" }""")));
 
         _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

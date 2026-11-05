@@ -69,7 +69,11 @@ public class GetByIdTests
         var formId = 1L;
         var submissionId = 1L;
         var request = new GetByIdRequest { FormId = formId, SubmissionId = submissionId };
-        var submission = new Submission(SampleData.TENANT_ID, "{ }", 1, 2) { Id = submissionId };
+        var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 1,
+            FormDefinitionId: 2,
+            JsonData: "{ }"));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<GetByIdQuery>(), Arg.Any<CancellationToken>())
@@ -94,7 +98,11 @@ public class GetByIdTests
             FormId = 123,
             SubmissionId = 456
         };
-        var result = Result.Success(new Submission(SampleData.TENANT_ID, "{ }", 1, 2));
+        var result = Result.Success(Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 1,
+            FormDefinitionId: 2,
+            JsonData: "{ }")));
 
         _mediator.Send(Arg.Any<GetByIdQuery>(), Arg.Any<CancellationToken>())
             .Returns(result);

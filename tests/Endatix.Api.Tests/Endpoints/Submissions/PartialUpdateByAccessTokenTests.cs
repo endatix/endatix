@@ -34,7 +34,13 @@ public class PartialUpdateByAccessTokenTests
             Metadata = "{\"meta\":\"data\"}"
         };
 
-        var updatedSubmission = new Submission(SampleData.TENANT_ID, request.JsonData, 123L, 1L, true, 5) { Id = 456 };
+        var updatedSubmission = Submission.Create(456, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: request.JsonData!,
+            IsComplete: true,
+            CurrentPage: 5));
         var result = Result.Success(updatedSubmission);
 
         _mediator.Send(Arg.Any<PartialUpdateByAccessTokenCommand>(), Arg.Any<CancellationToken>())
@@ -142,7 +148,11 @@ public class PartialUpdateByAccessTokenTests
             Metadata = "{\"meta\":\"info\"}"
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", 123L, 1L);
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: "{}"));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<PartialUpdateByAccessTokenCommand>(), Arg.Any<CancellationToken>())
@@ -177,7 +187,12 @@ public class PartialUpdateByAccessTokenTests
             Metadata = null
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, "{\"existing\":\"data\"}", 123L, 1L, true) { Id = 456 };
+        var submission = Submission.Create(456, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: "{\"existing\":\"data\"}",
+            IsComplete: true));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<PartialUpdateByAccessTokenCommand>(), Arg.Any<CancellationToken>())
@@ -206,14 +221,14 @@ public class PartialUpdateByAccessTokenTests
             Metadata = "{\"updated\":\"metadata\"}"
         };
 
-        var updatedSubmission = new Submission(
-            SampleData.TENANT_ID,
-            request.JsonData,
-            123L,
-            1L,
-            true,
-            15,
-            request.Metadata) { Id = 456 };
+        var updatedSubmission = Submission.Create(456, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: request.JsonData!,
+            IsComplete: true,
+            CurrentPage: 15,
+            Metadata: request.Metadata));
         var result = Result.Success(updatedSubmission);
 
         _mediator.Send(Arg.Any<PartialUpdateByAccessTokenCommand>(), Arg.Any<CancellationToken>())
@@ -270,7 +285,11 @@ public class PartialUpdateByAccessTokenTests
             Metadata = null
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", 123L, 1L) { Id = 456 };
+        var submission = Submission.Create(456, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: "{}"));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<PartialUpdateByAccessTokenCommand>(), Arg.Any<CancellationToken>())

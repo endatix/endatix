@@ -30,7 +30,11 @@ public class GetByAccessTokenTests
             Token = "12345.1234567890.r.signature"
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, "{\"field\":\"value\"}", 123L, 1L) { Id = 456 };
+        var submission = Submission.Create(456, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: "{\"field\":\"value\"}"));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<GetByAccessTokenQuery>(), Arg.Any<CancellationToken>())
@@ -129,7 +133,11 @@ public class GetByAccessTokenTests
             Token = "12345.1234567890.r.signature"
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, "{}", 123L, 1L);
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: "{}"));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<GetByAccessTokenQuery>(), Arg.Any<CancellationToken>())
@@ -181,7 +189,13 @@ public class GetByAccessTokenTests
         };
 
         var jsonData = "{\"name\":\"John\",\"email\":\"john@example.com\"}";
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, 123L, 1L, true, 10) { Id = 456 };
+        var submission = Submission.Create(456, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            FormId: 123L,
+            FormDefinitionId: 1L,
+            JsonData: jsonData,
+            IsComplete: true,
+            CurrentPage: 10));
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<GetByAccessTokenQuery>(), Arg.Any<CancellationToken>())
