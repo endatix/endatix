@@ -164,7 +164,7 @@ settings:
 
 overrides:
   serialize-javascript: ^7.0.5
-  katex@<0.18.2: ^0.18.2
+  katex@<0.18.2: 0.18.10
   qs@<6.16.1: ^6.16.1
   fast-xml-builder: ^1.1.7
   fast-xml-parser: ^5.7.0
@@ -4108,9 +4108,8 @@ packages:
   jsonfile@6.2.1:
     resolution: {integrity: sha512-zwOTdL3rFQ/lRdBnntKVOX6k5cKJwEc1HdilT71BWEu7J41gXIB2MRp+vxduPSwZJPWBxEzv4yH1wYLJGUHX4Q==}
 
-  katex@0.18.11:
-    resolution: {integrity: sha512-yvyz/2VMKqoho/35Hat5w37wIEdWJ5ElVMidTAlWrxr5uW4aBGsEpveTmKh18/zw08v/7lGswCPon4OhqmqrTA==}
-    deprecated: Accidentally published with breaking changes. Use 0.19.0 instead.
+  katex@0.18.10:
+    resolution: {integrity: sha512-/B6p9eY9DX7aHBfpkHdpirDTZ5QH9xTwL9y837PWuzuv41O5jFdqNQwVQEQsimY0/iVNkwBY4+4hMfhQ7d4Dbw==}
     hasBin: true
 
   keyv@4.5.4:
@@ -11585,7 +11584,7 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
-  katex@0.18.11:
+  katex@0.18.10:
     dependencies:
       commander: 15.0.0
 
@@ -11961,7 +11960,7 @@ snapshots:
       dompurify: 3.4.17
       es-toolkit: 1.49.0
       fastdom: 1.0.12
-      katex: 0.18.11
+      katex: 0.18.10
       khroma: 2.1.0
       marked: 16.4.2
       roughjs: 4.6.6

@@ -21,8 +21,8 @@ allowBuilds:
 overrides:
   # serialize-javascript 7.0.5 fixes CVE-2020-7660 and CVE-2026-34043. Remove on the @docusaurus 4x bump.
   serialize-javascript: ^7.0.5
-  # katex 0.18.2 fixes the open low katex advisory. mermaid 11 asks for ^0.16.45, which cannot reach it. Remove on the next mermaid bump.
-  "katex@<0.18.2": ^0.18.2
+  # katex 0.18.10 fixes the advisory and avoids deprecated 0.18.11. mermaid 11 asks for ^0.16.45, which cannot reach it. Remove on the next mermaid bump.
+  "katex@<0.18.2": 0.18.10
   # qs 6.16.1 fixes the open medium qs advisories. express 4.22.2 asks for ~6.15.1, which cannot reach it. Remove on the next express bump.
   "qs@<6.16.1": ^6.16.1
   # fast-xml-builder 1.1.7 fixes CVE-2026-44665. Remove on the next redocusaurus bump.
