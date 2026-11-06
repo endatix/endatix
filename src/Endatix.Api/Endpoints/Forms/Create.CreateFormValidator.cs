@@ -1,8 +1,8 @@
+using System.Text.Json;
+using Endatix.Api.Common;
+using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
-using System.Text.Json;
-using Endatix.Infrastructure.Data.Config;
-using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.Forms;
 
