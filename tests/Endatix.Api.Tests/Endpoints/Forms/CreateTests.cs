@@ -265,8 +265,10 @@ public class CreateTests
             Name = "Test Form",
             IsEnabled = true,
             FormDefinitionSchema = Schema("""{ "type": "object" }"""),
-            WebHookSettingsJson = """{ "events": {} }""",  // Old string format
-            WebHookSettings = newWebhookSettings  // New object format (should win)
+#pragma warning disable CS0618 // Subject under test: obsolete string field loses to WebHookSettings
+            WebHookSettingsJson = """{ "events": {} }""",
+#pragma warning restore CS0618
+            WebHookSettings = newWebhookSettings
         };
         var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
