@@ -38,6 +38,7 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
         SubmissionTokenExpiryHours = submissionTokenExpiryHours;
         IsSubmissionTokenValidAfterCompletion = isSubmissionTokenValidAfterCompletion;
         SlackSettingsJson = slackSettingsJson;
+        DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(webHookSettingsJson), nameof(webHookSettingsJson));
         WebHookSettingsJson = webHookSettingsJson;
         CustomExportsJson = customExportsJson;
         RequireFolderAssignment = false;
@@ -201,8 +202,10 @@ public sealed class TenantSettings : IAggregateRoot, ITenantOwned
     /// <summary>
     /// Updates the webhook configuration settings.
     /// </summary>
+    /// <exception cref="ArgumentException">The settings use a retired event key.</exception>
     public void UpdateWebHookSettings(WebHookConfiguration settings)
     {
+        DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(settings), nameof(settings));
         _webHookSettings = settings;
         WebHookSettingsJson = JsonSerializer.Serialize(settings);
     }

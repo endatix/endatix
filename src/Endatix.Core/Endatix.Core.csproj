@@ -26,6 +26,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<InternalsVisibleTo Include="Endatix.Core.Tests" />
+		<InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
 		<InternalsVisibleTo Include="DynamicProxyGenAssembly2" PublicKey="$(NSubstitutePublicKey)" />
 	</ItemGroup>
 </Project>

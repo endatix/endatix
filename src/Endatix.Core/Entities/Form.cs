@@ -3,6 +3,7 @@ using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Events;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -31,6 +32,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         LimitOnePerUser = !args.IsPublic && args.LimitOnePerUser;
         SubmissionTokenExpiryHours = args.SubmissionTokenExpiryHours;
         Metadata = args.Metadata;
+        DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(args.WebHookSettingsJson), nameof(args));
         WebHookSettingsJson = args.WebHookSettingsJson;
         FolderId = args.FolderId;
     }
@@ -295,8 +297,10 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     /// <summary>
     /// Updates the webhook configuration settings for this form.
     /// </summary>
+    /// <exception cref="ArgumentException">The settings use a retired event key.</exception>
     public void UpdateWebHookSettings(WebHookConfiguration? settings)
     {
+        DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(settings), nameof(settings));
         _webHookSettings = settings;
         WebHookSettingsJson = settings != null ? JsonSerializer.Serialize(settings) : null;
     }

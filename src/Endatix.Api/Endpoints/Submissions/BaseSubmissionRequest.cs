@@ -54,9 +54,12 @@ internal static class SubmissionRequestValidationExtensions
             .When(x => x.Metadata != null);
     }
 
-    /// <summary>Accepts an omitted outcome or <c>screen_out</c>; anything else is a 400, not a silent normal save.</summary>
+    /// <summary>
+    /// Accepts an omitted outcome or a registered closed-phase status such as <c>screen_out</c>; anything else is a 400,
+    /// not a silent normal save.
+    /// </summary>
     internal static IRuleBuilderOptions<T, string?> ValidCollectionOutcome<T>(this IRuleBuilder<T, string?> ruleBuilder) =>
         ruleBuilder
             .Must(CollectionOutcomes.IsSupported)
-            .WithMessage($"'{{PropertyName}}' must be '{CollectionStatusCodes.ScreenOut}' when set.");
+            .WithMessage($"'{{PropertyName}}' must be a registered closed collection status, such as '{CollectionStatusCodes.ScreenOut}', when set.");
 }

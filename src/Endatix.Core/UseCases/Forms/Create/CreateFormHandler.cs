@@ -21,10 +21,10 @@ public class CreateFormHandler(
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        var folderCheck = await folderAssignmentPolicy.EnsureFolderAssignmentValidAsync(request.FolderId, cancellationToken);
-        if (!folderCheck.IsOk())
+        var check = await CheckAsync(request, cancellationToken);
+        if (!check.IsOk())
         {
-            return folderCheck.ToErrorResult<Form>();
+            return check.ToErrorResult<Form>();
         }
 
         FormCreateArgs createArgs = new(
@@ -47,4 +47,10 @@ public class CreateFormHandler(
 
         return Result<Form>.Created(form);
     }
+
+    // Webhook settings that still use a retired event key are refused before the folder is checked.
+    private async Task<Result> CheckAsync(CreateFormCommand request, CancellationToken cancellationToken) =>
+        WebHookConfiguration.RetiredKeyError(request.WebHookSettingsJson) is { } retiredKey
+            ? Result.Invalid(new ValidationError(retiredKey))
+            : await folderAssignmentPolicy.EnsureFolderAssignmentValidAsync(request.FolderId, cancellationToken);
 }

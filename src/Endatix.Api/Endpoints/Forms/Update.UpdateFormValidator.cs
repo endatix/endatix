@@ -26,5 +26,8 @@ public class UpdateFormValidator : Validator<UpdateFormRequest>
         RuleFor(x => x.Metadata)
             .ValidJsonString()
             .When(x => x.Metadata != null);
+
+        RuleFor(x => x.WebHookSettingsJson)
+            .NoRetiredWebHookKeys();
     }
 }

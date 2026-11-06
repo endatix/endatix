@@ -1,5 +1,7 @@
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
+using Endatix.Infrastructure.Tests.Features.ReCaptcha;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
@@ -35,6 +37,43 @@ public class CompositeIntegrationEventPublisherTests
         Func<Task> act = () => publisher.PublishAsync(message, TestContext.Current.CancellationToken);
 
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task PublishAsync_LegacyCollectionStatusChangedRow_ReachesClosedHandlersAsSubmissionClosed()
+    {
+        // Arrange
+        RecordingOutboxHandler closedHandler = new(["submission.closed"]);
+        RecordingOutboxHandler oldTypeHandler = new(["submission.collection_status_changed"]);
+        CompositeIntegrationEventPublisher publisher = new(
+            [closedHandler, oldTypeHandler],
+            NullLogger<CompositeIntegrationEventPublisher>.Instance);
+        IOutboxMessage message = new FakeOutboxMessage(4, "submission.collection_status_changed", """{"submissionId":"9","collectionStatus":"screen_out"}""", 1);
+
+        // Act
+        await publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        closedHandler.HandledIds.Should().ContainSingle().Which.Should().Be(4);
+        closedHandler.EventTypesSeen.Should().Equal("submission.closed");
+        oldTypeHandler.HandledIds.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("submission.started", LogLevel.Debug)]
+    [InlineData("vendor.something_happened", LogLevel.Information)]
+    public async Task PublishAsync_NoHandler_LogsALifecycleTypeAtDebugAndAnUnknownTypeAtInformation(string eventType, LogLevel expected)
+    {
+        // Arrange
+        var logger = new RecordingLogger<CompositeIntegrationEventPublisher>();
+        CompositeIntegrationEventPublisher publisher = new([new RecordingOutboxHandler(["form.created"])], logger);
+        IOutboxMessage message = new FakeOutboxMessage(5, eventType, "{}", 1);
+
+        // Act
+        await publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        logger.Entries.Should().ContainSingle().Which.Level.Should().Be(expected);
     }
 
     [Fact]
@@ -111,11 +150,14 @@ public class CompositeIntegrationEventPublisherTests
     {
         public List<long> HandledIds { get; } = [];
 
+        public List<string> EventTypesSeen { get; } = [];
+
         public IReadOnlyCollection<string> EventTypes { get; } = eventTypes;
 
         public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
         {
             HandledIds.Add(message.Id);
+            EventTypesSeen.Add(message.EventType);
             return Task.CompletedTask;
         }
     }

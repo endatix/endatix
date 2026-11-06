@@ -52,6 +52,26 @@ public sealed class JobQueueIntegrationEventPublisherTests
     }
 
     [Fact]
+    public async Task PublishAsync_LegacyCollectionStatusChangedRow_EnqueuesTheSubmissionClosedSubscriptions()
+    {
+        // Arrange
+        var queue = Substitute.For<IBackgroundJobQueue>();
+        await using var provider = Services(queue, services =>
+            services.AddOutboxJobSubscription("submission.closed", message => new FirstPayload(message.Id)));
+        var publisher = provider.GetRequiredService<JobQueueIntegrationEventPublisher>();
+
+        // Act
+        await publisher.PublishAsync(
+            new OutboxMessageStub(79, "submission.collection_status_changed", """{"collectionStatus":"screen_out"}""", 5),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        await queue.Received(1).EnqueueManyAsync(
+            Arg.Is<IReadOnlyList<BackgroundJobRequest>>(requests => requests.Count == 1),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task PublishAsync_AppLevelMessageWithoutResolver_ThrowsAndEnqueuesNothing()
     {
         // Arrange

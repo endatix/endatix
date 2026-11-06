@@ -58,8 +58,8 @@ public class PartialUpdateSubmissionByTokenHandler(
 
     private async Task<Result> ValidateReCaptchaAsync(Form form, PartialUpdateSubmissionByTokenCommand request, CancellationToken cancellationToken)
     {
-        // A screen-out ends the interview like a complete, so it gets the same bot check.
-        var endsInterview = (request.IsComplete ?? false) || CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+        // An outcome ends the interview like a complete, so it gets the same bot check.
+        var endsInterview = (request.IsComplete ?? false) || request.CollectionOutcome is not null;
         var validationContext = new SubmissionVerificationContext(
            form,
            endsInterview,

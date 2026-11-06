@@ -25,7 +25,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     {
         IReadOnlyCollection<string> eventTypes = FlattenSubmissionOutboxHandler.HandledEventTypes;
 
-        eventTypes.Should().Contain(SubmissionCompletedEvent.EventTypeName);
+        eventTypes.Should().Contain(SubmissionLifecycleEvent.EventTypes.Completed);
         eventTypes.Should().Contain(SubmissionUpdatedEvent.EventTypeName);
     }
 
@@ -33,10 +33,10 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     public async Task HandleAsync_WithSubmissionCompleted_CallsProcessor()
     {
         Submission submission = CreateSubmission();
-        string payload = ReportingOutboxTestHelpers.SerializePayload(new SubmissionCompletedEvent(submission).GetPayload());
+        string payload = ReportingOutboxTestHelpers.SerializePayload(submission.DomainEvents.OfType<SubmissionLifecycleEvent>().Single(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Completed).GetPayload());
         ReportingOutboxTestHelpers.FakeOutboxMessage message = new(
             Id: 1,
-            EventType: SubmissionCompletedEvent.EventTypeName,
+            EventType: SubmissionLifecycleEvent.EventTypes.Completed,
             Payload: payload,
             TenantId: TenantId);
 
@@ -107,7 +107,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     {
         ReportingOutboxTestHelpers.FakeOutboxMessage message = new(
             Id: 4,
-            EventType: SubmissionCompletedEvent.EventTypeName,
+            EventType: SubmissionLifecycleEvent.EventTypes.Completed,
             Payload: """{"tenantId":"42","formId":"100"}""",
             TenantId: TenantId);
 

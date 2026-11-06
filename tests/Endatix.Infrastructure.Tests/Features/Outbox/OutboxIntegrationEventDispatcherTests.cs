@@ -158,7 +158,7 @@ public class OutboxIntegrationEventDispatcherTests
         var messages = _sut.Capture([submission]);
 
         // Assert
-        messages.Select(m => m.EventType).Should().Equal("submission.completed", "submission.deleted");
+        messages.Select(m => m.EventType).Should().Equal("submission.created", "submission.completed", "submission.deleted");
         messages.Should().OnlyContain(m =>
             m.Payload.Contains("\"isTestSubmission\":true")
             && m.Payload.Contains("\"submissionId\":\"501\"")

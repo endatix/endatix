@@ -20,5 +20,8 @@ public class PartialUpdateFormValidator : Validator<PartialUpdateFormRequest>
         RuleFor(x => x.Metadata)
             .ValidJsonString()
             .When(x => x.Metadata != null);
+
+        RuleFor(x => x.WebHookSettingsJson)
+            .NoRetiredWebHookKeys();
     }
 }

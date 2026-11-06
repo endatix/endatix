@@ -327,9 +327,11 @@ public partial class SubmissionFlatteningProcessorTests
     {
         var submission = Submission.Create(new SubmissionCreateArgs(TenantId, FormId, FormDefinitionId, json, IsComplete: true));
         submission.Id = SubmissionId;
+        // Each reviewer-status change is one event and one revision.
         while (submission.Revision < revision)
         {
-            submission.IncrementRevision();
+            var next = submission.Status.Code == SubmissionStatusCodes.Read ? SubmissionStatusCodes.New : SubmissionStatusCodes.Read;
+            submission.UpdateStatus(SubmissionStatus.FromCode(next));
         }
 
         return submission;

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Endatix.Core.Common;
+using Endatix.Core.Entities;
 using FluentValidation;
 
 namespace Endatix.Api.Common;
@@ -21,6 +22,15 @@ public static class FluentValidationExtensions
             .Must(JsonStringValidation.IsValid)
             .WithMessage("{PropertyName} must be a valid JSON string.");
     }
+
+    /// <summary>
+    /// Refuses webhook settings that still use a retired event key, with the entity's message
+    /// (<see cref="WebHookConfiguration.RetiredKeyError(string?)"/>).
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> NoRetiredWebHookKeys<T>(this IRuleBuilder<T, string?> ruleBuilder) =>
+        ruleBuilder
+            .Must(json => WebHookConfiguration.RetiredKeyError(json) is null)
+            .WithMessage((_, json) => WebHookConfiguration.RetiredKeyError(json));
 
     /// <summary>
     /// Validates that the string is a valid URL slug.
