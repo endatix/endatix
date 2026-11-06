@@ -8,12 +8,12 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 public sealed class AuthorizationStamp
 {
     /// <summary>The id of the one row.</summary>
-    public const int RowId = 1;
+    public const int ROW_ID = 1;
 
     /// <summary>The value before the first change, and the value read when the row is missing.</summary>
     public static readonly Guid Initial = Guid.Empty;
 
-    /// <summary>Always <see cref="RowId"/>.</summary>
+    /// <summary>Always <see cref="ROW_ID"/>.</summary>
     public int Id { get; init; }
 
     /// <summary>A new value on every change to an authorization input.</summary>

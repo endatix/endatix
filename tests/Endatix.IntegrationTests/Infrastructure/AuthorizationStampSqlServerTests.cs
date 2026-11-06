@@ -45,7 +45,7 @@ public sealed class AuthorizationStampSqlServerTests(EndatixIntegrationWebHostFi
         await writer.SaveChangesAsync(ct);
 
         // Act
-        Stopwatch elapsed = Stopwatch.StartNew();
+        var elapsed = Stopwatch.StartNew();
         var read = ReadStampAsync(world, ct);
         var finished = await Task.WhenAny(read, Task.Delay(NotHeld, ct));
         elapsed.Stop();

@@ -9,7 +9,7 @@ internal sealed class AuthorizationStampReader(AppIdentityDbContext identityDbCo
     public async Task<Guid> ReadAsync(CancellationToken cancellationToken) =>
         await identityDbContext.AuthorizationStamps
             .AsNoTracking()
-            .Where(stamp => stamp.Id == AuthorizationStamp.RowId)
+            .Where(stamp => stamp.Id == AuthorizationStamp.ROW_ID)
             .Select(stamp => (Guid?)stamp.Value)
             .FirstOrDefaultAsync(cancellationToken)
         ?? AuthorizationStamp.Initial;

@@ -92,7 +92,7 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
 
     // ExecuteUpdate runs on the context's connection inside the transaction that is about to commit.
     private static IQueryable<AuthorizationStamp> Stamp(AppIdentityDbContext context) =>
-        context.AuthorizationStamps.Where(stamp => stamp.Id == AuthorizationStamp.RowId);
+        context.AuthorizationStamps.Where(stamp => stamp.Id == AuthorizationStamp.ROW_ID);
 
     private static Action<UpdateSettersBuilder<AuthorizationStamp>> NewValue()
     {

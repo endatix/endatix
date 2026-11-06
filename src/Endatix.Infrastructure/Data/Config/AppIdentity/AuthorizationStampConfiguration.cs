@@ -22,6 +22,6 @@ public class AuthorizationStampConfiguration : IEntityTypeConfiguration<Authoriz
         builder.Property(stamp => stamp.Value)
             .IsRequired();
 
-        builder.HasData(new { Id = AuthorizationStamp.RowId, Value = AuthorizationStamp.Initial });
+        builder.HasData(new { Id = AuthorizationStamp.ROW_ID, Value = AuthorizationStamp.Initial });
     }
 }

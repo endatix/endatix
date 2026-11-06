@@ -158,7 +158,7 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
     {
         var world = await fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
-        long tenantId = world.Tenants[0].Id;
+        var tenantId = world.Tenants[0].Id;
         IntegrationSeedBuilder builder = new(world.Services);
         await builder.SeedRoleAsync(tenantId, RoleName, ct);
         await builder.SeedRolePermissionsAsync(tenantId, RoleName, [Actions.Forms.View], ct);

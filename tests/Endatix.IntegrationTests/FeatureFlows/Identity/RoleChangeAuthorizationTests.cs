@@ -74,13 +74,13 @@ public sealed class RoleChangeAuthorizationTests
     {
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareWorldAsync(CreateRole, ct);
-        long tenantId = world.Tenants[0].Id;
+        var tenantId = world.Tenants[0].Id;
         await SeedRoleAsync(world, tenantId, NoCreateRole, NoCreatePermissions, ct);
         using var user = await SignInAsync(world, CreateRole, ct);
         (await CreateFormAsync(user, ct)).Should().Be(HttpStatusCode.Created);
 
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
-        long userId = await UserIdAsync(world, tenantId, ct);
+        var userId = await UserIdAsync(world, tenantId, ct);
         using var replaced = await admin.PutAsJsonAsync(
             new Uri($"/api/users/{userId}/roles", UriKind.Relative),
             new { userId, roleNames = new[] { NoCreateRole } },
@@ -113,8 +113,8 @@ public sealed class RoleChangeAuthorizationTests
     {
         var world = await _fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
-        long tenantId = world.Tenants[0].Id;
-        string[] permissions = userRole == CreateRole ? CreatePermissions : NoCreatePermissions;
+        var tenantId = world.Tenants[0].Id;
+        var permissions = userRole == CreateRole ? CreatePermissions : NoCreatePermissions;
         await SeedRoleAsync(world, tenantId, userRole, permissions, ct);
 
         IntegrationSeedBuilder builder = new(world.Services);
