@@ -17,9 +17,10 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class OutboxPermanentFailureTests(DbIntegrationFixture fixture)
 {
-    private const int Pending = 0;
-    private const int Failed = 2;
-    private const string EventType = "probe.happened";
+    private const int PENDING = 0;
+    private const int SENT = 1;
+    private const int FAILED = 2;
+    private const string EVENT_TYPE = "probe.happened";
 
     [Fact]
     public async Task Inline_permanent_failure_fails_the_row_on_its_first_attempt()
@@ -29,13 +30,13 @@ public sealed class OutboxPermanentFailureTests(DbIntegrationFixture fixture)
         await using var host = await StartInlineAsync(new OutboxPermanentFailureException("Retired event type."), ct);
 
         // Act
-        await host.InsertMessageAsync(new OutboxRow(401, EventType, TenantId: 5), ct);
-        var failed = await host.WaitForMessageAsync(401, message => message.Status == Failed, ct);
+        await host.InsertMessageAsync(new OutboxRow(401, EVENT_TYPE, TenantId: 5), ct);
+        var failed = await host.WaitForMessageAsync(401, message => message.Status == FAILED, ct);
 
         // Assert
         failed.Should().BeTrue();
         var row = await ReadRetryStateAsync(host, 401, ct);
-        row.Should().Be((Failed, 1, false));
+        row.Should().Be((FAILED, 1, false));
     }
 
     [Fact]
@@ -46,13 +47,13 @@ public sealed class OutboxPermanentFailureTests(DbIntegrationFixture fixture)
         await using var host = await StartInlineAsync(new InvalidOperationException("Transient."), ct);
 
         // Act
-        await host.InsertMessageAsync(new OutboxRow(402, EventType, TenantId: 5), ct);
+        await host.InsertMessageAsync(new OutboxRow(402, EVENT_TYPE, TenantId: 5), ct);
         var retried = await host.WaitForMessageAsync(402, message => message.Attempts == 1, ct);
 
         // Assert
         retried.Should().BeTrue();
         var row = await ReadRetryStateAsync(host, 402, ct);
-        row.Should().Be((Pending, 1, true));
+        row.Should().Be((PENDING, 1, true));
     }
 
     [Fact]
@@ -66,7 +67,7 @@ public sealed class OutboxPermanentFailureTests(DbIntegrationFixture fixture)
             ct);
 
         // Act
-        await host.InsertMessageAsync(new OutboxRow(403, EventType, TenantId: 5), ct);
+        await host.InsertMessageAsync(new OutboxRow(403, EVENT_TYPE, TenantId: 5), ct);
         var finished = await JobsTestWait.UntilAsync(
             async () => await host.Database.CountAsync(
                 $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "JobType" = '{PermanentlyFailingWork.JobType}' AND "Status" = {(int)JobStatus.Failed}""",
@@ -74,8 +75,9 @@ public sealed class OutboxPermanentFailureTests(DbIntegrationFixture fixture)
             TimeSpan.FromSeconds(30),
             ct);
 
-        // Assert
+        // Assert — the row was sent when the job was queued; only the job failed.
         finished.Should().BeTrue();
+        (await host.ReadMessageAsync(403, ct)).Status.Should().Be(SENT);
         var attempts = await host.Database.QueryAsync(
             $"""SELECT "AttemptCount" FROM jobs."BackgroundJobs" WHERE "JobType" = '{PermanentlyFailingWork.JobType}'""",
             reader => reader.GetInt32(0),
@@ -105,7 +107,7 @@ public sealed class OutboxPermanentFailureTests(DbIntegrationFixture fixture)
 
     private sealed class ThrowingHandler(Exception failure) : IOutboxIntegrationEventHandler
     {
-        public IReadOnlyCollection<string> EventTypes { get; } = [EventType];
+        public IReadOnlyCollection<string> EventTypes { get; } = [EVENT_TYPE];
 
         public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) => throw failure;
     }
@@ -114,7 +116,7 @@ public sealed class OutboxPermanentFailureTests(DbIntegrationFixture fixture)
     {
         public static string JobType => "TestPermanentlyFailingWork";
 
-        public static IReadOnlyCollection<string> HandledEventTypes { get; } = [EventType];
+        public static IReadOnlyCollection<string> HandledEventTypes { get; } = [EVENT_TYPE];
 
         public OutboxWork Read(IOutboxMessage message) =>
             OutboxWork.For(_ => throw new OutboxPermanentFailureException("Retired event type."));

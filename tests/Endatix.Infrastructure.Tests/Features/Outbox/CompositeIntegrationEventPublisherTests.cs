@@ -55,18 +55,15 @@ public class CompositeIntegrationEventPublisherTests
         neverReachedHandler.HandledIds.Should().BeEmpty();
     }
 
-    public static TheoryData<OutboxPermanentFailureException> PermanentFailures =>
-    [
-        new OutboxPermanentFailureException("Retired event type."),
-        new RetiredEventTypeException(),
-    ];
-
     [Theory]
-    [MemberData(nameof(PermanentFailures))]
-    public async Task PublishAsync_WhenHandlerFailsPermanently_RethrowsTheSameExceptionAndStops(
-        OutboxPermanentFailureException permanentFailure)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PublishAsync_WhenHandlerFailsPermanently_RethrowsTheSameExceptionAndStops(bool derivedType)
     {
         // Arrange — the base exception or a type derived from it.
+        var permanentFailure = derivedType
+            ? new RetiredEventTypeException()
+            : new OutboxPermanentFailureException("Retired event type.");
         RecordingOutboxHandler neverReachedHandler = new(["submission.completed"]);
         CompositeIntegrationEventPublisher publisher = new(
             [new FailingOutboxHandler(["submission.completed"], permanentFailure), neverReachedHandler],

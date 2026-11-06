@@ -283,6 +283,37 @@ public sealed class OutboxWorkTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_AppLevelTenantFailsPermanently_FailsWithoutRetry()
+    {
+        // Arrange
+        Seed("""{"newTenantId":"11","work":"run"}""", 0);
+        using var provider = Build(appLevelTenant: _ => throw new OutboxPermanentFailureException("never"));
+
+        // Act
+        var (result, work) = await RunJobAsync(provider, TenantA);
+
+        // Assert
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(OutboxJobFailures.PermanentFailure);
+        work.Ran.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PublishAsync_AppLevelTenantFailsPermanently_ThrowsItUnwrappedSoTheRelayFailsTheRow()
+    {
+        // Arrange
+        OutboxPermanentFailureException permanentFailure = new("never");
+        using var provider = Build(appLevelTenant: _ => throw permanentFailure);
+
+        // Act
+        var publish = () => PublishAsync(provider, new OutboxMessageStub(MessageId, "x.happened", "{}", 0));
+
+        // Assert
+        (await publish.Should().ThrowAsync<OutboxPermanentFailureException>()).Which.Should().BeSameAs(permanentFailure);
+        _enqueued.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task PublishAsync_AppLevelUnreadable_ThrowsSoTheRelayRetries()
     {
         // Arrange

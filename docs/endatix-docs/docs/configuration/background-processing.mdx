@@ -121,10 +121,10 @@ A host with `Endatix:Outbox:DeliverToJobQueue` on refuses to start while a handl
 
 ### Fail a message that can never succeed
 
-Throw `OutboxPermanentFailureException` (`Endatix.Outbox.Engine`), or a type derived from it, when no retry can make the message succeed, such as a row of a retired event type. Throw any other exception for a problem that may pass, such as a timeout. The exception's message is the reason the relay logs.
+Throw `OutboxPermanentFailureException` (`Endatix.Outbox.Engine`), or a type derived from it, when no retry can make the message succeed, such as a row of a retired event type. Throw any other exception for a problem that may pass, such as a timeout. Its message is the reason that is logged, so name the subscriber in it, such as `ScreenOutHandler: retired event type`.
 
 - **Inline** (`DeliverToJobQueue` off): the relay marks the row **Failed** on that attempt, with no next attempt. The message fails for every subscriber: subscribers after this one do not run for it, and the work of subscribers before it stays done.
-- **Job queue** (`DeliverToJobQueue` on): the row is already **Sent**, so only this subscriber's job fails, on that attempt, with no retry. Other subscribers' jobs run as usual.
+- **Job queue** (`DeliverToJobQueue` on): the row is already **Sent**, so only this subscriber's job fails, on that attempt, with no retry. Other subscribers' jobs run as usual. The job logs the reason; the job status shows only that the message can never be processed.
 
 A system outside the API process uses the [webhook](/docs/guides/webhooks) `SubmissionCollectionStatusChanged` instead of this handler.
 

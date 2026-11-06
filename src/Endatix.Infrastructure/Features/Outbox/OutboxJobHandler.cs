@@ -49,28 +49,37 @@ internal sealed partial class OutboxJobHandler<TWork>(
         OutboxMessageJob<TWork> payload,
         CancellationToken cancellationToken)
     {
+        try
+        {
+            return await RunAsync(job, payload, cancellationToken);
+        }
+        catch (OutboxPermanentFailureException exception)
+        {
+            // The reason goes to the log only: the job's error message is what the job status endpoint returns.
+            LogPermanentFailure(logger, job.JobId, job.JobType, payload.OutboxMessageId, exception);
+            return Failure(OutboxJobFailures.PermanentFailure);
+        }
+    }
+
+    // The tenant reader, Read and the work may each throw OutboxPermanentFailureException.
+    private async Task<Result> RunAsync(
+        BackgroundJobContext job,
+        OutboxMessageJob<TWork> payload,
+        CancellationToken cancellationToken)
+    {
         var lookup = await messages.FindAsync(job, payload.OutboxMessageId, registration.ReadTenant, cancellationToken);
         if (!lookup.TryGet(out var message, out var refused))
         {
             return Failure(refused);
         }
 
-        try
+        if (!OutboxWorkReader.TryRead(work, message, out var outboxWork))
         {
-            if (!OutboxWorkReader.TryRead(work, message, out var outboxWork))
-            {
-                return Failure(OutboxJobFailures.MessageUnreadable);
-            }
+            return Failure(OutboxJobFailures.MessageUnreadable);
+        }
 
-            await outboxWork.RunAsync(cancellationToken);
-            return Result.Success();
-        }
-        catch (OutboxPermanentFailureException exception)
-        {
-            // The reason goes to the log only: the job's error message is what the job status endpoint returns.
-            LogPermanentFailure(logger, job.JobId, message.Id, message.EventType, exception);
-            return Failure(OutboxJobFailures.PermanentFailure);
-        }
+        await outboxWork.RunAsync(cancellationToken);
+        return Result.Success();
     }
 
     private static Result Failure(string message) => Result.Invalid(new ValidationError(message));
@@ -78,12 +87,12 @@ internal sealed partial class OutboxJobHandler<TWork>(
     [LoggerMessage(
         Level = LogLevel.Warning,
         EventName = "OutboxJobPermanentFailure",
-        Message = "Outbox job {JobId} failed permanently for message {MessageId} ({EventType})")]
+        Message = "Outbox job {JobId} ({JobType}) failed permanently for outbox message {MessageId}")]
     private static partial void LogPermanentFailure(
         ILogger logger,
         long jobId,
+        string jobType,
         long messageId,
-        string eventType,
         Exception exception);
 }
 
