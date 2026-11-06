@@ -3,7 +3,9 @@ extern alias EndatixWebHost;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Audience.Features.Imports;
 using Endatix.Modules.Audience.Persistence;
+using System.Globalization;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -72,6 +74,11 @@ internal sealed class LoopbackClientIpStartupFilter : IStartupFilter
 
 internal static class EndatixWebApplicationFactoryConfiguration
 {
+    /// <summary>
+    /// Rows per chunk of a staged Audience import on every test host, so a few hundred rows cross several chunks.
+    /// </summary>
+    public const int ImportChunkRows = 100;
+
     public static void ConfigureCommon(IWebHostBuilder builder, string connectionString, TestDatabaseProvider provider)
     {
         builder.UseEnvironment(Environments.Staging);
@@ -90,6 +97,10 @@ internal static class EndatixWebApplicationFactoryConfiguration
 
         // A test that switches the outbox relay on sees it claim within a second rather than five.
         builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
+
+        builder.UseSetting(
+            $"{ImportChunkingOptions.SectionName}:{nameof(ImportChunkingOptions.ChunkRows)}",
+            ImportChunkRows.ToString(CultureInfo.InvariantCulture));
 
         var auth = IntegrationTestAuthSettings.FromEnvironment();
         builder.UseSetting("Endatix:Auth:Providers:Keycloak:Enabled", "false");

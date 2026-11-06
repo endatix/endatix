@@ -7,6 +7,7 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Features.Import;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Audience.Features.Imports;
 
@@ -32,7 +33,8 @@ internal sealed class StartImportHandler(
     IRepository<Form> forms,
     IImportRunner runner,
     IUniqueConstraintViolationChecker violations,
-    ImportSweep sweep)
+    ImportSweep sweep,
+    IOptions<ImportChunkingOptions> chunking)
     : ICommandHandler<StartImportCommand, Result<ImportViewDto>>
 {
     internal const string ImportExistsCode = "import_exists";
@@ -137,7 +139,7 @@ internal sealed class StartImportHandler(
             ? Conflict(winner)
             : Result<ImportViewDto>.Conflict(ImportExists);
 
-    private static AudienceImportStartArgs StartArgsOf(StartImportCommand request) =>
+    private AudienceImportStartArgs StartArgsOf(StartImportCommand request) =>
         new(
             request.TenantId,
             request.FormId,
@@ -147,7 +149,7 @@ internal sealed class StartImportHandler(
             request.PropertyColumns,
             request.IsTest,
             request.RowCount,
-            ImportRunnerRegistration.ChunkRows,
+            chunking.Value.ChunkRows,
             request.PerformedById,
             request.Options);
 

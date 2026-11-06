@@ -101,8 +101,6 @@ public sealed record ImportLimitsDto(int MaxRows, long MaxBytes, bool RunsInBack
 
 internal static class ImportRunnerRegistration
 {
-    public const int ChunkRows = 1_000;
-
     public static ImportLimitsDto LimitsOf(IImportRunner runner) =>
         runner.RunsInBackground
             ? new ImportLimitsDto(100_000, 50L * 1024 * 1024, RunsInBackground: true)
@@ -111,6 +109,10 @@ internal static class ImportRunnerRegistration
     /// <summary>The queue runner when the Jobs module registered a queue, else the inline one.</summary>
     public static IServiceCollection AddImportRunner(this IServiceCollection services)
     {
+        services.AddOptions<ImportChunkingOptions>()
+            .BindConfiguration(ImportChunkingOptions.SectionName)
+            .Validate(options => options.ChunkRows > 0, $"{ImportChunkingOptions.SectionName}:ChunkRows must be at least 1.")
+            .ValidateOnStart();
         services.AddSingleton<ImportRun>();
         services.AddScoped<ImportSweep>();
         services.AddHostedService<ImportSweepService>();

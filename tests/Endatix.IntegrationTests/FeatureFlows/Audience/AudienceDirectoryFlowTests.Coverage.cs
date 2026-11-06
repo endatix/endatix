@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -66,14 +65,14 @@ public sealed partial class AudienceDirectoryFlowTests
     }
 
     [Fact]
-    public async Task Coverage_of_five_thousand_participants_by_fifty_properties_costs_the_statements_of_a_small_form()
+    public async Task Coverage_of_a_large_form_costs_the_statements_of_a_small_form()
     {
         // Arrange
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var tenantId = world.Tenants[0].Id;
         var small = await FormWithCoverageAsync(admin);
-        var largeFormId = await ImportedFormAsync(admin, new(People: 5_000, Properties: 50));
+        var largeFormId = await ImportedFormAsync(admin, LargeForm);
         await AddTestParticipantAsync(admin, largeFormId, "tester@example.com");
 
         // Act
@@ -81,26 +80,24 @@ public sealed partial class AudienceDirectoryFlowTests
         var largeRead = await CountedVariablesAsync(world.Services, tenantId, largeFormId);
 
         // Assert: p00 is left empty on every other row; the test participant has no values
-        Assert.Equal(new ParticipantCounts(Test: 1, Real: 5_000), largeRead.Variables.Coverage.Participants);
-        Assert.Equal(50, largeRead.Variables.Coverage.Properties.Count);
-        Assert.Equal(new PropertyCoverage("p00", 0, 2_500), largeRead.Variables.Coverage.Properties[0]);
+        Assert.Equal(new ParticipantCounts(Test: 1, Real: LargeForm.People), largeRead.Variables.Coverage.Participants);
+        Assert.Equal(LargeForm.Properties, largeRead.Variables.Coverage.Properties.Count);
+        Assert.Equal(new PropertyCoverage("p00", 0, LargeForm.People / 2), largeRead.Variables.Coverage.Properties[0]);
         Assert.All(
             largeRead.Variables.Coverage.Properties.Skip(1),
-            property => Assert.Equal((0, 5_000), (property.FilledTest, property.FilledReal)));
+            property => Assert.Equal((0, LargeForm.People), (property.FilledTest, property.FilledReal)));
         Assert.Equal(smallRead.Statements, largeRead.Statements);
-        TestContext.Current.TestOutputHelper?.WriteLine(
-            $"variables read at 5,000 x 50: {largeRead.Elapsed.TotalMilliseconds:F0} ms, {largeRead.Statements} statements");
     }
 
     [Fact]
-    public async Task Coverage_of_five_thousand_test_participants_by_fifty_properties_counts_cells_in_one_statement()
+    public async Task Coverage_of_a_large_test_audience_counts_cells_in_one_statement()
     {
         // Arrange
         var world = await WorldAsync();
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var tenantId = world.Tenants[0].Id;
         var small = await FormWithCoverageAsync(admin);
-        var largeFormId = await ImportedFormAsync(admin, new(People: 5_000, Properties: 50, IsTest: true));
+        var largeFormId = await ImportedFormAsync(admin, LargeForm with { IsTest = true });
 
         // Act
         var smallRead = await CountedVariablesAsync(world.Services, tenantId, small.FormId);
@@ -108,21 +105,18 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert: p00 is left empty on every other row
         var variables = largeRead.Variables;
-        Assert.Equal(new ParticipantCounts(Test: 5_000, Real: 0), variables.Coverage.Participants);
-        Assert.Equal(new PropertyCoverage("p00", 2_500, 0), variables.Coverage.Properties[0]);
+        Assert.Equal(new ParticipantCounts(Test: LargeForm.People, Real: 0), variables.Coverage.Participants);
+        Assert.Equal(new PropertyCoverage("p00", LargeForm.People / 2, 0), variables.Coverage.Properties[0]);
         Assert.All(
             variables.Coverage.Properties.Skip(1),
-            property => Assert.Equal((5_000, 0), (property.FilledTest, property.FilledReal)));
-        Assert.Equal(5_000, variables.VariablePresets!.TotalPresets);
+            property => Assert.Equal((LargeForm.People, 0), (property.FilledTest, property.FilledReal)));
+        Assert.Equal(LargeForm.People, variables.VariablePresets!.TotalPresets);
         Assert.Equal(AudienceVariablesReader.PresetLimit, variables.VariablePresets.Presets.Count);
         Assert.Equal(smallRead.Statements, largeRead.Statements);
         Assert.Single(largeRead.Commands, CountsCells);
         Assert.DoesNotContain(largeRead.Commands, FiltersTestMemberships);
         Assert.DoesNotContain(largeRead.Commands, JoinsCellsToMemberships);
         Assert.DoesNotContain(largeRead.Commands, ReadsCellsWithProperties);
-        TestContext.Current.TestOutputHelper?.WriteLine(
-            $"variables read at 5,000 test x 50: {largeRead.Elapsed.TotalMilliseconds:F0} ms, " +
-            $"{largeRead.Statements} statements");
     }
 
     [Fact]
@@ -211,6 +205,12 @@ public sealed partial class AudienceDirectoryFlowTests
     /// </summary>
     private sealed record ImportShape(int People, int Properties, bool IsTest = false);
 
+    /// <summary>
+    /// Larger than <see cref="FormWithCoverageAsync"/> in both people and Properties, with more test participants than
+    /// the presets show, across several import chunks. The 5,000 by 50 read is a load-test journey.
+    /// </summary>
+    private static readonly ImportShape LargeForm = new(People: 240, Properties: 10);
+
     private static async Task<long> ImportedFormAsync(AudienceApi admin, ImportShape shape)
     {
         var formId = await admin.CreateFormAsync();
@@ -265,10 +265,9 @@ public sealed partial class AudienceDirectoryFlowTests
     private sealed record CountedVariables(
         AudienceVariablesDto Variables,
         int Statements,
-        IReadOnlyList<string> Commands,
-        TimeSpan Elapsed);
+        IReadOnlyList<string> Commands);
 
-    /// <summary>The variables read in its own scope, counting the statements its contexts send and timing it.</summary>
+    /// <summary>The variables read in its own scope, counting the statements its contexts send.</summary>
     private static async Task<CountedVariables> CountedVariablesAsync(
         IServiceProvider services,
         long tenantId,
@@ -281,12 +280,10 @@ public sealed partial class AudienceDirectoryFlowTests
             (DbContext)scope.ServiceProvider.GetRequiredService<IAudienceDbContext>(),
         ];
         using var statements = new StatementCounter(contexts);
-        var stopwatch = Stopwatch.StartNew();
         var result = await scope.ServiceProvider.GetRequiredService<IMediator>().Send(
             new GetAudienceVariablesQuery(tenantId, formId),
             TestContext.Current.CancellationToken);
-        stopwatch.Stop();
         Assert.True(result.IsSuccess);
-        return new CountedVariables(result.Value, statements.Count, statements.Commands, stopwatch.Elapsed);
+        return new CountedVariables(result.Value, statements.Count, statements.Commands);
     }
 }

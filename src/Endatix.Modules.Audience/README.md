@@ -109,8 +109,9 @@ and redeem, which is anonymous.
 
 ## Rules
 
-- **Staged imports.** The browser parses the file and sends it in chunks of 1,000 rows. The chunk that completes the
-  file starts the Check, which reads every row with the reader the one-request import uses (`ImportRowReader`, one
+- **Staged imports.** The browser parses the file and sends it in chunks of `upload.chunkSize` rows: 1,000 unless the
+  host sets `Endatix:Audience:Imports:ChunkRows` (at least 1; an import keeps the size it started with). The chunk
+  that completes the file starts the Check, which reads every row with the reader the one-request import uses (`ImportRowReader`, one
   instance across chunks, so a repeat in a later chunk is a duplicate), writes the rejections, counts who is new to the
   form, and writes no Participant. It pins the match key and starts again at row 1 when retried. After the scripter
   confirms, the write commits 500 rows per transaction under the shared match-key lock and every stripe of the form's

@@ -320,7 +320,7 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task A_one_request_import_with_blank_lines_across_its_chunks_writes_every_row()
     {
-        // Arrange — 2,500 people with a blank line after every 300th, so three chunks of 1,000 skip row numbers.
+        // Arrange — 2,500 people with a blank line after every 300th, so its chunks skip row numbers.
         AudienceApi api = await AdminAsync();
         long formId = await api.CreateFormAsync();
         IEnumerable<string> lines = Enumerable.Range(1, 2_500)
