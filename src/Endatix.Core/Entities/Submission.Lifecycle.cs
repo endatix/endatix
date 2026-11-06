@@ -25,6 +25,28 @@ public sealed partial class Submission
     }
 
     /// <summary>
+    /// The respondent opened the form for this submission. The first open records <see cref="StartedAt"/>, which
+    /// later opens keep, and moves <c>not_started</c> to <c>viewed</c> (<c>submission.collection_status_moved</c>).
+    /// Every open of a submission that can still resume moves <see cref="BaseEntity.ModifiedAt"/>, so a returning
+    /// respondent reads as active again. A completed or closed submission is left alone.
+    /// </summary>
+    public void Open(DateTime? at = null)
+    {
+        if (!SubmissionLifecycle.CanResume(this))
+        {
+            return;
+        }
+
+        var step = SubmissionLifecycle.Effective(this).Code == CollectionStatusCodes.NotStarted
+            ? SubmissionLifecycle.Move(this, CollectionStatusValue.Viewed)
+            : LifecycleStep.None(CollectionStatus);
+        var now = at ?? DateTime.UtcNow;
+        StartedAt ??= now;
+        ModifiedAt = now;
+        Apply(step);
+    }
+
+    /// <summary>
     /// Ends collection in a closed-phase outcome, e.g. <c>screen_out</c>, <c>quota_full</c> or a host code, and
     /// raises <c>submission.closed</c>. Records the start if none was recorded. A repeat of the current outcome is a
     /// no-op.
@@ -73,7 +95,7 @@ public sealed partial class Submission
     /// </summary>
     private void Begin(SubmissionCreateArgs args)
     {
-        var entry = args.StartSubmission ? CollectionStatusValue.InProgress : CollectionStatusValue.NotStarted;
+        var entry = EntryStatus(args);
         var saved = SavedStatus(args, entry);
         var now = DateTime.UtcNow;
         if (args.IsComplete)
@@ -82,7 +104,7 @@ public sealed partial class Submission
             CompletedAt = now;
         }
 
-        if (saved != entry || args.StartSubmission)
+        if (saved != entry || args.StartSubmission || args.OpenSubmission)
         {
             StartedAt = now;
         }
@@ -90,6 +112,14 @@ public sealed partial class Submission
         CollectionStatus = entry.CreateInstance();
         Apply(SubmissionLifecycle.Begin(this, entry, saved));
     }
+
+    private static CollectionStatus EntryStatus(SubmissionCreateArgs args) => (args.StartSubmission, args.OpenSubmission) switch
+    {
+        (true, true) => throw new ArgumentException("A submission is created started or opened, not both.", nameof(args)),
+        (true, false) => CollectionStatusValue.InProgress,
+        (false, true) => CollectionStatusValue.Viewed,
+        _ => CollectionStatusValue.NotStarted,
+    };
 
     private static CollectionStatus SavedStatus(SubmissionCreateArgs args, CollectionStatus entry)
     {

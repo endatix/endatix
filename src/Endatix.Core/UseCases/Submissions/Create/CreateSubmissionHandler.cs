@@ -258,12 +258,13 @@ public class CreateSubmissionHandler(
                 SubmitterProfileSnapshot: Submitter.ProfileSnapshot,
                 IsTestSubmission: Gate.IsTest,
                 EnforceSingleSubmissionGate: Gate.Enforce,
-                // Public/authenticated Create = respondent engagement; CreateOnBehalf = prefill.
-                StartSubmission: string.Equals(
+                // Public/authenticated Create = respondent engagement; CreateOnBehalf = prefill; an open = viewed.
+                StartSubmission: !Request.OpenSubmission && string.Equals(
                     Request.RequiredPermission,
                     Actions.Submissions.Create,
                     StringComparison.Ordinal),
-                CollectionOutcome: outcome);
+                CollectionOutcome: outcome,
+                OpenSubmission: Request.OpenSubmission);
     }
 
     private Task<Result<Submission>> DuplicateConflictAsync(

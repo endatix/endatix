@@ -29,7 +29,7 @@ public sealed partial class AudienceDirectoryFlowTests
             world.Services, IdOf(opened, "submissionId"), TestContext.Current.CancellationToken);
         var row = Assert.Single(rows);
         Assert.Equal(SubmissionLifecycleEvent.EventTypes.Created, row.EventType);
-        Assert.Equal(CollectionStatusCodes.InProgress, row.CollectionStatus);
+        Assert.Equal(CollectionStatusCodes.Viewed, row.CollectionStatus);
         Assert.False(row.IsTestSubmission);
     }
 

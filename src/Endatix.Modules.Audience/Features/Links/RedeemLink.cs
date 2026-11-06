@@ -239,7 +239,7 @@ internal sealed class RedeemLinkHandler(
             : null;
 
     /// <summary>
-    /// A response this open did not create becomes the link's: it is marked started, and it gets the live audience
+    /// A response this open did not create becomes the link's: it is marked opened, and it gets the live audience
     /// values when it has none (an on-behalf create before the person was in the audience). Values it has stay.
     /// The snapshot is read either way: it is the check under the lock that the person is still there.
     /// Not found when the person was removed, or the response deleted, meanwhile; unavailable when its save lost a
@@ -261,7 +261,7 @@ internal sealed class RedeemLinkHandler(
             submission.FreezePersonalization(opening.Link.Id, snapshot);
         }
 
-        submission.EnsureStarted();
+        submission.Open();
         var saved = await submissions.TrySaveChangesAsync(cancellationToken);
         return saved.IsSuccess ? Result.Success(submission) : saved.ToErrorResult<Submission>();
     }
@@ -376,7 +376,7 @@ internal sealed class RedeemLinkHandler(
             SubmitterId: opening.SubmitterId,
             SubmitterDisplayId: opening.SubmitterLabel,
             EnforceSingleSubmissionGate: opening.SubmitterId is not null,
-            StartSubmission: true));
+            OpenSubmission: true));
 
     /// <summary>
     /// The live audience values, or <see langword="null"/> when the person was removed. The cells are read before
