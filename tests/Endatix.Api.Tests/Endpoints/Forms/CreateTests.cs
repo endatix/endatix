@@ -21,7 +21,7 @@ public class CreateTests
     }
 
     private static JsonElement Schema(string json) =>
-        JsonDocument.Parse(json).RootElement.Clone();
+        JsonSerializer.Deserialize<JsonElement>(json);
 
     [Fact]
     public async Task ExecuteAsync_InvalidRequest_ReturnsProblemRequest()

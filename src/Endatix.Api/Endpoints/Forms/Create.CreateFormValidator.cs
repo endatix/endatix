@@ -1,7 +1,8 @@
-using Endatix.Api.Common;
-using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
+using System.Text.Json;
+using Endatix.Infrastructure.Data.Config;
+using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -34,6 +35,11 @@ public class CreateFormValidator : Validator<CreateFormRequest>
             .MinimumLength(DataSchemaConstants.MIN_JSON_LENGTH)
             .When(x => x.FormDefinitionJsonData != null);
 #pragma warning restore CS0618
+
+        RuleFor(x => x.FormDefinitionSchema)
+            .Must(schema => schema!.Value.ValueKind == JsonValueKind.Object)
+            .WithMessage("FormDefinitionSchema must be a JSON object.")
+            .When(x => x.FormDefinitionSchema.HasValue);
 
         RuleFor(x => x.Metadata)
             .ValidJsonString()
