@@ -1,16 +1,16 @@
-﻿using Ardalis.GuardClauses;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Configuration;
-using Endatix.Core.Abstractions;
-using Endatix.Core.UseCases.Identity;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
-using Microsoft.Extensions.Logging;
+using Endatix.Core.UseCases.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
@@ -38,13 +38,15 @@ internal sealed class JwtTokenService : IUserTokenService
         _authSchemeSelector = authSchemeSelector;
         _logger = logger;
 
-        // Check if JwtOptions section actually exists in configuration and migrate if needed
+        // Legacy Endatix:Jwt config → EndatixJwtOptions until hosts migrate; keep JwtOptions/JwtOptionsMapper.
+#pragma warning disable CS0618 // Intentional callers of obsolete JwtOptions/JwtOptionsMapper for config compatibility
         var jwtOptionsSection = configuration.GetSection(JwtOptions.SECTION_NAME);
         if (jwtOptionsSection.Exists() && jwtOptionsSection.Get<JwtOptions>() is JwtOptions legacyJwtOptions)
         {
             logger.LogWarning("JwtOptions are depreciated. Move the configuration to Endatix:Auth:EndatixJwt. Applying mapping of old values to EndatixJwtOptions.");
             _endatixJwtOptions = JwtOptionsMapper.Map(legacyJwtOptions, _endatixJwtOptions);
         }
+#pragma warning restore CS0618
 
         // Validate EndatixJwt Options options to ensure they are correctly configured
         Guard.Against.NullOrEmpty(_endatixJwtOptions.SigningKey, message: "Signing key cannot be empty. Please check your appSettings.");
