@@ -80,10 +80,7 @@ public class SendGridEmailSender(
                     .ConfigureAwait(false);
 
         var responseBody = await ProviderResponse.ReadAcceptedBodyForLogAsync(ProviderName, response.StatusCode, response.Body);
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation("Sending SendGrid message with status code {StatusCode} and response: {Response}", response.StatusCode, responseBody);
-        }
+        _logger.LogEmailSent(ProviderName, response.StatusCode, responseBody);
     }
 
     /// <inheritdoc />
@@ -120,9 +117,6 @@ public class SendGridEmailSender(
             .ConfigureAwait(false);
 
         var responseBody = await ProviderResponse.ReadAcceptedBodyForLogAsync(ProviderName, response.StatusCode, response.Body);
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation("Sending SendGrid template message with status code {StatusCode} and response: {Response}", response.StatusCode, responseBody);
-        }
+        _logger.LogTemplateEmailSent(ProviderName, response.StatusCode, responseBody);
     }
 }

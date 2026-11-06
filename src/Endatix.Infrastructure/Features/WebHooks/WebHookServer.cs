@@ -28,7 +28,7 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
         {
             if (instructions.Uri is null || !Uri.IsWellFormedUriString(instructions.Uri, UriKind.Absolute))
             {
-                logger.LogError("Invalid WebHook URI: {Uri}. Skipping firing WebHook for {Operation} and Id: {Id}...", instructions.Uri, message.operation, message.id);
+                logger.LogWebHookInvalidUri(instructions.Uri, message.operation, message.id);
                 return false;
             }
 
@@ -43,31 +43,28 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
 
             if (response.IsSuccessStatusCode)
             {
-                if (logger.IsEnabled(LogLevel.Trace))
-                {
-                    logger.LogTrace("Successfully processed WebHook for operation: {Operation}. Item id: {Id}. Status Code: {StatusCode}", message.operation, message.id, response.StatusCode);
-                }
+                logger.LogWebHookDelivered(message.operation, message.id, response.StatusCode);
                 isSuccess = true;
             }
             else
             {
-                logger.LogError("Failed to process WebHook for operation: {Operation}. Item id: {Id}. Status Code: {StatusCode}", message.operation, message.id, response.StatusCode);
+                logger.LogWebHookDeliveryFailed(message.operation, message.id, response.StatusCode);
             }
 
         }
          // This exception is thrown when a single request times out (configured with WebHookSettings's AttemptTimeoutInSeconds setting)
         catch (TaskCanceledException ex)
         {
-            logger.LogError(ex, "Webhook execution was cancelled due to timeout. Failed operation: {Operation}. Item id: {Id}. Destination: {Url}.", message.operation, message.id, instructions.Uri);
+            logger.LogWebHookTimedOut(ex, message.operation, message.id, instructions.Uri);
         }
         // This exception is thrown when the resilience pipeline cancels any further execution (max attempts or total timeout reached.)
         catch (TimeoutRejectedException ex)
         {
-            logger.LogError(ex, "Webhook execution rejected because of timeout. Failed operation: {Operation}. Item id: {Id}. Destination: {Url}.", message.operation, message.id, instructions.Uri);
+            logger.LogWebHookRejected(ex, message.operation, message.id, instructions.Uri);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error occurred while processing WebHook {@Message}.", message);
+            logger.LogWebHookError(ex, message.operation, message.id);
         }
 
         return isSuccess;

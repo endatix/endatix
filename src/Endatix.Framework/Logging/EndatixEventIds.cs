@@ -39,6 +39,12 @@ public static class EndatixEventIds
 
         public const int ReCaptchaStart = 5000;
         public const int ReCaptchaEnd = 5099;
+
+        public const int EmailStart = 6000;
+        public const int EmailEnd = 6099;
+
+        public const int ApiStart = 6200;
+        public const int ApiEnd = 6299;
     }
 
     /// <summary>Generic operation lifecycle (Framework <c>EndatixLoggerExtensions</c>).</summary>
@@ -162,6 +168,8 @@ public static class EndatixEventIds
         public const int TelemetrySkippedNoExporter = 1220;
         public const int LoggingConfigured = 1221;
         public const int LegacySerilogSectionDetected = 1222;
+        public const int SwaggerMiddlewareAdded = 1223;
+        public const int HealthChecksMiddlewareAdded = 1224;
 
         public const int RangeStart = Ranges.HostingStart;
         public const int RangeEnd = Ranges.HostingEnd;
@@ -190,7 +198,9 @@ public static class EndatixEventIds
             TelemetryConfigured,
             TelemetrySkippedNoExporter,
             LoggingConfigured,
-            LegacySerilogSectionDetected
+            LegacySerilogSectionDetected,
+            SwaggerMiddlewareAdded,
+            HealthChecksMiddlewareAdded
         ];
     }
 
@@ -212,6 +222,36 @@ public static class EndatixEventIds
             ScoreTooLow,
             ActionMissing
         ];
+    }
+
+    /// <summary>Webhook delivery (Infrastructure <c>WebHookLoggerExtensions</c>).</summary>
+    public static class Webhooks
+    {
+        public const int EventSkipped = Ranges.WebhooksStart;
+        public const int NoEndpoints = 4001;
+        public const int InvalidUri = 4002;
+        public const int Delivered = 4003;
+        public const int DeliveryFailed = 4004;
+        public const int DeliveryTimedOut = 4005;
+        public const int DeliveryRejected = 4006;
+        public const int DeliveryError = 4007;
+        public const int WorkerStarted = 4008;
+        public const int WorkerStopped = 4009;
+    }
+
+    /// <summary>Email provider responses (Infrastructure <c>EmailLoggerExtensions</c>).</summary>
+    public static class Email
+    {
+        public const int ProviderMessageSent = Ranges.EmailStart;
+        public const int ProviderTemplateMessageSent = 6001;
+    }
+
+    /// <summary>API host concerns (Api <c>ApiLoggerExtensions</c>).</summary>
+    public static class Api
+    {
+        public const int CorsDefaultPolicy = Ranges.ApiStart;
+        public const int CorsCredentialsIgnored = 6201;
+        public const int SlackTokenReceived = 6202;
     }
 
     /// <summary>All registered startup EventIds (allocated ranges only).</summary>

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
+using Endatix.Api.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Features.Email;
@@ -37,10 +38,7 @@ public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : 
     /// <inheritdoc/>
     public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(SlackTokenRequest request, CancellationToken ct)
     {
-        if (logger.IsEnabled(LogLevel.Information))
-        {
-            logger.LogInformation("Received slack token: {Token}", request.Token);
-        }
+        logger.LogSlackTokenReceived();
 
         EmailWithBody email = new EmailWithBody()
         {

@@ -70,10 +70,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
             isDefaultPolicySet = true;
         }
 
-        if (_logger.IsEnabled(LogLevel.Debug))
-        {
-            _logger.LogDebug("Default Cors Policy is: {@Policy}", options.GetPolicy(options.DefaultPolicyName));
-        }
+        _logger.LogCorsDefaultPolicy(options.GetPolicy(options.DefaultPolicyName));
     }
 
     private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySettings policySetting)
@@ -85,7 +82,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
         var includeAnyOrigin = wildcardSearchResult == CorsWildcardResult.MatchAll;
         if (includeAnyOrigin && policySetting.AllowCredentials)
         {
-            _logger.LogWarning("Ignoring {Setting} and disallowing credentials. Details: {Details}", "AllowCredentials", "The CORS protocol does not allow specifying a wildcard (any) origin and credentials at the same time. Configure the CORS policy by listing individual origins if credentials needs to be supported.");
+            _logger.LogCorsCredentialsIgnored("AllowCredentials", "The CORS protocol does not allow specifying a wildcard (any) origin and credentials at the same time. Configure the CORS policy by listing individual origins if credentials needs to be supported.");
             _ = builder.DisallowCredentials();
             return builder;
         }

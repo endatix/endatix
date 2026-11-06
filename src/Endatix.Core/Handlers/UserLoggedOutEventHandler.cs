@@ -11,10 +11,7 @@ internal sealed class UserLoggedOutEventHandler(ILogger<UserLoggedOutEventHandle
 {
     public Task Handle(UserLoggedOutEvent domainEvent, CancellationToken cancellationToken)
     {
-        if (logger.IsEnabled(LogLevel.Trace))
-        {
-            logger.LogTrace("Handling User LoggedOut event for {@EventData}", domainEvent.User);
-        }
+        logger.LogUserLoggedOutHandled(domainEvent.User);
 
         return Task.CompletedTask;
     }

@@ -11,10 +11,7 @@ internal sealed class SubmissionCompletedEventHandler(ILogger<SubmissionComplete
 {
     public Task Handle(SubmissionCompletedEvent domainEvent, CancellationToken cancellationToken)
     {
-        if (logger.IsEnabled(LogLevel.Trace))
-        {
-            logger.LogTrace("Handling Submission Created event for {@EventData}", domainEvent.Submission);
-        }
+        logger.LogSubmissionCompletedHandled(domainEvent.Submission);
 
         return Task.CompletedTask;
     }

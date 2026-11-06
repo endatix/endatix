@@ -26,20 +26,14 @@ public class BackgroundTaskWebHookService(
         var eventConfig = await configReader.GetEventConfigAsync(new WebHookEventLookup(tenantId, message.operation.EventName, formId), cancellationToken);
         if (eventConfig == null || !eventConfig.IsEnabled)
         {
-            if (logger.IsEnabled(LogLevel.Trace))
-            {
-                logger.LogTrace("WebHook for {EventName} event is disabled or not configured. Skipping processing...", message.operation.EventName);
-            }
+            logger.LogWebHookEventSkipped(message.operation.EventName);
             return;
         }
 
         var endpoints = eventConfig.WebHookEndpoints;
         if (endpoints == null || !endpoints.Any())
         {
-            if (logger.IsEnabled(LogLevel.Trace))
-            {
-                logger.LogTrace("No webhook endpoints found for {EventName} event. Skipping processing...", message.operation.EventName);
-            }
+            logger.LogWebHookNoEndpoints(message.operation.EventName);
             return;
         }
 

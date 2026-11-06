@@ -16,14 +16,19 @@ namespace Endatix.Core.Infrastructure.Logging;
 public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
   where TRequest : IRequest<TResponse>
 {
+    /// <summary>
+    /// Shared category for every closed generic, so log filters target one name.
+    /// </summary>
+    internal const string LogCategory = "Endatix.Core.Infrastructure.Logging.LoggingPipelineBehavior";
+
     private readonly ILogger _logger;
 
     /// <summary>
-    /// Creates the pipeline behavior with a logger category for this closed generic type.
+    /// Creates the pipeline behavior with the shared <see cref="LogCategory"/> logger category.
     /// </summary>
     public LoggingPipelineBehavior(ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<LoggingPipelineBehavior<TRequest, TResponse>>();
+        _logger = loggerFactory.CreateLogger(LogCategory);
     }
 
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
@@ -31,7 +36,7 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
         Guard.Against.Null(request);
         if (_logger.IsEnabled(LogLevel.Information))
         {
-            _logger.LogInformation("Handling {RequestName}", typeof(TRequest).Name);
+            _logger.LogRequestHandling(typeof(TRequest).Name);
 
             // Reflection! Could be a performance concern
             var myType = request.GetType();
@@ -45,7 +50,7 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
                     ? PiiRedactor.Redact(value, sensitiveAttribute.Type)
                     : LogPropertyFormatter.FormatForLog(value);
 
-                _logger.LogInformation("Property {Property} : {Value}", prop.Name, logValue);
+                _logger.LogRequestProperty(prop.Name, logValue);
             }
         }
 
@@ -53,11 +58,7 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
 
         var response = await next();
 
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation("Handled {RequestName} with {Response} in {ElapsedMs} ms", typeof(TRequest).Name, response, sw.ElapsedMilliseconds);
-        }
-        sw.Stop();
+        _logger.LogRequestHandled(typeof(TRequest).Name, response, sw.ElapsedMilliseconds);
         return response;
     }
 }

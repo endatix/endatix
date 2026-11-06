@@ -11,10 +11,7 @@ internal sealed class UserRegisteredEventHandler(ILogger<UserRegisteredEventHand
 {
     public Task Handle(UserRegisteredEvent domainEvent, CancellationToken cancellationToken)
     {
-        if (logger.IsEnabled(LogLevel.Trace))
-        {
-            logger.LogTrace("Handling User Registered event for {@EventData}", domainEvent.User);
-        }
+        logger.LogUserRegisteredHandled(domainEvent.User);
 
         return Task.CompletedTask;
     }

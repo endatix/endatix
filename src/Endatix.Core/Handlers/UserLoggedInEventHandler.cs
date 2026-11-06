@@ -11,10 +11,7 @@ internal sealed class UserLoggedInEventHandler(ILogger<UserLoggedInEventHandler>
 {
     public Task Handle(UserLoggedInEvent domainEvent, CancellationToken cancellationToken)
     {
-        if (logger.IsEnabled(LogLevel.Trace))
-        {
-            logger.LogTrace("Handling User LoggedIn event for {@EventData}", domainEvent.User);
-        }
+        logger.LogUserLoggedInHandled(domainEvent.User);
 
         return Task.CompletedTask;
     }

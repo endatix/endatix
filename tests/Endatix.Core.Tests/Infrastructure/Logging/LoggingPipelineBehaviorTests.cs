@@ -35,7 +35,17 @@ public class LoggingPipelineBehaviorTests
     }
 
     [Fact]
-    public async Task Handle_LoggingDisabled_OnlyLogsResponseTime()
+    public void Constructor_AnyClosedGeneric_UsesSharedLogCategory()
+    {
+        // Act
+        _ = new LoggingPipelineBehavior<TestRequestWithPrincipal, TestResponse>(_loggerFactory);
+
+        // Assert
+        _loggerFactory.Received().CreateLogger(LoggingPipelineBehavior<TestRequest, TestResponse>.LogCategory);
+    }
+
+    [Fact]
+    public async Task Handle_LoggingDisabled_LogsNothing()
     {
         // Arrange
         var request = new TestRequest { Id = 1, Name = "Test" };
