@@ -29,6 +29,7 @@ public sealed class OpenSubmissionHandler(
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Submission not found";
     private const string SUBMIT_PERMISSION_MESSAGE = "Token does not have submit permission";
 
+    /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(OpenSubmissionCommand request, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(request.SubmissionToken))
