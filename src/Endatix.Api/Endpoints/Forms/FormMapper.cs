@@ -15,8 +15,6 @@ public class FormMapper
     /// <typeparam name="T">The type of the form API model, which inherits FormModel.</typeparam>
     /// <param name="form">The form entity.</param>
     /// <returns>The mapped form API model.</returns>
-    // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
-#pragma warning disable CS0618
     public static T Map<T>(Form form) where T : FormModel, new() => new T
     {
         Id = form.Id.ToString(),
@@ -32,10 +30,11 @@ public class FormMapper
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt,
         FolderId = form.FolderId?.ToString(),
+#pragma warning disable CS0618 // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
         WebHookSettingsJson = form.WebHookSettingsJson,
+#pragma warning restore CS0618
         WebHookSettings = ParseJsonString(form.WebHookSettingsJson)
     };
-#pragma warning restore CS0618
 
     /// <summary>
     /// Parses a JSON string to a JsonElement, returning null if the string is empty or invalid.
@@ -84,8 +83,6 @@ public static class FormMapperExtensions
         return forms.Select(formDto => formDto.ToFormModel(includeWebHookSettings: false));
     }
 
-    // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
-#pragma warning disable CS0618
     public static FormModel ToFormModel(this FormDto formDto, bool includeWebHookSettings = true) => new FormModel()
     {
         Id = formDto.Id,
@@ -102,10 +99,11 @@ public static class FormMapperExtensions
         ModifiedAt = formDto.ModifiedAt,
         SubmissionsCount = formDto.SubmissionsCount,
         FolderId = formDto.FolderId,
+#pragma warning disable CS0618 // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
         WebHookSettingsJson = formDto.WebHookSettingsJson,
+#pragma warning restore CS0618
         WebHookSettings = includeWebHookSettings
             ? FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
             : null
     };
-#pragma warning restore CS0618
 }
