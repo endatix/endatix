@@ -55,12 +55,59 @@ public class CompositeIntegrationEventPublisherTests
         neverReachedHandler.HandledIds.Should().BeEmpty();
     }
 
-    private sealed class FailingOutboxHandler(IReadOnlyCollection<string> eventTypes) : IOutboxIntegrationEventHandler
+    public static TheoryData<OutboxPermanentFailureException> PermanentFailures =>
+    [
+        new OutboxPermanentFailureException("Retired event type."),
+        new RetiredEventTypeException(),
+    ];
+
+    [Theory]
+    [MemberData(nameof(PermanentFailures))]
+    public async Task PublishAsync_WhenHandlerFailsPermanently_RethrowsTheSameExceptionAndStops(
+        OutboxPermanentFailureException permanentFailure)
+    {
+        // Arrange — the base exception or a type derived from it.
+        RecordingOutboxHandler neverReachedHandler = new(["submission.completed"]);
+        CompositeIntegrationEventPublisher publisher = new(
+            [new FailingOutboxHandler(["submission.completed"], permanentFailure), neverReachedHandler],
+            NullLogger<CompositeIntegrationEventPublisher>.Instance);
+        IOutboxMessage message = new FakeOutboxMessage(4, "submission.completed", "{}", 1);
+
+        // Act
+        Func<Task> act = () => publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert — unwrapped, so the relay fails the message at once.
+        (await act.Should().ThrowAsync<OutboxPermanentFailureException>()).Which.Should().BeSameAs(permanentFailure);
+        neverReachedHandler.HandledIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PublishAsync_WhenHandlerFails_WrapsTheErrorSoTheRelayRetries()
+    {
+        // Arrange
+        InvalidOperationException failure = new("Handler failed.");
+        CompositeIntegrationEventPublisher publisher = new(
+            [new FailingOutboxHandler(["submission.completed"], failure)],
+            NullLogger<CompositeIntegrationEventPublisher>.Instance);
+        IOutboxMessage message = new FakeOutboxMessage(5, "submission.completed", "{}", 1);
+
+        // Act
+        Func<Task> act = () => publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>())
+            .Which.InnerException.Should().BeSameAs(failure);
+    }
+
+    private sealed class RetiredEventTypeException() : OutboxPermanentFailureException("Retired event type.");
+
+    private sealed class FailingOutboxHandler(IReadOnlyCollection<string> eventTypes, Exception? failure = null)
+        : IOutboxIntegrationEventHandler
     {
         public IReadOnlyCollection<string> EventTypes { get; } = eventTypes;
 
         public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("Handler failed.");
+            throw failure ?? new InvalidOperationException("Handler failed.");
     }
 
     private sealed class RecordingOutboxHandler(IReadOnlyCollection<string> eventTypes) : IOutboxIntegrationEventHandler
