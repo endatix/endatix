@@ -23,6 +23,9 @@ internal static class OutboxJobFailures
 
     /// <summary>An app-level row's payload names another tenant than the job's.</summary>
     public const string OtherTenant = "The outbox message belongs to another tenant.";
+
+    /// <summary>The work threw <see cref="OutboxPermanentFailureException"/>: the message can never be processed.</summary>
+    public const string PermanentFailure = "The outbox message can never be processed.";
 }
 
 /// <summary>
@@ -30,10 +33,11 @@ internal static class OutboxJobFailures
 /// relay runs inline.
 /// </summary>
 /// <remarks>
-/// A message that is gone or cannot be read is a failure result, so the job ends on its first attempt. The work
-/// itself throws on a transient problem, as it does inline, and the job retries.
+/// A message that is gone or cannot be read is a failure result, so the job ends on its first attempt, and so is an
+/// <see cref="OutboxPermanentFailureException"/> from the work, which fails the row at once inline. The work itself
+/// throws on a transient problem, as it does inline, and the job retries.
 /// </remarks>
-internal sealed class OutboxJobHandler<TWork>(
+internal sealed partial class OutboxJobHandler<TWork>(
     OutboxJobMessages messages,
     TWork work,
     OutboxWorkRegistration<TWork> registration,
@@ -41,6 +45,24 @@ internal sealed class OutboxJobHandler<TWork>(
     where TWork : class, IOutboxWork<TWork>
 {
     protected override async Task<Result> ExecuteAsync(
+        BackgroundJobContext job,
+        OutboxMessageJob<TWork> payload,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await RunAsync(job, payload, cancellationToken);
+        }
+        catch (OutboxPermanentFailureException exception)
+        {
+            // The reason goes to the log only: the job's error message is what the job status endpoint returns.
+            LogPermanentFailure(logger, job.JobId, job.JobType, payload.OutboxMessageId, exception);
+            return Failure(OutboxJobFailures.PermanentFailure);
+        }
+    }
+
+    // The tenant reader, Read and the work may each throw OutboxPermanentFailureException.
+    private async Task<Result> RunAsync(
         BackgroundJobContext job,
         OutboxMessageJob<TWork> payload,
         CancellationToken cancellationToken)
@@ -61,6 +83,17 @@ internal sealed class OutboxJobHandler<TWork>(
     }
 
     private static Result Failure(string message) => Result.Invalid(new ValidationError(message));
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        EventName = "OutboxJobPermanentFailure",
+        Message = "Outbox job {JobId} ({JobType}) failed permanently for outbox message {MessageId}")]
+    private static partial void LogPermanentFailure(
+        ILogger logger,
+        long jobId,
+        string jobType,
+        long messageId,
+        Exception exception);
 }
 
 /// <summary>Loads the outbox message an outbox work's job processes.</summary>

@@ -35,6 +35,8 @@ public static class OutboxWorkServiceCollectionExtensions
     /// <param name="defaults">The job's retry policy. Omitted uses <see cref="DefaultJob"/>.</param>
     /// <param name="appLevelTenant">
     /// Reads the job's tenant from an app-level row, whose stored tenant is none. Omitted, the row carries the tenant.
+    /// An <see cref="OutboxPermanentFailureException"/> thrown here fails the job at once, and when the relay enqueues
+    /// it fails the outbox row at once, for every subscriber, since no job can be enqueued for this one.
     /// </param>
     /// <param name="onlyWhen">
     /// Enqueues no job when this returns false, so a frequent event that rarely needs the work adds no empty jobs.

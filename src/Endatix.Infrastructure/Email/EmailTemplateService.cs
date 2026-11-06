@@ -29,7 +29,9 @@ public class EmailTemplateService : IEmailTemplateService
 
     private string HubUrl => !string.IsNullOrWhiteSpace(_hubSettings.Value.HubBaseUrl)
         ? _hubSettings.Value.HubBaseUrl.Trim()
+#pragma warning disable CS0618 // Legacy Endatix:EmailTemplates:HubUrl fallback until hosts migrate to Endatix:Hub:HubBaseUrl
         : _emailTemplateSettings.Value.HubUrl ?? string.Empty;
+#pragma warning restore CS0618
 
     /// <inheritdoc />
     public EmailWithTemplate CreateVerificationEmail(string userEmail, string token)

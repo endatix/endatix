@@ -7,6 +7,11 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// Fans a claimed outbox row out to every registered <see cref="IOutboxIntegrationEventHandler"/>
 /// whose <see cref="IOutboxIntegrationEventHandler.EventTypes"/> includes the message event type.
 /// </summary>
+/// <remarks>
+/// A handler's failure is wrapped with the handler's name, so the relay retries the message. An
+/// <see cref="OutboxPermanentFailureException"/> passes through unwrapped, because the relay fails the message at
+/// once only when it sees that exception itself.
+/// </remarks>
 internal sealed partial class CompositeIntegrationEventPublisher(
     IEnumerable<IOutboxIntegrationEventHandler> handlers,
     ILogger<CompositeIntegrationEventPublisher> logger) : IIntegrationEventPublisher
@@ -36,6 +41,10 @@ internal sealed partial class CompositeIntegrationEventPublisher(
                 await handler.HandleAsync(message, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OutboxPermanentFailureException)
             {
                 throw;
             }
