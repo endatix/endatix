@@ -86,7 +86,10 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
         // Assert
         Assert.Equal(CollectionStatusCodes.Viewed, opened.CollectionStatus);
         var stored = await StoredAsync(world, created.Id);
-        Assert.Equal(DateTimeTestHelpers.TruncateToMicroseconds(opened.StartedAt!.Value), stored.StartedAt);
+        // PostgreSQL keeps microseconds, SQL Server 100 ns ticks: compare at the coarser one.
+        Assert.Equal(
+            DateTimeTestHelpers.TruncateToMicroseconds(opened.StartedAt!.Value),
+            DateTimeTestHelpers.TruncateToMicroseconds(stored.StartedAt!.Value));
         Assert.Equal(_longAgo, stored.CreatedAt);
         Assert.Equal(CollectionStatusCodes.InProgress, stored.CollectionStatus);
         Assert.Equal(
