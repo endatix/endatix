@@ -28,26 +28,26 @@ public sealed class AuthorizationStampSqlServerTests(EndatixIntegrationWebHostFi
     {
         // Arrange — a role change has saved its rows in a transaction that stays open.
         Assert.SkipWhen(fixture.Database.Provider != TestDatabaseProvider.SqlServer, "Asserts SQL Server read locking.");
-        CancellationToken ct = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await fixture.PrepareWorldAsync(
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
         IntegrationSeedBuilder builder = new(world.Services);
         await builder.SeedRoleAsync(world.Tenants[0].Id, RoleName, ct);
         await builder.SeedRolePermissionsAsync(world.Tenants[0].Id, RoleName, [Actions.Forms.View, Actions.Forms.Create], ct);
-        Guid committed = await ReadStampAsync(world, ct);
+        var committed = await ReadStampAsync(world, ct);
         TestContext.Current.SendDiagnosticMessage(
             $"READ_COMMITTED_SNAPSHOT on: {await ReadCommittedSnapshotOnAsync(world, ct)}");
 
-        using IServiceScope writerScope = world.Services.CreateScope();
-        AppIdentityDbContext writer = writerScope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        using var writerScope = world.Services.CreateScope();
+        var writer = writerScope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         await using var roleChange = await writer.Database.BeginTransactionAsync(ct);
         writer.RolePermissions.Remove(await writer.RolePermissions.FirstAsync(ct));
         await writer.SaveChangesAsync(ct);
 
         // Act
         Stopwatch elapsed = Stopwatch.StartNew();
-        Task<Guid> read = ReadStampAsync(world, ct);
-        Task finished = await Task.WhenAny(read, Task.Delay(NotHeld, ct));
+        var read = ReadStampAsync(world, ct);
+        var finished = await Task.WhenAny(read, Task.Delay(NotHeld, ct));
         elapsed.Stop();
         await roleChange.RollbackAsync(ct);
 
@@ -58,14 +58,14 @@ public sealed class AuthorizationStampSqlServerTests(EndatixIntegrationWebHostFi
 
     private static async Task<Guid> ReadStampAsync(IntegrationTestWorld world, CancellationToken ct)
     {
-        using IServiceScope scope = world.Services.CreateScope();
+        using var scope = world.Services.CreateScope();
         return await scope.ServiceProvider.GetRequiredService<IAuthorizationStampReader>().ReadAsync(ct);
     }
 
     private static async Task<bool> ReadCommittedSnapshotOnAsync(IntegrationTestWorld world, CancellationToken ct)
     {
-        using IServiceScope scope = world.Services.CreateScope();
-        AppIdentityDbContext db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         return await db.Database
             .SqlQueryRaw<bool>("SELECT is_read_committed_snapshot_on AS [Value] FROM sys.databases WHERE name = DB_NAME()")
             .SingleAsync(ct);

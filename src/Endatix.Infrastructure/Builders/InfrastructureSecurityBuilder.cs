@@ -1,6 +1,7 @@
+using System.IdentityModel.Tokens.Jwt;
 using Ardalis.GuardClauses;
-using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
@@ -10,7 +11,6 @@ using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Provisioning;
 using Endatix.Infrastructure.Identity.Services;
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -57,7 +57,7 @@ public class InfrastructureSecurityBuilder
         LogSetupInfo("Configuring security infrastructure with default settings");
 
         Services.AddEndatixSecurityServices(Configuration);
-        
+
         ConfigureIdentity();
         AddEndatixAuthProviders();
 

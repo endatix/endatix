@@ -1,10 +1,10 @@
+using Endatix.Core.Entities.Identity;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Identity.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Endatix.Infrastructure.Data;
-using Endatix.Core.Entities.Identity;
-using Microsoft.AspNetCore.Identity;
-using Endatix.Infrastructure.Identity.Authorization;
 
 namespace Endatix.Infrastructure.Identity;
 

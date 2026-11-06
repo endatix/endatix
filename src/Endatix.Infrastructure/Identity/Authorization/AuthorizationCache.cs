@@ -47,11 +47,7 @@ internal class AuthorizationCache(
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(ClaimsPrincipal principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
     {
-        var userId = principal.GetUserId();
-        if (userId is null)
-        {
-            throw new InvalidOperationException("Principal must have a user ID");
-        }
+        var userId = principal.GetUserId() ?? throw new InvalidOperationException("Principal must have a user ID");
 
         var cacheExpiration = ComputeExpiration(principal);
         var accessToken = BearerAccessTokenResolver.Resolve(httpContextAccessor);

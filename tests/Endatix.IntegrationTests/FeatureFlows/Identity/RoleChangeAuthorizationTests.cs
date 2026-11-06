@@ -48,9 +48,9 @@ public sealed class RoleChangeAuthorizationTests
     [Fact]
     public async Task User_whose_only_role_lacks_forms_create_cannot_create_a_form()
     {
-        CancellationToken ct = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await PrepareWorldAsync(NoCreateRole, ct);
-        using HttpClient user = await SignInAsync(world, NoCreateRole, ct);
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareWorldAsync(NoCreateRole, ct);
+        using var user = await SignInAsync(world, NoCreateRole, ct);
 
         (await CreateFormAsync(user, ct)).Should().Be(HttpStatusCode.Forbidden);
     }
@@ -58,12 +58,12 @@ public sealed class RoleChangeAuthorizationTests
     [Fact]
     public async Task Removing_forms_create_from_a_role_applies_to_a_token_issued_before_the_edit()
     {
-        CancellationToken ct = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await PrepareWorldAsync(CreateRole, ct);
-        using HttpClient user = await SignInAsync(world, CreateRole, ct);
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareWorldAsync(CreateRole, ct);
+        using var user = await SignInAsync(world, CreateRole, ct);
         (await CreateFormAsync(user, ct)).Should().Be(HttpStatusCode.Created);
 
-        using HttpClient admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
         await UpdateRoleAsync(admin, CreateRole, NoCreatePermissions, ct);
 
         (await CreateFormAsync(user, ct)).Should().Be(HttpStatusCode.Forbidden);
@@ -72,16 +72,16 @@ public sealed class RoleChangeAuthorizationTests
     [Fact]
     public async Task Replacing_a_users_roles_applies_to_a_token_issued_before_the_change()
     {
-        CancellationToken ct = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await PrepareWorldAsync(CreateRole, ct);
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareWorldAsync(CreateRole, ct);
         long tenantId = world.Tenants[0].Id;
         await SeedRoleAsync(world, tenantId, NoCreateRole, NoCreatePermissions, ct);
-        using HttpClient user = await SignInAsync(world, CreateRole, ct);
+        using var user = await SignInAsync(world, CreateRole, ct);
         (await CreateFormAsync(user, ct)).Should().Be(HttpStatusCode.Created);
 
-        using HttpClient admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
         long userId = await UserIdAsync(world, tenantId, ct);
-        using HttpResponseMessage replaced = await admin.PutAsJsonAsync(
+        using var replaced = await admin.PutAsJsonAsync(
             new Uri($"/api/users/{userId}/roles", UriKind.Relative),
             new { userId, roleNames = new[] { NoCreateRole } },
             ct);
@@ -93,17 +93,17 @@ public sealed class RoleChangeAuthorizationTests
     [Fact]
     public async Task A_role_edit_on_one_instance_applies_on_another_instance()
     {
-        CancellationToken ct = TestContext.Current.CancellationToken;
-        IntegrationTestWorld world = await PrepareWorldAsync(CreateRole, ct);
-        using HttpClient user = await SignInAsync(world, CreateRole, ct);
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareWorldAsync(CreateRole, ct);
+        using var user = await SignInAsync(world, CreateRole, ct);
 
         await using EndatixWebApplicationFactory otherInstance = new(
             _fixture.Database.ConnectionString, _fixture.Database.Provider);
-        using HttpClient userOnOtherInstance = otherInstance.CreateClient();
+        using var userOnOtherInstance = otherInstance.CreateClient();
         userOnOtherInstance.DefaultRequestHeaders.Authorization = user.DefaultRequestHeaders.Authorization;
         (await CreateFormAsync(userOnOtherInstance, ct)).Should().Be(HttpStatusCode.Created);
 
-        using HttpClient admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
         await UpdateRoleAsync(admin, CreateRole, NoCreatePermissions, ct);
 
         (await CreateFormAsync(userOnOtherInstance, ct)).Should().Be(HttpStatusCode.Forbidden);
@@ -111,7 +111,7 @@ public sealed class RoleChangeAuthorizationTests
 
     private async Task<IntegrationTestWorld> PrepareWorldAsync(string userRole, CancellationToken ct)
     {
-        IntegrationTestWorld world = await _fixture.PrepareWorldAsync(
+        var world = await _fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
         long tenantId = world.Tenants[0].Id;
         string[] permissions = userRole == CreateRole ? CreatePermissions : NoCreatePermissions;
@@ -136,8 +136,8 @@ public sealed class RoleChangeAuthorizationTests
 
     private static async Task<long> UserIdAsync(IntegrationTestWorld world, long tenantId, CancellationToken ct)
     {
-        using IServiceScope scope = world.Services.CreateScope();
-        AppIdentityDbContext identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        using var scope = world.Services.CreateScope();
+        var identityDb = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         return await identityDb.Users
             .Where(user => user.TenantId == tenantId && user.UserName == UserName)
             .Select(user => user.Id)
@@ -146,7 +146,7 @@ public sealed class RoleChangeAuthorizationTests
 
     private static async Task UpdateRoleAsync(HttpClient admin, string roleName, string[] permissions, CancellationToken ct)
     {
-        using HttpResponseMessage response = await admin.PutAsJsonAsync(
+        using var response = await admin.PutAsJsonAsync(
             new Uri($"/api/roles/{roleName}", UriKind.Relative),
             new { roleName, permissions },
             ct);
@@ -155,7 +155,7 @@ public sealed class RoleChangeAuthorizationTests
 
     private static async Task<HttpStatusCode> CreateFormAsync(HttpClient client, CancellationToken ct)
     {
-        using HttpResponseMessage response = await client.PostAsJsonAsync(
+        using var response = await client.PostAsJsonAsync(
             new Uri("/api/forms", UriKind.Relative),
             new { name = $"Role change {Guid.NewGuid():N}", isEnabled = true, formDefinitionJsonData = "{}" },
             ct);
