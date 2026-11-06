@@ -442,15 +442,7 @@ public class EndpointsCorsConfiguratorTests
         _options.DefaultPolicyName.Should().Be(expectedDefaultPolicyName);
     }
 
-    /// <summary>
-    /// Creates a custom <see cref="EndpointsCorsConfigurator"/> instance based of provided stubs or returns a default one. Helps with writing shorted and more expressive tests
-    /// </summary>
-    /// <param name="corsSettingsStub">A optional <see cref="CorsSettings"/> IOptions stub</param>
-    /// <param name="loggerStub">A optional <see cref="ILogger"/> stub</param>
-    /// <param name="appEnvironmentStub">A optional <see cref="IAppEnvironment"/> stub</param>
-    /// <param name="wildcardSearcherStub">A optional <see cref="IWildcardSearcher"/> stub</param>
-    /// <returns>The arranged instances to perform the tests upon</returns>
-    // Source-generated [LoggerMessage] state is pooled and cleared after the call, so capture the formatted text eagerly.
+    // Records each entry with its formatted message, so tests can assert on the EventId and rendered text.
     private sealed class CapturingLogger : ILogger<EndpointsCorsConfigurator>
     {
         public List<(LogLevel Level, EventId EventId, string Message)> Entries { get; } = [];
@@ -463,6 +455,14 @@ public class EndpointsCorsConfiguratorTests
             Entries.Add((logLevel, eventId, formatter(state, exception)));
     }
 
+    /// <summary>
+    /// Creates a custom <see cref="EndpointsCorsConfigurator"/> instance based of provided stubs or returns a default one. Helps with writing shorted and more expressive tests
+    /// </summary>
+    /// <param name="corsSettingsStub">A optional <see cref="CorsSettings"/> IOptions stub</param>
+    /// <param name="loggerStub">A optional <see cref="ILogger"/> stub</param>
+    /// <param name="appEnvironmentStub">A optional <see cref="IAppEnvironment"/> stub</param>
+    /// <param name="wildcardSearcherStub">A optional <see cref="IWildcardSearcher"/> stub</param>
+    /// <returns>The arranged instances to perform the tests upon</returns>
     private EndpointsCorsConfigurator CreateCorsConfigurator(
         IOptions<CorsSettings>? corsSettingsStub = null,
         ILogger<EndpointsCorsConfigurator>? loggerStub = null,

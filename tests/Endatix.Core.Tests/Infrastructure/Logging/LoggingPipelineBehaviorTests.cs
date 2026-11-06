@@ -37,11 +37,14 @@ public class LoggingPipelineBehaviorTests
     [Fact]
     public void Constructor_AnyClosedGeneric_UsesSharedLogCategory()
     {
+        // Arrange
+        var loggerFactory = Substitute.For<ILoggerFactory>();
+
         // Act
-        _ = new LoggingPipelineBehavior<TestRequestWithPrincipal, TestResponse>(_loggerFactory);
+        _ = new LoggingPipelineBehavior<TestRequestWithPrincipal, TestResponse>(loggerFactory);
 
         // Assert
-        _loggerFactory.Received().CreateLogger(LoggingPipelineBehavior<TestRequest, TestResponse>.LogCategory);
+        loggerFactory.Received(1).CreateLogger(LoggingPipelineBehavior<TestRequest, TestResponse>.LogCategory);
     }
 
     [Fact]

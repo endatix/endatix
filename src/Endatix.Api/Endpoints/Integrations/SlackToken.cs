@@ -3,7 +3,6 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Endatix.Api.Infrastructure;
-using Endatix.Api.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Features.Email;

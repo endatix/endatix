@@ -158,6 +158,6 @@ public class SqlServerPersistenceBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogSetupInfo("💿 Database Setup", message);
+        _logger?.LogDebug(" ❯ {Category}: {Message} ✔️", "💿 Database Setup", message);
     }
 }

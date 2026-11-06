@@ -237,6 +237,23 @@ public static class EndatixEventIds
         public const int DeliveryError = 4007;
         public const int WorkerStarted = 4008;
         public const int WorkerStopped = 4009;
+
+        public const int RangeStart = Ranges.WebhooksStart;
+        public const int RangeEnd = Ranges.WebhooksEnd;
+
+        public static readonly int[] All =
+        [
+            EventSkipped,
+            NoEndpoints,
+            InvalidUri,
+            Delivered,
+            DeliveryFailed,
+            DeliveryTimedOut,
+            DeliveryRejected,
+            DeliveryError,
+            WorkerStarted,
+            WorkerStopped
+        ];
     }
 
     /// <summary>Email provider responses (Infrastructure <c>EmailLoggerExtensions</c>).</summary>
@@ -244,6 +261,15 @@ public static class EndatixEventIds
     {
         public const int ProviderMessageSent = Ranges.EmailStart;
         public const int ProviderTemplateMessageSent = 6001;
+
+        public const int RangeStart = Ranges.EmailStart;
+        public const int RangeEnd = Ranges.EmailEnd;
+
+        public static readonly int[] All =
+        [
+            ProviderMessageSent,
+            ProviderTemplateMessageSent
+        ];
     }
 
     /// <summary>API host concerns (Api <c>ApiLoggerExtensions</c>).</summary>
@@ -252,6 +278,16 @@ public static class EndatixEventIds
         public const int CorsDefaultPolicy = Ranges.ApiStart;
         public const int CorsCredentialsIgnored = 6201;
         public const int SlackTokenReceived = 6202;
+
+        public const int RangeStart = Ranges.ApiStart;
+        public const int RangeEnd = Ranges.ApiEnd;
+
+        public static readonly int[] All =
+        [
+            CorsDefaultPolicy,
+            CorsCredentialsIgnored,
+            SlackTokenReceived
+        ];
     }
 
     /// <summary>All registered startup EventIds (allocated ranges only).</summary>
