@@ -7,6 +7,11 @@
 [![Build, Test & Release](https://github.com/endatix/endatix/actions/workflows/ci.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/ci.yml)
 [![Publish Stable Artifacts](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml/badge.svg)](https://github.com/endatix/endatix/actions/workflows/release-artifacts.yml)
 [![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=main)](https://coveralls.io/github/endatix/endatix?branch=main)
+[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=endatix_endatix&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=endatix_endatix)
+[![Security rating](https://sonarcloud.io/api/project_badges/measure?project=endatix_endatix&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=endatix_endatix)
+[![Maintainability rating](https://sonarcloud.io/api/project_badges/measure?project=endatix_endatix&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=endatix_endatix)
+[![NuGet](https://img.shields.io/nuget/v/Endatix.Api)](https://www.nuget.org/packages/Endatix.Api)
+[![License: MIT](https://img.shields.io/github/license/endatix/endatix)](https://github.com/endatix/endatix/blob/main/LICENSE)
 
 ## What is the Endatix Headless Form Management API?
 
