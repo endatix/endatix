@@ -158,6 +158,9 @@ public class SqlServerPersistenceBuilder
 
     private void LogSetupInfo(string message)
     {
-        _logger?.LogDebug(" ❯ {Category}: {Message} ✔️", "💿 Database Setup", message);
+        if (_logger?.IsEnabled(LogLevel.Debug) == true)
+        {
+            _logger.LogDebug(" ❯ {Category}: {Message} ✔️", "💿 Database Setup", message);
+        }
     }
 }

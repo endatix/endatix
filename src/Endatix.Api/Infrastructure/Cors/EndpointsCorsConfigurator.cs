@@ -70,7 +70,10 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
             isDefaultPolicySet = true;
         }
 
-        _logger.LogCorsDefaultPolicy(options.GetPolicy(options.DefaultPolicyName));
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogCorsDefaultPolicy(options.GetPolicy(options.DefaultPolicyName));
+        }
     }
 
     private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySettings policySetting)
