@@ -1,5 +1,7 @@
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
+using Endatix.Infrastructure.Tests.Features.ReCaptcha;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
@@ -55,6 +57,23 @@ public class CompositeIntegrationEventPublisherTests
         closedHandler.HandledIds.Should().ContainSingle().Which.Should().Be(4);
         closedHandler.EventTypesSeen.Should().Equal("submission.closed");
         oldTypeHandler.HandledIds.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("submission.started", LogLevel.Debug)]
+    [InlineData("vendor.something_happened", LogLevel.Information)]
+    public async Task PublishAsync_NoHandler_LogsALifecycleTypeAtDebugAndAnUnknownTypeAtInformation(string eventType, LogLevel expected)
+    {
+        // Arrange
+        var logger = new RecordingLogger<CompositeIntegrationEventPublisher>();
+        CompositeIntegrationEventPublisher publisher = new([new RecordingOutboxHandler(["form.created"])], logger);
+        IOutboxMessage message = new FakeOutboxMessage(5, eventType, "{}", 1);
+
+        // Act
+        await publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        logger.Entries.Should().ContainSingle().Which.Level.Should().Be(expected);
     }
 
     [Fact]

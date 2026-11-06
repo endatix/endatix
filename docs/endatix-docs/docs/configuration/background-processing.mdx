@@ -182,7 +182,7 @@ A system outside the API process uses the [webhook](/docs/guides/webhooks) `Subm
 
 Nothing raises `submission.collection_status_changed` anymore. Earlier versions raised it only for a screen-out, so for this release an outbox row of that type left from before the upgrade is delivered as `submission.closed`, with `collectionStatus` `{ "code": "screen_out", "phase": "closed" }`, to the `submission.closed` handlers and the `submission_closed` webhook. A webhook job queued for such a row delivers the same way. A handler that subscribed to the old type must switch to the lifecycle event types above.
 
-Stop every API instance of the previous version before you start this one; don't roll the update. An older instance drops the new `submission.closed` rows without a webhook, and once the migration has run it no longer finds endpoints under the renamed `SubmissionClosed` setting.
+Stop every API instance of the previous version before you start this one; don't roll the update. An older instance drops the new `submission.closed` rows without a webhook, and once the migration has run it no longer finds endpoints under the renamed `SubmissionClosed` setting. On Kubernetes, scale the API deployment to 0 replicas before you deploy this version, or set its `strategy: Recreate` for this release, then go back to your usual strategy.
 
 ### Fail a message that can never succeed
 

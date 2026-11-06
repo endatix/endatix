@@ -8,9 +8,6 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public class WebHookConfiguration
 {
-    /// <summary>The Endatix Hub release that writes <c>SubmissionClosed</c> instead of the retired key.</summary>
-    public const string PAIRED_HUB_VERSION = "0.9.1";
-
     /// <summary>Retired event keys and the key that replaced each.</summary>
     public static IReadOnlyDictionary<string, string> RetiredEventKeys { get; } = new Dictionary<string, string>
     {
@@ -77,7 +74,7 @@ public class WebHookConfiguration
     private static string RetiredKeyMessage(string retiredKey) =>
         $"The webhook setting '{retiredKey}' was renamed to "
         + $"'{RetiredEventKeys.First(pair => string.Equals(pair.Key, retiredKey, StringComparison.OrdinalIgnoreCase)).Value}'. "
-        + $"Use Endatix Hub {PAIRED_HUB_VERSION} or later, which writes the new setting.";
+        + "Use an Endatix Hub release that writes 'SubmissionClosed'.";
 }
 
 /// <summary>

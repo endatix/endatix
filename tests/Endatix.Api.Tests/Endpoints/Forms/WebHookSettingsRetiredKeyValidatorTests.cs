@@ -23,7 +23,7 @@ public class WebHookSettingsRetiredKeyValidatorTests
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.WebHookSettingsJson)
-            .WithErrorMessage("The webhook setting 'SubmissionCollectionStatusChanged' was renamed to 'SubmissionClosed'. Use Endatix Hub 0.9.1 or later, which writes the new setting.");
+            .WithErrorMessage("The webhook setting 'SubmissionCollectionStatusChanged' was renamed to 'SubmissionClosed'. Use an Endatix Hub release that writes 'SubmissionClosed'.");
     }
 
     [Fact]

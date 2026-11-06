@@ -1,3 +1,4 @@
+using Endatix.Core.Entities;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
 
@@ -57,8 +58,21 @@ internal sealed partial class CompositeIntegrationEventPublisher(
         }
     }
 
-    private void LogNoHandler(IOutboxMessage message) => LogNoHandler(message.Id, message.EventType);
+    // Most lifecycle events have no built-in subscriber, so their rows are routine; an unknown type is worth a look.
+    private void LogNoHandler(IOutboxMessage message)
+    {
+        if (SubmissionLifecycleEvent.EventTypes.All.Contains(message.EventType, StringComparer.Ordinal))
+        {
+            LogNoLifecycleHandler(message.Id, message.EventType);
+            return;
+        }
+
+        LogNoHandler(message.Id, message.EventType);
+    }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Outbox message {MessageId} has no handler for event type '{EventType}'.")]
     private partial void LogNoHandler(long messageId, string eventType);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Outbox message {MessageId} has no handler for lifecycle event type '{EventType}'.")]
+    private partial void LogNoLifecycleHandler(long messageId, string eventType);
 }
