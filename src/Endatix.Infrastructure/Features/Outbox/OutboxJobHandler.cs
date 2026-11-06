@@ -116,7 +116,8 @@ internal sealed class OutboxJobMessages(IRepository<OutboxMessage> outboxMessage
             return OutboxJobLookup.Refused(OutboxJobFailures.MessageGone);
         }
 
-        var message = new OutboxMessageView(row);
+        // A row an earlier version wrote is read as this version's event, as the relay published it.
+        var message = LegacyOutboxEvents.Translate(new OutboxMessageView(row));
         return readTenant is null ? OutboxJobLookup.Found(message) : ForTenant(readTenant, message, job.TenantId);
     }
 
