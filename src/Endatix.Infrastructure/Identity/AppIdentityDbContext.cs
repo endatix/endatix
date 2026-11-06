@@ -35,56 +35,74 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         RenameIdentityTables(builder);
     }
 
+    // Users added through this context: a role granted to one of them in the same scope (self-registration,
+    // invitation) cannot be in any cache yet, so it does not change the stamp.
+    private readonly HashSet<long> _addedUserIds = [];
+
     /// <summary>
     /// Set when a save in the current transaction changed an authorization input;
-    /// <see cref="AuthorizationStampCommitInterceptor"/> writes a new stamp right before that transaction commits.
+    /// <see cref="AuthorizationStampCommitInterceptor"/> writes a new stamp right before that transaction commits,
+    /// and clears it when a transaction starts or rolls back.
     /// </summary>
     internal bool AuthorizationStampChangePending { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.AddInterceptors(AuthorizationStampCommitInterceptor.Instance);
 
-    public override int SaveChanges()
+    /// <inheritdoc/>
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ProcessEntities();
         if (!AuthorizationInputsChanged())
         {
-            return base.SaveChanges();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
-        AuthorizationStampChangePending = true;
         if (Database.CurrentTransaction is not null)
         {
-            return base.SaveChanges();
+            AuthorizationStampChangePending = true;
+            return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
         // A save that would run without a transaction (EF skips one for a single statement) gets one, so the
-        // stamp commits with the change.
+        // stamp commits with the change. Changes are accepted only after the commit, which writes the stamp.
         using var transaction = Database.BeginTransaction();
-        var saved = base.SaveChanges();
+        AuthorizationStampChangePending = true;
+        var saved = base.SaveChanges(acceptAllChangesOnSuccess: false);
         transaction.Commit();
+        AcceptChangesIf(acceptAllChangesOnSuccess);
         return saved;
     }
 
     /// <inheritdoc/>
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ProcessEntities();
         if (!AuthorizationInputsChanged())
         {
-            return await base.SaveChangesAsync(true, cancellationToken);
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
-        AuthorizationStampChangePending = true;
         if (Database.CurrentTransaction is not null)
         {
-            return await base.SaveChangesAsync(true, cancellationToken);
+            AuthorizationStampChangePending = true;
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
         await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
-        var saved = await base.SaveChangesAsync(true, cancellationToken);
+        AuthorizationStampChangePending = true;
+        var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess: false, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        AcceptChangesIf(acceptAllChangesOnSuccess);
         return saved;
+    }
+
+    private void AcceptChangesIf(bool acceptAllChangesOnSuccess)
+    {
+        if (acceptAllChangesOnSuccess)
+        {
+            ChangeTracker.AcceptAllChanges();
+        }
     }
 
     /// <summary>
@@ -92,15 +110,26 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     /// <see cref="Authorization.Data.DefaultAuthorizationDataProvider"/> and the external role mapper read.
     /// Bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c> on these tables bypass this check and must change the stamp themselves.
     /// </summary>
-    private bool AuthorizationInputsChanged() =>
-        ChangeTracker.Entries().Any(entry => entry.State switch
+    private bool AuthorizationInputsChanged()
+    {
+        var entries = ChangeTracker.Entries().ToList();
+        foreach (var added in entries.Where(entry => entry.State == EntityState.Added && entry.Entity is AppUser))
         {
-            EntityState.Added or EntityState.Deleted => entry.Entity is IdentityUserRole<long> or RolePermission or AppRole or Permission
-                || (entry.State == EntityState.Deleted && entry.Entity is AppUser),
-            EntityState.Modified => entry.Entity is IdentityUserRole<long> or RolePermission or AppRole or Permission
-                || (entry.Entity is AppUser && TenantChanged(entry)),
-            _ => false
-        });
+            _addedUserIds.Add(((AppUser)added.Entity).Id);
+        }
+
+        return entries.Any(IsAuthorizationInputChange);
+    }
+
+    private bool IsAuthorizationInputChange(EntityEntry entry) => entry.State switch
+    {
+        EntityState.Added or EntityState.Deleted or EntityState.Modified when entry.Entity is IdentityUserRole<long> userRole =>
+            !_addedUserIds.Contains(userRole.UserId),
+        EntityState.Added or EntityState.Deleted or EntityState.Modified => entry.Entity is RolePermission or AppRole or Permission
+            || (entry.State == EntityState.Deleted && entry.Entity is AppUser)
+            || (entry.State == EntityState.Modified && entry.Entity is AppUser && TenantChanged(entry)),
+        _ => false
+    };
 
     // UserManager.UpdateAsync marks every column modified, so compare values: a profile save or a sign-in
     // must not change the stamp.

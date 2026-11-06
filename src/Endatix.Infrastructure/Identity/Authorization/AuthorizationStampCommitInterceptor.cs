@@ -27,11 +27,7 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
         if (TakePendingChange(eventData) is { } context)
         {
             using var command = CreateUpdate(context, transaction);
-            if (command.ExecuteNonQuery() == 0)
-            {
-                using var insert = CreateInsert(context, transaction);
-                insert.ExecuteNonQuery();
-            }
+            EnsureRowUpdated(command.ExecuteNonQuery());
         }
 
         return result;
@@ -44,14 +40,26 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
         if (TakePendingChange(eventData) is { } context)
         {
             await using var command = CreateUpdate(context, transaction);
-            if (await command.ExecuteNonQueryAsync(cancellationToken) == 0)
-            {
-                await using var insert = CreateInsert(context, transaction);
-                await insert.ExecuteNonQueryAsync(cancellationToken);
-            }
+            EnsureRowUpdated(await command.ExecuteNonQueryAsync(cancellationToken));
         }
 
         return result;
+    }
+
+    // A change pending from a transaction that ended without a commit (disposed, or rolled back) is moot.
+    public override DbTransaction TransactionStarted(
+        DbConnection connection, TransactionEndEventData eventData, DbTransaction result)
+    {
+        TakePendingChange(eventData);
+        return result;
+    }
+
+    public override ValueTask<DbTransaction> TransactionStartedAsync(
+        DbConnection connection, TransactionEndEventData eventData, DbTransaction result,
+        CancellationToken cancellationToken = default)
+    {
+        TakePendingChange(eventData);
+        return ValueTask.FromResult(result);
     }
 
     public override void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData) =>
@@ -75,24 +83,28 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
         return context;
     }
 
+    // The AddAuthorizationStamp migration seeds the row. Without it no change would reach other instances, so the
+    // role change fails rather than commit unseen.
+    private static void EnsureRowUpdated(int rows)
+    {
+        if (rows != 1)
+        {
+            throw new InvalidOperationException(
+                "The authorization stamp row is missing. Apply the AppIdentity migrations (AddAuthorizationStamp).");
+        }
+    }
+
     private static DbCommand CreateUpdate(AppIdentityDbContext context, DbTransaction transaction)
     {
         var sql = StampSql.For(context);
-        return CreateCommand(transaction, $"UPDATE {sql.Table} SET {sql.Value} = @value WHERE {sql.Id} = @id");
-    }
-
-    // The row is seeded by the migration; a database reset (integration tests) removes it.
-    private static DbCommand CreateInsert(AppIdentityDbContext context, DbTransaction transaction)
-    {
-        var sql = StampSql.For(context);
-        return CreateCommand(transaction, $"INSERT INTO {sql.Table} ({sql.Id}, {sql.Value}) VALUES (@id, @value)");
-    }
-
-    private static DbCommand CreateCommand(DbTransaction transaction, string commandText)
-    {
         var command = transaction.Connection!.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = commandText;
+        command.CommandText = $"UPDATE {sql.Table} SET {sql.Value} = @value WHERE {sql.Id} = @id";
+        if (context.Database.GetCommandTimeout() is { } timeout)
+        {
+            command.CommandTimeout = timeout;
+        }
+
         AddParameter(command, "@id", AuthorizationStamp.RowId);
         AddParameter(command, "@value", Guid.NewGuid());
         return command;

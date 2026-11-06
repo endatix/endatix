@@ -20,8 +20,9 @@ using Microsoft.Extensions.Options;
 /// </summary>
 /// <remarks>
 /// Every key carries the current <see cref="AuthorizationStamp"/>, read uncached on each lookup. A role change writes
-/// a new stamp in its own transaction, so every API instance misses its old entries on the next request; the
-/// in-memory cache has no backplane, and <see cref="InvalidateAsync"/> only frees memory on the instance it runs on.
+/// a new stamp as the last statement of its transaction, so every API instance misses its old entries on the next
+/// request; the in-memory cache has no backplane, and <see cref="InvalidateAsync"/> only frees memory on the instance
+/// it runs on.
 /// </remarks>
 internal class AuthorizationCache(
     HybridCache hybridCache,

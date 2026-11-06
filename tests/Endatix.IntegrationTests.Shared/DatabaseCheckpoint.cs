@@ -190,7 +190,8 @@ public sealed class DatabaseCheckpoint
         return new RespawnerOptions
         {
             SchemasToInclude = schemas,
-            TablesToIgnore = [.. migrationsHistoryTables, .. keptTables]
+            // The migration seeds the one authorization stamp row; role changes update it and expect it to exist.
+            TablesToIgnore = [.. migrationsHistoryTables, .. keptTables, new Table("identity", "AuthorizationStamps")]
         };
     }
 }
