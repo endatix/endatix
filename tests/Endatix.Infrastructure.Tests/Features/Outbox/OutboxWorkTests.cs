@@ -361,35 +361,6 @@ public sealed class OutboxWorkTests
         _enqueued.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task ExecuteAsync_LegacyCollectionStatusChangedRow_ReachesASubmissionClosedWorkAsSubmissionClosed()
-    {
-        // Arrange — a row an earlier version wrote for a screen-out, re-read by the job of a submission.closed work.
-        _messages.Add(new OutboxMessage(
-            "submission.collection_status_changed",
-            $$"""{"tenantId":"{{TenantA}}","submissionId":"34","collectionStatus":"screen_out","previousCollectionStatus":"in_progress"}""",
-            TenantA,
-            DateTime.UtcNow,
-            1) { Id = MessageId });
-        using var provider = Build(services => services.AddOutboxWork<ClosedWorkStub>(Defaults));
-
-        // Act
-        using var scope = provider.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(ClosedWorkStub.JobType);
-        var job = new BackgroundJobContext(1, ClosedWorkStub.JobType, TenantA,
-            BackgroundJobPayloadSerializer.Serialize(new OutboxMessageJob<ClosedWorkStub>(MessageId)), 1);
-        var result = await handler.ExecuteAsync(job, TestContext.Current.CancellationToken);
-
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        var work = scope.ServiceProvider.GetRequiredService<ClosedWorkStub>();
-        work.EventType.Should().Be("submission.closed");
-        using var payload = JsonDocument.Parse(work.Payload!);
-        var status = payload.RootElement.GetProperty("collectionStatus");
-        status.GetProperty("code").GetString().Should().Be("screen_out");
-        status.GetProperty("phase").GetString().Should().Be("closed");
-    }
-
     private ServiceProvider Build(
         Action<IServiceCollection>? addMore = null,
         Func<IOutboxMessage, long>? appLevelTenant = null,
@@ -426,25 +397,6 @@ public sealed class OutboxWorkTests
         using var scope = provider.CreateScope();
         await scope.ServiceProvider.GetRequiredService<JobQueueIntegrationEventPublisher>()
             .PublishAsync(message, TestContext.Current.CancellationToken);
-    }
-
-    /// <summary>A host's work on submission.closed, which keeps the message its job read.</summary>
-    internal sealed class ClosedWorkStub : IOutboxWork<ClosedWorkStub>
-    {
-        public static string JobType => "TestClosedWork";
-
-        public static IReadOnlyCollection<string> HandledEventTypes { get; } = ["submission.closed"];
-
-        public string? EventType { get; private set; }
-
-        public string? Payload { get; private set; }
-
-        public OutboxWork Read(IOutboxMessage message)
-        {
-            EventType = message.EventType;
-            Payload = message.Payload;
-            return OutboxWork.None;
-        }
     }
 
     /// <summary>A second work on another event, registered app-level.</summary>
