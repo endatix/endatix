@@ -1,4 +1,4 @@
-﻿using FastEndpoints;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -51,9 +51,12 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
     /// <inheritdoc/>
     public override async Task<Results<Created<CreateFormResponse>, ProblemHttpResult>> ExecuteAsync(CreateFormRequest request, CancellationToken ct)
     {
+        // Prefer FormDefinitionSchema; fall back to obsolete FormDefinitionJsonData for HTTP clients still sending the string field.
+#pragma warning disable CS0618
         var formDefinitionJsonData = request.FormDefinitionSchema.HasValue
             ? JsonSerializer.Serialize(request.FormDefinitionSchema.Value)
             : request.FormDefinitionJsonData!;
+#pragma warning restore CS0618
 
         var webHookSettingsJson = request.WebHookSettings.HasValue
             ? JsonSerializer.Serialize(request.WebHookSettings.Value)
