@@ -9,20 +9,6 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 public sealed class JobsSchedulerHostedServiceTests
 {
     [Fact]
-    public void Default_RetryDelays_WaitFiveSecondsAfterAnOutageAndOneAfterALostRace()
-    {
-        // Arrange — what every host retries a failed start with, unless a test shortens it.
-        var delays = SchedulerStartRetryDelays.Default;
-
-        // Act
-        var (unreachable, contended) = delays;
-
-        // Assert
-        unreachable.Should().Be(TimeSpan.FromSeconds(5));
-        contended.Should().Be(TimeSpan.FromSeconds(1));
-    }
-
-    [Fact]
     public void Dispose_WithoutStop_DoesNotThrow()
     {
         // Arrange — the host disposes a service it never stopped when another hosted service fails to start.

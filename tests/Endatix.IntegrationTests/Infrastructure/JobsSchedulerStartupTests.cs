@@ -26,6 +26,11 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     private const string DeferredStartError =
         "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs";
 
+    // Short, so a test that counts tries does not wait the seconds each would take on a host; still a real wait, so
+    // the retry loop paces its tries rather than spinning.
+    private static readonly SchedulerStartRetryDelays ShortRetryDelays =
+        new(Unreachable: TimeSpan.FromMilliseconds(100), Contended: TimeSpan.FromMilliseconds(20));
+
     [Fact]
     public async Task Scheduler_with_unreachable_database_defers_start()
     {
@@ -215,11 +220,6 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
 
     private static bool LoggedError(CapturingLoggerProvider logs, string start) =>
         logs.Entries.Any(entry => entry.Level == LogLevel.Error && entry.Message.StartsWith(start, StringComparison.Ordinal));
-
-    // Short, so a test that counts tries does not wait the seconds each would take on a host; still a real wait, so
-    // the retry loop paces its tries rather than spinning.
-    private static readonly SchedulerStartRetryDelays ShortRetryDelays =
-        new(Unreachable: TimeSpan.FromMilliseconds(100), Contended: TimeSpan.FromMilliseconds(20));
 
     // The hosted service alone, over the fixture's database, with the scheduler factory a test controls and short
     // retry delays.
