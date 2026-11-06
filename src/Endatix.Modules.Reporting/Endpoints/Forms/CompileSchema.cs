@@ -16,25 +16,29 @@ namespace Endatix.Modules.Reporting.Endpoints.Forms;
 /// </summary>
 public sealed class CompileSchema(
     IMediator mediator,
-    ITenantContext tenantContext) : Endpoint<CompileFormSchemaRequest, Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult>>
+    ITenantContext tenantContext,
+    ICurrentUserAuthorizationService authorizationService) : Endpoint<CompileFormSchemaRequest, Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult>>
 {
     public override void Configure()
     {
         Post("forms/{formId}/reporting/compile-schema");
-        Permissions(Actions.Forms.Edit);
+        Permissions(Actions.Submissions.Export, Actions.Forms.Edit);
         Summary(summary =>
         {
             summary.Summary = "Compile reporting form schema";
             summary.Description =
                 "Compiles and persists the export schema for the active form definition. " +
                 "Use before exporting when the form predates the reporting pipeline or outbox processing has not run. " +
-                "Set replace=true to force Replace mode and clear flattened submissions even when real submissions exist.";
+                "Set replace=true to force Replace mode and clear flattened submissions even when real submissions exist. " +
+                "Requires submissions.export or forms.edit; replace=true requires forms.edit.";
             summary.Responses[200] = "Form schema compiled.";
+            summary.Responses[403] = "Forbidden. replace=true requires forms.edit.";
             summary.Responses[404] = "Form or active definition not found.";
         });
         Description(builder => builder
             .Produces<CompileFormSchemaResponse>(200, "application/json")
             .ProducesProblem(404)
+            .ProducesProblem(403)
             .ProducesProblem(400));
     }
 
@@ -43,6 +47,15 @@ public sealed class CompileSchema(
         CompileFormSchemaRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.Replace)
+        {
+            var access = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, cancellationToken);
+            if (!access.IsSuccess)
+            {
+                return access.ToProblem();
+            }
+        }
+
         CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId, request.Replace);
 
         var result = await mediator.Send(command, cancellationToken);
