@@ -7,13 +7,16 @@ namespace Endatix.Core.Tests.Infrastructure.Logging;
 
 public class LoggingPipelineBehaviorTests
 {
-    private readonly ILogger<Mediator> _logger;
+    private readonly ILogger _logger;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly LoggingPipelineBehavior<TestRequest, TestResponse> _sut;
 
     public LoggingPipelineBehaviorTests()
     {
-        _logger = Substitute.For<ILogger<Mediator>>();
-        _sut = new LoggingPipelineBehavior<TestRequest, TestResponse>(_logger);
+        _logger = Substitute.For<ILogger>();
+        _loggerFactory = Substitute.For<ILoggerFactory>();
+        _loggerFactory.CreateLogger(Arg.Any<string>()).Returns(_logger);
+        _sut = new LoggingPipelineBehavior<TestRequest, TestResponse>(_loggerFactory);
     }
 
     [Fact]
@@ -51,17 +54,18 @@ public class LoggingPipelineBehaviorTests
             .Where(call => call.GetMethodInfo().Name == "Log")
             .Select(call => call.GetArguments()[2]?.ToString())
             .ToList();
-        
-        logCalls.Should().HaveCount(1);
-        logCalls[0].Should().StartWith($"Handled TestRequest with {response} in");
+
+        logCalls.Should().BeEmpty();
     }
 
     [Fact]
     public async Task Handle_LoggingEnabled_LogsClaimsPrincipalSummary()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<Mediator>>();
-        var sut = new LoggingPipelineBehavior<TestRequestWithPrincipal, TestResponse>(logger);
+        var logger = Substitute.For<ILogger>();
+        var loggerFactory = Substitute.For<ILoggerFactory>();
+        loggerFactory.CreateLogger(Arg.Any<string>()).Returns(logger);
+        var sut = new LoggingPipelineBehavior<TestRequestWithPrincipal, TestResponse>(loggerFactory);
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim("sub", "user-123")

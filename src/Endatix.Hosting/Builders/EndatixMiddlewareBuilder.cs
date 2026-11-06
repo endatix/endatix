@@ -264,9 +264,14 @@ public class EndatixMiddlewareBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseSwagger(string? path = null, Action<OpenApiDocumentMiddlewareSettings>? configureOpenApi = null, Action<SwaggerUiSettings>? configureSwaggerUi = null)
     {
-        _logger?.LogInformation(path == null
-            ? "Adding Swagger middleware with default settings"
-            : $"Adding Swagger middleware with custom path: {path}");
+        if (path is null)
+        {
+            _logger?.LogInformation("Adding Swagger middleware with default settings");
+        }
+        else if (_logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            _logger.LogInformation("Adding Swagger middleware with custom path: {Path}", path);
+        }
 
         App.UseSwaggerGen(configureOpenApi, uiConfig =>
         {
@@ -311,7 +316,10 @@ public class EndatixMiddlewareBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseHealthChecks(string path = "/health", Action<EndatixHealthChecksMiddlewareBuilder>? configureHealthChecks = null)
     {
-        _logger?.LogInformation($"Adding health checks middleware with path: {path}");
+        if (_logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            _logger.LogInformation("Adding health checks middleware with path: {Path}", path);
+        }
 
         // Use the dedicated health checks middleware builder to avoid code duplication
         EndatixHealthChecksMiddlewareBuilder healthChecksBuilder = new(this, _logger);

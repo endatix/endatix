@@ -10,11 +10,17 @@ public class WebHookBackgroundWorker(IBackgroundTasksQueue backgroundTasksQueue,
     // This method starts the background service.
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("{service} Service is running.", nameof(WebHookBackgroundWorker));
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("{Service} Service is running.", nameof(WebHookBackgroundWorker));
+        }
 
         await BackgroundProcessing(stoppingToken);
 
-        logger.LogInformation("{service} Service is stopped.", nameof(WebHookBackgroundWorker));
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("{Service} Service is stopped.", nameof(WebHookBackgroundWorker));
+        }
     }
 
     private async Task BackgroundProcessing(CancellationToken stoppingToken)

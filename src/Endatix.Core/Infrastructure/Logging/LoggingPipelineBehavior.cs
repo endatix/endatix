@@ -16,11 +16,14 @@ namespace Endatix.Core.Infrastructure.Logging;
 public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
   where TRequest : IRequest<TResponse>
 {
-    private readonly ILogger<Mediator> _logger;
+    private readonly ILogger _logger;
 
-    public LoggingPipelineBehavior(ILogger<Mediator> logger)
+    /// <summary>
+    /// Creates the pipeline behavior with a logger category for this closed generic type.
+    /// </summary>
+    public LoggingPipelineBehavior(ILoggerFactory loggerFactory)
     {
-        _logger = logger;
+        _logger = loggerFactory.CreateLogger<LoggingPipelineBehavior<TRequest, TResponse>>();
     }
 
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
@@ -50,7 +53,10 @@ public class LoggingPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TR
 
         var response = await next();
 
-        _logger.LogInformation("Handled {RequestName} with {Response} in {ms} ms", typeof(TRequest).Name, response, sw.ElapsedMilliseconds);
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation("Handled {RequestName} with {Response} in {ElapsedMs} ms", typeof(TRequest).Name, response, sw.ElapsedMilliseconds);
+        }
         sw.Stop();
         return response;
     }
