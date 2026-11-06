@@ -4,6 +4,8 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Audience.Features.Imports;
 
@@ -109,10 +111,10 @@ internal static class ImportRunnerRegistration
     /// <summary>The queue runner when the Jobs module registered a queue, else the inline one.</summary>
     public static IServiceCollection AddImportRunner(this IServiceCollection services)
     {
-        services.AddOptions<ImportChunkingOptions>()
-            .BindConfiguration(ImportChunkingOptions.SectionName)
-            .Validate(options => options.ChunkRows > 0, $"{ImportChunkingOptions.SectionName}:ChunkRows must be at least 1.")
+        services.AddOptions<AudienceOptions>()
+            .BindConfiguration(AudienceOptions.SectionName)
             .ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AudienceOptions>, AudienceOptionsValidator>());
         services.AddSingleton<ImportRun>();
         services.AddScoped<ImportSweep>();
         services.AddHostedService<ImportSweepService>();

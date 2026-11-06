@@ -61,8 +61,8 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task A_file_of_many_chunks_is_checked_and_then_written_in_full()
     {
-        // Arrange — twelve chunks, written in three batches.
-        const int rowCount = 12 * ImportChunkRows;
+        // Arrange — eight chunks, written in three batches that start inside a chunk.
+        const int rowCount = 8 * ImportChunkRows;
         AudienceApi api = await AdminAsync();
         long formId = await api.CreateFormAsync();
         await api.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });

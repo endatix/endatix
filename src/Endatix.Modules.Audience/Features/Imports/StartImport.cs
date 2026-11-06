@@ -34,7 +34,7 @@ internal sealed class StartImportHandler(
     IImportRunner runner,
     IUniqueConstraintViolationChecker violations,
     ImportSweep sweep,
-    IOptions<ImportChunkingOptions> chunking)
+    IOptions<AudienceOptions> audience)
     : ICommandHandler<StartImportCommand, Result<ImportViewDto>>
 {
     internal const string ImportExistsCode = "import_exists";
@@ -149,7 +149,7 @@ internal sealed class StartImportHandler(
             request.PropertyColumns,
             request.IsTest,
             request.RowCount,
-            chunking.Value.ChunkRows,
+            audience.Value.ImportChunkRows,
             request.PerformedById,
             request.Options);
 

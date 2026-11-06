@@ -207,7 +207,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
     /// <summary>
     /// Larger than <see cref="FormWithCoverageAsync"/> in both people and Properties, with more test participants than
-    /// the presets show, across several import chunks. The 5,000 by 50 read is a load-test journey.
+    /// the presets show, in more than one import chunk. The 5,000 by 50 read is a load-test journey.
     /// </summary>
     private static readonly ImportShape LargeForm = new(People: 240, Properties: 10);
 

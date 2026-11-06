@@ -3,7 +3,7 @@ extern alias EndatixWebHost;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
-using Endatix.Modules.Audience.Features.Imports;
+using Endatix.Modules.Audience;
 using Endatix.Modules.Audience.Persistence;
 using System.Globalization;
 using System.Net;
@@ -75,9 +75,10 @@ internal sealed class LoopbackClientIpStartupFilter : IStartupFilter
 internal static class EndatixWebApplicationFactoryConfiguration
 {
     /// <summary>
-    /// Rows per chunk of a staged Audience import on every test host, so a few hundred rows cross several chunks.
+    /// Rows per chunk of a staged Audience import on every test host, so a few hundred rows cross several chunks. It
+    /// does not divide the 500-row write batch, so batches start inside a chunk, as they do in production.
     /// </summary>
-    public const int ImportChunkRows = 100;
+    public const int ImportChunkRows = 150;
 
     public static void ConfigureCommon(IWebHostBuilder builder, string connectionString, TestDatabaseProvider provider)
     {
@@ -99,7 +100,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
 
         builder.UseSetting(
-            $"{ImportChunkingOptions.SectionName}:{nameof(ImportChunkingOptions.ChunkRows)}",
+            $"{AudienceOptions.SectionName}:{nameof(AudienceOptions.ImportChunkRows)}",
             ImportChunkRows.ToString(CultureInfo.InvariantCulture));
 
         var auth = IntegrationTestAuthSettings.FromEnvironment();
