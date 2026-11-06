@@ -9,6 +9,7 @@ using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
@@ -17,11 +18,17 @@ using Microsoft.Extensions.Options;
 /// <summary>
 /// Internal helper class for managing the authorization cache.
 /// </summary>
+/// <remarks>
+/// Every key carries the current <see cref="AuthorizationStamp"/>, read uncached on each lookup. A role change writes
+/// a new stamp in its own transaction, so every API instance misses its old entries on the next request; the
+/// in-memory cache has no backplane, and <see cref="InvalidateAsync"/> only frees memory on the instance it runs on.
+/// </remarks>
 internal class AuthorizationCache(
     HybridCache hybridCache,
     IDateTimeProvider dateTimeProvider,
     IHttpContextAccessor httpContextAccessor,
-    IOptions<EndatixJwtOptions> endatixJwtOptions) : IAuthorizationCache
+    IOptions<EndatixJwtOptions> endatixJwtOptions,
+    IAuthorizationStampReader authorizationStampReader) : IAuthorizationCache
 {
     private const short ETAG_LENGTH = 12;
 
@@ -53,7 +60,8 @@ internal class AuthorizationCache(
         var cacheKeyTokenPart = CacheKeyFingerprint.ComputeHmacSha256Hex(
             claimIdentityId,
             endatixJwtOptions.Value.SigningKey);
-        var cacheKey = GetClaimsCacheKey(cacheKeyTokenPart);
+        var stamp = await authorizationStampReader.ReadAsync(cancellationToken);
+        var cacheKey = GetClaimsCacheKey(stamp, cacheKeyTokenPart);
         var tenantId = principal.GetTenantId();
         var now = dateTimeProvider.Now.UtcDateTime;
 
@@ -83,7 +91,8 @@ internal class AuthorizationCache(
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(string userId, long tenantId, ClaimsPrincipal? principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
     {
-        var cacheKey = GetUserAuthDataCacheKey(userId, tenantId);
+        var stamp = await authorizationStampReader.ReadAsync(cancellationToken);
+        var cacheKey = GetUserAuthDataCacheKey(stamp, userId, tenantId);
         var expiration = principal is not null
             ? ComputeExpiration(principal)
             : _defaultExpiration;
@@ -115,8 +124,6 @@ internal class AuthorizationCache(
     /// <inheritdoc />
     public async Task InvalidateAsync(string userId, long tenantId, CancellationToken cancellationToken = default)
     {
-        var cacheKey = GetUserAuthDataCacheKey(userId, tenantId);
-        await hybridCache.RemoveAsync(cacheKey, cancellationToken);
         await hybridCache.RemoveByTagAsync(GetUserAuthDataTag(userId), cancellationToken);
         await hybridCache.RemoveByTagAsync(GetUserTenantAuthDataTag(userId, tenantId), cancellationToken);
     }
@@ -128,10 +135,10 @@ internal class AuthorizationCache(
     }
 
     // Generate cache key for saving authorization data for a claims principal given the JWT Identity ID (jti)
-    private static string GetClaimsCacheKey(string jti) => $"{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{jti}";
+    private static string GetClaimsCacheKey(Guid stamp, string jti) => $"{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{stamp:N}:{jti}";
 
     // Generate cache key for saving authorization data for a user with explicit userId and tenantId
-    private static string GetUserAuthDataCacheKey(string userId, long tenantId) => $"{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{userId}:{tenantId}";
+    private static string GetUserAuthDataCacheKey(Guid stamp, string userId, long tenantId) => $"{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{stamp:N}:{userId}:{tenantId}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
 

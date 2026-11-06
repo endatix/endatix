@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,7 @@ public sealed class AuthorizationCacheTests
     private readonly HybridCache _hybridCache;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HttpContextAccessor _httpContextAccessor;
+    private readonly IAuthorizationStampReader _stampReader;
     private readonly AuthorizationCache _cache;
     private readonly DateTimeOffset _now;
 
@@ -33,7 +35,9 @@ public sealed class AuthorizationCacheTests
         {
             SigningKey = "test-signing-key-32-characters",
         });
-        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions);
+        _stampReader = Substitute.For<IAuthorizationStampReader>();
+        _stampReader.ReadAsync(Arg.Any<CancellationToken>()).Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions, _stampReader);
     }
 
     [Fact]
@@ -245,11 +249,56 @@ public sealed class AuthorizationCacheTests
     }
 
     [Fact]
+    public async Task GetOrCreateAsync_StampChanges_UsesNewKeyForSameToken()
+    {
+        // Arrange
+        var principal = CreatePrincipal("123", "jti-1");
+        var capturedKeys = new List<string>();
+        _hybridCache.GetOrCreateAsync(
+                Arg.Do<string>(key => capturedKeys.Add(key)),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+        _stampReader.ReadAsync(Arg.Any<CancellationToken>())
+            .Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222"));
+
+        // Act
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        capturedKeys.Should().HaveCount(2);
+        capturedKeys[0].Should().StartWith("jwt_auth:11111111111111111111111111111111:");
+        capturedKeys[1].Should().StartWith("jwt_auth:22222222222222222222222222222222:");
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_ByUserId_KeyCarriesStamp()
+    {
+        // Arrange
+        string? capturedKey = null;
+        _hybridCache.GetOrCreateAsync(
+                Arg.Do<string>(key => capturedKey = key),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+
+        // Act
+        await _cache.GetOrCreateAsync("123", 42, null, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        capturedKey.Should().Be("usr_auth:11111111111111111111111111111111:123:42");
+    }
+
+    [Fact]
     public async Task InvalidateAsync_RemovesUserCacheEntry()
     {
         await _cache.InvalidateAsync("123", 42, CancellationToken.None);
 
-        await _hybridCache.Received(1).RemoveAsync("usr_auth:123:42", Arg.Any<CancellationToken>());
         await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123", Arg.Any<CancellationToken>());
         await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123:tenant:42", Arg.Any<CancellationToken>());
     }
