@@ -17,6 +17,12 @@ internal static class EndatixTestcontainers
 {
     private const string SqlServerPassword = "yourStrong(!)Password";
 
+    /// <summary>
+    /// Same default the obsolete parameterless <see cref="PostgreSqlBuilder"/> used
+    /// (<c>PostgreSqlBuilder.PostgreSqlImage</c> = <c>postgres:15.1</c>).
+    /// </summary>
+    private const string DefaultPostgreSqlImage = "postgres:15.1";
+
     /// <summary>SQL Server 2025+ is required for native <c>json</c> columns used by AppDbContext migrations.</summary>
     private const string DefaultSqlServerImage = "mcr.microsoft.com/mssql/server:2025-latest";
 
@@ -153,7 +159,8 @@ internal static class EndatixTestcontainers
         {
             case TestDatabaseProvider.PostgreSql:
             {
-                var postgresBuilder = new PostgreSqlBuilder()
+                var postgresBuilder = new PostgreSqlBuilder(
+                        NormalizeImageOverride(settings.PostgreSqlImage) ?? DefaultPostgreSqlImage)
                     .WithDatabase("endatix_test")
                     .WithUsername("postgres")
                     .WithPassword("postgres")
@@ -162,11 +169,6 @@ internal static class EndatixTestcontainers
                     .WithName(ContainerName(containerSettings, "postgres"))
                     // Docker's default 64 MB /dev/shm fails parallel queries on large tables (53100).
                     .WithCreateParameterModifier(parameters => (parameters.HostConfig ??= new()).ShmSize = 1L << 30);
-
-                if (!string.IsNullOrWhiteSpace(settings.PostgreSqlImage))
-                {
-                    postgresBuilder = postgresBuilder.WithImage(settings.PostgreSqlImage);
-                }
 
                 postgresBuilder = ApplyReuse(
                     ApplySession(postgresBuilder, containerSettings, EndatixTestcontainerLabels.ComponentPostgres),
@@ -181,9 +183,9 @@ internal static class EndatixTestcontainers
             }
             case TestDatabaseProvider.SqlServer:
             {
-                var sqlBuilder = new MsSqlBuilder()
+                var sqlBuilder = new MsSqlBuilder(
+                        NormalizeImageOverride(settings.SqlServerImage) ?? DefaultSqlServerImage)
                     .WithPassword(SqlServerPassword)
-                    .WithImage(NormalizeImageOverride(settings.SqlServerImage) ?? DefaultSqlServerImage)
                     .WithNetwork(_network!)
                     .WithNetworkAliases("sqlserver")
                     .WithName(ContainerName(containerSettings, "sqlserver"));
