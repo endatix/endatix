@@ -132,6 +132,18 @@ internal static partial class EndatixBuilderLoggerExtensions
     public static partial void LogPersistenceSetup(this ILogger logger, string message);
 
     [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.SwaggerMiddlewareAdded,
+        Level = LogLevel.Information,
+        Message = "Adding Swagger middleware with path: {Path}")]
+    public static partial void LogSwaggerMiddlewareAdded(this ILogger logger, string path);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.HealthChecksMiddlewareAdded,
+        Level = LogLevel.Information,
+        Message = "Adding health checks middleware with path: {Path}")]
+    public static partial void LogHealthChecksMiddlewareAdded(this ILogger logger, string path);
+
+    [LoggerMessage(
         EventId = EndatixEventIds.Hosting.TelemetryConfigured,
         Level = LogLevel.Information,
         Message = "OpenTelemetry configured: exporting to {OtlpEndpoint} with {Instrumentation} instrumentation")]
