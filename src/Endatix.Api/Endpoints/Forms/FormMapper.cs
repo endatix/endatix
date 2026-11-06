@@ -1,6 +1,6 @@
-﻿using Endatix.Core.Entities;
-using Endatix.Core.UseCases.Forms;
 using System.Text.Json;
+using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Forms;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -15,6 +15,8 @@ public class FormMapper
     /// <typeparam name="T">The type of the form API model, which inherits FormModel.</typeparam>
     /// <param name="form">The form entity.</param>
     /// <returns>The mapped form API model.</returns>
+    // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
+#pragma warning disable CS0618
     public static T Map<T>(Form form) where T : FormModel, new() => new T
     {
         Id = form.Id.ToString(),
@@ -33,6 +35,7 @@ public class FormMapper
         WebHookSettingsJson = form.WebHookSettingsJson,
         WebHookSettings = ParseJsonString(form.WebHookSettingsJson)
     };
+#pragma warning restore CS0618
 
     /// <summary>
     /// Parses a JSON string to a JsonElement, returning null if the string is empty or invalid.
@@ -81,6 +84,8 @@ public static class FormMapperExtensions
         return forms.Select(formDto => formDto.ToFormModel(includeWebHookSettings: false));
     }
 
+    // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
+#pragma warning disable CS0618
     public static FormModel ToFormModel(this FormDto formDto, bool includeWebHookSettings = true) => new FormModel()
     {
         Id = formDto.Id,
@@ -102,4 +107,5 @@ public static class FormMapperExtensions
             ? FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
             : null
     };
+#pragma warning restore CS0618
 }
