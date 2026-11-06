@@ -46,10 +46,12 @@ internal sealed class JobsSchedulerHostedService(
 
     // A start still waiting for the database stops waiting as soon as the host starts stopping, before this service is
     // stopped: from then on Quartz refuses to rebuild a scheduler, and a try made then would only fail.
+    private readonly SchedulerStartRetryDelays _retryDelays =
+        services.GetService<SchedulerStartRetryDelays>() ?? SchedulerStartRetryDelays.Default;
+
     private readonly CancellationTokenSource _stopping =
         CancellationTokenSource.CreateLinkedTokenSource(
             services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
-    private readonly SchedulerStartRetryDelays _retryDelays = services.GetRequiredService<SchedulerStartRetryDelays>();
     private IScheduler? _scheduler;
     private Task? _deferredStart;
     private int _contendedTries;

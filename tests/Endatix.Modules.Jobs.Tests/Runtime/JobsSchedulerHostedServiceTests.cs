@@ -54,10 +54,7 @@ public sealed class JobsSchedulerHostedServiceTests
         var database = new JobStoreDatabase("Host=localhost", isPostgreSql: true, locksOnInsert: false);
         var options = Options.Create(new BackgroundJobsOptions());
         return new(
-            new ServiceCollection()
-                .AddSingleton(Substitute.For<IHostApplicationLifetime>())
-                .AddSingleton(SchedulerStartRetryDelays.Default)
-                .BuildServiceProvider(),
+            new ServiceCollection().AddSingleton(Substitute.For<IHostApplicationLifetime>()).BuildServiceProvider(),
             database,
             JobHandlerRegistry.Build([]),
             options,

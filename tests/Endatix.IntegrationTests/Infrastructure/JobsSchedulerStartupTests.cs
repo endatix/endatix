@@ -227,7 +227,7 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         JobsTestNodeDatabase target,
         ISchedulerFactory schedulers,
         CapturingLoggerProvider logs) =>
-        HostedServiceOver(new HostedServiceParts(target, schedulers, logs) { RetryDelays = ShortRetryDelays });
+        HostedServiceOver(new HostedServiceParts(target, schedulers, logs));
 
     private static JobsSchedulerHostedService HostedServiceOver(HostedServiceParts parts)
     {
@@ -257,8 +257,8 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         /// <summary>The host's lifetime, whose stopping signal a test raises; one that never stops when not set.</summary>
         public IHostApplicationLifetime? Lifetime { get; init; }
 
-        /// <summary>How long a failed start waits before its next try; the delays every host runs with when not set.</summary>
-        public SchedulerStartRetryDelays RetryDelays { get; init; } = SchedulerStartRetryDelays.Default;
+        /// <summary>How long a failed start waits before its next try; short when not set.</summary>
+        public SchedulerStartRetryDelays RetryDelays { get; init; } = ShortRetryDelays;
     }
 
     private static JobsTestNodeDatabase MissingDatabase(TestDatabaseProvider provider, string connectionString, string name) =>

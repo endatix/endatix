@@ -57,7 +57,6 @@ public sealed class JobsModule : IEndatixModule, IHasFeatureFlag, IHasDbMigratio
 
         builder.Services.AddSingleton(JobHandlerRegistry.Build);
         builder.Services.AddJobsScheduler(builder.Configuration);
-        builder.Services.AddSingleton(SchedulerStartRetryDelays.Default);
         builder.Services.AddHostedService<JobsSchedulerHostedService>();
         builder.Services.AddJobsDashboard(builder.Configuration);
     }
