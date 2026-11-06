@@ -95,7 +95,13 @@ public sealed partial class JobsSchedulerStartupTests
         var logs = new CapturingLoggerProvider();
         var schedulers = FailingOverThen(() => nextTry(stopping), lifetime, timing.ThroughTheModulesFactory);
         using var service = HostedServiceOver(
-            new HostedServiceParts(new(fixture.Provider, fixture.ConnectionString), schedulers, logs) { Lifetime = lifetime });
+            new HostedServiceParts(new(fixture.Provider, fixture.ConnectionString), schedulers, logs)
+            {
+                Lifetime = lifetime,
+
+                // The host's 5 s wait, so a stop between tries lands inside it and the 7 s below runs past the next try.
+                RetryDelays = SchedulerStartRetryDelays.Default,
+            });
 
         await service.StartAsync(ct);
         if (timing.StopBetweenTries)
