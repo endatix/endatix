@@ -9,7 +9,7 @@ const assemblyOf = (report) => {
 const seconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
 
 // Pipes and newlines in a test name would break the Markdown table row.
-const cell = (text) => String(text).replaceAll('|', '\\|').replaceAll(/\r?\n/g, ' ');
+const cell = (text) => String(text).replaceAll('|', String.raw`\|`).replaceAll(/\r?\n/g, ' ');
 
 export function summarizeReports(reports) {
   const assemblies = reports
