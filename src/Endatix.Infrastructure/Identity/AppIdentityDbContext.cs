@@ -20,6 +20,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     public DbSet<Permission> Permissions { get; set; }
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
+    /// <summary>The one authorization stamp row; see <see cref="AuthorizationStamp"/>.</summary>
     public DbSet<AuthorizationStamp> AuthorizationStamps { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -46,6 +47,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     /// </summary>
     internal bool AuthorizationStampChangePending { get; set; }
 
+    /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
         optionsBuilder.AddInterceptors(AuthorizationStampCommitInterceptor.Instance);
 

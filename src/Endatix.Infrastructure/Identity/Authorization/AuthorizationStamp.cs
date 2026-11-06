@@ -13,11 +13,9 @@ public sealed class AuthorizationStamp
     /// <summary>The value before the first change, and the value read when the row is missing.</summary>
     public static readonly Guid Initial = Guid.Empty;
 
-    private AuthorizationStamp()
-    {
-    }
+    /// <summary>Always <see cref="RowId"/>.</summary>
+    public int Id { get; init; }
 
-    public int Id { get; private set; }
-
-    public Guid Value { get; private set; }
+    /// <summary>A new value on every change to an authorization input.</summary>
+    public Guid Value { get; init; }
 }

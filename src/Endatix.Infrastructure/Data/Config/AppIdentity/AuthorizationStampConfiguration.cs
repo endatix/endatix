@@ -5,9 +5,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Endatix.Infrastructure.Data.Config.AppIdentity;
 
+/// <summary>Maps the single <see cref="AuthorizationStamp"/> row and seeds it.</summary>
 [ApplyConfigurationFor<AppIdentityDbContext>()]
 public class AuthorizationStampConfiguration : IEntityTypeConfiguration<AuthorizationStamp>
 {
+    /// <inheritdoc />
     public void Configure(EntityTypeBuilder<AuthorizationStamp> builder)
     {
         builder.ToTable("AuthorizationStamps");

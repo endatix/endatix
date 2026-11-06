@@ -1,9 +1,7 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
@@ -26,8 +24,7 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
     {
         if (TakePendingChange(eventData) is { } context)
         {
-            using var command = CreateUpdate(context, transaction);
-            EnsureRowUpdated(command.ExecuteNonQuery());
+            EnsureRowUpdated(Stamp(context).ExecuteUpdate(NewValue()));
         }
 
         return result;
@@ -39,8 +36,7 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
     {
         if (TakePendingChange(eventData) is { } context)
         {
-            await using var command = CreateUpdate(context, transaction);
-            EnsureRowUpdated(await command.ExecuteNonQueryAsync(cancellationToken));
+            EnsureRowUpdated(await Stamp(context).ExecuteUpdateAsync(NewValue(), cancellationToken));
         }
 
         return result;
@@ -94,45 +90,13 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
         }
     }
 
-    private static DbCommand CreateUpdate(AppIdentityDbContext context, DbTransaction transaction)
+    // ExecuteUpdate runs on the context's connection inside the transaction that is about to commit.
+    private static IQueryable<AuthorizationStamp> Stamp(AppIdentityDbContext context) =>
+        context.AuthorizationStamps.Where(stamp => stamp.Id == AuthorizationStamp.RowId);
+
+    private static Action<UpdateSettersBuilder<AuthorizationStamp>> NewValue()
     {
-        var sql = StampSql.For(context);
-        var command = transaction.Connection!.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = $"UPDATE {sql.Table} SET {sql.Value} = @value WHERE {sql.Id} = @id";
-        if (context.Database.GetCommandTimeout() is { } timeout)
-        {
-            command.CommandTimeout = timeout;
-        }
-
-        AddParameter(command, "@id", AuthorizationStamp.RowId);
-        AddParameter(command, "@value", Guid.NewGuid());
-        return command;
-    }
-
-    private static void AddParameter(DbCommand command, string name, object value)
-    {
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = name;
-        parameter.Value = value;
-        command.Parameters.Add(parameter);
-    }
-
-    /// <summary>The stamp table and columns, delimited for the context's provider.</summary>
-    private sealed record StampSql(string Table, string Id, string Value)
-    {
-        public static StampSql For(DbContext context)
-        {
-            var sql = context.GetService<ISqlGenerationHelper>();
-            var entity = context.Model.FindEntityType(typeof(AuthorizationStamp))!;
-            var table = StoreObjectIdentifier.Table(entity.GetTableName()!, entity.GetSchema());
-            string Column(string property) =>
-                sql.DelimitIdentifier(entity.FindProperty(property)!.GetColumnName(table)!);
-
-            return new StampSql(
-                sql.DelimitIdentifier(table.Name, table.Schema),
-                Column(nameof(AuthorizationStamp.Id)),
-                Column(nameof(AuthorizationStamp.Value)));
-        }
+        var value = Guid.NewGuid();
+        return setters => setters.SetProperty(stamp => stamp.Value, value);
     }
 }
