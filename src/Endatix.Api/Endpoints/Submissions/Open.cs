@@ -20,13 +20,14 @@ public sealed class Open(IMediator mediator)
         "Records that the respondent opened the form. Without a token it creates a submission, in the viewed " +
         "status, through the same checks as a public create. With a submission token, or a share link's " +
         "access token with the submit permission, it resumes that submission. The first open sets startedAt, " +
-        "and later opens keep it.";
+        "and later opens keep it. Limited to 60 opens a minute per client.";
 
     /// <inheritdoc/>
     public override void Configure()
     {
         Post("forms/{formId}/submissions/open");
         AllowAnonymous();
+        Throttle(60, 60);
         Summary(s =>
         {
             s.Summary = "Open a submission";
@@ -37,6 +38,7 @@ public sealed class Open(IMediator mediator)
             s.Responses[403] = "The access token does not have the submit permission.";
             s.Responses[404] = "Form or submission not found.";
             s.Responses[409] = "A submission already exists for this user and form.";
+            s.Responses[429] = "Too many opens from this client; try again in a minute.";
             s.Responses[503] = "The form or submission is busy; try again shortly.";
         });
         Description(Produces);
@@ -49,6 +51,7 @@ public sealed class Open(IMediator mediator)
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status429TooManyRequests)
         .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
     /// <inheritdoc/>

@@ -28,7 +28,9 @@ public sealed partial class Submission
     /// The respondent opened the form for this submission. The first open records <see cref="StartedAt"/>, which
     /// later opens keep, and moves <c>not_started</c> to <c>viewed</c> (<c>submission.collection_status_moved</c>).
     /// Every open of a submission that can still resume moves <see cref="BaseEntity.ModifiedAt"/>, so a returning
-    /// respondent reads as active again. A completed or closed submission is left alone.
+    /// respondent reads as active again; the save stamps the stored value. That touch raises no event and no
+    /// revision: it changes no collection state, as aggregate rule 2 asks (ARCHITECTURE.md). A lapsed submission keeps
+    /// its status until its next save resumes it. A completed or closed submission is left alone.
     /// </summary>
     public void Open(DateTime? at = null)
     {

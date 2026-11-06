@@ -482,14 +482,16 @@ Do **not** use EF InMemory in module unit tests for persistence — use `Endatix
 | Property      | When set                                                                                              | Meaning                                           |
 | ------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | `CreatedAt`   | EF insert stamp                                                                                       | Row created (includes prefill / create-on-behalf) |
-| `StartedAt`   | Respondent `Create` (`StartSubmission`), first content `Update(...)`, or complete-without-prior-start | First respondent engagement recorded by the API   |
+| `StartedAt`   | The respondent's first open (`Open()`, `OpenSubmission`), else first save or complete-without-prior-start | When the respondent first opened the form         |
 | `CompletedAt` | First incomplete→complete transition                                                                  | Submission finished                               |
 
 Rules:
 
-- Respondent `Create` (public submit / `submissions.create`) stamps `StartedAt` via `StartSubmission`.
-- CreateOnBehalf / prefill leave `StartedAt` null until first engagement `Update` (unless completing on create).
-- `Update` calls `EnsureStarted()` once (idempotent).
+- The respondent's open (`POST forms/{formId}/submissions/open`, a personal link's redeem, a test submission's open) stamps `StartedAt` once. A new submission is created `viewed` (`OpenSubmission`); an open moves `not_started` to `viewed` (`submission.collection_status_moved`). The first answer then moves it to `in_progress` (`submission.started`).
+- Every open of a submission that can still resume moves `ModifiedAt` with no event or revision: it is the "still answering" signal. A lapsed submission keeps its status until a save resumes it.
+- A respondent `Create` without an open (an API client's first save) still stamps `StartedAt` via `StartSubmission`.
+- CreateOnBehalf / prefill leave `StartedAt` null until the respondent opens or saves (unless completing on create).
+- `Update` sets `StartedAt` once if it is still null (idempotent).
 - Completing with `StartedAt` still null sets `StartedAt = CompletedAt` (duration ≈ 0).
 - Hub completion time and export `DurationSeconds` use `CompletedAt − StartedAt` (Hub falls back to `CreatedAt` only when `startedAt` is absent on older payloads).
 

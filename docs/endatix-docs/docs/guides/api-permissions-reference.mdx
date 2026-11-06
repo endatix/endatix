@@ -201,6 +201,7 @@ The delete endpoint accepts either `submissions.delete` (delete any submission) 
 | Method | Route | Permission | Description |
 |--------|-------|------------|-------------|
 | POST | `/forms/{formId}/submissions` | **Public** | Create submission (anonymous form submission) |
+| POST | `/forms/{formId}/submissions/open` | **Public** | Record that the respondent opened the form: creates a `viewed` submission with no token, or resumes one by `submissionToken` or a share link's `accessToken` (`submit`). Sets `startedAt` on the first open |
 | GET | `/forms/{formId}/submissions/by-token/{submissionToken}` | **Public** | Get submission by token (for partial submissions) |
 | PATCH | `/forms/{formId}/submissions/by-token/{submissionToken}` | **Public** | Update submission by token (for partial submissions) |
 

@@ -1,18 +1,18 @@
-using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Forms;
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Abstractions.Submitters;
+using MediatR;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
-using Endatix.Core.Exceptions;
-using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using MediatR;
+using Endatix.Core.Abstractions.Forms;
+using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Features.ReCaptcha;
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Submitters;
+using Endatix.Core.Exceptions;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -142,7 +142,7 @@ public class CreateSubmissionHandler(
     /// <summary>Stores a new submission, created, or says why it was refused.</summary>
     private async Task<Result<Submission>> PersistAsync(SubmissionDraft draft, CancellationToken cancellationToken)
     {
-        var conflict = await ExistingConflictAsync(draft, cancellationToken);
+        Result<Submission>? conflict = await ExistingConflictAsync(draft, cancellationToken);
         return conflict ?? await InsertAsync(draft, cancellationToken);
     }
 
@@ -199,7 +199,7 @@ public class CreateSubmissionHandler(
         }
 
         // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
-        var spec = Spec(draft);
+        SubmissionByFormIdAndSubmitterIdSpec spec = Spec(draft);
         bool exists = await submissionRepository.AnyAsync(spec, cancellationToken);
         return exists ? await DuplicateConflictAsync(spec, cancellationToken) : null;
     }
