@@ -52,11 +52,11 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
         var (world, admin) = await AdminAsync();
         var formId = await CreatePublicFormAsync(admin);
         using var anonymous = world.AnonymousClient();
-        var first = await OpenAsync(anonymous, formId, token: null, HttpStatusCode.Created);
+        var first = await OpenAsync(anonymous, formId, token: null);
         await BackdateAsync(world, first.Id);
 
         // Act
-        var resumed = await OpenAsync(anonymous, formId, first.Token, HttpStatusCode.OK);
+        var resumed = await OpenAsync(anonymous, formId, first.Token);
 
         // Assert
         var stored = await StoredAsync(world, first.Id);
@@ -80,7 +80,7 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
         using var anonymous = world.AnonymousClient();
 
         // Act
-        var opened = await OpenAsync(anonymous, formId, created.Token, HttpStatusCode.OK);
+        var opened = await OpenAsync(anonymous, formId, created.Token);
         await PatchAsync(anonymous, $"/api/forms/{formId}/submissions/by-token/{created.Token}", new { jsonData = """{"q1":"a"}""", isComplete = false });
 
         // Assert
@@ -106,7 +106,7 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
         var formId = await CreateEnabledFormAsync(admin);
         var created = await PostAsync(admin, $"/api/forms/{formId}/submissions/onbehalf", new { isComplete = false, jsonData = "{}" });
         await BackdateAsync(world, created.Id);
-        var shareToken = await AccessTokenAsync(admin, formId, created.Id, "submit");
+        var shareToken = await AccessTokenAsync(admin, created, "submit");
         using var anonymous = world.AnonymousClient();
 
         // Act
@@ -129,7 +129,7 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
         var formId = await CreateEnabledFormAsync(admin);
         var created = await PostAsync(admin, $"/api/forms/{formId}/submissions/onbehalf", new { isComplete = false, jsonData = "{}" });
         await BackdateAsync(world, created.Id);
-        var viewToken = await AccessTokenAsync(admin, formId, created.Id, "view", "edit");
+        var viewToken = await AccessTokenAsync(admin, created, "view", "edit");
         using var anonymous = world.AnonymousClient();
 
         // Act
@@ -201,7 +201,7 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
         // Arrange
         var (world, admin) = await AdminAsync();
         var formId = await CreatePublicFormAsync(admin);
-        var created = await OpenAsync(world.AnonymousClient(), formId, token: null, HttpStatusCode.Created);
+        var created = await OpenAsync(world.AnonymousClient(), formId, token: null);
         await PatchAsync(admin, $"/api/forms/{formId}", new { isEnabled = false });
         using var anonymous = world.AnonymousClient();
 
@@ -245,17 +245,17 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
     private static Task<IReadOnlyList<SubmissionOutboxRow>> RowsAsync(IntegrationTestWorld world, string submissionId) =>
         SubmissionOutboxRows.ReadAsync(world.Services, long.Parse(submissionId), Ct);
 
-    private static async Task<SubmissionApiModel> OpenAsync(HttpClient client, string formId, string? token, HttpStatusCode expected)
+    private static async Task<SubmissionApiModel> OpenAsync(HttpClient client, string formId, string? token)
     {
         using var response = await client.PostAsJsonAsync(OpenUrl(formId), new { submissionToken = token }, Ct);
-        Assert.Equal(expected, response.StatusCode);
+        Assert.Equal(token is null ? HttpStatusCode.Created : HttpStatusCode.OK, response.StatusCode);
         return await ReadAsync(response);
     }
 
-    private static async Task<string> AccessTokenAsync(HttpClient admin, string formId, string submissionId, params string[] permissions)
+    private static async Task<string> AccessTokenAsync(HttpClient admin, SubmissionApiModel submission, params string[] permissions)
     {
         using var response = await admin.PostAsJsonAsync(
-            $"/api/forms/{formId}/submissions/{submissionId}/access-token",
+            $"/api/forms/{submission.FormId}/submissions/{submission.Id}/access-token",
             new { expiryMinutes = 60, permissions },
             Ct);
         response.EnsureSuccessStatusCode();
@@ -342,6 +342,7 @@ public sealed class SubmissionOpenFlowTests(EndatixIntegrationWebHostFixture fix
     private sealed class SubmissionApiModel
     {
         public string Id { get; set; } = string.Empty;
+        public string FormId { get; set; } = string.Empty;
         public string? Token { get; set; }
         public DateTime? StartedAt { get; set; }
         public string CollectionStatus { get; set; } = string.Empty;

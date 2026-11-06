@@ -85,13 +85,15 @@ public sealed class OpenSubmissionHandler(
         }
 
         var form = await forms.GetByIdAsync(formId, cancellationToken);
-        if (form is null || !form.IsEnabled)
-        {
-            return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
-        }
+        return form is { IsEnabled: true }
+            ? await OpenExistingAsync(formId, submissionId.Value, cancellationToken)
+            : Result.NotFound(FORM_NOT_FOUND_MESSAGE);
+    }
 
+    private async Task<Result<Submission>> OpenExistingAsync(long formId, long submissionId, CancellationToken cancellationToken)
+    {
         var submission = await submissions.SingleOrDefaultAsync(
-            new SubmissionByFormIdAndSubmissionIdSpec(formId, submissionId.Value),
+            new SubmissionByFormIdAndSubmissionIdSpec(formId, submissionId),
             cancellationToken);
         if (submission is null)
         {

@@ -1,18 +1,18 @@
-using MediatR;
+using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Forms;
+using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Abstractions.Submitters;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Exceptions;
+using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.Abstractions.Forms;
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Features.ReCaptcha;
-using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Submitters;
-using Endatix.Core.Exceptions;
+using MediatR;
 
 namespace Endatix.Core.UseCases.Submissions.Create;
 
@@ -142,7 +142,7 @@ public class CreateSubmissionHandler(
     /// <summary>Stores a new submission, created, or says why it was refused.</summary>
     private async Task<Result<Submission>> PersistAsync(SubmissionDraft draft, CancellationToken cancellationToken)
     {
-        Result<Submission>? conflict = await ExistingConflictAsync(draft, cancellationToken);
+        var conflict = await ExistingConflictAsync(draft, cancellationToken);
         return conflict ?? await InsertAsync(draft, cancellationToken);
     }
 
@@ -199,7 +199,7 @@ public class CreateSubmissionHandler(
         }
 
         // Fast path only; the UX_Submissions_RestrictionKey unique index is the concurrency authority.
-        SubmissionByFormIdAndSubmitterIdSpec spec = Spec(draft);
+        var spec = Spec(draft);
         bool exists = await submissionRepository.AnyAsync(spec, cancellationToken);
         return exists ? await DuplicateConflictAsync(spec, cancellationToken) : null;
     }
@@ -258,13 +258,14 @@ public class CreateSubmissionHandler(
                 SubmitterProfileSnapshot: Submitter.ProfileSnapshot,
                 IsTestSubmission: Gate.IsTest,
                 EnforceSingleSubmissionGate: Gate.Enforce,
-                // Public/authenticated Create = respondent engagement; CreateOnBehalf = prefill; an open = viewed.
-                StartSubmission: !Request.OpenSubmission && string.Equals(
-                    Request.RequiredPermission,
-                    Actions.Submissions.Create,
-                    StringComparison.Ordinal),
+                StartSubmission: IsRespondentSave,
                 CollectionOutcome: outcome,
                 OpenSubmission: Request.OpenSubmission);
+
+        /// <summary>A respondent's first save starts the submission; an on-behalf create (prefill) and an open don't.</summary>
+        private bool IsRespondentSave =>
+            !Request.OpenSubmission &&
+            string.Equals(Request.RequiredPermission, Actions.Submissions.Create, StringComparison.Ordinal);
     }
 
     private Task<Result<Submission>> DuplicateConflictAsync(

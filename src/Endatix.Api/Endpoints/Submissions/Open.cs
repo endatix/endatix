@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.Submissions.Open;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -15,6 +16,12 @@ namespace Endatix.Api.Endpoints.Submissions;
 public sealed class Open(IMediator mediator)
     : Endpoint<OpenSubmissionRequest, Results<Created<SubmissionModel>, Ok<SubmissionModel>, ProblemHttpResult>>
 {
+    private const string DESCRIPTION =
+        "Records that the respondent opened the form. Without a token it creates a submission, in the viewed " +
+        "status, through the same checks as a public create. With a submission token, or a share link's " +
+        "access token with the submit permission, it resumes that submission. The first open sets startedAt, " +
+        "and later opens keep it.";
+
     /// <inheritdoc/>
     public override void Configure()
     {
@@ -23,11 +30,7 @@ public sealed class Open(IMediator mediator)
         Summary(s =>
         {
             s.Summary = "Open a submission";
-            s.Description =
-                "Records that the respondent opened the form. Without a token it creates a submission, in the viewed " +
-                "status, through the same checks as a public create. With a submission token, or a share link's " +
-                "access token with the submit permission, it resumes that submission. The first open sets startedAt, " +
-                "and later opens keep it.";
+            s.Description = DESCRIPTION;
             s.Responses[200] = "The submission was resumed.";
             s.Responses[201] = "The submission was created.";
             s.Responses[400] = "Invalid input data, or the token is not valid.";
@@ -36,15 +39,17 @@ public sealed class Open(IMediator mediator)
             s.Responses[409] = "A submission already exists for this user and form.";
             s.Responses[503] = "The form or submission is busy; try again shortly.";
         });
-        Description(builder => builder
-            .Produces<SubmissionModel>(StatusCodes.Status200OK, "application/json")
-            .Produces<SubmissionModel>(StatusCodes.Status201Created, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
+        Description(Produces);
     }
+
+    private static void Produces(RouteHandlerBuilder builder) => builder
+        .Produces<SubmissionModel>(StatusCodes.Status200OK, "application/json")
+        .Produces<SubmissionModel>(StatusCodes.Status201Created, "application/json")
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
     /// <inheritdoc/>
     public override async Task<Results<Created<SubmissionModel>, Ok<SubmissionModel>, ProblemHttpResult>> ExecuteAsync(
