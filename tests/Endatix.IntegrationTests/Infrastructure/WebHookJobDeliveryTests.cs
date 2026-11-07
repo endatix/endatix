@@ -25,13 +25,17 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
     private const long MissingFormId = 424242;
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
-    [Fact]
-    public async Task Each_endpoint_gets_its_own_job()
+    // The configured case is the one test host whose relay polls on Endatix:Outbox:PollIntervalSeconds, so the
+    // config-bound interval stays covered. Only a relay on the engine's code seam warns that it polls under a second.
+    [Theory]
+    [InlineData(OutboxPolling.Configured)]
+    [InlineData(OutboxPolling.Fast)]
+    public async Task Each_endpoint_gets_its_own_job(OutboxPolling outboxPolling)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
-        await using var host = await StartHostAsync(ct);
+        await using var host = await StartHostAsync(ct, outboxPolling: outboxPolling);
         var tenantId = await SeedTenantAsync(host, new TenantSeed("webhook-endpoints", Config(receiver.UrlFor("a"), receiver.UrlFor("b"), receiver.UrlFor("c"))), ct);
 
         // Act
@@ -48,6 +52,9 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
             payload.RootElement.EnumerateObject().Select(property => property.Name)
                 .Should().BeEquivalentTo("outboxMessageId", "endpointKey");
         }
+
+        host.Logs.Entries.Any(entry => entry.Message.Contains("poll interval is 50 ms, under a second"))
+            .Should().Be(outboxPolling == OutboxPolling.Fast);
     }
 
     [Fact]
@@ -158,10 +165,17 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         payload.GetProperty("isComplete").GetBoolean().Should().BeTrue();
     }
 
-    private Task<FanOutHost> StartHostAsync(CancellationToken ct, IReadOnlyDictionary<string, string?>? settings = null) =>
+    private Task<FanOutHost> StartHostAsync(
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string?>? settings = null,
+        OutboxPolling outboxPolling = OutboxPolling.Fast) =>
         FanOutHost.StartAsync(
             fixture,
-            new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = settings ?? new Dictionary<string, string?>() },
+            new FanOutHostSetup(DeliverToJobQueue: true, _ => { })
+            {
+                Settings = settings ?? new Dictionary<string, string?>(),
+                OutboxPolling = outboxPolling,
+            },
             ct);
 
     private static async Task<long> SeedTenantAsync(FanOutHost host, TenantSeed seed, CancellationToken ct)
