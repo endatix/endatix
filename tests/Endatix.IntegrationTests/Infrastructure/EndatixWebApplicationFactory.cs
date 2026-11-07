@@ -1,13 +1,12 @@
 extern alias EndatixWebHost;
-
+using System.Globalization;
+using System.Net;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
-using System.Globalization;
-using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -32,12 +31,10 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
     private readonly TestDatabaseProvider _provider;
     private readonly OutboxPolling _outboxPolling;
 
-    public EndatixWebApplicationFactory(string connectionString, TestDatabaseProvider provider)
-        : this(connectionString, provider, OutboxPolling.Fast)
-    {
-    }
-
-    internal EndatixWebApplicationFactory(string connectionString, TestDatabaseProvider provider, OutboxPolling outboxPolling)
+    public EndatixWebApplicationFactory(
+        string connectionString,
+        TestDatabaseProvider provider,
+        OutboxPolling outboxPolling = OutboxPolling.Fast)
     {
         _connectionString = connectionString;
         _provider = provider;
@@ -81,12 +78,15 @@ internal sealed class LoopbackClientIpStartupFilter : IStartupFilter
 }
 
 /// <summary>How a test host's outbox relay waits between polls.</summary>
-internal enum OutboxPolling
+public enum OutboxPolling
 {
-    /// <summary>Every <see cref="EndatixWebApplicationFactoryConfiguration.OutboxPollInterval"/>, set in code through the engine's test seam.</summary>
+    /// <summary>
+    /// Every <see cref="EndatixWebApplicationFactoryConfiguration.OutboxPollInterval"/>, set in code through the engine's
+    /// test seam. The seam wins over configuration, so <c>Endatix:Outbox:PollIntervalSeconds</c> has no effect here.
+    /// </summary>
     Fast,
 
-    /// <summary>Every second through <c>Endatix:Outbox:PollIntervalSeconds</c>, the relay's production timer path.</summary>
+    /// <summary>Every second through <c>Endatix:Outbox:PollIntervalSeconds</c>, the interval production binds.</summary>
     Configured,
 }
 
@@ -94,7 +94,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
 {
     /// <summary>
     /// The relay's wait between polls on a fast-polling test host. A test that switches the relay on sees it claim within
-    /// this rather than the production second; with the switch off a poll only asks the switch, so it costs no query.
+    /// this rather than a second. With the switch off a poll only asks the switch; with it on, each poll runs a claim query.
     /// </summary>
     public static readonly TimeSpan OutboxPollInterval = TimeSpan.FromMilliseconds(50);
 

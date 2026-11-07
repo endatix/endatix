@@ -5,6 +5,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
+using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
@@ -30,7 +31,6 @@ public sealed class LeftoverOutboxMessageTests(EndatixIntegrationWebHostFixture 
     // Lets the reset take its first locks before a paused handler would go on.
     private static readonly TimeSpan ResetHeadStart = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan ResetWait = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan TickProbe = TimeSpan.FromMilliseconds(25);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -85,13 +85,11 @@ public sealed class LeftoverOutboxMessageTests(EndatixIntegrationWebHostFixture 
     /// </summary>
     private async Task<LeftoverOutcome> ResetWithMessageLeftAsync(CommandPause handler)
     {
-        var ticks = RelayTicksAsync(2);
+        using var stopTicks = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var ticks = RelayTicksAsync(2, stopTicks.Token);
         var handledBeforeReset = await Task.WhenAny(handler.Reached, ticks) == handler.Reached;
-        if (!handledBeforeReset)
-        {
-            await ticks;
-        }
-
+        await stopTicks.CancelAsync();
+        Assert.True(handledBeforeReset || await ticks, $"The relay did not tick twice in {ResetWait.TotalSeconds:0} s.");
         var messages = await OutboxMessagesAsync();
 
         var reset = Task.Run(() => fixture.PrepareWorldAsync(IntegrationWorldOptions.Empty, Ct), Ct);
@@ -103,21 +101,22 @@ public sealed class LeftoverOutboxMessageTests(EndatixIntegrationWebHostFixture 
     }
 
     /// <summary>
-    /// Completes once the relay has started <paramref name="count"/> ticks after the call, waking it for each. Every tick
-    /// asks the switch first, and a tick that hands the message on pauses in its handler, so once the last has started
-    /// the ones before it have each had the message to claim and finished without handing it on.
+    /// Whether the relay asked the switch <paramref name="count"/> more times, woken for each. A tick asks the switch
+    /// first, and one that hands the message on pauses in its handler before the next can ask, so every tick but the
+    /// last counted here had the message to claim and finished without handing it on.
     /// </summary>
-    private async Task RelayTicksAsync(int count)
+    private Task<bool> RelayTicksAsync(int count, CancellationToken cancellationToken)
     {
         var relay = fixture.Factory.Services.GetRequiredService<IOutboxRelaySignal>();
         var target = fixture.BackgroundWork.RelayChecks + count;
-        var deadline = DateTime.UtcNow + ResetWait;
-        while (fixture.BackgroundWork.RelayChecks < target)
-        {
-            Assert.True(DateTime.UtcNow < deadline, $"The relay started no {count} ticks in {ResetWait.TotalSeconds:0} s.");
-            relay.Wake();
-            await Task.Delay(TickProbe, Ct);
-        }
+        return JobsTestWait.UntilAsync(
+            () =>
+            {
+                relay.Wake();
+                return Task.FromResult(fixture.BackgroundWork.RelayChecks >= target);
+            },
+            ResetWait,
+            cancellationToken);
     }
 
     private static void AssertLeftAlone(LeftoverOutcome outcome, string eventType)
