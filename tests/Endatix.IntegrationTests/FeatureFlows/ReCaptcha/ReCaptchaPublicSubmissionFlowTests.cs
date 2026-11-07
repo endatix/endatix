@@ -4,7 +4,6 @@ using System.Text.Json;
 using Endatix.Core.Features.ReCaptcha;
 using Endatix.Framework.Logging;
 using Endatix.IntegrationTests.Shared;
-using Microsoft.Extensions.Logging;
 
 namespace Endatix.IntegrationTests;
 
@@ -20,15 +19,14 @@ public sealed class ReCaptchaPublicSubmissionFlowTests(EndatixIntegrationWebHost
     private const int NoLog = 0;
 
     [Theory]
-    [InlineData("v3-submit-form.json", 0.5, HttpStatusCode.Created, LogLevel.None, NoLog)]
-    [InlineData("v3-submit-form.json", 1.0, HttpStatusCode.BadRequest, LogLevel.Information, EndatixEventIds.ReCaptcha.ScoreTooLow)]
-    [InlineData("v3-other-action.json", 0.5, HttpStatusCode.Created, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMismatch)]
-    [InlineData("v3-token-reused.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
-    [InlineData("v3-wrong-secret.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
-    [InlineData("v2-test-key.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)]
-    [InlineData("v3-submit-form-without-score.derived.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Warning, EndatixEventIds.ReCaptcha.ScoreMissing)]
-    public async Task Public_completion_logs_the_reason_for_a_recorded_siteverify_body(
-        string fixtureName, double minimumScore, HttpStatusCode expectedStatus, LogLevel expectedLevel, int expectedEventId)
+    [InlineData("v3-submit-form.json", 0.5, NoLog)]
+    [InlineData("v3-submit-form.json", 1.0, EndatixEventIds.ReCaptcha.ScoreTooLow)]
+    [InlineData("v3-other-action.json", 0.5, EndatixEventIds.ReCaptcha.ActionMismatch)]
+    [InlineData("v3-token-reused.json", 0.5, EndatixEventIds.ReCaptcha.TokenRejected)]
+    [InlineData("v3-wrong-secret.json", 0.5, EndatixEventIds.ReCaptcha.TokenRejected)]
+    [InlineData("v2-test-key.json", 0.5, EndatixEventIds.ReCaptcha.ActionMissing)]
+    [InlineData("v3-submit-form-without-score.derived.json", 0.5, EndatixEventIds.ReCaptcha.ScoreMissing)]
+    public async Task Public_completion_logs_the_reason_for_a_recorded_siteverify_body(string fixtureName, double minimumScore, int expectedEventId)
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -52,15 +50,16 @@ public sealed class ReCaptchaPublicSubmissionFlowTests(EndatixIntegrationWebHost
             cancellationToken);
 
         // Assert
-        Assert.Equal(expectedStatus, response.StatusCode);
-        if (expectedStatus == HttpStatusCode.BadRequest)
+        var passes = expectedEventId is NoLog or EndatixEventIds.ReCaptcha.ActionMismatch;
+        Assert.Equal(passes ? HttpStatusCode.Created : HttpStatusCode.BadRequest, response.StatusCode);
+        if (!passes)
         {
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             Assert.Contains(ReCaptchaErrors.Messages.RECAPTCHA_VERIFICATION_FAILED, body);
         }
 
         Assert.Single(host.SiteverifyRequests);
-        Assert.Equal(expectedEventId == NoLog ? [] : [(expectedLevel, expectedEventId)], host.Events.Entries);
+        Assert.Equal(expectedEventId == NoLog ? [] : [expectedEventId], host.Events.Entries.Select(entry => entry.EventId));
     }
 
     private static async Task<string> CreatePublicFormAsync(HttpClient admin, CancellationToken cancellationToken)

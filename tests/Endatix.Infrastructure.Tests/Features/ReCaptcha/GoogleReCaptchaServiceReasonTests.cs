@@ -18,32 +18,44 @@ public class GoogleReCaptchaServiceReasonTests
 {
     private readonly IUserContext _userContext = Substitute.For<IUserContext>();
 
-    private const int NoLog = 0;
+    private const string Passed = "passed";
+    private const string PassedWithActionWarning = "passed, action mismatch logged";
 
     [Theory]
-    [InlineData("v3-submit-form.json", 0.5, true, null, LogLevel.None, NoLog)]
-    [InlineData("v3-submit-form.json", 1.0, false, ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW, LogLevel.Information, EndatixEventIds.ReCaptcha.ScoreTooLow)]
-    [InlineData("v3-other-action.json", 0.5, true, null, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMismatch)]
-    [InlineData("v3-token-reused.json", 0.5, false, "timeout-or-duplicate", LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
-    [InlineData("v3-wrong-secret.json", 0.5, false, "invalid-input-response", LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
-    [InlineData("v2-test-key.json", 0.5, false, ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)]
-    [InlineData("v3-submit-form-without-action.derived.json", 0.5, false, ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)]
-    [InlineData("v3-submit-form-without-score.derived.json", 0.5, false, ReCaptchaConstants.ErrorCodes.ERROR_SCORE_MISSING, LogLevel.Warning, EndatixEventIds.ReCaptcha.ScoreMissing)]
-    public async Task VerifyTokenAsync_NamesTheReason_ForARecordedSiteverifyBody(
-        string fixture, double minimumScore, bool expectedSuccess, string? expectedFirstCode, LogLevel expectedLevel, int expectedEventId)
+    [InlineData("v3-submit-form.json", 0.5, Passed)]
+    [InlineData("v3-submit-form.json", 1.0, ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW)]
+    [InlineData("v3-other-action.json", 0.5, PassedWithActionWarning)]
+    [InlineData("v3-token-reused.json", 0.5, "timeout-or-duplicate")]
+    [InlineData("v3-wrong-secret.json", 0.5, "invalid-input-response")]
+    [InlineData("v2-test-key.json", 0.5, ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING)]
+    [InlineData("v3-submit-form-without-action.derived.json", 0.5, ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING)]
+    [InlineData("v3-submit-form-without-score.derived.json", 0.5, ReCaptchaConstants.ErrorCodes.ERROR_SCORE_MISSING)]
+    public async Task VerifyTokenAsync_NamesTheReason_ForARecordedSiteverifyBody(string fixture, double minimumScore, string expectedReason)
     {
         // Arrange
         var logger = new RecordingLogger<GoogleReCaptchaService>();
         var service = new GoogleReCaptchaService(SiteverifyFixture.Client(fixture), Options(minimumScore), _userContext, logger);
+        var (expectedSuccess, expectedLog) = Expected(expectedReason);
 
         // Act
         var result = await service.VerifyTokenAsync("recorded-token", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedSuccess, result.IsSuccess);
-        Assert.Equal(expectedFirstCode, result.ErrorCodes.FirstOrDefault());
-        Assert.Equal(expectedEventId == NoLog ? [] : [(expectedLevel, expectedEventId)], logger.Entries);
+        Assert.Equal(expectedSuccess ? null : expectedReason, result.ErrorCodes.FirstOrDefault());
+        Assert.Equal(expectedLog is { } entry ? [entry] : [], logger.Entries);
     }
+
+    /// <summary>Whether a reason passes, and the one log entry it writes. Any other reason is Google's own error code.</summary>
+    private static (bool Success, (LogLevel, int)? Log) Expected(string reason) => reason switch
+    {
+        Passed => (true, null),
+        PassedWithActionWarning => (true, (LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMismatch)),
+        ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW => (false, (LogLevel.Information, EndatixEventIds.ReCaptcha.ScoreTooLow)),
+        ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING => (false, (LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)),
+        ReCaptchaConstants.ErrorCodes.ERROR_SCORE_MISSING => (false, (LogLevel.Warning, EndatixEventIds.ReCaptcha.ScoreMissing)),
+        _ => (false, (LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)),
+    };
 
     private static IOptions<ReCaptchaOptions> Options(double minimumScore) => Microsoft.Extensions.Options.Options.Create(new ReCaptchaOptions
     {

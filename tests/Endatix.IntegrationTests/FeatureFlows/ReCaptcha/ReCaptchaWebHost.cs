@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.IntegrationTests;
@@ -104,7 +105,7 @@ internal sealed class ReCaptchaEventLog(string categoryPrefix) : ILoggerProvider
     public IReadOnlyCollection<(LogLevel Level, int EventId)> Entries => _entries;
 
     public ILogger CreateLogger(string categoryName) =>
-        categoryName.StartsWith(categoryPrefix, StringComparison.Ordinal) ? new Recorder(_entries) : NoOp.Instance;
+        categoryName.StartsWith(categoryPrefix, StringComparison.Ordinal) ? new Recorder(_entries) : NullLogger.Instance;
 
     public void Dispose()
     {
@@ -118,18 +119,5 @@ internal sealed class ReCaptchaEventLog(string categoryPrefix) : ILoggerProvider
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
             => entries.Enqueue((logLevel, eventId.Id));
-    }
-
-    private sealed class NoOp : ILogger
-    {
-        public static readonly NoOp Instance = new();
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => false;
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-        }
     }
 }
