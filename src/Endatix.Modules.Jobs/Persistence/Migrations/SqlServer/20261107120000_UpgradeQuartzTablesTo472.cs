@@ -28,6 +28,12 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
     /// catalog, so each <c>ALTER TABLE</c> is quick, though it waits for the table's open transactions.
     /// </para>
     /// <para>
+    /// Quartz 4.7.2's acquisition also reads <c>MISFIRE_THRESHOLD</c>, <c>OVERLAP_POLICY</c> and <c>FIXED_DELAY</c>,
+    /// so <c>idx_endatix_qrtz_t_acquire</c> is created again with them among its included columns. Without them the
+    /// index no longer covers the read, and SQL Server may scan a full group's whole backlog rather than seek each
+    /// free group's triggers.
+    /// </para>
+    /// <para>
     /// The 4.7.2 create script no longer has <c>FK_qrtz_BLOB_TRIGGERS_qrtz_TRIGGERS</c>, and no upgrade script drops
     /// it: Quartz deletes blob rows itself, so nothing depends on the key
     /// (<see href="https://github.com/quartznet/quartznet/issues/3949">quartznet#3949</see>). A database created
@@ -36,6 +42,19 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
     /// </remarks>
     public partial class UpgradeQuartzTablesTo472 : Migration
     {
+        /// <summary>
+        /// The index trigger acquisition seeks, one group at a time, in acquisition order. The included columns are
+        /// the rest of what Quartz 4.7.2's acquisition reads from a trigger, so it needs no lookup into the table.
+        /// </summary>
+        internal const string CreateAcquireIndex =
+            """
+            CREATE INDEX idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS
+                (SCHED_NAME, TRIGGER_STATE, ENDATIX_ACQUIRE_GROUP, NEXT_FIRE_TIME, PRIORITY DESC)
+                INCLUDE (JOB_NAME, JOB_GROUP, EXECUTION_GROUP, MISFIRE_INSTR, PREFERRED_NODE, MISFIRE_THRESHOLD, OVERLAP_POLICY, FIXED_DELAY);
+            """;
+
+        private const string DropAcquireIndex = "DROP INDEX IF EXISTS idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS;";
+
         /// <summary>Each column, as <c>(table, column, type)</c>, in the order Quartz's scripts add them.</summary>
         internal static readonly (string Table, string Column, string Type)[] Columns =
         [
@@ -121,6 +140,8 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
                     $"IF COL_LENGTH(N'jobs.{table}', N'{column}') IS NULL ALTER TABLE jobs.{table} ADD {column} {type} NULL;");
             }
 
+            migrationBuilder.Sql(DropAcquireIndex);
+            migrationBuilder.Sql(CreateAcquireIndex);
             migrationBuilder.Sql(CreateJobStatusTable);
             foreach (var (name, columns) in ExecutionHistoryIndexes)
             {
@@ -146,6 +167,16 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
             }
 
             migrationBuilder.Sql("DROP TABLE IF EXISTS jobs.qrtz_JOB_STATUS;");
+
+            // The earlier index first: it cannot outlive the columns it includes.
+            migrationBuilder.Sql(
+                $"""
+                IF OBJECT_ID(N'jobs.qrtz_TRIGGERS', N'U') IS NOT NULL
+                BEGIN
+                    {DropAcquireIndex}
+                    EXEC(N'{PinTriggerAcquisitionGroupCollation.CreateAcquireIndex.Trim()}');
+                END
+                """);
             foreach (var (table, column, _) in Enumerable.Reverse(Columns))
             {
                 migrationBuilder.Sql(

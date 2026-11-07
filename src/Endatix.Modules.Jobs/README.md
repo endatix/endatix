@@ -647,8 +647,15 @@ ordinally, as on PostgreSQL, whatever the database's default collation is or lat
 refuses `ALTER DATABASE … COLLATE` while any schema-bound object depends on the collation (error 5075):
 check constraints, filtered indexes and computed columns, `ENDATIX_ACQUIRE_GROUP` among them. A DBA who
 changes it anyway drops those objects first and re-creates them afterwards; for this one, drop
-`idx_endatix_qrtz_t_acquire` and then `ENDATIX_ACQUIRE_GROUP`, and re-create both with the statements in
-the SQL Server `PinTriggerAcquisitionGroupCollation` migration.
+`idx_endatix_qrtz_t_acquire` and then `ENDATIX_ACQUIRE_GROUP`, and re-create the column with the statement
+in the SQL Server `PinTriggerAcquisitionGroupCollation` migration and the index with the one in
+`UpgradeQuartzTablesTo472`.
+
+On SQL Server the index also includes every other column of `qrtz_TRIGGERS` the acquisition reads, so
+each group's read is a seek with no lookup into the table. When a Quartz upgrade makes the acquisition
+read another trigger column (4.7.2 added `MISFIRE_THRESHOLD`, `OVERLAP_POLICY` and `FIXED_DELAY`), the
+upgrade migration re-creates the index with it included: without it the optimizer may scan a full
+group's whole backlog, which `SelectTriggersToAcquire_LargeBacklogInFullGroup_ReadsStayFlat` catches.
 
 See the Quartz.NET [database documentation](https://www.quartz-scheduler.net/documentation/quartz-4.x/db/)
 and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-4.x/operations.html).

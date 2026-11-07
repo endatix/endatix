@@ -97,7 +97,7 @@ public sealed partial class JobsSqlServerStoreTests
             ct);
         SqlConnection.ClearAllPools();
         await database.ExecuteAsync(PinTriggerAcquisitionGroupCollation.AddAcquireGroupColumn, ct);
-        await database.ExecuteAsync(PinTriggerAcquisitionGroupCollation.CreateAcquireIndex, ct);
+        await database.ExecuteAsync(UpgradeQuartzTablesTo472.CreateAcquireIndex, ct);
     }
 
     // The database's default collation, and that of a column the acquisition column is computed from.
