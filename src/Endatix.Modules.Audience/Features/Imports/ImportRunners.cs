@@ -4,6 +4,8 @@ using Endatix.Modules.Audience.Domain;
 using Endatix.Modules.Audience.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Audience.Features.Imports;
 
@@ -101,8 +103,6 @@ public sealed record ImportLimitsDto(int MaxRows, long MaxBytes, bool RunsInBack
 
 internal static class ImportRunnerRegistration
 {
-    public const int ChunkRows = 1_000;
-
     public static ImportLimitsDto LimitsOf(IImportRunner runner) =>
         runner.RunsInBackground
             ? new ImportLimitsDto(100_000, 50L * 1024 * 1024, RunsInBackground: true)
@@ -111,6 +111,10 @@ internal static class ImportRunnerRegistration
     /// <summary>The queue runner when the Jobs module registered a queue, else the inline one.</summary>
     public static IServiceCollection AddImportRunner(this IServiceCollection services)
     {
+        services.AddOptions<AudienceOptions>()
+            .BindConfiguration(AudienceOptions.SECTION_NAME)
+            .ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AudienceOptions>, AudienceOptionsValidator>());
         services.AddSingleton<ImportRun>();
         services.AddScoped<ImportSweep>();
         services.AddHostedService<ImportSweepService>();
