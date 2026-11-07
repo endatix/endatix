@@ -115,7 +115,7 @@ Each lifecycle change raises exactly one outbox event, named by the phases befor
 
 {/* lifecycle-events:end */}
 
-The built-in endpoints raise `created`, `started`, `completed` and `closed`. `resumed` follows a save of a submission stored in a lapsed status, and nothing built in moves a submission to a lapsed status or between two codes of one phase yet: `submission.lapsed` and `submission.collection_status_moved` are reserved for host code that sets such statuses.
+The built-in endpoints raise `created`, `started`, `completed` and `closed`. The respondent's first open of a `not_started` submission (one made on their behalf) raises `submission.collection_status_moved` to `viewed`, and their first answer then raises `started`. `resumed` follows a save of a submission stored in a lapsed status, and nothing built in moves a submission to a lapsed status yet: `submission.lapsed` is reserved for host code that sets such statuses.
 
 The lifecycle fields every payload carries are `submissionId`, `tenantId`, `formId`, `formDefinitionId`, `revision`, `occurredAt`, `isTestSubmission`, `collectionStatus` and `previousCollectionStatus`. Both statuses are objects with the exact `code` and its `phase`, for example `{ "code": "screen_out", "phase": "closed" }`. The values are the ones when the event was raised.
 

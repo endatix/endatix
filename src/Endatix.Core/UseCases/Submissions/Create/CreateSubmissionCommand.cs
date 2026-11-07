@@ -23,6 +23,10 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// interview like a completion, and the submission is created in it.
 /// </param>
 /// <param name="PersonalizationSnapshot">Frozen audience values for a trusted on-behalf create.</param>
+/// <param name="OpenSubmission">
+/// The respondent's open creates the submission: it is saved <c>viewed</c>, with its start recorded
+/// (<see cref="SubmissionCreateArgs.OpenSubmission"/>).
+/// </param>
 public record CreateSubmissionCommand(
     long FormId,
     string? JsonData,
@@ -34,5 +38,6 @@ public record CreateSubmissionCommand(
     ClaimsPrincipal? SubmitterPrincipal = null,
     SubmitterInput? Submitter = null,
     string? CollectionOutcome = null,
-    string? PersonalizationSnapshot = null
+    string? PersonalizationSnapshot = null,
+    bool OpenSubmission = false
 ) : ICommand<Result<Submission>>;
