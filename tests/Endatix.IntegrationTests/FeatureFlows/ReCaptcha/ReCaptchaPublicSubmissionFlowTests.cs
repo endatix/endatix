@@ -17,8 +17,16 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class ReCaptchaPublicSubmissionFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
+    private const int NoLog = 0;
+
     [Theory]
+    [InlineData("v3-submit-form.json", 0.5, HttpStatusCode.Created, LogLevel.None, NoLog)]
+    [InlineData("v3-submit-form.json", 1.0, HttpStatusCode.BadRequest, LogLevel.Information, EndatixEventIds.ReCaptcha.ScoreTooLow)]
+    [InlineData("v3-other-action.json", 0.5, HttpStatusCode.Created, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMismatch)]
+    [InlineData("v3-token-reused.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
+    [InlineData("v3-wrong-secret.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Information, EndatixEventIds.ReCaptcha.TokenRejected)]
     [InlineData("v2-test-key.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)]
+    [InlineData("v3-submit-form-without-score.derived.json", 0.5, HttpStatusCode.BadRequest, LogLevel.Warning, EndatixEventIds.ReCaptcha.ScoreMissing)]
     public async Task Public_completion_logs_the_reason_for_a_recorded_siteverify_body(
         string fixtureName, double minimumScore, HttpStatusCode expectedStatus, LogLevel expectedLevel, int expectedEventId)
     {
@@ -52,7 +60,7 @@ public sealed class ReCaptchaPublicSubmissionFlowTests(EndatixIntegrationWebHost
         }
 
         Assert.Single(host.SiteverifyRequests);
-        Assert.Equal([(expectedLevel, expectedEventId)], host.Events.Entries);
+        Assert.Equal(expectedEventId == NoLog ? [] : [(expectedLevel, expectedEventId)], host.Events.Entries);
     }
 
     private static async Task<string> CreatePublicFormAsync(HttpClient admin, CancellationToken cancellationToken)
