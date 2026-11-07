@@ -10,86 +10,48 @@ using Microsoft.Extensions.Options;
 namespace Endatix.Infrastructure.Tests.Features.ReCaptcha;
 
 /// <summary>
-/// A token that siteverify accepts is checked for its action before its score, so a key of the
-/// wrong type gets its own reason instead of <c>score_too_low</c>.
+/// Real siteverify bodies (<c>Fixtures/Siteverify</c>) through the real <see cref="ReCaptchaHttpClient"/>.
+/// The action is checked before the score, so a key of the wrong type gets its own reason
+/// instead of <c>score_too_low</c>.
 /// </summary>
 public class GoogleReCaptchaServiceReasonTests
 {
     private readonly IUserContext _userContext = Substitute.For<IUserContext>();
-    private readonly IOptions<ReCaptchaOptions> _options = Options.Create(new ReCaptchaOptions
+
+    [Theory]
+    [InlineData("v2-test-key.json", 0.5, false, ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING, LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)]
+    public async Task VerifyTokenAsync_NamesTheReason_ForARecordedSiteverifyBody(
+        string fixture, double minimumScore, bool expectedSuccess, string? expectedFirstCode, LogLevel expectedLevel, int expectedEventId)
+    {
+        // Arrange
+        var logger = new RecordingLogger<GoogleReCaptchaService>();
+        var service = new GoogleReCaptchaService(SiteverifyFixture.Client(fixture), Options(minimumScore), _userContext, logger);
+
+        // Act
+        var result = await service.VerifyTokenAsync("recorded-token", TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(expectedSuccess, result.IsSuccess);
+        Assert.Equal(expectedFirstCode, result.ErrorCodes.FirstOrDefault());
+        Assert.Equal([(expectedLevel, expectedEventId)], logger.Entries);
+    }
+
+    private static IOptions<ReCaptchaOptions> Options(double minimumScore) => Microsoft.Extensions.Options.Options.Create(new ReCaptchaOptions
     {
         IsEnabled = true,
         SecretKey = "secret",
-        MinimumScore = 0.5,
+        MinimumScore = minimumScore,
         EnabledForTenantIds = [1]
     });
+}
 
-    [Fact]
-    public async Task VerifyTokenAsync_ReturnsActionMissing_WhenSiteverifyReturnsV2Shape()
-    {
-        // Arrange
-        var json = """{"success":true,"challenge_ts":"2026-11-04T10:00:00Z","hostname":"localhost"}""";
-        var httpClient = new ReCaptchaHttpClient(
-            new HttpClient(new FixedStatusHandler(HttpStatusCode.OK, json)),
-            NullLogger<ReCaptchaHttpClient>.Instance);
-        var logger = new RecordingLogger<GoogleReCaptchaService>();
-        var service = new GoogleReCaptchaService(httpClient, _options, _userContext, logger);
+/// <summary>Reads a recorded siteverify body and serves it the way Google does.</summary>
+internal static class SiteverifyFixture
+{
+    public static string Body(string name) =>
+        File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Features", "ReCaptcha", "Fixtures", "Siteverify", name));
 
-        // Act
-        var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal([ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING], result.ErrorCodes);
-        Assert.Equal([(LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMissing)], logger.Entries);
-    }
-
-    [Fact]
-    public async Task VerifyTokenAsync_ReturnsActionMissing_NotScoreTooLow_WhenTokenHasNoActionAndZeroScore()
-    {
-        // Arrange
-        var noAction = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 0.0, null, null);
-        var service = new GoogleReCaptchaService(new StubReCaptchaHttpClient(noAction), _options, _userContext);
-
-        // Act
-        var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.Equal([ReCaptchaConstants.ErrorCodes.ERROR_ACTION_MISSING], result.ErrorCodes);
-    }
-
-    [Fact]
-    public async Task VerifyTokenAsync_PassesAndWarns_WhenActionIsNotSubmitForm()
-    {
-        // Arrange
-        var wrongAction = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 0.9, ReCaptchaConstants.Actions.SIGN_IN, null);
-        var logger = new RecordingLogger<GoogleReCaptchaService>();
-        var service = new GoogleReCaptchaService(new StubReCaptchaHttpClient(wrongAction), _options, _userContext, logger);
-
-        // Act
-        var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(ReCaptchaConstants.Actions.SIGN_IN, result.Action);
-        Assert.Empty(result.ErrorCodes);
-        Assert.Equal([(LogLevel.Warning, EndatixEventIds.ReCaptcha.ActionMismatch)], logger.Entries);
-    }
-
-    [Fact]
-    public async Task VerifyTokenAsync_ReturnsScoreMissing_WhenSuccessfulTokenHasNoScore()
-    {
-        // Arrange
-        var noScore = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", null, ReCaptchaConstants.Actions.SUBMIT_FORM, null);
-        var logger = new RecordingLogger<GoogleReCaptchaService>();
-        var service = new GoogleReCaptchaService(new StubReCaptchaHttpClient(noScore), _options, _userContext, logger);
-
-        // Act
-        var result = await service.VerifyTokenAsync("sometoken", TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal([ReCaptchaConstants.ErrorCodes.ERROR_SCORE_MISSING], result.ErrorCodes);
-        Assert.Equal([(LogLevel.Warning, EndatixEventIds.ReCaptcha.ScoreMissing)], logger.Entries);
-    }
+    public static ReCaptchaHttpClient Client(string name) => new(
+        new HttpClient(new FixedStatusHandler(HttpStatusCode.OK, Body(name))),
+        NullLogger<ReCaptchaHttpClient>.Instance);
 }
