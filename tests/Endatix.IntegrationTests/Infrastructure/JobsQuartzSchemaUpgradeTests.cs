@@ -1,5 +1,9 @@
+using System.Reflection;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Jobs.Persistence;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using PostgreSqlUpgrade = Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql.UpgradeQuartzTablesTo472;
 using SqlServerUpgrade = Endatix.Modules.Jobs.Persistence.Migrations.SqlServer.UpgradeQuartzTablesTo472;
 
@@ -66,13 +70,25 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
     private static (string PreviousMigration, string[] AddedColumns) UpgradeOf(TestDatabaseProvider provider) => provider switch
     {
         TestDatabaseProvider.PostgreSql => (
-            "20260928161206_AddDedupKeyToBackgroundJobs",
+            MigrationBefore(typeof(PostgreSqlUpgrade), typeof(JobsPostgreSqlDbContext)),
             PostgreSqlUpgrade.Columns.Select(column => $"{column.Table}.{column.Column}").ToArray()),
         TestDatabaseProvider.SqlServer => (
-            "20261015080000_PinTriggerAcquisitionGroupCollation",
+            MigrationBefore(typeof(SqlServerUpgrade), typeof(JobsSqlServerDbContext)),
             SqlServerUpgrade.Columns.Select(column => $"{column.Table}.{column.Column}").ToArray()),
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
     };
+
+    // The id of the migration right before the upgrade in its context's chain.
+    private static string MigrationBefore(Type upgrade, Type context)
+    {
+        var ids = upgrade.Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<DbContextAttribute>()?.ContextType == context)
+            .Select(type => type.GetCustomAttribute<MigrationAttribute>()?.Id)
+            .OfType<string>()
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        return ids[ids.IndexOf(upgrade.GetCustomAttribute<MigrationAttribute>()!.Id) - 1];
+    }
 
     private static Task<List<string>> ColumnsAsync(JobsTestDatabase database, CancellationToken ct) =>
         database.QueryAsync(
@@ -100,16 +116,19 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
                   """
                 : """
                   SELECT t.name + '.' + c.name + ' ' + ty.name + ' ' + CAST(c.max_length AS varchar(10)) + ' '
-                      + CAST(c.is_nullable AS varchar(1)) + ' ' + COALESCE(c.collation_name, '-')
+                      + CAST(c.is_nullable AS varchar(1)) + ' ' + COALESCE(c.collation_name, '-') + ' '
+                      + COALESCE(d.definition, '-')
                   FROM sys.columns c
                   JOIN sys.tables t ON t.object_id = c.object_id
                   JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+                  LEFT JOIN sys.default_constraints d ON d.object_id = c.default_object_id
                   WHERE SCHEMA_NAME(t.schema_id) = 'jobs' AND t.name LIKE 'qrtz[_]%'
                   """,
             reader => reader.GetString(0),
             ct);
 
-    // Each index by name with its definition (PostgreSQL) or its key columns in order (SQL Server).
+    // Each index by name with its definition (PostgreSQL), or its key columns in order and its included columns
+    // (SQL Server).
     private static Task<List<string>> IndexesAsync(JobsTestDatabase database, CancellationToken ct) =>
         database.QueryAsync(
             database.Provider == TestDatabaseProvider.PostgreSql
@@ -118,12 +137,14 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
                   WHERE schemaname = 'jobs' AND tablename LIKE 'qrtz\_%'
                   """
                 : """
-                  SELECT t.name + '.' + i.name + ' ' + STRING_AGG(c.name, ', ') WITHIN GROUP (ORDER BY ic.key_ordinal)
+                  SELECT t.name + '.' + i.name + ' ' + STRING_AGG(
+                      IIF(ic.is_included_column = 1, '+', '') + c.name, ', ')
+                      WITHIN GROUP (ORDER BY ic.is_included_column, ic.key_ordinal, c.name)
                   FROM sys.indexes i
                   JOIN sys.tables t ON t.object_id = i.object_id
                   JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
                   JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
-                  WHERE SCHEMA_NAME(t.schema_id) = 'jobs' AND t.name LIKE 'qrtz[_]%' AND ic.is_included_column = 0
+                  WHERE SCHEMA_NAME(t.schema_id) = 'jobs' AND t.name LIKE 'qrtz[_]%'
                   GROUP BY t.name, i.name
                   """,
             reader => reader.GetString(0),

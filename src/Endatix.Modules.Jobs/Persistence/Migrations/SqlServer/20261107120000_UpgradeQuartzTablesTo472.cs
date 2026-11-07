@@ -22,16 +22,18 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
     /// creates now.
     /// </para>
     /// <para>
-    /// Every addition is nullable or a new object, and guarded, so the migration is a no-op on a database that
-    /// <c>InitialBackgroundJobs</c> created from the 4.7.2 script, and a node still on Quartz 4.2.2 keeps running on
-    /// the result: it neither reads nor writes what is added. A nullable column without a default changes only the
+    /// Every addition is nullable or a new object, and guarded, so on a database that <c>InitialBackgroundJobs</c>
+    /// created from the 4.7.2 script only the acquisition index below is rebuilt, and a node still on Quartz 4.2.2
+    /// keeps running on the result: it neither reads nor writes what is added. A nullable column without a default changes only the
     /// catalog, so each <c>ALTER TABLE</c> is quick, though it waits for the table's open transactions.
     /// </para>
     /// <para>
     /// Quartz 4.7.2's acquisition also reads <c>MISFIRE_THRESHOLD</c>, <c>OVERLAP_POLICY</c> and <c>FIXED_DELAY</c>,
     /// so <c>idx_endatix_qrtz_t_acquire</c> is created again with them among its included columns. Without them the
     /// index no longer covers the read, and SQL Server may scan a full group's whole backlog rather than seek each
-    /// free group's triggers.
+    /// free group's triggers. It is rebuilt in place (<c>DROP_EXISTING</c>), so acquisition keeps the earlier index
+    /// until the new one replaces it; the build reads the whole of <c>qrtz_TRIGGERS</c> and blocks writes to it
+    /// meanwhile, so enqueues and acquisitions on running nodes wait for it: migrate while few triggers wait.
     /// </para>
     /// <para>
     /// The 4.7.2 create script no longer has <c>FK_qrtz_BLOB_TRIGGERS_qrtz_TRIGGERS</c>, and no upgrade script drops
@@ -46,14 +48,23 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
         /// The index trigger acquisition seeks, one group at a time, in acquisition order. The included columns are
         /// the rest of what Quartz 4.7.2's acquisition reads from a trigger, so it needs no lookup into the table.
         /// </summary>
-        internal const string CreateAcquireIndex =
-            """
-            CREATE INDEX idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS
-                (SCHED_NAME, TRIGGER_STATE, ENDATIX_ACQUIRE_GROUP, NEXT_FIRE_TIME, PRIORITY DESC)
-                INCLUDE (JOB_NAME, JOB_GROUP, EXECUTION_GROUP, MISFIRE_INSTR, PREFERRED_NODE, MISFIRE_THRESHOLD, OVERLAP_POLICY, FIXED_DELAY);
-            """;
+        internal const string CreateAcquireIndex = CreateAcquireIndexStatement + ";";
 
         private const string DropAcquireIndex = "DROP INDEX IF EXISTS idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS;";
+
+        // In place when the index is there, as the earlier migrations leave it; created when it is not.
+        private const string RebuildAcquireIndex =
+            $"""
+            IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_endatix_qrtz_t_acquire' AND object_id = OBJECT_ID('jobs.qrtz_TRIGGERS'))
+                {CreateAcquireIndexStatement} WITH (DROP_EXISTING = ON);
+            ELSE
+                {CreateAcquireIndexStatement};
+            """;
+
+        private const string CreateAcquireIndexStatement =
+            "CREATE INDEX idx_endatix_qrtz_t_acquire ON jobs.qrtz_TRIGGERS " +
+            "(SCHED_NAME, TRIGGER_STATE, ENDATIX_ACQUIRE_GROUP, NEXT_FIRE_TIME, PRIORITY DESC) " +
+            "INCLUDE (JOB_NAME, JOB_GROUP, EXECUTION_GROUP, MISFIRE_INSTR, PREFERRED_NODE, MISFIRE_THRESHOLD, OVERLAP_POLICY, FIXED_DELAY)";
 
         /// <summary>Each column, as <c>(table, column, type)</c>, in the order Quartz's scripts add them.</summary>
         internal static readonly (string Table, string Column, string Type)[] Columns =
@@ -140,8 +151,7 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
                     $"IF COL_LENGTH(N'jobs.{table}', N'{column}') IS NULL ALTER TABLE jobs.{table} ADD {column} {type} NULL;");
             }
 
-            migrationBuilder.Sql(DropAcquireIndex);
-            migrationBuilder.Sql(CreateAcquireIndex);
+            migrationBuilder.Sql(RebuildAcquireIndex);
             migrationBuilder.Sql(CreateJobStatusTable);
             foreach (var (name, columns) in ExecutionHistoryIndexes)
             {

@@ -719,8 +719,11 @@ that changes it fails in CI rather than at deploy time:
 6. Roll the upgrade out to every node sharing the store: they must all run the same Quartz version
    (see [Runtime](#runtime)). Migrate first: a node of the new Quartz refuses to start on tables
    without its columns, while a node of the old one keeps running on the new tables, because every
-   upgrade the migrations make is additive and nullable. Then replace the nodes, and finish the roll
-   before relying on anything only the new version does.
+   column and table the migrations add is new and nullable, and an index they rebuild keeps its keys. Then replace the nodes, and finish the roll
+   before relying on anything only the new version does. An upgrade that rebuilds
+   `idx_endatix_qrtz_t_acquire` on SQL Server (`UpgradeQuartzTablesTo472` does) blocks writes to
+   `qrtz_TRIGGERS` while the index builds, so running nodes wait to enqueue and acquire: migrate while
+   few triggers wait.
 
 The upgrade from 4.2.2 to 4.7.2 is `UpgradeQuartzTablesTo472`, for both providers. It adds the
 columns, the `qrtz_job_status` table and the execution-history indexes of Quartz's 4.3, 4.4, 4.6 and
