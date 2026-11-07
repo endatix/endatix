@@ -104,6 +104,7 @@ Authorization: Bearer YOUR_JWT_TOKEN
 - Can specify `submittedBy` field to track the user the submission is for
 - No reCAPTCHA required (authenticated requests)
 - Ideal for admin/staff creating submissions on behalf of users
+- Set `isTest: true` (needs `forms.test`) to create a test submission that skips the one-submission-per-user limit and stays out of default exports. See [Create a test submission](/docs/guides/collecting-submitters-data#create-a-test-submission).
 
 **Common Use Cases:**
 - Healthcare staff pre-filling patient forms

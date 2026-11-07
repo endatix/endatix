@@ -304,4 +304,54 @@ public class CreateOnBehalfTests
         problem.ProblemDetails.Extensions["submissionId"].Should().Be("99");
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExecuteAsync_PassesTheRequestedTestFlagThrough(bool? isTest)
+    {
+        // Arrange
+        var request = new CreateSubmissionOnBehalfRequest { FormId = 123, IsTest = isTest };
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Created(CreatedSubmission(123, "{}", formDefinitionId: 456)));
+
+        // Act
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd => cmd.IsTest == isTest && !cmd.IsTestParticipant),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExecuteAsync_TellsTheHandlerWhetherTheMatchedPersonIsATestParticipant(bool isTestParticipant)
+    {
+        // Arrange
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(SampleData.TENANT_ID);
+        var endpoint = Factory.Create<CreateOnBehalf>(_mediator, _personalizer, tenant);
+        var request = new CreateSubmissionOnBehalfRequest
+        {
+            FormId = 123,
+            Submitter = new SubmitterInput("panelist-1", null, null),
+        };
+        _personalizer.FreezeAsync(Arg.Any<SubmissionPersonalizationRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new PersonalizationFreeze(7, """{"v":1}""", isTestParticipant));
+        _mediator.Send(Arg.Any<CreateSubmissionCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Submission>.Created(CreatedSubmission(123, "{}", formDefinitionId: 456)));
+
+        // Act
+        await endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            Arg.Is<CreateSubmissionCommand>(cmd =>
+                cmd.IsTest == null &&
+                cmd.IsTestParticipant == isTestParticipant &&
+                cmd.PersonalizationSnapshot == """{"v":1}"""),
+            Arg.Any<CancellationToken>());
+    }
 }

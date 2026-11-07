@@ -54,6 +54,12 @@ public class CreateSubmissionHandler(
             return accessResult;
         }
 
+        var testAccess = await AuthorizeRequestedTestAsync(request, cancellationToken);
+        if (testAccess.Status != ResultStatus.Ok)
+        {
+            return testAccess.ToErrorResult<Submission>();
+        }
+
         var submitterResolution = await submitterResolver.EnsureSubmitterAsync(
             new SubmitterResolveContext(
                 activeDefinition!.TenantId,
@@ -62,17 +68,10 @@ public class CreateSubmissionHandler(
             cancellationToken);
 
         var submitterId = submitterResolution.SubmitterId;
-        var hasTrustedSubmitterPayload = request.Submitter is not null;
-        var canBypassSingleSubmissionLimit = false;
-        if (formWithActiveDefinition.LimitOnePerUser && submitterId is not null && !hasTrustedSubmitterPayload)
+        var isTest = await IsTestAsync(request, formWithActiveDefinition, submitterId, cancellationToken);
+        if (!isTest.IsSuccess)
         {
-            var hasTestPermissionResult = await HasTestPermissionAsync(cancellationToken);
-            if (!hasTestPermissionResult.IsSuccess)
-            {
-                return hasTestPermissionResult.ToErrorResult<Submission>();
-            }
-
-            canBypassSingleSubmissionLimit = hasTestPermissionResult.Value;
+            return isTest.ToErrorResult<Submission>();
         }
 
         if (!CollectionOutcomes.IsSupported(request.CollectionOutcome))
@@ -95,13 +94,13 @@ public class CreateSubmissionHandler(
         var shouldEnforceSingleSubmissionGate =
             formWithActiveDefinition.LimitOnePerUser &&
             submitterId is not null &&
-            !canBypassSingleSubmissionLimit;
+            !isTest.Value;
 
         var draft = new SubmissionDraft(
             request,
             submitterResolution,
             await tokenService.NewTokenAsync(formWithActiveDefinition, cancellationToken),
-            new SubmissionGate(canBypassSingleSubmissionLimit, shouldEnforceSingleSubmissionGate),
+            new SubmissionGate(isTest.Value, shouldEnforceSingleSubmissionGate),
             activeDefinition.TenantId);
         var persisted = await PersistAsync(draft, cancellationToken);
         if (persisted.IsSuccess && persisted.Value.IsComplete)
@@ -121,6 +120,50 @@ public class CreateSubmissionHandler(
         form.IsPublic
             ? Result.Success()
             : await authorizationService.ValidateAccessAsync(requiredPermission, cancellationToken);
+
+    /// <summary>An explicit request for a test submission needs <c>forms.test</c>.</summary>
+    private async Task<IResult> AuthorizeRequestedTestAsync(CreateSubmissionCommand request, CancellationToken cancellationToken)
+    {
+        if (request.IsTest is not true)
+        {
+            return Result.Success();
+        }
+
+        var permission = await HasTestPermissionAsync(cancellationToken);
+        if (!permission.IsSuccess)
+        {
+            return permission;
+        }
+
+        return permission.Value
+            ? Result.Success()
+            : Result.Forbidden($"Permission '{Actions.Forms.Test}' required to create a test submission.");
+    }
+
+    /// <summary>
+    /// Whether the new submission is a test one: as the caller asked, else when it is for a test participant, else
+    /// when a signed-in caller who may test the form creates on a one-response form.
+    /// </summary>
+    private async Task<Result<bool>> IsTestAsync(
+        CreateSubmissionCommand request,
+        Form form,
+        long? submitterId,
+        CancellationToken cancellationToken)
+    {
+        if (request.IsTest is bool asked)
+        {
+            return Result.Success(asked);
+        }
+
+        if (request.IsTestParticipant)
+        {
+            return Result.Success(true);
+        }
+
+        // A trusted submitter payload names a real person, so the caller's own permission does not make it a test.
+        var callerMayTest = form.LimitOnePerUser && submitterId is not null && request.Submitter is null;
+        return callerMayTest ? await HasTestPermissionAsync(cancellationToken) : Result.Success(false);
+    }
 
     /// <summary>Whether the caller may test the form, which lets them past its one-response limit.</summary>
     private async Task<Result<bool>> HasTestPermissionAsync(CancellationToken cancellationToken)
