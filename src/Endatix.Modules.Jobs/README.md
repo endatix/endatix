@@ -28,7 +28,7 @@ Two stores in one `jobs` schema, with one job each:
 - The `BackgroundJobs` table is the **record** of every job: tenant, status, progress, attempts,
   error, trace and retention. It is what `GET jobs/{jobId}` reads, and the only place a job's
   state lives.
-- [Quartz.NET](https://www.quartz-scheduler.net/) 4.2.2, clustered through the same database
+- [Quartz.NET](https://www.quartz-scheduler.net/) 4.7.2, clustered through the same database
   (tables `jobs.qrtz_*`), is the **queue**: it decides when and on which node a job runs, and
   re-runs the work of a node that stopped. A retry is a trigger the job wrapper stores itself.
 
@@ -237,8 +237,9 @@ class may be named.
 Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
 so a job cut off by a stopped or crashed node runs again on another. A host enqueueing a job type
 checks once per process that its durable job is in the store, and stores it again if it has since
-been deleted. Every node sharing the store must run the same Quartz version, and nodes' clocks
-must agree within about a second.
+been deleted. Every node sharing the store must run the same Quartz version, apart from the
+window of a rolling upgrade (see [Upgrading Quartz](#upgrading-quartz)), and nodes' clocks must
+agree within about a second.
 
 **Trigger lock.** Quartz serializes trigger state across the cluster through one row lock
 (`TRIGGER_ACCESS`). Each acquisition takes it once for its whole batch, and so does firing that
@@ -255,6 +256,19 @@ Whether enqueueing takes it (`LockOnInsert`) depends on the provider:
   every node take turns, and a webhook fan-out, which stores one trigger per endpoint in one
   transaction, holds it longest. [Trigger lock on SQL Server](#trigger-lock-on-sql-server) says what
   that costs and when to turn it off.
+
+### Quartz defaults
+
+What the module sets, or leaves at Quartz's default on purpose, among the settings Quartz 4.3 to 4.7
+added or changed:
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| `LockFreeFiringRounds` | Quartz's default (`true`), in effect off | Quartz 4.6 (PostgreSQL) and 4.7 (SQL Server) can run a firing round without `TRIGGER_ACCESS`, but only through the driver delegates it ships. The module's delegates derive from them, so every round takes the lock as before: the store logs at startup that lock-free firing rounds are off because the driver delegate does not take part in them (event 3056). Such a round would read its triggers through members that bypass the delegates' `SelectTriggers`, so recovered triggers would not count against their job type's cap. The module's tests pin `SupportsFireOnAcquire` to `false`. |
+| `MaxConsecutiveFireFailures` | Quartz's default, `5` | Counts only fires the store itself fails to commit for a reason a retry will not cure, such as a constraint violation or a missing column, never a handler's failure: the job wrapper never throws to Quartz. Parking such a trigger stops it from rolling back a transaction, under the cluster-wide trigger lock, on every acquisition. A parked trigger is stored `ERROR`: Quartz logs event 3050, the job's row stays where it was, and the backlog warning does not see it, since only a waiting trigger misfires. Find it on the dashboard, fix the cause, then reset it with the trigger page's *Reset error state* (with `Dashboard:AllowWrites`) or with `IScheduler.ResetTriggerFromErrorState`. |
+| `RecoverFiringsCancelledByShutdown` | Quartz's default, `false` | Has no effect here: the scheduler never interrupts a running job at shutdown (`ShutdownJobInterruption.Never`), and a job cut off by a node that stops or dies is recovered on another node because its durable job requests recovery. |
+| Instance id | `Clustering:InstanceId`, else generated | Unchanged from 4.2.2. The module turns `GenerateInstanceId` on itself when no id is configured, so Quartz 4.7's own default for clustered stores changes nothing, and a configured id is kept. The generated id is the host name followed by a timestamp, as before. |
+| Execution-group routing | none | Quartz 4.6 can restrict a node to listed groups (`ServeExecutionGroups`). The module keeps nodes to their job types with execution limits instead: a routing list would add an `EXECUTION_GROUP IN (…)` condition to acquisition and drop the ungrouped triggers that recover a dead node's jobs, which the delegates match by their job's name. |
 
 ### Trigger lock on SQL Server
 
@@ -572,7 +586,7 @@ Both providers' `InitialBackgroundJobs` run Quartz's create script for their dia
 the module references (`QuartzSchemaScripts`), with the table prefix `jobs.qrtz_`. The module keeps
 no copy of either script, so a fresh database always gets the schema that Quartz version validates.
 
-Quartz 4.2.2 embeds only its create scripts, not its upgrade scripts. Quartz's upgrade scripts
+Quartz 4.7.2 embeds only its create scripts, not its upgrade scripts. Quartz's upgrade scripts
 (`database/migrations/<version>/` in the Quartz.NET repository, such as
 `4.2/add_continuations_<dialect>.sql`) are additive and guarded (`IF NOT EXISTS`, `IF COL_LENGTH(…)
 IS NULL` and the like), so they are no-ops on a database whose tables the create script just made.
@@ -603,7 +617,9 @@ by hand.
      while keeping its `table_name = 'qrtz_<table>'` literal unqualified, because `table_name` never
      includes the schema; only the `ALTER TABLE` / `CREATE … ON` targets become `jobs.qrtz_<table>`.
      Without the schema check, the guard matches a same-named table in any schema. Each `DO $$ … $$;`
-     block can stay in one call.
+     block can stay in one call. A guard that only adds a column or an index can instead be written
+     `ALTER TABLE jobs.qrtz_<table> ADD COLUMN IF NOT EXISTS …` or `CREATE INDEX IF NOT EXISTS …`,
+     which are bound to the table they name, as `UpgradeQuartzTablesTo472` does.
 2. If a later Quartz version embeds its upgrade scripts, load them from the package the way
    `QuartzSchemaScripts` loads the create script, once they carry its placeholders; until then, adapt
    them as above.
@@ -639,7 +655,7 @@ and its [operations page](https://www.quartz-scheduler.net/documentation/quartz-
 
 ## Upgrading Quartz
 
-The packages pin Quartz exactly (`[4.2.2]`), because the module depends on its internals and every
+The packages pin Quartz exactly (`[4.7.2]`), because the module depends on its internals and every
 node sharing the store must run the same version; an upgrade bumps the pin. An app that references
 `Endatix.Modules.Jobs` can take a Quartz patch before Endatix ships it only by overriding the pin
 with its own Quartz reference, which NuGet flags with NU1608 and which runs the module on a Quartz
@@ -649,8 +665,8 @@ NU1107. That is deliberate: Quartz patches ship as Endatix releases.
 An upgrade comes down to two checks:
 
 - [ ] The acquisition-SQL snapshot tests pass for both providers
-  (`GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` and
-  `LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite`; step 4).
+  (`GetSelectNextTriggerToAcquireSql_Quartz472_MatchesPinnedSql` and
+  `LimitEachGroupToItsFreeSlots_Quartz472Statement_MatchesPinnedRewrite`; step 4).
 - [ ] When the schema changed, one inline upgrade migration per provider adds it, as
   [Quartz schema and upgrades](#quartz-schema-and-upgrades) describes (step 3).
 
@@ -680,13 +696,13 @@ that changes it fails in CI rather than at deploy time:
    re-run these statements. If Quartz reworded a guard, widen the test's pattern. If it dropped
    one, add a step to `QuartzSchemaScripts` that wraps that create in an existence check (the
    migrations and the store tests all read the statements through it), then re-pin the hash.
-4. If `GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql` fails for a provider, Quartz's
+4. If `GetSelectNextTriggerToAcquireSql_Quartz472_MatchesPinnedSql` fails for a provider, Quartz's
    acquisition statement changed. Review that provider's rewrite
    (`ExecutionGroupFilteringPostgreSqlDelegate` or `ExecutionGroupFilteringSqlServerDelegate`,
    `LimitEachGroupToItsFreeSlots`) against the new statement, and the `idx_endatix_qrtz_t_acquire`
-   index that serves it. Then pin the new statements in `Quartz422AcquisitionSql` and the rewrite of
-   them in `Quartz422RewrittenAcquisitionSql` (checked by
-   `LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite`), both renamed for the
+   index that serves it. Then pin the new statements in `Quartz472AcquisitionSql` and the rewrite of
+   them in `Quartz472RewrittenAcquisitionSql` (checked by
+   `LimitEachGroupToItsFreeSlots_Quartz472Statement_MatchesPinnedRewrite`), both renamed for the
    new version, together with the tests named after the version and their mentions here.
 5. Whatever the tests say, re-read the other overrides of both delegates against the new Quartz
    `StdAdoDelegate` and `AdoJobStoreBase` acquisition code: `SelectTriggers` relies on acquisition
@@ -694,7 +710,19 @@ that changes it fails in CI rather than at deploy time:
    being prepared inside the base call. No test sees a change there, and if `SelectTriggers` stopped
    being called, recovered triggers would no longer count against their job type's cap.
 6. Roll the upgrade out to every node sharing the store: they must all run the same Quartz version
-   (see [Runtime](#runtime)).
+   (see [Runtime](#runtime)). Migrate first: a node of the new Quartz refuses to start on tables
+   without its columns, while a node of the old one keeps running on the new tables, because every
+   upgrade the migrations make is additive and nullable. Then replace the nodes, and finish the roll
+   before relying on anything only the new version does.
+
+The upgrade from 4.2.2 to 4.7.2 is `UpgradeQuartzTablesTo472`, for both providers. It adds the
+columns, the `qrtz_job_status` table and the execution-history indexes of Quartz's 4.3, 4.4, 4.6 and
+4.7 upgrade scripts, the execution-history ones included although the module does not turn
+execution history on, so that an upgraded database has what a fresh one gets. On SQL Server, a
+database created before keeps `FK_qrtz_BLOB_TRIGGERS_qrtz_TRIGGERS`, which the 4.7.2 create script
+no longer makes ([quartznet#3949](https://github.com/quartznet/quartznet/issues/3949)); Quartz
+deletes blob rows itself, so nothing depends on it. `JobsQuartzSchemaUpgradeTests` migrates a
+database down to the 4.2.2 tables and up again, and checks the result against a fresh database.
 
 ## Third-party licence
 

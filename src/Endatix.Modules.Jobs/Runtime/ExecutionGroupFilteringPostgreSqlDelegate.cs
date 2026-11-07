@@ -53,8 +53,9 @@ internal class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The shipped statement's projection, joins and conditions are kept as they are. Its sort columns are added to
-    /// the projection, because the outer statement sorts the groups' triggers together by them.
+    /// The shipped statement's projection, joins and conditions are kept as they are. The one sort column it does not
+    /// project, <c>PRIORITY</c>, is added, because the outer statement sorts the groups' triggers together by both;
+    /// it already projects <c>NEXT_FIRE_TIME</c>, and naming that twice would make the outer order ambiguous.
     /// </para>
     /// <para>
     /// A trigger stored without an execution group, as Quartz stores the ones that recover a dead node's jobs, is
@@ -71,7 +72,7 @@ internal class ExecutionGroupFilteringPostgreSqlDelegate : PostgreSQLDelegate
             SELECT acquirable.*
             FROM unnest(@{FreeGroupsParameter}, @{FreeSlotsParameter}) AS free(endatix_group, endatix_free_slots)
             CROSS JOIN LATERAL (
-                SELECT t.NEXT_FIRE_TIME, t.PRIORITY,{shipped.ProjectionAndConditions}
+                SELECT t.PRIORITY,{shipped.ProjectionAndConditions}
                 AND COALESCE(t.execution_group, t.job_name) = free.endatix_group
                 {shipped.Order}
                 LIMIT free.endatix_free_slots
