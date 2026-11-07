@@ -98,7 +98,9 @@ public static class ServiceCollectionExtensions
     {
         services.AddOptions<EmailTemplateSettings>()
                 .BindConfiguration("Endatix:EmailTemplates")
+#pragma warning disable CS0618 // Keep wiring the HubUrl←HubBaseUrl shim until the obsolete config key is removed
                 .PostConfigure<IOptions<HubSettings>>(HandleLegacyHubUrl)
+#pragma warning restore CS0618
                 .ValidateOnStart();
 
         // Exposes the POCO to Core handlers without pulling IOptions into Core.Remove once settings are persisted in the database.
@@ -192,7 +194,7 @@ public static class ServiceCollectionExtensions
     {
         AddWebHookJobHttpClient(services);
         services.AddBackgroundJobHandler<WebHookDeliveryJobHandler, WebHookDeliveryPayload>(WebHookDeliveryDefaults);
-        foreach (var eventType in WebHookEvents.OperationsByEventType.Keys)
+        foreach (var eventType in WebHookEvents.EventTypes)
         {
             services.AddOutboxJobSubscription<WebHookDeliveryPayload, WebHookEndpointExpander>(eventType);
         }

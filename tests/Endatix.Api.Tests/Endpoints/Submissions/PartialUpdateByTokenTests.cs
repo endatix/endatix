@@ -106,7 +106,12 @@ public class PartialUpdateByTokenTests
             Metadata = "test metadata"
         };
 
-        var submission = new Submission(SampleData.TENANT_ID, jsonData, formId, formDefinitionId) { Id = 1 };
+        var submission = Submission.Create(1, new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: jsonData));
         submission.UpdateToken(new Token(1));
         var result = Result.Success(submission);
 
@@ -140,7 +145,12 @@ public class PartialUpdateByTokenTests
             ReCaptchaToken = "recaptcha-token"
         };
         var formDefinitionId = 456;
-        var result = Result.Success(new Submission(SampleData.TENANT_ID, request.JsonData, request.FormId, formDefinitionId));
+        var result = Result.Success(Submission.Create(new SubmissionCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            CurrentPage: 0,
+            FormId: request.FormId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: request.JsonData!)));
 
         _mediator.Send(Arg.Any<PartialUpdateSubmissionByTokenCommand>(), Arg.Any<CancellationToken>())
             .Returns(result);

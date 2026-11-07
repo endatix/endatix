@@ -1,3 +1,4 @@
+using Endatix.Core.Entities;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
 
@@ -7,7 +8,12 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// Fans a claimed outbox row out to every registered <see cref="IOutboxIntegrationEventHandler"/>
 /// whose <see cref="IOutboxIntegrationEventHandler.EventTypes"/> includes the message event type.
 /// </summary>
-internal sealed class CompositeIntegrationEventPublisher(
+/// <remarks>
+/// A handler's failure is wrapped with the handler's name, so the relay retries the message. An
+/// <see cref="OutboxPermanentFailureException"/> passes through unwrapped, because the relay fails the message at
+/// once only when it sees that exception itself.
+/// </remarks>
+internal sealed partial class CompositeIntegrationEventPublisher(
     IEnumerable<IOutboxIntegrationEventHandler> handlers,
     ILogger<CompositeIntegrationEventPublisher> logger) : IIntegrationEventPublisher
 {
@@ -16,16 +22,14 @@ internal sealed class CompositeIntegrationEventPublisher(
     /// <inheritdoc />
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
+        message = LegacyOutboxEvents.Translate(message);
         var matched = _handlers
             .Where(handler => handler.EventTypes.Contains(message.EventType, StringComparer.Ordinal))
             .ToArray();
 
         if (matched.Length == 0)
         {
-            logger.LogInformation(
-                "Outbox message {MessageId} has no handler for event type '{EventType}'.",
-                message.Id,
-                message.EventType);
+            LogNoHandler(message);
             return;
         }
 
@@ -41,6 +45,10 @@ internal sealed class CompositeIntegrationEventPublisher(
             {
                 throw;
             }
+            catch (OutboxPermanentFailureException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 throw new InvalidOperationException(
@@ -49,4 +57,22 @@ internal sealed class CompositeIntegrationEventPublisher(
             }
         }
     }
+
+    // Most lifecycle events have no built-in subscriber, so their rows are routine; an unknown type is worth a look.
+    private void LogNoHandler(IOutboxMessage message)
+    {
+        if (SubmissionLifecycleEvent.EventTypes.All.Contains(message.EventType, StringComparer.Ordinal))
+        {
+            LogNoLifecycleHandler(message.Id, message.EventType);
+            return;
+        }
+
+        LogNoHandler(message.Id, message.EventType);
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Outbox message {MessageId} has no handler for event type '{EventType}'.")]
+    private partial void LogNoHandler(long messageId, string eventType);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Outbox message {MessageId} has no handler for lifecycle event type '{EventType}'.")]
+    private partial void LogNoLifecycleHandler(long messageId, string eventType);
 }

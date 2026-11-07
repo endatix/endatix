@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\Endatix.Infrastructure.Tests\Features\ReCaptcha\Fixtures\Siteverify\*.json">
+      <Link>Features\ReCaptcha\Fixtures\Siteverify\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\Endatix.Modules.Reporting.Tests\Features\FormSchema\FlattenedFormDefinition\Fixtures\AllQuestions\**\*">
       <Link>Fixtures\AllQuestions\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

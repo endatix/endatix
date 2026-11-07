@@ -35,7 +35,8 @@ public sealed class WebHookEventConfigReader(
 
         // Event names are snake case on the wire and Pascal case as configuration keys, e.g.
         // "form_created" -> "FormCreated".
-        if (config is not null && config.Events.TryGetValue(StringUtils.ToPascalCase(lookup.EventName), out var eventConfig))
+        if (config is not null
+            && LegacyWebHookSettingsKeys.TryGetEventConfig(config, StringUtils.ToPascalCase(lookup.EventName), out var eventConfig))
         {
             return eventConfig;
         }

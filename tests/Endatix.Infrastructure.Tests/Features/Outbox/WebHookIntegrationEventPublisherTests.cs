@@ -64,20 +64,13 @@ public class WebHookIntegrationEventPublisherTests
         const long formId = 555L;
         var form = Form.Create(new FormCreateArgs(TenantId: 42, Name: "f"));
         form.Id = formId;
-        var submission = Submission.Create(new SubmissionCreateArgs(
-            TenantId: 42,
-            FormId: formId,
-            FormDefinitionId: 1,
-            JsonData: "{}",
-            IsComplete: true));
-
         IIntegrationEvent[] events =
         [
             new FormCreatedEvent(form),
             new FormUpdatedEvent(form),
             new FormEnabledStateChangedEvent(form, isEnabled: true),
             new FormDeletedEvent(form),
-            new SubmissionCompletedEvent(submission),
+            .. SubmissionWebHookEvents(formId),
         ];
 
         var sut = CreateSut();
@@ -107,7 +100,8 @@ public class WebHookIntegrationEventPublisherTests
             IsComplete: true,
             IsTestSubmission: true));
         submission.Id = 77;
-        var captured = new OutboxIntegrationEventDispatcher().Capture([submission]).Single();
+        var captured = new OutboxIntegrationEventDispatcher().Capture([submission])
+            .Single(row => row.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
         var message = new FakeOutboxMessage(Id: 3, EventType: captured.EventType, Payload: captured.Payload, TenantId: 42);
         string? delivered = null;
         _webHooks.DeliverWebHookAsync(42L, Arg.Any<WebHookMessage<JsonElement>>(), Arg.Any<CancellationToken>(), 555L)
@@ -175,4 +169,19 @@ public class WebHookIntegrationEventPublisherTests
         public int Attempts => 0;
         public string? TraceId => null;
     }
+
+    // The lifecycle events delivered as webhooks: a completion and a screen-out.
+    private static IEnumerable<SubmissionLifecycleEvent> SubmissionWebHookEvents(long formId)
+    {
+        SubmissionCreateArgs completed = new(TenantId: 42, FormId: formId, FormDefinitionId: 1, JsonData: "{}", IsComplete: true);
+        SubmissionCreateArgs screenedOut = completed with { IsComplete = false, CollectionOutcome = CollectionStatus.ScreenOut };
+        return
+        [
+            LifecycleEvent(Submission.Create(completed), SubmissionLifecycleEvent.EventTypes.Completed),
+            LifecycleEvent(Submission.Create(screenedOut), SubmissionLifecycleEvent.EventTypes.Closed),
+        ];
+    }
+
+    private static SubmissionLifecycleEvent LifecycleEvent(Submission submission, string eventType) =>
+        submission.DomainEvents.OfType<SubmissionLifecycleEvent>().Single(e => e.EventType == eventType);
 }

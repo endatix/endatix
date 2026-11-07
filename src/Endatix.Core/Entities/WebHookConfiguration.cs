@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Endatix.Core.Entities;
 
 /// <summary>
@@ -6,12 +8,73 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public class WebHookConfiguration
 {
+    /// <summary>Retired event keys and the key that replaced each.</summary>
+    public static IReadOnlyDictionary<string, string> RetiredEventKeys { get; } = new Dictionary<string, string>
+    {
+        ["SubmissionCollectionStatusChanged"] = "SubmissionClosed",
+    };
+
     /// <summary>
     /// Dictionary of webhook events keyed by event name.
     /// Supported events: FormCreated, FormUpdated, FormEnabledStateChanged, FormDeleted, SubmissionCompleted,
-    /// SubmissionCollectionStatusChanged
+    /// SubmissionClosed
     /// </summary>
     public Dictionary<string, WebHookEventConfig> Events { get; set; } = new();
+
+    /// <summary>
+    /// Why a webhook settings document can't be stored, or null. A document that still uses a retired event key is
+    /// refused, so an older client fails loudly instead of losing a subscription. Malformed JSON is not judged here.
+    /// </summary>
+    public static string? RetiredKeyError(string? webHookSettingsJson)
+    {
+        if (string.IsNullOrWhiteSpace(webHookSettingsJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(webHookSettingsJson);
+            return RetiredKeyError(document.RootElement);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc cref="RetiredKeyError(string?)"/>
+    public static string? RetiredKeyError(JsonElement webHookSettings)
+    {
+        if (webHookSettings.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var events = webHookSettings.EnumerateObject()
+            .FirstOrDefault(property => string.Equals(property.Name, nameof(Events), StringComparison.OrdinalIgnoreCase));
+        if (events.Value.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var retired = events.Value.EnumerateObject()
+            .Select(property => property.Name)
+            .FirstOrDefault(key => RetiredEventKeys.Keys.Contains(key, StringComparer.OrdinalIgnoreCase));
+        return retired is null ? null : RetiredKeyMessage(retired);
+    }
+
+    /// <summary>Why a configuration can't be stored because it still uses a retired event key, or null.</summary>
+    public static string? RetiredKeyError(WebHookConfiguration? settings) =>
+        settings?.Events.Keys.FirstOrDefault(key => RetiredEventKeys.Keys.Contains(key, StringComparer.OrdinalIgnoreCase))
+            is { } retired
+            ? RetiredKeyMessage(retired)
+            : null;
+
+    private static string RetiredKeyMessage(string retiredKey) =>
+        $"The webhook setting '{retiredKey}' was renamed to "
+        + $"'{RetiredEventKeys.First(pair => string.Equals(pair.Key, retiredKey, StringComparison.OrdinalIgnoreCase)).Value}'. "
+        + "Use an Endatix Hub release that writes 'SubmissionClosed'.";
 }
 
 /// <summary>

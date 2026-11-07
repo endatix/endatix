@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Endpoints.Submissions;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
@@ -14,6 +15,7 @@ public sealed class BackfillTests
 {
     private readonly IMediator _mediator;
     private readonly ITenantContext _tenantContext;
+    private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly Backfill _endpoint;
 
     public BackfillTests()
@@ -21,7 +23,10 @@ public sealed class BackfillTests
         _mediator = Substitute.For<IMediator>();
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
-        _endpoint = Factory.Create<Backfill>(_mediator, _tenantContext);
+        _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+        _authorizationService.ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        _endpoint = Factory.Create<Backfill>(_mediator, _tenantContext, _authorizationService);
     }
 
     [Fact]
@@ -124,6 +129,34 @@ public sealed class BackfillTests
             Arg.Is<BackfillSubmissionsCommand>(command =>
                 command.Completion == SubmissionBackfillCompletion.Incomplete),
             Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenForceTrueWithoutFormEdit_ReturnsForbiddenAndSendsNothing()
+    {
+        BackfillSubmissionsRequest request = new() { FormId = 100, Force = true };
+        _authorizationService.ValidateAccessAsync(Actions.Forms.Edit, Arg.Any<CancellationToken>())
+            .Returns(Result.Forbidden("Permission 'forms.edit' required to access this resource."));
+
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        ProblemHttpResult? problem = response.Result as ProblemHttpResult;
+        problem.Should().NotBeNull();
+        problem!.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        await _mediator.DidNotReceive().Send(Arg.Any<BackfillSubmissionsCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenForceFalse_DoesNotCheckFormEdit()
+    {
+        BackfillSubmissionsRequest request = new() { FormId = 100 };
+        _mediator.Send(Arg.Any<BackfillSubmissionsCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.NotFound("Form not found."));
+
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        await _authorizationService.DidNotReceive()
+            .ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     private static SubmissionBackfillResult EmptyBatch(long formId) =>

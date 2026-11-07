@@ -16,7 +16,8 @@ namespace Endatix.Modules.Reporting.Endpoints.Submissions;
 /// </summary>
 public sealed class Backfill(
     IMediator mediator,
-    ITenantContext tenantContext) : Endpoint<BackfillSubmissionsRequest, Results<Ok<BackfillSubmissionsResponse>, ProblemHttpResult>>
+    ITenantContext tenantContext,
+    ICurrentUserAuthorizationService authorizationService) : Endpoint<BackfillSubmissionsRequest, Results<Ok<BackfillSubmissionsResponse>, ProblemHttpResult>>
 {
     private const int DefaultBatchSize = 100;
 
@@ -24,21 +25,24 @@ public sealed class Backfill(
     public override void Configure()
     {
         Post("forms/{formId}/submissions/backfill");
-        Permissions(Actions.Forms.Edit);
+        Permissions(Actions.Submissions.Export, Actions.Forms.Edit);
         Summary(summary =>
         {
             summary.Summary = "Backfill flattened submissions";
             summary.Description =
                 "Processes a batch of submissions into the reporting read model. " +
                 "completionScope defaults to completed. Repeat with nextAfterSubmissionId until hasMore is false. " +
-                "An unchanged processed row is skipped unless force is true.";
+                "An unchanged processed row is skipped unless force is true. " +
+                "Requires submissions.export or forms.edit; force=true requires forms.edit.";
             summary.Responses[200] = "Backfill batch completed.";
             summary.Responses[400] = "Invalid input data.";
+            summary.Responses[403] = "Forbidden. force=true requires forms.edit.";
             summary.Responses[404] = "Form not found.";
         });
         Description(builder => builder
             .Produces<BackfillSubmissionsResponse>(200, "application/json")
             .ProducesProblem(404)
+            .ProducesProblem(403)
             .ProducesProblem(400));
     }
 
@@ -47,6 +51,15 @@ public sealed class Backfill(
         BackfillSubmissionsRequest request,
         CancellationToken ct)
     {
+        if (request.Force)
+        {
+            var access = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, ct);
+            if (!access.IsSuccess)
+            {
+                return access.ToProblem();
+            }
+        }
+
         BackfillSubmissionsCommand command = new(
             FormId: request.FormId,
             TenantId: tenantContext.TenantId,

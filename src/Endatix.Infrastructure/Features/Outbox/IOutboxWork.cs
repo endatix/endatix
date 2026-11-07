@@ -37,7 +37,9 @@ public interface IOutboxWork<TSelf> : IOutboxIntegrationEventHandler
     /// <remarks>
     /// Only parse the message here; do every read and write in the returned work. <see cref="InvalidOperationException"/>
     /// and <see cref="System.Text.Json.JsonException"/> fail the job for good, so a transient exception thrown here
-    /// would never be retried. <c>onlyWhen</c> on <see cref="OutboxWorkServiceCollectionExtensions.AddOutboxWork{TWork}"/>
+    /// would never be retried. Throw <see cref="OutboxPermanentFailureException"/>, here or from the work, for a
+    /// message that can never succeed, such as a retired event type: inline it fails the outbox row at once, and as a
+    /// job it fails the job at once. <c>onlyWhen</c> on <see cref="OutboxWorkServiceCollectionExtensions.AddOutboxWork{TWork}"/>
     /// is a separate static predicate: the relay does not call this to decide.
     /// </remarks>
     OutboxWork Read(IOutboxMessage message);

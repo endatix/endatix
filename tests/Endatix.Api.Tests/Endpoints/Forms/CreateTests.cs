@@ -1,10 +1,11 @@
+using System.Text.Json;
+using Endatix.Api.Endpoints.Forms;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Forms.Create;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Entities;
-using Endatix.Api.Endpoints.Forms;
-using Endatix.Core.UseCases.Forms.Create;
 
 namespace Endatix.Api.Tests.Endpoints.Forms;
 
@@ -19,6 +20,9 @@ public class CreateTests
         _endpoint = Factory.Create<Create>(_mediator);
     }
 
+    private static JsonElement Schema(string json) =>
+        JsonSerializer.Deserialize<JsonElement>(json);
+
     [Fact]
     public async Task ExecuteAsync_InvalidRequest_ReturnsProblemRequest()
     {
@@ -27,7 +31,7 @@ public class CreateTests
         {
             Name = "Test Form",
             IsEnabled = true,
-            FormDefinitionJsonData = """{ "type": "object" }"""
+            FormDefinitionSchema = Schema("""{ "type": "object" }""")
         };
 
         var result = Result.Invalid();
@@ -52,7 +56,7 @@ public class CreateTests
             Name = "Test Form",
             Description = "Test Description",
             IsEnabled = true,
-            FormDefinitionJsonData = """{ "type": "object" }"""
+            FormDefinitionSchema = Schema("""{ "type": "object" }""")
         };
 
         FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: request.Name);
@@ -78,12 +82,13 @@ public class CreateTests
     public async Task ExecuteAsync_ShouldMapRequestToCommandCorrectly()
     {
         // Arrange
+        var schema = Schema("""{ "type": "object" }""");
         var request = new CreateFormRequest
         {
             Name = "Test Form",
             Description = "Test Description",
             IsEnabled = true,
-            FormDefinitionJsonData = """{ "type": "object" }"""
+            FormDefinitionSchema = schema
         };
         var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
@@ -94,12 +99,13 @@ public class CreateTests
         await _endpoint.ExecuteAsync(request, CancellationToken.None);
 
         // Assert
+        var expectedJson = JsonSerializer.Serialize(schema);
         await _mediator.Received(1).Send(
             Arg.Is<CreateFormCommand>(cmd =>
                 cmd.Name == request.Name &&
                 cmd.Description == request.Description &&
                 cmd.IsEnabled == request.IsEnabled &&
-                cmd.FormDefinitionJsonData == request.FormDefinitionJsonData
+                cmd.FormDefinitionJsonData == expectedJson
             ),
             Arg.Any<CancellationToken>()
         );
@@ -109,7 +115,7 @@ public class CreateTests
     public async Task ExecuteAsync_WithFormDefinitionSchema_ShouldSerializeToJsonString()
     {
         // Arrange
-        var jsonSchema = System.Text.Json.JsonDocument.Parse("""
+        var jsonSchema = Schema("""
             {
                 "pages": [
                     {
@@ -122,7 +128,7 @@ public class CreateTests
                     }
                 ]
             }
-            """).RootElement;
+            """);
 
         var request = new CreateFormRequest
         {
@@ -157,7 +163,7 @@ public class CreateTests
     public async Task ExecuteAsync_WithWebHookSettings_ShouldSerializeToJsonString()
     {
         // Arrange
-        var webhookSettings = System.Text.Json.JsonDocument.Parse("""
+        var webhookSettings = Schema("""
             {
                 "events": {
                     "SubmissionCreated": {
@@ -165,14 +171,14 @@ public class CreateTests
                     }
                 }
             }
-            """).RootElement;
+            """);
 
         var request = new CreateFormRequest
         {
             Name = "Test Form",
             Description = "Test Description",
             IsEnabled = true,
-            FormDefinitionJsonData = """{ "type": "object" }""",
+            FormDefinitionSchema = Schema("""{ "type": "object" }"""),
             WebHookSettings = webhookSettings
         };
         var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
@@ -198,7 +204,7 @@ public class CreateTests
     public async Task ExecuteAsync_WithBothFormDefinitionFormats_PrefersNewJsonObject()
     {
         // Arrange
-        var newJsonSchema = System.Text.Json.JsonDocument.Parse("""
+        var newJsonSchema = Schema("""
             {
                 "pages": [
                     {
@@ -211,14 +217,16 @@ public class CreateTests
                     }
                 ]
             }
-            """).RootElement;
+            """);
 
         var request = new CreateFormRequest
         {
             Name = "Test Form",
             IsEnabled = true,
-            FormDefinitionJsonData = """{ "type": "old" }""",  // Old string format
-            FormDefinitionSchema = newJsonSchema  // New object format (should win)
+#pragma warning disable CS0618 // Subject under test: obsolete string field loses to FormDefinitionSchema
+            FormDefinitionJsonData = """{ "type": "old" }""",
+#pragma warning restore CS0618
+            FormDefinitionSchema = newJsonSchema
         };
         var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
@@ -242,7 +250,7 @@ public class CreateTests
     public async Task ExecuteAsync_WithBothWebHookFormats_PrefersNewJsonObject()
     {
         // Arrange
-        var newWebhookSettings = System.Text.Json.JsonDocument.Parse("""
+        var newWebhookSettings = Schema("""
             {
                 "events": {
                     "SubmissionCreated": {
@@ -250,15 +258,17 @@ public class CreateTests
                     }
                 }
             }
-            """).RootElement;
+            """);
 
         var request = new CreateFormRequest
         {
             Name = "Test Form",
             IsEnabled = true,
-            FormDefinitionJsonData = """{ "type": "object" }""",
-            WebHookSettingsJson = """{ "events": {} }""",  // Old string format
-            WebHookSettings = newWebhookSettings  // New object format (should win)
+            FormDefinitionSchema = Schema("""{ "type": "object" }"""),
+#pragma warning disable CS0618 // Subject under test: obsolete string field loses to WebHookSettings
+            WebHookSettingsJson = """{ "events": {} }""",
+#pragma warning restore CS0618
+            WebHookSettings = newWebhookSettings
         };
         var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
@@ -281,7 +291,8 @@ public class CreateTests
     [Fact]
     public async Task ExecuteAsync_WithOnlyOldStringFormat_StillWorks()
     {
-        // Arrange - Backward compatibility test
+        // Arrange - Backward compatibility for the obsolete HTTP string fields
+#pragma warning disable CS0618
         var request = new CreateFormRequest
         {
             Name = "Test Form",
@@ -290,6 +301,9 @@ public class CreateTests
             FormDefinitionJsonData = """{ "type": "object" }""",
             WebHookSettingsJson = """{ "events": {} }"""
         };
+        var expectedFormDefinition = request.FormDefinitionJsonData;
+        var expectedWebHooks = request.WebHookSettingsJson;
+#pragma warning restore CS0618
         var result = Result<Form>.Created(Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form")));
 
         _mediator.Send(Arg.Any<CreateFormCommand>(), Arg.Any<CancellationToken>())
@@ -301,8 +315,8 @@ public class CreateTests
         // Assert
         await _mediator.Received(1).Send(
             Arg.Is<CreateFormCommand>(cmd =>
-                cmd.FormDefinitionJsonData == request.FormDefinitionJsonData &&
-                cmd.WebHookSettingsJson == request.WebHookSettingsJson
+                cmd.FormDefinitionJsonData == expectedFormDefinition &&
+                cmd.WebHookSettingsJson == expectedWebHooks
             ),
             Arg.Any<CancellationToken>()
         );

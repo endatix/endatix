@@ -28,6 +28,8 @@ public static class ReCaptchaConstants
         public const string ERROR_INVALID_RESPONSE = "invalid_response";
         public const string ERROR_SCORE_TOO_LOW = "score_too_low";
         public const string ERROR_ACTION_MISSING = "action_missing";
+        /// <summary>siteverify accepted the token without a score, which points at a key that is not v3.</summary>
+        public const string ERROR_SCORE_MISSING = "score_missing";
         public const string ERROR_SYSTEM_ERROR = "system_error";
         public const string ERROR_NOT_ENABLED = "not_enabled";
         public const string ERROR_VERIFICATION_SKIPPED = "verification_skipped";

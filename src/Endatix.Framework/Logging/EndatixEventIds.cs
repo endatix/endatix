@@ -39,6 +39,16 @@ public static class EndatixEventIds
 
         public const int ReCaptchaStart = 5000;
         public const int ReCaptchaEnd = 5099;
+
+        /// <summary>First EventId reserved for email provider logging (<see cref="Email"/>).</summary>
+        public const int EmailStart = 6000;
+        /// <summary>Last EventId reserved for email provider logging (<see cref="Email"/>).</summary>
+        public const int EmailEnd = 6099;
+
+        /// <summary>First EventId reserved for API host logging (<see cref="Api"/>).</summary>
+        public const int ApiStart = 6200;
+        /// <summary>Last EventId reserved for API host logging (<see cref="Api"/>).</summary>
+        public const int ApiEnd = 6299;
     }
 
     /// <summary>Generic operation lifecycle (Framework <c>EndatixLoggerExtensions</c>).</summary>
@@ -162,6 +172,10 @@ public static class EndatixEventIds
         public const int TelemetrySkippedNoExporter = 1220;
         public const int LoggingConfigured = 1221;
         public const int LegacySerilogSectionDetected = 1222;
+        /// <summary>Swagger middleware was added to the pipeline.</summary>
+        public const int SwaggerMiddlewareAdded = 1223;
+        /// <summary>Health checks middleware was added to the pipeline.</summary>
+        public const int HealthChecksMiddlewareAdded = 1224;
 
         public const int RangeStart = Ranges.HostingStart;
         public const int RangeEnd = Ranges.HostingEnd;
@@ -190,7 +204,9 @@ public static class EndatixEventIds
             TelemetryConfigured,
             TelemetrySkippedNoExporter,
             LoggingConfigured,
-            LegacySerilogSectionDetected
+            LegacySerilogSectionDetected,
+            SwaggerMiddlewareAdded,
+            HealthChecksMiddlewareAdded
         ];
     }
 
@@ -201,6 +217,11 @@ public static class EndatixEventIds
         public const int TokenRejectedConfigurationError = 5001;
         public const int ScoreTooLow = 5002;
         public const int ActionMissing = 5003;
+        /// <summary>A successful token carried no score: likely a v2 or other non-v3 key.</summary>
+        public const int ScoreMissing = 5004;
+
+        /// <summary>A successful token was issued for a different action; it still passes.</summary>
+        public const int ActionMismatch = 5005;
 
         public const int RangeStart = Ranges.ReCaptchaStart;
         public const int RangeEnd = Ranges.ReCaptchaEnd;
@@ -210,7 +231,99 @@ public static class EndatixEventIds
             TokenRejected,
             TokenRejectedConfigurationError,
             ScoreTooLow,
-            ActionMissing
+            ActionMissing,
+            ScoreMissing,
+            ActionMismatch
+        ];
+    }
+
+    /// <summary>Webhook delivery (Infrastructure <c>WebHookLoggerExtensions</c>).</summary>
+    public static class Webhooks
+    {
+        /// <summary>The webhook event is disabled or not configured, so nothing is enqueued.</summary>
+        public const int EventSkipped = Ranges.WebhooksStart;
+        /// <summary>The webhook event has no endpoints, so nothing is enqueued.</summary>
+        public const int NoEndpoints = 4001;
+        /// <summary>The webhook destination URI is not a well-formed absolute URI.</summary>
+        public const int InvalidUri = 4002;
+        /// <summary>The webhook endpoint returned a success status code.</summary>
+        public const int Delivered = 4003;
+        /// <summary>The webhook endpoint returned a non-success status code.</summary>
+        public const int DeliveryFailed = 4004;
+        /// <summary>A single webhook attempt timed out.</summary>
+        public const int DeliveryTimedOut = 4005;
+        /// <summary>The resilience pipeline stopped retrying the webhook (max attempts or total timeout).</summary>
+        public const int DeliveryRejected = 4006;
+        /// <summary>An unexpected error occurred while delivering the webhook.</summary>
+        public const int DeliveryError = 4007;
+        /// <summary>The webhook background worker started.</summary>
+        public const int WorkerStarted = 4008;
+        /// <summary>The webhook background worker stopped.</summary>
+        public const int WorkerStopped = 4009;
+
+        /// <summary>First EventId of this group.</summary>
+        public const int RangeStart = Ranges.WebhooksStart;
+        /// <summary>Last EventId of this group.</summary>
+        public const int RangeEnd = Ranges.WebhooksEnd;
+
+        /// <summary>Every EventId of this group.</summary>
+        public static readonly int[] All =
+        [
+            EventSkipped,
+            NoEndpoints,
+            InvalidUri,
+            Delivered,
+            DeliveryFailed,
+            DeliveryTimedOut,
+            DeliveryRejected,
+            DeliveryError,
+            WorkerStarted,
+            WorkerStopped
+        ];
+    }
+
+    /// <summary>Email provider responses (Infrastructure <c>EmailLoggerExtensions</c>).</summary>
+    public static class Email
+    {
+        /// <summary>The email provider accepted a message.</summary>
+        public const int ProviderMessageSent = Ranges.EmailStart;
+        /// <summary>The email provider accepted a template message.</summary>
+        public const int ProviderTemplateMessageSent = 6001;
+
+        /// <summary>First EventId of this group.</summary>
+        public const int RangeStart = Ranges.EmailStart;
+        /// <summary>Last EventId of this group.</summary>
+        public const int RangeEnd = Ranges.EmailEnd;
+
+        /// <summary>Every EventId of this group.</summary>
+        public static readonly int[] All =
+        [
+            ProviderMessageSent,
+            ProviderTemplateMessageSent
+        ];
+    }
+
+    /// <summary>API host concerns (Api <c>ApiLoggerExtensions</c>).</summary>
+    public static class Api
+    {
+        /// <summary>The default CORS policy was resolved.</summary>
+        public const int CorsDefaultPolicy = Ranges.ApiStart;
+        /// <summary>AllowCredentials was ignored because the policy allows any origin.</summary>
+        public const int CorsCredentialsIgnored = 6201;
+        /// <summary>A Slack token request was received (the token is not logged).</summary>
+        public const int SlackTokenReceived = 6202;
+
+        /// <summary>First EventId of this group.</summary>
+        public const int RangeStart = Ranges.ApiStart;
+        /// <summary>Last EventId of this group.</summary>
+        public const int RangeEnd = Ranges.ApiEnd;
+
+        /// <summary>Every EventId of this group.</summary>
+        public static readonly int[] All =
+        [
+            CorsDefaultPolicy,
+            CorsCredentialsIgnored,
+            SlackTokenReceived
         ];
     }
 

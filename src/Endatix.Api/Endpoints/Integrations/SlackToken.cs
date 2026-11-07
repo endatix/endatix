@@ -37,7 +37,7 @@ public class SlackToken(ILogger<SlackToken> logger, IEmailSender emailSender) : 
     /// <inheritdoc/>
     public override async Task<Results<Ok<string>, ProblemHttpResult>> ExecuteAsync(SlackTokenRequest request, CancellationToken ct)
     {
-        logger.LogInformation($"Received slack token: {request.Token}");
+        logger.LogSlackTokenReceived();
 
         EmailWithBody email = new EmailWithBody()
         {

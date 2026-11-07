@@ -8,7 +8,9 @@ namespace Endatix.Infrastructure.Data;
 
 internal sealed class UniqueConstraintViolationChecker : IUniqueConstraintViolationChecker
 {
-    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromMilliseconds(100);
+    // A guard, not a budget: the pattern cannot backtrack badly, so only a starved thread reaches it. At 100 ms a
+    // busy host hit it and turned a unique violation into an unhandled RegexMatchTimeoutException.
+    private static readonly TimeSpan _regexMatchTimeout = TimeSpan.FromSeconds(1);
     private const string POSTGRES_UNIQUE_VIOLATION = "23505";
     private static readonly ConcurrentDictionary<(Type Type, string PropertyName), PropertyInfo?> _propertyCache = new();
     // Error 2627 names a constraint ("… UNIQUE KEY constraint 'X'"); 2601, raised by a unique index such as a

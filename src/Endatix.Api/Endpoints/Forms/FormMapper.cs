@@ -1,6 +1,6 @@
-﻿using Endatix.Core.Entities;
-using Endatix.Core.UseCases.Forms;
 using System.Text.Json;
+using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Forms;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -30,7 +30,9 @@ public class FormMapper
         CreatedAt = form.CreatedAt,
         ModifiedAt = form.ModifiedAt,
         FolderId = form.FolderId?.ToString(),
+#pragma warning disable CS0618 // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
         WebHookSettingsJson = form.WebHookSettingsJson,
+#pragma warning restore CS0618
         WebHookSettings = ParseJsonString(form.WebHookSettingsJson)
     };
 
@@ -97,7 +99,9 @@ public static class FormMapperExtensions
         ModifiedAt = formDto.ModifiedAt,
         SubmissionsCount = formDto.SubmissionsCount,
         FolderId = formDto.FolderId,
+#pragma warning disable CS0618 // Keep populating obsolete WebHookSettingsJson so existing HTTP clients still receive the string field.
         WebHookSettingsJson = formDto.WebHookSettingsJson,
+#pragma warning restore CS0618
         WebHookSettings = includeWebHookSettings
             ? FormMapper.ParseJsonString(formDto.WebHookSettingsJson)
             : null

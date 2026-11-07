@@ -4,12 +4,15 @@ using Endatix.Core.Infrastructure.Domain;
 namespace Endatix.Core.Events;
 
 /// <summary>
-/// Raised when a submission is screened out (<c>screen_out</c>). A normal complete stays on
-/// <see cref="SubmissionCompletedEvent"/> and does not raise this. Cancellation does not raise it.
+/// Retired: nothing raises it. A collection status change raises one <see cref="SubmissionLifecycleEvent"/> named by
+/// its phases; a screen-out is <see cref="SubmissionLifecycleEvent.EventTypes.Closed"/>.
 /// </summary>
+[Obsolete("Retired: subscribe to SubmissionLifecycleEvent.EventTypes (a screen-out is EventTypes.Closed) and read SubmissionLifecyclePayload.", error: true)]
 public sealed class SubmissionCollectionStatusChangedEvent(Submission submission, CollectionStatus? previousCollectionStatus)
     : DomainEventBase, IIntegrationEvent
 {
+    /// <summary>The retired outbox event type.</summary>
+    [Obsolete("Retired: use SubmissionLifecycleEvent.EventTypes.Closed for a screen-out.", error: true)]
     public const string EventTypeName = "submission.collection_status_changed";
 
     public Submission Submission { get; init; } = submission;
