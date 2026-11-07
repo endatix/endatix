@@ -1,4 +1,3 @@
-using Quartz;
 using Quartz.Extensibility;
 using Quartz.Impl;
 
@@ -45,17 +44,6 @@ internal sealed class ShutdownGuardedJobStore(IJobStore store) : DelegatingJobSt
     {
         RefuseAfterShutdown();
         return base.FiringComplete(context, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public override ValueTask TriggeredJobComplete(
-        IOperableTrigger trigger,
-        IJobDetail jobDetail,
-        SchedulerInstruction triggerInstructionCode,
-        CancellationToken cancellationToken = default)
-    {
-        RefuseAfterShutdown();
-        return base.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken);
     }
 
     // As Quartz's store refused it up to 4.2, and still does on its locked path: an exception the job's run reports.

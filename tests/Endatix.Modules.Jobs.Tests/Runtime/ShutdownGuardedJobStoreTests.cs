@@ -40,23 +40,6 @@ public sealed class ShutdownGuardedJobStoreTests
     }
 
     [Fact]
-    public async Task TriggeredJobComplete_AfterShutdown_IsRefusedAndNeverReachesTheStore()
-    {
-        // Arrange
-        var inner = Substitute.For<IJobStore>();
-        var store = new ShutdownGuardedJobStore(inner);
-        await store.Shutdown(TestContext.Current.CancellationToken);
-
-        // Act
-        var complete = async () => await store.TriggeredJobComplete(
-            Substitute.For<IOperableTrigger>(), Substitute.For<IJobDetail>(), SchedulerInstruction.DeleteTrigger, TestContext.Current.CancellationToken);
-
-        // Assert
-        await complete.Should().ThrowAsync<InvalidOperationException>();
-        await inner.DidNotReceiveWithAnyArgs().TriggeredJobComplete(default!, default!, default, TestContext.Current.CancellationToken);
-    }
-
-    [Fact]
     public async Task AcquireNextTriggersAndFireDue_Always_IsTheInnerStoresOwn()
     {
         // Arrange — the decorator's default acquires and fires apart; the store's own round is what the module ran on.
