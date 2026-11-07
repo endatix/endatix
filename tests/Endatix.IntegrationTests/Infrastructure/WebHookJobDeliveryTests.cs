@@ -28,10 +28,10 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
     [Fact]
     public async Task Each_endpoint_gets_its_own_job()
     {
-        // Arrange
+        // Arrange — the one test whose relay polls on its configured second, so the production timer path stays covered.
         var ct = TestContext.Current.CancellationToken;
         await using var receiver = new StubWebHookReceiver();
-        await using var host = await StartHostAsync(ct);
+        await using var host = await StartHostAsync(ct, outboxPolling: OutboxPolling.Configured);
         var tenantId = await SeedTenantAsync(host, new TenantSeed("webhook-endpoints", Config(receiver.UrlFor("a"), receiver.UrlFor("b"), receiver.UrlFor("c"))), ct);
 
         // Act
@@ -158,10 +158,17 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
         payload.GetProperty("isComplete").GetBoolean().Should().BeTrue();
     }
 
-    private Task<FanOutHost> StartHostAsync(CancellationToken ct, IReadOnlyDictionary<string, string?>? settings = null) =>
+    private Task<FanOutHost> StartHostAsync(
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string?>? settings = null,
+        OutboxPolling outboxPolling = OutboxPolling.Fast) =>
         FanOutHost.StartAsync(
             fixture,
-            new FanOutHostSetup(DeliverToJobQueue: true, _ => { }) { Settings = settings ?? new Dictionary<string, string?>() },
+            new FanOutHostSetup(DeliverToJobQueue: true, _ => { })
+            {
+                Settings = settings ?? new Dictionary<string, string?>(),
+                OutboxPolling = outboxPolling,
+            },
             ct);
 
     private static async Task<long> SeedTenantAsync(FanOutHost host, TenantSeed seed, CancellationToken ct)

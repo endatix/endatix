@@ -5,6 +5,7 @@ using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience;
 using Endatix.Modules.Audience.Persistence;
+using Endatix.Outbox.Engine;
 using System.Globalization;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
@@ -29,16 +30,23 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
 {
     private readonly string _connectionString;
     private readonly TestDatabaseProvider _provider;
+    private readonly OutboxPolling _outboxPolling;
 
     public EndatixWebApplicationFactory(string connectionString, TestDatabaseProvider provider)
+        : this(connectionString, provider, OutboxPolling.Fast)
+    {
+    }
+
+    internal EndatixWebApplicationFactory(string connectionString, TestDatabaseProvider provider, OutboxPolling outboxPolling)
     {
         _connectionString = connectionString;
         _provider = provider;
+        _outboxPolling = outboxPolling;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider);
+        EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider, _outboxPolling);
     }
 
     // Factories derived through WithWebHostBuilder build their hosts through this method too.
@@ -72,15 +80,35 @@ internal sealed class LoopbackClientIpStartupFilter : IStartupFilter
     }
 }
 
+/// <summary>How a test host's outbox relay waits between polls.</summary>
+internal enum OutboxPolling
+{
+    /// <summary>Every <see cref="EndatixWebApplicationFactoryConfiguration.OutboxPollInterval"/>, set in code through the engine's test seam.</summary>
+    Fast,
+
+    /// <summary>Every second through <c>Endatix:Outbox:PollIntervalSeconds</c>, the relay's production timer path.</summary>
+    Configured,
+}
+
 internal static class EndatixWebApplicationFactoryConfiguration
 {
+    /// <summary>
+    /// The relay's wait between polls on a fast-polling test host. A test that switches the relay on sees it claim within
+    /// this rather than the production second; with the switch off a poll only asks the switch, so it costs no query.
+    /// </summary>
+    public static readonly TimeSpan OutboxPollInterval = TimeSpan.FromMilliseconds(50);
+
     /// <summary>
     /// Rows per chunk of a staged Audience import on every test host, so a few hundred rows cross several chunks. It
     /// does not divide the 500-row write batch, so batches start inside a chunk, as they do in production.
     /// </summary>
     public const int IMPORT_CHUNK_ROWS = 150;
 
-    public static void ConfigureCommon(IWebHostBuilder builder, string connectionString, TestDatabaseProvider provider)
+    public static void ConfigureCommon(
+        IWebHostBuilder builder,
+        string connectionString,
+        TestDatabaseProvider provider,
+        OutboxPolling outboxPolling)
     {
         builder.UseEnvironment(Environments.Staging);
 
@@ -96,8 +124,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
 
         ConfigureFeatureFlags(builder);
 
-        // A test that switches the outbox relay on sees it claim within a second rather than five.
-        builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
+        ConfigureOutboxPolling(builder, outboxPolling);
 
         builder.UseSetting(
             $"{AudienceOptions.SECTION_NAME}:{nameof(AudienceOptions.ImportChunkRows)}",
@@ -119,6 +146,17 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Logging:LogLevel:Default", "Warning");
         builder.UseSetting("Logging:LogLevel:Microsoft", "Warning");
         builder.UseSetting("Logging:LogLevel:System", "Warning");
+    }
+
+    private static void ConfigureOutboxPolling(IWebHostBuilder builder, OutboxPolling outboxPolling)
+    {
+        if (outboxPolling == OutboxPolling.Configured)
+        {
+            builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
+            return;
+        }
+
+        builder.ConfigureTestServices(services => services.UseOutboxPollInterval(OutboxPollInterval));
     }
 
     private static void AddTestServices(IServiceCollection services)
