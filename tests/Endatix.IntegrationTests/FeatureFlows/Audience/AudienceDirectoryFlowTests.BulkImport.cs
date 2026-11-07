@@ -17,10 +17,10 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 public sealed partial class AudienceDirectoryFlowTests
 {
-    private const int ImportChunkRows = EndatixWebApplicationFactoryConfiguration.ImportChunkRows;
+    private const int IMPORT_CHUNK_ROWS = EndatixWebApplicationFactoryConfiguration.IMPORT_CHUNK_ROWS;
 
     /// <summary>A file of two chunks, the second one partly filled.</summary>
-    private const int TwoChunkRows = ImportChunkRows + (ImportChunkRows / 5);
+    private const int TWO_CHUNK_ROWS = IMPORT_CHUNK_ROWS + (IMPORT_CHUNK_ROWS / 5);
     private static readonly TimeSpan ImportWait = TimeSpan.FromSeconds(90);
     private static readonly string[] EmailHeader = ["email"];
 
@@ -62,7 +62,7 @@ public sealed partial class AudienceDirectoryFlowTests
     public async Task A_file_of_many_chunks_is_checked_and_then_written_in_full()
     {
         // Arrange — eight chunks, written in three batches that start inside a chunk.
-        const int rowCount = 8 * ImportChunkRows;
+        const int rowCount = 8 * IMPORT_CHUNK_ROWS;
         AudienceApi api = await AdminAsync();
         long formId = await api.CreateFormAsync();
         await api.CreatePropertyAsync(formId, new { name = "City", dataType = "text" });
@@ -75,7 +75,7 @@ public sealed partial class AudienceDirectoryFlowTests
         JsonElement finished = await api.WaitForImportAsync(import, "completed");
 
         // Assert
-        Assert.Equal(ImportChunkRows, checkedImport.GetProperty("upload").GetProperty("chunkSize").GetInt32());
+        Assert.Equal(IMPORT_CHUNK_ROWS, checkedImport.GetProperty("upload").GetProperty("chunkSize").GetInt32());
         Assert.Equal("checked", checkedImport.GetProperty("status").GetString());
         Assert.Equal(rowCount, checkedImport.GetProperty("checkedRowCount").GetInt32());
         JsonElement check = checkedImport.GetProperty("check");
@@ -83,7 +83,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(0, check.GetProperty("rejectedCount").GetInt32());
         Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
         Assert.Equal("completed", finished.GetProperty("status").GetString());
-        JsonElement written = finished.GetProperty("written");
+        var written = finished.GetProperty("written");
         Assert.Equal(rowCount, written.GetProperty("writtenRowCount").GetInt32());
         Assert.Equal(rowCount, written.GetProperty("createdCount").GetInt32());
         JsonElement page = await api.Client.GetFromJsonAsync<JsonElement>(
@@ -118,10 +118,10 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task A_chunk_whose_rows_overlap_an_earlier_chunk_is_refused()
     {
-        // Arrange — chunk 0 owns spreadsheet rows 2 to ImportChunkRows + 1. Chunk 1 starting at row 2 covers that range.
+        // Arrange — chunk 0 owns spreadsheet rows 2 to IMPORT_CHUNK_ROWS + 1. Chunk 1 starting at row 2 covers that range.
         AudienceApi api = await AdminAsync();
         long formId = await api.CreateFormAsync();
-        List<string[]> rows = [.. Enumerable.Range(1, TwoChunkRows).Select(n => new[] { $"p{n}@example.com" })];
+        List<string[]> rows = [.. Enumerable.Range(1, TWO_CHUNK_ROWS).Select(n => new[] { $"p{n}@example.com" })];
         BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
         using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
 
@@ -140,7 +140,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange — chunk 0 is numbered entirely after chunk 1, with a gap, so the ranges do not overlap.
         AudienceApi api = await AdminAsync();
         long formId = await api.CreateFormAsync();
-        List<string[]> rows = [.. Enumerable.Range(1, TwoChunkRows).Select(n => new[] { $"p{n}@example.com" })];
+        List<string[]> rows = [.. Enumerable.Range(1, TWO_CHUNK_ROWS).Select(n => new[] { $"p{n}@example.com" })];
         BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
         using HttpResponseMessage first = await api.SendPlacedChunkAsync(import, new ChunkPlace(0, 5_000), rows);
 
@@ -175,15 +175,15 @@ public sealed partial class AudienceDirectoryFlowTests
     public async Task Two_chunks_sent_at_once_cannot_store_row_ranges_reversed_against_their_indexes()
     {
         // Arrange — chunk 0 claims the rows after chunk 1's and is held as it replaces its stored copy, holding the
-        // import row; chunk 1 then claims rows 2 to ImportChunkRows + 1, which the write would skip once chunk 0 moved
+        // import row; chunk 1 then claims rows 2 to IMPORT_CHUNK_ROWS + 1, which the write would skip once chunk 0 moved
         // its checkpoint.
         IntegrationTestWorld world = await WorldAsync();
         AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
         long formId = await api.CreateFormAsync();
-        List<string[]> rows = [.. Enumerable.Range(1, 2 * ImportChunkRows).Select(n => new[] { $"p{n}@example.com" })];
+        List<string[]> rows = [.. Enumerable.Range(1, 2 * IMPORT_CHUNK_ROWS).Select(n => new[] { $"p{n}@example.com" })];
         BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
         using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ChunkReplace());
-        Task<HttpResponseMessage> first = api.SendPlacedChunkAsync(import, new ChunkPlace(0, ImportChunkRows + 2), rows);
+        var first = api.SendPlacedChunkAsync(import, new ChunkPlace(0, IMPORT_CHUNK_ROWS + 2), rows);
         await held.Reached.WaitAsync(ImportWait, api.CancellationToken);
 
         // Act
@@ -206,7 +206,7 @@ public sealed partial class AudienceDirectoryFlowTests
         IntegrationTestWorld world = await WorldAsync();
         AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
         long formId = await api.CreateFormAsync();
-        List<string[]> rows = [.. Enumerable.Range(1, TwoChunkRows).Select(n => new[] { $"p{n}@example.com" })];
+        List<string[]> rows = [.. Enumerable.Range(1, TWO_CHUNK_ROWS).Select(n => new[] { $"p{n}@example.com" })];
         BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
         using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
         using CommandPause held = world.Services.GetRequiredService<AppCommandGate>().PauseAt(ImportRowHold());
@@ -224,7 +224,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.OK, last.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         Assert.Equal("checked", finished.GetProperty("status").GetString());
-        Assert.Equal(TwoChunkRows, finished.GetProperty("checkedRowCount").GetInt32());
+        Assert.Equal(TWO_CHUNK_ROWS, finished.GetProperty("checkedRowCount").GetInt32());
     }
 
     [Fact]
@@ -273,7 +273,7 @@ public sealed partial class AudienceDirectoryFlowTests
         // Arrange — two chunks; the first is sent twice before the second completes the file.
         AudienceApi api = await AdminAsync();
         long formId = await api.CreateFormAsync();
-        List<string[]> rows = [.. Enumerable.Range(1, TwoChunkRows).Select(n => new[] { $"p{n}@example.com" })];
+        List<string[]> rows = [.. Enumerable.Range(1, TWO_CHUNK_ROWS).Select(n => new[] { $"p{n}@example.com" })];
         BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
         using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
 
@@ -290,8 +290,8 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         Assert.Contains(import.ImportId.ToString(System.Globalization.CultureInfo.InvariantCulture), await second.Content.ReadAsStringAsync(api.CancellationToken));
         Assert.Equal(EmailHeader, finished.GetProperty("headers").EnumerateArray().Select(header => header.GetString()));
-        Assert.Equal(TwoChunkRows, finished.GetProperty("checkedRowCount").GetInt32());
-        Assert.Equal(TwoChunkRows, finished.GetProperty("check").GetProperty("newCount").GetInt32());
+        Assert.Equal(TWO_CHUNK_ROWS, finished.GetProperty("checkedRowCount").GetInt32());
+        Assert.Equal(TWO_CHUNK_ROWS, finished.GetProperty("check").GetProperty("newCount").GetInt32());
     }
 
     [Fact]
@@ -350,7 +350,7 @@ public sealed partial class AudienceDirectoryFlowTests
         AudienceImport current = await db.AudienceImports.SingleAsync(item => item.Id == occupier.ImportId);
         AudienceImport stopped = AudienceImport.Start(new AudienceImportStartArgs(
             current.TenantId, current.FormId, "stopped.csv", ["email"], "email",
-            new Dictionary<string, string>(), false, 2, ImportChunkRows, null));
+            new Dictionary<string, string>(), false, 2, IMPORT_CHUNK_ROWS, null));
         StopWrite(stopped);
         db.AudienceImports.Add(stopped);
         await db.SaveChangesAsync();
@@ -388,7 +388,7 @@ public sealed partial class AudienceDirectoryFlowTests
         IntegrationTestWorld world = await WorldAsync();
         AudienceApi api = await AsAsync(world, TestPersona.TenantAdmin);
         long formId = await api.CreateFormAsync();
-        List<string[]> rows = [.. Enumerable.Range(1, TwoChunkRows).Select(n => new[] { $"p{n}@example.com" })];
+        List<string[]> rows = [.. Enumerable.Range(1, TWO_CHUNK_ROWS).Select(n => new[] { $"p{n}@example.com" })];
         BulkImport import = await api.StartImportAsync(formId, ["email"], rows.Count);
         using HttpResponseMessage first = await api.SendChunkAsync(import, 0, rows);
         if (status == "checked")
@@ -463,7 +463,7 @@ public sealed partial class AudienceDirectoryFlowTests
         public async Task<BulkImport> StageImportAsync(long formId, string[] headers, IReadOnlyList<string[]> rows)
         {
             BulkImport import = await StartImportAsync(formId, headers, rows.Count);
-            for (int index = 0; index * ImportChunkRows < rows.Count; index++)
+            for (var index = 0; index * IMPORT_CHUNK_ROWS < rows.Count; index++)
             {
                 using HttpResponseMessage sent = await SendChunkAsync(import, index, rows);
                 Assert.Equal(HttpStatusCode.OK, sent.StatusCode);
@@ -490,7 +490,7 @@ public sealed partial class AudienceDirectoryFlowTests
 
         /// <summary>Sends chunk <paramref name="index"/> of <paramref name="rows"/>.</summary>
         public Task<HttpResponseMessage> SendChunkAsync(BulkImport import, int index, IReadOnlyList<string[]> rows) =>
-            SendPlacedChunkAsync(import, new ChunkPlace(index, (index * ImportChunkRows) + 2), rows);
+            SendPlacedChunkAsync(import, new ChunkPlace(index, (index * IMPORT_CHUNK_ROWS) + 2), rows);
 
         /// <summary>Sends one chunk at <paramref name="place"/>, so a test can number its rows.</summary>
         public Task<HttpResponseMessage> SendPlacedChunkAsync(BulkImport import, ChunkPlace place, IReadOnlyList<string[]> rows) =>
@@ -500,7 +500,7 @@ public sealed partial class AudienceDirectoryFlowTests
                 {
                     // Row 1 is the header row, as in a spreadsheet.
                     firstRowNumber = place.FirstRowNumber,
-                    rows = rows.Skip(place.Index * ImportChunkRows).Take(ImportChunkRows)
+                    rows = rows.Skip(place.Index * IMPORT_CHUNK_ROWS).Take(IMPORT_CHUNK_ROWS)
                         .Select(cells => new { cells, malformed = false }),
                 },
                 cancellationToken);

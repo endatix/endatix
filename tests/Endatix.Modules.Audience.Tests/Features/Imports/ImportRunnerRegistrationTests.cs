@@ -7,7 +7,7 @@ namespace Endatix.Modules.Audience.Tests.Features.Imports;
 
 public sealed class ImportRunnerRegistrationTests
 {
-    private const string ImportChunkRowsKey = $"{AudienceOptions.SectionName}:{nameof(AudienceOptions.ImportChunkRows)}";
+    private const string IMPORT_CHUNK_ROWS_KEY = $"{AudienceOptions.SECTION_NAME}:{nameof(AudienceOptions.ImportChunkRows)}";
 
     [Fact]
     public void AddImportRunner_NoSetting_ImportChunkRowsIsAThousand()
@@ -25,11 +25,11 @@ public sealed class ImportRunnerRegistrationTests
     [Theory]
     [InlineData(1)]
     [InlineData(150)]
-    [InlineData(AudienceOptions.MaxImportChunkRows)]
+    [InlineData(AudienceOptions.MAX_IMPORT_CHUNK_ROWS)]
     public void AddImportRunner_ImportChunkRowsInRange_BindsTheSetting(int setting)
     {
         // Arrange
-        var options = AudienceOptionsFrom(new Dictionary<string, string?> { [ImportChunkRowsKey] = $"{setting}" });
+        var options = AudienceOptionsFrom(new Dictionary<string, string?> { [IMPORT_CHUNK_ROWS_KEY] = $"{setting}" });
 
         // Act
         var chunkRows = options.Value.ImportChunkRows;
@@ -41,18 +41,18 @@ public sealed class ImportRunnerRegistrationTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    [InlineData(AudienceOptions.MaxImportChunkRows + 1)]
+    [InlineData(AudienceOptions.MAX_IMPORT_CHUNK_ROWS + 1)]
     public void AddImportRunner_ImportChunkRowsOutOfRange_FailsNamingTheKey(int setting)
     {
         // Arrange
-        var options = AudienceOptionsFrom(new Dictionary<string, string?> { [ImportChunkRowsKey] = $"{setting}" });
+        var options = AudienceOptionsFrom(new Dictionary<string, string?> { [IMPORT_CHUNK_ROWS_KEY] = $"{setting}" });
 
         // Act
         var read = () => options.Value;
 
         // Assert
         read.Should().Throw<OptionsValidationException>()
-            .WithMessage($"{ImportChunkRowsKey} must be from 1 to 1000; it is {setting}.");
+            .WithMessage($"{IMPORT_CHUNK_ROWS_KEY} must be from 1 to 1000; it is {setting}.");
     }
 
     private static IOptions<AudienceOptions> AudienceOptionsFrom(Dictionary<string, string?> settings)

@@ -112,7 +112,7 @@ internal static class ImportRunnerRegistration
     public static IServiceCollection AddImportRunner(this IServiceCollection services)
     {
         services.AddOptions<AudienceOptions>()
-            .BindConfiguration(AudienceOptions.SectionName)
+            .BindConfiguration(AudienceOptions.SECTION_NAME)
             .ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AudienceOptions>, AudienceOptionsValidator>());
         services.AddSingleton<ImportRun>();

@@ -78,7 +78,7 @@ internal static class EndatixWebApplicationFactoryConfiguration
     /// Rows per chunk of a staged Audience import on every test host, so a few hundred rows cross several chunks. It
     /// does not divide the 500-row write batch, so batches start inside a chunk, as they do in production.
     /// </summary>
-    public const int ImportChunkRows = 150;
+    public const int IMPORT_CHUNK_ROWS = 150;
 
     public static void ConfigureCommon(IWebHostBuilder builder, string connectionString, TestDatabaseProvider provider)
     {
@@ -100,8 +100,8 @@ internal static class EndatixWebApplicationFactoryConfiguration
         builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
 
         builder.UseSetting(
-            $"{AudienceOptions.SectionName}:{nameof(AudienceOptions.ImportChunkRows)}",
-            ImportChunkRows.ToString(CultureInfo.InvariantCulture));
+            $"{AudienceOptions.SECTION_NAME}:{nameof(AudienceOptions.ImportChunkRows)}",
+            IMPORT_CHUNK_ROWS.ToString(CultureInfo.InvariantCulture));
 
         var auth = IntegrationTestAuthSettings.FromEnvironment();
         builder.UseSetting("Endatix:Auth:Providers:Keycloak:Enabled", "false");
