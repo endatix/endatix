@@ -9,39 +9,39 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.Choices;
 /// </summary>
 public sealed class SelectChoicesTests
 {
-    private const string SingleComment = """
+    private const string SINGLE_COMMENT = """
         {"choiceCatalogs":{"q":{"multiple":false,"otherStorage":"comment","choices":[
           {"value":"a","id":1},{"value":"b","id":2},{"value":"other","id":3,"kind":"other"},
           {"value":"none","id":4,"kind":"none","exclusive":true},{"value":"refused","id":5,"kind":"refused","exclusive":true}]}}}
         """;
 
-    private const string SingleValue = """
+    private const string SINGLE_VALUE = """
         {"choiceCatalogs":{"q":{"multiple":false,"otherStorage":"value","choices":[
           {"value":"a","id":1},{"value":"b","id":2},{"value":"other","id":3,"kind":"other"},
           {"value":"none","id":4,"kind":"none","exclusive":true}]}}}
         """;
 
-    private const string MultipleValue = """
+    private const string MULTIPLE_VALUE = """
         {"choiceCatalogs":{"q":{"multiple":true,"otherStorage":"value","choices":[
           {"value":"1","id":1},{"value":"2","id":2},{"value":"other","id":3,"kind":"other"},
           {"value":"none","id":4,"kind":"none","exclusive":true}]}}}
         """;
 
-    private const string LegacyCatalog = """
+    private const string LEGACY_CATALOG = """
         {"choiceCatalogs":{"q":{"choices":[{"value":"a","id":1},{"value":"other","id":2}]}}}
         """;
 
     [Theory]
-    [InlineData(SingleComment, """{"q":"a"}""", "a", null, "\"a\"")]
-    [InlineData(SingleComment, """{"q":"other","q-Comment":"x"}""", "other", "\"x\"", "\"other\"")]
-    [InlineData(SingleComment, """{"q":{"value":"other","comment":"x"}}""", "other", "\"x\"", "\"other\"")]
-    [InlineData(SingleComment, """{"q":{"value":"a","comment":"why"}}""", "a", null, "\"a\"")]
-    [InlineData(SingleComment, """{"q":"none"}""", "none", null, "\"none\"")]
-    [InlineData(SingleComment, """{"q":"refused"}""", "refused", null, "\"refused\"")]
-    [InlineData(SingleValue, """{"q":"x"}""", "other", "\"x\"", "\"other\"")]
-    [InlineData(SingleValue, """{"q":"b"}""", "b", null, "\"b\"")]
-    [InlineData(SingleValue, """{"q":"none"}""", "none", null, "\"none\"")]
-    [InlineData(SingleValue, """{"q":"other","q-Comment":"typed before the flip"}""", "other", "\"typed before the flip\"", "\"other\"")]
+    [InlineData(SINGLE_COMMENT, """{"q":"a"}""", "a", null, "\"a\"")]
+    [InlineData(SINGLE_COMMENT, """{"q":"other","q-Comment":"x"}""", "other", "\"x\"", "\"other\"")]
+    [InlineData(SINGLE_COMMENT, """{"q":{"value":"other","comment":"x"}}""", "other", "\"x\"", "\"other\"")]
+    [InlineData(SINGLE_COMMENT, """{"q":{"value":"a","comment":"why"}}""", "a", null, "\"a\"")]
+    [InlineData(SINGLE_COMMENT, """{"q":"none"}""", "none", null, "\"none\"")]
+    [InlineData(SINGLE_COMMENT, """{"q":"refused"}""", "refused", null, "\"refused\"")]
+    [InlineData(SINGLE_VALUE, """{"q":"x"}""", "other", "\"x\"", "\"other\"")]
+    [InlineData(SINGLE_VALUE, """{"q":"b"}""", "b", null, "\"b\"")]
+    [InlineData(SINGLE_VALUE, """{"q":"none"}""", "none", null, "\"none\"")]
+    [InlineData(SINGLE_VALUE, """{"q":"other","q-Comment":"typed before the flip"}""", "other", "\"typed before the flip\"", "\"other\"")]
     public void Read_SingleSelectShapes_GiveTheStoredValueAndOtherText(
         string codebook,
         string context,
@@ -64,7 +64,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void Read_ValueStorage_IgnoresTheQuestionCommentWhenOtherIsNotChosen()
     {
-        var answer = ReadAnswer(SingleValue, """{"q":"a","q-Comment":"question comment"}""");
+        var answer = ReadAnswer(SINGLE_VALUE, """{"q":"a","q-Comment":"question comment"}""");
 
         answer.OtherText.Should().BeNull();
     }
@@ -73,7 +73,7 @@ public sealed class SelectChoicesTests
     public void Read_CheckboxObjectArray_ReadsValuesAndThePerItemOtherComment()
     {
         var answer = ReadAnswer(
-            SingleComment.Replace("\"multiple\":false", "\"multiple\":true", StringComparison.Ordinal),
+            SINGLE_COMMENT.Replace("\"multiple\":false", "\"multiple\":true", StringComparison.Ordinal),
             """{"q":[{"value":"a"},{"value":"b","comment":"why b"},{"value":"other","comment":"x"}]}""");
 
         answer.Values.Should().Equal("a", "b", "other");
@@ -85,7 +85,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void Read_CheckboxValueStorage_TypedTextBecomesOther()
     {
-        var answer = ReadAnswer(MultipleValue, """{"q":[1,"my own"]}""");
+        var answer = ReadAnswer(MULTIPLE_VALUE, """{"q":[1,"my own"]}""");
 
         answer.Values.Should().Equal("1", "other");
         answer.OtherText!.Value.GetString().Should().Be("my own");
@@ -96,7 +96,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void Read_CheckboxValueStorage_ObjectWithTypedTextBecomesOther()
     {
-        var answer = ReadAnswer(MultipleValue, """{"q":[{"value":2},{"value":"my own"}]}""");
+        var answer = ReadAnswer(MULTIPLE_VALUE, """{"q":[{"value":2},{"value":"my own"}]}""");
 
         answer.Values.Should().Equal("2", "other");
         answer.OtherText!.Value.GetString().Should().Be("my own");
@@ -106,7 +106,7 @@ public sealed class SelectChoicesTests
     public void Read_ExclusiveItemWithComment_ReadsTheItem()
     {
         var answer = ReadAnswer(
-            SingleComment.Replace("\"multiple\":false", "\"multiple\":true", StringComparison.Ordinal),
+            SINGLE_COMMENT.Replace("\"multiple\":false", "\"multiple\":true", StringComparison.Ordinal),
             """{"q":[{"value":"none","comment":"abc"}]}""");
 
         answer.Values.Should().Equal("none");
@@ -117,7 +117,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void Read_MultipleSelect_SingleValueJsonKeepsTheRawArray()
     {
-        var answer = ReadAnswer(MultipleValue, """{"q":[1,"my own"]}""");
+        var answer = ReadAnswer(MULTIPLE_VALUE, """{"q":[1,"my own"]}""");
 
         answer.SingleValueJson()!.Value.GetRawText().Should().Be("""[1,"my own"]""");
     }
@@ -125,7 +125,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void Read_NumberValue_SingleValueJsonKeepsTheNumber()
     {
-        var answer = ReadAnswer(SingleComment, """{"q":7}""");
+        var answer = ReadAnswer(SINGLE_COMMENT, """{"q":7}""");
 
         answer.SingleValueJson()!.Value.GetRawText().Should().Be("7");
         answer.Has("7").Should().BeTrue();
@@ -134,7 +134,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void Read_Missing_IsEmptyAndStillReadsTheCommentLikeBefore()
     {
-        var answer = ReadAnswer(SingleComment, """{"q-Comment":"x"}""");
+        var answer = ReadAnswer(SINGLE_COMMENT, """{"q-Comment":"x"}""");
 
         answer.Values.Should().BeEmpty();
         answer.SingleValueJson().Should().BeNull();
@@ -144,7 +144,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void Read_BooleanAnswer_MatchesTrueAndFalseIgnoringCase()
     {
-        var answer = ReadAnswer(SingleComment, """{"q":true}""");
+        var answer = ReadAnswer(SINGLE_COMMENT, """{"q":true}""");
 
         answer.Has("True").Should().BeTrue();
         answer.Has("false").Should().BeFalse();
@@ -153,7 +153,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void For_CodebookCompiledBeforeKinds_IsUnknownAndStillReadsObjectsAndComment()
     {
-        var catalogs = ChoiceCatalogs.Read(LegacyCatalog);
+        var catalogs = ChoiceCatalogs.Read(LEGACY_CATALOG);
 
         catalogs.IsSelect("q").Should().BeFalse();
         using var context = JsonDocument.Parse("""{"q":[{"value":"other","comment":"x"}],"q-Comment":"y"}""");
@@ -177,7 +177,7 @@ public sealed class SelectChoicesTests
     [Fact]
     public void IsSelect_IsTrueForCatalogsWithMultiple()
     {
-        var catalogs = ChoiceCatalogs.Read(SingleComment);
+        var catalogs = ChoiceCatalogs.Read(SINGLE_COMMENT);
 
         catalogs.IsSelect("q").Should().BeTrue();
         catalogs.For("q").Choices.Select(choice => (choice.Value, choice.Id, choice.Kind, choice.Exclusive)).Should().Equal(

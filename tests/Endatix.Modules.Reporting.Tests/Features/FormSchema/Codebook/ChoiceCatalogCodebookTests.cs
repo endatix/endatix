@@ -8,7 +8,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.Codebook;
 /// </summary>
 public sealed class ChoiceCatalogCodebookTests
 {
-    private const string WithSpecials = """
+    private const string WITH_SPECIALS = """
         {
           "storeOthersAsComment": false,
           "pages": [{ "name": "p1", "elements": [
@@ -24,7 +24,7 @@ public sealed class ChoiceCatalogCodebookTests
     [Fact]
     public void CompilePersisted_SelectQuestion_WritesKindExclusiveMultipleAndOtherStorage()
     {
-        var catalog = CatalogOf(new FormSchemaCompiler().CompilePersisted(WithSpecials).CodebookJson, "rg");
+        var catalog = CatalogOf(new FormSchemaCompiler().CompilePersisted(WITH_SPECIALS).CodebookJson, "rg");
 
         catalog.GetProperty("multiple").GetBoolean().Should().BeFalse();
         catalog.GetProperty("otherStorage").GetString().Should().Be("value");
@@ -40,7 +40,7 @@ public sealed class ChoiceCatalogCodebookTests
     [Fact]
     public void CompilePersisted_QuestionEntryChoices_MatchTheCatalog()
     {
-        using var codebook = JsonDocument.Parse(new FormSchemaCompiler().CompilePersisted(WithSpecials).CodebookJson);
+        using var codebook = JsonDocument.Parse(new FormSchemaCompiler().CompilePersisted(WITH_SPECIALS).CodebookJson);
         var root = codebook.RootElement;
 
         foreach (var question in new[] { "rg", "cb" })
@@ -53,7 +53,7 @@ public sealed class ChoiceCatalogCodebookTests
     [Fact]
     public void CompilePersisted_CheckboxWithoutOther_IsMultipleWithoutOtherStorage()
     {
-        var catalog = CatalogOf(new FormSchemaCompiler().CompilePersisted(WithSpecials).CodebookJson, "cb");
+        var catalog = CatalogOf(new FormSchemaCompiler().CompilePersisted(WITH_SPECIALS).CodebookJson, "cb");
 
         catalog.GetProperty("multiple").GetBoolean().Should().BeTrue();
         catalog.TryGetProperty("otherStorage", out _).Should().BeFalse();
@@ -62,7 +62,7 @@ public sealed class ChoiceCatalogCodebookTests
     [Fact]
     public void CompilePersisted_Ranking_HasNoSelectFields()
     {
-        var catalog = CatalogOf(new FormSchemaCompiler().CompilePersisted(WithSpecials).CodebookJson, "rank");
+        var catalog = CatalogOf(new FormSchemaCompiler().CompilePersisted(WITH_SPECIALS).CodebookJson, "rank");
 
         catalog.TryGetProperty("multiple", out _).Should().BeFalse();
     }
@@ -70,7 +70,7 @@ public sealed class ChoiceCatalogCodebookTests
     [Fact]
     public void CompilePersisted_SpecialIndicatorColumn_IsLabelledByTheItemText()
     {
-        using var codebook = JsonDocument.Parse(new FormSchemaCompiler().CompilePersisted(WithSpecials).CodebookJson);
+        using var codebook = JsonDocument.Parse(new FormSchemaCompiler().CompilePersisted(WITH_SPECIALS).CodebookJson);
 
         var column = codebook.RootElement.GetProperty("columns").GetProperty("cb__none");
 
@@ -152,10 +152,10 @@ public sealed class ChoiceCatalogCodebookTests
     public void CompilePersisted_MergeTwice_IsIdempotent()
     {
         FormSchemaCompiler compiler = new();
-        var first = compiler.CompilePersisted(WithSpecials);
+        var first = compiler.CompilePersisted(WITH_SPECIALS);
 
-        var second = compiler.CompilePersisted(WithSpecials, first.FlatteningMapJson, first.CodebookJson, FormSchemaCompileMode.Merge);
-        var third = compiler.CompilePersisted(WithSpecials, second.FlatteningMapJson, second.CodebookJson, FormSchemaCompileMode.Merge);
+        var second = compiler.CompilePersisted(WITH_SPECIALS, first.FlatteningMapJson, first.CodebookJson, FormSchemaCompileMode.Merge);
+        var third = compiler.CompilePersisted(WITH_SPECIALS, second.FlatteningMapJson, second.CodebookJson, FormSchemaCompileMode.Merge);
 
         second.CodebookJson.Should().Be(first.CodebookJson);
         third.CodebookJson.Should().Be(first.CodebookJson);

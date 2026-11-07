@@ -12,7 +12,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 /// </summary>
 public sealed class SpecialChoicesCrunchExportTests
 {
-    private const string Settings = """{"aliasProfile":"native","keySeparator":"--"}""";
+    private const string SHOJI_SETTINGS = """{"aliasProfile":"native","keySeparator":"--"}""";
 
     [Fact]
     public async Task ShojiCodebook_SpecialItems_AreCategoriesAndRefusedAndDontKnowAreMissing()
@@ -25,7 +25,7 @@ public sealed class SpecialChoicesCrunchExportTests
         var pipeline = PersonalizationPipeline.Compile(definition);
 
         // Act
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken, Settings);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken, SHOJI_SETTINGS);
 
         // Assert
         Categories(shoji, "rg").Should().Equal(
@@ -55,8 +55,8 @@ public sealed class SpecialChoicesCrunchExportTests
         var cancellationToken = TestContext.Current.CancellationToken;
 
         // Act
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, Settings);
-        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), Settings), cancellationToken);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
 
         // Assert
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
@@ -85,8 +85,8 @@ public sealed class SpecialChoicesCrunchExportTests
         var cancellationToken = TestContext.Current.CancellationToken;
 
         // Act
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, Settings);
-        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), Settings), cancellationToken);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
 
         // Assert: the catalog marks home exclusive without a kind, refused with its kind.
         using var codebook = JsonDocument.Parse(pipeline.Entity().Codebook);
@@ -121,8 +121,8 @@ public sealed class SpecialChoicesCrunchExportTests
         var cancellationToken = TestContext.Current.CancellationToken;
 
         // Act
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, Settings);
-        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), Settings), cancellationToken);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
 
         // Assert
         Categories(shoji, "rg").Select(category => (category.Id, category.Name)).Should().Equal(
@@ -144,8 +144,8 @@ public sealed class SpecialChoicesCrunchExportTests
         var cancellationToken = TestContext.Current.CancellationToken;
 
         // Act
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, Settings);
-        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), Settings), cancellationToken);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
 
         // Assert
         Categories(shoji, "rg").Select(category => (category.Id, category.Name)).Should().Equal(
@@ -163,7 +163,7 @@ public sealed class SpecialChoicesCrunchExportTests
         pipeline.Recompile(v2, Endatix.Modules.Reporting.Features.FormSchema.FormSchema.FormSchemaCompileMode.Merge);
 
         // Act
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken, Settings);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken, SHOJI_SETTINGS);
 
         // Assert
         Categories(shoji, "rg").Select(category => (category.Id, category.Name)).Should().Equal(
@@ -182,7 +182,7 @@ public sealed class SpecialChoicesCrunchExportTests
         IReadOnlyList<FixtureResponse> first = [new("r1", answers, null)];
         var pipeline = PersonalizationPipeline.Compile(v1);
         pipeline.FlattenAll(v1, first);
-        var shojiBefore = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, Settings);
+        var shojiBefore = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
 
         IReadOnlyList<FixtureResponse> second =
         [
@@ -193,8 +193,8 @@ public sealed class SpecialChoicesCrunchExportTests
         pipeline.FlattenAll(v2, second);
 
         // Act
-        var shojiAfter = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, Settings);
-        var csvAfter = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(second), Settings), cancellationToken);
+        var shojiAfter = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csvAfter = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(second), SHOJI_SETTINGS), cancellationToken);
 
         // Assert
         var before = Variables(shojiBefore);

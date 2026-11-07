@@ -142,7 +142,7 @@ internal sealed class SelectChoices
     {
         if (IsTypedOtherText(token))
         {
-            return (new SelectAnswer.Token(SurveyJsPropertyNames.Other, FromBoolean: false, OtherJson), StringJson(token.Element ?? item));
+            return (new SelectAnswer.Token(SurveyJsPropertyNames.Other, FromBoolean: false, _otherJson), StringJson(token.Element ?? item));
         }
 
         var comment = token.Value == SurveyJsPropertyNames.Other && item.ValueKind == JsonValueKind.Object
@@ -161,7 +161,7 @@ internal sealed class SelectChoices
     private static JsonElement? LegacyOtherText(JsonElement? raw) =>
         raw is { ValueKind: JsonValueKind.Object } legacy ? legacy.TryGetPropertyValue(SurveyJsPropertyNames.Other) : null;
 
-    private static readonly JsonElement OtherJson = JsonSerializer.SerializeToElement(SurveyJsPropertyNames.Other);
+    private static readonly JsonElement _otherJson = JsonSerializer.SerializeToElement(SurveyJsPropertyNames.Other);
 
     private bool IsTypedOtherText(SelectAnswer.Token token) =>
         OtherStorage == Storage.Value &&
