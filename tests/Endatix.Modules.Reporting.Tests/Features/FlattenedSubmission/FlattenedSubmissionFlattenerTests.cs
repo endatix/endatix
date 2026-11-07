@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
@@ -59,6 +60,86 @@ public class FlattenedSubmissionFlattenerTests
             JsonElementsEqual(property.Value, actual!.Value).Should().BeTrue(
                 $"expected {property.Name} to equal {property.Value}");
         }
+    }
+
+    [Fact]
+    public void Flatten_SpecialChoices_ReadsEveryStorageModeTopLevelAndInLoops()
+    {
+        // Arrange
+        string definitionJson = FormSchemaFixtureLoader.LoadDefinition("special-choices-definition.json").GetRawText();
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        JsonElement submission = FormSchemaFixtureLoader.LoadJson("special-choices-submission.json");
+        JsonElement expected = FormSchemaFixtureLoader.LoadJson("special-choices-expected-flat.json");
+
+        // Act
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submission,
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson));
+
+        // Assert
+        FormSchemaFixtureAssertions.AssertFlatMatchesExpected(flattened, expected, because: "special choices fixture");
+    }
+
+    // The single-select rows of the slice's answer table: one radiogroup, choices a/b, Other, None and Refused.
+    [Theory]
+    [InlineData(true, """{"q1":"a"}""", "\"a\"", null)]
+    [InlineData(true, """{"q1":"other","q1-Comment":"x"}""", "\"other\"", "\"x\"")]
+    [InlineData(false, """{"q1":"x"}""", "\"other\"", "\"x\"")]
+    [InlineData(true, """{"q1":{"value":"other","comment":"x"}}""", "\"other\"", "\"x\"")]
+    [InlineData(true, """{"q1":"none"}""", "\"none\"", null)]
+    [InlineData(true, """{"q1":"refused"}""", "\"refused\"", null)]
+    public void Flatten_SingleSelectAnswerShapes_GiveTheValueAndOtherText(
+        bool storeOthersAsComment,
+        string answers,
+        string expectedValue,
+        string? expectedOtherText)
+    {
+        // Arrange
+        string definitionJson = $$"""
+            {"pages":[{"elements":[{"type":"radiogroup","name":"q1","choices":["a","b"],"showOtherItem":true,
+              "storeOthersAsComment":{{(storeOthersAsComment ? "true" : "false")}},"showNoneItem":true,"showRefuseItem":true}]}]}
+            """;
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        using JsonDocument submission = JsonDocument.Parse(answers);
+
+        // Act
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submission.RootElement,
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson));
+
+        // Assert
+        flattened["q1"]!.Value.GetRawText().Should().Be(expectedValue);
+        flattened["q1__other_text"]?.GetRawText().Should().Be(expectedOtherText);
+        if (expectedOtherText is null)
+        {
+            flattened["q1__other_text"].Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public void Flatten_OldRowAfterMergeAddsNone_HasNoneIndicatorZero()
+    {
+        // Arrange: a row answered on v1, re-flattened (backfill) after v2 added None and merged.
+        const string v1 = """{"pages":[{"elements":[{"type":"checkbox","name":"q","choices":["a","b"]}]}]}""";
+        const string v2 = """{"pages":[{"elements":[{"type":"checkbox","name":"q","choices":["a","b"],"showNoneItem":true}]}]}""";
+        FormSchemaCompiler compiler = new();
+        FormSchemaCompileResult first = compiler.CompilePersisted(v1);
+        FormSchemaCompileResult merged = compiler.CompilePersisted(
+            v2, first.FlatteningMapJson, first.CodebookJson, FormSchemaCompileMode.Merge);
+        using JsonDocument oldRow = JsonDocument.Parse("""{"q":["a"]}""");
+
+        // Act
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            oldRow.RootElement,
+            merged.FlatteningMap,
+            ChoiceCatalogs.Read(merged.CodebookJson));
+
+        // Assert
+        merged.FlatteningMap.Columns.Select(column => column.Key).Should().Equal("q__a", "q__b", "q__none");
+        flattened["q__a"]!.Value.GetRawText().Should().Be("1");
+        flattened["q__none"]!.Value.GetRawText().Should().Be("0");
     }
 
     private static bool JsonElementsEqual(JsonElement left, JsonElement right) =>

@@ -35,6 +35,7 @@ public class FlatteningBehaviorFactsTests
             { "D-14", "nested-loop-definition.json", "nested-loop-expected-keys.json" },
             { "D-15", "radiogroup-with-checkbox-definition.json", "radiogroup-with-checkbox-expected-keys.json" },
             { "D-17", "CustomerExcerpts/f2-unit-panel-definition.json", "CustomerExcerpts/f2-unit-panel-expected-keys.json" },
+            { "D-18", "special-choices-definition.json", "special-choices-expected-keys.json" },
         };
 
     public static TheoryData<string, string, string, string> SubmissionFacts =>
