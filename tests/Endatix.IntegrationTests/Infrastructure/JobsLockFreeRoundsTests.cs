@@ -31,7 +31,12 @@ public sealed class JobsLockFreeRoundsTests(DbIntegrationFixture fixture)
         var logs = new CapturingLoggerProvider(LogLevel.Information);
         await using var node = JobsTestNode.Create(
             database,
-            configureServices: services => services.AddSingleton<ILoggerProvider>(logs));
+            configureServices: services =>
+            {
+                // The test host keeps Quartz below Warning out of its providers; the verdict is logged at Information.
+                services.AddLogging(logging => logging.AddFilter<CapturingLoggerProvider>("Quartz", LogLevel.Information));
+                services.AddSingleton<ILoggerProvider>(logs);
+            });
 
         // Act
         await node.StartAsync(ct);
