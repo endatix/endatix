@@ -35,14 +35,19 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         CreateAsync(fixture.Provider, fixture.ConnectionString, cancellationToken);
 
     /// <summary>Creates a database of <paramref name="provider"/> on the server <paramref name="serverConnectionString"/> points at.</summary>
+    /// <remarks>
+    /// A cancellation is honoured before the creation starts, not during it: one that reaches the server as it finishes
+    /// the statement can leave the database created while the caller sees only the cancellation, and so never drops it.
+    /// </remarks>
     public static async Task<JobsTestDatabase> CreateAsync(
         TestDatabaseProvider provider,
         string serverConnectionString,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var server = new ConnectionTarget(provider, serverConnectionString);
         var name = $"jobs_{Guid.NewGuid():N}"[..20];
-        await server.ExecuteAsync($"CREATE DATABASE {name}", NoParameters, cancellationToken);
+        await server.ExecuteAsync($"CREATE DATABASE {name}", NoParameters, CancellationToken.None);
         return new JobsTestDatabase(server, name);
     }
 

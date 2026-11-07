@@ -409,17 +409,17 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
     private async Task<JobsTestDatabase> MigratedDatabaseAsync(CancellationToken ct)
     {
         var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
-        try
-        {
-            await using var context = ContextFor(database);
-            await context.Database.MigrateAsync(ct);
-            return database;
-        }
-        catch
-        {
-            await database.DisposeAsync();
-            throw;
-        }
+
+        // A migration that fails returns no database to dispose, so it is dropped here; a drop that fails too is
+        // reported as a test warning, and the migration's failure is the one thrown.
+        return await FailedHostStart.DisposeOnFailureAsync(
+            async () =>
+            {
+                await using var context = ContextFor(database);
+                await context.Database.MigrateAsync(ct);
+                return database;
+            },
+            database.DisposeAsync);
     }
 
     private static BackgroundJobRequest ExportRequest(string dedupKey) =>
