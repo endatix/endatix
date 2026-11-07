@@ -3,6 +3,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="Features\ReCaptcha\Fixtures\Siteverify\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
