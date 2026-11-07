@@ -25,6 +25,11 @@
     <ItemGroup>
         <!-- One coverage config for every test project (coverlet.MTP reads it next to the test exe). -->
         <None Include="$(MSBuildThisFileDirectory)testconfig.json" Link="testconfig.json" CopyToOutputDirectory="PreserveNewest" />
+        <!-- One xunit config for every test app without its own: runs under the invariant culture, so a test's
+             outcome does not depend on the machine's language. xunit reads culture from xunit.runner.json only,
+             not from testconfig.json. The integration project keeps its own file. -->
+        <None Include="$(MSBuildThisFileDirectory)xunit.runner.json" Link="xunit.runner.json" CopyToOutputDirectory="PreserveNewest"
+              Condition="'$(OutputType)' == 'Exe' And !Exists('$(MSBuildProjectDirectory)/xunit.runner.json')" />
     </ItemGroup>
 
     <ItemGroup>

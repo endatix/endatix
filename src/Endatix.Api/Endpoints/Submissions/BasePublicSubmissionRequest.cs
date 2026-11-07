@@ -11,9 +11,9 @@ public abstract class BasePublicSubmissionRequest : BaseSubmissionRequest
     public string? ReCaptchaToken { get; set; }
 
     /// <summary>
-    /// <c>screen_out</c> when a screen-out trigger ends the interview. The submission stays
-    /// incomplete and later updates are rejected. Omit for a normal save. Any other value is rejected.
-    /// Respondent saves only: staff endpoints do not accept it.
+    /// A closed collection status that ends the interview, e.g. <c>screen_out</c> or a closed code the host registered.
+    /// The submission stays incomplete and later updates are rejected. Omit for a normal save. Any other value is
+    /// rejected. Respondent saves only: staff endpoints do not accept it.
     /// </summary>
     public string? CollectionOutcome { get; set; }
 }

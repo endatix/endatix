@@ -165,8 +165,9 @@ public class SubmissionUpdateTests
         submission.IsScreenedOut.Should().BeTrue();
         submission.IsComplete.Should().BeFalse();
         submission.CompletedAt.Should().BeNull();
-        submission.DomainEvents.Should().ContainSingle(e => e is SubmissionCollectionStatusChangedEvent);
-        submission.DomainEvents.Should().NotContain(e => e is SubmissionCompletedEvent);
+        submission.DomainEvents.OfType<SubmissionLifecycleEvent>().Should()
+            .Contain(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Closed)
+            .And.NotContain(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
     }
 
     [Fact]
@@ -183,7 +184,8 @@ public class SubmissionUpdateTests
         // Assert
         submission.Revision.Should().Be(revision);
         submission.JsonData.Should().Be(SampleData.SUBMISSION_JSON_DATA_1);
-        submission.DomainEvents.OfType<SubmissionCollectionStatusChangedEvent>().Should().ContainSingle();
+        submission.DomainEvents.OfType<SubmissionLifecycleEvent>()
+            .Where(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Closed).Should().ContainSingle();
     }
 
     [Fact]
@@ -276,27 +278,26 @@ public class SubmissionUpdateTests
 
         // Assert
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("A screened-out submission cannot be cancelled.");
+            .WithMessage("*closed*");
         submission.CollectionStatus.Code.Should().Be(CollectionStatusCodes.ScreenOut);
     }
 
     [Fact]
-    public void ScreenOut_EventPayload_CarriesAnswersAndCollectionStatuses()
+    public void ScreenOut_EventPayload_CarriesCollectionStatusesWithPhasesAndNoAnswers()
     {
         // Arrange
         var submission = NewSubmission(isComplete: false);
         submission.ScreenOut();
-        var domainEvent = submission.DomainEvents.OfType<SubmissionCollectionStatusChangedEvent>().Single();
+        var domainEvent = submission.DomainEvents.OfType<SubmissionLifecycleEvent>()
+            .Single(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Closed);
 
         // Act
-        var payload = (SubmissionCollectionStatusChangedEvent.Payload)domainEvent.GetPayload();
+        var payload = domainEvent.GetPayload();
 
         // Assert
-        payload.CollectionStatus.Should().Be(CollectionStatusCodes.ScreenOut);
-        payload.PreviousCollectionStatus.Should().Be(CollectionStatusCodes.NotStarted);
-        payload.JsonData.Should().Be(SampleData.SUBMISSION_JSON_DATA_1);
-        payload.IsComplete.Should().BeFalse();
-        payload.StartedAt.Should().NotBeNull();
+        var closed = payload.Should().BeOfType<SubmissionLifecyclePayload>().Subject;
+        closed.CollectionStatus.Should().Be(new CollectionStatusRef(CollectionStatusCodes.ScreenOut, "closed"));
+        closed.PreviousCollectionStatus.Should().Be(new CollectionStatusRef(CollectionStatusCodes.NotStarted, "pending"));
     }
 
     private static Submission NewSubmission(bool isComplete = true) =>

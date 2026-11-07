@@ -57,6 +57,8 @@ Flattens of one submission can run out of order, as retries or as jobs, so each 
 
 ### FormSchema compile modes
 
+`POST forms/{formId}/reporting/compile-schema` and `POST forms/{formId}/submissions/backfill` accept `submissions.export` or `forms.edit`, so a user who may export can prepare a form for it. `replace=true` on compile and `force=true` on backfill clear or overwrite flattened rows, so they also need `forms.edit`; without it the endpoint returns 403 before it sends the command.
+
 On every compile path (outbox `form.definition.updated`, manual `POST .../reporting/compile-schema`):
 
 | Mode | When | Behavior |

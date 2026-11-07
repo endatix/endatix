@@ -36,11 +36,8 @@ internal sealed class JobsSchedulerHostedService(
     JobsShutdownSignal shutdownSignal,
     ILogger<JobsSchedulerHostedService> logger) : IHostedService, IDisposable
 {
-    private static readonly TimeSpan UnreachableRetryDelay = TimeSpan.FromSeconds(5);
-
-    // A lost race clears as soon as the other transaction ends, so the first few are tried again sooner than an
-    // outage; one that keeps coming back is something else, and is tried at the outage's pace.
-    private static readonly TimeSpan ContendedRetryDelay = TimeSpan.FromSeconds(1);
+    // The first few lost races are tried again at the contended pace; one that keeps coming back is something else,
+    // and is tried at the outage's pace.
     private const int QuickContendedTries = 3;
 
     // A lost race, or an outage, is logged the first time and then one in this many tries, so one that keeps recurring
@@ -49,6 +46,9 @@ internal sealed class JobsSchedulerHostedService(
 
     // A start still waiting for the database stops waiting as soon as the host starts stopping, before this service is
     // stopped: from then on Quartz refuses to rebuild a scheduler, and a try made then would only fail.
+    private readonly SchedulerStartRetryDelays _retryDelays =
+        services.GetService<SchedulerStartRetryDelays>() ?? SchedulerStartRetryDelays.Default;
+
     private readonly CancellationTokenSource _stopping =
         CancellationTokenSource.CreateLinkedTokenSource(
             services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
@@ -419,5 +419,5 @@ internal sealed class JobsSchedulerHostedService(
             _unreachableTries);
 
     private TimeSpan DelayAfter(StartResult result) =>
-        result == StartResult.Contended && _contendedTries <= QuickContendedTries ? ContendedRetryDelay : UnreachableRetryDelay;
+        result == StartResult.Contended && _contendedTries <= QuickContendedTries ? _retryDelays.Contended : _retryDelays.Unreachable;
 }

@@ -20,6 +20,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
 
     private SubmissionChangeSaver Saver => new(repository, versions);
 
+    /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
@@ -36,7 +37,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
 
         var originalJson = submission.JsonData;
-        var wasScreenedOut = submission.IsScreenedOut;
+        var previousStatus = submission.CollectionStatus;
 
         try
         {
@@ -51,9 +52,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
         catch (InvalidOperationException)
         {
-            var message = wasScreenedOut
-                ? CollectionOutcomes.SCREENED_OUT_EDIT_REJECTED_MESSAGE
-                : "This submission cannot be completed.";
+            var message = CollectionOutcomes.RejectedEditMessage(previousStatus) ?? "This submission cannot be completed.";
             return Result.Invalid(new ValidationError(message));
         }
 
@@ -64,7 +63,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
         }
 
         if(mustPublishEvent) {
-            await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
+            await mediator.PublishCompletedAsync(submission, cancellationToken);
         }
 
         return Result.Success(submission);

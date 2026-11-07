@@ -1,3 +1,4 @@
+using Endatix.Framework.Logging;
 using Endatix.Api.Infrastructure.Cors;
 using Endatix.Framework.Hosting;
 using Microsoft.AspNetCore.Cors.Infrastructure;
@@ -376,19 +377,18 @@ public class EndpointsCorsConfiguratorTests
                     AllowedOrigins = ["*"]
             }]
         });
-        var configurator = CreateCorsConfigurator(corsSettings);
+        var capturingLogger = new CapturingLogger();
+        var configurator = CreateCorsConfigurator(corsSettings, capturingLogger);
 
         // Act
         configurator.Configure(_options);
 
         // Assert
         var expectedFormattedMessage = "Ignoring AllowCredentials and disallowing credentials. Details: The CORS protocol does not allow specifying a wildcard (any) origin and credentials at the same time. Configure the CORS policy by listing individual origins if credentials needs to be supported.";
-        _logger.Received(1).Log(
-          Arg.Is(LogLevel.Warning),
-          Arg.Is<EventId>(0),
-          Arg.Is<object>(x => x.ToString() == expectedFormattedMessage),
-          Arg.Is<Exception>(x => x == null),
-          Arg.Any<Func<object, Exception?, string>>());
+        capturingLogger.Entries.Should().ContainSingle(entry =>
+            entry.Level == LogLevel.Warning
+            && entry.EventId.Id == EndatixEventIds.Api.CorsCredentialsIgnored
+            && entry.Message == expectedFormattedMessage);
 
         var actualPolicy = _options.GetPolicy(ruleNameUnderTest);
         actualPolicy.Should().NotBeNull();
@@ -440,6 +440,19 @@ public class EndpointsCorsConfiguratorTests
         // Assert
         _options.GetPolicy("FirstPolicyName").Should().NotBeNull();
         _options.DefaultPolicyName.Should().Be(expectedDefaultPolicyName);
+    }
+
+    // Records each entry with its formatted message, so tests can assert on the EventId and rendered text.
+    private sealed class CapturingLogger : ILogger<EndpointsCorsConfigurator>
+    {
+        public List<(LogLevel Level, EventId EventId, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, eventId, formatter(state, exception)));
     }
 
     /// <summary>

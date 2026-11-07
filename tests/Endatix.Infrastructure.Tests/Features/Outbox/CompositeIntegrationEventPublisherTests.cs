@@ -1,5 +1,7 @@
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Outbox.Engine;
+using Endatix.Infrastructure.Tests.Features.ReCaptcha;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
@@ -38,6 +40,43 @@ public class CompositeIntegrationEventPublisherTests
     }
 
     [Fact]
+    public async Task PublishAsync_LegacyCollectionStatusChangedRow_ReachesClosedHandlersAsSubmissionClosed()
+    {
+        // Arrange
+        RecordingOutboxHandler closedHandler = new(["submission.closed"]);
+        RecordingOutboxHandler oldTypeHandler = new(["submission.collection_status_changed"]);
+        CompositeIntegrationEventPublisher publisher = new(
+            [closedHandler, oldTypeHandler],
+            NullLogger<CompositeIntegrationEventPublisher>.Instance);
+        IOutboxMessage message = new FakeOutboxMessage(4, "submission.collection_status_changed", """{"submissionId":"9","collectionStatus":"screen_out"}""", 1);
+
+        // Act
+        await publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        closedHandler.HandledIds.Should().ContainSingle().Which.Should().Be(4);
+        closedHandler.EventTypesSeen.Should().Equal("submission.closed");
+        oldTypeHandler.HandledIds.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("submission.started", LogLevel.Debug)]
+    [InlineData("vendor.something_happened", LogLevel.Information)]
+    public async Task PublishAsync_NoHandler_LogsALifecycleTypeAtDebugAndAnUnknownTypeAtInformation(string eventType, LogLevel expected)
+    {
+        // Arrange
+        var logger = new RecordingLogger<CompositeIntegrationEventPublisher>();
+        CompositeIntegrationEventPublisher publisher = new([new RecordingOutboxHandler(["form.created"])], logger);
+        IOutboxMessage message = new FakeOutboxMessage(5, eventType, "{}", 1);
+
+        // Act
+        await publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        logger.Entries.Should().ContainSingle().Which.Level.Should().Be(expected);
+    }
+
+    [Fact]
     public async Task PublishAsync_WhenHandlerFails_StopsAndDoesNotInvokeRemainingHandlers()
     {
         RecordingOutboxHandler succeedingHandler = new(["submission.completed"]);
@@ -55,23 +94,70 @@ public class CompositeIntegrationEventPublisherTests
         neverReachedHandler.HandledIds.Should().BeEmpty();
     }
 
-    private sealed class FailingOutboxHandler(IReadOnlyCollection<string> eventTypes) : IOutboxIntegrationEventHandler
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PublishAsync_WhenHandlerFailsPermanently_RethrowsTheSameExceptionAndStops(bool derivedType)
+    {
+        // Arrange — the base exception or a type derived from it.
+        var permanentFailure = derivedType
+            ? new RetiredEventTypeException()
+            : new OutboxPermanentFailureException("Retired event type.");
+        RecordingOutboxHandler neverReachedHandler = new(["submission.completed"]);
+        CompositeIntegrationEventPublisher publisher = new(
+            [new FailingOutboxHandler(["submission.completed"], permanentFailure), neverReachedHandler],
+            NullLogger<CompositeIntegrationEventPublisher>.Instance);
+        IOutboxMessage message = new FakeOutboxMessage(4, "submission.completed", "{}", 1);
+
+        // Act
+        Func<Task> act = () => publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert — unwrapped, so the relay fails the message at once.
+        (await act.Should().ThrowAsync<OutboxPermanentFailureException>()).Which.Should().BeSameAs(permanentFailure);
+        neverReachedHandler.HandledIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task PublishAsync_WhenHandlerFails_WrapsTheErrorSoTheRelayRetries()
+    {
+        // Arrange
+        InvalidOperationException failure = new("Handler failed.");
+        CompositeIntegrationEventPublisher publisher = new(
+            [new FailingOutboxHandler(["submission.completed"], failure)],
+            NullLogger<CompositeIntegrationEventPublisher>.Instance);
+        IOutboxMessage message = new FakeOutboxMessage(5, "submission.completed", "{}", 1);
+
+        // Act
+        Func<Task> act = () => publisher.PublishAsync(message, TestContext.Current.CancellationToken);
+
+        // Assert
+        (await act.Should().ThrowExactlyAsync<InvalidOperationException>())
+            .Which.InnerException.Should().BeSameAs(failure);
+    }
+
+    private sealed class RetiredEventTypeException() : OutboxPermanentFailureException("Retired event type.");
+
+    private sealed class FailingOutboxHandler(IReadOnlyCollection<string> eventTypes, Exception? failure = null)
+        : IOutboxIntegrationEventHandler
     {
         public IReadOnlyCollection<string> EventTypes { get; } = eventTypes;
 
         public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("Handler failed.");
+            throw failure ?? new InvalidOperationException("Handler failed.");
     }
 
     private sealed class RecordingOutboxHandler(IReadOnlyCollection<string> eventTypes) : IOutboxIntegrationEventHandler
     {
         public List<long> HandledIds { get; } = [];
 
+        public List<string> EventTypesSeen { get; } = [];
+
         public IReadOnlyCollection<string> EventTypes { get; } = eventTypes;
 
         public Task HandleAsync(IOutboxMessage message, CancellationToken cancellationToken)
         {
             HandledIds.Add(message.Id);
+            EventTypesSeen.Add(message.EventType);
             return Task.CompletedTask;
         }
     }

@@ -7,6 +7,7 @@ using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Hosting.Builders.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSwag.AspNetCore;
@@ -264,9 +265,7 @@ public class EndatixMiddlewareBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseSwagger(string? path = null, Action<OpenApiDocumentMiddlewareSettings>? configureOpenApi = null, Action<SwaggerUiSettings>? configureSwaggerUi = null)
     {
-        _logger?.LogInformation(path == null
-            ? "Adding Swagger middleware with default settings"
-            : $"Adding Swagger middleware with custom path: {path}");
+        _logger?.LogSwaggerMiddlewareAdded(path ?? "(default)");
 
         App.UseSwaggerGen(configureOpenApi, uiConfig =>
         {
@@ -311,7 +310,7 @@ public class EndatixMiddlewareBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseHealthChecks(string path = "/health", Action<EndatixHealthChecksMiddlewareBuilder>? configureHealthChecks = null)
     {
-        _logger?.LogInformation($"Adding health checks middleware with path: {path}");
+        _logger?.LogHealthChecksMiddlewareAdded(path);
 
         // Use the dedicated health checks middleware builder to avoid code duplication
         EndatixHealthChecksMiddlewareBuilder healthChecksBuilder = new(this, _logger);

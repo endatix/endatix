@@ -8,8 +8,6 @@ namespace Endatix.Core.Abstractions;
 public interface IHasRevision
 {
     /// <summary>The current revision; starts at 1 and increases by one per business mutation.</summary>
+    /// <remarks>Read-only here: each aggregate raises its own revision with the events it raises.</remarks>
     long Revision { get; }
-
-    /// <summary>Advances the revision. Call from domain mutations that raise integration events.</summary>
-    void IncrementRevision();
 }

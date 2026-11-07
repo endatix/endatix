@@ -50,6 +50,7 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
     /// <inheritdoc />
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
+        message = LegacyOutboxEvents.Translate(message);
         using var activity = StartFanOut(message);
 
         var requests = await RequestsForAsync(message, cancellationToken);

@@ -157,6 +157,25 @@ public sealed class OutboxWorkTests
         await run.Should().ThrowAsync<InvalidOperationException>().WithMessage("transient");
     }
 
+    [Theory]
+    [InlineData("permanent")]
+    [InlineData("retired")]
+    [InlineData("read-permanent")]
+    public async Task ExecuteAsync_WorkFailsPermanently_FailsWithoutRetry(string work)
+    {
+        // Arrange — the base exception or a type derived from it, from the work or from reading it.
+        Seed($$"""{"tenantId":"{{TenantA}}","work":"{{work}}"}""", TenantA);
+        using var provider = Build();
+
+        // Act
+        var (result, _) = await RunJobAsync(provider, TenantA);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(OutboxJobFailures.PermanentFailure);
+    }
+
     [Fact]
     public async Task ExecuteAsync_AppLevel_ReadsTheRowWithoutTenant()
     {
@@ -264,6 +283,37 @@ public sealed class OutboxWorkTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_AppLevelTenantFailsPermanently_FailsWithoutRetry()
+    {
+        // Arrange
+        Seed("""{"newTenantId":"11","work":"run"}""", 0);
+        using var provider = Build(appLevelTenant: _ => throw new OutboxPermanentFailureException("never"));
+
+        // Act
+        var (result, work) = await RunJobAsync(provider, TenantA);
+
+        // Assert
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(OutboxJobFailures.PermanentFailure);
+        work.Ran.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PublishAsync_AppLevelTenantFailsPermanently_ThrowsItUnwrappedSoTheRelayFailsTheRow()
+    {
+        // Arrange
+        OutboxPermanentFailureException permanentFailure = new("never");
+        using var provider = Build(appLevelTenant: _ => throw permanentFailure);
+
+        // Act
+        var publish = () => PublishAsync(provider, new OutboxMessageStub(MessageId, "x.happened", "{}", 0));
+
+        // Assert
+        (await publish.Should().ThrowAsync<OutboxPermanentFailureException>()).Which.Should().BeSameAs(permanentFailure);
+        _enqueued.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task PublishAsync_AppLevelUnreadable_ThrowsSoTheRelayRetries()
     {
         // Arrange
@@ -359,9 +409,11 @@ public sealed class OutboxWorkTests
         public OutboxWork Read(IOutboxMessage message) => OutboxWork.None;
     }
 
+    private sealed class RetiredEventTypeException() : OutboxPermanentFailureException("retired");
+
     /// <summary>
     /// Reads <c>work</c>: <c>run</c> runs, <c>none</c> has nothing to do, <c>throw</c> fails as the work would on
-    /// a transient problem.
+    /// a transient problem, and <c>permanent</c>, <c>retired</c> and <c>read-permanent</c> fail for good.
     /// </summary>
     internal sealed class WorkStub : IOutboxWork<WorkStub>
     {
@@ -407,6 +459,9 @@ public sealed class OutboxWorkTests
             {
                 "none" => OutboxWork.None,
                 "throw" => OutboxWork.For(_ => throw new InvalidOperationException("transient")),
+                "permanent" => OutboxWork.For(_ => throw new OutboxPermanentFailureException("never")),
+                "retired" => OutboxWork.For(_ => throw new RetiredEventTypeException()),
+                "read-permanent" => throw new OutboxPermanentFailureException("never"),
                 "cancel" => throw new OperationCanceledException(),
                 _ => OutboxWork.For(_ =>
                 {

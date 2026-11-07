@@ -81,7 +81,7 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
-    public void SubmissionCompletedEvent_getPayload_returns_base_payload_type()
+    public void SubmissionLifecycleEvent_Completed_GetPayload_ReturnsTheCompletedPayload()
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: 1,
@@ -90,7 +90,7 @@ public class IntegrationEventPayloadTests
             JsonData: "{}",
             IsComplete: true));
 
-        new SubmissionCompletedEvent(submission).GetPayload().Should().BeOfType<SubmissionCompletedEvent.Payload>();
+        CompletedEventOf(submission).GetPayload().Should().BeOfType<SubmissionCompletedPayload>();
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class IntegrationEventPayloadTests
     }
 
     [Fact]
-    public void SubmissionCompletedEvent_has_dotted_type_and_submission_payload_with_revision()
+    public void SubmissionLifecycleEvent_Completed_HasDottedTypeAndEveryShippedField()
     {
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: 1,
@@ -168,10 +168,18 @@ public class IntegrationEventPayloadTests
             FormDefinitionId: 200,
             JsonData: "{}",
             IsComplete: true));
-        var evt = new SubmissionCompletedEvent(submission);
+        var evt = CompletedEventOf(submission);
 
         evt.EventType.Should().Be("submission.completed");
         var json = Payload(evt.GetPayload());
+        string[] shipped =
+        [
+            "submissionId", "formId", "formDefinitionId", "tenantId", "isComplete", "jsonData", "currentPage", "metadata",
+            "submittedBy", "submitterDisplayId", "status", "createdAt", "modifiedAt", "startedAt", "completedAt",
+            "revision", "isTestSubmission",
+        ];
+        shipped.Where(name => !json.TryGetProperty(name, out _)).Should().BeEmpty();
+        json.GetProperty("collectionStatus").GetProperty("phase").GetString().Should().Be("completed");
         json.GetProperty("formId").GetInt64().Should().Be(100);
         json.GetProperty("formDefinitionId").GetInt64().Should().Be(200);
         json.GetProperty("isComplete").GetBoolean().Should().BeTrue();
@@ -235,18 +243,21 @@ public class IntegrationEventPayloadTests
         completed.Delete();
 
         // Act
-        var payloads = screenedOut.DomainEvents.Concat(completed.DomainEvents)
+        var events = screenedOut.DomainEvents.Concat(completed.DomainEvents)
             .OfType<IIntegrationEvent>()
-            .ToDictionary(evt => evt.EventType, evt => Payload(evt.GetPayload()));
+            .ToList();
+        var payloads = events.Select(evt => Payload(evt.GetPayload())).ToList();
 
         // Assert
-        payloads.Keys.Should().BeEquivalentTo(
-            "submission.collection_status_changed",
+        events.Select(evt => evt.EventType).Should().Equal(
+            "submission.created",
+            "submission.closed",
+            "submission.created",
             "submission.completed",
             "submission.status_changed",
             "submission.updated",
             "submission.deleted");
-        payloads.Values.Should().OnlyContain(json => json.GetProperty("isTestSubmission").GetBoolean() == isTestSubmission);
+        payloads.Should().OnlyContain(json => json.GetProperty("isTestSubmission").GetBoolean() == isTestSubmission);
     }
 
     [Fact]
@@ -311,7 +322,7 @@ public class IntegrationEventPayloadTests
         submission.Delete();
 
         // Assert
-        Payload(submission.DomainEvents.OfType<SubmissionCompletedEvent>().Single().GetPayload())
+        Payload(CompletedEventOf(submission).GetPayload())
             .GetProperty("isTestSubmission").GetBoolean().Should().BeFalse();
         Payload(submission.DomainEvents.OfType<SubmissionDeletedEvent>().Single().GetPayload())
             .GetProperty("isTestSubmission").GetBoolean().Should().BeTrue();
@@ -329,4 +340,8 @@ public class IntegrationEventPayloadTests
         submission.Id = 501;
         return submission;
     }
+
+    private static SubmissionLifecycleEvent CompletedEventOf(Submission submission) =>
+        submission.DomainEvents.OfType<SubmissionLifecycleEvent>()
+            .Single(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
 }

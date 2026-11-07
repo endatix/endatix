@@ -20,9 +20,9 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
     private SubmissionChangeSaver Saver => new(repository, versions);
 
+    /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var mustPublishEvent = false;
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         if (submission == null)
@@ -30,12 +30,13 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
-        var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
-        var wasScreenedOut = submission.IsScreenedOut;
-        if (!screenOut && !submission.IsComplete && (request.IsComplete ?? false))
+        if (!CollectionOutcomes.IsSupported(request.CollectionOutcome, out var outcome))
         {
-            mustPublishEvent = true;
+            return Result.Invalid(new ValidationError(CollectionOutcomes.UNSUPPORTED_MESSAGE));
         }
+
+        var previousStatus = submission.CollectionStatus;
+        var mustPublishEvent = outcome is null && !submission.IsComplete && (request.IsComplete ?? false);
 
         // Each given property replaces the stored one whole, JsonData included; only Metadata is merged, at its top level.
         // IsComplete and CurrentPage come from the request as they are, not derived from the answers.
@@ -48,10 +49,10 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         try
         {
-            if (screenOut)
+            if (outcome is not null)
             {
-                // A screen-out never completes; a repeat (e.g. a retried request) is a no-op.
-                submission.ScreenOut(jsonData, submission.FormDefinitionId, submission.FormId, currentPage, mergedMetadata);
+                // An outcome never completes; a repeat (e.g. a retried request) is a no-op.
+                submission.Close(outcome, new SubmissionContent(jsonData, submission.FormDefinitionId, currentPage, mergedMetadata), submission.FormId);
             }
             else
             {
@@ -67,7 +68,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
         }
         catch (InvalidOperationException)
         {
-            return Result.Invalid(new ValidationError(RejectionMessage(wasScreenedOut, screenOut)));
+            return Result.Invalid(new ValidationError(RejectionMessage(previousStatus, outcome is not null)));
         }
 
         var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
@@ -78,20 +79,20 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         if (mustPublishEvent)
         {
-            await mediator.Publish(new SubmissionCompletedEvent(submission), cancellationToken);
+            await mediator.PublishCompletedAsync(submission, cancellationToken);
         }
 
         return Result.Success(submission);
     }
 
-    private static string RejectionMessage(bool wasScreenedOut, bool screenOut)
+    private static string RejectionMessage(CollectionStatus previous, bool closing)
     {
-        if (wasScreenedOut)
+        if (CollectionOutcomes.RejectedEditMessage(previous) is { } closedMessage)
         {
-            return CollectionOutcomes.SCREENED_OUT_EDIT_REJECTED_MESSAGE;
+            return closedMessage;
         }
 
-        if (screenOut)
+        if (closing)
         {
             return "This submission cannot be changed.";
         }

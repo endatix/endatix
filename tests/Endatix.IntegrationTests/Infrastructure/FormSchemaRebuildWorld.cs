@@ -228,7 +228,7 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
     public Task<Result> RunFlattenJobAsync(long formId, long submissionId, ITransactionLock transactionLock)
     {
         OutboxMessage message = new(
-            SubmissionCompletedEvent.EventTypeName,
+            SubmissionLifecycleEvent.EventTypes.Completed,
             $$"""{"tenantId":"{{TenantId}}","formId":"{{formId}}","submissionId":"{{submissionId}}"}""",
             TenantId,
             DateTime.UtcNow,

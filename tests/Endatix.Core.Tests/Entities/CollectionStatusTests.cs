@@ -280,13 +280,17 @@ public class CollectionStatusTests
     }
 
     [Fact]
-    public void Update_IncompleteAfterCancel_StaysCancelled()
+    public void Update_IncompleteAfterCancel_ThrowsAndStaysCancelled()
     {
+        // Arrange
         var submission = OpenSubmission(start: false);
         submission.Cancel();
 
-        submission.Update("{\"a\":1}", 3, 2, isComplete: false);
+        // Act
+        var save = () => submission.Update("{\"a\":1}", 3, 2, isComplete: false);
 
+        // Assert
+        Assert.Throws<InvalidOperationException>(save);
         Assert.Equal(CollectionStatusCodes.Cancelled, submission.CollectionStatus.Code);
         Assert.False(submission.IsComplete);
     }
@@ -304,8 +308,7 @@ public class CollectionStatusTests
     [Theory]
     [InlineData(CollectionStatusCodes.ScreenOut)]
     [InlineData(CollectionStatusCodes.QuotaFull)]
-    [InlineData(CollectionStatusCodes.Abandoned)]
-    [InlineData("panel_hold")]
+    [InlineData(CollectionStatusCodes.Cancelled)]
     public void Update_CompleteFromNonResumable_Throws(string from)
     {
         var submission = SubmissionWithStatus(from);
