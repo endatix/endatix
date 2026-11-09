@@ -4,7 +4,7 @@ Endatix ships the third-party components listed below. Each is distributed under
 licence reproduced with it.
 
 ================================================================================
-Quartz.NET 4.2.2
+Quartz.NET 4.7.2
 https://github.com/quartznet/quartznet
 Used by: Endatix.Modules.Jobs (background job scheduling)
 

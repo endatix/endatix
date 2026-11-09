@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Quartz;
+using Quartz.Extensibility;
 using Quartz.Impl;
 
 namespace Endatix.Modules.Jobs.Runtime;
@@ -39,6 +40,10 @@ internal static class QuartzRegistration
     // A delayed trigger fires at most this early, which is nothing beside the seconds a retry backoff or a re-fire
     // waits.
     private static readonly TimeSpan BatchFireAheadWindow = TimeSpan.FromMilliseconds(100);
+
+    // Quartz's own ADO store, whose type Quartz keeps internal; ShutdownGuardedJobStore wraps it.
+    private static readonly Type QuartzAdoJobStore =
+        Type.GetType("Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz", throwOnError: true)!;
 
     /// <summary>
     /// What the scheduler is sized to from this host's job types. The pool holds every job type's full cap at
@@ -200,8 +205,15 @@ internal static class QuartzRegistration
         quartz.AddTriggerListener<JobMisfireListener>();
         quartz.UseExecutionLimits(ConfigureExecutionLimits);
         UseThreadPool(quartz, options);
+        UseShutdownGuardedStore(quartz);
         quartz.UsePersistentStore(store => ConfigureStore(store, options, database));
     }
+
+    // Registration is first-wins, so this is the store built; the persistent-store configuration after it still sets
+    // up and validates the ADO store inside it.
+    private static void UseShutdownGuardedStore(IQuartzBuilder quartz) =>
+        quartz.UseJobStore(services => new ShutdownGuardedJobStore(
+            (IJobStore)ActivatorUtilities.CreateInstance(services, QuartzAdoJobStore)));
 
     private static void UseThreadPool(IQuartzBuilder quartz, BackgroundJobsOptions options)
     {

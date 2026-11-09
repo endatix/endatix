@@ -7,6 +7,21 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 public sealed class ExecutionGroupFilteringPostgreSqlDelegateTests
 {
     [Fact]
+    public void SupportsFireOnAcquire_EndatixDelegate_IsFalse()
+    {
+        // Arrange — a round without the trigger lock reads its triggers through members of Quartz's own delegates
+        // that bypass SelectTriggers, so a recovered trigger would not be given its job type's group, and would not
+        // count against that type's cap. Quartz keeps such rounds to the delegates it ships, which this one is not.
+        var driverDelegate = new ExecutionGroupFilteringPostgreSqlDelegate();
+
+        // Act
+        var supportsFireOnAcquire = driverDelegate.SupportsFireOnAcquire;
+
+        // Assert
+        supportsFireOnAcquire.Should().BeFalse();
+    }
+
+    [Fact]
     public void PrepareCommand_AcquisitionStatementOutsideAcquisition_Throws()
     {
         // Arrange — a statement carrying the free-slots parameter, prepared without going through acquisition.
@@ -37,53 +52,53 @@ public sealed class ExecutionGroupFilteringPostgreSqlDelegateTests
     }
 
     [Theory]
-    [MemberData(nameof(Quartz422AcquisitionSql.Shapes), MemberType = typeof(Quartz422AcquisitionSql))]
-    public void GetSelectNextTriggerToAcquireSql_Quartz422_MatchesPinnedSql(
+    [MemberData(nameof(Quartz472AcquisitionSql.Shapes), MemberType = typeof(Quartz472AcquisitionSql))]
+    public void GetSelectNextTriggerToAcquireSql_Quartz472_MatchesPinnedSql(
         int maxCount, int excludedJobTypeBucket, string excludedJobTypes)
     {
         // Arrange
-        var dialect = new Quartz422AcquisitionSql.PostgreSqlDialect();
+        var dialect = new Quartz472AcquisitionSql.PostgreSqlDialect();
 
         // Act
         var shipped = dialect.AcquisitionSql(maxCount, excludedJobTypeBucket);
 
         // Assert — the rewrite takes this statement apart; a Quartz upgrade that changes it must update the delegate.
-        shipped.Should().Be(Quartz422AcquisitionSql.PostgreSql(maxCount, excludedJobTypes));
+        shipped.Should().Be(Quartz472AcquisitionSql.PostgreSql(maxCount, excludedJobTypes));
     }
 
     [Theory]
-    [MemberData(nameof(Quartz422AcquisitionSql.Shapes), MemberType = typeof(Quartz422AcquisitionSql))]
-    public void LimitEachGroupToItsFreeSlots_Quartz422Statement_MatchesPinnedRewrite(
+    [MemberData(nameof(Quartz472AcquisitionSql.Shapes), MemberType = typeof(Quartz472AcquisitionSql))]
+    public void LimitEachGroupToItsFreeSlots_Quartz472Statement_MatchesPinnedRewrite(
         int maxCount, int _, string excludedJobTypes)
     {
         // Arrange
-        var shipped = Quartz422AcquisitionSql.PostgreSql(maxCount, excludedJobTypes);
+        var shipped = Quartz472AcquisitionSql.PostgreSql(maxCount, excludedJobTypes);
 
         // Act
         var rewritten = ExecutionGroupFilteringPostgreSqlDelegate.LimitEachGroupToItsFreeSlots(shipped, maxCount);
 
         // Assert
-        Quartz422RewrittenAcquisitionSql.Normalized(rewritten).Should().Be(
-            Quartz422RewrittenAcquisitionSql.PostgreSql(maxCount, excludedJobTypes),
-            Quartz422RewrittenAcquisitionSql.RewriteChanged);
+        Quartz472RewrittenAcquisitionSql.Normalized(rewritten).Should().Be(
+            Quartz472RewrittenAcquisitionSql.PostgreSql(maxCount, excludedJobTypes),
+            Quartz472RewrittenAcquisitionSql.RewriteChanged);
     }
 
     [Theory]
-    [MemberData(nameof(Quartz422AcquisitionSql.Shapes), MemberType = typeof(Quartz422AcquisitionSql))]
+    [MemberData(nameof(Quartz472AcquisitionSql.Shapes), MemberType = typeof(Quartz472AcquisitionSql))]
     public void LimitEachGroupToItsFreeSlots_EveryQuartzShape_KeepsQuartzClauses(
         int maxCount, int excludedJobTypeBucket, string excludedJobTypes)
     {
         // Arrange
-        var shipped = new Quartz422AcquisitionSql.PostgreSqlDialect().AcquisitionSql(maxCount, excludedJobTypeBucket);
+        var shipped = new Quartz472AcquisitionSql.PostgreSqlDialect().AcquisitionSql(maxCount, excludedJobTypeBucket);
 
         // Act
         var rewritten = ExecutionGroupFilteringPostgreSqlDelegate.LimitEachGroupToItsFreeSlots(shipped, maxCount);
 
         // Assert
-        rewritten.Should().Contain(Quartz422AcquisitionSql.PreferredNodeCondition);
+        rewritten.Should().Contain(Quartz472AcquisitionSql.PreferredNodeCondition);
         rewritten.Should().Contain("COALESCE(t.execution_group, t.job_name) = free.endatix_group");
         rewritten.Should().EndWith($" LIMIT {maxCount}");
-        rewritten.Contains(Quartz422AcquisitionSql.ExclusionCondition(excludedJobTypes), StringComparison.Ordinal)
+        rewritten.Contains(Quartz472AcquisitionSql.ExclusionCondition(excludedJobTypes), StringComparison.Ordinal)
             .Should().Be(excludedJobTypeBucket > 0);
     }
 }

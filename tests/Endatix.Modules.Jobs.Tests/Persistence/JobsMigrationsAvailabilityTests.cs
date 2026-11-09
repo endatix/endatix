@@ -13,7 +13,7 @@ namespace Endatix.Modules.Jobs.Tests.Persistence;
 public sealed class JobsMigrationsAvailabilityTests
 {
     [Fact]
-    public void GetMigrations_PostgreSqlContext_ReturnsTheThreeShippedIds()
+    public void GetMigrations_PostgreSqlContext_ReturnsTheShippedIds()
     {
         // Arrange — databases have applied these ids; any other id would run again or be skipped.
         using var context = new JobsPostgreSqlDbContext(
@@ -27,7 +27,8 @@ public sealed class JobsMigrationsAvailabilityTests
         migrations.Should().Equal(
             "20260928150416_InitialBackgroundJobs",
             "20260928153000_AddTriggerAcquisitionIndex",
-            "20260928161206_AddDedupKeyToBackgroundJobs");
+            "20260928161206_AddDedupKeyToBackgroundJobs",
+            "20261107120000_UpgradeQuartzTablesTo472");
     }
 
     [Fact]
@@ -42,7 +43,8 @@ public sealed class JobsMigrationsAvailabilityTests
         // Assert
         migrations.Should().Equal(
             "20261009151311_InitialBackgroundJobs",
-            "20261015080000_PinTriggerAcquisitionGroupCollation");
+            "20261015080000_PinTriggerAcquisitionGroupCollation",
+            "20261107120000_UpgradeQuartzTablesTo472");
     }
 
     [Fact]

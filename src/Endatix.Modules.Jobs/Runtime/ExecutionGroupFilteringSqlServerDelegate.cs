@@ -59,8 +59,9 @@ internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
     /// shipped order.
     /// </summary>
     /// <remarks>
-    /// The shipped statement's projection, joins and conditions are kept as they are, with its sort columns added to
-    /// the projection for the outer order. The free groups and their slots arrive as one JSON parameter, read with
+    /// The shipped statement's projection, joins and conditions are kept as they are, with <c>PRIORITY</c>, the one
+    /// sort column it does not project, added for the outer order; a derived table may not name <c>NEXT_FIRE_TIME</c>
+    /// twice. The free groups and their slots arrive as one JSON parameter, read with
     /// <c>OPENJSON</c>, so the database needs no table type and group names never become statement text. A trigger
     /// stored without an execution group, as Quartz stores the ones that recover a dead node's jobs, is matched by
     /// its job, whose name is the job type.
@@ -76,7 +77,7 @@ internal class ExecutionGroupFilteringSqlServerDelegate : SqlServerDelegate
             FROM OPENJSON(@{FreeSlotsParameter})
                 WITH (endatix_group nvarchar(200) COLLATE {AcquireGroupCollation} '$.g', endatix_free_slots int '$.s') AS free
             CROSS APPLY (
-                SELECT TOP (free.endatix_free_slots) t.NEXT_FIRE_TIME, t.PRIORITY,{shipped.ProjectionAndConditions}
+                SELECT TOP (free.endatix_free_slots) t.PRIORITY,{shipped.ProjectionAndConditions}
                 AND t.ENDATIX_ACQUIRE_GROUP = free.endatix_group
                 {shipped.Order}
             ) AS acquirable

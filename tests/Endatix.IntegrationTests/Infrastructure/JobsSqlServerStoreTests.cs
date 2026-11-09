@@ -105,7 +105,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
             ("IX_BackgroundJobs_DedupKey", true, "([DedupKey] IS NOT NULL)"),
             ("IX_BackgroundJobs_Expiry", false, null),
             ("IX_BackgroundJobs_Tenant", false, null));
-        appliedMigrations.Should().Be(2);
+        appliedMigrations.Should().Be(3);
         await ShouldHaveTheAcquisitionColumnAndIndexAsync(database, ct);
     }
 
@@ -386,6 +386,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         command.Parameters.AddWithValue("@state", "WAITING");
         command.Parameters.AddWithValue("@noLaterThan", now.AddSeconds(30).UtcTicks);
         command.Parameters.AddWithValue("@noEarlierThan", now.AddDays(-1).UtcTicks);
+        command.Parameters.AddWithValue("@misfireCountedFrom", now.UtcTicks);
         command.Parameters.AddWithValue("@instanceId", "acquisition-test");
         command.Parameters.AddWithValue("@autoPinSentinel", "*");
         command.Parameters.AddWithValue("@liveNodeCutoff", now.AddSeconds(-15).UtcTicks);
@@ -468,7 +469,8 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
             ("NEXT_FIRE_TIME", false, false),
             ("PRIORITY", true, false));
         indexColumns.Where(column => column.Included).Select(column => column.Name).Should().BeEquivalentTo(
-            "JOB_NAME", "JOB_GROUP", "EXECUTION_GROUP", "MISFIRE_INSTR", "PREFERRED_NODE");
+            "JOB_NAME", "JOB_GROUP", "EXECUTION_GROUP", "MISFIRE_INSTR", "PREFERRED_NODE", "MISFIRE_THRESHOLD",
+            "OVERLAP_POLICY", "FIXED_DELAY");
     }
 
     // Built the way the module registers its context, so the test migrates with the runtime's options.

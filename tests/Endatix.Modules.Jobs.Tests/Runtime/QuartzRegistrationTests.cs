@@ -109,6 +109,22 @@ public sealed class QuartzRegistrationTests
     }
 
     [Fact]
+    public void AddJobsScheduler_RegisteredJobTypes_RoutesNoExecutionGroups()
+    {
+        // Arrange — execution limits, not routing, keep a node to its job types. A served-groups list would put
+        // EXECUTION_GROUP IN (…) into the acquisition statement, which drops the ungrouped triggers that recover a
+        // dead node's jobs; the delegates match those by job name instead.
+        using var provider = SchedulerServices(new Dictionary<string, string?>(), ["A", "B"]);
+
+        // Act
+        var scheduler = SchedulerOptions<QuartzSchedulerOptions>(provider);
+
+        // Assert
+        scheduler.ServedExecutionGroups.Should().BeEmpty();
+        scheduler.RefusedExecutionGroups.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Build_DeclaredDefaultsAndNoConfiguration_CapsComeFromTheDeclaredDefaults()
     {
         // Arrange
