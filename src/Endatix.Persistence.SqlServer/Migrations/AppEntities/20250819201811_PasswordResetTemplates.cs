@@ -21,7 +21,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-
+            // Intentionally empty: seeded password-reset email templates are not removed on rollback (data may already be in use).
         }
     }
 }
