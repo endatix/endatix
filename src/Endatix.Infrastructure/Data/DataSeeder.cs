@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data.Logging;
 using Endatix.Infrastructure.Data.SeedData;
