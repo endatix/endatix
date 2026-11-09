@@ -121,7 +121,7 @@ jobs:
         with:
           persist-credentials: false
       - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: Restore dependencies
@@ -215,7 +215,7 @@ jobs:
         with:
           persist-credentials: false
       - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       # PRs skip P2 tests to save time, so SonarCloud can report code that only a P2
@@ -280,7 +280,7 @@ jobs:
         with:
           persist-credentials: false
       - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       # Debug, like the unit run: Debug gives braces their own sequence points, so a
@@ -366,7 +366,7 @@ jobs:
           exit 1
       - name: 📦 Setup .NET
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: 📊 Download coverage
@@ -435,7 +435,7 @@ jobs:
       contents: read # release writes use the App token inside the shared workflow
       packages: write # GitHub Packages push + GHCR image push
       id-token: write # OIDC for Infisical inside the shared workflow
-    uses: endatix/release-workflows/.github/workflows/canary.yml@8e04473b8951790b94f7a4486e47d4e714dac9a3 # v1
+    uses: endatix/release-workflows/.github/workflows/canary.yml@d0f1bfc9325d6ad5588e91f49885b02eadaae6d7 # v1
     with:
       docker-image: ghcr.io/endatix/endatix-api
       dotnet-version: "10.x" # global.json rolls forward within 10.0.x
