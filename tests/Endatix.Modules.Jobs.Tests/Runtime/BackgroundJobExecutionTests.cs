@@ -316,7 +316,7 @@ public sealed partial class BackgroundJobExecutionTests
         await execution.Execute(context, TestContext.Current.CancellationToken);
 
         // Assert — the firing trigger itself fires again, marked to take over the row this attempt left Processing.
-        await repository.Received(JobOutcomeRecorder.WriteRetryDelays.Length + 1)
+        await repository.Received(OutcomeWriteRetries.Default.Tries)
             .TryCompleteAsync(new AttemptRef(JobId, 1), Arg.Any<JobFinish>(), CancellationToken.None);
         rescheduled.Should().NotBeNull();
         rescheduled.Key.Should().Be(context.Trigger.Key);

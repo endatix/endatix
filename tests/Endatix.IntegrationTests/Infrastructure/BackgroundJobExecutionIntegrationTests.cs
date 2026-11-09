@@ -246,13 +246,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
-        var failures = new StateRepositoryFailures(completions: JobOutcomeRecorder.WriteRetryDelays.Length + 1);
+        var failures = new StateRepositoryFailures(completions: OutcomeWriteRetries.Default.Tries);
         await using var node = JobsTestNode.Create(
             database,
             configureServices: services =>
             {
                 services.AddProbe(invocations);
                 FailingStateRepository.Register(services, failures);
+                services.UseQuickOutageRetries();
             });
         await node.StartAsync(ct);
 
@@ -261,6 +262,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert — the trigger was kept, and the next firing recorded the completion it carried.
+        row.Status.Should().Be(JobStatus.Completed);
         row.AttemptCount.Should().Be(1);
         invocations.CountFor(jobId).Should().Be(1);
         (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();

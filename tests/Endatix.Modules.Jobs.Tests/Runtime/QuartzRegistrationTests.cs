@@ -110,6 +110,45 @@ public sealed class QuartzRegistrationTests
     }
 
     [Fact]
+    public void AddJobExecution_NoOutageWaitsGiven_UsesTheProductionWaits()
+    {
+        // Arrange
+        using var provider = new ServiceCollection().AddJobExecution().BuildServiceProvider();
+
+        // Act
+        var refire = provider.GetRequiredService<RefireDelay>();
+        var writes = provider.GetRequiredService<OutcomeWriteRetries>();
+        var stores = provider.GetRequiredService<TriggerStoreBackoff>();
+
+        // Assert
+        refire.Value.Should().Be(TimeSpan.FromSeconds(5));
+        writes.Delays.Should().Equal(TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
+        writes.Tries.Should().Be(4);
+        stores.Should().Be(TriggerStoreBackoff.Default);
+    }
+
+    [Fact]
+    public void AddJobExecution_OutageWaitsRegisteredFirst_KeepsThem()
+    {
+        // Arrange
+        var refire = new RefireDelay(TimeSpan.FromMilliseconds(1));
+        var writes = new OutcomeWriteRetries([TimeSpan.FromMilliseconds(1)]);
+        var stores = new TriggerStoreBackoff(TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1));
+        var services = new ServiceCollection();
+        services.AddSingleton(refire);
+        services.AddSingleton(writes);
+        services.AddSingleton(stores);
+
+        // Act
+        using var provider = services.AddJobExecution().BuildServiceProvider();
+
+        // Assert
+        provider.GetRequiredService<RefireDelay>().Should().BeSameAs(refire);
+        provider.GetRequiredService<OutcomeWriteRetries>().Should().BeSameAs(writes);
+        provider.GetRequiredService<TriggerStoreBackoff>().Should().BeSameAs(stores);
+    }
+
+    [Fact]
     public void AddJobsScheduler_NoClockGiven_SchedulerRunsOnTheSystemClock()
     {
         // Arrange

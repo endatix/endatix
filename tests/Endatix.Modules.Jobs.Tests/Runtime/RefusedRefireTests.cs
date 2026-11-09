@@ -107,7 +107,7 @@ public sealed class RefusedRefireTests
         // Assert
         settledFirst.Should().BeFalse();
         settledThen.Should().BeTrue();
-        await repository.Received(2 * (JobOutcomeRecorder.WriteRetryDelays.Length + 1))
+        await repository.Received(2 * OutcomeWriteRetries.Default.Tries)
             .TryCompleteAsync(new AttemptRef(JobId, carried.Attempt), Arg.Any<JobFinish>(), CancellationToken.None);
         await repository.Received(1).TryDeadLetterAsync(
             new UnfinishedRow(JobId, JobStatus.Processing, carried.Attempt), Arg.Any<AttemptFailure>(), Arg.Any<CancellationToken>());
@@ -116,7 +116,7 @@ public sealed class RefusedRefireTests
     private static RefireRefusal SchedulerRefusalOf(UnsavedOutcome carried) =>
         new(
             Substitute.For<IScheduler>(),
-            new JobRefireTrigger(JobId, UnrecordedJobRefire.Delay, (_, _) => null!, carried.Attempt, carried),
+            new JobRefireTrigger(JobId, RefireDelay.Default.Value, (_, _) => null!, carried.Attempt, carried),
             QuartzRegistration.JobKeyFor(ProbeJobType),
             new SchedulerException("The trigger will never fire."),
             DateTime.UtcNow);

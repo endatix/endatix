@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests;
 public sealed partial class BackgroundJobExecutionIntegrationTests
 {
     // Every try the first firing makes at its outcome write.
-    private static readonly int OneFiringOfWrites = JobOutcomeRecorder.WriteRetryDelays.Length + 1;
+    private static readonly int OneFiringOfWrites = OutcomeWriteRetries.Default.Tries;
 
     [Fact]
     public async Task Last_attempt_that_succeeded_but_could_not_save_its_result_completes_once_the_database_is_back()
@@ -26,13 +26,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: OneFiringOfWrites + 2);
-        await using var node = await StartNodeFailingStateWritesAsync(new(database, invocations, OneAttempt()), failures, ct);
+        await using var node = await StartNodeFailingStateWritesQuicklyAsync(new(database, invocations, OneAttempt()), failures, ct);
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert — the handler ran once, and its end was counted once.
+        row.Status.Should().Be(JobStatus.Completed);
         row.AttemptCount.Should().Be(1);
         row.ErrorMessage.Should().BeNull();
         invocations.CountFor(jobId).Should().Be(1);
@@ -50,13 +51,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures { Fails = OneFiringOfWrites + 1 };
-        await using var node = await StartNodeFailingStateWritesAsync(new(database, invocations, OneAttempt()), failures, ct);
+        await using var node = await StartNodeFailingStateWritesQuicklyAsync(new(database, invocations, OneAttempt()), failures, ct);
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Fail), ct);
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Failed, ct);
 
         // Assert
+        row.Status.Should().Be(JobStatus.Failed);
         row.ErrorMessage.Should().Be(ProbeBehaviours.FailureMessage);
         row.AttemptCount.Should().Be(1);
         invocations.CountFor(jobId).Should().Be(1);
@@ -101,12 +103,20 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     [Fact]
     public async Task Job_canceled_while_its_unsaved_completion_waits_stays_canceled()
     {
-        // Arrange — the first firing's writes all fail, so its completion waits on the re-fire.
+        // Arrange — the first firing's writes all fail, so its completion waits on the re-fire, which comes late enough
+        // for the cancel to land first.
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: OneFiringOfWrites);
-        await using var node = await StartNodeFailingStateWritesAsync(new(database, invocations, OneAttempt()), failures, ct);
+        await using var node = await StartNodeFailingAsync(
+            new(database, invocations, OneAttempt()),
+            services =>
+            {
+                FailingStateRepository.Register(services, failures);
+                services.UseQuickOutageRetries(refireDelay: TimeSpan.FromSeconds(3));
+            },
+            ct);
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(failures.CompletionsRemaining == 0), Patience, ct);
 
@@ -136,13 +146,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
             [ProbeKey("MaxAttempts")] = "3",
             [ProbeKey("BackoffBaseSeconds")] = "60",
         };
-        await using var node = await StartNodeFailingStateWritesAsync(new(database, invocations, settings), failures, ct);
+        await using var node = await StartNodeFailingStateWritesQuicklyAsync(new(database, invocations, settings), failures, ct);
 
         // Act
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.ThrowOnce), ct);
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert — nothing was carried for the throw; the re-fire re-claimed the row for the next attempt.
+        row.Status.Should().Be(JobStatus.Completed);
         row.AttemptCount.Should().Be(2);
         invocations.CountFor(jobId).Should().Be(2);
         failures.FailedAttempts.Should().Be(0);
@@ -188,6 +199,20 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
                 registerFailures(services);
             })
             .StartedAsync(ct);
+
+    // A node whose state writes fail, with the waits past those failures cut short.
+    private static Task<JobsTestNode> StartNodeFailingStateWritesQuicklyAsync(
+        ProbeNodeSetup setup,
+        StateRepositoryFailures failures,
+        CancellationToken ct) =>
+        StartNodeFailingAsync(
+            setup,
+            services =>
+            {
+                FailingStateRepository.Register(services, failures);
+                services.UseQuickOutageRetries();
+            },
+            ct);
 
     private static int CountOf(JobLifecycleEventListener lifecycle, string lifecycleEvent) =>
         lifecycle.Events.Count(entry => entry.Event == lifecycleEvent && entry.JobType == ProbePayload.JobType);

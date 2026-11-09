@@ -277,7 +277,9 @@ Waits that stay real time:
 - shutdown: `ShutdownWaitSeconds` and Quartz's own shutdown waits;
 - the scheduler's start-retry delays;
 - the delays of an unrecorded outcome's re-fire and of its write retries (`UnrecordedJobRefire`,
-  `JobOutcomeRecorder`). The re-fire's trigger time follows the clock; the waits before it do not.
+  `OutcomeRowWriter`). The re-fire's trigger time follows the clock; the waits before it do not.
+  A test that stages a database outage shortens them instead, with its own `RefireDelay`,
+  `OutcomeWriteRetries` and `TriggerStoreBackoff`, which the module adds only when absent.
 
 A test that steps the clock keeps each step below `MisfireThresholdSeconds` and the check-in
 threshold, or a due trigger counts as a misfire and a live node looks dead. A test of the backlog

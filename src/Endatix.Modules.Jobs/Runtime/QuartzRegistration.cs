@@ -135,17 +135,26 @@ internal static class QuartzRegistration
         services.AddScoped<JobAttemptClaimer>();
         services.AddScoped<JobHandlerRunner>();
         services.AddScoped<JobOutcomeRecorder>();
+        services.AddScoped<OutcomeRowWriter>();
         services.AddScoped<UnrecordedJobRefire>();
         services.AddScoped<RefusedRefire>();
         services.AddSingleton<StoredDurableJobs>();
-        // Added only if absent, so a test can make a refused trigger's next try come sooner.
-        services.TryAddSingleton(TriggerStoreBackoff.Default);
+        AddOutageWaits(services);
         services.AddSingleton<JobsShutdownSignal>();
         services.AddSingleton<ReadOnlyDatabaseWarning>();
         services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
         AddMetrics(services);
         AddJobTypePolicies(services);
         return services;
+    }
+
+    // Added only if absent, so a test can make a refused trigger's next try, a re-fire and an outcome write's next
+    // try come sooner.
+    private static void AddOutageWaits(IServiceCollection services)
+    {
+        services.TryAddSingleton(TriggerStoreBackoff.Default);
+        services.TryAddSingleton(RefireDelay.Default);
+        services.TryAddSingleton(OutcomeWriteRetries.Default);
     }
 
     private static void AddMetrics(IServiceCollection services)

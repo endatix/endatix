@@ -31,7 +31,7 @@ public sealed class JobTriggerListenerTests
         rescheduled.Should().ContainSingle();
         rescheduled[0].Key.Should().Be(new TriggerKey(JobId.ToString(), ProbeJobType));
         rescheduled[0].JobDataMap.GetString(BackgroundJobExecution.ReclaimKey).Should().Be(bool.TrueString);
-        rescheduled[0].StartTimeUtc.Should().Be(Now.Add(UnrecordedJobRefire.Delay));
+        rescheduled[0].StartTimeUtc.Should().Be(Now.Add(RefireDelay.Default.Value));
         rescheduled[0].RetryPolicy.Should().BeNull();
     }
 
@@ -104,7 +104,7 @@ public sealed class JobTriggerListenerTests
         var rescheduled = new List<ITrigger>();
         context.Scheduler
             .RescheduleJob(context.Trigger.Key, Arg.Do<ITrigger>(rescheduled.Add), Arg.Any<CancellationToken>())
-            .Returns(Now.Add(UnrecordedJobRefire.Delay));
+            .Returns(Now.Add(RefireDelay.Default.Value));
         return rescheduled;
     }
 }
