@@ -38,6 +38,7 @@ internal static class JobExecutionTestHost
         services.AddSingleton(Substitute.For<IJobMetrics>());
         services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(NullLogger<>));
         services.AddSingleton(QuickTriggerStoreRetries);
+        services.AddKeyedSingleton(QuartzRegistration.SchedulerName, TimeProvider.System);
         services.AddJobExecution();
         return services.BuildServiceProvider();
     }

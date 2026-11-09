@@ -203,6 +203,10 @@ internal static class QuartzRegistration
     private static void ConfigureQuartz(IQuartzBuilder quartz, SchedulerRecipe recipe)
     {
         var (options, database, sizing) = recipe;
+
+        // The one clock of the jobs module, at the scheduler's key: the scheduler, its store and the runtime ceiling
+        // read it. A test replaces it there to step time; the host's other services keep their own clock.
+        quartz.UseTimeProvider(TimeProvider.System);
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         SizeToRegisteredJobTypes(quartz, sizing);
         AddRetentionJob(quartz, options.Retention);

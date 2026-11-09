@@ -16,11 +16,13 @@ internal sealed class JobHandlerRunner(
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
+    [FromKeyedServices(QuartzRegistration.SchedulerName)] TimeProvider clock,
     ILogger<JobHandlerRunner> logger)
 {
     public async Task<HandlerRun> RunAsync(ClaimedAttempt attempt, CancellationToken schedulerToken)
     {
-        using var runtime = new CancellationTokenSource(attempt.Policy.MaxRuntime);
+        // On the scheduler's clock, so the ceiling and the triggers that time the job's attempts agree.
+        using var runtime = new CancellationTokenSource(attempt.Policy.MaxRuntime, clock);
         await using var watcher = CancellationWatcher.Start(scopeFactory, WatchedAttemptOf(attempt), logger);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             schedulerToken, shutdownSignal.Token, runtime.Token, watcher.Token);
