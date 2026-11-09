@@ -789,7 +789,7 @@ that changes it fails in CI rather than at deploy time:
 The upgrade from 4.2.2 to 4.7.2 is `UpgradeQuartzTablesTo472`, for both providers. It adds the
 columns, the `qrtz_job_status` table and the execution-history indexes of Quartz's 4.3, 4.4, 4.6 and
 4.7 upgrade scripts, the execution-history ones included although the module does not turn
-execution history on, so that an upgraded database has what a fresh one gets. On SQL Server, a
+on the database-backed execution history (`UseExecutionHistory()`), so that an upgraded database has what a fresh one gets. On SQL Server, a
 database created before keeps `FK_qrtz_BLOB_TRIGGERS_qrtz_TRIGGERS`, which the 4.7.2 create script
 no longer makes ([quartznet#3949](https://github.com/quartznet/quartznet/issues/3949)); Quartz
 deletes blob rows itself, so nothing depends on it. `JobsQuartzSchemaUpgradeTests` migrates a
