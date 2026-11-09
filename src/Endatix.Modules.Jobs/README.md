@@ -488,8 +488,8 @@ in the Background Processing docs (`docs/endatix-docs/docs/configuration/backgro
 
 With `Endatix:Outbox:DeliverToJobQueue` on (default `false`), the outbox relay delivers each message
 by enqueuing one job per subscriber, one `WebHookDelivery` job per distinct enabled endpoint URL and
-one job per Reporting or Audience handler, with the dedup key `{outboxMessageId}:{subscriber}`, and
-marks it sent. A module registers each handler with `AddOutboxWork`, which registers it inline, as a
+one job per Reporting or Audience handler that needs the message, with the dedup key
+`{outboxMessageId}:{subscriber}`, and marks it sent. A module registers each handler with `AddOutboxWork`, which registers it inline, as a
 job and as that job's subscriptions in one call; see
 [Domain and integration events](../../ARCHITECTURE.md#domain-and-integration-events).
 
@@ -537,13 +537,15 @@ Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10
 The options validator checks the values each job type runs with, and names the key each one came
 from; a value from code is named by the `JobTypes` key that replaces it.
 A global backoff value is checked against each job type's values from code, so a global
-`BackoffBaseSeconds` of `700` fails startup for the Reporting and Audience types (cap `600`); set
-the job type's own key instead.
+`BackoffBaseSeconds` of `700` fails startup for any job type whose cap from code is lower, such as
+the Reporting types (`600`); set the job type's own key instead.
 
 | Job type | MaxAttempts | MaxRuntimeMinutes | BackoffBaseSeconds / BackoffCapSeconds | RetentionDays | MaxConcurrency | Declared in |
 |----------|-------------|-------------------|----------------------------------------|---------------|----------------|-------------|
 | `WebHookDelivery` | 8 | 5 | 10 / 3600 | 3 | 4 | `Endatix.Infrastructure` |
-| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion`, `AudienceDeleteFormAudience`, `AudienceReleaseLinkOnTestMark` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Infrastructure` (`OutboxWorkServiceCollectionExtensions.DefaultJob`, which `AddOutboxWork` uses unless given others) |
+| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingRebuildSearchCopy`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion`, `AudienceDeleteFormAudience`, `AudienceReleaseLinkOnTestMark` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Infrastructure` (`OutboxWorkServiceCollectionExtensions.DefaultJob`, which `AddOutboxWork` uses unless given others) |
+| `AudienceImportCheck` | 3 | global | global | global | 2 | `Endatix.Modules.Audience` |
+| `AudienceImportWrite` | 8 | global | 5 / 300 | global | 2 | `Endatix.Modules.Audience` |
 | any other | global | global | global | global | 1 | — |
 
 | Key | Default | Purpose |

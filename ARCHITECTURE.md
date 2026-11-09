@@ -500,20 +500,20 @@ Rules:
 ## Background Jobs
 
 `Endatix.Modules.Jobs` runs work that outlives a request: webhook delivery, Reporting's read-model
-updates, Audience's outbox work, and later exports. It is gated by `Endatix:FeatureFlags:JobsModule`
+updates, Audience's outbox work and imports, and later exports. It is gated by `Endatix:FeatureFlags:JobsModule`
 and runs on PostgreSQL and on SQL Server, each with its own context and migrations; the provider rules,
 including SQL Server's trigger lock on enqueue, are under [Module registration](#module-registration-oss).
 
 ### The row and the queue
 
 Every job has exactly one **row** in `jobs."BackgroundJobs"` and, while it waits to run, one
-**Quartz trigger** in `jobs.qrtz_triggers`, keyed by the job id. Quartz deletes a trigger once it has
+**Quartz trigger** in the `jobs.qrtz_*` tables, keyed by the job id. Quartz deletes a trigger once it has
 fired for the last time, so a finished job has none, and a job recovered from a dead node runs on a
 recovery trigger of Quartz's own before it gets a job-id trigger back for any retry.
 
 - The **row is the record**: tenant, status, attempts, progress, error, trace and retention. It is
   what `GET jobs/{jobId}` reads, and the only place a job's state lives.
-- **Quartz.NET 4.2.2, pinned exactly, is the queue**: a clustered store in the same schema decides when and on which
+- **Quartz.NET 4.7.2, pinned exactly, is the queue**: a clustered store in the same schema decides when and on which
   node a job runs, and re-runs a dead node's jobs on a survivor. A retry is a trigger the job wrapper
   stores itself. The trigger carries the job id and, on a re-fire, what it is for: taking the row
   over, or writing the outcome of an attempt that finished but could not save it.
@@ -537,7 +537,7 @@ flowchart LR
 
 ### Claim and outcome
 
-`BackgroundJobExecution` is the only Quartz job class. For each firing it **claims** the row with a
+`BackgroundJobExecution` is the Quartz job class behind every job row. For each firing it **claims** the row with a
 compare-and-swap from `Pending`/`Retrying` to `Processing` that increments `AttemptCount`; a
 recovered firing re-claims from `Processing`, fenced on the attempt it read. A claim that changes
 nothing ends the firing; a claim that throws re-fires the job, to be claimed again. The handler runs in its own scope, under an `Endatix.Jobs` activity parented
@@ -817,7 +817,7 @@ Overloading `act` so `sub` is the customer would break assume-authz (`act == sub
 | 2026-08 | Tenant public id: keep `Tenant.ShortUrl` as a unique immutable `varchar(8)` column; generate with `IShortUrlGenerator` (CSPRNG, `a-z0-9` alphabet, letter-heavy). Do not derive from name. JWT `tid` remains the isolation boundary. See [Multi-tenancy (platform tenants)](#multi-tenancy-platform-tenants).                                                                                                                                                       |
 | 2026-08 | Tenant access: one home `AppUser.TenantId`. Assume-tenant uses JWT `act` and does not write membership. `platform.users.impersonate` stays reserved. Self-reg is opt-in per tenant via opaque public id. Multi-tenant membership is a later Identity table.                                                                                                                                                                                                         |
 | 2026-09 | JWT session is `tid` + optional `act`. Refresh copies that session. `tenant.context.changed` covers assume and exit. Impersonation (`sub` = customer) is a later claim, not a second token service. See [JWT session](#multi-tenancy-platform-tenants).                                                                                                                                                                                                             |
-| 2026-09 | Background jobs run on Quartz.NET 4.2 in the `jobs` schema: the row is the job's record, Quartz is the queue, enqueue writes both in one transaction, and one execution group per job type isolates workloads. The outbox relay delivers to the job queue — one job per subscriber — behind `Endatix:Outbox:DeliverToJobQueue`. See [Background Jobs](#background-jobs). |
+| 2026-09 | Background jobs run on Quartz.NET in the `jobs` schema: the row is the job's record, Quartz is the queue, enqueue writes both in one transaction, and one execution group per job type isolates workloads. The outbox relay delivers to the job queue — one job per subscriber — behind `Endatix:Outbox:DeliverToJobQueue`. See [Background Jobs](#background-jobs). |
 | 2026-09 | Submissions Excel: a native XLSX exporter, not CSV `="id"` wrapping — CSV stays raw interchange. XLSX types a cell from the JSON value only; numeric-looking text (`007`, `NaN`) stays text. See [Module packaging](#module-packaging-contracts-vs-domain) (submission export formats).                                                                                                                                                                             |
 | 2026-10 | Submission export `collectionStatus`: pipe-separated wire codes. When set, it replaces `completionStatus` (`IsComplete`). Reporting filters with `Contains` on the `CollectionStatus` value, not `.Code` (the value converter does not translate member access). Legacy SQL functions return the column and do not apply the filter. |
 | 2026-10 | Background Jobs run on SQL Server as well as PostgreSQL, through the module pattern (`JobsSqlServerDbContext`). On SQL Server, enqueueing takes Quartz's trigger lock (`LockOnInsert` defaults to `true` there, `false` on PostgreSQL); turning it off is an operations change that needs `READ_COMMITTED_SNAPSHOT`, which the scheduler checks before it starts. The acquisition group column is computed in a pinned binary collation, read in the same one, so acquisition never depends on the database's default collation. See the [Jobs README](src/Endatix.Modules.Jobs/README.md). |
