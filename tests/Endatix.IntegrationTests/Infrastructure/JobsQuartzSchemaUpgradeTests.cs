@@ -36,13 +36,37 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
         // Act
         await upgraded.MigrateToAsync(targetMigration: null, ct);
 
-        // Assert — the downgrade really left the 4.2.2 tables, and the upgrade brought back every column, table and
-        // index the 4.7.2 create script makes, with the same types.
+        // Assert — the downgrade really left the 4.2.2 tables, and the upgrade brought back the rest.
         columnsOnQuartz422.Should().NotIntersectWith(addedColumns);
-        (await ColumnsAsync(upgraded.Database, ct)).Should().BeEquivalentTo(await ColumnsAsync(fresh.Database, ct));
-        (await ColumnDefinitionsAsync(upgraded.Database, ct))
-            .Should().BeEquivalentTo(await ColumnDefinitionsAsync(fresh.Database, ct));
-        (await IndexesAsync(upgraded.Database, ct)).Should().BeEquivalentTo(await IndexesAsync(fresh.Database, ct));
+        await ShouldMatchAsync(upgraded.Database, fresh.Database, ct);
+    }
+
+    [Fact]
+    public async Task UpgradeMigration_StatementFailsMidway_KeepsWhatCommittedAndCompletesWhenRunAgain()
+    {
+        // Arrange — the execution-history table is out of the way, so the upgrade's first statement on it fails, after
+        // the earlier statements on the fired-trigger and trigger tables.
+        var ct = TestContext.Current.CancellationToken;
+        await using var fresh = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ConnectionString, ct);
+        await using var upgraded = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ConnectionString, ct);
+        var (previousMigration, addedColumns) = UpgradeOf(fixture.Provider);
+        await upgraded.MigrateToAsync(previousMigration, ct);
+        var history = HistoryTableOf(fixture.Provider);
+        await upgraded.Database.ExecuteAsync(history.MoveAway, ct);
+        var migrate = () => upgraded.MigrateToAsync(targetMigration: null, ct);
+
+        // Act
+        await migrate.Should().ThrowAsync<Exception>();
+        var columnsAfterFailure = await ColumnsAsync(upgraded.Database, ct);
+        var upgradeRecorded = await upgraded.Database.CountAsync(UpgradeRecordedCount(fixture.Provider), ct);
+        await upgraded.Database.ExecuteAsync(history.BringBack, ct);
+        await upgraded.MigrateToAsync(targetMigration: null, ct);
+
+        // Assert — each statement before the failure committed on its own, the history row waited for the last one,
+        // and the rerun completed the upgrade.
+        columnsAfterFailure.Should().Contain(addedColumns[0]);
+        upgradeRecorded.Should().Be(0);
+        await ShouldMatchAsync(upgraded.Database, fresh.Database, ct);
     }
 
     [Fact]
@@ -63,6 +87,35 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
         // Assert — Quartz validates its tables at startup and refuses any it finds without a 4.7.2 column.
         acquired.Should().Equal(behind);
         await start.Should().NotThrowAsync();
+    }
+
+    // Statements that rename Quartz's execution-history table and rename it back.
+    private static (string MoveAway, string BringBack) HistoryTableOf(TestDatabaseProvider provider) => provider switch
+    {
+        TestDatabaseProvider.PostgreSql => (
+            "ALTER TABLE jobs.qrtz_execution_history RENAME TO qrtz_execution_history_away;",
+            "ALTER TABLE jobs.qrtz_execution_history_away RENAME TO qrtz_execution_history;"),
+        TestDatabaseProvider.SqlServer => (
+            "EXEC sp_rename N'jobs.qrtz_EXECUTION_HISTORY', N'qrtz_EXECUTION_HISTORY_AWAY';",
+            "EXEC sp_rename N'jobs.qrtz_EXECUTION_HISTORY_AWAY', N'qrtz_EXECUTION_HISTORY';"),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider."),
+    };
+
+    private static string UpgradeRecordedCount(TestDatabaseProvider provider)
+    {
+        var id = (provider == TestDatabaseProvider.PostgreSql ? typeof(PostgreSqlUpgrade) : typeof(SqlServerUpgrade))
+            .GetCustomAttribute<MigrationAttribute>()!.Id;
+        return provider == TestDatabaseProvider.PostgreSql
+            ? $"""SELECT count(*) FROM jobs."__EFMigrationsHistory" WHERE "MigrationId" = '{id}'"""
+            : $"SELECT count(*) FROM jobs.__EFMigrationsHistory WHERE MigrationId = '{id}'";
+    }
+
+    // Every column, table and index the 4.7.2 create script makes, with the same types.
+    private static async Task ShouldMatchAsync(JobsTestDatabase actual, JobsTestDatabase expected, CancellationToken ct)
+    {
+        (await ColumnsAsync(actual, ct)).Should().BeEquivalentTo(await ColumnsAsync(expected, ct));
+        (await ColumnDefinitionsAsync(actual, ct)).Should().BeEquivalentTo(await ColumnDefinitionsAsync(expected, ct));
+        (await IndexesAsync(actual, ct)).Should().BeEquivalentTo(await IndexesAsync(expected, ct));
     }
 
     // The migration before the upgrade, which a database on Quartz 4.2.2's tables was last migrated to, and the

@@ -24,8 +24,16 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
     /// <para>
     /// Every addition is nullable or a new object, and guarded, so on a database that <c>InitialBackgroundJobs</c>
     /// created from the 4.7.2 script only the acquisition index below is rebuilt, and a node still on Quartz 4.2.2
-    /// keeps running on the result: it neither reads nor writes what is added. A nullable column without a default changes only the
-    /// catalog, so each <c>ALTER TABLE</c> is quick, though it waits for the table's open transactions.
+    /// keeps running on the result: it neither reads nor writes what is added.
+    /// </para>
+    /// <para>
+    /// Each statement commits on its own rather than in EF's one migration transaction, so it holds its table's lock
+    /// only while it runs; adding a nullable column without a default changes only the catalog, though it still waits
+    /// for the table's open transactions. This avoids a lock-order deadlock with running nodes: they write
+    /// <c>qrtz_TRIGGERS</c> and then <c>qrtz_FIRED_TRIGGERS</c>, and this migration alters <c>qrtz_FIRED_TRIGGERS</c>
+    /// first, so locks held to one commit could each wait on the other's while a backlog runs. Every statement is
+    /// guarded, so a migration stopped midway completes when it is run again; EF writes its history row only after
+    /// the last statement.
     /// </para>
     /// <para>
     /// Quartz 4.7.2's acquisition also reads <c>MISFIRE_THRESHOLD</c>, <c>OVERLAP_POLICY</c> and <c>FIXED_DELAY</c>,
@@ -33,7 +41,8 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
     /// index no longer covers the read, and SQL Server may scan a full group's whole backlog rather than seek each
     /// free group's triggers. It is rebuilt in place (<c>DROP_EXISTING</c>), so acquisition keeps the earlier index
     /// until the new one replaces it; the build reads the whole of <c>qrtz_TRIGGERS</c> and blocks writes to it
-    /// meanwhile, so enqueues and acquisitions on running nodes wait for it: migrate while few triggers wait.
+    /// while that one statement runs, so enqueues and acquisitions on running nodes wait for it: migrate while few
+    /// triggers wait.
     /// </para>
     /// <para>
     /// The 4.7.2 create script no longer has <c>FK_qrtz_BLOB_TRIGGERS_qrtz_TRIGGERS</c>, and no upgrade script drops
@@ -148,18 +157,20 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
             foreach (var (table, column, type) in Columns)
             {
                 migrationBuilder.Sql(
-                    $"IF COL_LENGTH(N'jobs.{table}', N'{column}') IS NULL ALTER TABLE jobs.{table} ADD {column} {type} NULL;");
+                    $"IF COL_LENGTH(N'jobs.{table}', N'{column}') IS NULL ALTER TABLE jobs.{table} ADD {column} {type} NULL;",
+                    suppressTransaction: true);
             }
 
-            migrationBuilder.Sql(RebuildAcquireIndex);
-            migrationBuilder.Sql(CreateJobStatusTable);
+            migrationBuilder.Sql(RebuildAcquireIndex, suppressTransaction: true);
+            migrationBuilder.Sql(CreateJobStatusTable, suppressTransaction: true);
             foreach (var (name, columns) in ExecutionHistoryIndexes)
             {
                 migrationBuilder.Sql(
                     $"""
                     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = '{name}' AND object_id = OBJECT_ID('jobs.qrtz_EXECUTION_HISTORY'))
                         CREATE INDEX {name} ON jobs.qrtz_EXECUTION_HISTORY ({columns});
-                    """);
+                    """,
+                    suppressTransaction: true);
             }
         }
 
@@ -173,10 +184,11 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
             foreach (var (name, _) in Enumerable.Reverse(ExecutionHistoryIndexes))
             {
                 migrationBuilder.Sql(
-                    $"IF OBJECT_ID(N'jobs.qrtz_EXECUTION_HISTORY', N'U') IS NOT NULL DROP INDEX IF EXISTS {name} ON jobs.qrtz_EXECUTION_HISTORY;");
+                    $"IF OBJECT_ID(N'jobs.qrtz_EXECUTION_HISTORY', N'U') IS NOT NULL DROP INDEX IF EXISTS {name} ON jobs.qrtz_EXECUTION_HISTORY;",
+                    suppressTransaction: true);
             }
 
-            migrationBuilder.Sql("DROP TABLE IF EXISTS jobs.qrtz_JOB_STATUS;");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS jobs.qrtz_JOB_STATUS;", suppressTransaction: true);
 
             // The earlier index first: it cannot outlive the columns it includes.
             migrationBuilder.Sql(
@@ -186,11 +198,13 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
                     {DropAcquireIndex}
                     EXEC(N'{PinTriggerAcquisitionGroupCollation.CreateAcquireIndex.Trim()}');
                 END
-                """);
+                """,
+                suppressTransaction: true);
             foreach (var (table, column, _) in Enumerable.Reverse(Columns))
             {
                 migrationBuilder.Sql(
-                    $"IF COL_LENGTH(N'jobs.{table}', N'{column}') IS NOT NULL ALTER TABLE jobs.{table} DROP COLUMN {column};");
+                    $"IF COL_LENGTH(N'jobs.{table}', N'{column}') IS NOT NULL ALTER TABLE jobs.{table} DROP COLUMN {column};",
+                    suppressTransaction: true);
             }
         }
     }

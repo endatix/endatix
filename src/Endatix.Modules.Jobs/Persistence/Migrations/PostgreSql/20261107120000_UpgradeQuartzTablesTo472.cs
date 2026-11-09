@@ -23,8 +23,16 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
     /// <para>
     /// Every addition is nullable or a new object, and guarded, so the migration is a no-op on a database that
     /// <c>InitialBackgroundJobs</c> created from the 4.7.2 script, and a node still on Quartz 4.2.2 keeps running on
-    /// the result: it neither reads nor writes what is added. A nullable column without a default changes only the
-    /// catalog, so each <c>ALTER TABLE</c> is quick, though it waits for the table's open transactions.
+    /// the result: it neither reads nor writes what is added.
+    /// </para>
+    /// <para>
+    /// Each statement commits on its own rather than in EF's one migration transaction, so it holds its table's lock
+    /// only while it runs; adding a nullable column without a default changes only the catalog, though it still waits
+    /// for the table's open transactions. This avoids a lock-order deadlock with running nodes: they write
+    /// <c>qrtz_triggers</c> and then <c>qrtz_fired_triggers</c>, and this migration alters <c>qrtz_fired_triggers</c>
+    /// first, so locks held to one commit could each wait on the other's while a backlog runs. Every statement is
+    /// guarded, so a migration stopped midway completes when it is run again; EF writes its history row only after
+    /// the last statement.
     /// </para>
     /// </remarks>
     public partial class UpgradeQuartzTablesTo472 : Migration
@@ -106,13 +114,17 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
         {
             foreach (var (table, column, type) in Columns)
             {
-                migrationBuilder.Sql($"ALTER TABLE jobs.{table} ADD COLUMN IF NOT EXISTS {column} {type} NULL;");
+                migrationBuilder.Sql(
+                    $"ALTER TABLE jobs.{table} ADD COLUMN IF NOT EXISTS {column} {type} NULL;",
+                    suppressTransaction: true);
             }
 
-            migrationBuilder.Sql(CreateJobStatusTable);
+            migrationBuilder.Sql(CreateJobStatusTable, suppressTransaction: true);
             foreach (var (name, columns) in ExecutionHistoryIndexes)
             {
-                migrationBuilder.Sql($"CREATE INDEX IF NOT EXISTS {name} ON jobs.qrtz_execution_history ({columns});");
+                migrationBuilder.Sql(
+                    $"CREATE INDEX IF NOT EXISTS {name} ON jobs.qrtz_execution_history ({columns});",
+                    suppressTransaction: true);
             }
         }
 
@@ -125,13 +137,15 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.PostgreSql
         {
             foreach (var (name, _) in Enumerable.Reverse(ExecutionHistoryIndexes))
             {
-                migrationBuilder.Sql($"DROP INDEX IF EXISTS jobs.{name};");
+                migrationBuilder.Sql($"DROP INDEX IF EXISTS jobs.{name};", suppressTransaction: true);
             }
 
-            migrationBuilder.Sql("DROP TABLE IF EXISTS jobs.qrtz_job_status;");
+            migrationBuilder.Sql("DROP TABLE IF EXISTS jobs.qrtz_job_status;", suppressTransaction: true);
             foreach (var (table, column, _) in Enumerable.Reverse(Columns))
             {
-                migrationBuilder.Sql($"ALTER TABLE IF EXISTS jobs.{table} DROP COLUMN IF EXISTS {column};");
+                migrationBuilder.Sql(
+                    $"ALTER TABLE IF EXISTS jobs.{table} DROP COLUMN IF EXISTS {column};",
+                    suppressTransaction: true);
             }
         }
     }

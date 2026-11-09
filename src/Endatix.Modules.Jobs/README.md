@@ -600,7 +600,12 @@ by hand.
 1. Copy Quartz's guarded upgrade SQL for that provider inline with `migrationBuilder.Sql("""…""")`,
    under a comment linking the file at the Quartz release tag, for example
    `https://github.com/quartznet/quartznet/blob/v<version>/database/migrations/<version>/<file>.sql`.
-   `AddTriggerAcquisitionIndex` shows the style. Keep every guard, adapted as below.
+   `AddTriggerAcquisitionIndex` shows the style. Keep every guard, adapted as below, and pass
+   `suppressTransaction: true` to each call, as `UpgradeQuartzTablesTo472` does: each statement then
+   commits on its own and holds its table's lock only while it runs. In EF's one migration
+   transaction every lock is held to the commit, and running nodes, which write `qrtz_TRIGGERS` and
+   then `qrtz_FIRED_TRIGGERS`, can deadlock with a migration that alters the tables in another order.
+   The guards make a migration stopped midway complete when it is run again.
    - **SQL Server** (`…_sqlServer.sql`): point every reference to a Quartz table at
      `jobs.qrtz_<TABLE>`, in whatever form it appears: `[dbo].[QRTZ_<TABLE>]` becomes
      `[jobs].[qrtz_<TABLE>]`, `OBJECT_ID('dbo.QRTZ_<TABLE>')` becomes `OBJECT_ID('jobs.qrtz_<TABLE>')`,
