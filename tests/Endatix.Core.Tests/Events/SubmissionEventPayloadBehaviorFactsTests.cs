@@ -79,10 +79,10 @@ public class SubmissionEventPayloadBehaviorFactsTests
     }
 
     [Fact]
-    public void SubmissionCompletedEvent_GetPayload_OnWire_ExcludesChangeKindAndPreviousStatus()
+    public void SubmissionLifecycleEvent_CompletedPayloadOnWire_ExcludesChangeKindAndPreviousStatus()
     {
         Submission submission = CreateCompleteSubmission();
-        JsonElement json = WirePayload(new SubmissionCompletedEvent(submission).GetPayload());
+        JsonElement json = WirePayload(CompletedEventOf(submission).GetPayload());
 
         json.TryGetProperty("changeKind", out _).Should().BeFalse();
         json.TryGetProperty("previousStatus", out _).Should().BeFalse();
@@ -168,4 +168,8 @@ public class SubmissionEventPayloadBehaviorFactsTests
         wireJson.Should().Contain("\"formId\":");
         wireJson.Should().Contain("\"revision\":5");
     }
+
+    private static SubmissionLifecycleEvent CompletedEventOf(Submission submission) =>
+        submission.DomainEvents.OfType<SubmissionLifecycleEvent>()
+            .Single(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
 }

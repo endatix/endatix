@@ -67,7 +67,13 @@ public class SubmissionTokenServiceResolveTokenTests
         // Arrange
         var token = "valid-token";
         var submissionId = 1L;
-        var submission = new Submission(TENANT_ID, SampleData.FORM_DEFINITION_JSON_DATA_1, 2, 3, false) { Id = submissionId };
+        var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
+            TenantId: TENANT_ID,
+            CurrentPage: 0,
+            FormId: 2,
+            FormDefinitionId: 3,
+            JsonData: SampleData.FORM_DEFINITION_JSON_DATA_1,
+            IsComplete: false));
         submission.UpdateToken(new Token(24));
         _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
 
@@ -87,7 +93,13 @@ public class SubmissionTokenServiceResolveTokenTests
         var formId = 1L;
         var formDefinitionId = 2L;
         var token = "valid-token";
-        var submission = new Submission(TENANT_ID, "{ }", formId, formDefinitionId, isComplete: true);
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: TENANT_ID,
+            CurrentPage: 0,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: "{ }",
+            IsComplete: true));
         submission.UpdateToken(new Token(24));
         _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
 
@@ -109,7 +121,13 @@ public class SubmissionTokenServiceResolveTokenTests
     public async Task ResolveToken_CompletedSubmissionAndNoTenantSettings_ReadsAsNotValidAfterCompletion()
     {
         // Arrange
-        var submission = new Submission(TENANT_ID, "{ }", 1L, 2L, isComplete: true);
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: TENANT_ID,
+            CurrentPage: 0,
+            FormId: 1L,
+            FormDefinitionId: 2L,
+            JsonData: "{ }",
+            IsComplete: true));
         submission.UpdateToken(new Token(24));
         _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
         _tenantSettingsRepository.FirstOrDefaultAsync(
@@ -132,7 +150,13 @@ public class SubmissionTokenServiceResolveTokenTests
         var formDefinitionId = 2L;
         var submissionId = 1L;
         var token = "valid-token";
-        var submission = new Submission(TENANT_ID, "{ }", formId, formDefinitionId, isComplete: true) { Id = submissionId };
+        var submission = Submission.Create(submissionId, new SubmissionCreateArgs(
+            TenantId: TENANT_ID,
+            CurrentPage: 0,
+            FormId: formId,
+            FormDefinitionId: formDefinitionId,
+            JsonData: "{ }",
+            IsComplete: true));
         submission.UpdateToken(new Token(24));
         _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);
 
@@ -155,7 +179,13 @@ public class SubmissionTokenServiceResolveTokenTests
     {
         // Arrange
         var token = "valid-token";
-        var submission = new Submission(TENANT_ID, "{ }", 1, 2, isComplete: false);
+        var submission = Submission.Create(new SubmissionCreateArgs(
+            TenantId: TENANT_ID,
+            CurrentPage: 0,
+            FormId: 1,
+            FormDefinitionId: 2,
+            JsonData: "{ }",
+            IsComplete: false));
         submission.ScreenOut();
         submission.UpdateToken(new Token(24));
         _submissionRepository.FirstOrDefaultAsync(Arg.Any<SubmissionByTokenSpec>(), Arg.Any<CancellationToken>()).Returns(submission);

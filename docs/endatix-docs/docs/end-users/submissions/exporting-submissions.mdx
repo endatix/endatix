@@ -41,7 +41,7 @@ The first time anyone exports a given form, Endatix compiles that form's questio
   sources={{ light: needsPrepareLight, dark: needsPrepareDark }}
 />
 
-Click **Prepare for export**. This runs once per form. Later exports, including other people's, skip straight to the format picker. Preparing does not change any submission. It only builds the export structure.
+Click **Prepare for export**. This runs once per form. Later exports, including other people's, skip straight to the format picker. Preparing does not change any submission. It only builds the export structure. Anyone who can export submissions can prepare a form.
 
 ### Choose a Format and Filters
 
@@ -76,7 +76,7 @@ A codebook lists every question, its type, and its choice values and labels — 
 
 ### Rebuild Reporting Data
 
-Once a form is prepared, **Rebuild reporting data…** appears at the bottom of the panel. Use it if the form's questions changed after you prepared it and an export is missing new columns, or an export failed and you want to retry the load. **Full recompile** replaces the export structure from the form's current questions instead of extending it. Use it only if the structure looks wrong, since it discards the history of removed or renamed questions.
+Once a form is prepared, **Rebuild reporting data…** appears at the bottom of the panel for users with permission to edit the form. Use it if the form's questions changed after you prepared it and an export is missing new columns, or an export failed and you want to retry the load. **Full recompile** replaces the export structure from the form's current questions instead of extending it. Use it only if the structure looks wrong, since it discards the history of removed or renamed questions.
 
 Updating drafts when you export **Incomplete** or **All** is separate from rebuild. That step only refreshes the drafts in this download. It does not recompile the form.
 
@@ -127,13 +127,27 @@ See [Submission Details](/docs/end-users/submissions/submission-details#the-top-
 
 To hand that PDF to someone who has no Hub account, generate an **Export PDF** share link instead: [Sharing Submissions](/docs/end-users/submissions/sharing-submissions).
 
+## None, Refuse to Answer, Don't Know, and Other
+
+A choice question can show special items next to its own choices: **None**, **Refuse to answer**, **Don't know**, and **Other**. Every export format writes them the same way:
+
+* **Multi-select (checkbox, tag box):** each special item gets its own column after the question's choices, such as `question__none`, `question__refused`, and `question__dontknow`, set to 1 when chosen and 0 when not, like any other choice. **Select All** has no column: it only ticks the other choices.
+* **Single-select (radio group, dropdown):** the column holds the stored value, `none`, `refused`, `dontknow`, or `other`.
+* **Inside a dynamic panel without a loop source, or in a data-list multi-select:** the answer stays in its single column as stored, so a special item appears as its value, such as `none`.
+* **Other:** the text the respondent typed goes in the `question__other_text` column, whether the form keeps that text in a separate comment or in the answer itself.
+
+In a codebook, special items are listed after the question's choices and **Other**. In a **Codebook (Shoji)** file for Crunch.io, a single-select question's **Refuse to answer** and **Don't know** are missing categories, so Crunch leaves them out of percentages; **None** counts as an answer. In a multi-select question they are selected or not selected, like its other choices.
+
+A form prepared before these items were exported needs **Rebuild reporting data…** once to add their columns.
+
 ## Important Considerations
 
 * **Prepare is per form, not per user.** Once anyone prepares a form for export, every user exporting that form skips the prepare step.
 * **The panel starts from the grid.** Status, test submissions, and the four date ranges are copied from the filters already on the Submissions page. Clear a grid filter before you open the panel if you do not want it in the file.
-* **The export panel refreshes drafts before an Incomplete or All download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included.
-* **Refreshing drafts needs permission to edit the form.** Without that permission the download still runs, and incomplete submissions stay as of their last update. If only some drafts can be updated in one export, the file still downloads and the panel says so.
+* **The export panel refreshes drafts before an Incomplete or All download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included. If only some drafts can be updated in one export, the file still downloads and the panel says so.
 * **A codebook has no rows to filter.** Status, test-submission, and date filters apply only to Submissions formats.
+* **Crunch.io category ids never move.** A choice keeps the id it was first exported with, even after choices are added or removed. A form that removed a choice before this rule existed has its later choices renumbered once, in its next Shoji export.
+* **Rebuilding needs permission to edit the form.** Without it, **Rebuild reporting data…** is not shown. Ask someone who can edit the form if an export is missing new columns.
 * **Full recompile discards export history.** It rebuilds the export structure from the form's current questions only. A question that was removed or renamed loses its column history in future exports.
 
 :::warning[Data list multi-select is one column of ids]

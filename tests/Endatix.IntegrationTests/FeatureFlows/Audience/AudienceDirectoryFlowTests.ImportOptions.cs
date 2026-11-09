@@ -362,7 +362,7 @@ public sealed partial class AudienceDirectoryFlowTests
                     missingProperties = choices.MissingProperties,
                 });
             var import = await StartedImportAsync(formId, started);
-            for (int index = 0; index * ImportChunkRows < rows.Count; index++)
+            for (var index = 0; index * IMPORT_CHUNK_ROWS < rows.Count; index++)
             {
                 using HttpResponseMessage sent = await SendChunkAsync(import, index, rows);
                 Assert.Equal(HttpStatusCode.OK, sent.StatusCode);

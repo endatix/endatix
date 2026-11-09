@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Utils;
@@ -21,7 +22,7 @@ internal sealed class FlattenSubmissionOutboxHandler(
     public static string JobType => "ReportingFlattenSubmission";
 
     public static IReadOnlyCollection<string> HandledEventTypes { get; } =
-        [SubmissionCompletedEvent.EventTypeName, SubmissionUpdatedEvent.EventTypeName];
+        [SubmissionLifecycleEvent.EventTypes.Completed, SubmissionUpdatedEvent.EventTypeName];
 
     // Answers, schema alignment and submitter profile fields all live on the flattened row, so a submitter change
     // flattens it again too; Core's data mask leaves the submitter out on purpose. A mark as real must bring back a

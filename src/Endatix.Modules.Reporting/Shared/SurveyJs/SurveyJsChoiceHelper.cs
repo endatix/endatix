@@ -104,7 +104,12 @@ internal static class SurveyJsChoiceHelper
         return values;
     }
 
-    internal static IEnumerable<(string Value, string Text)> EnumerateChoices(JsonElement element)
+    internal static IEnumerable<(string Value, string Text)> EnumerateChoices(JsonElement element) =>
+        EnumerateChoiceElements(element).Select(choice => (choice.Value, choice.Text));
+
+    /// <summary>The inline choices with their definition element, for reading per-choice properties.</summary>
+    internal static IEnumerable<(string Value, string Text, JsonElement Element)> EnumerateChoiceElements(
+        JsonElement element)
     {
         if (!element.TryGetChoices(out var choices))
         {
@@ -119,7 +124,7 @@ internal static class SurveyJsChoiceHelper
                 continue;
             }
 
-            yield return (value, GetChoiceTextLabel(choice, value));
+            yield return (value, GetChoiceTextLabel(choice, value), choice);
         }
     }
 
@@ -172,19 +177,6 @@ internal static class SurveyJsChoiceHelper
             }
 
             yield return (value, GetChoiceTextLabel(column, value), column);
-        }
-    }
-
-    internal static IEnumerable<string> EnumerateLoopSourceDriverChoices(JsonElement sourceElement)
-    {
-        foreach (var (value, _) in EnumerateChoices(sourceElement))
-        {
-            yield return value;
-        }
-
-        if (sourceElement.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
-        {
-            yield return "other";
         }
     }
 

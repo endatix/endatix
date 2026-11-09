@@ -7,7 +7,7 @@ using CollectionStatusValue = Endatix.Core.Entities.CollectionStatus;
 
 namespace Endatix.Core.Entities;
 
-public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
+public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHasRevision
 {
     private const string SINGLE_SUBMISSION_RESTRICTION_PREFIX = "SingleSubmission";
 
@@ -27,21 +27,10 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         Metadata = args.Metadata;
         IsTestSubmission = args.IsTestSubmission;
         Status = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
-        CollectionStatus = CollectionStatusValue.InProgress.CreateInstance();
 
         SetSubmitter(args.SubmitterId, args.SubmitterDisplayId, args.SubmitterProfileSnapshot);
         ApplySingleSubmissionRestriction(args.FormId, args.EnforceSingleSubmissionGate && !args.IsTestSubmission);
-        SetCompletionStatus(args.IsComplete);
-
-        if (args.StartSubmission)
-        {
-            EnsureStarted();
-        }
-        else if (!args.IsComplete)
-        {
-            // Created on behalf (prefill): no respondent engagement yet, StartedAt stays null.
-            SetCollectionStatus(CollectionStatusValue.NotStarted);
-        }
+        Begin(args);
     }
 
     private Submission(long id, SubmissionCreateArgs args) : this(args)
@@ -165,10 +154,9 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public string? RestrictionKey { get; private set; }
 
     /// <summary>
-    /// Monotonic aggregate revision, bumped on each business mutation (update, status change,
-    /// completion). Carried in integration event payloads so an order-sensitive consumer (e.g. a
-    /// future audit log) can reconstruct order or detect gaps. Increment wiring lands with the
-    /// event-raising work (Phase 5).
+    /// The submission's event sequence: every revised event (each lifecycle event, <c>submission.updated</c>,
+    /// <c>submission.status_changed</c>) raises it by exactly one and carries the new value. A new submission is at 2,
+    /// or 3 when it was created complete or in an outcome.
     /// </summary>
     public long Revision { get; private set; } = 1;
 
@@ -191,73 +179,91 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
     public bool HasStarted => StartedAt is not null;
 
     /// <summary>
-    /// Records first engagement once. Subsequent calls do not move <see cref="StartedAt"/>.
-    /// An unengaged row (<c>not_started</c> / <c>viewed</c>) moves to <c>in_progress</c>, so a
-    /// recorded start never sits next to an unengaged collection status. Terminal and custom
-    /// statuses are left alone.
+    /// Saves content; the target definition must belong to this submission's form (<see cref="FormId"/>). A save that
+    /// completes raises <c>submission.completed</c>. An in-progress save raises <c>submission.started</c> on a pending
+    /// submission, <c>submission.resumed</c> on a lapsed one, and nothing on an active one. An edit of a complete
+    /// submission raises <c>submission.updated</c> when it changes something. A closed submission can't be saved.
     /// </summary>
-    public void EnsureStarted(DateTime? at = null)
+    /// <exception cref="ArgumentException">The definition belongs to another form.</exception>
+    /// <exception cref="InvalidOperationException">The submission is closed.</exception>
+    public void Update(string jsonData, long formDefinitionId, long formDefinitionFormId, bool isComplete = true, int currentPage = 1, string? metadata = null)
     {
-        if (IsUnengagedCollection())
+        SubmissionContent content = new(jsonData, formDefinitionId, currentPage, metadata);
+        EnsureContentAllowed(content, formDefinitionFormId);
+        if (IsComplete)
         {
-            SetCollectionStatus(CollectionStatusValue.InProgress);
-        }
+            var changeKind = ChangesTo(content);
+            ApplyContent(content);
+            if (changeKind != SubmissionChangeKinds.None)
+            {
+                RecordNext(() => new SubmissionUpdatedEvent(this, changeKind));
+            }
 
-        if (HasStarted)
-        {
             return;
         }
 
-        StartedAt = at ?? DateTime.UtcNow;
+        var step = SubmissionLifecycle.Move(this, isComplete ? CollectionStatusValue.Complete : SubmissionLifecycle.SavedInProgress(this));
+        ApplyContent(content);
+        var now = DateTime.UtcNow;
+        if (isComplete)
+        {
+            IsComplete = true;
+            CompletedAt = now;
+        }
+
+        StartedAt ??= now;
+        Apply(step);
     }
 
-    /// <summary>Updates submission content; the target definition must belong to this submission's form (<see cref="FormId"/>).</summary>
-    public void Update(string jsonData, long formDefinitionId, long formDefinitionFormId, bool isComplete = true, int currentPage = 1, string? metadata = null)
+    private SubmissionChangeKinds ChangesTo(SubmissionContent content)
     {
-        Guard.Against.NullOrEmpty(jsonData);
-        Guard.Against.NegativeOrZero(formDefinitionId);
-        Guard.Against.NegativeOrZero(formDefinitionFormId);
-
-        EnsureUpdateAllowed(formDefinitionFormId, isComplete);
-        EnsureStarted();
-
         var changeKind = SubmissionChangeKinds.None;
-        if (IsComplete)
+        if (!string.Equals(JsonData, content.JsonData, StringComparison.Ordinal))
         {
-            if (!string.Equals(JsonData, jsonData, StringComparison.Ordinal))
-            {
-                changeKind |= SubmissionChangeKinds.Answers;
-            }
-
-            if (!string.Equals(Metadata, metadata, StringComparison.Ordinal))
-            {
-                changeKind |= SubmissionChangeKinds.Metadata;
-            }
-
-            if (FormDefinitionId != formDefinitionId)
-            {
-                changeKind |= SubmissionChangeKinds.Definition;
-            }
+            changeKind |= SubmissionChangeKinds.Answers;
         }
 
-        FormDefinitionId = formDefinitionId;
-        JsonData = jsonData;
-        CurrentPage = currentPage;
-        Metadata = metadata;
-
-        SetCompletionStatus(isComplete);
-
-        if (changeKind != SubmissionChangeKinds.None)
+        if (!string.Equals(Metadata, content.Metadata, StringComparison.Ordinal))
         {
-            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, changeKind));
+            changeKind |= SubmissionChangeKinds.Metadata;
         }
+
+        return FormDefinitionId != content.FormDefinitionId
+            ? changeKind | SubmissionChangeKinds.Definition
+            : changeKind;
     }
 
+    private void ApplyContent(SubmissionContent content)
+    {
+        FormDefinitionId = content.FormDefinitionId;
+        JsonData = content.JsonData;
+        CurrentPage = content.CurrentPage;
+        Metadata = content.Metadata;
+    }
+
+    /// <summary>Owner or system void. Same as <see cref="Close(CollectionStatus)"/> with <c>cancelled</c>.</summary>
+    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
+    public void Cancel() => Close(CollectionStatusValue.Cancelled);
+
+    /// <summary>True when the interview ended as screened out.</summary>
+    public bool IsScreenedOut => CollectionStatus?.Code == CollectionStatusCodes.ScreenOut;
+
+    /// <summary>Saves the last answers and screens out. Same as <see cref="Close(CollectionStatus, SubmissionContent, long)"/> with <c>screen_out</c>.</summary>
+    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
+    public void ScreenOut(string jsonData, long formDefinitionId, long formDefinitionFormId, int currentPage = 1, string? metadata = null) =>
+        Close(CollectionStatusValue.ScreenOut, new SubmissionContent(jsonData, formDefinitionId, currentPage, metadata), formDefinitionFormId);
+
+    /// <summary>Ends the interview as screened out. Same as <see cref="Close(CollectionStatus)"/> with <c>screen_out</c>.</summary>
+    /// <exception cref="InvalidOperationException">The submission is complete or already closed in another outcome.</exception>
+    public void ScreenOut() => Close(CollectionStatusValue.ScreenOut);
+
+    /// <summary>Sets the token a respondent resumes the submission with.</summary>
     public void UpdateToken(Token token)
     {
         Token = token;
     }
 
+    /// <summary>Sets the reviewer status. A change raises <c>submission.status_changed</c> with one revision bump.</summary>
     public void UpdateStatus(SubmissionStatus newStatus)
     {
         Guard.Against.Null(newStatus);
@@ -271,81 +277,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
         // Clone so callers can pass catalog statics without sharing OwnsOne identity across aggregates
         Status = newStatus.CreateInstance();
 
-        RegisterRevisedDomainEvent(() => new SubmissionStatusChangedEvent(this, previousStatus));
-    }
-
-    /// <summary>Owner or system void. Does not mark the interview complete.</summary>
-    /// <exception cref="InvalidOperationException">The submission is already complete.</exception>
-    public void Cancel()
-    {
-        // A complete row stays complete: cancelled with IsComplete true would contradict the dual-write.
-        if (IsComplete)
-        {
-            throw new InvalidOperationException("A complete submission cannot be cancelled.");
-        }
-
-        // Screen-out is a final outcome; cancelling would silently lose it.
-        if (IsScreenedOut)
-        {
-            throw new InvalidOperationException("A screened-out submission cannot be cancelled.");
-        }
-
-        SetCollectionStatus(CollectionStatusValue.Cancelled);
-    }
-
-    /// <summary>True when the interview ended as screened out. A screened-out submission can't be changed.</summary>
-    public bool IsScreenedOut => CollectionStatus?.Code == CollectionStatusCodes.ScreenOut;
-
-    /// <summary>
-    /// Saves the respondent's last answers and ends the interview as screened out, checking first so a
-    /// rejected screen-out leaves the aggregate untouched. A repeat on a screened-out submission is a no-op.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The submission is complete, or its collection status is not resumable.</exception>
-    public void ScreenOut(string jsonData, long formDefinitionId, long formDefinitionFormId, int currentPage = 1, string? metadata = null)
-    {
-        EnsureScreenOutAllowed();
-        if (IsScreenedOut)
-        {
-            return;
-        }
-
-        Update(jsonData, formDefinitionId, formDefinitionFormId, isComplete: false, currentPage, metadata);
-        ScreenOut();
-    }
-
-    /// <summary>
-    /// Ends the interview as screened out. Does not mark it complete and does not raise
-    /// <c>submission.completed</c>. Records the start if none was recorded. A later update is rejected.
-    /// A repeat on a screened-out submission is a no-op.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">The submission is complete, or its collection status is not resumable.</exception>
-    public void ScreenOut()
-    {
-        EnsureScreenOutAllowed();
-        if (IsScreenedOut)
-        {
-            return;
-        }
-
-        var previousCollectionStatus = CollectionStatus;
-        EnsureStarted();
-        SetCollectionStatus(CollectionStatusValue.ScreenOut);
-        RegisterRevisedDomainEvent(() => new SubmissionCollectionStatusChangedEvent(this, previousCollectionStatus));
-    }
-
-    private void EnsureScreenOutAllowed()
-    {
-        if (IsComplete)
-        {
-            throw new InvalidOperationException("A complete submission cannot be screened out.");
-        }
-
-        // Another terminal outcome (e.g. cancelled) is not overwritten.
-        if (!IsScreenedOut && !IsResumableCollection())
-        {
-            throw new InvalidOperationException(
-                "Cannot screen out a submission whose collection status is not resumable.");
-        }
+        RecordNext(() => new SubmissionStatusChangedEvent(this, previousStatus));
     }
 
     /// <summary>
@@ -361,7 +293,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         IsTestSubmission = true;
         ApplySingleSubmissionRestriction(FormId, shouldEnforce: false);
-        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
+        RecordNext(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
     }
 
     /// <summary>
@@ -378,17 +310,14 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         IsTestSubmission = false;
         ApplySingleSubmissionRestriction(FormId, enforceSingleSubmissionGate);
-        RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
+        RecordNext(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Test));
     }
 
-    /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
-    public void IncrementRevision() => Revision++;
-
-    private void RegisterRevisedDomainEvent(Func<DomainEventBase> eventFactory)
-    {
-        IncrementRevision();
-        RegisterDomainEvent(eventFactory());
-    }
+    /// <summary>Not supported: only the submission's own events raise its revision.</summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    [Obsolete("Retired: a submission raises its own revision with each event it raises.", error: true)]
+    public void IncrementRevision() =>
+        throw new NotSupportedException("A submission raises its own revision with each event it raises.");
 
     /// <summary>
     /// Sets submitter identity on the submission. Raises <c>submission.updated</c> with
@@ -408,7 +337,7 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         if (submitterChangedOnCompleteSubmission)
         {
-            RegisterRevisedDomainEvent(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Submitter));
+            RecordNext(() => new SubmissionUpdatedEvent(this, SubmissionChangeKinds.Submitter));
         }
     }
 
@@ -423,70 +352,6 @@ public sealed class Submission : TenantEntity, IAggregateRoot, IOwnedEntity, IHa
 
         public string? SubmittedBy => Id?.ToString() ?? DisplayId;
     }
-
-    private void EnsureUpdateAllowed(long formDefinitionFormId, bool isComplete)
-    {
-        if (formDefinitionFormId != FormId)
-        {
-            throw new ArgumentException(
-                "The target form definition does not belong to this submission's form", nameof(formDefinitionFormId));
-        }
-
-        if (IsScreenedOut)
-        {
-            throw new InvalidOperationException("A screened-out submission cannot be changed.");
-        }
-
-        if (!IsComplete && isComplete && !IsResumableCollection())
-        {
-            throw new InvalidOperationException(
-                "Cannot complete a submission whose collection status is not resumable.");
-        }
-    }
-
-    private void SetCompletionStatus(bool newIsCompleteValue)
-    {
-        if (!IsComplete && newIsCompleteValue)
-        {
-            IsComplete = true;
-            CompletedAt = DateTime.UtcNow;
-            if (!HasStarted)
-            {
-                // Complete without a prior engagement save (e.g. complete-on-create): duration ≈ 0
-                StartedAt = CompletedAt;
-            }
-
-            // false→true transition (ctor or Update); captured to outbox → submission.completed webhook
-            RegisterRevisedDomainEvent(() => new SubmissionCompletedEvent(this));
-            SetCollectionStatus(CollectionStatusValue.Complete);
-            return;
-        }
-
-        if (!IsComplete && IsResumableCollection())
-        {
-            SetCollectionStatus(CollectionStatusValue.InProgress);
-        }
-    }
-
-    private bool IsResumableCollection()
-    {
-        var code = CollectionStatus?.Code;
-        return code is null
-            || code == CollectionStatusCodes.NotStarted
-            || code == CollectionStatusCodes.Viewed
-            || code == CollectionStatusCodes.InProgress
-            || code == CollectionStatusCodes.Expired;
-    }
-
-    private bool IsUnengagedCollection()
-    {
-        var code = CollectionStatus?.Code;
-        return code == CollectionStatusCodes.NotStarted
-            || code == CollectionStatusCodes.Viewed;
-    }
-
-    private void SetCollectionStatus(CollectionStatus status) =>
-        CollectionStatus = status.CreateInstance();
 
     public string? OwnerId => SubmitterId?.ToString() ?? SubmittedBy;
 

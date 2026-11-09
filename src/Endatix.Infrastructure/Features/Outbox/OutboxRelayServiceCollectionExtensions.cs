@@ -1,4 +1,5 @@
 using Endatix.Infrastructure.FeatureFlags;
+using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +40,7 @@ public static class OutboxRelayServiceCollectionExtensions
         services.AddOptions<OutboxOptions>().BindConfiguration("Endatix:Outbox");
         services.AddOptions<OutboxDeliveryOptions>().BindConfiguration(OutboxDeliveryOptions.SectionName);
         services.AddScoped<IOutboxIntegrationEventHandler, WebHookOutboxIntegrationEventHandler>();
+        services.AddHostedService<WebHookHandlersStartupCheck>();
         AddSelectedPublisher(services);
         services.AddMetrics();
         services.AddEndatixOpenFeature();

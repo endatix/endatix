@@ -9,8 +9,26 @@ namespace Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 /// <summary>
 /// Exporter for opaque JSON artifact exports (e.g. codebook files streamed from <see cref="DynamicExportRow"/>).
 /// </summary>
-public class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExporter<DynamicExportRow>
+public class CodebookJsonExporter : IExporter<DynamicExportRow>
 {
+    private readonly ILogger _logger;
+
+    /// <summary>
+    /// Creates a codebook JSON exporter with a category matching this type (DI registration).
+    /// </summary>
+    public CodebookJsonExporter(ILogger<CodebookJsonExporter> logger)
+        : this((ILogger)logger)
+    {
+    }
+
+    /// <summary>
+    /// Creates a codebook JSON exporter with a derived-type logger category.
+    /// </summary>
+    protected CodebookJsonExporter(ILogger logger)
+    {
+        _logger = logger;
+    }
+
     /// <inheritdoc/>
     public virtual string Format => "codebook";
 
@@ -57,7 +75,7 @@ public class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExpor
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error exporting Codebook JSON");
+            _logger.LogError(ex, "Error exporting Codebook JSON");
             return Result<FileExport>.Error("Failed to export Codebook JSON.");
         }
     }
@@ -72,7 +90,7 @@ public class CodebookJsonExporter(ILogger<CodebookJsonExporter> logger) : IExpor
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error getting Codebook JSON export headers");
+            _logger.LogError(ex, "Error getting Codebook JSON export headers");
             return Task.FromResult(Result<FileExport>.Error("Failed to get export headers."));
         }
     }

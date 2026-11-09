@@ -31,6 +31,18 @@ internal static partial class ReCaptchaLoggerExtensions
     [LoggerMessage(
         EventId = EndatixEventIds.ReCaptcha.ActionMissing,
         Level = LogLevel.Warning,
-        Message = "reCAPTCHA siteverify accepted a token without an action. Check that the site key is a v3 key. Hostname: {Hostname}")]
+        Message = "reCAPTCHA siteverify accepted a token without an action. The site key is likely a v2 or other non-v3 key; check the key type. Hostname: {Hostname}")]
     public static partial void LogReCaptchaActionMissing(this ILogger logger, string? hostname);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.ReCaptcha.ScoreMissing,
+        Level = LogLevel.Warning,
+        Message = "reCAPTCHA siteverify accepted a token without a score. The secret likely belongs to a v2 or other non-v3 key; check the key type. Action: {Action}. Hostname: {Hostname}")]
+    public static partial void LogReCaptchaScoreMissing(this ILogger logger, string action, string? hostname);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.ReCaptcha.ActionMismatch,
+        Level = LogLevel.Warning,
+        Message = "reCAPTCHA token was issued for action {Action}, expected {ExpectedAction}. The token still passes; check the action the client passes to grecaptcha.execute. Hostname: {Hostname}")]
+    public static partial void LogReCaptchaActionMismatch(this ILogger logger, string action, string expectedAction, string? hostname);
 }

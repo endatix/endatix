@@ -23,6 +23,10 @@ namespace Endatix.Core.Entities;
 /// Leave false for prefill / create-on-behalf so start remains null until first engagement update.
 /// Complete-on-create still sets start via completion when this is false.
 /// </param>
+/// <param name="CollectionOutcome">
+/// A closed-phase status the submission is created in, e.g. <see cref="CollectionStatus.ScreenOut"/>. Raises
+/// <c>submission.created</c> carrying it, then <c>submission.closed</c>. Not combined with <paramref name="IsComplete"/>.
+/// </param>
 public sealed record SubmissionCreateArgs(
     long TenantId,
     long FormId,
@@ -36,4 +40,5 @@ public sealed record SubmissionCreateArgs(
     string? SubmitterProfileSnapshot = null,
     bool IsTestSubmission = false,
     bool EnforceSingleSubmissionGate = false,
-    bool StartSubmission = false);
+    bool StartSubmission = false,
+    CollectionStatus? CollectionOutcome = null);

@@ -99,6 +99,50 @@ public sealed class WebHookEventConfigReaderTests
     private WebHookEventConfigReader CreateReader() =>
         new(_formRepository, _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance);
 
+    [Theory]
+    [InlineData("SubmissionCollectionStatusChanged")]
+    [InlineData("submissioncollectionstatuschanged")]
+    public async Task GetEventConfigAsync_SubmissionClosedStoredUnderTheRetiredKey_ReadsIt(string storedKey)
+    {
+        // Arrange — an earlier instance or an older Hub saved the retired key after the migration ran.
+        StoreRawTenantSettings(TenantId, StoredEvents($"\"{storedKey}\":{Endpoint(TenantUrl)}"));
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(
+            new WebHookEventLookup(TenantId, WebHookOperation.SubmissionClosed.EventName, FormId: null), CancellationToken.None);
+
+        // Assert
+        config!.WebHookEndpoints.Should().ContainSingle().Which.Url.Should().Be(TenantUrl);
+    }
+
+    [Fact]
+    public async Task GetEventConfigAsync_BothKeysStored_ReadsTheNewOne()
+    {
+        // Arrange
+        StoreRawTenantSettings(TenantId, StoredEvents($"\"SubmissionCollectionStatusChanged\":{Endpoint("https://old.example.test")},\"SubmissionClosed\":{Endpoint(TenantUrl)}"));
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(
+            new WebHookEventLookup(TenantId, WebHookOperation.SubmissionClosed.EventName, FormId: null), CancellationToken.None);
+
+        // Assert
+        config!.WebHookEndpoints.Should().ContainSingle().Which.Url.Should().Be(TenantUrl);
+    }
+
+    private static string StoredEvents(string events) => "{\"Events\":{" + events + "}}";
+
+    private static string Endpoint(string url) => "{\"IsEnabled\":true,\"WebHookEndpoints\":[{\"Url\":\"" + url + "\"}]}";
+
+    // As a row stored by an earlier writer loads: the constructor's retired-key guard is not on the read path.
+    private void StoreRawTenantSettings(long tenantId, string json)
+    {
+        var settings = new TenantSettings(tenantId, submissionTokenExpiryHours: null, isSubmissionTokenValidAfterCompletion: false);
+        typeof(TenantSettings).GetProperty(nameof(TenantSettings.WebHookSettingsJson))!.SetValue(settings, json);
+        _tenantSettings.Add(settings);
+    }
+
     private void SeedForm(long tenantId)
     {
         var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));

@@ -5,8 +5,8 @@ using FluentAssertions;
 namespace Endatix.Core.Tests.Entities;
 
 /// <summary>
-/// Phase 3b: the Submission aggregate raises <see cref="SubmissionCompletedEvent"/> once on the
-/// incomplete→complete transition (from the ctor or Update), captured to the outbox → webhook.
+/// The Submission aggregate raises <c>submission.completed</c> once on the incomplete→complete change (from the ctor
+/// or Update), captured to the outbox → webhook.
 /// </summary>
 public class SubmissionIntegrationEventTests
 {
@@ -29,9 +29,9 @@ public class SubmissionIntegrationEventTests
         Submission submission = Create(isComplete: true);
 
         // Assert
-        submission.DomainEvents.OfType<SubmissionCompletedEvent>().Should().ContainSingle();
+        CompletedEvents(submission).Should().ContainSingle();
         submission.IsComplete.Should().BeTrue();
-        submission.Revision.Should().Be(2);
+        submission.Revision.Should().Be(3, "created and completed are one revision each");
     }
 
     [Fact]
@@ -41,9 +41,9 @@ public class SubmissionIntegrationEventTests
         Submission submission = Create(isComplete: false);
 
         // Assert
-        submission.DomainEvents.OfType<SubmissionCompletedEvent>().Should().BeEmpty();
+        CompletedEvents(submission).Should().BeEmpty();
         submission.IsComplete.Should().BeFalse();
-        submission.Revision.Should().Be(1);
+        submission.Revision.Should().Be(2, "submission.created is one revision");
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class SubmissionIntegrationEventTests
         submission.Update("{\"a\":1}", FormDefinitionId, formDefinitionFormId: FormId, isComplete: true);
 
         // Assert
-        submission.DomainEvents.OfType<SubmissionCompletedEvent>().Should().ContainSingle();
+        CompletedEvents(submission).Should().ContainSingle();
         submission.IsComplete.Should().BeTrue();
     }
 
@@ -71,7 +71,7 @@ public class SubmissionIntegrationEventTests
         submission.Update("{\"a\":1}", FormDefinitionId, formDefinitionFormId: FormId, isComplete: true);
 
         // Assert
-        submission.DomainEvents.OfType<SubmissionCompletedEvent>().Should().BeEmpty();
+        CompletedEvents(submission).Should().BeEmpty();
     }
 
     [Fact]
@@ -213,4 +213,8 @@ public class SubmissionIntegrationEventTests
         submission.Revision.Should().Be(revisionBefore);
         submission.DomainEvents.Should().BeEmpty();
     }
+
+    private static IEnumerable<SubmissionLifecycleEvent> CompletedEvents(Submission submission) =>
+        submission.DomainEvents.OfType<SubmissionLifecycleEvent>()
+            .Where(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
 }

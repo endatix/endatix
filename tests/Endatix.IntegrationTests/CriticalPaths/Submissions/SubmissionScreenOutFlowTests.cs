@@ -12,7 +12,7 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// Critical-path coverage for a public screen-out: the token save persists <c>screen_out</c> without completing,
-/// captures <c>submission.collection_status_changed</c> to the outbox, and closes the token for later saves.
+/// captures <c>submission.closed</c> to the outbox, and closes the token for later saves.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "CriticalPath")]
@@ -85,8 +85,8 @@ public sealed class SubmissionScreenOutFlowTests
                 .Where(row => row.Payload.Contains(created.Id, StringComparison.Ordinal))
                 .Select(row => row.EventType)
                 .ToList();
-            Assert.Single(eventTypes, type => type == SubmissionCollectionStatusChangedEvent.EventTypeName);
-            Assert.DoesNotContain(SubmissionCompletedEvent.EventTypeName, eventTypes);
+            Assert.Single(eventTypes, type => type == SubmissionLifecycleEvent.EventTypes.Closed);
+            Assert.DoesNotContain(SubmissionLifecycleEvent.EventTypes.Completed, eventTypes);
         }
 
         // Act — a later save with the same token

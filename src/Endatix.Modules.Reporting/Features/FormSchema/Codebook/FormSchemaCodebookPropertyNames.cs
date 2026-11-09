@@ -28,6 +28,18 @@ internal static class FormSchemaCodebookPropertyNames
 
     public const string Id = "id";
 
+    /// <summary>Choice catalog: the special item a choice is ("other", "none", "refused", "dontknow"); absent for an inline choice.</summary>
+    public const string Kind = "kind";
+
+    /// <summary>Choice catalog: true when choosing the item clears every other choice.</summary>
+    public const string Exclusive = "exclusive";
+
+    /// <summary>Choice catalog: present on a base select; true when it stores several values.</summary>
+    public const string Multiple = "multiple";
+
+    /// <summary>Choice catalog: where the Other text is stored, "comment" or "value"; only with an Other item.</summary>
+    public const string OtherStorage = "otherStorage";
+
     /// <summary>The audience block an export adds: its title, identifier column and variable columns.</summary>
     public const string Personalization = "personalization";
     public const string Identifier = "identifier";

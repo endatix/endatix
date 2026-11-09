@@ -13,6 +13,7 @@ public sealed class ExporterFactoryTests
     private readonly ILogger<SubmissionShojiCsvExporter> _csvLogger;
     private readonly ILogger<SubmissionJsonExporter> _jsonLogger;
     private readonly ILogger<CodebookJsonExporter> _codebookLogger;
+    private readonly ILogger<ShojiCodebookJsonExporter> _shojiCodebookLogger;
     private readonly IEnumerable<IValueTransformer> _globalTransformers;
     private readonly SubmissionCsvExporter _csvExporter;
     private readonly SubmissionJsonExporter _jsonExporter;
@@ -24,6 +25,7 @@ public sealed class ExporterFactoryTests
         _csvLogger = Substitute.For<ILogger<SubmissionShojiCsvExporter>>();
         _jsonLogger = Substitute.For<ILogger<SubmissionJsonExporter>>();
         _codebookLogger = Substitute.For<ILogger<CodebookJsonExporter>>();
+        _shojiCodebookLogger = Substitute.For<ILogger<ShojiCodebookJsonExporter>>();
         var transformer = Substitute.For<IValueTransformer>();
         transformer
             .Transform(Arg.Any<JsonNode?>(), Arg.Any<TransformationContext<SubmissionExportRow>>())
@@ -32,7 +34,7 @@ public sealed class ExporterFactoryTests
         _csvExporter = new SubmissionCsvExporter(_csvLogger, _globalTransformers);
         _jsonExporter = new SubmissionJsonExporter(_jsonLogger, _globalTransformers);
         _codebookExporter = new CodebookJsonExporter(_codebookLogger);
-        _shojiCodebookExporter = new ShojiCodebookJsonExporter(_codebookLogger);
+        _shojiCodebookExporter = new ShojiCodebookJsonExporter(_shojiCodebookLogger);
     }
 
     [Fact]

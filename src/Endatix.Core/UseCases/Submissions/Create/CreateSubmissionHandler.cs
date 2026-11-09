@@ -39,8 +39,6 @@ public class CreateSubmissionHandler(
     {
         Guard.Against.NullOrEmpty(request.RequiredPermission);
 
-        // Consider moving Domain event logic to a separate service should we decide to move UseCases in separate project. This way the Domain logic will stay in the core project. Will also centralize it in one place
-        // This way the code will transform to  return await _submissionService.CreateSubmission(createSubmissionDto);
         var activeFormDefinitionSpec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
         var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(activeFormDefinitionSpec, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
@@ -76,12 +74,14 @@ public class CreateSubmissionHandler(
             return isTest.ToErrorResult<Submission>();
         }
 
-        var screenOut = CollectionOutcomes.IsScreenOut(request.CollectionOutcome);
+        if (!CollectionOutcomes.IsSupported(request.CollectionOutcome))
+        {
+            return Result.Invalid(new ValidationError(CollectionOutcomes.UNSUPPORTED_MESSAGE));
+        }
 
-        // A screen-out ends the interview like a complete, so it gets the same bot check.
         var validationContext = new SubmissionVerificationContext(
             formWithActiveDefinition,
-            screenOut || (request.IsComplete ?? DEFAULT_IS_COMPLETE),
+            EndsInterview(request),
             request.JsonData,
             request.ReCaptchaToken
         );
@@ -105,11 +105,15 @@ public class CreateSubmissionHandler(
         var persisted = await PersistAsync(draft, cancellationToken);
         if (persisted.IsSuccess && persisted.Value.IsComplete)
         {
-            await mediator.Publish(new SubmissionCompletedEvent(persisted.Value), cancellationToken);
+            await mediator.PublishCompletedAsync(persisted.Value, cancellationToken);
         }
 
         return persisted;
     }
+
+    /// <summary>An outcome ends the interview like a complete, so it gets the same bot check.</summary>
+    private static bool EndsInterview(CreateSubmissionCommand request) =>
+        request.CollectionOutcome is not null || (request.IsComplete ?? DEFAULT_IS_COMPLETE);
 
     /// <summary>A public form takes submissions from anyone; any other needs <paramref name="requiredPermission"/>.</summary>
     private async Task<Result> AuthorizeAsync(Form form, string requiredPermission, CancellationToken cancellationToken) =>
@@ -268,15 +272,10 @@ public class CreateSubmissionHandler(
 
         public Submission Build(long definitionId)
         {
-            var screenOut = CollectionOutcomes.IsScreenOut(Request.CollectionOutcome);
-            var submission = Submission.Create(CreateArgs(definitionId, screenOut));
+            CollectionOutcomes.TryResolve(Request.CollectionOutcome, out var outcome);
+            var submission = Submission.Create(CreateArgs(definitionId, outcome));
             ApplySnapshot(submission, Request.PersonalizationSnapshot);
             submission.UpdateToken(Token);
-            if (screenOut)
-            {
-                submission.ScreenOut();
-            }
-
             return submission;
         }
 
@@ -288,13 +287,13 @@ public class CreateSubmissionHandler(
             }
         }
 
-        private SubmissionCreateArgs CreateArgs(long definitionId, bool screenOut) =>
+        private SubmissionCreateArgs CreateArgs(long definitionId, CollectionStatus? outcome) =>
             new(
                 TenantId: TenantId,
                 FormId: Request.FormId,
                 FormDefinitionId: definitionId,
                 JsonData: Request.JsonData ?? DEFAULT_JSON_DATA,
-                IsComplete: !screenOut && (Request.IsComplete ?? DEFAULT_IS_COMPLETE),
+                IsComplete: outcome is null && (Request.IsComplete ?? DEFAULT_IS_COMPLETE),
                 CurrentPage: Request.CurrentPage ?? DEFAULT_CURRENT_PAGE,
                 Metadata: Request.Metadata ?? DEFAULT_METADATA,
                 SubmitterId: Submitter.SubmitterId,
@@ -306,7 +305,8 @@ public class CreateSubmissionHandler(
                 StartSubmission: string.Equals(
                     Request.RequiredPermission,
                     Actions.Submissions.Create,
-                    StringComparison.Ordinal));
+                    StringComparison.Ordinal),
+                CollectionOutcome: outcome);
     }
 
     private Task<Result<Submission>> DuplicateConflictAsync(

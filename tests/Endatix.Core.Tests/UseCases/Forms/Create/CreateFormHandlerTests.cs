@@ -56,6 +56,23 @@ public class CreateFormHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WebHookSettingsWithRetiredKey_ReturnsInvalidAndCreatesNothing()
+    {
+        // Arrange
+        var webHookJson = """{"Events":{"SubmissionCollectionStatusChanged":{"IsEnabled":true,"WebHookEndpoints":[]}}}""";
+        var request = new CreateFormCommand("Form Name", "Description", true, SampleData.FORM_DEFINITION_JSON_DATA_1, webHookJson);
+        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle().Which.ErrorMessage.Should().Contain("'SubmissionClosed'");
+        await _repository.DidNotReceiveWithAnyArgs().CreateFormWithDefinitionAsync(default!, default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task Handle_WithWebHookSettings_CreatesFormWithWebHookConfiguration()
     {
         // Arrange

@@ -20,7 +20,7 @@ internal static class CrunchTabularValueProjector
 
         using var dataDocument = JsonDocument.Parse(dataJson);
         using var codebookDocument = JsonDocument.Parse(codebookJson);
-        var questions = ReadQuestions(codebookDocument.RootElement);
+        var questions = CodebookQuestions.Read(codebookDocument.RootElement);
 
         Dictionary<string, JsonElement?> projected = new(StringComparer.Ordinal);
         HashSet<string> consumedKeys = new(StringComparer.Ordinal);
@@ -178,23 +178,6 @@ internal static class CrunchTabularValueProjector
 
         answer = default;
         return false;
-    }
-
-    private static Dictionary<string, JsonElement> ReadQuestions(JsonElement codebook)
-    {
-        Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
-        if (!codebook.TryGetProperty(FormSchemaCodebookPropertyNames.Questions, out var questionsElement) ||
-            questionsElement.ValueKind != JsonValueKind.Object)
-        {
-            return questions;
-        }
-
-        foreach (var property in questionsElement.EnumerateObject())
-        {
-            questions[property.Name] = property.Value.Clone();
-        }
-
-        return questions;
     }
 
     private static JsonElement ToNumberJson(int value)

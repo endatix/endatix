@@ -18,7 +18,6 @@ public class EmailTemplateServiceTests
         // Arrange
         var settings = new EmailTemplateSettings
         {
-            HubUrl = "https://app.example.com",
             EmailVerification = new EmailTemplateConfig
             {
                 TemplateId = "email-verification",
@@ -51,7 +50,6 @@ public class EmailTemplateServiceTests
         // Arrange
         var settings = new EmailTemplateSettings
         {
-            HubUrl = "https://app.example.com",
             EmailVerification = new EmailTemplateConfig
             {
                 TemplateId = "email-verification",
@@ -181,7 +179,6 @@ public class EmailTemplateServiceTests
         // Arrange
         var settings = new EmailTemplateSettings
         {
-            HubUrl = string.Empty,
             EmailVerification = new EmailTemplateConfig
             {
                 TemplateId = "email-verification",
@@ -207,10 +204,12 @@ public class EmailTemplateServiceTests
     [Fact]
     public void CreateVerificationEmail_WithDifferentConfigurations_ReturnsCorrectValues()
     {
-        // Arrange
+        // Arrange — empty HubBaseUrl exercises the obsolete EmailTemplates:HubUrl fallback.
         var settings = new EmailTemplateSettings
         {
+#pragma warning disable CS0618 // Subject under test: legacy HubUrl when HubBaseUrl is unset
             HubUrl = "https://custom-app.com",
+#pragma warning restore CS0618
             EmailVerification = new EmailTemplateConfig
             {
                 TemplateId = "custom-verification-template",
@@ -218,7 +217,7 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var hubOptions = CreateHubOptions(string.Empty); // use fallback from settings
+        var hubOptions = CreateHubOptions(string.Empty);
         var service = new EmailTemplateService(options, hubOptions);
 
         var userEmail = "user@test.com";
@@ -244,7 +243,6 @@ public class EmailTemplateServiceTests
         // Arrange
         var settings = new EmailTemplateSettings
         {
-            HubUrl = "https://app.example.com",
             EmailVerification = new EmailTemplateConfig
             {
                 TemplateId = "email-verification",
@@ -274,7 +272,6 @@ public class EmailTemplateServiceTests
         // Arrange
         var settings = new EmailTemplateSettings
         {
-            HubUrl = "https://app.example.com",
             EmailVerification = new EmailTemplateConfig
             {
                 TemplateId = "email-verification",

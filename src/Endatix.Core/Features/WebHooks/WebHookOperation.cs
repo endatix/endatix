@@ -28,8 +28,12 @@ public record WebHookOperation
     public static readonly WebHookOperation SubmissionCompleted = new("submission_completed", nameof(Submission), ActionName.Updated);
 
     /// <summary>
-    /// Collection status changed to a terminal fielding outcome. Not raised for a normal complete.
+    /// A submission ended in a closed-phase outcome, e.g. a screen-out. Delivers the <c>submission.closed</c> event.
     /// </summary>
+    public static readonly WebHookOperation SubmissionClosed = new("submission_closed", nameof(Submission), ActionName.Updated);
+
+    /// <summary>Retired: nothing delivers it.</summary>
+    [Obsolete("Retired: use WebHookOperation.SubmissionClosed.", error: true)]
     public static readonly WebHookOperation SubmissionCollectionStatusChanged = new("submission_collection_status_changed", nameof(Submission), ActionName.Updated);
 
     /// <summary>
