@@ -18,7 +18,7 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// integration event costs zero dispatcher/relay changes. Plain <see cref="DomainEventBase"/> events
 /// that are not <see cref="IIntegrationEvent"/> are ignored here (they stay in-process via MediatR).
 /// </remarks>
-public sealed class OutboxIntegrationEventDispatcher
+public static class OutboxIntegrationEventDispatcher
 {
     // Web defaults (camelCase) — payloads are opaque JSON to the relay; consumers own their shape.
     // LongToStringConverter keeps long IDs as strings on the wire, byte-compatible with the existing
@@ -34,7 +34,7 @@ public sealed class OutboxIntegrationEventDispatcher
     /// (stamping <c>Id</c>/<c>CreatedAt</c> as it adds them).
     /// </summary>
     /// <param name="entities">Tracked entities that may carry domain events.</param>
-    public IReadOnlyList<OutboxMessage> Capture(IEnumerable<HasDomainEventsBase> entities)
+    public static IReadOnlyList<OutboxMessage> Capture(IEnumerable<HasDomainEventsBase> entities)
     {
         var messages = new List<OutboxMessage>();
 

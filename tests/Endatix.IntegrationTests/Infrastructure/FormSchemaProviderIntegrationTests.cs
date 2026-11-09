@@ -79,7 +79,7 @@ public sealed class FormSchemaProviderIntegrationTests
         FormSchemaProvider provider = CreateProvider(formsRepository, dbContext, appDbContext);
 
         FormSchema? first = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
-        int definitionReadsToCompile = DefinitionReads(formsRepository);
+        var definitionReadsToCompile = DefinitionReads(formsRepository);
         FormSchema? second = await provider.GetOrCompileAsync(TenantId, FormId, FormDefinitionId, cancellationToken);
 
         second.Should().BeEquivalentTo(first);
@@ -111,10 +111,7 @@ public sealed class FormSchemaProviderIntegrationTests
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
 
-        return new AppDbContext(
-            optionsBuilder.Options,
-            tenantContext,
-            new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private static FormSchemaRepository CreateSchemaRepository(ReportingDbContextBase dbContext)

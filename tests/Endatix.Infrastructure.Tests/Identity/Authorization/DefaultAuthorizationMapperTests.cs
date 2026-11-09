@@ -1,11 +1,11 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using Endatix.Core.Entities.Identity;
+using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
-using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Authorization;
-using Endatix.Core.Entities.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authorization;
@@ -317,7 +317,7 @@ public sealed class DefaultAuthorizationMapperTests
     {
         var method = typeof(DefaultAuthorizationMapper).GetMethod(
             "GetMatchingRoles",
-            BindingFlags.NonPublic | BindingFlags.Instance);
+            BindingFlags.NonPublic | BindingFlags.Static);
 
         method.Should().NotBeNull("GetMatchingRoles method should exist");
 

@@ -1,15 +1,15 @@
 using System.Reflection;
-using Microsoft.EntityFrameworkCore;
-using Endatix.Core.Entities;
-using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Endatix.Infrastructure.Data.Abstractions;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Features.Outbox;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -23,7 +23,7 @@ public class AppDbContext : DbContext, ITenantDbContext
     // Null only through the protected constructor: GetTenantId falls back to 0 and no outbox
     // messages are captured.
     private readonly ITenantContext? _tenantContext;
-    private readonly OutboxIntegrationEventDispatcher? _outboxDispatcher;
+    private readonly bool _captureOutbox;
 
     /// <summary>
     /// For proxies and design-time tooling only. The context has no tenant and captures no outbox messages.
@@ -32,11 +32,10 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public AppDbContext(
         DbContextOptions<AppDbContext> options,
-        ITenantContext tenantContext,
-        OutboxIntegrationEventDispatcher outboxDispatcher) : base(options)
+        ITenantContext tenantContext) : base(options)
     {
         _tenantContext = tenantContext;
-        _outboxDispatcher = outboxDispatcher;
+        _captureOutbox = true;
     }
 
     public DbSet<Form> Forms { get; set; }
@@ -225,7 +224,7 @@ public class AppDbContext : DbContext, ITenantDbContext
     /// </summary>
     private void CaptureIntegrationEvents()
     {
-        if (_outboxDispatcher is null)
+        if (!_captureOutbox)
         {
             return;
         }
@@ -240,7 +239,7 @@ public class AppDbContext : DbContext, ITenantDbContext
             return;
         }
 
-        var outboxMessages = _outboxDispatcher.Capture(entitiesWithEvents);
+        var outboxMessages = OutboxIntegrationEventDispatcher.Capture(entitiesWithEvents);
         foreach (var message in outboxMessages)
         {
             var entry = OutboxMessages.Add(message);

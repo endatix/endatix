@@ -1,7 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Infrastructure.Exporting.DataSources;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
@@ -9,12 +8,13 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
+using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Exporting;
+using Endatix.Infrastructure.Exporting.DataSources;
 using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Features.Forms;
 using Endatix.Infrastructure.Features.Submissions;
-using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -52,7 +52,6 @@ public class InfrastructureDataBuilder
         Services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         Services.AddSingleton<IShortUrlGenerator, ShortUrlGenerator>();
         Services.AddScoped<IUnitOfWork, AppUnitOfWork>();
-        Services.AddSingleton<Endatix.Infrastructure.Features.Outbox.OutboxIntegrationEventDispatcher>();
         // NOTE: the in-process outbox relay (AddEndatixOutboxRelay) is registered by the active persistence
         // builder's AddDbSpecificRepositories(), co-located with its claim store — so the relay exists only
         // when a DB provider is configured (its hosted service hard-depends on IOutboxClaimStore).

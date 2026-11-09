@@ -54,7 +54,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -72,7 +72,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        long tenantId = NextId();
+        var tenantId = NextId();
         long dataListId;
         await using (AppDbContext seed = CreateAppDbContext(tenantId))
         {
@@ -116,7 +116,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -134,7 +134,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -152,7 +152,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -177,7 +177,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -210,7 +210,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -235,7 +235,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -253,7 +253,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -280,7 +280,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -305,7 +305,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        (long tenantId, long dataListId) = await SeedLocalizedFruitListAsync(ct);
+        (var tenantId, var dataListId) = await SeedLocalizedFruitListAsync(ct);
         await using AppDbContext db = CreateAppDbContext(tenantId);
         IDataListRepository repository = CreateRepository(db);
 
@@ -323,7 +323,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        long tenantId = NextId();
+        var tenantId = NextId();
         long dataListId;
         await using (AppDbContext seed = CreateAppDbContext(tenantId))
         {
@@ -353,7 +353,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        long tenantId = NextId();
+        var tenantId = NextId();
         long dataListId;
         await using (AppDbContext seed = CreateAppDbContext(tenantId))
         {
@@ -383,7 +383,7 @@ public sealed class DataListSearchMatchModeTests
         CancellationToken ct = TestContext.Current.CancellationToken;
         await ResetAndMigrateAsync(ct);
 
-        long tenantId = NextId();
+        var tenantId = NextId();
         long dataListId;
         await using (AppDbContext seed = CreateAppDbContext(tenantId))
         {
@@ -419,7 +419,7 @@ public sealed class DataListSearchMatchModeTests
 
     private async Task<(long TenantId, long DataListId)> SeedFruitListAsync(CancellationToken ct)
     {
-        long tenantId = NextId();
+        var tenantId = NextId();
         await using AppDbContext seed = CreateAppDbContext(tenantId);
         await EnsureTenantAsync(seed, tenantId, ct);
         // "Appetizer" starts with App but does not contain "ppl" (unlike "Appliance").
@@ -435,7 +435,7 @@ public sealed class DataListSearchMatchModeTests
 
     private async Task<(long TenantId, long DataListId)> SeedLocalizedFruitListAsync(CancellationToken ct)
     {
-        long tenantId = NextId();
+        var tenantId = NextId();
         await using AppDbContext seed = CreateAppDbContext(tenantId);
         await EnsureTenantAsync(seed, tenantId, ct);
         DataList list = new(tenantId, $"Locales-{tenantId}", defaultLocale: "en") { Id = NextId() };
@@ -480,10 +480,7 @@ public sealed class DataListSearchMatchModeTests
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
 
-        return new AppDbContext(
-            optionsBuilder.Options,
-            tenantContext,
-            new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private IDataListRepository CreateRepository(AppDbContext db)

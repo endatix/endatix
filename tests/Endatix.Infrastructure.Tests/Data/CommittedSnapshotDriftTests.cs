@@ -157,8 +157,7 @@ public sealed partial class CommittedSnapshotDriftTests
 
         var services = new ServiceCollection()
             .AddSingleton<IConfiguration>(configuration)
-            .AddSingleton(DesignTimeDbContextDependencies.TenantContext)
-            .AddSingleton<OutboxIntegrationEventDispatcher>();
+            .AddSingleton(DesignTimeDbContextDependencies.TenantContext);
 
         if (provider == PostgreSql)
         {

@@ -1,10 +1,10 @@
+using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions;
-using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
-public class SubmissionMapper
+public static class SubmissionMapper
 {
     public static SubmissionModel MapFromDto(SubmissionDto dto) => new SubmissionModel
     {

@@ -8,8 +8,6 @@ namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
 public class OutboxIntegrationEventDispatcherTests
 {
-    private readonly OutboxIntegrationEventDispatcher _sut = new();
-
     [Fact]
     public void Capture_WithIntegrationEvent_BuildsOutboxMessageFromTheEvent()
     {
@@ -18,7 +16,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaiseIntegrationEvent(formId: 123, name: "Survey");
 
         // Act
-        var messages = _sut.Capture([aggregate]);
+        var messages = OutboxIntegrationEventDispatcher.Capture([aggregate]);
 
         // Assert
         messages.Should().ContainSingle();
@@ -40,7 +38,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaiseIntegrationEvent(formId: 1, name: "x");
 
         // Act
-        var messages = _sut.Capture([aggregate]);
+        var messages = OutboxIntegrationEventDispatcher.Capture([aggregate]);
 
         // Assert
         messages.Should().ContainSingle();
@@ -55,7 +53,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaisePlainDomainEvent();
 
         // Act
-        var messages = _sut.Capture([aggregate]);
+        var messages = OutboxIntegrationEventDispatcher.Capture([aggregate]);
 
         // Assert
         messages.Should().BeEmpty();
@@ -69,7 +67,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaiseIntegrationEvent(formId: 1, name: "x");
 
         // Act
-        _sut.Capture([aggregate]);
+        OutboxIntegrationEventDispatcher.Capture([aggregate]);
 
         // Assert
         aggregate.DomainEvents.Should().BeEmpty("captured events must not be re-processed");
@@ -84,7 +82,7 @@ public class OutboxIntegrationEventDispatcherTests
         aggregate.RaisePlainDomainEvent();
 
         // Act
-        var messages = _sut.Capture([aggregate]);
+        var messages = OutboxIntegrationEventDispatcher.Capture([aggregate]);
 
         // Assert — only the integration event is captured and removed; the plain one stays in-process
         messages.Should().ContainSingle();
@@ -103,7 +101,7 @@ public class OutboxIntegrationEventDispatcherTests
         second.RaiseIntegrationEvent(formId: 3, name: "c");
 
         // Act
-        var messages = _sut.Capture([first, second]);
+        var messages = OutboxIntegrationEventDispatcher.Capture([first, second]);
 
         // Assert
         messages.Should().HaveCount(3);
@@ -130,7 +128,7 @@ public class OutboxIntegrationEventDispatcherTests
         submission.Update("""{"x":1}""", 99, formDefinitionFormId: 10, isComplete: true);
         submission.Delete();
 
-        var messages = _sut.Capture([form, submission]);
+        var messages = OutboxIntegrationEventDispatcher.Capture([form, submission]);
 
         messages.Select(m => m.EventType).Should().BeEquivalentTo(
         [
@@ -155,7 +153,7 @@ public class OutboxIntegrationEventDispatcherTests
         submission.Delete();
 
         // Act
-        var messages = _sut.Capture([submission]);
+        var messages = OutboxIntegrationEventDispatcher.Capture([submission]);
 
         // Assert
         messages.Select(m => m.EventType).Should().Equal("submission.created", "submission.completed", "submission.deleted");

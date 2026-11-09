@@ -81,7 +81,7 @@ public class JsonExtractor : IDisposable
     /// <param name="element">The element to get the element from.</param>
     /// <param name="jsonPath">The JSON path to the property using dot notation e.g. "resource_access.endatix-hub.roles".</param>
     /// <returns>Result with the property value or an error if the property is not found.</returns>
-    private Result<JsonElement> GetNestedElement(JsonElement element, string jsonPath)
+    private static Result<JsonElement> GetNestedElement(JsonElement element, string jsonPath)
     {
         var propertyNames = jsonPath.Split('.');
         var currentElement = element;

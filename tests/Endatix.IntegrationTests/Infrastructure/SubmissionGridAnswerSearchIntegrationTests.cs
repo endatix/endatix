@@ -300,7 +300,7 @@ public sealed class SubmissionGridAnswerSearchIntegrationTests(DbIntegrationFixt
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
-        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId), new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId));
     }
 
     private ReportingDbContextBase CreateReportingDbContext() =>

@@ -6,17 +6,17 @@ namespace Endatix.Infrastructure.Features.Submitters;
 /// <summary>
 /// Reads submitter claims from a claims principal.
 /// </summary>
-public sealed class SubmitterClaimReader
+public static class SubmitterClaimReader
 {
     /// <summary>
     /// Resolves the Endatix subject from a claims principal.
     /// </summary>
-    public string? ResolveEndatixSubject(ClaimsPrincipal principal) => principal.GetUserId();
+    public static string? ResolveEndatixSubject(ClaimsPrincipal principal) => principal.GetUserId();
 
     /// <summary>
     /// Resolves the original bearer token subject, ignoring hydrated authorization identities.
     /// </summary>
-    public string? ResolveNativeTokenSubject(ClaimsPrincipal principal)
+    public static string? ResolveNativeTokenSubject(ClaimsPrincipal principal)
     {
         foreach (var identity in principal.Identities)
         {
@@ -41,13 +41,13 @@ public sealed class SubmitterClaimReader
     /// <summary>
     /// Resolves the external subject from a claims principal.
     /// </summary>
-    public string? ResolveExternalSubject(ClaimsPrincipal principal) =>
+    public static string? ResolveExternalSubject(ClaimsPrincipal principal) =>
         ResolveNativeTokenSubject(principal);
 
     /// <summary>
     /// Resolves the display ID from a claims principal.
     /// </summary>
-    public string? ResolveDisplayId(ClaimsPrincipal principal, SubmitterOptions options)
+    public static string? ResolveDisplayId(ClaimsPrincipal principal, SubmitterOptions options)
     {
         foreach (var claimType in options.DisplayIdClaimTypes)
         {
@@ -64,13 +64,13 @@ public sealed class SubmitterClaimReader
     /// <summary>
     /// Resolves the profile from a claims principal.
     /// </summary>
-    public IReadOnlyDictionary<string, string>? ResolveProfile(ClaimsPrincipal principal, SubmitterOptions options) =>
+    public static IReadOnlyDictionary<string, string>? ResolveProfile(ClaimsPrincipal principal, SubmitterOptions options) =>
         IdentityClaimsReader.ReadFields(principal, options.ProfileSnapshotFields);
 
     /// <summary>
     /// Resolves the preferred user name from a claims principal.
     /// </summary>
-    public string? ResolvePreferredUserName(ClaimsPrincipal principal) =>
+    public static string? ResolvePreferredUserName(ClaimsPrincipal principal) =>
         IdentityClaimsReader.ReadPreferredUserName(principal);
 
     private static string? Normalize(string? value) =>

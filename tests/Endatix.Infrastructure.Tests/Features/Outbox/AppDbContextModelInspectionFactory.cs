@@ -39,10 +39,7 @@ internal static class AppDbContextModelInspectionFactory
             optionsBuilder,
             PostgresAppMigrationsNamespace);
 
-        return new AppDbContext(
-            optionsBuilder.Options,
-            resolvedTenantContext,
-            new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, resolvedTenantContext);
     }
 
     internal static AppDbContext CreateSqlServerAppDbContext(
@@ -63,10 +60,7 @@ internal static class AppDbContextModelInspectionFactory
             optionsBuilder,
             SqlServerAppMigrationsNamespace);
 
-        return new AppDbContext(
-            optionsBuilder.Options,
-            resolvedTenantContext,
-            new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, resolvedTenantContext);
     }
 
     internal static AppIdentityDbContext CreatePostgreSqlAppIdentityDbContext()

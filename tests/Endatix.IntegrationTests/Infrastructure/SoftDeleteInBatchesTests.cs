@@ -112,10 +112,7 @@ public sealed partial class SoftDeleteInBatchesTests(EndatixIntegrationWebHostFi
                 services.GetRequiredService<DbContextOptions<AppDbContext>>())
             .AddInterceptors(recorder)
             .Options;
-        return new AppDbContext(
-            options,
-            services.GetRequiredService<ITenantContext>(),
-            services.GetRequiredService<OutboxIntegrationEventDispatcher>());
+        return new AppDbContext(options, services.GetRequiredService<ITenantContext>());
     }
 
     /// <summary>Records the statements that read Submissions, and those that update it.</summary>

@@ -5,7 +5,7 @@ namespace Endatix.Infrastructure.Features.WebHooks;
 
 public class WebHooksPlugin : IPluginInitializer
 {
-    public class EventNames
+    public static class EventNames
     {
         public const string FORM_CREATED = "form_created";
         public const string FORM_UPDATED = "form_updated";

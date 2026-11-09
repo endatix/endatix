@@ -38,7 +38,7 @@ public class Token
         }
     }
 
-    private string GenerateToken()
+    private static string GenerateToken()
     {
         var tokenBytes = new byte[TOKEN_SIZE_BYTES];
         RandomNumberGenerator.Fill(tokenBytes);

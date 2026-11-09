@@ -385,10 +385,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, _fixture.ConnectionString, _fixture.Provider);
 
-        return new AppDbContext(
-            optionsBuilder.Options,
-            tenantContext,
-            new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, tenantContext);
     }
 
     private ReportingDbContextBase CreateReportingDbContext()

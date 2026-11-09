@@ -33,8 +33,7 @@ internal static class IntegrationTenants
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, database.ConnectionString, database.Provider);
         await using AppDbContext appDb = new(
             optionsBuilder.Options,
-            IntegrationTenantContext.Bypass,
-            new OutboxIntegrationEventDispatcher());
+            IntegrationTenantContext.Bypass);
 
         appDb.Set<Tenant>().Add(tenant);
         await appDb.SaveChangesAsync(cancellationToken);

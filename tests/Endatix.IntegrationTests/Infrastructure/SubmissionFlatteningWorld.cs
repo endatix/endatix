@@ -63,10 +63,7 @@ internal sealed class SubmissionFlatteningWorld(DbIntegrationFixture fixture)
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
-        return new AppDbContext(
-            optionsBuilder.Options,
-            new IntegrationTenantContext(TenantId),
-            new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId));
     }
 
     public ReportingDbContextBase CreateReportingDbContext() =>

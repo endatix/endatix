@@ -249,7 +249,7 @@ public sealed class OutboxCaptureTests
         await ctx.SaveChangesAsync(cancellationToken);
 
         first.RestrictionKey.Should().NotBeNullOrWhiteSpace();
-        string restrictionKey = first.RestrictionKey!;
+        var restrictionKey = first.RestrictionKey!;
 
         first.Delete();
         await ctx.SaveChangesAsync(cancellationToken);
@@ -294,7 +294,6 @@ public sealed class OutboxCaptureTests
         return new TestAppDbContext(
             optionsBuilder.Options,
             _tenantContext,
-            new OutboxIntegrationEventDispatcher(),
             ProbeSchema,
             ProbeTable);
     }
@@ -329,10 +328,9 @@ internal sealed class TestAppDbContext : AppDbContext
     public TestAppDbContext(
         DbContextOptions<AppDbContext> options,
         ITenantContext tenantContext,
-        OutboxIntegrationEventDispatcher outboxDispatcher,
         string probeSchema,
         string probeTable)
-        : base(options, tenantContext, outboxDispatcher)
+        : base(options, tenantContext)
     {
         _probeSchema = probeSchema;
         _probeTable = probeTable;

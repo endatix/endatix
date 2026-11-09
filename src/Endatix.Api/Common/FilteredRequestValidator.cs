@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace Endatix.Api.Common;
 
@@ -45,9 +45,9 @@ public class FilteredRequestValidator : AbstractValidator<IFilterable>
         }
 
         var field = _validFields.Keys
-            .FirstOrDefault(field => 
-                filter.StartsWith(field, StringComparison.OrdinalIgnoreCase) && 
-                filter.Length > field.Length && 
+            .FirstOrDefault(field =>
+                filter.StartsWith(field, StringComparison.OrdinalIgnoreCase) &&
+                filter.Length > field.Length &&
                 !char.IsLetterOrDigit(filter[field.Length]));
 
         if (field == null)
@@ -96,7 +96,7 @@ public class FilteredRequestValidator : AbstractValidator<IFilterable>
         return true;
     }
 
-    private bool IsValidType(string value, Type type)
+    private static bool IsValidType(string value, Type type)
     {
         var underlyingType = Nullable.GetUnderlyingType(type);
         var isNullable = underlyingType is not null;

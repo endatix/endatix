@@ -76,8 +76,8 @@ public class WebHookIntegrationEventPublisherTests
         var sut = CreateSut();
         foreach (var integrationEvent in events)
         {
-            object eventPayload = integrationEvent.GetPayload();
-            string payload = JsonSerializer.Serialize(eventPayload, eventPayload.GetType(), WireOptions);
+            var eventPayload = integrationEvent.GetPayload();
+            var payload = JsonSerializer.Serialize(eventPayload, eventPayload.GetType(), WireOptions);
             var message = new FakeOutboxMessage(Id: 1, EventType: integrationEvent.EventType, Payload: payload, TenantId: 42);
 
             await sut.HandleAsync(message, CancellationToken.None);
@@ -100,7 +100,7 @@ public class WebHookIntegrationEventPublisherTests
             IsComplete: true,
             IsTestSubmission: true));
         submission.Id = 77;
-        var captured = new OutboxIntegrationEventDispatcher().Capture([submission])
+        var captured = OutboxIntegrationEventDispatcher.Capture([submission])
             .Single(row => row.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
         var message = new FakeOutboxMessage(Id: 3, EventType: captured.EventType, Payload: captured.Payload, TenantId: 42);
         string? delivered = null;

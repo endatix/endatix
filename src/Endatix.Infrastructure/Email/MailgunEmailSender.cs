@@ -1,13 +1,13 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Ardalis.GuardClauses;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
-using Ardalis.GuardClauses;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -43,7 +43,7 @@ public class MailgunEmailSender(
         services.AddHttpClient();
     };
 
-    public void Install(IServiceCollection services)
+    public static void Install(IServiceCollection services)
     {
         services.AddHttpClient();
     }

@@ -78,7 +78,7 @@ public sealed class WebHookEventsTests
         cancelled.Cancel();
 
         // Act
-        var captured = new OutboxIntegrationEventDispatcher().Capture([prefilledThenScreenedOut, completed, cancelled]);
+        var captured = OutboxIntegrationEventDispatcher.Capture([prefilledThenScreenedOut, completed, cancelled]);
 
         // Assert
         captured.Select(row => row.EventType).Should().Equal(

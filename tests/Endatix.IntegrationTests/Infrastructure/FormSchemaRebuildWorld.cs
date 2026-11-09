@@ -12,8 +12,8 @@ using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Repositories;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Domain;
+using Endatix.Modules.Reporting.Features.BackgroundJobs;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -232,7 +232,8 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
             $$"""{"tenantId":"{{TenantId}}","formId":"{{formId}}","submissionId":"{{submissionId}}"}""",
             TenantId,
             DateTime.UtcNow,
-            1) { Id = 700 };
+            1)
+        { Id = 700 };
         return RunFlattenJobAsync(message, transactionLock);
     }
 
@@ -302,10 +303,7 @@ internal sealed class FormSchemaRebuildWorld(DbIntegrationFixture fixture, Submi
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
-        return new AppDbContext(
-            optionsBuilder.Options,
-            new IntegrationTenantContext(TenantId),
-            new OutboxIntegrationEventDispatcher());
+        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId));
     }
 }
 

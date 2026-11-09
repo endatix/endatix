@@ -18,7 +18,6 @@ public static class SubmitterServiceCollectionExtensions
         services.AddEndatixOptions<SubmitterOptions>(configuration);
         services.AddSingleton<IValidateOptions<SubmitterOptions>>(new SubmitterOptionsValidator(configuration));
         services.AddOptions<SubmitterOptions>().ValidateOnStart();
-        services.AddSingleton<SubmitterClaimReader>();
         services.AddSingleton<SubmitterProfileSnapshotBuilder>();
         services.AddScoped<ISubmitterClaimExtractor, KeycloakSubmitterClaimExtractor>();
         services.AddScoped<ISubmitterClaimExtractor, EndatixSubmitterClaimExtractor>();

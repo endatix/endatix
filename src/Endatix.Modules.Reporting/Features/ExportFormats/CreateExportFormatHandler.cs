@@ -20,8 +20,7 @@ public sealed record CreateExportFormatCommand(
 /// </summary>
 internal sealed class CreateExportFormatHandler(
     IExportFormatRepository repository,
-    IExportCapabilityRegistry capabilityRegistry,
-    ExportFormatSettingsWriter settingsWriter) : ICommandHandler<CreateExportFormatCommand, Result<ExportFormatDto>>
+    IExportCapabilityRegistry capabilityRegistry) : ICommandHandler<CreateExportFormatCommand, Result<ExportFormatDto>>
 {
     /// <inheritdoc />
     public async Task<Result<ExportFormatDto>> Handle(
@@ -52,7 +51,7 @@ internal sealed class CreateExportFormatHandler(
         }
 
         var settingsInput = request.Settings ?? CreateDefaultSettings(request);
-        var settingsResult = settingsWriter.Serialize(
+        var settingsResult = ExportFormatSettingsWriter.Serialize(
             settingsInput,
             request.ExportTarget);
         if (!settingsResult.IsSuccess)
