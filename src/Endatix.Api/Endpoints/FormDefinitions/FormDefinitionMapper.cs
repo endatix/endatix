@@ -1,4 +1,4 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
