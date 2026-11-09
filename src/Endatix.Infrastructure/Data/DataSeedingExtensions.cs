@@ -33,7 +33,7 @@ public static class DataSeedingExtensions
     public static async Task SeedInitialUserAsync(this IServiceProvider serviceProvider)
     {
         var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-        var logger = loggerFactory?.CreateLogger(nameof(DataSeedingExtensions)) ?? NullLogger.Instance;
+        var logger = loggerFactory?.CreateLogger(typeof(DataSeedingExtensions).FullName!) ?? NullLogger.Instance;
 
         logger.LogInformation("Seeding initial user data");
 
