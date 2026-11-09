@@ -107,8 +107,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: OneFiringOfWrites);
-        await using var node = await StartNodeFailingStateWritesQuicklyAsync(
-            new(database, invocations, OneAttempt()), failures, ct, refireDelay: TimeSpan.FromSeconds(2));
+        await using var node = await StartNodeFailingAsync(
+            new(database, invocations, OneAttempt()),
+            services =>
+            {
+                FailingStateRepository.Register(services, failures);
+                services.UseQuickOutageRetries(refireDelay: TimeSpan.FromSeconds(2));
+            },
+            ct);
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(failures.CompletionsRemaining == 0), Patience, ct);
 
@@ -195,14 +201,13 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
     private static Task<JobsTestNode> StartNodeFailingStateWritesQuicklyAsync(
         ProbeNodeSetup setup,
         StateRepositoryFailures failures,
-        CancellationToken ct,
-        TimeSpan? refireDelay = null) =>
+        CancellationToken ct) =>
         StartNodeFailingAsync(
             setup,
             services =>
             {
                 FailingStateRepository.Register(services, failures);
-                services.UseQuickOutageRetries(refireDelay);
+                services.UseQuickOutageRetries();
             },
             ct);
 
