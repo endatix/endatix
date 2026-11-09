@@ -591,8 +591,8 @@ transient one; scope every query to the job's `TenantId`; honour the token; neve
 
 With `Endatix:Outbox:DeliverToJobQueue` on, the outbox relay's publisher is
 `JobQueueIntegrationEventPublisher`: it enqueues **one job per subscriber** and returns, so the relay
-does no subscriber work and one failing subscriber can no longer block, re-send or dead-letter
-another. Reporting and Audience register each handler through `AddOutboxWork`, and the startup checks
+does no subscriber work and, once the jobs are queued, one failing subscriber can no longer block,
+re-send or dead-letter another. Reporting and Audience register each handler through `AddOutboxWork`, and the startup checks
 that guard the switch are listed with it under [Domain and integration events](#domain-and-integration-events);
 webhooks expand to one job per distinct enabled endpoint URL. The relay pauses rather than claim when
 the switch is on and no job queue is registered.
