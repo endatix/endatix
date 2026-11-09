@@ -1,8 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -100,7 +100,8 @@ public sealed class KeycloakSubmitterClaimExtractorTests
     {
         return new KeycloakSubmitterClaimExtractor(
             CreateRegistry(AuthProviders.Keycloak, KeycloakIssuer),
-            Options.Create(options));
+            Options.Create(options),
+            new SubmitterClaimReader());
     }
 
     private static AuthProviderRegistry CreateRegistry(string schemeName, string issuer)

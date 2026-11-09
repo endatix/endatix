@@ -144,7 +144,7 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
             IsComplete: true,
             IsTestSubmission: true));
         submission.Id = 77;
-        var captured = OutboxIntegrationEventDispatcher.Capture([submission])
+        var captured = new OutboxIntegrationEventDispatcher().Capture([submission])
             .Single(row => row.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
 
         // Act

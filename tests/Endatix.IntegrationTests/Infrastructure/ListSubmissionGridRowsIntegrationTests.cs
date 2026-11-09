@@ -1,5 +1,4 @@
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
@@ -11,6 +10,7 @@ using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Persistence;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Infrastructure.Domain;
 using NSubstitute;
 
 namespace Endatix.IntegrationTests;
@@ -163,7 +163,7 @@ public sealed class ListSubmissionGridRowsIntegrationTests(DbIntegrationFixture 
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
-        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId));
+        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId), new OutboxIntegrationEventDispatcher());
     }
 
     private ReportingDbContextBase CreateReportingDbContext(long tenantId) =>

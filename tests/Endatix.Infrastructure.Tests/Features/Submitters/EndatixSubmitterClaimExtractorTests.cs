@@ -15,7 +15,8 @@ public sealed class EndatixSubmitterClaimExtractorTests
     private const string EndatixIssuer = "endatix-api";
     private readonly EndatixSubmitterClaimExtractor _extractor = new(
         CreateRegistry(AuthProviders.Endatix, EndatixIssuer),
-        Options.Create(new SubmitterOptions()));
+        Options.Create(new SubmitterOptions()),
+        new SubmitterClaimReader());
 
     [Fact]
     public void Extract_WithNativeLongSubject_ReturnsAppUserId()

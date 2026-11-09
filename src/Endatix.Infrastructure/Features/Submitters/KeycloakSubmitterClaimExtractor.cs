@@ -11,7 +11,8 @@ namespace Endatix.Infrastructure.Features.Submitters;
 /// </summary>
 internal sealed class KeycloakSubmitterClaimExtractor(
     AuthProviderRegistry authProviderRegistry,
-    IOptions<SubmitterOptions> options)
+    IOptions<SubmitterOptions> options,
+    SubmitterClaimReader claimReader)
     : ISubmitterClaimExtractor
 {
     private readonly SubmitterOptions _options = options.Value;
@@ -30,7 +31,7 @@ internal sealed class KeycloakSubmitterClaimExtractor(
             return false;
         }
 
-        var subject = SubmitterClaimReader.ResolveExternalSubject(principal);
+        var subject = claimReader.ResolveExternalSubject(principal);
         if (principal.Identity?.IsAuthenticated != true || string.IsNullOrWhiteSpace(subject) || long.TryParse(subject, out _))
         {
             return false;
@@ -44,9 +45,9 @@ internal sealed class KeycloakSubmitterClaimExtractor(
     {
         return new SubmitterExtractionInput(
             AuthProviders.Keycloak,
-            SubmitterClaimReader.ResolveExternalSubject(principal),
-            SubmitterClaimReader.ResolveDisplayId(principal, _options),
+            claimReader.ResolveExternalSubject(principal),
+            claimReader.ResolveDisplayId(principal, _options),
             null,
-            SubmitterClaimReader.ResolveProfile(principal, _options));
+            claimReader.ResolveProfile(principal, _options));
     }
 }

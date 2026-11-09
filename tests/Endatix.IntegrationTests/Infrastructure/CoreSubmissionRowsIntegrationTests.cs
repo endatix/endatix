@@ -102,6 +102,6 @@ public sealed class CoreSubmissionRowsIntegrationTests(DbIntegrationFixture fixt
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
-        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(tenantId));
+        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(tenantId), new OutboxIntegrationEventDispatcher());
     }
 }

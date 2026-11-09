@@ -186,7 +186,7 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
     {
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
-        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId));
+        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(TenantId), new OutboxIntegrationEventDispatcher());
     }
 
     private sealed record SeededRows(long OldKey, long BothKeys, long NoWebHooks);

@@ -276,7 +276,10 @@ public sealed partial class AudienceDirectoryFlowTests
                 services.GetRequiredService<DbContextOptions<AppDbContext>>())
             .AddInterceptors(gate)
             .Options;
-        return new AppDbContext(options, services.GetRequiredService<ITenantContext>());
+        return new AppDbContext(
+            options,
+            services.GetRequiredService<ITenantContext>(),
+            services.GetRequiredService<OutboxIntegrationEventDispatcher>());
     }
 
     /// <summary>The host's handler, with every <see cref="AppDbContext"/> read and write going through <paramref name="app"/>.</summary>

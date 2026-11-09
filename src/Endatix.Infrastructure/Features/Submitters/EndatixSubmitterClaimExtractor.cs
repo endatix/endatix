@@ -11,7 +11,8 @@ namespace Endatix.Infrastructure.Features.Submitters;
 /// </summary>
 internal sealed class EndatixSubmitterClaimExtractor(
     AuthProviderRegistry authProviderRegistry,
-    IOptions<SubmitterOptions> options)
+    IOptions<SubmitterOptions> options,
+    SubmitterClaimReader claimReader)
     : ISubmitterClaimExtractor
 {
     private readonly SubmitterOptions _options = options.Value;
@@ -30,7 +31,7 @@ internal sealed class EndatixSubmitterClaimExtractor(
             return false;
         }
 
-        var subject = SubmitterClaimReader.ResolveNativeTokenSubject(principal);
+        var subject = claimReader.ResolveNativeTokenSubject(principal);
         return principal.Identity?.IsAuthenticated == true &&
             !string.IsNullOrWhiteSpace(subject) &&
             long.TryParse(subject, out _);
@@ -39,7 +40,7 @@ internal sealed class EndatixSubmitterClaimExtractor(
     /// <inheritdoc />
     public SubmitterExtractionInput Extract(ClaimsPrincipal principal)
     {
-        var subject = SubmitterClaimReader.ResolveNativeTokenSubject(principal);
+        var subject = claimReader.ResolveNativeTokenSubject(principal);
         if (!long.TryParse(subject, out var appUserId))
         {
             throw new InvalidOperationException($"Failed to parse Endatix subject '{subject}' as long. CanExtract should have prevented this.");
@@ -50,6 +51,6 @@ internal sealed class EndatixSubmitterClaimExtractor(
             null,
             appUserId.ToString(),
             appUserId,
-            SubmitterClaimReader.ResolveProfile(principal, _options));
+            claimReader.ResolveProfile(principal, _options));
     }
 }

@@ -28,9 +28,11 @@ public sealed class SubmitterResolverTests
     [Fact]
     public async Task EnsureSubmitterAsync_WithHigherPriorityCustomExtractor_UsesCustomExtractorBeforeBuiltIn()
     {
+        SubmitterClaimReader claimReader = new();
         KeycloakSubmitterClaimExtractor keycloakExtractor = new(
             CreateRegistry(AuthProviders.Keycloak, "https://keycloak.test"),
-            Options.Create(new SubmitterOptions()));
+            Options.Create(new SubmitterOptions()),
+            claimReader);
         CustomSubmitterClaimExtractor customExtractor = new();
         var resolver = CreateResolver(keycloakExtractor, customExtractor);
         ClaimsPrincipal principal = new(new ClaimsIdentity(

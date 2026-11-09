@@ -57,6 +57,7 @@ internal static class IntegrationCoreMigrationTestHelper
     {
         services.AddSingleton<IIdGenerator<long>, SequentialIdGenerator>();
         services.AddSingleton<ITenantContext>(IntegrationTenantContext.Bypass);
+        services.AddSingleton<OutboxIntegrationEventDispatcher>();
     }
 
     private sealed class SequentialIdGenerator : IIdGenerator<long>

@@ -1,19 +1,19 @@
-using Endatix.Api.Builders;
-using Endatix.Api.Configuration;
 using Endatix.Api.Infrastructure.Cors;
-using Endatix.Framework.Configuration;
-using Endatix.Framework.Hosting;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Endatix.Api.Builders;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using Endatix.Framework.Hosting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Endatix.Api.Configuration;
+using Endatix.Framework.Configuration;
 
 namespace Endatix.Api.Setup;
 

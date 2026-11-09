@@ -6,17 +6,18 @@ namespace Endatix.Infrastructure.Features.Submitters;
 /// <summary>
 /// Reads submitter claims from a claims principal.
 /// </summary>
-public static class SubmitterClaimReader
+[System.Diagnostics.CodeAnalysis.SuppressMessage("csharpsquid", "S2325:Methods and properties that don't access instance data should be static", Justification = "Injectable and mockable public service; making it static would break extractor constructors and downstream consumers.")]
+public sealed class SubmitterClaimReader
 {
     /// <summary>
     /// Resolves the Endatix subject from a claims principal.
     /// </summary>
-    public static string? ResolveEndatixSubject(ClaimsPrincipal principal) => principal.GetUserId();
+    public string? ResolveEndatixSubject(ClaimsPrincipal principal) => principal.GetUserId();
 
     /// <summary>
     /// Resolves the original bearer token subject, ignoring hydrated authorization identities.
     /// </summary>
-    public static string? ResolveNativeTokenSubject(ClaimsPrincipal principal)
+    public string? ResolveNativeTokenSubject(ClaimsPrincipal principal)
     {
         foreach (var identity in principal.Identities)
         {
@@ -41,13 +42,13 @@ public static class SubmitterClaimReader
     /// <summary>
     /// Resolves the external subject from a claims principal.
     /// </summary>
-    public static string? ResolveExternalSubject(ClaimsPrincipal principal) =>
+    public string? ResolveExternalSubject(ClaimsPrincipal principal) =>
         ResolveNativeTokenSubject(principal);
 
     /// <summary>
     /// Resolves the display ID from a claims principal.
     /// </summary>
-    public static string? ResolveDisplayId(ClaimsPrincipal principal, SubmitterOptions options)
+    public string? ResolveDisplayId(ClaimsPrincipal principal, SubmitterOptions options)
     {
         foreach (var claimType in options.DisplayIdClaimTypes)
         {
@@ -64,13 +65,13 @@ public static class SubmitterClaimReader
     /// <summary>
     /// Resolves the profile from a claims principal.
     /// </summary>
-    public static IReadOnlyDictionary<string, string>? ResolveProfile(ClaimsPrincipal principal, SubmitterOptions options) =>
+    public IReadOnlyDictionary<string, string>? ResolveProfile(ClaimsPrincipal principal, SubmitterOptions options) =>
         IdentityClaimsReader.ReadFields(principal, options.ProfileSnapshotFields);
 
     /// <summary>
     /// Resolves the preferred user name from a claims principal.
     /// </summary>
-    public static string? ResolvePreferredUserName(ClaimsPrincipal principal) =>
+    public string? ResolvePreferredUserName(ClaimsPrincipal principal) =>
         IdentityClaimsReader.ReadPreferredUserName(principal);
 
     private static string? Normalize(string? value) =>

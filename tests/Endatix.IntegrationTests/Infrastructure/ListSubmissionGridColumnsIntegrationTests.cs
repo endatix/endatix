@@ -187,7 +187,10 @@ public sealed class ListSubmissionGridColumnsIntegrationTests(DbIntegrationFixtu
         DbContextOptionsBuilder<AppDbContext> optionsBuilder = new();
         IntegrationAppDbContextFactory.ConfigureOptions(optionsBuilder, fixture.ConnectionString, fixture.Provider);
 
-        return new AppDbContext(optionsBuilder.Options, new IntegrationTenantContext(tenantId));
+        return new AppDbContext(
+            optionsBuilder.Options,
+            new IntegrationTenantContext(tenantId),
+            new OutboxIntegrationEventDispatcher());
     }
 
     private ReportingDbContextBase CreateReportingDbContext(long tenantId) =>
