@@ -302,20 +302,31 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
-        await using var node = await StartNodeAsync(
-            new(
-                database,
-                new ProbeInvocations(),
-                new Dictionary<string, string?> { [ProbeKey("MaxRuntimeMinutes")] = "1" }),
-            ct);
+        var clock = new JobsTestClock();
+        var invocations = new ProbeInvocations();
+        await using var node = JobsTestNode.Create(
+            database,
+            new Dictionary<string, string?>(JobsTestClock.LongRealTimeFallbacks) { [ProbeKey("MaxRuntimeMinutes")] = "1" },
+            services =>
+            {
+                services.AddProbe(invocations);
+                clock.Use(services);
+            });
+        await node.StartAsync(ct);
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Block), ct);
+        var started = await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Patience, ct);
 
-        // Act
-        await Task.Delay(TimeSpan.FromSeconds(70), ct);
+        // Act — the one-minute ceiling passes on the test's clock, a step at a time.
+        var stopped = await clock.StepUntilAsync(() => invocations.CancelledAt(jobId) is not null, TimeSpan.FromMinutes(2), ct);
 
         // Assert
-        var row = await database.ReadJobAsync(jobId, ct);
-        row!.Status.Should().BeOneOf(JobStatus.Retrying, JobStatus.DeadLettered);
+        started.Should().BeTrue("the job's trigger is due at once on the scheduler's clock");
+        stopped.Should().BeTrue("the ceiling counts down on the scheduler's clock");
+        var recorded = await JobsTestWait.UntilAsync(
+            async () => (await database.ReadJobAsync(jobId, ct))?.Status is JobStatus.Retrying or JobStatus.DeadLettered,
+            Patience,
+            ct);
+        recorded.Should().BeTrue();
     }
 
     [Fact]
