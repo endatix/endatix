@@ -66,6 +66,16 @@ internal sealed class JobsTestClock
         return done();
     }
 
+    /// <summary>
+    /// Moves the clock by <paramref name="by"/> at once, which may be past the misfire threshold on purpose, then
+    /// gives the scheduler's threads real time to act on it.
+    /// </summary>
+    public async Task AdvanceAsync(TimeSpan by, CancellationToken cancellationToken)
+    {
+        _time.Advance(by);
+        await Task.Delay(Settle, cancellationToken);
+    }
+
     private sealed class ClockDateTimeProvider(TimeProvider clock) : IDateTimeProvider
     {
         public DateTimeOffset Now => clock.GetUtcNow();
