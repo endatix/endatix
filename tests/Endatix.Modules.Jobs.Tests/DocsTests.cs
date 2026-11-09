@@ -73,6 +73,30 @@ public sealed partial class DocsTests
     }
 
     [Fact]
+    public void Docs_StateTheConcurrencyCapTheCodeSetsForEachKindOfJobType()
+    {
+        // Arrange
+        var page = ReadConfigurationPage();
+        var declared = DeclaredJobTypeDefaults();
+        var maxConcurrency = nameof(BackgroundJobTypeOptions.MaxConcurrency);
+        var anyOther = BackgroundJobsOptions.DefaultJobTypeMaxConcurrency;
+
+        // Act
+        var webHook = declared["WebHookDelivery"][maxConcurrency];
+        var moduleCaps = declared
+            .Where(jobType => jobType.Key.StartsWith("Reporting", StringComparison.Ordinal)
+                || jobType.Key.StartsWith("Audience", StringComparison.Ordinal))
+            .Select(jobType => jobType.Value[maxConcurrency])
+            .Distinct()
+            .ToList();
+
+        // Assert — the page gives the Reporting and Audience types one cap, so a type with another must change it.
+        moduleCaps.Should().ContainSingle("the page states one cap for every Reporting and Audience type");
+        page.Should().Contain($"- **Any other job type**: the general values, and `{maxConcurrency}` {anyOther}.");
+        page.Should().Contain($"{webHook} for `WebHookDelivery`, {moduleCaps[0]} for each Reporting and Audience type, {anyOther} for any other.");
+    }
+
+    [Fact]
     public void Docs_StateTheDefaultTheCodeSetsForEveryBackgroundJobsOption()
     {
         // Arrange

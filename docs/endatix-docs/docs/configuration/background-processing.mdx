@@ -431,13 +431,15 @@ The `OutboxMessages` table is the ground truth for background delivery. Each row
 |----------|---------|
 | `0` (Pending) | Captured, waiting for the relay to deliver it (check `NextAttemptAt` and `Attempts` if it stays here). |
 | `1` (Sent) | Delivered successfully. |
-| `2` (Failed) | Gave up after `MaxAttempts` - requires operator attention. |
+| `2` (Failed) | Gave up after `MaxAttempts`, or failed at once by `OutboxPermanentFailureException` - requires operator attention. |
 
-With `DeliverToJobQueue` on, **Sent** means the message's jobs were queued, not that they ran. A webhook's retries and dead-letter are then on its `WebHookDelivery` job, in `jobs."BackgroundJobs"`: read one job with `GET jobs/{jobId}` or on the Quartz dashboard, or count them by status, where `Status` is `0` Pending, `1` Processing, `2` Retrying, `3` Completed, `4` Failed, `5` DeadLettered and `6` Canceled:
+With `DeliverToJobQueue` on, **Sent** means the message's jobs were queued, not that they ran. A webhook's retries and dead-letter are then on its `WebHookDelivery` job, in `jobs."BackgroundJobs"`: read one job with `GET jobs/{jobId}`, or count them by status, where `Status` is `0` Pending, `1` Processing, `2` Retrying, `3` Completed, `4` Failed, `5` DeadLettered and `6` Canceled:
 
 ```sql
 SELECT "JobType", "Status", COUNT(*) FROM jobs."BackgroundJobs" GROUP BY "JobType", "Status";
 ```
+
+The Quartz dashboard does not show a job's status or attempts, because it reads Quartz's triggers and firings, not the job's row. A finished job has no trigger, and the dashboard's history lists a firing as successful even when its attempt failed.
 
 A quick backlog check:
 

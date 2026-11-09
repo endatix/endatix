@@ -452,8 +452,9 @@ Should that write fail too, the firing goes on trying as before.
 
 The row's `AttemptCount`, against the job type's `MaxAttempts` on the node that runs the attempt,
 decides dead-lettering, and the retry's backoff is that node's too. Nothing about retries is fixed
-at enqueue, so a change to either applies to jobs already waiting. Exception text never reaches
-`ErrorMessage`. `NextAttemptAt` is the time the retry's trigger was stored for.
+at enqueue, so a change to either applies to jobs already waiting. Only an exception that opts in
+through `IEndUserSafeError` puts its message on `ErrorMessage`; any other stores a fixed text.
+`NextAttemptAt` is the time the retry's trigger was stored for.
 
 **Triggers from earlier versions** carry a Quartz retry policy, because the wrapper used to throw
 for Quartz to retry. It no longer throws, so such a trigger ends its firing like any other, and the

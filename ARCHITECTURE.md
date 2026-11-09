@@ -566,8 +566,9 @@ that re-fire is retried while the scheduler runs, rather than leave the row with
 indefinitely when the database caused the failure, and 3 times when the scheduler refuses the
 trigger itself, after which the row is dead-lettered so the worker is freed (a re-fire carrying an
 outcome writes that outcome instead). A carried outcome the database keeps refusing while it
-answers is dropped after 3 re-fires and the row re-claimed; an outage is waited out. No exception
-text reaches `ErrorMessage`.
+answers is dropped after 3 re-fires and the row re-claimed; an outage is waited out. Only an
+exception that opts in through `IEndUserSafeError` puts its message on `ErrorMessage`; any other
+stores a fixed text.
 
 ### Isolation per job type
 
