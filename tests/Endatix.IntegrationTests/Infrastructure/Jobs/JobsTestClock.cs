@@ -17,7 +17,8 @@ namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 /// </para>
 /// <para>
 /// One step moves every scheduler timer at once. Steps stay below the misfire threshold, or a due trigger is
-/// counted as a misfire, and below the check-in threshold, or a live peer looks dead. Shutdown waits stay real time.
+/// counted as a misfire, and below the check-in threshold, or a live peer looks dead. Only a misfire test jumps past
+/// the misfire threshold, on purpose, with <see cref="AdvanceAsync"/>. Shutdown waits stay real time.
 /// </para>
 /// </remarks>
 internal sealed class JobsTestClock
