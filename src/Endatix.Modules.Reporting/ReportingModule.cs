@@ -1,14 +1,11 @@
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Endatix.Modules.Audience.Contracts;
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Exporting;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
-using Endatix.Core.Abstractions.Exporting;
+using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Reporting.Configuration;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
@@ -28,9 +25,12 @@ using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Features.SubmissionGrid;
 using Endatix.Modules.Reporting.Features.SubmissionViews;
-using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Infrastructure;
+using Endatix.Modules.Reporting.Persistence;
 using FastEndpoints;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Modules.Reporting;
 
@@ -106,7 +106,6 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         services.AddSingleton<IColumnAliasTransformer>(_ => QuestionIndexAliasTransformer._instance);
         services.AddSingleton<IColumnAliasTransformerRegistry, ColumnAliasTransformerRegistry>();
         services.AddSingleton<ExportFormatSettingsParser>();
-        services.AddSingleton<ExportFormatSettingsWriter>();
         // Exports read audience names here; the Audience module replaces the default when it is on.
         services.TryAddScoped<IAudiencePropertyCatalog, NoAudiencePropertyCatalog>();
         services.AddScoped<ExportSchemas>();

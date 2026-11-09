@@ -20,8 +20,7 @@ public sealed record UpdateExportFormatCommand(
 /// Handles the update of an export format.
 /// </summary>
 internal sealed class UpdateExportFormatHandler(
-    IExportFormatRepository repository,
-    ExportFormatSettingsWriter settingsWriter) : ICommandHandler<UpdateExportFormatCommand, Result<ExportFormatDto>>
+    IExportFormatRepository repository) : ICommandHandler<UpdateExportFormatCommand, Result<ExportFormatDto>>
 {
     /// <inheritdoc />
     public async Task<Result<ExportFormatDto>> Handle(
@@ -71,7 +70,7 @@ internal sealed class UpdateExportFormatHandler(
         string? settingsJson = null;
         if (request.Settings is not null)
         {
-            var settingsResult = settingsWriter.Serialize(
+            var settingsResult = ExportFormatSettingsWriter.Serialize(
                 request.Settings,
                 existing.ExportTarget);
             if (!settingsResult.IsSuccess)

@@ -266,7 +266,7 @@ public static class ApiServiceCollectionExtensions
     }
 
     // Helper class for adapting IHostEnvironment to IAppEnvironment
-    private class AppEnvironmentAdapter : IAppEnvironment
+    private sealed class AppEnvironmentAdapter : IAppEnvironment
     {
         private readonly IHostEnvironment _environment;
 

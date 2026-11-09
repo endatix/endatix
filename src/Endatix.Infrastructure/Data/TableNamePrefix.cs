@@ -3,7 +3,7 @@ using Endatix.Core.Configuration;
 
 namespace Endatix.Infrastructure.Data
 {
-    public class TableNamePrefix
+    public static class TableNamePrefix
     {
         public static string GetEntityName(string entityName)
         {

@@ -77,7 +77,7 @@ internal sealed class DefaultAuthorizationMapper(
     /// <param name="externalRoles">The external roles to get the matching roles from.</param>
     /// <param name="roleMappings">The role mappings to use.</param>
     /// <returns>The matching roles.</returns>
-    private string[] GetMatchingRoles(string[] externalRoles, Dictionary<string, string> roleMappings)
+    private static string[] GetMatchingRoles(string[] externalRoles, Dictionary<string, string> roleMappings)
     {
         if (externalRoles is not { Length: > 0 })
         {

@@ -1,4 +1,4 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormDefinitions;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
@@ -6,7 +6,7 @@ namespace Endatix.Api.Endpoints.FormDefinitions;
 /// <summary>
 /// Mapper from an active form definition DTO to a form definition API model.
 /// </summary>
-public class FormDefinitionMapper
+public static class FormDefinitionMapper
 {
     /// <summary>
     /// Maps a form definition entity to a form definition API model.

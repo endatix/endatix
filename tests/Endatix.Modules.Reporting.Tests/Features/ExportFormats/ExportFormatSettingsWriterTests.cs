@@ -7,14 +7,12 @@ namespace Endatix.Modules.Reporting.Tests.Features.ExportFormats;
 
 public sealed class ExportFormatSettingsWriterTests
 {
-    private static readonly ExportFormatSettingsWriter Writer = new();
-
     [Fact]
     public void Serialize_WithInvalidKeySeparator_ReturnsInvalidResult()
     {
         ExportFormatSettingsInput input = new(KeySeparator: "   ");
 
-        Result<string?> result = Writer.Serialize(input);
+        Result<string?> result = ExportFormatSettingsWriter.Serialize(input);
 
         result.IsSuccess.Should().BeFalse();
     }
@@ -27,7 +25,7 @@ public sealed class ExportFormatSettingsWriterTests
             KeySeparator: "--",
             IncludeTestSubmissions: true);
 
-        Result<string?> result = Writer.Serialize(input);
+        Result<string?> result = ExportFormatSettingsWriter.Serialize(input);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Contain("--");
@@ -43,7 +41,7 @@ public sealed class ExportFormatSettingsWriterTests
             AliasProfile: ColumnAliasProfile.Native,
             KeySeparator: "--");
 
-        Result<string?> result = Writer.Serialize(input, ExportTarget.Codebook);
+        Result<string?> result = ExportFormatSettingsWriter.Serialize(input, ExportTarget.Codebook);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Contain("native");
@@ -59,7 +57,7 @@ public sealed class ExportFormatSettingsWriterTests
             IncludeTestSubmissions: true,
             KeySeparator: "__");
 
-        Result<string?> result = Writer.Serialize(input, ExportTarget.Codebook);
+        Result<string?> result = ExportFormatSettingsWriter.Serialize(input, ExportTarget.Codebook);
 
         result.IsSuccess.Should().BeFalse();
     }

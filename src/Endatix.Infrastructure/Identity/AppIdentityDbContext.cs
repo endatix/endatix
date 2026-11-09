@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Endatix.Infrastructure.Data;
 using Endatix.Core.Entities.Identity;
+using Endatix.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -48,7 +48,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     private void ProcessEntities() =>
         ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
 
-    private void RenameIdentityTables(ModelBuilder builder)
+    private static void RenameIdentityTables(ModelBuilder builder)
     {
         builder.Entity<AppUser>().ToTable("Users");
         builder.Entity<AppRole>().ToTable("Roles");

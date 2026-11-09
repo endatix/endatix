@@ -107,7 +107,7 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
     /// </summary>
     /// <param name="allowedPermissions">The allowed permissions for the endpoint</param>
     /// <returns>The owner permissions for the given endpoint definition (those that end with ".owned")</returns>
-    private IEnumerable<string> GetEndpointOwnerPermissions(IEnumerable<string> allowedPermissions)
+    private static IEnumerable<string> GetEndpointOwnerPermissions(IEnumerable<string> allowedPermissions)
     {
         return allowedPermissions.Where(p => p.EndsWith(".owned", StringComparison.OrdinalIgnoreCase));
     }
