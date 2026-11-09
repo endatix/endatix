@@ -135,6 +135,7 @@ internal static class QuartzRegistration
         services.AddScoped<JobAttemptClaimer>();
         services.AddScoped<JobHandlerRunner>();
         services.AddScoped<JobOutcomeRecorder>();
+        services.AddScoped<OutcomeRowWriter>();
         services.AddScoped<UnrecordedJobRefire>();
         services.AddScoped<RefusedRefire>();
         services.AddSingleton<StoredDurableJobs>();
