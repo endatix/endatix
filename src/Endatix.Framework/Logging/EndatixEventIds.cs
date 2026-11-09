@@ -217,6 +217,11 @@ public static class EndatixEventIds
         public const int TokenRejectedConfigurationError = 5001;
         public const int ScoreTooLow = 5002;
         public const int ActionMissing = 5003;
+        /// <summary>A successful token carried no score: likely a v2 or other non-v3 key.</summary>
+        public const int ScoreMissing = 5004;
+
+        /// <summary>A successful token was issued for a different action; it still passes.</summary>
+        public const int ActionMismatch = 5005;
 
         public const int RangeStart = Ranges.ReCaptchaStart;
         public const int RangeEnd = Ranges.ReCaptchaEnd;
@@ -226,7 +231,9 @@ public static class EndatixEventIds
             TokenRejected,
             TokenRejectedConfigurationError,
             ScoreTooLow,
-            ActionMissing
+            ActionMissing,
+            ScoreMissing,
+            ActionMismatch
         ];
     }
 

@@ -23,6 +23,11 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// interview like a completion, and the submission is created in it.
 /// </param>
 /// <param name="PersonalizationSnapshot">Frozen audience values for a trusted on-behalf create.</param>
+/// <param name="IsTest">
+/// The caller's explicit choice of a test or a real submission. <see langword="true"/> needs <c>forms.test</c>.
+/// When <see langword="null"/>, <paramref name="IsTestParticipant"/> decides.
+/// </param>
+/// <param name="IsTestParticipant">The person the on-behalf create is for is a test participant on the form.</param>
 public record CreateSubmissionCommand(
     long FormId,
     string? JsonData,
@@ -34,5 +39,7 @@ public record CreateSubmissionCommand(
     ClaimsPrincipal? SubmitterPrincipal = null,
     SubmitterInput? Submitter = null,
     string? CollectionOutcome = null,
-    string? PersonalizationSnapshot = null
+    string? PersonalizationSnapshot = null,
+    bool? IsTest = null,
+    bool IsTestParticipant = false
 ) : ICommand<Result<Submission>>;

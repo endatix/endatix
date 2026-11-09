@@ -121,7 +121,7 @@ jobs:
         with:
           persist-credentials: false
       - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: Restore dependencies
@@ -140,11 +140,28 @@ jobs:
       - name: 🧪 Run unit tests
         run: |
           # Exit code 8 is the integration project, where this filter matches zero tests.
+          # No --minimum-expected-tests here: it applies to each test app, and that one runs none.
+          # --report-xunit-ctrf writes per-test durations for the summary step below; --show-slowest-tests and
+          # --long-running print only when a test app runs on its own, never under dotnet test.
           dotnet test --no-build \
             --filter "FullyQualifiedName!~Endatix.IntegrationTests" \
             --ignore-exit-code 8 \
+            --report-xunit-ctrf \
+            --timeout 15m \
             --coverlet \
             --results-directory .coverage
+      - name: ⏱️ Upload unit test durations
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-durations-unit
+          path: .coverage/**/*.ctrf
+          include-hidden-files: true # .coverage is a dot-directory
+          if-no-files-found: warn
+          retention-days: 7
+      - name: ⏱️ Unit test durations summary
+        if: ${{ !cancelled() }}
+        run: node scripts/test-durations-summary.mjs .coverage "Unit test durations"
       - name: 📊 Upload unit coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -189,13 +206,16 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: PostgreSql
+      # ~10% under the 856 tests both the PR and the main filter ran on 2026-11-03: a filter that
+      # silently drops a whole area fails the leg. Raise it as the suite grows.
+      INTEGRATION_MIN_TESTS: 770
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       # PRs skip P2 tests to save time, so SonarCloud can report code that only a P2
@@ -219,8 +239,23 @@ jobs:
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             --no-build \
             --filter "$INTEGRATION_TEST_FILTER" \
+            --minimum-expected-tests "$INTEGRATION_MIN_TESTS" \
+            --report-xunit-ctrf \
+            --timeout 45m \
             --coverlet \
             --results-directory .coverage
+      - name: ⏱️ Upload integration test durations
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-durations-integration
+          path: .coverage/**/*.ctrf
+          include-hidden-files: true # .coverage is a dot-directory
+          if-no-files-found: warn
+          retention-days: 7
+      - name: ⏱️ Integration test durations summary
+        if: ${{ !cancelled() }}
+        run: node scripts/test-durations-summary.mjs .coverage "PostgreSQL integration test durations"
       - name: 📊 Upload integration coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -237,13 +272,15 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       ENDATIX_TEST_DB_PROVIDER: SqlServer
+      # ~10% under the 880 tests the filter ran on 2026-11-03 (see the PostgreSQL leg).
+      INTEGRATION_MIN_TESTS: 790
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       # Debug, like the unit run: Debug gives braces their own sequence points, so a
@@ -255,8 +292,23 @@ jobs:
           dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
             --no-build \
             --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql" \
+            --minimum-expected-tests "$INTEGRATION_MIN_TESTS" \
+            --report-xunit-ctrf \
+            --timeout 45m \
             --coverlet \
             --results-directory .coverage
+      - name: ⏱️ Upload SQL Server test durations
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-durations-integration-sqlserver
+          path: .coverage/**/*.ctrf
+          include-hidden-files: true # .coverage is a dot-directory
+          if-no-files-found: warn
+          retention-days: 7
+      - name: ⏱️ SQL Server test durations summary
+        if: ${{ !cancelled() }}
+        run: node scripts/test-durations-summary.mjs .coverage "SQL Server integration test durations"
       - name: 📊 Upload SQL Server coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -314,7 +366,7 @@ jobs:
           exit 1
       - name: 📦 Setup .NET
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: 📊 Download coverage
@@ -383,7 +435,7 @@ jobs:
       contents: read # release writes use the App token inside the shared workflow
       packages: write # GitHub Packages push + GHCR image push
       id-token: write # OIDC for Infisical inside the shared workflow
-    uses: endatix/release-workflows/.github/workflows/canary.yml@8e04473b8951790b94f7a4486e47d4e714dac9a3 # v1
+    uses: endatix/release-workflows/.github/workflows/canary.yml@d0f1bfc9325d6ad5588e91f49885b02eadaae6d7 # v1
     with:
       docker-image: ghcr.io/endatix/endatix-api
       dotnet-version: "10.x" # global.json rolls forward within 10.0.x

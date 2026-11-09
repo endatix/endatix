@@ -27,6 +27,21 @@ internal static class AllQuestionsReportingFixtureLoader
     }
 }
 
+/// <summary>The special choices fixture: None, Refused, Don't know and every Other storage mode, top level and in loops.</summary>
+internal static class SpecialChoicesReportingFixtureLoader
+{
+    private static string FixturesRoot =>
+        Path.Combine(AppContext.BaseDirectory, "Fixtures", "SpecialChoices");
+
+    internal static string LoadText(string fileName) => File.ReadAllText(Path.Combine(FixturesRoot, fileName));
+
+    internal static JsonElement LoadJson(string fileName)
+    {
+        using JsonDocument document = JsonDocument.Parse(LoadText(fileName));
+        return document.RootElement.Clone();
+    }
+}
+
 internal static class ReportingJsonAssertions
 {
     internal static void AssertJsonElementMatches(JsonElement actual, JsonElement expected, string because)

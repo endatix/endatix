@@ -34,6 +34,7 @@ public sealed class CreateOnBehalf(
             s.Description = "Creates a new form submission with an optional trusted submitter. Only submitter.externalSubjectId is required: displayId labels a new submitter with the subject when omitted, and authProvider defaults to Integration.";
             s.Responses[201] = "The submission was successfully created.";
             s.Responses[400] = "Invalid input data.";
+            s.Responses[403] = "The caller lacks submissions.create.onbehalf, or isTest is true and the caller lacks forms.test.";
             s.Responses[404] = "Form not found. Cannot create a submission.";
             s.Responses[409] = "A submission already exists for this user and form.";
             s.Responses[503] = "The form is busy; try again shortly.";
@@ -41,6 +42,7 @@ public sealed class CreateOnBehalf(
         Description(builder => builder
             .Produces<SubmissionModel>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
@@ -88,7 +90,9 @@ public sealed class CreateOnBehalf(
             ReCaptchaToken: null,
             RequiredPermission: Actions.Submissions.CreateOnBehalf,
             Submitter: request.Submitter,
-            PersonalizationSnapshot: freeze?.Snapshot);
+            PersonalizationSnapshot: freeze?.Snapshot,
+            IsTest: request.IsTest,
+            IsTestParticipant: freeze?.IsTestParticipant ?? false);
 
     private async Task BindAsync(
         PersonalizationFreeze? freeze,
@@ -114,6 +118,13 @@ public sealed class CreateSubmissionOnBehalfRequest : BaseSubmissionRequest
     /// without <c>displayId</c> a new submitter is labelled with the subject, and <c>authProvider</c> defaults to <c>Integration</c>.
     /// </summary>
     public SubmitterInput? Submitter { get; set; }
+
+    /// <summary>
+    /// Creates a test submission (<see langword="true"/>, needs <c>forms.test</c>) or a real one. When omitted, a
+    /// submitter who is a test participant on the form gets a test submission. A test submission holds no
+    /// one-response slot and is left out of exports unless test submissions are included.
+    /// </summary>
+    public bool? IsTest { get; set; }
 }
 
 /// <summary>

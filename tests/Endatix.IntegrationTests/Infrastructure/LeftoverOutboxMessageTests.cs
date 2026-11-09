@@ -5,12 +5,12 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure;
+using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience.Persistence;
 using Endatix.Outbox.Engine;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 namespace Endatix.IntegrationTests;
 
@@ -80,13 +80,16 @@ public sealed class LeftoverOutboxMessageTests(EndatixIntegrationWebHostFixture 
     private AppCommandGate Gate => fixture.Factory.Services.GetRequiredService<AppCommandGate>();
 
     /// <summary>
-    /// Gives the relay two polls to pick the message up, reads what it did to the outbox, then starts the next test's
+    /// Gives the relay two ticks to pick the message up, reads what it did to the outbox, then starts the next test's
     /// reset and only then lets a paused handler go on.
     /// </summary>
     private async Task<LeftoverOutcome> ResetWithMessageLeftAsync(CommandPause handler)
     {
-        var poll = fixture.Factory.Services.GetRequiredService<IOptions<OutboxOptions>>().Value.PollInterval;
-        var handledBeforeReset = await Task.WhenAny(handler.Reached, Task.Delay((poll * 2) + TimeSpan.FromSeconds(1), Ct)) == handler.Reached;
+        using var stopTicks = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        var ticks = RelayTicksAsync(2, stopTicks.Token);
+        var handledBeforeReset = await Task.WhenAny(handler.Reached, ticks) == handler.Reached;
+        await stopTicks.CancelAsync();
+        Assert.True(handledBeforeReset || await ticks, $"The relay did not tick twice in {ResetWait.TotalSeconds:0} s.");
         var messages = await OutboxMessagesAsync();
 
         var reset = Task.Run(() => fixture.PrepareWorldAsync(IntegrationWorldOptions.Empty, Ct), Ct);
@@ -95,6 +98,25 @@ public sealed class LeftoverOutboxMessageTests(EndatixIntegrationWebHostFixture 
         var resetFailure = await Record.ExceptionAsync(() => reset.WaitAsync(ResetWait, Ct));
 
         return new LeftoverOutcome(resetFailure, handledBeforeReset || handler.Reached.IsCompleted, messages);
+    }
+
+    /// <summary>
+    /// Whether the relay asked the switch <paramref name="count"/> more times, woken for each. A tick asks the switch
+    /// first, and one that hands the message on pauses in its handler before the next can ask, so every tick but the
+    /// last counted here had the message to claim and finished without handing it on.
+    /// </summary>
+    private Task<bool> RelayTicksAsync(int count, CancellationToken cancellationToken)
+    {
+        var relay = fixture.Factory.Services.GetRequiredService<IOutboxRelaySignal>();
+        var target = fixture.BackgroundWork.RelayChecks + count;
+        return JobsTestWait.UntilAsync(
+            () =>
+            {
+                relay.Wake();
+                return Task.FromResult(fixture.BackgroundWork.RelayChecks >= target);
+            },
+            ResetWait,
+            cancellationToken);
     }
 
     private static void AssertLeftAlone(LeftoverOutcome outcome, string eventType)

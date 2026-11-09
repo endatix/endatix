@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -12,19 +13,24 @@ internal static class FlattenedSubmissionFlattener
     /// <summary>
     /// One value per schema column: answers come from <paramref name="submission"/>, audience values and submitter
     /// profile fields from the snapshots frozen on the response (<paramref name="snapshots"/>), never from the live
-    /// audience or identity.
+    /// audience or identity. Select answers are read through the schema's choice catalogs (<paramref name="choices"/>);
+    /// without them every select reads as a codebook compiled before choice kinds.
     /// </summary>
     public static Dictionary<string, JsonElement?> Flatten(
         JsonElement submission,
         MergedFormSchema formSchema,
+        ChoiceCatalogs? choices = null,
         ResponseSnapshots? snapshots = null)
     {
         Dictionary<string, JsonElement?> result = new(StringComparer.Ordinal);
         var frozen = snapshots ?? ResponseSnapshots.None;
+        var catalogs = choices ?? ChoiceCatalogs.Empty;
 
         foreach (var column in formSchema.Columns)
         {
-            result[column.Key] = frozen.TryGetValue(column, out var value) ? value : ExtractValue(submission, column);
+            result[column.Key] = frozen.TryGetValue(column, out var value)
+                ? value
+                : ExtractValue(submission, column, catalogs);
         }
 
         return result;
@@ -62,22 +68,21 @@ internal static class FlattenedSubmissionFlattener
         value.Value.WriteTo(writer);
     }
 
-    private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column)
+    private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
     {
+        if (IsChoiceColumn(column, choices))
+        {
+            return ExtractChoiceValue(submission, column, choices);
+        }
+
         switch (column.Kind)
         {
             case FormSchemaColumnKind.Simple:
             case FormSchemaColumnKind.Calculated:
                 return ExtractSimpleValue(submission, column);
 
-            case FormSchemaColumnKind.ChoiceIndicator:
-                return ExtractChoiceIndicatorValue(submission, column);
-
             case FormSchemaColumnKind.RankingChoice:
                 return ExtractRankingChoiceValue(submission, column);
-
-            case FormSchemaColumnKind.CheckboxOtherText:
-                return ExtractCheckboxOtherTextValue(submission, column);
 
             case FormSchemaColumnKind.MatrixRow:
                 return ExtractMatrixRowValue(submission, column);
@@ -103,6 +108,31 @@ internal static class FlattenedSubmissionFlattener
         }
     }
 
+    private static bool IsChoiceColumn(FormSchemaColumn column, ChoiceCatalogs choices) =>
+        column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText ||
+        (column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource &&
+         choices.IsSelect(column.SourceQuestion ?? column.Key));
+
+    private static JsonElement? ExtractChoiceValue(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        var answer = ReadSelectAnswer(submission, column, choices);
+        return column.Kind switch
+        {
+            FormSchemaColumnKind.ChoiceIndicator => ToBooleanJson(answer?.Has(column.ChoiceValue!) ?? false),
+            FormSchemaColumnKind.CheckboxOtherText => answer?.OtherText,
+            _ => answer?.SingleValueJson(),
+        };
+    }
+
+    // A select answer read from the submission, or from the loop panel item the column belongs to; null when the
+    // loop has no such item.
+    private static SelectAnswer? ReadSelectAnswer(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        var context = column.LoopPath is null ? submission : TryResolveLoopContext(submission, column.LoopPath);
+        var question = column.SourceQuestion ?? column.Key;
+        return context is { } found ? choices.For(question).Read(found, question) : null;
+    }
+
     private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)
     {
         var questionKey = column.SourceQuestion ?? column.Key;
@@ -114,32 +144,11 @@ internal static class FlattenedSubmissionFlattener
         return answer;
     }
 
-    private static JsonElement? ExtractChoiceIndicatorValue(JsonElement submission, FormSchemaColumn column)
-    {
-        if (column.LoopPath is null)
-        {
-            return ToBooleanJson(ContainsChoice(submission, column.SourceQuestion!, column.ChoiceValue!));
-        }
-
-        if (TryResolveLoopContext(submission, column.LoopPath) is not JsonElement loopContext)
-        {
-            return ToBooleanJson(false);
-        }
-
-        return ToBooleanJson(ContainsChoice(loopContext, column.SourceQuestion!, column.ChoiceValue!));
-    }
-
     private static JsonElement? ExtractRankingChoiceValue(JsonElement submission, FormSchemaColumn column) =>
         ExtractFromLoopAwareContext(
             submission,
             column.LoopPath,
             context => ToRankJson(GetRankPosition(context, column.SourceQuestion!, column.ChoiceValue!)));
-
-    private static JsonElement? ExtractCheckboxOtherTextValue(JsonElement submission, FormSchemaColumn column) =>
-        ExtractFromLoopAwareContext(
-            submission,
-            column.LoopPath,
-            context => TryGetOtherText(context, column.SourceQuestion!));
 
     private static JsonElement? ExtractMatrixRowValue(JsonElement submission, FormSchemaColumn column) =>
         ExtractFromLoopAwareContext(
@@ -193,36 +202,6 @@ internal static class FlattenedSubmissionFlattener
         return extract(loopContext);
     }
 
-    private static bool ContainsChoice(JsonElement context, string questionName, string choiceValue)
-    {
-        var normalizedChoice = choiceValue.Trim();
-        if (context.TryGetPropertyValue(questionName) is not JsonElement answer)
-        {
-            return false;
-        }
-
-        if (answer.ValueKind is JsonValueKind.True or JsonValueKind.False)
-        {
-            var boolValue = answer.ValueKind == JsonValueKind.True ? "true" : "false";
-            return string.Equals(boolValue, normalizedChoice, StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (answer.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in answer.EnumerateArray())
-            {
-                if (string.Equals(item.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        return string.Equals(answer.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal);
-    }
-
     private static JsonElement ToBooleanJson(bool value)
     {
         using var document = JsonDocument.Parse(value ? "1" : "0");
@@ -256,23 +235,6 @@ internal static class FlattenedSubmissionFlattener
     {
         using var document = JsonDocument.Parse(rank.ToString(System.Globalization.CultureInfo.InvariantCulture));
         return document.RootElement.Clone();
-    }
-
-    private static JsonElement? TryGetOtherText(JsonElement context, string questionName)
-    {
-        var otherCommentKey = $"{questionName}-Comment";
-        if (context.TryGetPropertyValue(otherCommentKey) is JsonElement comment)
-        {
-            return comment;
-        }
-
-        if (context.TryGetPropertyValue(questionName) is JsonElement answer &&
-            answer.TryGetPropertyValue(SurveyJsPropertyNames.Other) is JsonElement other)
-        {
-            return other;
-        }
-
-        return null;
     }
 
     private static JsonElement? TryGetMatrixRadioRowValue(JsonElement context, FormSchemaColumn column)

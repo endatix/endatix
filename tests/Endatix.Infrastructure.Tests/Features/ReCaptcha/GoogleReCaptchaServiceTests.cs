@@ -61,7 +61,7 @@ public class GoogleReCaptchaServiceTests
         var disabledOptions = new ReCaptchaOptions { IsEnabled = false, SecretKey = "secret", MinimumScore = 0.5 };
         _options.Value.Returns(disabledOptions);
 
-        var successValidationResponse = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 1.0, "form_submit", null);
+        var successValidationResponse = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 1.0, ReCaptchaConstants.Actions.SUBMIT_FORM, null);
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successValidationResponse);
 
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
@@ -81,7 +81,7 @@ public class GoogleReCaptchaServiceTests
     {
         // Arrange
         _options.Value.Returns(_defaultOptions);
-        var successValidationResponse = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 1.0, "form_submit", null);
+        var successValidationResponse = new GoogleReCaptchaResponse(true, DateTime.UtcNow, "localhost", 1.0, ReCaptchaConstants.Actions.SUBMIT_FORM, null);
         var reCaptchaHttpClient = new StubReCaptchaHttpClient(successValidationResponse);
         var service = new GoogleReCaptchaService(reCaptchaHttpClient, _options, _userContext);
 
@@ -124,7 +124,7 @@ public class GoogleReCaptchaServiceTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("score_too_low", result.ErrorCodes);
+        Assert.Equal((ReCaptchaConstants.ErrorCodes.ERROR_SCORE_TOO_LOW, 0.1), (result.ErrorCodes[0], result.Score));
     }
 
     [Fact]
@@ -494,13 +494,13 @@ internal class StubReCaptchaHttpClient : IReCaptchaHttpClient
 
 internal static class GoogleReCaptchaResponses
 {
-    public static GoogleReCaptchaResponse Success(double score = 1.0) => new(true, DateTime.UtcNow, "localhost", score, "form_submit", null);
-    public static GoogleReCaptchaResponse InvalidResponse() => new(false, DateTime.UtcNow, "localhost", 0.0, "form_submit", ["invalid_response"]);
+    public static GoogleReCaptchaResponse Success(double score = 1.0) => new(true, DateTime.UtcNow, "localhost", score, ReCaptchaConstants.Actions.SUBMIT_FORM, null);
+    public static GoogleReCaptchaResponse InvalidResponse() => new(false, DateTime.UtcNow, "localhost", 0.0, ReCaptchaConstants.Actions.SUBMIT_FORM, ["invalid_response"]);
 
     public static GoogleReCaptchaResponse RejectedWithoutAction() =>
         new(false, default, null, 0.0, null, ["invalid-input-response", "timeout-or-duplicate"]);
     public static GoogleReCaptchaResponse SuccessWithoutAction() => new(true, DateTime.UtcNow, "localhost", 0.9, null, null);
-    public static GoogleReCaptchaResponse ScoreTooLow(double score = 0.3) => new(true, DateTime.UtcNow, "localhost", score, "form_submit", null);
+    public static GoogleReCaptchaResponse ScoreTooLow(double score = 0.3) => new(true, DateTime.UtcNow, "localhost", score, ReCaptchaConstants.Actions.SUBMIT_FORM, null);
 }
 
 internal static class StubForm
