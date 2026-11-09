@@ -227,6 +227,7 @@
         {
           "value": "other",
           "id": 7,
+          "kind": "other",
           "text": {
             "default": "Other",
             "es": "Otro"
@@ -740,6 +741,7 @@
         {
           "value": "other",
           "id": 6,
+          "kind": "other",
           "text": {
             "default": "Other (pick)"
           }
@@ -2368,6 +2370,7 @@
       ]
     },
     "qDropdown": {
+      "multiple": false,
       "choices": [
         {
           "value": "axe",
@@ -2396,6 +2399,7 @@
       ]
     },
     "qImagePicker": {
+      "multiple": false,
       "choices": [
         {
           "value": "lion",
@@ -2432,6 +2436,8 @@
       ]
     },
     "qLoopColor": {
+      "multiple": false,
+      "otherStorage": "comment",
       "choices": [
         {
           "value": "1",
@@ -2484,6 +2490,7 @@
         {
           "value": "other",
           "id": 7,
+          "kind": "other",
           "text": {
             "default": "Other",
             "es": "Otro"
@@ -2534,6 +2541,7 @@
       ]
     },
     "qRadioGroup": {
+      "multiple": false,
       "choices": [
         {
           "value": "email",
@@ -2590,6 +2598,7 @@
       ]
     },
     "qTagBox": {
+      "multiple": true,
       "choices": [
         {
           "value": "adidas",
@@ -2626,6 +2635,8 @@
       ]
     },
     "questionSongs": {
+      "multiple": true,
+      "otherStorage": "comment",
       "choices": [
         {
           "value": "1",
@@ -2670,6 +2681,7 @@
         {
           "value": "other",
           "id": 6,
+          "kind": "other",
           "text": {
             "default": "Other (pick)"
           }

@@ -5,6 +5,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
@@ -84,7 +85,8 @@ internal sealed class PersonalizationPipeline
 
         using var answers = JsonDocument.Parse(response.AnswersJson);
         ResponseSnapshots snapshots = new(response.Personalization, _submitterProfileFields.Read(response.SubmitterProfile));
-        _rows[response.Id] = FlattenedSubmissionFlattener.Flatten(answers.RootElement, Schema.FlatteningMap, snapshots)
+        _rows[response.Id] = FlattenedSubmissionFlattener.Flatten(
+                answers.RootElement, Schema.FlatteningMap, ChoiceCatalogs.Read(Schema.CodebookJson), snapshots)
             .ToDictionary(entry => entry.Key, entry => entry.Value?.Clone(), StringComparer.Ordinal);
     }
 

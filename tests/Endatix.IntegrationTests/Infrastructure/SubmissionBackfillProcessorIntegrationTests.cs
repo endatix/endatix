@@ -184,6 +184,73 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             because: "backfilled all-questions submission should match the committed golden flat output");
     }
 
+    [Fact]
+    public async Task BackfillFormAsync_WithSpecialChoicesAfterMerge_PersistsEveryStorageMode()
+    {
+        // Arrange: the schema was first compiled without special items, then merged with them (a form edited after
+        // real submissions), so the backfill reads the merged choice catalog.
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(cancellationToken);
+
+        var definitionJson = SpecialChoicesReportingFixtureLoader.LoadText("special-choices-definition.json");
+        var withoutSpecials = WithoutSpecialItems(definitionJson);
+        FormSchemaCompiler compiler = new();
+        var first = compiler.CompilePersisted(withoutSpecials);
+        var merged = compiler.CompilePersisted(
+            definitionJson, first.FlatteningMapJson, first.CodebookJson, FormSchemaCompileMode.Merge);
+
+        await using var dbContext = CreateContext(TenantId);
+        var flattenedSubmissionRepository = CreateRepository(dbContext);
+        var formSchemaRepository = CreateSchemaRepository(dbContext);
+        await formSchemaRepository.SaveAsync(
+            new FormSchema(TenantId, FormId, FormDefinitionId, merged.FlatteningMapJson, merged.CodebookJson),
+            cancellationToken);
+
+        var submission = CreateSubmission(
+            SpecialChoicesReportingFixtureLoader.LoadText("special-choices-submission.json"),
+            isComplete: true);
+        var processor = CreateBackfillProcessor(
+            CreateSubmissionRepository(submission),
+            flattenedSubmissionRepository,
+            formSchemaRepository);
+
+        // Act
+        var result = await processor.BackfillFormAsync(
+            TenantId,
+            FormId,
+            new SubmissionBackfillOptions(),
+            cancellationToken);
+
+        // Assert
+        result.Processed.Should().Be(1);
+        result.Failed.Should().Be(0);
+        var persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(TenantId, SubmissionId, cancellationToken);
+        persisted.Should().NotBeNull();
+        using var actual = JsonDocument.Parse(persisted!.DataJson!);
+        var expected = JsonNode.Parse(
+            SpecialChoicesReportingFixtureLoader.LoadText("special-choices-expected-flat.json"))!.AsObject();
+        foreach (var (key, value) in expected)
+        {
+            JsonNode.DeepEquals(JsonNode.Parse(actual.RootElement.GetProperty(key).GetRawText()), value)
+                .Should().BeTrue($"{key} is {value?.ToJsonString() ?? "null"}");
+        }
+    }
+
+    private static string WithoutSpecialItems(string definitionJson)
+    {
+        var root = JsonNode.Parse(definitionJson)!;
+        foreach (var question in root["pages"]![0]!["elements"]!.AsArray()
+                     .SelectMany(element => (element!["templateElements"]?.AsArray() ?? []).Prepend(element)))
+        {
+            foreach (var flag in new[] { "showNoneItem", "showRefuseItem", "showDontKnowItem" })
+            {
+                question!.AsObject().Remove(flag);
+            }
+        }
+
+        return root.ToJsonString();
+    }
+
     private async Task SeedSimpleFormSchemaAsync(
         FormSchemaRepository formSchemaRepository,
         CancellationToken cancellationToken)
