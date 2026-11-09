@@ -154,6 +154,56 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         (await ReadStampAsync(world, ct)).Should().NotBe(before);
     }
 
+    [Fact]
+    public async Task SaveChangesAsync_WithRetryingExecutionStrategy_ChangesStamp()
+    {
+        // Arrange — a host may enable retries on its provider, which refuses transactions opened outside the
+        // execution strategy.
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        var before = await ReadStampAsync(world, ct);
+        await using var db = new AppIdentityDbContext(RetryingOptions());
+        db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
+
+        // Act
+        await db.SaveChangesAsync(ct);
+
+        // Assert
+        (await ReadStampAsync(world, ct)).Should().NotBe(before);
+    }
+
+    [Fact]
+    public async Task SaveChanges_WithRetryingExecutionStrategy_ChangesStamp()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        var before = await ReadStampAsync(world, ct);
+        using var db = new AppIdentityDbContext(RetryingOptions());
+        db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
+
+        // Act
+        db.SaveChanges();
+
+        // Assert
+        (await ReadStampAsync(world, ct)).Should().NotBe(before);
+    }
+
+    private DbContextOptions<AppIdentityDbContext> RetryingOptions()
+    {
+        var builder = new DbContextOptionsBuilder<AppIdentityDbContext>();
+        if (fixture.Database.Provider == TestDatabaseProvider.SqlServer)
+        {
+            builder.UseSqlServer(fixture.Database.ConnectionString, sql => sql.EnableRetryOnFailure());
+        }
+        else
+        {
+            builder.UseNpgsql(fixture.Database.ConnectionString, npgsql => npgsql.EnableRetryOnFailure());
+        }
+
+        return builder.Options;
+    }
+
     private async Task<IntegrationTestWorld> PrepareAsync(CancellationToken ct)
     {
         var world = await fixture.PrepareWorldAsync(

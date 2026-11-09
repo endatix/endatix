@@ -67,11 +67,16 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         }
 
         // A save that would run without a transaction (EF skips one for a single statement) gets one, so the
-        // stamp commits with the change. Changes are accepted only after the commit, which writes the stamp.
-        using var transaction = Database.BeginTransaction();
-        AuthorizationStampChangePending = true;
-        var saved = base.SaveChanges(acceptAllChangesOnSuccess: false);
-        transaction.Commit();
+        // stamp commits with the change. It runs through the execution strategy, which a retrying provider
+        // requires for a transaction it did not open, and accepts changes only after the commit that writes the stamp.
+        var saved = Database.CreateExecutionStrategy().Execute(() =>
+        {
+            using var transaction = Database.BeginTransaction();
+            AuthorizationStampChangePending = true;
+            var rows = base.SaveChanges(acceptAllChangesOnSuccess: false);
+            transaction.Commit();
+            return rows;
+        });
         AcceptChangesIf(acceptAllChangesOnSuccess);
         return saved;
     }
@@ -91,10 +96,16 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
-        await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
-        AuthorizationStampChangePending = true;
-        var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess: false, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        var saved = await Database.CreateExecutionStrategy().ExecuteAsync(
+            async ct =>
+            {
+                await using var transaction = await Database.BeginTransactionAsync(ct);
+                AuthorizationStampChangePending = true;
+                var rows = await base.SaveChangesAsync(acceptAllChangesOnSuccess: false, ct);
+                await transaction.CommitAsync(ct);
+                return rows;
+            },
+            cancellationToken);
         AcceptChangesIf(acceptAllChangesOnSuccess);
         return saved;
     }
