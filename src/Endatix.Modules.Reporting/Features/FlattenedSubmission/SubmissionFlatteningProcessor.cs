@@ -5,6 +5,7 @@ using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
@@ -153,7 +154,8 @@ internal sealed class SubmissionFlatteningProcessor(
         var mergedSchema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
         ResponseSnapshots snapshots = new(personalization, submitterProfileFields.Read(submission.SubmitterProfileSnapshot));
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
-        var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, snapshots);
+        var flattened = FlattenedSubmissionFlattener.Flatten(
+            submissionDocument.RootElement, mergedSchema, ChoiceCatalogs.Read(schema.Codebook), snapshots);
         var searchKeys = FormSearchKeys.Of(schema);
         return new FlattenedRowData(
             FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened),

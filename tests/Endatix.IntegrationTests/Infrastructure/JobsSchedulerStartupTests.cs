@@ -26,6 +26,11 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     private const string DeferredStartError =
         "The background jobs scheduler could not reach its database and will start once it can; until then this host runs no jobs";
 
+    // Short, so a test that counts tries does not wait the seconds each would take on a host; still a real wait, so
+    // the retry loop paces its tries rather than spinning.
+    private static readonly SchedulerStartRetryDelays ShortRetryDelays =
+        new(Unreachable: TimeSpan.FromMilliseconds(100), Contended: TimeSpan.FromMilliseconds(20));
+
     [Fact]
     public async Task Scheduler_with_unreachable_database_defers_start()
     {
@@ -216,7 +221,8 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     private static bool LoggedError(CapturingLoggerProvider logs, string start) =>
         logs.Entries.Any(entry => entry.Level == LogLevel.Error && entry.Message.StartsWith(start, StringComparison.Ordinal));
 
-    // The hosted service alone, over the fixture's database, with the scheduler factory a test controls.
+    // The hosted service alone, over the fixture's database, with the scheduler factory a test controls and short
+    // retry delays.
     private static JobsSchedulerHostedService HostedServiceOver(
         JobsTestNodeDatabase target,
         ISchedulerFactory schedulers,
@@ -229,6 +235,7 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
         var services = new ServiceCollection()
             .AddKeyedSingleton(QuartzRegistration.SchedulerName, schedulers)
             .AddSingleton(parts.Lifetime ?? Substitute.For<IHostApplicationLifetime>())
+            .AddSingleton(parts.RetryDelays)
             .BuildServiceProvider();
         var isPostgreSql = target.Provider == TestDatabaseProvider.PostgreSql;
         var database = new JobStoreDatabase(target.ConnectionString, isPostgreSql, locksOnInsert: !isPostgreSql);
@@ -249,6 +256,9 @@ public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixtu
     {
         /// <summary>The host's lifetime, whose stopping signal a test raises; one that never stops when not set.</summary>
         public IHostApplicationLifetime? Lifetime { get; init; }
+
+        /// <summary>How long a failed start waits before its next try; short when not set.</summary>
+        public SchedulerStartRetryDelays RetryDelays { get; init; } = ShortRetryDelays;
     }
 
     private static JobsTestNodeDatabase MissingDatabase(TestDatabaseProvider provider, string connectionString, string name) =>

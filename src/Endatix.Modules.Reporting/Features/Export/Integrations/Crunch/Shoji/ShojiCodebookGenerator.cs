@@ -2,6 +2,7 @@ using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
@@ -54,7 +55,7 @@ internal static partial class ShojiCodebookGenerator
             using var codebookDocument = JsonDocument.Parse(codebookJson);
             var codebook = codebookDocument.RootElement;
 
-            var questions = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Questions);
+            var questions = CodebookQuestions.Read(codebook);
             var codebookColumns = ReadObjectMap(codebook, FormSchemaCodebookPropertyNames.Columns);
             var flatteningMap = ShojiFlatteningMap(flatteningMapJson, codebook, codebookColumns);
             var groupedColumnKeys = BuildGroupedColumnKeys(flatteningMap);
@@ -1559,21 +1560,22 @@ internal static partial class ShojiCodebookGenerator
             question.TryGetProperty(SurveyJsPropertyNames.Choices, out var choices) &&
             choices.ValueKind == JsonValueKind.Array)
         {
-            foreach (var choice in choices.EnumerateArray())
+            var categories = choices.EnumerateArray()
+                .Where(choice => choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var id) &&
+                                 id.ValueKind == JsonValueKind.Number)
+                .ToList();
+            var names = ShojiCategoryNames.Unique(categories
+                .Select(choice => (ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text).Trim(),
+                    choice.GetStringProperty(SurveyJsPropertyNames.Value) ?? string.Empty))
+                .ToList());
+            foreach (var (choice, name) in categories.Zip(names))
             {
-                if (!choice.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var idElement) ||
-                    idElement.ValueKind != JsonValueKind.Number)
-                {
-                    continue;
-                }
-
+                var idElement = choice.GetProperty(FormSchemaCodebookPropertyNames.Id);
                 writer.WriteStartObject();
-                writer.WriteString(
-                    ShojiCodebookPropertyNames.Name,
-                    ReadDefaultLocalizedText(choice, ShojiCodebookPropertyNames.Text).Trim());
+                writer.WriteString(ShojiCodebookPropertyNames.Name, name);
                 writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
                 writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
-                writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);
+                writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, CatalogChoice.IsMissingCategory(choice));
                 writer.WriteEndObject();
             }
         }

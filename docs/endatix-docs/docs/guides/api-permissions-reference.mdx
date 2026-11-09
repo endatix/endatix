@@ -209,7 +209,7 @@ The delete endpoint accepts either `submissions.delete` (delete any submission) 
 
 | Method | Route | Permission | Description |
 |--------|-------|------------|-------------|
-| POST | `/forms/{formId}/submissions/onbehalf` | `submissions.create.onbehalf` | Create submission on behalf of another user (for prefilling) |
+| POST | `/forms/{formId}/submissions/onbehalf` | `submissions.create.onbehalf` | Create submission on behalf of another user (for prefilling); `isTest: true` also needs `forms.test` |
 | POST | `/forms/{formId}/submissions/{submissionId}/access-token` | `submissions.view` OR `submissions.edit` OR `submissions.export` | Generate short-lived access token for sharing |
 | GET | `/forms/{formId}/submissions/by-access-token/{token}` | **Public** | Get submission using access token |
 | PATCH | `/forms/{formId}/submissions/by-access-token/{token}` | **Public** | Update submission using access token |

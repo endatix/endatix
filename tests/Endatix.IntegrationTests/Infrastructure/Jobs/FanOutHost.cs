@@ -43,7 +43,7 @@ internal sealed class FanOutHost : IAsyncDisposable
     {
         var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         var logs = new CapturingLoggerProvider();
-        var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider)
+        var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider, setup.OutboxPolling)
             .WithWebHostBuilder(builder => Configure(builder, setup, logs));
 
         // Reading the services builds and starts the host, and with it the migrations. The relay and the scheduler are
@@ -62,7 +62,6 @@ internal sealed class FanOutHost : IAsyncDisposable
     private static void Configure(IWebHostBuilder builder, FanOutHostSetup setup, CapturingLoggerProvider logs)
     {
         builder.UseSetting("Endatix:Outbox:DeliverToJobQueue", setup.DeliverToJobQueue.ToString());
-        builder.UseSetting("Endatix:Outbox:PollIntervalSeconds", "1");
         builder.UseSetting("Endatix:FeatureFlags:JobsModule", setup.JobsModule.ToString());
         builder.UseSetting("Endatix:BackgroundJobs:IdleWaitTimeSeconds", "1");
         foreach (var (key, value) in setup.Settings)
@@ -122,6 +121,9 @@ internal sealed record FanOutHostSetup(bool DeliverToJobQueue, Action<IServiceCo
     /// Kept by default, so the startup check that every one of them has a job subscription sees them.
     /// </summary>
     public bool StripsInlineHandlers { get; init; }
+
+    /// <summary>How the relay waits between polls: fast through the engine's test seam unless a test asks for the configured second.</summary>
+    public OutboxPolling OutboxPolling { get; init; } = OutboxPolling.Fast;
 
     /// <summary>Further configuration the test sets on the host.</summary>
     public IReadOnlyDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();

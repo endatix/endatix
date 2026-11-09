@@ -131,7 +131,7 @@ public sealed class SubmitterProfileColumnsTests
         using var answers = JsonDocument.Parse("{}");
 
         // Act
-        var flattened = FlattenedSubmissionFlattener.Flatten(answers.RootElement, schema, snapshots);
+        var flattened = FlattenedSubmissionFlattener.Flatten(answers.RootElement, schema, snapshots: snapshots);
 
         // Assert
         flattened.Should().ContainKey("submitter_email").WhoseValue.Should().BeNull();

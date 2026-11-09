@@ -1,8 +1,10 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -42,10 +44,13 @@ public sealed class AllQuestionsCompileTests
         JsonElement submission = FormSchemaFixtureLoader.LoadAllQuestions("all-questions-submission.json");
         JsonElement expectedFlat = FormSchemaFixtureLoader.LoadAllQuestions("all-questions-expected-flat.json");
         FormSchemaCompiler compiler = new();
-        MergedFormSchema merged = compiler.Compile(definitionJson);
+        FormSchemaCompileResult compiled = compiler.CompilePersisted(definitionJson);
 
         // Act
-        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(submission, merged);
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submission,
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson));
 
         // Assert
         FormSchemaFixtureAssertions.AssertFlatMatchesExpected(
@@ -73,6 +78,56 @@ public sealed class AllQuestionsCompileTests
             because: "all-questions sample should compile to the committed generic codebook golden output");
     }
 
+    [Fact]
+    public void CodebookStoredBeforeChoiceKinds_FlattensAndExportsAsTheGoldens()
+    {
+        // Arrange: a schema compiled before choice kinds has no multiple, otherStorage or kind; a deploy does not
+        // recompile it.
+        string definitionJson = FormSchemaFixtureLoader.LoadAllQuestionsText("all-questions-definition.json");
+        JsonElement submission = FormSchemaFixtureLoader.LoadAllQuestions("all-questions-submission.json");
+        FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        string storedCodebook = WithoutChoiceKinds(compiled.CodebookJson);
+
+        // Act
+        Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
+            submission,
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(storedCodebook));
+        using JsonDocument shoji = JsonDocument.Parse(ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson,
+            storedCodebook,
+            ExportFormatSettings.InterimCrunchKeySeparator));
+
+        // Assert
+        FormSchemaFixtureAssertions.AssertFlatMatchesExpected(
+            flattened,
+            FormSchemaFixtureLoader.LoadAllQuestions("all-questions-expected-flat.json"),
+            because: "an older stored codebook flattens as before");
+        FormSchemaFixtureAssertions.AssertJsonMatchesExpected(
+            shoji.RootElement,
+            FormSchemaFixtureLoader.LoadAllQuestionsExpectedShojiCodebook(),
+            because: "an older stored codebook exports the same Shoji codebook");
+    }
+
+    private static string WithoutChoiceKinds(string codebookJson)
+    {
+        JsonNode codebook = JsonNode.Parse(codebookJson)!;
+        foreach (JsonNode? owner in codebook["choiceCatalogs"]!.AsObject().Select(entry => entry.Value)
+                     .Concat(codebook["questions"]!.AsObject().Select(entry => entry.Value)))
+        {
+            JsonObject entry = owner!.AsObject();
+            entry.Remove("multiple");
+            entry.Remove("otherStorage");
+            foreach (JsonNode? choice in entry["choices"]?.AsArray() ?? [])
+            {
+                choice!.AsObject().Remove("kind");
+                choice.AsObject().Remove("exclusive");
+            }
+        }
+
+        return codebook.ToJsonString();
+    }
+
     // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/.
     // Uses SourceAllQuestionsFixturesRoot (repo tree) so regenerated files land in source control; runtime tests read copied fixtures from AppContext.BaseDirectory.
     [Fact(Skip = "Manual fixture regeneration only")]
@@ -93,7 +148,8 @@ public sealed class AllQuestionsCompileTests
 
         Dictionary<string, JsonElement?> flattened = FlattenedSubmissionFlattener.Flatten(
             submissionDocument.RootElement,
-            compiled.FlatteningMap);
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson));
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-flat.json"),
             JsonSerializer.Serialize(
