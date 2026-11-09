@@ -68,7 +68,7 @@ internal sealed class QuartzJobTriggerScheduler(
         {
             await durableJobs.ScheduleAsync(
                 scheduler,
-                QuartzRegistration.TriggerFor(new JobTriggerSpec(job.Id, job.JobType)),
+                QuartzRegistration.TriggerFor(new JobTriggerSpec(job.Id, job.JobType), scheduler.TimeProvider),
                 cancellationToken);
         }
     }

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Quartz;
 using Quartz.Impl.AdoJobStore;
 
@@ -106,6 +107,33 @@ public sealed class QuartzRegistrationTests
         // Assert
         threads.Should().Be(5);
         batchSize.Should().Be(threads);
+    }
+
+    [Fact]
+    public void AddJobsScheduler_NoClockGiven_SchedulerRunsOnTheSystemClock()
+    {
+        // Arrange
+        using var provider = SchedulerServices(new Dictionary<string, string?>(), ["A"]);
+
+        // Act
+        var clock = provider.GetKeyedService<TimeProvider>(QuartzRegistration.SchedulerName);
+
+        // Assert
+        clock.Should().BeSameAs(TimeProvider.System);
+    }
+
+    [Fact]
+    public void TriggerFor_NoStartTime_StartsAtNowOnTheGivenClock()
+    {
+        // Arrange — a clock an hour behind real time, as a frozen test clock soon is.
+        var now = DateTimeOffset.UtcNow.AddHours(-1);
+        var clock = new FakeTimeProvider(now);
+
+        // Act
+        var trigger = QuartzRegistration.TriggerFor(new JobTriggerSpec(42, "A"), clock);
+
+        // Assert
+        trigger.StartTimeUtc.Should().Be(now);
     }
 
     [Fact]

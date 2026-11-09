@@ -257,6 +257,32 @@ Whether enqueueing takes it (`LockOnInsert`) depends on the provider:
   transaction, holds it longest. [Trigger lock on SQL Server](#trigger-lock-on-sql-server) says what
   that costs and when to turn it off.
 
+### Clock
+
+The module runs on one `TimeProvider`, registered at the scheduler's key (`endatix-jobs`) through
+`UseTimeProvider`. Production uses `TimeProvider.System`. A test can register a fake clock at that key
+instead, and in a jobs-only host also put it behind `IDateTimeProvider`, which the module reads for
+a row's attempt times (`StartedAt`, `CompletedAt`, `NextAttemptAt`) and retention. The row's `CreatedAt`
+and `ModifiedAt` stay on real time. The host's other services keep their own clock.
+
+Waits that follow the clock:
+
+- the scheduler's idle wait and due triggers, a new job's trigger included (`QuartzRegistration.TriggerFor`);
+- the misfire scan and `MisfireThresholdSeconds`;
+- cluster check-in and the recovery of a node that stopped checking in;
+- a job's runtime ceiling (`MaxRuntimeMinutes`, in `JobHandlerRunner`).
+
+Waits that stay real time:
+
+- shutdown: `ShutdownWaitSeconds` and Quartz's own shutdown waits;
+- the scheduler's start-retry delays;
+- the delays of an unrecorded outcome's re-fire and of its write retries (`UnrecordedJobRefire`,
+  `JobOutcomeRecorder`). The re-fire's trigger time follows the clock; the waits before it do not.
+
+A test that steps the clock keeps each step below `MisfireThresholdSeconds` and the check-in
+threshold, or a due trigger counts as a misfire and a live node looks dead. Every node of the test
+shares one clock instance.
+
 ### Quartz defaults
 
 What the module sets, or leaves at Quartz's default on purpose, among the settings Quartz 4.3 to 4.7

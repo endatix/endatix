@@ -84,10 +84,15 @@ internal static class QuartzRegistration
     /// It carries no retry policy: the job wrapper schedules each retry on a trigger of its own, timed from the job
     /// type's backoff as the node is configured when the attempt fails.
     /// </remarks>
-    public static ITrigger TriggerFor(JobTriggerSpec spec)
+    /// <param name="spec">The trigger to build.</param>
+    /// <param name="clock">
+    /// The scheduler's clock, which times a trigger with no start time; the system clock when <see langword="null"/>.
+    /// A trigger timed on another clock than the scheduler's would be due late, or be a misfire.
+    /// </param>
+    public static ITrigger TriggerFor(JobTriggerSpec spec, TimeProvider? clock = null)
     {
         var id = spec.JobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var trigger = TriggerBuilder.Create()
+        var trigger = TriggerBuilder.Create(clock ?? TimeProvider.System)
             .WithIdentity(id, spec.JobType)
             .ForJob(JobKeyFor(spec.JobType))
             .WithExecutionGroup(spec.JobType)
@@ -198,6 +203,10 @@ internal static class QuartzRegistration
     private static void ConfigureQuartz(IQuartzBuilder quartz, SchedulerRecipe recipe)
     {
         var (options, database, sizing) = recipe;
+
+        // The one clock of the jobs module, at the scheduler's key: the scheduler, its store and the runtime ceiling
+        // read it. A test replaces it there to step time; the host's other services keep their own clock.
+        quartz.UseTimeProvider(TimeProvider.System);
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         SizeToRegisteredJobTypes(quartz, sizing);
         AddRetentionJob(quartz, options.Retention);
