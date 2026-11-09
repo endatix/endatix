@@ -23,10 +23,10 @@ namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 internal sealed class JobsTestClock
 {
     /// <summary>
-    /// Real-time fallbacks long enough that a test which passes within seconds was driven by the steps, not by the
-    /// scheduler waking on its own. The default misfire threshold of 60 s stays.
+    /// Scheduler timings long beside <see cref="Step"/>, so a step wakes the idle wait and the store's check-in no
+    /// more than it must, and a live node never looks dead after one step. The default misfire threshold of 60 s stays.
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, string?> LongRealTimeFallbacks = new Dictionary<string, string?>
+    public static Dictionary<string, string?> SlowSchedulerTimings() => new()
     {
         ["Endatix:BackgroundJobs:IdleWaitTimeSeconds"] = "30",
         ["Endatix:BackgroundJobs:Clustering:CheckinIntervalSeconds"] = "30",

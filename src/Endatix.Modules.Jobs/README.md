@@ -262,7 +262,8 @@ Whether enqueueing takes it (`LockOnInsert`) depends on the provider:
 The module runs on one `TimeProvider`, registered at the scheduler's key (`endatix-jobs`) through
 `UseTimeProvider`. Production uses `TimeProvider.System`. A test can register a fake clock at that key
 instead, and in a jobs-only host also put it behind `IDateTimeProvider`, which the module reads for
-row times. The host's other services keep their own clock.
+a row's attempt times (`StartedAt`, `CompletedAt`, `NextAttemptAt`) and retention. The row's `CreatedAt`
+and `ModifiedAt` stay on real time. The host's other services keep their own clock.
 
 Waits that follow the clock:
 

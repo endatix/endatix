@@ -306,7 +306,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         var invocations = new ProbeInvocations();
         await using var node = JobsTestNode.Create(
             database,
-            new Dictionary<string, string?>(JobsTestClock.LongRealTimeFallbacks) { [ProbeKey("MaxRuntimeMinutes")] = "1" },
+            new Dictionary<string, string?>(JobsTestClock.SlowSchedulerTimings()) { [ProbeKey("MaxRuntimeMinutes")] = "1" },
             services =>
             {
                 services.AddProbe(invocations);
@@ -314,7 +314,8 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
             });
         await node.StartAsync(ct);
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Block), ct);
-        var started = await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Patience, ct);
+        var started = await JobsTestWait.UntilAsync(
+            () => Task.FromResult(invocations.CountFor(jobId) == 1), TimeSpan.FromSeconds(10), ct);
 
         // Act — the one-minute ceiling passes on the test's clock, a step at a time.
         var stopped = await clock.StepUntilAsync(() => invocations.CancelledAt(jobId) is not null, TimeSpan.FromMinutes(2), ct);
