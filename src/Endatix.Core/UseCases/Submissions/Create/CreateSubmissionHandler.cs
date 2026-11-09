@@ -301,12 +301,14 @@ public class CreateSubmissionHandler(
                 SubmitterProfileSnapshot: Submitter.ProfileSnapshot,
                 IsTestSubmission: Gate.IsTest,
                 EnforceSingleSubmissionGate: Gate.Enforce,
-                // Public/authenticated Create = respondent engagement; CreateOnBehalf = prefill.
-                StartSubmission: string.Equals(
-                    Request.RequiredPermission,
-                    Actions.Submissions.Create,
-                    StringComparison.Ordinal),
-                CollectionOutcome: outcome);
+                StartSubmission: IsRespondentSave,
+                CollectionOutcome: outcome,
+                OpenSubmission: Request.OpenSubmission);
+
+        /// <summary>A respondent's first save starts the submission; an on-behalf create (prefill) and an open don't.</summary>
+        private bool IsRespondentSave =>
+            !Request.OpenSubmission &&
+            string.Equals(Request.RequiredPermission, Actions.Submissions.Create, StringComparison.Ordinal);
     }
 
     private Task<Result<Submission>> DuplicateConflictAsync(

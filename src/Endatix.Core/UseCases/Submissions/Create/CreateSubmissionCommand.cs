@@ -28,6 +28,10 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// When <see langword="null"/>, <paramref name="IsTestParticipant"/> decides.
 /// </param>
 /// <param name="IsTestParticipant">The person the on-behalf create is for is a test participant on the form.</param>
+/// <param name="OpenSubmission">
+/// The respondent's open creates the submission: it is saved <c>viewed</c>, with its start recorded
+/// (<see cref="SubmissionCreateArgs.OpenSubmission"/>).
+/// </param>
 public record CreateSubmissionCommand(
     long FormId,
     string? JsonData,
@@ -41,5 +45,6 @@ public record CreateSubmissionCommand(
     string? CollectionOutcome = null,
     string? PersonalizationSnapshot = null,
     bool? IsTest = null,
-    bool IsTestParticipant = false
+    bool IsTestParticipant = false,
+    bool OpenSubmission = false
 ) : ICommand<Result<Submission>>;
