@@ -223,7 +223,7 @@ jobs:
       ENDATIX_TEST_DB_PROVIDER: ${{ matrix.provider }}
       INTEGRATION_PROJECT: tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj
       # The lane filters, in one place: the test step runs this lane's, the lane check runs both.
-      JOBS_LANE_FILTER: Lane=Jobs&FullyQualifiedName!~OutboxFanOutTests
+      JOBS_LANE_FILTER: Lane=Jobs
       REST_LANE_FILTER: Lane!=Jobs
     steps:
       - name: 🔍 Checkout code
