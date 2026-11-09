@@ -21,6 +21,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed partial class BackgroundWorkTests(EndatixIntegrationWebHostFixture fixture) : IAsyncDisposable
 {
     private const string SeedPassword = "Password123!";

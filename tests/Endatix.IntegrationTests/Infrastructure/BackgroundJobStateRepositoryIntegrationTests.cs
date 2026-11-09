@@ -18,6 +18,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed partial class BackgroundJobStateRepositoryIntegrationTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string KnownJobType = "Known";

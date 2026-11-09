@@ -19,6 +19,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SeedPassword = "Password123!";

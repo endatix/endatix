@@ -4,7 +4,9 @@ namespace Endatix.IntegrationTests.Shared;
 /// xUnit filter expressions for <c>dotnet test --filter</c>. Keep CI workflows in sync.
 /// </summary>
 /// <remarks>
-/// One test process = one Testcontainers database. CI uses a provider matrix (two jobs).
+/// One test process = one Testcontainers database. CI runs each provider as two lanes (four jobs):
+/// these filters plus <c>&amp;Lane=Jobs</c> or <c>&amp;Lane!=Jobs</c>; the class-level <c>Lane</c> trait
+/// decides the lane. See <c>tests/README.md</c> (Lanes).
 /// Provider-agnostic tests have no <c>DbSpecific</c> trait and run in both jobs. Performance tests
 /// (<c>Category=Performance</c>) never run in CI; see <c>PerformanceRun</c>.
 /// </remarks>

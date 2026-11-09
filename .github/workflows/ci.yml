@@ -199,16 +199,32 @@ jobs:
           echo ">[![Coverage Status](https://coveralls.io/repos/github/endatix/endatix/badge.svg?branch=$BRANCH_NAME)](https://coveralls.io/github/endatix/endatix?branch=$BRANCH_NAME)" >> $GITHUB_STEP_SUMMARY
           cat .coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
 
+  # Each provider's suite runs as two lanes in parallel, each with its own database container.
+  # A class joins the Jobs lane with [Trait("Lane", "Jobs")] (jobs, scheduler, outbox and
+  # webhook-delivery classes); every other class runs in Rest. See tests/README.md → Lanes.
   integration-tests:
-    name: "Endatix API: Integration tests"
+    name: "Endatix API: ${{ matrix.title }} integration tests (${{ matrix.lane }})"
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # min-tests: ~10% under each lane's count on 2026-11-09 (PostgreSQL 183 + 734 = 917,
+        # SQL Server 193 + 748 = 941), so a filter that silently drops a whole area fails the
+        # lane. A misspelled Lane trait moves its class to Rest without breaking the lane check;
+        # the Jobs guard is what catches that. Raise them as the suite grows.
+        include:
+          - { provider: PostgreSql, title: PostgreSQL, lane: Jobs, artifact: integration-jobs, min-tests: 165 }
+          - { provider: PostgreSql, title: PostgreSQL, lane: Rest, artifact: integration-rest, min-tests: 660 }
+          - { provider: SqlServer, title: SQL Server, lane: Jobs, artifact: integration-sqlserver-jobs, min-tests: 175 }
+          - { provider: SqlServer, title: SQL Server, lane: Rest, artifact: integration-sqlserver-rest, min-tests: 675 }
     env:
-      ENDATIX_TEST_DB_PROVIDER: PostgreSql
-      # ~10% under the 856 tests both the PR and the main filter ran on 2026-11-03: a filter that
-      # silently drops a whole area fails the leg. Raise it as the suite grows.
-      INTEGRATION_MIN_TESTS: 770
+      ENDATIX_TEST_DB_PROVIDER: ${{ matrix.provider }}
+      INTEGRATION_PROJECT: tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj
+      # The lane filters, in one place: the test step runs this lane's, the lane check runs both.
+      JOBS_LANE_FILTER: Lane=Jobs
+      REST_LANE_FILTER: Lane!=Jobs
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -218,107 +234,67 @@ jobs:
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-      # PRs skip P2 tests to save time, so SonarCloud can report code that only a P2
-      # test reaches as uncovered on a PR (covered again on main). Accepted trade-off.
+      # PRs skip P2 tests on PostgreSQL to save time, so SonarCloud can report code that only a
+      # P2 test reaches as uncovered on a PR (covered again on main). Accepted trade-off.
       - name: Set integration test filter
         env:
           GITHUB_REF_SAFE: ${{ github.ref }}
           GITHUB_EVENT_NAME_SAFE: ${{ github.event_name }}
+          LANE: ${{ matrix.lane }}
         run: |
-          if [ "$GITHUB_REF_SAFE" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME_SAFE" != "pull_request" ]; then
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Category!=Performance&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
+          if [ "$ENDATIX_TEST_DB_PROVIDER" = "SqlServer" ]; then
+            base="Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql"
+          elif [ "$GITHUB_REF_SAFE" = "refs/heads/main" ] && [ "$GITHUB_EVENT_NAME_SAFE" != "pull_request" ]; then
+            base="Category!=Keycloak&Category!=Performance&DbSpecific!=SqlServer"
           else
-            echo "INTEGRATION_TEST_FILTER=Category!=Keycloak&Category!=Performance&Priority!=P2&DbSpecific!=SqlServer" >> "$GITHUB_ENV"
+            base="Category!=Keycloak&Category!=Performance&Priority!=P2&DbSpecific!=SqlServer"
           fi
+          if [ "$LANE" = "Jobs" ]; then lane="$JOBS_LANE_FILTER"; else lane="$REST_LANE_FILTER"; fi
+          echo "INTEGRATION_BASE_FILTER=$base" >> "$GITHUB_ENV"
+          echo "INTEGRATION_TEST_FILTER=$base&$lane" >> "$GITHUB_ENV"
       # Debug, like the unit run: Debug gives braces their own sequence points, so a
       # Release report would leave them 0-hit in the merged Sonar coverage.
       - name: Build integration tests
-        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj
+        run: dotnet build "$INTEGRATION_PROJECT"
+      # Lists tests only (seconds, no database): fails when a test is in neither lane or in both.
+      - name: Check the lanes split the suite
+        run: node scripts/check-integration-lanes.mjs "$INTEGRATION_PROJECT" "$INTEGRATION_BASE_FILTER" "$JOBS_LANE_FILTER" "$REST_LANE_FILTER"
       - name: Run integration tests
+        env:
+          MIN_TESTS: ${{ matrix.min-tests }}
         run: |
-          dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
+          dotnet test "$INTEGRATION_PROJECT" \
             --no-build \
             --filter "$INTEGRATION_TEST_FILTER" \
-            --minimum-expected-tests "$INTEGRATION_MIN_TESTS" \
+            --minimum-expected-tests "$MIN_TESTS" \
             --report-xunit-ctrf \
-            --timeout 45m \
+            --timeout 30m \
             --coverlet \
             --results-directory .coverage
       - name: ⏱️ Upload integration test durations
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: test-durations-integration
+          name: test-durations-${{ matrix.artifact }}
           path: .coverage/**/*.ctrf
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: warn
           retention-days: 7
       - name: ⏱️ Integration test durations summary
         if: ${{ !cancelled() }}
-        run: node scripts/test-durations-summary.mjs .coverage "PostgreSQL integration test durations"
+        env:
+          TITLE: ${{ matrix.title }} integration test durations (${{ matrix.lane }} lane)
+        run: node scripts/test-durations-summary.mjs .coverage "$TITLE"
       - name: 📊 Upload integration coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: coverage-integration
+          name: coverage-${{ matrix.artifact }}
           path: .coverage/**/coverage.opencover.*.xml
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: error
           retention-days: 7 # long enough to re-run the sonar job
 
-  integration-tests-sqlserver:
-    name: "Endatix API: SQL Server integration tests"
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-24.04
-    env:
-      ENDATIX_TEST_DB_PROVIDER: SqlServer
-      # ~10% under the 880 tests the filter ran on 2026-11-03 (see the PostgreSQL leg).
-      INTEGRATION_MIN_TESTS: 790
-    steps:
-      - name: 🔍 Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - name: 📦 Setup .NET
-        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
-        with:
-          global-json-file: global.json
-      # Debug, like the unit run: Debug gives braces their own sequence points, so a
-      # Release report would leave them 0-hit in the merged Sonar coverage.
-      - name: Build integration tests
-        run: dotnet build tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj
-      - name: Run SQL Server integration tests
-        run: |
-          dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj \
-            --no-build \
-            --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql" \
-            --minimum-expected-tests "$INTEGRATION_MIN_TESTS" \
-            --report-xunit-ctrf \
-            --timeout 45m \
-            --coverlet \
-            --results-directory .coverage
-      - name: ⏱️ Upload SQL Server test durations
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: test-durations-integration-sqlserver
-          path: .coverage/**/*.ctrf
-          include-hidden-files: true # .coverage is a dot-directory
-          if-no-files-found: warn
-          retention-days: 7
-      - name: ⏱️ SQL Server test durations summary
-        if: ${{ !cancelled() }}
-        run: node scripts/test-durations-summary.mjs .coverage "SQL Server integration test durations"
-      - name: 📊 Upload SQL Server coverage for SonarCloud
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: coverage-integration-sqlserver
-          path: .coverage/**/coverage.opencover.*.xml
-          include-hidden-files: true # .coverage is a dot-directory
-          if-no-files-found: error
-          retention-days: 7 # long enough to re-run the sonar job
-
-  # CI-based SonarCloud analysis with unit + PostgreSQL + SQL Server coverage.
+  # CI-based SonarCloud analysis with unit + PostgreSQL + SQL Server coverage (all four lanes).
   # Automatic Analysis (the SonarCloud app's own scan) cannot import coverage,
   # so it must be OFF in SonarCloud → Administration → Analysis Method.
   # The token comes from Infisical over OIDC, as in endatix-relay: `prod` on main,
@@ -327,7 +303,7 @@ jobs:
   # Fork and Dependabot PRs get no OIDC secrets: they skip the scan, with a notice.
   sonar:
     name: "Endatix API: SonarCloud"
-    needs: [changes, unit-tests, integration-tests, integration-tests-sqlserver]
+    needs: [changes, unit-tests, integration-tests]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     environment:
@@ -387,7 +363,7 @@ jobs:
         # frozen copy of the last one, and its repeats are SurveyJS JSON keys, not magic values.
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
-          for a in unit integration integration-sqlserver; do
+          for a in unit integration-jobs integration-rest integration-sqlserver-jobs integration-sqlserver-rest; do
             if ! find ".sonar-coverage/coverage-$a" -name "coverage.opencover.*.xml" 2>/dev/null | grep -q .; then
               echo "::error::No coverage-$a report (artifacts expire after 7 days: re-run the whole workflow)."
               exit 1
@@ -429,7 +405,7 @@ jobs:
   # and fetches everything else via Infisical (OIDC, hence id-token).
   pipeline:
     name: Pipeline
-    needs: [changes, unit-tests, integration-tests, integration-tests-sqlserver]
+    needs: [changes, unit-tests, integration-tests]
     if: needs.changes.outputs.code == 'true'
     permissions:
       contents: read # release writes use the App token inside the shared workflow
