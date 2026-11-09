@@ -1,3 +1,4 @@
+using System.Globalization;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
@@ -34,38 +35,29 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         var runs = new NamedProbeRuns();
         await using var node = JobsTestNode.Create(
             database,
-            new Dictionary<string, string?>
-            {
-                [$"Endatix:BackgroundJobs:JobTypes:{Export}:MaxConcurrency"] = "1",
-                [$"Endatix:BackgroundJobs:JobTypes:{WebHook}:MaxConcurrency"] = "4",
-                ["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "1",
-            },
+            HeldSlotSettings((Export, 1), (WebHook, 4)),
             services => AddNamedProbes(services, runs, Export, WebHook));
         using var releaseAtTeardown = runs.ReleaseAllOnDispose();
         await node.StartAsync(ct);
         var firstExport = await node.EnqueueAsync(NamedProbeHandler.HeldUntilReleased(Export), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(runs.HasStarted(firstExport)), TimeSpan.FromSeconds(15), ct);
 
-        // Act — the second export is older than every webhook job, so it heads the queue. The first export and the
-        // webhooks hold their slots until released, so a fifth webhook could only start past its cap, and the second
-        // export, which holds nothing, would have completed.
+        // Act — the second export, older than every webhook, heads the queue. Held jobs keep their slots, so a fifth
+        // webhook could only start past its cap, and the second export, which holds nothing, would have completed.
         var secondExport = await node.EnqueueAsync(NamedProbeHandler.Request(Export), ct);
         var webhooks = await node.EnqueueManyAsync(
             Enumerable.Range(0, 8).Select(_ => NamedProbeHandler.HeldUntilReleased(WebHook)).ToList(),
             ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(runs.Running(WebHook) >= 4), TimeSpan.FromSeconds(15), ct);
         await Task.Delay(NodeAcquisitionWindow, ct);
-        var processingWebhooks = await database.CountAsync(
-            $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 1 AND "Id" IN ({webhooks.IdList()})""", ct);
+        var processingWebhooks = await ProcessingCountAsync(database, webhooks, ct);
         var peakWebhooks = runs.PeakConcurrency(WebHook);
         var peakExports = runs.PeakConcurrency(Export);
         var secondExportWhileFirstRuns = await database.ReadJobAsync(secondExport, ct);
         runs.Release(Export);
         runs.Release(WebHook);
-        var firstEnded = await database.WaitForStatusAsync(
-            new ExpectedJobStatus(firstExport, JobStatus.Completed, TimeSpan.FromSeconds(15)), ct);
-        var secondExportAfterwards = await database.WaitForStatusAsync(
-            new ExpectedJobStatus(secondExport, JobStatus.Completed, TimeSpan.FromSeconds(15)), ct);
+        var firstEnded = await database.WaitForStatusAsync(firstExport, JobStatus.Completed, ct);
+        var secondExportAfterwards = await database.WaitForStatusAsync(secondExport, JobStatus.Completed, ct);
 
         // Assert
         processingWebhooks.Should().Be(4);
@@ -130,11 +122,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         await JobsTestWait.UntilAsync(() => Task.FromResult(runsOnA.Count == 3), TimeSpan.FromSeconds(15), ct);
         await using var nodeB = JobsTestNode.Create(
             database,
-            new Dictionary<string, string?>
-            {
-                [$"Endatix:BackgroundJobs:JobTypes:{WebHook}:MaxConcurrency"] = "1",
-                ["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "1",
-            },
+            HeldSlotSettings((WebHook, 1)),
             services => AddNamedProbes(services, runsOnB, WebHook));
         using var releaseAtTeardown = runsOnB.ReleaseAllOnDispose();
         await nodeB.StartAsync(ct);
@@ -226,17 +214,36 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         // Act — the second job waits behind the first, which keeps the only slot, while the clock jumps once past the
         // misfire threshold and the misfire scan's interval.
         await clock.AdvanceAsync(MisfireJump, ct);
-        var warned = await JobsTestWait.UntilAsync(
-            () => Task.FromResult(logs.Entries.Any(entry =>
-                entry.Message.Contains("waited past the misfire threshold") && entry.Message.Contains(secondId))),
-            TimeSpan.FromSeconds(15),
-            ct);
+        var warned = await BacklogWarningLoggedAsync(logs, secondId, ct);
         runs.Release(WebHook);
 
         // Assert
         warned.Should().BeTrue();
         misfires.JobTypes.Should().Contain(WebHook);
     }
+
+    // The caps, and a one-second shutdown wait: the test releases every held job before its node stops.
+    private static Dictionary<string, string?> HeldSlotSettings(params (string JobType, int Cap)[] caps)
+    {
+        var settings = new Dictionary<string, string?> { ["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "1" };
+        foreach (var (jobType, cap) in caps)
+        {
+            settings[$"Endatix:BackgroundJobs:JobTypes:{jobType}:MaxConcurrency"] = cap.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return settings;
+    }
+
+    private static Task<long> ProcessingCountAsync(JobsTestDatabase database, IReadOnlyList<long> jobIds, CancellationToken ct) =>
+        database.CountAsync(
+            $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 1 AND "Id" IN ({jobIds.IdList()})""", ct);
+
+    private static Task<bool> BacklogWarningLoggedAsync(CapturingLoggerProvider logs, string jobId, CancellationToken ct) =>
+        JobsTestWait.UntilAsync(
+            () => Task.FromResult(logs.Entries.Any(entry =>
+                entry.Message.Contains("waited past the misfire threshold") && entry.Message.Contains(jobId))),
+            TimeSpan.FromSeconds(15),
+            ct);
 
     private static List<BackgroundJobRequest> Requests(string jobType, int count, int holdMilliseconds) =>
         Enumerable.Range(0, count).Select(_ => NamedProbeHandler.Request(jobType, holdMilliseconds)).ToList();
