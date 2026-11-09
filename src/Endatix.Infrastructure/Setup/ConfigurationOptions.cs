@@ -56,8 +56,9 @@ public class ConfigurationOptions
         }
     }
 
+#pragma warning disable S2094 // Reserved empty options pocket on public ConfigurationOptions; removing would break the setup API surface.
     public class LoggingOptions
     {
-
     }
+#pragma warning restore S2094
 }

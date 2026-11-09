@@ -15,9 +15,6 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public static class DataSeedingExtensions
 {
-    // This private class is only used as a logger category
-    private sealed class DataSeedingLogger { }
-
     /// <summary>
     /// Seeds initial user data.
     /// </summary>
@@ -36,9 +33,9 @@ public static class DataSeedingExtensions
     public static async Task SeedInitialUserAsync(this IServiceProvider serviceProvider)
     {
         var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-        var logger = loggerFactory?.CreateLogger<DataSeedingLogger>();
+        var logger = loggerFactory?.CreateLogger(nameof(DataSeedingExtensions)) ?? NullLogger.Instance;
 
-        logger?.LogInformation("Seeding initial user data");
+        logger.LogInformation("Seeding initial user data");
 
         using var scope = serviceProvider.CreateScope();
         var scopedProvider = scope.ServiceProvider;
@@ -48,15 +45,13 @@ public static class DataSeedingExtensions
         var roleManagementService = scopedProvider.GetRequiredService<IRoleManagementService>();
         var dataOptions = scopedProvider.GetRequiredService<IOptions<DataOptions>>().Value;
 
-        var seedLogger = logger != null ? (ILogger)logger : NullLogger.Instance;
-
         await IdentitySeed.SeedInitialUser(
             userManager,
             userRegistrationService,
             roleManagementService,
             dataOptions,
-            seedLogger);
+            logger);
 
-        logger?.LogInformation("Initial user data seeded successfully");
+        logger.LogInformation("Initial user data seeded successfully");
     }
 }
