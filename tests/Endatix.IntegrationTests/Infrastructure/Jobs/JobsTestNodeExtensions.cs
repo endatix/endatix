@@ -36,7 +36,7 @@ internal static class JobsTestNodeExtensions
     /// milliseconds. An outcome write still makes <see cref="OutcomeWriteRetries.Default"/>'s number of tries, so a
     /// test's count of failures one firing spends stays right.
     /// </summary>
-    /// <remarks>Replaces the module's values, so call it after the module is registered, as <c>configureServices</c> runs.</remarks>
+    /// <remarks>Replaces the module's values, which it adds only when absent, so it works before or after the module.</remarks>
     public static void UseQuickOutageRetries(this IServiceCollection services, TimeSpan? refireDelay = null)
     {
         services.Replace(ServiceDescriptor.Singleton(new RefireDelay(refireDelay ?? TimeSpan.FromMilliseconds(500))));

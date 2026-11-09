@@ -196,7 +196,6 @@ internal sealed class UnrecordedJobRefire(
     // open, so the trigger that fired is not deleted.
     private async Task<DateTimeOffset?> StoreOrHoldAsync(IJobExecutionContext context, JobRefireTrigger again)
     {
-
         if (HasLetGo(context.Scheduler))
         {
             logger.LogWarning(

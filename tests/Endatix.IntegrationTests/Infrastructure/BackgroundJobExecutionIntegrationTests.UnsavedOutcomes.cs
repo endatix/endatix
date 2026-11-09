@@ -33,6 +33,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert — the handler ran once, and its end was counted once.
+        row.Status.Should().Be(JobStatus.Completed);
         row.AttemptCount.Should().Be(1);
         row.ErrorMessage.Should().BeNull();
         invocations.CountFor(jobId).Should().Be(1);
@@ -57,6 +58,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Failed, ct);
 
         // Assert
+        row.Status.Should().Be(JobStatus.Failed);
         row.ErrorMessage.Should().Be(ProbeBehaviours.FailureMessage);
         row.AttemptCount.Should().Be(1);
         invocations.CountFor(jobId).Should().Be(1);
@@ -112,7 +114,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
             services =>
             {
                 FailingStateRepository.Register(services, failures);
-                services.UseQuickOutageRetries(refireDelay: TimeSpan.FromSeconds(2));
+                services.UseQuickOutageRetries(refireDelay: TimeSpan.FromSeconds(3));
             },
             ct);
         var jobId = await node.EnqueueAsync(Probe(ProbeBehaviours.Succeed), ct);
@@ -151,6 +153,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var row = await database.WaitForStatusAsync(jobId, JobStatus.Completed, ct);
 
         // Assert — nothing was carried for the throw; the re-fire re-claimed the row for the next attempt.
+        row.Status.Should().Be(JobStatus.Completed);
         row.AttemptCount.Should().Be(2);
         invocations.CountFor(jobId).Should().Be(2);
         failures.FailedAttempts.Should().Be(0);

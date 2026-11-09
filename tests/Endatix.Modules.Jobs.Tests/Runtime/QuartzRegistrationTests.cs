@@ -133,9 +133,11 @@ public sealed class QuartzRegistrationTests
         // Arrange
         var refire = new RefireDelay(TimeSpan.FromMilliseconds(1));
         var writes = new OutcomeWriteRetries([TimeSpan.FromMilliseconds(1)]);
+        var stores = new TriggerStoreBackoff(TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1));
         var services = new ServiceCollection();
         services.AddSingleton(refire);
         services.AddSingleton(writes);
+        services.AddSingleton(stores);
 
         // Act
         using var provider = services.AddJobExecution().BuildServiceProvider();
@@ -143,6 +145,7 @@ public sealed class QuartzRegistrationTests
         // Assert
         provider.GetRequiredService<RefireDelay>().Should().BeSameAs(refire);
         provider.GetRequiredService<OutcomeWriteRetries>().Should().BeSameAs(writes);
+        provider.GetRequiredService<TriggerStoreBackoff>().Should().BeSameAs(stores);
     }
 
     [Fact]
