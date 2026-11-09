@@ -34,8 +34,9 @@ its lane with the `Lane` trait, which is the only place lane membership lives:
 | Jobs | `[Trait("Lane", "Jobs")]`: background jobs, the scheduler, the outbox, webhook delivery | provider filter `&Lane=Jobs` |
 | Rest | every class without the trait | provider filter `&Lane!=Jobs` |
 
-A new class lands in Rest. Tag it `Jobs` when it drives jobs, the scheduler or the outbox, or to even out the lanes:
-each lane's slowest-tests summary is on the CI run page. Each lane's `--minimum-expected-tests` sits about 10% under
+A new class lands in Rest. Tag it `Jobs` when its main subject is jobs, the scheduler, the outbox or webhook delivery.
+A class that only touches them on the way (such as `AudienceDirectoryFlowTests`, whose bulk import runs a job) stays in
+Rest, which keeps the lanes even; each lane's slowest-tests summary on the CI run page shows the balance. Each lane's `--minimum-expected-tests` sits about 10% under
 its count; adjust both when a class moves. Before the tests, each lane runs `scripts/check-integration-lanes.mjs`, which
 lists the provider filter's tests and fails when one is in neither lane or in both.
 

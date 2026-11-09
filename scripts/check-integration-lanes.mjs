@@ -23,6 +23,11 @@ const list = (filter) =>
   );
 
 const all = list(base);
+if (all.length === 0) {
+  // An empty parse would compare equal to empty lanes; fail instead (e.g. the list format changed).
+  console.log(`::error::No test names parsed from --list-tests for ${base}`);
+  process.exit(1);
+}
 const lanes = laneFilters.map((lane) => list(`${base}&${lane}`));
 const { missing, extra } = compareLanes(all, lanes);
 
