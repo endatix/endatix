@@ -37,12 +37,10 @@ internal sealed class UnrecordedJobRefire(
     IDateTimeProvider dateTimeProvider,
     JobsShutdownSignal shutdownSignal,
     TriggerStoreBackoff backoff,
+    RefireDelay delay,
     RefusedRefire refused,
     ILogger<UnrecordedJobRefire> logger)
 {
-    /// <summary>How long after its firing could not settle the row a job runs again.</summary>
-    internal static readonly TimeSpan Delay = TimeSpan.FromSeconds(5);
-
     /// <summary>How often a held firing checks whether its scheduler has let go of it.</summary>
     internal static readonly TimeSpan StopPollInterval = TimeSpan.FromMilliseconds(250);
 
@@ -177,10 +175,10 @@ internal sealed class UnrecordedJobRefire(
     private Task<DateTimeOffset?> TryRefireAsync(IJobExecutionContext context, ReclaimableJob job, int? claimedAttempt) =>
         StoreOrHoldAsync(context, ReclaimTrigger(job, claimedAttempt, unsaved: null));
 
-    private static JobRefireTrigger ReclaimTrigger(ReclaimableJob job, int? claimedAttempt, UnsavedOutcome? unsaved) =>
+    private JobRefireTrigger ReclaimTrigger(ReclaimableJob job, int? claimedAttempt, UnsavedOutcome? unsaved) =>
         new(
             job.JobId,
-            Delay,
+            delay.Value,
             (fireAt, carried) => QuartzRegistration.TriggerFor(job.ReclaimAt(fireAt, carried)),
             claimedAttempt,
             unsaved);
@@ -198,6 +196,7 @@ internal sealed class UnrecordedJobRefire(
     // open, so the trigger that fired is not deleted.
     private async Task<DateTimeOffset?> StoreOrHoldAsync(IJobExecutionContext context, JobRefireTrigger again)
     {
+
         if (HasLetGo(context.Scheduler))
         {
             logger.LogWarning(
@@ -357,6 +356,12 @@ internal sealed record JobRefireTrigger(
     Func<DateTimeOffset, UnsavedOutcome?, ITrigger> TriggerAt,
     int? ClaimedAttempt = null,
     UnsavedOutcome? Unsaved = null);
+
+/// <summary>How long after its firing could not settle the row a job runs again.</summary>
+internal sealed record RefireDelay(TimeSpan Value)
+{
+    public static readonly RefireDelay Default = new(TimeSpan.FromSeconds(5));
+}
 
 /// <summary>How long a firing waits before it tries again to store a trigger the scheduler refused.</summary>
 internal sealed record TriggerStoreBackoff(TimeSpan First, TimeSpan Max)

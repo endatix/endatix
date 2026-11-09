@@ -24,7 +24,7 @@ public sealed partial class BackgroundJobExecutionTests
     private static readonly TimeSpan WritePatience = TimeSpan.FromSeconds(30);
 
     // Every try one firing makes at an outcome write.
-    private static readonly int OneFiringOfWrites = JobOutcomeRecorder.WriteRetryDelays.Length + 1;
+    private static readonly int OneFiringOfWrites = OutcomeWriteRetries.Default.Tries;
 
     [Fact]
     public async Task Execute_LastAttemptCompletionKeepsFailing_RefiresCarryingTheCompletion()
@@ -197,7 +197,7 @@ public sealed partial class BackgroundJobExecutionTests
         await execution.Execute(context, TestContext.Current.CancellationToken);
 
         // Assert
-        await repository.Received(JobOutcomeRecorder.WriteRetryDelays.Length + 1)
+        await repository.Received(OutcomeWriteRetries.Default.Tries)
             .TryCompleteAsync(new AttemptRef(JobId, MaxAttempts), Arg.Any<JobFinish>(), CancellationToken.None);
         UnsavedOutcome.Read(rescheduled.Should().ContainSingle().Subject.JobDataMap).Outcome.Should().Be(carried);
         provider.GetRequiredService<IJobMetrics>().DidNotReceive().Record(JobLifecycleEvent.Completed, Arg.Any<string>());

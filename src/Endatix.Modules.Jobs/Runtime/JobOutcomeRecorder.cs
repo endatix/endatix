@@ -22,12 +22,9 @@ internal sealed class JobOutcomeRecorder(
     JobTypePolicies policies,
     JobLifecycleMetrics metrics,
     ReadOnlyDatabaseWarning readOnlyWarning,
+    OutcomeWriteRetries retries,
     ILogger<JobOutcomeRecorder> logger)
 {
-    /// <summary>How long the recorder waits before each further try at an outcome write that failed.</summary>
-    internal static readonly TimeSpan[] WriteRetryDelays =
-        [TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)];
-
     /// <summary>
     /// Records how <paramref name="attempt"/> ended. When the write cannot be made, the result carries the outcome the
     /// handler decided, if it decided one, for the re-fire to write.
@@ -198,9 +195,8 @@ internal sealed class JobOutcomeRecorder(
     // Returns the last try: how it went, or, when the write could not be made, what that try threw.
     private async Task<WriteTry> WriteWithRetriesAsync(OutcomeWritePlan plan)
     {
-        // One first try, then one more after each delay.
         var tried = default(WriteTry);
-        for (var retry = 0; retry <= WriteRetryDelays.Length; retry++)
+        for (var retry = 0; retry < retries.Tries; retry++)
         {
             tried = await WriteOnceAsync(plan);
             if (tried.Failure is null || !await WaitToRetryAsync(plan, tried.Failure, retry))
@@ -238,7 +234,7 @@ internal sealed class JobOutcomeRecorder(
     private async Task<bool> WaitToRetryAsync(OutcomeWritePlan plan, Exception failure, int retry)
     {
         var attempt = plan.Attempt.Ref;
-        if (retry == WriteRetryDelays.Length || shutdownSignal.IsRaised)
+        if (retry == retries.Delays.Count || shutdownSignal.IsRaised)
         {
             logger.LogError(
                 failure, "Recording {Outcome} for background job {JobId} attempt {Attempt} failed", plan.Outcome, attempt.JobId, attempt.AttemptCount);
@@ -251,7 +247,7 @@ internal sealed class JobOutcomeRecorder(
             plan.Outcome,
             attempt.JobId,
             attempt.AttemptCount);
-        return await DelayUnlessShuttingDownAsync(WriteRetryDelays[retry]);
+        return await DelayUnlessShuttingDownAsync(retries.Delays[retry]);
     }
 
     private async Task<bool> DelayUnlessShuttingDownAsync(TimeSpan delay)
@@ -381,4 +377,14 @@ internal enum OutcomeWrite
     /// <c>Processing</c>.
     /// </summary>
     Unscheduled,
+}
+
+/// <summary>How long the recorder waits before each further try at an outcome write that failed.</summary>
+internal sealed record OutcomeWriteRetries(IReadOnlyList<TimeSpan> Delays)
+{
+    public static readonly OutcomeWriteRetries Default =
+        new([TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)]);
+
+    /// <summary>Every try at one write: a first, then one more after each delay.</summary>
+    public int Tries => Delays.Count + 1;
 }

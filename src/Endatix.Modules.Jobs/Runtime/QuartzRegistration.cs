@@ -138,8 +138,11 @@ internal static class QuartzRegistration
         services.AddScoped<UnrecordedJobRefire>();
         services.AddScoped<RefusedRefire>();
         services.AddSingleton<StoredDurableJobs>();
-        // Added only if absent, so a test can make a refused trigger's next try come sooner.
+        // Added only if absent, so a test can make a refused trigger's next try, a re-fire and an outcome write's
+        // next try come sooner.
         services.TryAddSingleton(TriggerStoreBackoff.Default);
+        services.TryAddSingleton(RefireDelay.Default);
+        services.TryAddSingleton(OutcomeWriteRetries.Default);
         services.AddSingleton<JobsShutdownSignal>();
         services.AddSingleton<ReadOnlyDatabaseWarning>();
         services.AddSingleton<IJobExecutionContextResolver, JobRowExecutionContextResolver>();
