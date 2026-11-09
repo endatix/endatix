@@ -1,0 +1,139 @@
+---
+title: Special Answers in Exports
+description: How None, Refuse to answer, Don't know and Other answers are written in CSV, JSON, XLSX, codebook, Shoji codebook and csv-shoji exports, with the column names, values and Crunch missing categories.
+sidebar_position: 7
+---
+
+# Special Answers in Exports
+
+This page shows how a choice question's **None**, **Refuse to answer**, **Don't know**, and **Other** answers are written in each export format. Use it to map an Endatix export onto another tool's dataset or codebook. For how to download an export in the Hub, see [Exporting Submissions](/docs/end-users/submissions/exporting-submissions).
+
+## Stored values
+
+SurveyJS stores each special item as a fixed value in the submission. Endatix exports read these values:
+
+| Item | Stored value | Question types | Choosing it clears other choices |
+| --- | --- | --- | --- |
+| Other | `other` | Checkbox, tag box, radio group, dropdown, image picker | No |
+| None | `none` | Checkbox, tag box, radio group, dropdown | Yes |
+| Refuse to answer | `refused` | Checkbox, tag box, radio group, dropdown | Yes |
+| Don't know | `dontknow` | Checkbox, tag box, radio group, dropdown | Yes |
+
+**Select All** is never stored: it only ticks the question's other choices, so it has no column or category. A custom choice with `isExclusive: true` stays an ordinary choice in every export.
+
+:::note
+These are the SurveyJS default values (`settings.noneItemValue`, `settings.refuseItemValue`, `settings.dontKnowItemValue`). Choosing your own export codes for them is tracked in [endatix#1544](https://github.com/endatix/endatix/issues/1544), and storing custom values in [endatix#1606](https://github.com/endatix/endatix/issues/1606).
+:::
+
+## CSV, JSON, and XLSX
+
+The **Submissions** formats write one column per flattened key. The key separator is `__` unless the export format sets another `keySeparator`.
+
+The examples use the native column names and values. An export format with the Crunch alias profile, or with `--` as its key separator, writes the Crunch shape instead: columns are renamed `Q1`, `Q1_1`, and so on, grouped by question, and a single-select cell holds the choice's codebook `id`, as in [csv-shoji](#single-select), instead of `none` or `refused`.
+
+### Multi-select (checkbox, tag box)
+
+Each choice and each special item gets its own indicator column, in this order: the question's choices, then Other, then None, Refuse to answer, and Don't know. An indicator is `1` when chosen and `0` when not, and an unanswered question writes `0` in every column.
+
+For a checkbox `cb` with choices `a` and `b`, Other, None, Refuse to answer, and Don't know, a respondent who picks `a` and Other and types `typed` gets:
+
+| `cb__a` | `cb__b` | `cb__other` | `cb__other_text` | `cb__none` | `cb__refused` | `cb__dontknow` |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0 | 1 | typed | 0 | 0 | 0 |
+
+In the JSON format, the same row is `"cb__none": 0`, a number, not a boolean. JSON property names are camel-cased, so a key that starts with a capital letter, such as `QCb__none`, is written as `qCb__none`.
+
+### Single-select (radio group, dropdown)
+
+The question's column holds the stored value: a choice value, `other`, `none`, `refused`, or `dontknow`. The text typed for Other goes in `<question>__other_text`, whichever way the form stores it:
+
+| Stored by SurveyJS | `rg` | `rg__other_text` |
+| --- | --- | --- |
+| `"rg": "other"` and `"rg-Comment": "x"` | `other` | `x` |
+| `"rg": "x"` (`storeOthersAsComment: false`) | `other` | `x` |
+| `"rg": { "value": "other", "comment": "x" }` | `other` | `x` |
+| `"rg": "none"` | `none` | |
+| `"rg": "refused"` | `refused` | |
+
+### Answers kept as stored
+
+Two kinds of question keep the answer in one column as SurveyJS stored it, so a special item appears as its value:
+
+* A multi-select that loads its choices from a data list or a URL and has no choices on the form: `["none"]`.
+* A question in a dynamic panel without a loop source: `pd__0__pdRg` is `none`.
+
+Questions in a dynamic panel with a loop source flatten like top-level questions, one set of columns per loop item, for example `loop__nike__loopCb__dontknow`.
+
+## Codebook
+
+The **Codebook** format exports the form's codebook JSON. Its `choiceCatalogs` object lists every select question's choices with a numeric `id`. Special items follow the question's choices and Other:
+
+```json
+"choiceCatalogs": {
+  "cb": {
+    "multiple": true,
+    "otherStorage": "comment",
+    "choices": [
+      { "value": "a", "id": 1, "text": { "default": "a" } },
+      { "value": "b", "id": 2, "text": { "default": "b" } },
+      { "value": "other", "id": 3, "kind": "other", "text": { "default": "Other" } },
+      { "value": "none", "id": 4, "kind": "none", "exclusive": true, "text": { "default": "None" } },
+      { "value": "refused", "id": 5, "kind": "refused", "exclusive": true, "text": { "default": "Refuse to answer" } },
+      { "value": "dontknow", "id": 6, "kind": "dontknow", "exclusive": true, "text": { "default": "Don't know" } }
+    ]
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `multiple` | `true` for checkbox and tag box, `false` for single-select questions. |
+| `otherStorage` | Where the Other text is: `comment` (a separate comment, the SurveyJS default) or `value` (`storeOthersAsComment: false`, the text replaces `other`). Only on questions with Other. |
+| `id` | The choice's code. It keeps its value after choices are added, removed, or reordered: a new item takes the next free id. A form that removed a choice before this rule existed has its later choices renumbered once, in its next Shoji export. |
+| `kind` | `other`, `none`, `refused`, or `dontknow` for a special item. Absent for an ordinary choice. |
+| `exclusive` | `true` when choosing the item clears the other choices, including a custom `isExclusive` choice. |
+| `text` | The label per locale, from the question's `otherText`, `noneText`, `refuseText`, or `dontKnowText`, or the SurveyJS default label. |
+
+Each indicator column in `columns` names its item with `choiceValue` and `choiceLabel`, for example `columns["cb__none"]`.
+
+## Crunch Shoji codebook and csv-shoji
+
+A Crunch.io import takes two files: the **Codebook (Shoji)** metadata and the **csv-shoji** data. csv-shoji uses `--` as its key separator, so `cb__none` becomes `cb--none`.
+
+### Single-select
+
+A radio group or dropdown is a `categorical` variable. Its categories are the catalog's choices, with the same ids. **Refuse to answer** and **Don't know** are missing categories, so Crunch leaves them out of percentages. **None** is a valid answer.
+
+For a radio group `rg` with choices `a` and `b` and every special item:
+
+| id | name | missing |
+| --- | --- | --- |
+| 1 | a | false |
+| 2 | b | false |
+| 3 | Other | false |
+| 4 | None | false |
+| 5 | Refuse to answer | true |
+| 6 | Don't know | true |
+
+csv-shoji writes the category id in the `rg` column, so a respondent who refused gets `5`. An unanswered question writes an empty cell.
+
+### Multi-select
+
+A checkbox or tag box is a `multiple_response` variable with one subvariable per choice and special item, such as `cb--none`. Every subvariable has the categories `not selected` (id 0) and `selected` (id 1), and neither is missing: in a multi-select, Refuse to answer and Don't know are selected or not selected like any other choice. csv-shoji writes `1` or `0`.
+
+### Other text
+
+`<question>--other_text` is a separate `text` variable, named after the question with ` -- Other`.
+
+### Category names
+
+Crunch needs unique category names in a variable. When a removed choice and a current one share a label, every one but the newest is named with its value, as in `Blue (b)`.
+
+## Forms prepared before special items were exported
+
+A form whose reporting data was prepared before this behavior existed has no special-item columns. Run **Rebuild reporting data…** once on the form's export panel to add them. The special items take the next free ids after the existing choices.
+
+## Related
+
+* [Exporting Submissions](/docs/end-users/submissions/exporting-submissions): download exports and set up export formats in the Hub.
+* [Customize Exports](/docs/guides/customize-exports): change values with transformers before they are written.
