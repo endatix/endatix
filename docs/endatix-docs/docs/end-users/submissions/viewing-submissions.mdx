@@ -24,7 +24,7 @@ import viewColumnsDark from "./submissions-view-columns_dark.png";
 
 ## What Is the Submissions Page?
 
-Every time someone fills out one of your forms, Endatix saves their answers as a **submission**. A submission is saved as soon as the respondent's first answers are stored, not only when they complete the form, so you also see forms that were started but not finished.
+Every time someone fills out one of your forms, Endatix saves their answers as a **submission**. A submission is saved as soon as the respondent opens the form, before they answer anything, so you also see forms that were opened or started but not finished.
 
 The **Submissions** page lists all submissions of one form in a grid. Use it to check how many responses have come in, follow up on incomplete ones, keep track of which submissions have been reviewed, and open a submission to read or edit its answers. Filters, sorting, and your choice of columns narrow a long list down to exactly what you need — for example, last week's completed submissions that nobody has reviewed yet.
 
@@ -131,7 +131,7 @@ Until you sort the list, the newest submissions are at the top. Completed submis
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Started</strong></td>
-<td>When the respondent started filling out the form.</td>
+<td>When the respondent first opened the form. Submissions saved before this was recorded keep the time of their first saved answer.</td>
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Completed</strong></td>
@@ -147,7 +147,7 @@ Until you sort the list, the newest submissions are at the top. Completed submis
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Time</strong></td>
-<td>How long the respondent took, from <strong>Started</strong> to <strong>Completed</strong>. A dash for incomplete submissions.</td>
+<td>How long the respondent took, from <strong>Started</strong> to <strong>Completed</strong>. It includes the time spent reading the form before the first answer and any time the form stayed open. A dash for incomplete submissions.</td>
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Status</strong></td>
@@ -187,7 +187,7 @@ Click a filter above the grid and select one or more options. When you select se
 <tbody>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Complete</strong></td>
-<td><strong>Yes</strong> — completed submissions. <br/> <strong>No</strong> — submissions that were started but not completed.</td>
+<td><strong>Yes</strong> — completed submissions. <br/> <strong>No</strong> — submissions that were opened or started but not completed.</td>
 </tr>
 <tr style={{ backgroundColor: 'transparent' }}>
 <td><strong>Status</strong></td>

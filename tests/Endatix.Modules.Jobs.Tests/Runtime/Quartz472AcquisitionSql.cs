@@ -3,7 +3,7 @@ using Quartz.Impl.AdoJobStore;
 namespace Endatix.Modules.Jobs.Tests.Runtime;
 
 /// <summary>
-/// The acquisition statements Quartz 4.2.2's PostgreSQL and SQL Server dialects build, pinned so that a Quartz
+/// The acquisition statements Quartz 4.7.2's PostgreSQL and SQL Server dialects build, pinned so that a Quartz
 /// upgrade that changes them fails a test before the driver delegates' rewrite of them breaks at run time.
 /// </summary>
 /// <remarks>
@@ -11,7 +11,7 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 /// pinned: Quartz ends every line with CRLF except the one before the job-type exclusion clause, which ends with a
 /// bare LF, and git would normalise a checked-out text file's line ends.
 /// </remarks>
-internal static class Quartz422AcquisitionSql
+internal static class Quartz472AcquisitionSql
 {
     /// <summary>
     /// The statement shapes the scheduler builds in practice, as the batch size, the exclusion bucket and the
@@ -35,13 +35,13 @@ internal static class Quartz422AcquisitionSql
 
     private const string ProjectionAndCommonConditions =
         "\r\n" +
-        "                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, t.EXECUTION_GROUP\r\n" +
+        "                t.TRIGGER_NAME, t.TRIGGER_GROUP, jd.JOB_CLASS_NAME, jd.IS_NONCONCURRENT, t.EXECUTION_GROUP, t.NEXT_FIRE_TIME, t.OVERLAP_POLICY, t.FIXED_DELAY\r\n" +
         "              FROM\r\n" +
         "                {0}TRIGGERS t\r\n" +
         "              JOIN\r\n" +
         "                {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)\r\n" +
         "              WHERE\r\n" +
-        "                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))\r\n" +
+        "                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND ((MISFIRE_THRESHOLD IS NULL AND NEXT_FIRE_TIME > @noEarlierThan) OR (MISFIRE_THRESHOLD IS NOT NULL AND NEXT_FIRE_TIME > @misfireCountedFrom - MISFIRE_THRESHOLD * 10000))))\r\n" +
         "                " + PreferredNodeCondition;
 
     /// <summary>Quartz's order, which every rewrite keeps, both inside each group and across the groups.</summary>

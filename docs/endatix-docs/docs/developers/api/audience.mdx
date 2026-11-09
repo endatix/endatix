@@ -84,7 +84,7 @@ The API ends abandoned imports. One left uploading or checked for 24 hours expir
 
 `POST /links` issues one link per real person on the form who has none, and returns each person's `membershipId` and raw `token`. The token is returned once: the API keeps only its hash, so save the response before anything else. A form with more than 5,000 real people is refused with `400`, *This form has more than 5,000 people to send links to.* Test people never get a link.
 
-A link's URL in Hub is `/share/{formId}/a/{token}`. Hub redeems it with `POST /links/{token}/redeem` once the page loads in a browser, so a mail scanner fetching the URL changes nothing. Redeem starts the person's submission on the first open and returns the same one on every later open, with a `submissionAccessToken` that opens that submission only, on a public or a private form. A link whose submission is complete is `409` with `errorCode` `submission_ended`.
+A link's URL in Hub is `/share/{formId}/a/{token}`. Hub redeems it with `POST /links/{token}/redeem` once the page loads in a browser, so a mail scanner fetching the URL changes nothing. Redeem records the person's first open (the submission is `viewed`, and its start time is the open) and returns the same submission on every later open, with a `submissionAccessToken` that opens that submission only, on a public or a private form. A link whose submission is complete is `409` with `errorCode` `submission_ended`.
 
 ## See also
 

@@ -32,7 +32,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(submissionId, IdOf(opened, "submissionId"));
         Assert.Equal("on_behalf", read.GetProperty("personalization").GetProperty("source").GetString());
         Assert.Equal("Columbus", read.GetProperty("personalization").GetProperty("variables").GetProperty("city").GetString());
-        Assert.Equal("in_progress", read.GetProperty("collectionStatus").GetString());
+        Assert.Equal("viewed", read.GetProperty("collectionStatus").GetString());
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ public sealed partial class AudienceDirectoryFlowTests
         Assert.Equal(submissionId, IdOf(opened, "submissionId"));
         Assert.Equal("link", read.GetProperty("personalization").GetProperty("source").GetString());
         Assert.Equal("Akron", read.GetProperty("personalization").GetProperty("variables").GetProperty("city").GetString());
-        Assert.Equal("in_progress", read.GetProperty("collectionStatus").GetString());
+        Assert.Equal("viewed", read.GetProperty("collectionStatus").GetString());
         Assert.NotEqual(JsonValueKind.Null, read.GetProperty("startedAt").ValueKind);
     }
 

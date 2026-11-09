@@ -58,7 +58,7 @@ internal sealed record PreparedTestSubmission(
             SubmitterDisplayId: Subject.Identifier,
             IsTestSubmission: true,
             EnforceSingleSubmissionGate: false,
-            StartSubmission: true));
+            OpenSubmission: true));
         submission.FreezeForTest(PersonalizationSnapshotJson.Write(
             new SnapshotHeader(null, Subject.Identifier, CapturedAt, PersonalizationSources.Test, Subject.MemberId),
             Cells));

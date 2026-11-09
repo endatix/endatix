@@ -10,9 +10,9 @@ public sealed partial class QuartzSchemaScriptsTests
 {
     // The Quartz version the hashes below were taken from. Existing databases have the tables of that version, and
     // a later Quartz whose statements hash the same needs no jobs migration for that provider.
-    private const string PinnedQuartzVersion = "4.2.2";
-    private const string PinnedPostgreSqlTablesSha256 = "00070af85c9032af0a502de01a06bf015ac1c069696bc1674ea12f42970902d1";
-    private const string PinnedSqlServerTablesSha256 = "c7a39f85a2c80393ab40e2f89557e99354ea33221cc367b05ae68cd20dddede8";
+    private const string PinnedQuartzVersion = "4.7.2";
+    private const string PinnedPostgreSqlTablesSha256 = "8de2d694ece9087ab01134bcf676aff3c5ccecbe5af23a7cad9a2887e0a30b01";
+    private const string PinnedSqlServerTablesSha256 = "30f7f88c303a7e5d042197ba635000dd28c1137288e08f64dbfbcb0fb3bb6820";
 
     [Fact]
     public void PinnedQuartzVersion_FromReferencedQuartz_IsTheReferencedVersion()
