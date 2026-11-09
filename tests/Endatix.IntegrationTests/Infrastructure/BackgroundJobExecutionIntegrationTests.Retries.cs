@@ -189,17 +189,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         [ProbeKey("BackoffBaseSeconds")] = "1",
     };
 
-    private static async Task<JobsTestNode> StartScheduleOnlyNodeAsync(
+    private static Task<JobsTestNode> StartScheduleOnlyNodeAsync(
         JobsTestDatabase database,
         Dictionary<string, string?> settings,
-        CancellationToken ct)
-    {
-        var node = JobsTestNode.Create(
+        CancellationToken ct) =>
+        JobsTestNode.Create(
             database,
-            new Dictionary<string, string?>(settings) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
-        await node.StartAsync(ct);
-        return node;
-    }
+            new Dictionary<string, string?>(settings) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" })
+            .StartedAsync(ct);
 
     // Only this node's stores spend the failures: the tests enqueue from another node, whose stores never fail.
     private static Task<JobsTestNode> StartNodeFailingTriggerStoresAsync(

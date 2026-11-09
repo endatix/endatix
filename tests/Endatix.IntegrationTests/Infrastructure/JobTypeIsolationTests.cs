@@ -102,7 +102,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var runsOnA = new NamedProbeRuns();
         var runsOnB = new NamedProbeRuns();
-        var nodeA = JobsTestNode.Create(
+        await using var nodeA = JobsTestNode.Create(
             database,
             new Dictionary<string, string?> { [$"Endatix:BackgroundJobs:JobTypes:{WebHook}:MaxConcurrency"] = "3" },
             services => AddNamedProbes(services, runsOnA, WebHook));

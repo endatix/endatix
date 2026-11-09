@@ -167,7 +167,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
-        var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
+        await using var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirst), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(onA.CountFor(jobId) == 1), Patience, ct);
         await using var nodeB = await StartNodeAsync(new(database, onB, InstanceId("node-b")), ct);
@@ -191,7 +191,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
-        var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
+        await using var nodeA = await StartNodeAsync(new(database, onA, InstanceId("node-a")), ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirstThenThrow), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(onA.CountFor(jobId) == 1), Patience, ct);
         var survivorSettings = InstanceId("node-b");
@@ -217,12 +217,12 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         var ct = TestContext.Current.CancellationToken;
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var invocations = new ProbeInvocations();
-        var nodeA = await StartNodeAsync(new(database, invocations, InstanceId("node-a")), ct);
+        await using var nodeA = await StartNodeAsync(new(database, invocations, InstanceId("node-a")), ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.BlockFirstThenThrowWhileStopping), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Patience, ct);
         var survivorSettings = InstanceId("node-b");
         survivorSettings["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "2";
-        var nodeB = await StartNodeAsync(new(database, invocations, survivorSettings), ct);
+        await using var nodeB = await StartNodeAsync(new(database, invocations, survivorSettings), ct);
         await nodeA.KillAsync();
         await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 2), Patience, ct);
 
@@ -375,7 +375,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
             ["Endatix:BackgroundJobs:Clustering:InstanceId"] = "node-graceful",
             ["Endatix:BackgroundJobs:ShutdownWaitSeconds"] = "1",
         };
-        var first = await StartNodeAsync(new(database, invocations, settings), ct);
+        await using var first = await StartNodeAsync(new(database, invocations, settings), ct);
         var jobId = await first.EnqueueAsync(Probe(ProbeBehaviours.BlockFirst), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(invocations.CountFor(jobId) == 1), Patience, ct);
 
@@ -432,15 +432,12 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
     private static Dictionary<string, string?> InstanceId(string instanceId) =>
         new() { ["Endatix:BackgroundJobs:Clustering:InstanceId"] = instanceId };
 
-    private static async Task<JobsTestNode> StartNodeAsync(ProbeNodeSetup setup, CancellationToken ct)
-    {
-        var node = JobsTestNode.Create(
+    private static Task<JobsTestNode> StartNodeAsync(ProbeNodeSetup setup, CancellationToken ct) =>
+        JobsTestNode.Create(
             setup.Database,
             setup.Settings,
-            services => services.AddProbe(setup.Invocations));
-        await node.StartAsync(ct);
-        return node;
-    }
+            services => services.AddProbe(setup.Invocations))
+            .StartedAsync(ct);
 
     // The scheduler deletes a finished one-off trigger just after the wrapper records the outcome.
     private static Task<bool> NoTriggerLeftAsync(JobsTestDatabase database, long jobId, CancellationToken ct) =>

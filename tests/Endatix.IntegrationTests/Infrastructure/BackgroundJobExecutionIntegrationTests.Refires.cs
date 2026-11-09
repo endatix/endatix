@@ -21,7 +21,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var onA = new ProbeInvocations();
         var onB = new ProbeInvocations();
         var failures = new StateRepositoryFailures(completions: 1);
-        var nodeA = await StartNodeFailingStateWritesAsync(new(database, onA, StoppingQuickly("node-a")), failures, ct);
+        await using var nodeA = await StartNodeFailingStateWritesAsync(new(database, onA, StoppingQuickly("node-a")), failures, ct);
         var jobId = await nodeA.EnqueueAsync(Probe(ProbeBehaviours.FinishFirstAsNodeStops), ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(onA.CountFor(jobId) == 1), Patience, ct);
         await using var nodeB = await StartNodeAsync(new(database, onB, InstanceId("node-b")), ct);
