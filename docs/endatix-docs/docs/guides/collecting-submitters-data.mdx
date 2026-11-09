@@ -187,6 +187,27 @@ Resolution behavior:
 
 Use this endpoint when the integration is already trusted. Do not accept submitter identity from an untrusted browser and forward it as-is.
 
+### Create a test submission
+
+Testers can fill in a form many times without counting as real respondents. Create a test submission in the same call with `isTest`:
+
+```json
+{
+  "isTest": true,
+  "submitter": {
+    "externalSubjectId": "panel-user-7831"
+  }
+}
+```
+
+* `isTest: true` needs the `forms.test` permission as well as `submissions.create.onbehalf`. Without it, the call returns `403`.
+* Without `isTest`, the audience decides: when the submitter matches a person added to the form as a test participant, the submission is a test one. Any other submitter gets a real submission.
+* `isTest: false` creates a real submission, even for a test participant.
+* A test submission skips the one-submission-per-user limit and does not use the person's slot, so a later real create for the same person still succeeds.
+* A test submission is personalized like a real one. Exports leave it out unless you include test submissions.
+
+Prefer `isTest` over marking the submission as test afterward. Until it is marked, the submission counts as real: it takes the person's slot, and a completed one has already been reported as real.
+
 ## Recipe 3: Customize submitter extraction
 
 Most customizations should add an `ISubmitterClaimExtractor`, not replace the whole resolver. A custom extractor is the right extension point when your authentication provider uses different claim names, multiple tenant-specific claim formats, or a non-Keycloak external provider.
