@@ -16,7 +16,7 @@ namespace Endatix.Infrastructure.Data;
 public static class DataSeedingExtensions
 {
     // This private class is only used as a logger category
-    private class DataSeedingLogger { }
+    private sealed class DataSeedingLogger { }
 
     /// <summary>
     /// Seeds initial user data.

@@ -1,10 +1,10 @@
-﻿using System.Diagnostics;
-using Endatix.Infrastructure.Data.Logging;
-using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using Endatix.Core.Entities;
-using Microsoft.EntityFrameworkCore;
+using Endatix.Infrastructure.Data.Logging;
 using Endatix.Infrastructure.Data.SeedData;
 using Endatix.Infrastructure.Identity.Authentication;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -59,7 +59,7 @@ public class DataSeeder(ILogger<DataSeeder> logger)
         }
     }
 
-    private async Task SeedFromFileAsync(DbContext dbContext, FormSeedData seedData, CancellationToken cancellationToken)
+    private static async Task SeedFromFileAsync(DbContext dbContext, FormSeedData seedData, CancellationToken cancellationToken)
     {
         // Forms.ActiveDefinitionId and FormDefinitions.FormId are a cycle: insert Form with
         // null ActiveDefinitionId, then INSERT the definition (must be Added, not Modified),

@@ -68,7 +68,7 @@ public sealed class FolderWritePolicy(
         return await folderRepository.AnyAsync(spec, cancellationToken);
     }
 
-    public Result<string> NormalizeAndValidateSlugOrError(string? rawSlug, string fallbackName, bool includeDetailedInvalidMessage)
+    public static Result<string> NormalizeAndValidateSlugOrError(string? rawSlug, string fallbackName, bool includeDetailedInvalidMessage)
     {
         var normalizedSlug = string.IsNullOrWhiteSpace(rawSlug)
             ? UrlSlugNormalizer.FromDisplayName(fallbackName)

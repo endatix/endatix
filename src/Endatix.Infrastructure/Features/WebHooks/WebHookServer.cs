@@ -33,7 +33,7 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
             }
 
             var content = CreateContent(message);
-            using var request = new HttpRequestMessage(HttpMethod.Post,instructions.Uri)
+            using var request = new HttpRequestMessage(HttpMethod.Post, instructions.Uri)
             {
                 Content = content,
             };
@@ -52,7 +52,7 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
             }
 
         }
-         // This exception is thrown when a single request times out (configured with WebHookSettings's AttemptTimeoutInSeconds setting)
+        // This exception is thrown when a single request times out (configured with WebHookSettings's AttemptTimeoutInSeconds setting)
         catch (TaskCanceledException ex)
         {
             logger.LogWebHookTimedOut(ex, message.operation, message.id, instructions.Uri);
@@ -91,7 +91,7 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
         return response.StatusCode;
     }
 
-    private StringContent CreateContent<T>(WebHookMessage<T> message)
+    private static StringContent CreateContent<T>(WebHookMessage<T> message)
     {
         var options = new JsonSerializerOptions();
         options.Converters.Add(new LongToStringConverter());
@@ -100,7 +100,7 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
     }
 
 
-    private void AddWebHookHeaders<T>(HttpRequestMessage request, WebHookMessage<T> message, TaskInstructions instructions)
+    private static void AddWebHookHeaders<T>(HttpRequestMessage request, WebHookMessage<T> message, TaskInstructions instructions)
     {
         // Add standard Endatix webhook headers
         request.Headers.Add(WebHookRequestHeaders.Event, message.operation.EventName);
@@ -117,7 +117,7 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
     /// </summary>
     /// <param name="request">The HTTP request message.</param>
     /// <param name="authConfig">The authentication configuration.</param>
-    private void AddAuthenticationHeaders(HttpRequestMessage request, AuthenticationConfig? authConfig)
+    private static void AddAuthenticationHeaders(HttpRequestMessage request, AuthenticationConfig? authConfig)
     {
         if (authConfig == null)
         {

@@ -6,6 +6,7 @@ namespace Endatix.Infrastructure.Features.Submitters;
 /// <summary>
 /// Reads submitter claims from a claims principal.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("csharpsquid", "S2325:Methods and properties that don't access instance data should be static", Justification = "Injectable and mockable public service; making it static would break extractor constructors and downstream consumers.")]
 public sealed class SubmitterClaimReader
 {
     /// <summary>

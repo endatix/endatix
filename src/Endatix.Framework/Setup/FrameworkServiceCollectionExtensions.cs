@@ -1,8 +1,8 @@
+using Endatix.Framework.Hosting;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using Endatix.Framework.Hosting;
 
 namespace Endatix.Framework.Setup;
 
@@ -47,7 +47,7 @@ public static class FrameworkServiceCollectionExtensions
     }
 
     // Helper classes for environment adaptation
-    private class HostingEnvironmentAdapter : IWebHostEnvironment
+    private sealed class HostingEnvironmentAdapter : IWebHostEnvironment
     {
         private readonly IHostEnvironment _environment;
 
@@ -84,7 +84,7 @@ public static class FrameworkServiceCollectionExtensions
         }
     }
 
-    private class DevelopmentEnvironment : IHostEnvironment
+    private sealed class DevelopmentEnvironment : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = "Development";
         public string ApplicationName { get; set; } = "Endatix.Framework";

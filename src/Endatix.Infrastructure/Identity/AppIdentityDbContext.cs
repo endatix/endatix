@@ -155,7 +155,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     private void ProcessEntities() =>
         ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
 
-    private void RenameIdentityTables(ModelBuilder builder)
+    private static void RenameIdentityTables(ModelBuilder builder)
     {
         builder.Entity<AppUser>().ToTable("Users");
         builder.Entity<AppRole>().ToTable("Roles");

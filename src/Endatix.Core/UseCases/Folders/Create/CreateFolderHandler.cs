@@ -44,7 +44,7 @@ public sealed class CreateFolderHandler(
             return Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(trimmedName, nameof(CreateFolderCommand.Name)));
         }
 
-        var slugResult = folderWritePolicy.NormalizeAndValidateSlugOrError(request.Slug, trimmedName, includeDetailedInvalidMessage: true);
+        var slugResult = FolderWritePolicy.NormalizeAndValidateSlugOrError(request.Slug, trimmedName, includeDetailedInvalidMessage: true);
         if (!slugResult.IsSuccess || slugResult.Value is null)
         {
             return Result.Invalid(folderWritePolicy.CreateInvalidSlugValidationError(

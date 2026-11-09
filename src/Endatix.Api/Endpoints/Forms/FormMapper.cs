@@ -7,7 +7,7 @@ namespace Endatix.Api.Endpoints.Forms;
 /// <summary>
 /// Mapper from a form entity to a form API model.
 /// </summary>
-public class FormMapper
+public static class FormMapper
 {
     /// <summary>
     /// Maps a form entity to a form API model.

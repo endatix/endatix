@@ -1,12 +1,12 @@
+using System.Security.Claims;
 using Ardalis.GuardClauses;
-using Microsoft.Extensions.Logging;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
-using Endatix.Core.Abstractions.Authorization;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
 using Endatix.Infrastructure.Identity.Authorization.Exceptions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Services;
 
@@ -197,7 +197,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     /// <param name="principal">The claims principal to get the hydrated authorization data from.</param>
     /// <returns>The authorization data.</returns>
     /// <exception cref="InvalidAuthorizedIdentityException">Thrown when the claims principal is does not contain valid authorization data via the <see cref="AuthorizedIdentity"/>.</exception>
-    private AuthorizationData GetAuthorizationDataFromClaims(ClaimsPrincipal principal)
+    private static AuthorizationData GetAuthorizationDataFromClaims(ClaimsPrincipal principal)
     {
         if (principal?.Identity is not ClaimsIdentity identity || !identity.IsAuthenticated)
         {

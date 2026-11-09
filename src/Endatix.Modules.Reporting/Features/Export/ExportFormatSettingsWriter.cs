@@ -8,7 +8,7 @@ namespace Endatix.Modules.Reporting.Features.Export;
 /// <summary>
 /// Validates and serializes export format settings for persistence.
 /// </summary>
-internal sealed class ExportFormatSettingsWriter
+internal static class ExportFormatSettingsWriter
 {
     private static readonly JsonSerializerOptions _serializerOptions = new()
     {
@@ -17,10 +17,10 @@ internal sealed class ExportFormatSettingsWriter
         Converters = { new ColumnAliasProfileJsonConverter() },
     };
 
-    internal Result<string?> Serialize(ExportFormatSettingsInput? settings) =>
+    internal static Result<string?> Serialize(ExportFormatSettingsInput? settings) =>
         Serialize(settings, ExportTarget.Submissions);
 
-    internal Result<string?> Serialize(
+    internal static Result<string?> Serialize(
         ExportFormatSettingsInput? settings,
         ExportTarget exportTarget)
     {

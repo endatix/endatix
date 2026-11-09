@@ -35,7 +35,7 @@ public sealed class FolderWritePolicyTests
     [Fact]
     public void NormalizeAndValidateSlugOrError_WhenSlugReserved_ReturnsError()
     {
-        var result = _policy.NormalizeAndValidateSlugOrError("templates", "Fallback", includeDetailedInvalidMessage: false);
+        var result = FolderWritePolicy.NormalizeAndValidateSlugOrError("templates", "Fallback", includeDetailedInvalidMessage: false);
 
         result.IsSuccess.Should().BeFalse();
     }

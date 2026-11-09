@@ -3,7 +3,7 @@ namespace Endatix.Core.Features.WebHooks;
 /// <summary>
 /// This class contains the headers sent when a WebHook is fired.
 /// </summary>
-public class WebHookRequestHeaders
+public static class WebHookRequestHeaders
 {
 
     /// <summary>
@@ -34,7 +34,7 @@ public class WebHookRequestHeaders
     /// <summary>
     /// The constants used in the headers.
     /// </summary>
-    public class Constants
+    public static class Constants
     {
         /// <summary>
         /// The common header prefix.

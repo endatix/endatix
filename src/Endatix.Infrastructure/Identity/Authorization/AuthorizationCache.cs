@@ -157,7 +157,7 @@ internal class AuthorizationCache(
     /// <param name="principal">The claims principal to compute the expiration for.</param>
     /// <param name="fallback">The fallback expiration time if the principal is null.</param>
     /// <returns>The expiration time.</returns>
-    private TimeSpan ComputeExpiration(ClaimsPrincipal? principal, TimeSpan? fallback = null)
+    private static TimeSpan ComputeExpiration(ClaimsPrincipal? principal, TimeSpan? fallback = null)
     {
         if (principal is null)
         {

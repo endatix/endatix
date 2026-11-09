@@ -66,7 +66,7 @@ public sealed class UpdateFolderHandler(
 
         if (request.Slug is not null)
         {
-            var slugResult = folderWritePolicy.NormalizeAndValidateSlugOrError(request.Slug, folder.Name, includeDetailedInvalidMessage: false);
+            var slugResult = FolderWritePolicy.NormalizeAndValidateSlugOrError(request.Slug, folder.Name, includeDetailedInvalidMessage: false);
             if (!slugResult.IsSuccess || slugResult.Value is null)
             {
                 return Result.Invalid(folderWritePolicy.CreateInvalidSlugValidationError(

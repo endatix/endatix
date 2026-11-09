@@ -7,7 +7,7 @@ namespace Endatix.Core.Abstractions.Submissions;
 /// </summary>
 public static class SubmissionAccessTokenErrors
 {
-    public class ErrorCodes
+    public static class ErrorCodes
     {
         public const string INVALID_PERMISSION = "invalid_permission";
         public const string INVALID_TOKEN = "invalid_access_token";
@@ -18,7 +18,7 @@ public static class SubmissionAccessTokenErrors
         public const string TOKEN_REVOKED = "token_revoked";
     }
 
-    public class Messages
+    public static class Messages
     {
         public const string INVALID_TOKEN = "Invalid access token";
         public const string TOKEN_EXPIRED = "Token expired";
@@ -28,7 +28,7 @@ public static class SubmissionAccessTokenErrors
         public const string TOKEN_REVOKED = "Token revoked";
     }
 
-    public class ValidationErrors
+    public static class ValidationErrors
     {
         public static readonly ValidationError InvalidToken = new ValidationError(
             "Token",

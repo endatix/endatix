@@ -7,17 +7,17 @@ namespace Endatix.Core.Abstractions.Submissions;
 /// </summary>
 public static class SubmissonTokenErrors
 {
-    public class ErrorCodes
+    public static class ErrorCodes
     {
         public const string SUBMISSION_TOKEN_INVALID = "submission_token_invalid";
     }
 
-    public class Messages
+    public static class Messages
     {
         public const string SUBMISSION_TOKEN_INVALID = "Invalid or expired token";
     }
 
-    public class ValidationErrors
+    public static class ValidationErrors
     {
         public static readonly ValidationError SubmissionTokenInvalid = new ValidationError("Token", Messages.SUBMISSION_TOKEN_INVALID, ErrorCodes.SUBMISSION_TOKEN_INVALID, ValidationSeverity.Error);
     }
