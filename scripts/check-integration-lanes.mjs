@@ -4,7 +4,10 @@
 //
 // Usage: node scripts/check-integration-lanes.mjs <project> <base filter> <lane filter>...
 //        Each lane runs "<base filter>&<lane filter>", the same string the lane's test step uses.
+// Env:   DOTNET_ROOT   the SDK folder (actions/setup-dotnet sets it); dotnet is run from there,
+//                      not looked up on PATH. Locally: DOTNET_ROOT="$(dirname "$(command -v dotnet)")"
 import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
 import { compareLanes, parseTestList } from './lib/integration-lanes.mjs';
 
 const [project, base, ...laneFilters] = process.argv.slice(2);
@@ -12,11 +15,16 @@ if (!project || !base || laneFilters.length < 2) {
   console.error('Usage: node scripts/check-integration-lanes.mjs <project> <base filter> <lane filter>...');
   process.exit(2);
 }
+if (!process.env.DOTNET_ROOT) {
+  console.error('Set DOTNET_ROOT to the .NET SDK folder (actions/setup-dotnet sets it).');
+  process.exit(2);
+}
+const dotnet = join(process.env.DOTNET_ROOT, 'dotnet');
 
 // Throws on a non-zero exit, including 8 (the filter matched no tests).
 const list = (filter) =>
   parseTestList(
-    execFileSync('dotnet', ['test', project, '--no-build', '--list-tests', '--filter', filter], {
+    execFileSync(dotnet, ['test', project, '--no-build', '--list-tests', '--filter', filter], {
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
     }),

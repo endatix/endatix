@@ -29,5 +29,6 @@ export function compareLanes(all, lanes) {
     const diff = (expected.get(name) ?? 0) - (actual.get(name) ?? 0);
     for (let i = 0; i < Math.abs(diff); i++) (diff > 0 ? missing : extra).push(name);
   }
-  return { missing: missing.sort(), extra: extra.sort() };
+  const byName = (x, y) => x.localeCompare(y);
+  return { missing: missing.toSorted(byName), extra: extra.toSorted(byName) };
 }
