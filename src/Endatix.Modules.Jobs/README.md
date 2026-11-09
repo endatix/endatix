@@ -280,8 +280,9 @@ Waits that stay real time:
   `JobOutcomeRecorder`). The re-fire's trigger time follows the clock; the waits before it do not.
 
 A test that steps the clock keeps each step below `MisfireThresholdSeconds` and the check-in
-threshold, or a due trigger counts as a misfire and a live node looks dead. Every node of the test
-shares one clock instance.
+threshold, or a due trigger counts as a misfire and a live node looks dead. A test of the backlog
+warning jumps past `MisfireThresholdSeconds` on purpose. Every node of the test shares one clock
+instance.
 
 ### Quartz defaults
 

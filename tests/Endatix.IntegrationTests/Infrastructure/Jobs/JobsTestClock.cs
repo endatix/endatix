@@ -17,7 +17,8 @@ namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 /// </para>
 /// <para>
 /// One step moves every scheduler timer at once. Steps stay below the misfire threshold, or a due trigger is
-/// counted as a misfire, and below the check-in threshold, or a live peer looks dead. Shutdown waits stay real time.
+/// counted as a misfire, and below the check-in threshold, or a live peer looks dead. Only a misfire test jumps past
+/// the misfire threshold, on purpose, with <see cref="AdvanceAsync"/>. Shutdown waits stay real time.
 /// </para>
 /// </remarks>
 internal sealed class JobsTestClock
@@ -64,6 +65,16 @@ internal sealed class JobsTestClock
         }
 
         return done();
+    }
+
+    /// <summary>
+    /// Moves the clock by <paramref name="by"/> at once, which may be past the misfire threshold on purpose, then
+    /// gives the scheduler's threads real time to act on it.
+    /// </summary>
+    public async Task AdvanceAsync(TimeSpan by, CancellationToken cancellationToken)
+    {
+        _time.Advance(by);
+        await Task.Delay(Settle, cancellationToken);
     }
 
     private sealed class ClockDateTimeProvider(TimeProvider clock) : IDateTimeProvider
