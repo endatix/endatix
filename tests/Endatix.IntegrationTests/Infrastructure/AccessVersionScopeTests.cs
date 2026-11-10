@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.IntegrationTests.Shared;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using static Endatix.IntegrationTests.AccessVersionTestWorld;
@@ -83,9 +84,9 @@ public sealed class AccessVersionScopeTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
-    public async Task SaveChangesAsync_PlatformAdminLosesARole_ChangesSystemVersion()
+    public async Task SaveChangesAsync_PlatformAdminGetsATenantRole_ChangesSystemVersion()
     {
-        // Arrange — a platform admin's assumed-tenant sessions are keyed on other tenants' versions and the system one.
+        // Arrange — a platform admin's assumed-tenant sessions key on other tenants' versions and the system one.
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(fixture, ct);
         long adminId;
@@ -99,11 +100,48 @@ public sealed class AccessVersionScopeTests(EndatixIntegrationWebHostFixture fix
         var before = await RowsAsync(world, ct, SYSTEM_TENANT);
 
         // Act
+        await AddUserRoleAsync(world, (adminId, r => r.TenantId == world.Tenants[0].Id && r.Name == ROLE_NAME), ct);
+
+        // Assert
+        (await RowsAsync(world, ct, SYSTEM_TENANT))[SYSTEM_TENANT].Should().NotBe(before[SYSTEM_TENANT]);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_UserGetsThePlatformAdminRole_ChangesSystemVersion()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(fixture, ct);
+        long userId;
         using (var scope = world.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-            var role = await db.UserRoles.FirstAsync(ur => ur.UserId == adminId, ct);
-            db.UserRoles.Remove(role);
+            userId = await db.Users.Where(u => u.UserName == USER_NAME).Select(u => u.Id).SingleAsync(ct);
+        }
+
+        var before = await RowsAsync(world, ct, SYSTEM_TENANT);
+
+        // Act
+        await AddUserRoleAsync(world, (userId, r => r.Name == SystemRole.PlatformAdmin.Name), ct);
+
+        // Assert
+        (await RowsAsync(world, ct, SYSTEM_TENANT))[SYSTEM_TENANT].Should().NotBe(before[SYSTEM_TENANT]);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_PermissionChanged_ChangesSystemVersion()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(fixture, ct);
+        var before = await RowsAsync(world, ct, SYSTEM_TENANT);
+
+        // Act
+        using (var scope = world.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+            var permission = await db.Permissions.FirstAsync(p => p.Name == Actions.Forms.View, ct);
+            permission.UpdateDescription($"Changed {Guid.NewGuid():N}");
             await db.SaveChangesAsync(ct);
         }
 
@@ -129,5 +167,15 @@ public sealed class AccessVersionScopeTests(EndatixIntegrationWebHostFixture fix
         first.Deployment.Should().NotBe(Guid.Empty);
         second.Deployment.Should().Be(first.Deployment);
         second.Scope.Should().NotBe(first.Scope);
+    }
+
+    /// <summary>Grants the user the role the predicate matches, through the context.</summary>
+    private static async Task AddUserRoleAsync(IntegrationTestWorld world, (long UserId, System.Linq.Expressions.Expression<Func<AppRole, bool>> Role) grant, CancellationToken ct)
+    {
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var roleId = await db.Roles.Where(grant.Role).Select(r => r.Id).SingleAsync(ct);
+        db.UserRoles.Add(new IdentityUserRole<long> { UserId = grant.UserId, RoleId = roleId });
+        await db.SaveChangesAsync(ct);
     }
 }

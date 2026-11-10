@@ -18,7 +18,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     {
     }
 
-    /// <summary>Writes the new access version as the last statement before a transaction that changed an authorization input commits.</summary>
+    /// <summary>Writes the new access versions as the last statements before a transaction that changed an authorization input commits.</summary>
     public override InterceptionResult TransactionCommitting(
         DbTransaction transaction, TransactionEventData eventData, InterceptionResult result)
     {
@@ -31,7 +31,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         return result;
     }
 
-    /// <summary>Writes the new access version as the last statement before a transaction that changed an authorization input commits.</summary>
+    /// <inheritdoc cref="TransactionCommitting"/>
     public override async ValueTask<InterceptionResult> TransactionCommittingAsync(
         DbTransaction transaction, TransactionEventData eventData, InterceptionResult result,
         CancellationToken cancellationToken = default)
@@ -50,7 +50,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData) =>
         Reset(eventData);
 
-    /// <summary>Clears the per-transaction state once the commit has succeeded.</summary>
+    /// <inheritdoc cref="TransactionCommitted"/>
     public override Task TransactionCommittedAsync(
         DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
     {
@@ -58,7 +58,6 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         return Task.CompletedTask;
     }
 
-    // A change pending from a transaction that ended without a commit (disposed, or rolled back) is moot.
     /// <summary>Drops a change left pending by a transaction that ended without a commit, so it writes no access version for this one.</summary>
     public override DbTransaction TransactionStarted(
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result)
@@ -67,7 +66,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         return result;
     }
 
-    /// <summary>Drops a change left pending by a transaction that ended without a commit, so it writes no access version for this one.</summary>
+    /// <inheritdoc cref="TransactionStarted"/>
     public override ValueTask<DbTransaction> TransactionStartedAsync(
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result,
         CancellationToken cancellationToken = default)
@@ -80,7 +79,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData) =>
         Reset(eventData);
 
-    /// <summary>Clears the per-transaction state, so a rolled-back change writes no access version.</summary>
+    /// <inheritdoc cref="TransactionRolledBack"/>
     public override Task TransactionRolledBackAsync(
         DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
     {
@@ -92,8 +91,11 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     private static AppIdentityDbContext? PendingChange(TransactionEventData eventData) =>
         eventData.Context is AppIdentityDbContext { PendingAccessVersionRows.Count: > 0 } context ? context : null;
 
-    /// <summary>The store that writes on the committing transaction's own connection.</summary>
-    private static IAccessVersionStore Store(AppIdentityDbContext context) => new DatabaseAccessVersionStore(context);
+    /// <summary>
+    /// The database store, the only one that can write inside the committing transaction. A store kept outside the
+    /// identity database (endatix#1637) writes after the commit instead, so it hooks <see cref="TransactionCommitted"/>.
+    /// </summary>
+    private static DatabaseAccessVersionStore Store(AppIdentityDbContext context) => new(context);
 
     /// <summary>Resets the context's per-transaction state; the context owns the one reset.</summary>
     private static void Reset(TransactionEventData eventData)

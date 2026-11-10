@@ -67,7 +67,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(fixture, ct);
-        var before = await TenantVersionAsync(world, ct);
+        var before = await AllRowsAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
@@ -79,7 +79,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         }
 
         // Assert
-        (await TenantVersionAsync(world, ct)).Should().Be(before);
+        (await AllRowsAsync(world, ct)).Should().Equal(before);
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         // in it holds no token yet, so nothing cached can be stale.
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(fixture, ct);
-        var before = await TenantVersionAsync(world, ct);
+        var before = await AllRowsAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
@@ -104,7 +104,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         }
 
         // Assert
-        (await TenantVersionAsync(world, ct)).Should().Be(before);
+        (await AllRowsAsync(world, ct)).Should().Equal(before);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(fixture, ct);
-        var before = await TenantVersionAsync(world, ct);
+        var before = await AllRowsAsync(world, ct);
         using var scope = world.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
@@ -153,7 +153,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         }
 
         // Assert
-        (await TenantVersionAsync(world, ct)).Should().Be(before);
+        (await AllRowsAsync(world, ct)).Should().Equal(before);
         (await db.RolePermissions.AsNoTracking().CountAsync(ct)).Should().BeGreaterThan(0);
     }
 
@@ -375,4 +375,8 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         configure(builder);
         return builder.Options;
     }
+
+    /// <summary>The world tenant's row, the system row and the row every change moves.</summary>
+    private static Task<Dictionary<long, Guid>> AllRowsAsync(IntegrationTestWorld world, CancellationToken ct) =>
+        RowsAsync(world, ct, world.Tenants[0].Id, SYSTEM_TENANT, ANY_TENANT);
 }

@@ -329,21 +329,28 @@ public sealed class AuthorizationCacheTests
     {
         // Arrange — the token expires in 40 s; entries stop 10 s before the token.
         var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddSeconds(40)));
-        HybridCacheEntryOptions? capturedOptions = null;
-        _hybridCache.GetOrCreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
-                Arg.Do<HybridCacheEntryOptions?>(opt => capturedOptions = opt),
-                Arg.Any<string[]>(),
-                Arg.Any<CancellationToken>())
-            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+        var options = CaptureOptionsAndRunFactory();
 
         // Act
         var result = await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
 
         // Assert
-        capturedOptions!.Expiration.Should().Be(TimeSpan.FromSeconds(30));
+        options[0].Expiration.Should().Be(TimeSpan.FromSeconds(30));
         result.ExpiresAt.Should().Be(_now.UtcDateTime.AddSeconds(30));
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_TokenWithinItsExpiryBuffer_EntryLivesOneSecond()
+    {
+        // Arrange — the token expires in 5 s, inside the 10 s buffer, so no entry may outlive it.
+        var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddSeconds(5)));
+        var options = CaptureOptionsAndRunFactory();
+
+        // Act
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        options[0].Expiration.Should().Be(TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -351,21 +358,14 @@ public sealed class AuthorizationCacheTests
     {
         // Arrange
         var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddMinutes(15)));
-        HybridCacheEntryOptions? capturedOptions = null;
-        _hybridCache.GetOrCreateAsync(
-                Arg.Any<string>(),
-                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
-                Arg.Do<HybridCacheEntryOptions?>(opt => capturedOptions = opt),
-                Arg.Any<string[]>(),
-                Arg.Any<CancellationToken>())
-            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+        var options = CaptureOptionsAndRunFactory();
 
         // Act
         await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
 
         // Assert
-        capturedOptions!.Expiration.Should().Be(TimeSpan.FromSeconds(60));
-        capturedOptions.LocalCacheExpiration.Should().Be(TimeSpan.FromSeconds(60));
+        options[0].Expiration.Should().Be(TimeSpan.FromSeconds(60));
+        options[0].LocalCacheExpiration.Should().Be(TimeSpan.FromSeconds(60));
     }
 
     [Fact]
@@ -409,6 +409,19 @@ public sealed class AuthorizationCacheTests
     }
 
     #region Helper Methods
+    private List<HybridCacheEntryOptions> CaptureOptionsAndRunFactory()
+    {
+        List<HybridCacheEntryOptions> options = [];
+        _hybridCache.GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Do<HybridCacheEntryOptions?>(option => options.Add(option!)),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+        return options;
+    }
+
     private List<string> CaptureKeysAndRunFactory()
     {
         List<string> keys = [];

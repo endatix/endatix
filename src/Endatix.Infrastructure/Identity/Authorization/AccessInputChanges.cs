@@ -32,38 +32,35 @@ internal sealed class AccessInputChanges(IReadOnlySet<long> usersAddedInTransact
             return;
         }
 
-        Track(entry.Entity);
-        if (IsChanged(entry))
+        if (entry.Entity is AppRole role)
         {
-            RecordChange(entry);
+            AddRole(entry, role);
+        }
+        else if (entry.Entity is AppUser user)
+        {
+            AddUser(entry, user);
+        }
+        else if (IsChanged(entry))
+        {
+            AddOtherInput(entry.Entity);
         }
     }
 
-    /// <summary>Remembers the tenant of every tracked role and user, changed or not, for the lookups.</summary>
-    private void Track(object entity)
+    private void AddOtherInput(object entity)
     {
-        if (entity is AppRole role)
+        switch (entity)
         {
-            _trackedRoleTenants[role.Id] = role.TenantId;
+            case IdentityUserRole<long> userRole:
+                _userRoles.Add((userRole.UserId, userRole.RoleId));
+                break;
+            case RolePermission rolePermission:
+                _rolePermissionRoleIds.Add(rolePermission.RoleId);
+                break;
+            default:
+                // Permissions are global; an access input without a rule of its own is treated the same way.
+                _rows.Add(AccessVersion.SYSTEM_TENANT_ID);
+                break;
         }
-        else if (entity is AppUser user)
-        {
-            _trackedUserTenants[user.Id] = user.TenantId;
-        }
-    }
-
-    private void RecordChange(EntityEntry entry)
-    {
-        Action record = entry.Entity switch
-        {
-            AppRole role => () => AddRole(entry, role),
-            AppUser user => () => AddUser(entry, user),
-            IdentityUserRole<long> userRole => () => _userRoles.Add((userRole.UserId, userRole.RoleId)),
-            RolePermission rolePermission => () => _rolePermissionRoleIds.Add(rolePermission.RoleId),
-            // Permissions are global; an access input without a rule of its own is treated the same way.
-            _ => () => _rows.Add(AccessVersion.SYSTEM_TENANT_ID),
-        };
-        record();
     }
 
     /// <summary>The rows the save moves, looking up the tenants of the roles and users it touched.</summary>
@@ -94,8 +91,15 @@ internal sealed class AccessInputChanges(IReadOnlySet<long> usersAddedInTransact
     private static bool IsChanged(EntityEntry entry) =>
         entry.State is EntityState.Added or EntityState.Deleted or EntityState.Modified;
 
+    /// <summary>Remembers every tracked role's tenant for the lookups; a changed role moves its tenant (both, when moved).</summary>
     private void AddRole(EntityEntry entry, AppRole role)
     {
+        _trackedRoleTenants[role.Id] = role.TenantId;
+        if (!IsChanged(entry))
+        {
+            return;
+        }
+
         _rows.Add(AccessVersion.RowFor(role.TenantId));
         if (entry.State == EntityState.Modified)
         {
@@ -106,6 +110,7 @@ internal sealed class AccessInputChanges(IReadOnlySet<long> usersAddedInTransact
     /// <summary>A new user holds no token yet; a deleted user or one moved to another tenant does (both tenants move).</summary>
     private void AddUser(EntityEntry entry, AppUser user)
     {
+        _trackedUserTenants[user.Id] = user.TenantId;
         if (entry.State == EntityState.Deleted)
         {
             _userIds.Add(user.Id);

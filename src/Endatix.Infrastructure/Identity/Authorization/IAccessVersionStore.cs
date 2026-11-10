@@ -8,8 +8,8 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal interface IAccessVersionStore
 {
     /// <summary>
-    /// Reads, uncached, the versions a request in <paramref name="tenantId"/> keys on, in one query. A tenant without a
-    /// row reads <see cref="AccessVersion.Initial"/>; <paramref name="tenantId"/> <c>&lt;= 0</c> reads the version every
+    /// Reads, uncached, the deployment prefix and the versions a request in <paramref name="tenantId"/> keys on, in one
+    /// query. A missing row reads <see cref="AccessVersion.Initial"/>; <paramref name="tenantId"/> <c>&lt;= 0</c> reads the version every
     /// change moves.
     /// </summary>
     Task<AccessVersionKey> ReadAsync(long tenantId, CancellationToken cancellationToken);

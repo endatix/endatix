@@ -23,8 +23,8 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// Every key carries this deployment's prefix and the access versions of the request's tenant and of system roles,
 /// read uncached on each lookup. A role change writes a new access version for its tenant as the last statement of its
 /// transaction, so every API instance misses its old entries on the next request; <see cref="InvalidateAsync"/> only
-/// frees memory on the instance it runs on. An entry lives at most 60 seconds, never past its
-/// token, and is never served past the earliest expiry of the role permissions it holds.
+/// frees memory on the instance it runs on. An entry lives at most 60 seconds and ends 10 seconds before its token (one
+/// second at least), and is never served past the earliest expiry of the role permissions it holds.
 /// </remarks>
 internal class AuthorizationCache(
     HybridCache hybridCache,
@@ -46,6 +46,7 @@ internal class AuthorizationCache(
     private const string ALL_AUTH_DATA_TAG = "auth_data:all";
 
     private static readonly TimeSpan _cacheExpiryBuffer = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan _minEntryLifetime = TimeSpan.FromSeconds(1);
 
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(ClaimsPrincipal principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
@@ -174,22 +175,19 @@ internal class AuthorizationCache(
     ];
 
     /// <summary>
-    /// How long an entry lives: 60 seconds, or less when the principal's token expires sooner
-    /// (with a buffer, so an entry never outlives its token).
+    /// How long an entry lives: 60 seconds, or less when the principal's token expires sooner. The entry ends 10 seconds
+    /// before the token; a token already inside that buffer gets a one-second entry, never a full one.
     /// </summary>
     private TimeSpan ComputeLifetime(ClaimsPrincipal? principal)
     {
         var expClaim = principal?.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
-        if (expClaim is not null && long.TryParse(expClaim, out var expirySeconds))
+        if (expClaim is null || !long.TryParse(expClaim, out var expirySeconds))
         {
-            var timeUntilExpiry = DateTimeOffset.FromUnixTimeSeconds(expirySeconds) - dateTimeProvider.Now - _cacheExpiryBuffer;
-            if (timeUntilExpiry > TimeSpan.Zero && timeUntilExpiry < _maxEntryLifetime)
-            {
-                return timeUntilExpiry;
-            }
+            return _maxEntryLifetime;
         }
 
-        return _maxEntryLifetime;
+        var timeUntilExpiry = DateTimeOffset.FromUnixTimeSeconds(expirySeconds) - dateTimeProvider.Now - _cacheExpiryBuffer;
+        return TimeSpan.FromTicks(Math.Clamp(timeUntilExpiry.Ticks, _minEntryLifetime.Ticks, _maxEntryLifetime.Ticks));
     }
 
     /// <summary>

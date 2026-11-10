@@ -8,8 +8,8 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// <remarks>
 /// One row per tenant. <see cref="SYSTEM_TENANT_ID"/> holds the version for system roles (and users without a
 /// tenant); <see cref="ANY_TENANT_ID"/> changes with every change, for principals that carry no tenant;
-/// <see cref="DEPLOYMENT_ID"/> never changes and prefixes every access cache key. A tenant gets its row on its first
-/// change. A new row starts at a random value and the value is random, not a counter: a database restore or a cache
+/// <see cref="DEPLOYMENT_ID"/> is written once by the <c>RandomizeAccessVersions</c> migration, never changes, and
+/// prefixes every access cache key. A tenant gets its row on its first change. A new row starts at a random value and the value is random, not a counter: a database restore or a cache
 /// flush must never bring back a value that old cache entries are keyed on.
 /// </remarks>
 internal sealed class AccessVersion
@@ -20,7 +20,7 @@ internal sealed class AccessVersion
     /// <summary>The row every change moves, read by principals without a tenant (external identity providers).</summary>
     public const long ANY_TENANT_ID = -1;
 
-    /// <summary>The row holding this deployment's key prefix: created once, never changed.</summary>
+    /// <summary>The row holding this deployment's key prefix.</summary>
     public const long DEPLOYMENT_ID = -2;
 
     /// <summary>The value read for a tenant without a row.</summary>
