@@ -46,14 +46,14 @@ public class EmailVerificationTokenTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData(" ")]
-    public void Constructor_InvalidToken_ThrowsArgumentException(string token)
+    public void Constructor_InvalidToken_ThrowsArgumentException(string? token)
     {
         // Arrange
         var userId = 123L;
         var expiresAt = DateTime.UtcNow.AddHours(24);
 
         // Act
-        var action = () => new EmailVerificationToken(userId, token, expiresAt);
+        var action = () => new EmailVerificationToken(userId, token!, expiresAt);
 
         // Assert
         action.Should().Throw<ArgumentException>();

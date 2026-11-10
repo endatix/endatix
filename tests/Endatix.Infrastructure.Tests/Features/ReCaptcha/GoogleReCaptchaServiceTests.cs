@@ -38,10 +38,10 @@ public class GoogleReCaptchaServiceTests
     [InlineData(true, "secret", -0.1, false)]// MinimumScore negative
     [InlineData(true, "secret", 1.1, false)] // MinimumScore > 1
     [InlineData(true, "secret", 0.5, true)]  // All valid
-    public void IsEnabled_ValidationCases(bool enabled, string secret, double minScore, bool expected)
+    public void IsEnabled_ValidationCases(bool enabled, string? secret, double minScore, bool expected)
     {
         // Arrange
-        var options = new ReCaptchaOptions { IsEnabled = enabled, SecretKey = secret, MinimumScore = minScore };
+        var options = new ReCaptchaOptions { IsEnabled = enabled, SecretKey = secret!, MinimumScore = minScore };
         _options.Value.Returns(options);
         var reCaptchaHttpClient = new StubReCaptchaHttpClient();
 
