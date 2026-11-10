@@ -9,7 +9,7 @@ namespace Endatix.IntegrationTests;
 /// Idempotent enqueue against a real database, where the unique index that guarantees it is enforced. Every node here
 /// only schedules, so the rows and triggers counted are exactly what enqueueing wrote.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

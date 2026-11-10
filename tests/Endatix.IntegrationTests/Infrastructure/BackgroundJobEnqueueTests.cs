@@ -10,7 +10,7 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// Enqueueing writes the job rows and their scheduler triggers in one database transaction.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

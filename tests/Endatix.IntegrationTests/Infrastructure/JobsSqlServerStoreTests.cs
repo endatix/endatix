@@ -27,7 +27,7 @@ namespace Endatix.IntegrationTests;
 /// triggers the driver delegate acquires.
 /// Each test migrates a database of its own, so only that migration shapes it.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(RestLaneJobsTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "SqlServer")]

@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 /// filter. Unit tests cover the handler's own guard; they cannot cover this, because an in-memory
 /// context is neither <c>TenantMiddleware</c> nor the database that enforces the filter.
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(JobsHostTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]
