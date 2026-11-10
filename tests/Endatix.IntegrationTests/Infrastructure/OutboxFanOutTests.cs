@@ -18,7 +18,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("Lane", "Jobs")]
+// No Lane trait: runs in CI's Rest lane to even out the SQL Server lanes (tests/README.md, Lanes).
 public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
 {
     private const int Pending = 0;
