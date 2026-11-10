@@ -21,6 +21,11 @@ public sealed class DbIntegrationFixture : IAsyncLifetime
     public string ConnectionString => Database.ConnectionString;
 
     /// <summary>
+    /// Convenience accessor to the underlying server connection string.
+    /// </summary>
+    public string ServerConnectionString => Database.ServerConnectionString;
+
+    /// <summary>
     /// Convenience accessor to the underlying database provider.
     /// </summary>
     public TestDatabaseProvider Provider => Database.Provider;

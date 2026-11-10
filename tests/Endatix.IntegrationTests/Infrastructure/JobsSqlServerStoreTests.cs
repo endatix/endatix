@@ -75,7 +75,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         await using var context = ContextFor(database);
 
         // Act
@@ -116,7 +116,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         await using (var context = ContextFor(database))
         {
             await context.Database.MigrateAsync(ct);
@@ -142,7 +142,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         await using var context = ContextFor(database);
         await context.Database.MigrateAsync(ct);
 
@@ -170,7 +170,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         await using var context = ContextFor(database);
         await context.Database.MigrateAsync(ct);
         var queue = QueueOver(context);
@@ -228,7 +228,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         var behind = await store.SeedHeadOfLineAsync(ct);
 
         // Act
@@ -245,7 +245,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // Arrange — b2 and b3 are due together; b3's priority is higher.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         AcquisitionTestTrigger[] waiting =
         [
             AcquisitionTestTrigger.Of("B", "b1", 5),
@@ -272,7 +272,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // Arrange — stored as Quartz stores the trigger that recovers a dead node's job: no execution group.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         var recovering = new AcquisitionTestTrigger(new TriggerKey("r1", "RECOVERING_JOBS"), "B", 0, ExecutionGroup: null);
         await store.ScheduleAsync(recovering, ct);
 
@@ -292,7 +292,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         // would read A's whole backlog first.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         await store.ScheduleAsync(AcquisitionTestTrigger.Of("A", BacklogTemplate, 0), ct);
         var behind = AcquisitionTestTrigger.Of("B", "b1", 1500);
         await store.ScheduleAsync(behind, ct);
@@ -410,7 +410,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
 
     private async Task<JobsTestDatabase> MigratedDatabaseAsync(CancellationToken ct)
     {
-        var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        var database = await JobsTestDatabase.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
 
         // A migration that fails returns no database to dispose, so it is dropped here; a drop that fails too is
         // reported as a test warning, and the migration's failure is the one thrown.
