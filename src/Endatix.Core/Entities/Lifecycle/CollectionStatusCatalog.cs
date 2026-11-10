@@ -13,8 +13,9 @@ namespace Endatix.Core.Entities;
 /// </summary>
 /// <remarks>
 /// Hosts sharing a process (integration tests) share it safely: <see cref="Configure"/> and the freeze take one lock,
-/// a host with the same codes changes nothing, and one with other codes fails its start. The warning for an
-/// unregistered stored code is written once per process, to the logger of the host that started last.
+/// a host with the same codes changes nothing, and one with other codes fails while its services are registered. No
+/// integration-test host registers codes. The warning for an unregistered stored code goes to the logger of the host
+/// that started last, and each host that starts later writes the codes already seen again.
 /// </remarks>
 public static class CollectionStatusCatalog
 {

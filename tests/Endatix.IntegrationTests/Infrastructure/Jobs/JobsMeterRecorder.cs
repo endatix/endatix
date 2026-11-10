@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using Endatix.Modules.Jobs;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
@@ -29,11 +28,8 @@ internal sealed class JobsMeterRecorder<T> : IDisposable
         _listener.Start();
     }
 
-    public IReadOnlyList<T> On(JobsTestNode node)
-    {
-        var scope = node.Services.GetRequiredService<IMeterFactory>();
-        return [.. _values.Where(value => ReferenceEquals(value.Scope, scope)).Select(value => value.Value)];
-    }
+    public IReadOnlyList<T> On(JobsTestNode node) =>
+        [.. _values.Where(value => ReferenceEquals(value.Scope, node.Meters)).Select(value => value.Value)];
 
     public void Dispose() => _listener.Dispose();
 }
