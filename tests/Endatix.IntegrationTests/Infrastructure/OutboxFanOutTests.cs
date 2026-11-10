@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests;
 /// The outbox relay delivering to the job queue: one job per subscriber, marked sent, and nothing else done in the
 /// relay. Each test runs a web host on a database of its own.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(RestLaneJobsTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 // No Lane trait: runs in CI's Rest lane to even out the SQL Server lanes (tests/README.md, Lanes).

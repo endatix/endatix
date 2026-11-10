@@ -8,7 +8,7 @@ namespace Endatix.IntegrationTests;
 /// Which triggers the PostgreSQL driver delegate acquires, on the fixture the SQL Server delegate is proven on in
 /// <see cref="JobsSqlServerStoreTests"/>, so both providers are held to the same keys.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

@@ -10,7 +10,7 @@ namespace Endatix.IntegrationTests;
 /// The jobs schema as the startup migrations leave it. Unit tests pin what the entity exposes; only a
 /// migrated database can show that the table agrees with it.
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(JobsHostTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

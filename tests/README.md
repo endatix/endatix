@@ -82,11 +82,34 @@ connection (`ServerConnectionString`) that creates and drops the others.
 
 ### Collections
 
-| Collection                         | Fixture                            | Use for                                             |
-| ---------------------------------- | ---------------------------------- | --------------------------------------------------- |
-| `EndatixIntegrationTestCollection` | `EndatixIntegrationWebHostFixture` | HTTP / API tests                                    |
-| `DbIntegrationTestCollection`      | `DbIntegrationFixture`             | Migrations, EF, query filters without full host     |
-| (none)                             | `KeycloakTestContainerFixture`     | Keycloak smoke — `Category=Keycloak`, `Priority=P2` |
+Collections run in parallel, each with its own fixture, so its own host and database; the classes in one collection run
+one after another. CI runs `INTEGRATION_MAX_THREADS` collections at once (`ci.yml`, tuned for the 4-vCPU runner);
+locally, one per CPU (`--max-threads` overrides it). The definitions, with this table, are in
+`Endatix.IntegrationTests/Infrastructure/IntegrationTestCollections.cs`.
+
+A new class picks its collection by its [lane](#lanes) and the fixture it needs:
+
+| Lane | Web host (`EndatixIntegrationWebHostFixture`) | Database only (`DbIntegrationFixture`) |
+| ---- | --------------------------------------------- | -------------------------------------- |
+| Rest | `EndatixIntegrationTestCollection`            | `DbIntegrationTestCollection`          |
+| Jobs | `JobsHostTestCollection`                      | `JobsDbTestCollection`                 |
+
+The other collections keep any one collection from outlasting its lane's share of the test time:
+
+| Collection                           | Lane | Holds                                                         |
+| ------------------------------------ | ---- | ------------------------------------------------------------- |
+| `AudienceDirectoryTestCollection`    | Rest | `AudienceDirectoryFlowTests` alone, about half the lane       |
+| `RestLaneJobsTestCollection`         | Rest | the jobs classes that run in Rest for balance (see Lanes)     |
+| `JobsSchedulerStartupTestCollection` | Jobs | `JobsSchedulerStartupTests` alone, the lane's slowest class   |
+| `JobExecutionTestCollection`         | Jobs | `BackgroundJobExecutionIntegrationTests` alone                |
+| `JobStoreTestCollection`             | Jobs | the job store, its schema, scheduler nodes and job types      |
+
+A lane takes at least as long as its slowest collection, so rebalance by moving whole classes between a lane's
+collections, by their times in the lane's `test-durations-*` artifact. Keycloak smoke tests (`Category=Keycloak`,
+`Priority=P2`) use no collection, only `KeycloakTestContainerFixture`.
+
+Parallel collections share the process: a test must not change process-wide state (environment variables, statics, a
+fixed scheduler instance id another test uses) that another collection can see.
 
 ### Traits
 
@@ -117,7 +140,7 @@ ENDATIX_PERF=1 ENDATIX_PERF_SHAPE=realistic ENDATIX_PERF_ROWS=50000 \
 Shapes: `realistic` (1,000 questions, 20% answered), `worst` (1,000, all answered), `mid` (200, 50%). Add
 `ENDATIX_TEST_DB_PROVIDER=SqlServer` for SQL Server. Reports go to `ENDATIX_PERF_OUT` (default `$TMPDIR/endatix-perf`).
 
-`xunit.runner.json` disables parallelism — collections share one DB per process; tests reset via Respawn.
+`xunit.runner.json` runs collections in parallel; each has a database of its own, which its tests reset via Respawn.
 
 ---
 

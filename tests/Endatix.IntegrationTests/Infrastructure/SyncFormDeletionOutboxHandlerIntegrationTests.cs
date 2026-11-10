@@ -18,7 +18,7 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// Database coverage for form.deleted Reporting cleanup (#902).
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

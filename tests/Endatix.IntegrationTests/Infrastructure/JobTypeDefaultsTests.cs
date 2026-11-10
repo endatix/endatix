@@ -22,7 +22,7 @@ namespace Endatix.IntegrationTests;
 /// host built on the packages rather than on <c>Endatix.WebHost</c>'s own appsettings files, on
 /// <c>Endatix.WebHost</c> as shipped, and with a global setting the host configures.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

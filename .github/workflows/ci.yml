@@ -238,6 +238,9 @@ jobs:
       # The lane filters, in one place: the test step runs this lane's, the lane check runs both.
       JOBS_LANE_FILTER: Lane=Jobs
       REST_LANE_FILTER: Lane!=Jobs
+      # Test collections run in parallel (tests/README.md, Collections); this many at once on the
+      # 4-vCPU runner. Locally the default is one per CPU.
+      INTEGRATION_MAX_THREADS: 4
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -298,15 +301,31 @@ jobs:
       - name: Run integration tests
         env:
           MIN_TESTS: ${{ matrix.min-tests }}
+        # Samples CPU and memory every 5 s while the tests run and prints them after, to tune
+        # INTEGRATION_MAX_THREADS: busy CPU %, I/O wait %, run queue, memory used.
         run: |
+          (while true; do
+            echo "$(date +%T) $(vmstat 1 2 | awk 'END { printf "cpu %d%% wa %d%% runq %d", 100 - $15, $16, $1 }') mem $(free -m | awk '/^Mem:/ { print $3 }') MB"
+            sleep 4
+          done) > resources.log &
+          sampler=$!
+          status=0
           dotnet test "$INTEGRATION_PROJECT" \
             --no-build \
             --filter "$INTEGRATION_TEST_FILTER" \
             --minimum-expected-tests "$MIN_TESTS" \
+            --max-threads "$INTEGRATION_MAX_THREADS" \
             --report-xunit-ctrf \
             --timeout 30m \
             --coverlet \
-            --results-directory .coverage
+            --results-directory .coverage || status=$?
+          kill "$sampler"
+          echo "::group::CPU and memory every 5 s"
+          cat resources.log
+          echo "::endgroup::"
+          awk '{ gsub(/%/, ""); busy += $3; if ($3 > peak) peak = $3; if ($9 > mem) mem = $9; n++ }
+            END { if (n) printf "CPU busy: mean %d%%, peak %d%%; memory used: peak %d MB (%d samples, %s threads)\n", busy / n, peak, mem, n, ENVIRON["INTEGRATION_MAX_THREADS"] }' resources.log
+          exit "$status"
       - name: ⏱️ Upload integration test durations
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

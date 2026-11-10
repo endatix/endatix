@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 /// the referenced Quartz, so the upgrade migration would only ever run as a no-op there. These tests migrate down
 /// past it first, which leaves the 4.2.2 tables, and then up again.
 /// </remarks>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

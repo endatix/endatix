@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 /// Audience's outbox work delivered as background jobs: the host starts with the queue on and the module's own
 /// inline handlers registered, and each event the API raises is done by Audience's job.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

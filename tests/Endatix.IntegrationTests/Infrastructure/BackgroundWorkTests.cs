@@ -18,7 +18,7 @@ namespace Endatix.IntegrationTests;
 /// Stopping a test host's <see cref="BackgroundWork"/> returns only once the work already running has finished, so the
 /// next test's reset meets none of it.
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(JobsHostTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]
