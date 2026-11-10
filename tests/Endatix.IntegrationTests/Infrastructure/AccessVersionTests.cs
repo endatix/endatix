@@ -189,6 +189,139 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         (await ReadVersionAsync(world, ct)).Should().NotBe(before);
     }
 
+    [Fact]
+    public async Task SaveChangesAsync_UserTenantChanged_ChangesAccessVersion()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        var before = await ReadVersionAsync(world, ct);
+
+        // Act — removing a user's tenant access moves the user to tenant 0.
+        using (var scope = world.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+            var user = await db.Users.SingleAsync(u => u.UserName == UserName, ct);
+            user.TenantId = 0;
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Assert
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_UserDeleted_ChangesAccessVersion()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        var before = await ReadVersionAsync(world, ct);
+
+        // Act
+        using (var scope = world.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var user = (await users.FindByNameAsync(UserName))!;
+            (await users.DeleteAsync(user)).Succeeded.Should().BeTrue();
+        }
+
+        // Assert
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+    }
+
+    [Fact]
+    public async Task Commit_RetriedAfterAccessVersionUpdateFailed_WritesAccessVersion()
+    {
+        // Arrange — the system row is missing when the role change first commits, so that commit fails.
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        var restored = Guid.NewGuid();
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        try
+        {
+            await DeleteSystemRowAsync(world, ct);
+            await using var roleChange = await db.Database.BeginTransactionAsync(ct);
+            db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
+            await db.SaveChangesAsync(ct);
+            var firstCommit = () => roleChange.CommitAsync(ct);
+            await firstCommit.Should().ThrowAsync<InvalidOperationException>();
+            // Restored on the same connection: on SQL Server without READ_COMMITTED_SNAPSHOT, a second connection
+            // would wait for this open transaction.
+            db.AccessVersions.Add(new AccessVersion { TenantId = AccessVersion.SYSTEM_TENANT_ID, Value = restored });
+            await db.SaveChangesAsync(ct);
+
+            // Act
+            await roleChange.CommitAsync(ct);
+
+            // Assert
+            (await ReadVersionAsync(world, ct)).Should().NotBe(restored);
+        }
+        finally
+        {
+            await RestoreSystemRowAsync(world, AccessVersion.Initial, CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public async Task Commit_ClearsUsersAddedInTheTransaction()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        AppUser user = new() { UserName = "added@example.com", Email = "added@example.com", TenantId = world.Tenants[0].Id };
+        (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
+        db.UsersAddedInTransaction.Should().Contain(user.Id);
+
+        // Act
+        await transaction.CommitAsync(ct);
+
+        // Assert
+        db.UsersAddedInTransaction.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Rollback_ClearsUsersAddedInTheTransaction()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        AppUser user = new() { UserName = "dropped@example.com", Email = "dropped@example.com", TenantId = world.Tenants[0].Id };
+        (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
+        db.UsersAddedInTransaction.Should().Contain(user.Id);
+
+        // Act
+        await transaction.RollbackAsync(ct);
+
+        // Assert
+        db.UsersAddedInTransaction.Should().BeEmpty();
+    }
+
+    private static async Task DeleteSystemRowAsync(IntegrationTestWorld world, CancellationToken ct)
+    {
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        await db.AccessVersions.Where(v => v.TenantId == AccessVersion.SYSTEM_TENANT_ID).ExecuteDeleteAsync(ct);
+    }
+
+    private static async Task RestoreSystemRowAsync(IntegrationTestWorld world, Guid value, CancellationToken ct)
+    {
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        await db.AccessVersions.Where(v => v.TenantId == AccessVersion.SYSTEM_TENANT_ID).ExecuteDeleteAsync(ct);
+        db.AccessVersions.Add(new AccessVersion { TenantId = AccessVersion.SYSTEM_TENANT_ID, Value = value });
+        await db.SaveChangesAsync(ct);
+    }
+
     private DbContextOptions<AppIdentityDbContext> RetryingOptions()
     {
         var builder = new DbContextOptionsBuilder<AppIdentityDbContext>();

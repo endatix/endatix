@@ -22,9 +22,10 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override InterceptionResult TransactionCommitting(
         DbTransaction transaction, TransactionEventData eventData, InterceptionResult result)
     {
-        if (TakePendingChange(eventData) is { } context)
+        if (PendingChange(eventData) is { } context)
         {
             EnsureRowUpdated(SystemVersion(context).ExecuteUpdate(NewValue()));
+            context.AccessVersionChangePending = false;
         }
 
         return result;
@@ -34,19 +35,31 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         DbTransaction transaction, TransactionEventData eventData, InterceptionResult result,
         CancellationToken cancellationToken = default)
     {
-        if (TakePendingChange(eventData) is { } context)
+        // The flag clears only after the update succeeds, so a commit retried after a failed update still writes.
+        if (PendingChange(eventData) is { } context)
         {
             EnsureRowUpdated(await SystemVersion(context).ExecuteUpdateAsync(NewValue(), cancellationToken));
+            context.AccessVersionChangePending = false;
         }
 
         return result;
+    }
+
+    public override void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData) =>
+        EndTransaction(eventData);
+
+    public override Task TransactionCommittedAsync(
+        DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
+    {
+        EndTransaction(eventData);
+        return Task.CompletedTask;
     }
 
     // A change pending from a transaction that ended without a commit (disposed, or rolled back) is moot.
     public override DbTransaction TransactionStarted(
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result)
     {
-        TakePendingChange(eventData);
+        ClearPendingChange(eventData);
         return result;
     }
 
@@ -54,29 +67,38 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result,
         CancellationToken cancellationToken = default)
     {
-        TakePendingChange(eventData);
+        ClearPendingChange(eventData);
         return ValueTask.FromResult(result);
     }
 
     public override void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData) =>
-        TakePendingChange(eventData);
+        EndTransaction(eventData);
 
     public override Task TransactionRolledBackAsync(
         DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
     {
-        TakePendingChange(eventData);
+        EndTransaction(eventData);
         return Task.CompletedTask;
     }
 
-    private static AppIdentityDbContext? TakePendingChange(TransactionEventData eventData)
-    {
-        if (eventData.Context is not AppIdentityDbContext { AccessVersionChangePending: true } context)
-        {
-            return null;
-        }
+    private static AppIdentityDbContext? PendingChange(TransactionEventData eventData) =>
+        eventData.Context is AppIdentityDbContext { AccessVersionChangePending: true } context ? context : null;
 
-        context.AccessVersionChangePending = false;
-        return context;
+    private static void ClearPendingChange(TransactionEventData eventData)
+    {
+        if (eventData.Context is AppIdentityDbContext context)
+        {
+            context.AccessVersionChangePending = false;
+        }
+    }
+
+    // Per-transaction state does not outlive the transaction, so a reused context starts clean.
+    private static void EndTransaction(TransactionEventData eventData)
+    {
+        if (eventData.Context is AppIdentityDbContext context)
+        {
+            context.EndTransaction();
+        }
     }
 
     // The AddAccessVersions migration seeds the system row. Without it no change would reach other instances, so the

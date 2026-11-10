@@ -7,7 +7,7 @@ namespace Endatix.Infrastructure.Data.Config.AppIdentity;
 
 /// <summary>Maps <see cref="AccessVersion"/>, one row per tenant, and seeds the system-roles row.</summary>
 [ApplyConfigurationFor<AppIdentityDbContext>()]
-public class AccessVersionConfiguration : IEntityTypeConfiguration<AccessVersion>
+internal sealed class AccessVersionConfiguration : IEntityTypeConfiguration<AccessVersion>
 {
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<AccessVersion> builder)

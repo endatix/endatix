@@ -17,7 +17,7 @@ public sealed class AuthorizationCacheTests
     private readonly HybridCache _hybridCache;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HttpContextAccessor _httpContextAccessor;
-    private readonly IAccessVersionReader _versionReader;
+    private readonly StubAccessVersionReader _versionReader;
     private readonly AuthorizationCache _cache;
     private readonly DateTimeOffset _now;
 
@@ -35,8 +35,7 @@ public sealed class AuthorizationCacheTests
         {
             SigningKey = "test-signing-key-32-characters",
         });
-        _versionReader = Substitute.For<IAccessVersionReader>();
-        _versionReader.ReadAsync(Arg.Any<CancellationToken>()).Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        _versionReader = new StubAccessVersionReader(Guid.Parse("11111111-1111-1111-1111-111111111111"));
         _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions, _versionReader);
     }
 
@@ -261,8 +260,7 @@ public sealed class AuthorizationCacheTests
                 Arg.Any<string[]>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
-        _versionReader.ReadAsync(Arg.Any<CancellationToken>())
-            .Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222"));
+        _versionReader.Then(Guid.Parse("22222222-2222-2222-2222-222222222222"));
 
         // Act
         await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
@@ -295,7 +293,7 @@ public sealed class AuthorizationCacheTests
     }
 
     [Fact]
-    public async Task InvalidateAsync_RemovesUserCacheEntry()
+    public async Task InvalidateAsync_RemovesUserAndUserTenantTags()
     {
         await _cache.InvalidateAsync("123", 42, CancellationToken.None);
 
@@ -340,4 +338,25 @@ public sealed class AuthorizationCacheTests
             eTag: string.Empty);
 
     #endregion
+
+    /// <summary>Returns its values in order and then repeats the last one.</summary>
+    private sealed class StubAccessVersionReader(Guid first) : IAccessVersionReader
+    {
+        private readonly Queue<Guid> _next = new();
+        private Guid _current = first;
+        private bool _started;
+
+        public void Then(Guid value) => _next.Enqueue(value);
+
+        public Task<Guid> ReadAsync(CancellationToken cancellationToken)
+        {
+            if (_started && _next.Count > 0)
+            {
+                _current = _next.Dequeue();
+            }
+
+            _started = true;
+            return Task.FromResult(_current);
+        }
+    }
 }

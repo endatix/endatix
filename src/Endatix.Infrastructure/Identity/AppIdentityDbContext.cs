@@ -21,7 +21,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
     /// <summary>Access versions, one row per tenant; see <see cref="AccessVersion"/>.</summary>
-    public DbSet<AccessVersion> AccessVersions { get; set; }
+    internal DbSet<AccessVersion> AccessVersions => Set<AccessVersion>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -36,9 +36,20 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         RenameIdentityTables(builder);
     }
 
-    // Users added through this context: a role granted to one of them in the same scope (self-registration,
-    // invitation) cannot be in any cache yet, so it does not change the access version.
+    // Users added through this context in the current transaction: a role granted to one of them before it commits
+    // (self-registration creates the user and grants the role in one transaction) cannot be in any cache yet, so it
+    // does not change the access version. Cleared when a transaction commits or rolls back.
     private readonly HashSet<long> _addedUserIds = [];
+
+    /// <summary>Users added through this context in the current transaction (read by tests).</summary>
+    internal IReadOnlyCollection<long> UsersAddedInTransaction => _addedUserIds;
+
+    /// <summary>Clears the per-transaction state when a transaction commits or rolls back.</summary>
+    internal void EndTransaction()
+    {
+        AccessVersionChangePending = false;
+        _addedUserIds.Clear();
+    }
 
     /// <summary>
     /// Set when a save in the current transaction changed an authorization input;

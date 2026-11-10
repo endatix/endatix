@@ -10,7 +10,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// ship, every change and every read uses the system row. The value is random, not a counter: a database restore or a
 /// cache flush must never bring back a value that old cache entries are keyed on.
 /// </remarks>
-public sealed class AccessVersion
+internal sealed class AccessVersion
 {
     /// <summary>The tenant id of the system-roles row (system roles use <c>TenantId &lt;= 0</c>).</summary>
     public const long SYSTEM_TENANT_ID = 0;

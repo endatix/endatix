@@ -91,6 +91,20 @@ public sealed class RoleChangeAuthorizationTests
     }
 
     [Fact]
+    public async Task Granting_forms_create_to_a_role_applies_to_a_token_issued_before_the_edit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareWorldAsync(NoCreateRole, ct);
+        using var user = await SignInAsync(world, NoCreateRole, ct);
+        (await CreateFormAsync(user, ct)).Should().Be(HttpStatusCode.Forbidden);
+
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        await UpdateRoleAsync(admin, NoCreateRole, CreatePermissions, ct);
+
+        (await CreateFormAsync(user, ct)).Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
     public async Task A_role_edit_on_one_instance_applies_on_another_instance()
     {
         var ct = TestContext.Current.CancellationToken;

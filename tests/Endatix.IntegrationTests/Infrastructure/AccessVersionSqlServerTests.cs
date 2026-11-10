@@ -35,8 +35,8 @@ public sealed class AccessVersionSqlServerTests(EndatixIntegrationWebHostFixture
         await builder.SeedRoleAsync(world.Tenants[0].Id, RoleName, ct);
         await builder.SeedRolePermissionsAsync(world.Tenants[0].Id, RoleName, [Actions.Forms.View, Actions.Forms.Create], ct);
         var committed = await ReadVersionAsync(world, ct);
-        TestContext.Current.SendDiagnosticMessage(
-            $"READ_COMMITTED_SNAPSHOT on: {await ReadCommittedSnapshotOnAsync(world, ct)}");
+        (await ReadCommittedSnapshotOnAsync(world, ct)).Should().BeFalse(
+            "with READ_COMMITTED_SNAPSHOT on, a read never waits and this test would pass whatever the code does");
 
         using var writerScope = world.Services.CreateScope();
         var writer = writerScope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
