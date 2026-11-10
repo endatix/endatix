@@ -383,6 +383,9 @@ jobs:
           format: cobertura
           file: .coverage/unit/merged.cobertura.xml
           coverage-reporter-version: v0.6.22
+          # Coveralls closes a build after its first upload, so a re-run of this job (a failed lane
+          # re-runs the whole job) would fail here. Only the first attempt fails on a Coveralls error.
+          fail-on-error: ${{ github.run_attempt == 1 }}
       - name: 📝 Output Summary Report
         if: matrix.unit
         run: |
