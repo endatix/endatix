@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using static Endatix.IntegrationTests.FormSchemaRebuildWorld;
@@ -55,7 +56,9 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
         // Assert
         var schema = await _world.ReadSchemaAsync(form.FormId);
         ColumnKeys(schema).Should().Contain(["q0", "qa", "ParticipantIdentifier", "participant_city"]);
-        schema.Codebook.Should().Contain("\"participant_city\"").And.Contain("\"exportShape\": \"participant\"");
+        using var codebook = JsonDocument.Parse(schema.Codebook);
+        codebook.RootElement.GetProperty("columns").GetProperty("participant_city").GetProperty("exportShape").GetString()
+            .Should().Be("participant");
     }
 
     [Fact]
