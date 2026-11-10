@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 /// takes the lock, as SQL Server nodes do by default, needs nothing. Each test runs on a database of its own, whose
 /// snapshot setting it chooses.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "SqlServer")]

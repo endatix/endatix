@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 /// The scheduler's tables and roles. Each test runs its nodes on a database of its own, so only the migrations those
 /// nodes apply shape it.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

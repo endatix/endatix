@@ -9,7 +9,7 @@ namespace Endatix.IntegrationTests;
 /// A scheduler node's teardown fails its test when the node does not stop cleanly and disposes the node either way; a
 /// node whose start fails is stopped and disposed, and the failure the test sees is the start's own.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

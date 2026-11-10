@@ -16,7 +16,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 /// <summary>
 /// The scheduler's operator dashboard: unmapped unless enabled, platform admins only, read-only by default.
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(JobsHostTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

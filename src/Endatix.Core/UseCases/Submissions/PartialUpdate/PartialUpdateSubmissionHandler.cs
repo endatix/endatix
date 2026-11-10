@@ -32,7 +32,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         if (!CollectionOutcomes.IsSupported(request.CollectionOutcome, out var outcome))
         {
-            return Result.Invalid(new ValidationError(CollectionOutcomes.UNSUPPORTED_MESSAGE));
+            return Result.Invalid(new ValidationError(CollectionOutcomes.UnsupportedMessage(request.CollectionOutcome)));
         }
 
         var previousStatus = submission.CollectionStatus;

@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests;
 /// raised on an aggregate become OutboxMessage rows committed in the same transaction as the aggregate
 /// (and roll back together when the write fails).
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(JobsHostTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "PostgreSql")]

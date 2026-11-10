@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests;
 /// statements, which only a real database runs. This part covers claiming a job; the writes that end an attempt
 /// are in <c>BackgroundJobStateRepositoryIntegrationTests.OutcomeWrites.cs</c>.
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(JobsHostTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

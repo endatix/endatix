@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 /// Webhooks delivered as jobs, one per endpoint, to a stub receiver: each endpoint retries and dead-letters on
 /// its own.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

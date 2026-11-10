@@ -12,7 +12,7 @@ namespace Endatix.IntegrationTests;
 /// Each job type is its own execution group on each node: a busy type never takes another's slot, and a node
 /// never takes a job type it has no handler for.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

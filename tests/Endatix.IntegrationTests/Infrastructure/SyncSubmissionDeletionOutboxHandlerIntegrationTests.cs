@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.IntegrationTests;
 
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

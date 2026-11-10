@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 /// The retention job against a real database: which rows it deletes, how far one run goes, and the expiry every terminal
 /// write stamps.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

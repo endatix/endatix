@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 /// How a jobs node starts when its database is not there: the host comes up and the scheduler waits for the database,
 /// on either provider.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsSchedulerStartupTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

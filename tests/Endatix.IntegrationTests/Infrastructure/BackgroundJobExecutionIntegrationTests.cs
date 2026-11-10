@@ -10,7 +10,7 @@ namespace Endatix.IntegrationTests;
 /// The job wrapper against a real scheduler store: every outcome it records, recovery, cancellation, the runtime
 /// ceiling, tracing and metrics. Short retry intervals stand in for a fake clock.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobExecutionTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]
