@@ -266,14 +266,16 @@ jobs:
           echo "INTEGRATION_BASE_FILTER=$base" >> "$GITHUB_ENV"
           echo "INTEGRATION_TEST_FILTER=$base&$lane" >> "$GITHUB_ENV"
       # Pulls the lane's database image and Ryuk while the build runs, so Testcontainers finds them
-      # locally (its default pull policy is "missing"). The image comes from the Default*Image constant
-      # in EndatixTestcontainers.cs; the Ryuk tag is Testcontainers 4.16's and needs bumping with it.
+      # locally (its default pull policy is "missing"). The image is the ENDATIX_TEST_DB_*_IMAGE override
+      # when set, else the Default*Image constant in EndatixTestcontainers.cs; the Ryuk tag is
+      # Testcontainers 4.16's and needs bumping with it.
       # Best effort: a failed pull only warns, and Testcontainers pulls the image itself.
       - name: 🐳 Pull the database image
         id: pull-images
         background: true
         run: |
-          image=$(sed -n "s/.*Default${ENDATIX_TEST_DB_PROVIDER}Image = \"\(.*\)\";/\1/p" \
+          if [ "$ENDATIX_TEST_DB_PROVIDER" = "SqlServer" ]; then image=$ENDATIX_TEST_DB_SQLSERVER_IMAGE; else image=$ENDATIX_TEST_DB_POSTGRES_IMAGE; fi
+          [ -n "$image" ] || image=$(sed -n "s/.*Default${ENDATIX_TEST_DB_PROVIDER}Image = \"\(.*\)\";/\1/p" \
             tests/Endatix.IntegrationTests.Shared/EndatixTestcontainers.cs)
           [ -n "$image" ] || echo "::warning::No Default${ENDATIX_TEST_DB_PROVIDER}Image in EndatixTestcontainers.cs; Testcontainers will pull it."
           for i in $image testcontainers/ryuk:0.14.0; do
