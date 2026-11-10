@@ -153,60 +153,65 @@ internal static class EndatixTestcontainers
         CancellationToken cancellationToken)
     {
         _provider = settings.Provider;
-        var containerSettings = settings.ContainerSettings;
-
-        switch (settings.Provider)
+        (_databaseContainer, _connectionString) = settings.Provider switch
         {
-            case TestDatabaseProvider.PostgreSql:
-            {
-                var postgresBuilder = new PostgreSqlBuilder(
-                        NormalizeImageOverride(settings.PostgreSqlImage) ?? DefaultPostgreSqlImage)
-                    .WithDatabase("endatix_test")
-                    .WithUsername("postgres")
-                    .WithPassword("postgres")
-                    .WithNetwork(_network!)
-                    .WithNetworkAliases("postgres")
-                    .WithName(ContainerName(containerSettings, "postgres"))
-                    // Docker's default 64 MB /dev/shm fails parallel queries on large tables (53100).
-                    .WithCreateParameterModifier(parameters => (parameters.HostConfig ??= new()).ShmSize = 1L << 30);
+            TestDatabaseProvider.PostgreSql => await StartPostgreSqlAsync(settings, cancellationToken),
+            TestDatabaseProvider.SqlServer => await StartSqlServerAsync(settings, cancellationToken),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(settings),
+                settings.Provider,
+                "Unsupported test database provider."),
+        };
+    }
 
-                postgresBuilder = ApplyReuse(
-                    ApplySession(postgresBuilder, containerSettings, EndatixTestcontainerLabels.ComponentPostgres),
-                    containerSettings,
-                    "endatix-postgres");
+    private static async Task<(IContainer Container, string ConnectionString)> StartPostgreSqlAsync(
+        IntegrationDatabaseSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var containerSettings = settings.ContainerSettings;
+        var postgresBuilder = new PostgreSqlBuilder(
+                NormalizeImageOverride(settings.PostgreSqlImage) ?? DefaultPostgreSqlImage)
+            .WithDatabase("endatix_test")
+            .WithUsername("postgres")
+            .WithPassword("postgres")
+            .WithNetwork(_network!)
+            .WithNetworkAliases("postgres")
+            .WithName(ContainerName(containerSettings, "postgres"))
+            // Docker's default 64 MB /dev/shm fails parallel queries on large tables (53100).
+            .WithCreateParameterModifier(parameters => (parameters.HostConfig ??= new()).ShmSize = 1L << 30);
 
-                var postgresContainer = postgresBuilder.Build();
-                _databaseContainer = postgresContainer;
-                await _databaseContainer.StartAsync(cancellationToken);
-                _connectionString = postgresContainer.GetConnectionString();
-                break;
-            }
-            case TestDatabaseProvider.SqlServer:
-            {
-                var sqlBuilder = new MsSqlBuilder(
-                        NormalizeImageOverride(settings.SqlServerImage) ?? DefaultSqlServerImage)
-                    .WithPassword(SqlServerPassword)
-                    .WithNetwork(_network!)
-                    .WithNetworkAliases("sqlserver")
-                    .WithName(ContainerName(containerSettings, "sqlserver"));
+        postgresBuilder = ApplyReuse(
+            ApplySession(postgresBuilder, containerSettings, EndatixTestcontainerLabels.ComponentPostgres),
+            containerSettings,
+            "endatix-postgres");
 
-                sqlBuilder = ApplyReuse(
-                    ApplySession(sqlBuilder, containerSettings, EndatixTestcontainerLabels.ComponentSqlServer),
-                    containerSettings,
-                    "endatix-sqlserver");
+        var postgresContainer = postgresBuilder.Build();
+        await postgresContainer.StartAsync(cancellationToken);
+        return (postgresContainer, postgresContainer.GetConnectionString());
+    }
 
-                var sqlContainer = sqlBuilder.Build();
-                _databaseContainer = sqlContainer;
-                await _databaseContainer.StartAsync(cancellationToken);
-                _connectionString = sqlContainer.GetConnectionString();
-                break;
-            }
-            default:
-                throw new ArgumentOutOfRangeException(
-                    nameof(settings),
-                    settings.Provider,
-                    "Unsupported test database provider.");
-        }
+    // Testcontainers creates the database at startup, and its connection string names it rather than master.
+    private static async Task<(IContainer Container, string ConnectionString)> StartSqlServerAsync(
+        IntegrationDatabaseSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var containerSettings = settings.ContainerSettings;
+        var sqlBuilder = new MsSqlBuilder(
+                NormalizeImageOverride(settings.SqlServerImage) ?? DefaultSqlServerImage)
+            .WithDatabase("endatix_test")
+            .WithPassword(SqlServerPassword)
+            .WithNetwork(_network!)
+            .WithNetworkAliases("sqlserver")
+            .WithName(ContainerName(containerSettings, "sqlserver"));
+
+        sqlBuilder = ApplyReuse(
+            ApplySession(sqlBuilder, containerSettings, EndatixTestcontainerLabels.ComponentSqlServer),
+            containerSettings,
+            "endatix-sqlserver");
+
+        var sqlContainer = sqlBuilder.Build();
+        await sqlContainer.StartAsync(cancellationToken);
+        return (sqlContainer, sqlContainer.GetConnectionString());
     }
 
     private static void EnsureActiveDatabaseSettingsMatch(IntegrationDatabaseSettings requested)

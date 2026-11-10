@@ -5,20 +5,22 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 namespace Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 
 /// <summary>
-/// Schema columns for the audience values frozen on a response. A form gets a column only for a variable that a
+/// Schema columns for the participant values frozen on a response. A form gets a column only for a variable that a
 /// flattened response actually carries, so properties nobody was ever personalised with never reach the schema.
 /// </summary>
 /// <remarks>
 /// Keys share the schema with question keys, and the append-only merge keeps the first column a key had: a question
-/// named like an audience key (<c>audience_city</c>) keeps that key and the audience value is not exported (#1230).
+/// named like a participant key (<c>participant_city</c>) keeps that key and the participant value is not exported (#1230).
 /// Exports and Shoji let the question win the same way when only its export key matches. Property variable names are
 /// lowercase slugs, so they can never produce <see cref="IdentifierKey"/>, which follows the system columns' casing.
+/// A schema flattened before the participant rename (#1282) still holds <c>AudienceIdentifier</c> and
+/// <c>audience_*</c> columns until the form is re-flattened; those columns name no variable and get no value.
 /// </remarks>
 internal static class PersonalizationColumns
 {
-    public const string IdentifierKey = "AudienceIdentifier";
-    public const string VariablePrefix = "audience_";
-    public const string IdentifierLabel = "Audience identifier";
+    public const string IdentifierKey = "ParticipantIdentifier";
+    public const string VariablePrefix = "participant_";
+    public const string IdentifierLabel = "Participant identifier";
 
     // Audience data type codes as the snapshot writes them (AudienceDataTypeCodes in the Audience contracts).
     public const string TextType = "text";
@@ -48,6 +50,10 @@ internal static class PersonalizationColumns
 
     public static string KeyOf(string variableName) => VariablePrefix + variableName;
 
+    /// <summary>The variable a column key names; null for the identifier and for a key that is not a participant key.</summary>
+    public static string? VariableNameOf(string key) =>
+        key.StartsWith(VariablePrefix, StringComparison.Ordinal) ? key[VariablePrefix.Length..] : null;
+
     /// <summary>The frozen value a column holds for this response; null when the response has none.</summary>
     public static JsonElement? ValueOf(FormSchemaColumn column, PersonalizationRead? read)
     {
@@ -61,8 +67,9 @@ internal static class PersonalizationColumns
             return read.Identifier.Length == 0 ? null : JsonSerializer.SerializeToElement(read.Identifier);
         }
 
-        var variableName = column.Key[VariablePrefix.Length..];
-        return read.Variables.TryGetProperty(variableName, out var value) ? value.Clone() : null;
+        return VariableNameOf(column.Key) is { } variableName && read.Variables.TryGetProperty(variableName, out var value)
+            ? value.Clone()
+            : null;
     }
 
     /// <summary>Whether the schema already has every column, with a type that holds the value.</summary>

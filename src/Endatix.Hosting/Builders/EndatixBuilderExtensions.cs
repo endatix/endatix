@@ -34,7 +34,7 @@ internal static class EndatixBuilderExtensions
         where T : class
     {
         var parentBuilder = GetRootBuilder(builder);
-        parentBuilder.LogSetupInfo(message, args);
+        parentBuilder.LogSetupError(message, args);
         return builder;
     }
 

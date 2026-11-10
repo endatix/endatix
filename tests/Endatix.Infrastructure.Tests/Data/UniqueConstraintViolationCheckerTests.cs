@@ -1,3 +1,4 @@
+#pragma warning disable CS0436 // Intentional stubs: checker matches FullName Npgsql.PostgresException / Microsoft.Data.SqlClient.SqlException via reflection; real packages are referenced so the stubs collide by design.
 using Endatix.Core.Abstractions.Data;
 using Endatix.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -134,3 +135,4 @@ namespace Microsoft.Data.SqlClient
         public int Number { get; } = number;
     }
 }
+#pragma warning restore CS0436

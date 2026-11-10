@@ -21,7 +21,7 @@ public sealed class PersonalizationCodebookTests
         var block = InBlockOrder(compiled.FlatteningMap, compiled.CodebookJson);
 
         // Assert
-        block.Select(column => column.Key).Should().Equal("AudienceIdentifier", "audience_alpha", "audience_zeta");
+        block.Select(column => column.Key).Should().Equal("ParticipantIdentifier", "participant_alpha", "participant_zeta");
     }
 
     [Fact]
@@ -41,13 +41,13 @@ public sealed class PersonalizationCodebookTests
         // Assert
         var block = InBlockOrder(compiled.FlatteningMap, codebook);
         block.Select(column => column.Key)
-            .Should().Equal("AudienceIdentifier", "audience_city", "audience_age", "audience_plan", "audience_zip");
+            .Should().Equal("ParticipantIdentifier", "participant_city", "participant_age", "participant_plan", "participant_zip");
         block.Select(column => column.Label)
-            .Should().Equal("Audience identifier", "Town", "Age (years)", "plan", "zip");
+            .Should().Equal("Participant identifier", "Town", "Age (years)", "plan", "zip");
     }
 
     [Fact]
-    public void Overlay_PersonalizedSchema_AddsThePersonalizationBlock()
+    public void Overlay_PersonalizedSchema_AddsTheParticipantsBlock()
     {
         // Arrange
         var compiled = Personalized("city", "age");
@@ -60,11 +60,11 @@ public sealed class PersonalizationCodebookTests
 
         // Assert
         using var document = JsonDocument.Parse(codebook);
-        var block = document.RootElement.GetProperty("personalization");
-        block.GetProperty("title").GetProperty("default").GetString().Should().Be("Personalized");
-        block.GetProperty("identifier").GetString().Should().Be("AudienceIdentifier");
+        var block = document.RootElement.GetProperty("participants");
+        block.GetProperty("title").GetProperty("default").GetString().Should().Be("Participants");
+        block.GetProperty("identifier").GetString().Should().Be("ParticipantIdentifier");
         block.GetProperty("variables").EnumerateObject().Select(variable => (variable.Name, variable.Value.GetString()))
-            .Should().Equal(("city", "audience_city"), ("age", "audience_age"));
+            .Should().Equal(("city", "participant_city"), ("age", "participant_age"));
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class PersonalizationCodebookTests
 
         // Assert
         InBlockOrder(compiled.FlatteningMap, codebook).Select(column => column.Label)
-            .Should().Equal("Audience identifier", "Town");
+            .Should().Equal("Participant identifier", "Town");
     }
 
     [Fact]
@@ -108,6 +108,49 @@ public sealed class PersonalizationCodebookTests
 
         // Assert
         codebook.Should().BeSameAs(compiled.CodebookJson);
+    }
+
+    [Fact]
+    public void Overlay_PersonalizedSchema_WritesTheParticipantsBlockOnly()
+    {
+        // Arrange
+        var compiled = Personalized("city");
+
+        // Act
+        var codebook = PersonalizationCodebook.Overlay(compiled.CodebookJson, compiled.FlatteningMap, [new("city", "City", 0)]);
+
+        // Assert
+        using var document = JsonDocument.Parse(codebook);
+        document.RootElement.TryGetProperty("participants", out _).Should().BeTrue();
+        document.RootElement.TryGetProperty("personalization", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Overlay_SchemaStillHoldingCanaryAudienceKeys_LeavesThemOutOfTheParticipantsBlock()
+    {
+        // Arrange: a schema flattened by a canary before the rename, not yet re-flattened.
+        FormSchemaCompiler compiler = new();
+        var compiled = compiler.CompilePersisted(Definition);
+        var withCanaryKeys = compiler.IncludePersonalization(
+            Definition,
+            new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
+            [
+                new FormSchemaColumn("AudienceIdentifier", FormSchemaColumnKind.Personalization, "Audience identifier", "text"),
+                new FormSchemaColumn("audience_a", FormSchemaColumnKind.Personalization, "a", "text"),
+                new FormSchemaColumn("audience_city", FormSchemaColumnKind.Personalization, "city", "text"),
+            ]);
+
+        // Act
+        var codebook = PersonalizationCodebook.Overlay(
+            withCanaryKeys.CodebookJson,
+            withCanaryKeys.FlatteningMap,
+            [new("a", "A", 0), new("city", "City", 1)]);
+
+        // Assert
+        using var document = JsonDocument.Parse(codebook);
+        var block = document.RootElement.GetProperty("participants");
+        block.TryGetProperty("identifier", out _).Should().BeFalse();
+        block.GetProperty("variables").EnumerateObject().Should().BeEmpty();
     }
 
     private static IReadOnlyList<FormSchemaColumn> InBlockOrder(MergedFormSchema flatteningMap, string codebookJson)

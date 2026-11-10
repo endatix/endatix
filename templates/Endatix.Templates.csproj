@@ -14,7 +14,8 @@
     <NoDefaultExcludes>true</NoDefaultExcludes>
     <IsPackable>true</IsPackable>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <!-- Pack-only project (no compile output / GenerateAssemblyInfo=false); S3904 AssemblyVersion does not apply. -->
+    <NoWarn>$(NoWarn);NU5128;S3904</NoWarn>
     <!-- No compile output; still need a TFM for the SDK. -->
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
