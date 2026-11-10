@@ -293,10 +293,16 @@ public sealed class AuthorizationCacheTests
     }
 
     [Fact]
-    public async Task InvalidateAsync_RemovesUserAndUserTenantTags()
+    public async Task InvalidateAsync_UserInTenant_RemovesUserAndUserTenantTags()
     {
-        await _cache.InvalidateAsync("123", 42, CancellationToken.None);
+        // Arrange
+        const string userId = "123";
+        const long tenantId = 42;
 
+        // Act
+        await _cache.InvalidateAsync(userId, tenantId, CancellationToken.None);
+
+        // Assert
         await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123", Arg.Any<CancellationToken>());
         await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123:tenant:42", Arg.Any<CancellationToken>());
     }

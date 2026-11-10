@@ -27,7 +27,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         if (PendingChange(eventData) is { } context)
         {
             EnsureRowUpdated(SystemVersion(context).ExecuteUpdate(NewValue()));
-            context.AccessVersionChangePending = false;
+            context.ResetAccessVersionState();
         }
 
         return result;
@@ -42,7 +42,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         if (PendingChange(eventData) is { } context)
         {
             EnsureRowUpdated(await SystemVersion(context).ExecuteUpdateAsync(NewValue(), cancellationToken));
-            context.AccessVersionChangePending = false;
+            context.ResetAccessVersionState();
         }
 
         return result;
@@ -50,7 +50,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
 
     /// <summary>Clears the per-transaction state once the commit has succeeded.</summary>
     public override void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData) =>
-        EndTransaction(eventData);
+        Reset(eventData);
 
     /// <summary>Clears the per-transaction state once the commit has succeeded.</summary>
     public override Task TransactionCommittedAsync(
@@ -65,7 +65,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override DbTransaction TransactionStarted(
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result)
     {
-        ClearPendingChange(eventData);
+        Reset(eventData);
         return result;
     }
 
@@ -74,13 +74,13 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result,
         CancellationToken cancellationToken = default)
     {
-        ClearPendingChange(eventData);
+        Reset(eventData);
         return ValueTask.FromResult(result);
     }
 
     /// <summary>Clears the per-transaction state, so a rolled-back change writes no access version.</summary>
     public override void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData) =>
-        EndTransaction(eventData);
+        Reset(eventData);
 
     /// <summary>Clears the per-transaction state, so a rolled-back change writes no access version.</summary>
     public override Task TransactionRolledBackAsync(
@@ -94,27 +94,15 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     private static AppIdentityDbContext? PendingChange(TransactionEventData eventData) =>
         eventData.Context is AppIdentityDbContext { AccessVersionChangePending: true } context ? context : null;
 
-    /// <summary>Forgets a pending change without touching the rest of the per-transaction state.</summary>
-    private static void ClearPendingChange(TransactionEventData eventData)
+    /// <summary>Resets the context's per-transaction state; the context owns the one reset.</summary>
+    private static void Reset(TransactionEventData eventData)
     {
         if (eventData.Context is AppIdentityDbContext context)
         {
-            context.AccessVersionChangePending = false;
+            context.ResetAccessVersionState();
         }
     }
 
-    // Per-transaction state does not outlive the transaction, so a reused context starts clean.
-    /// <summary>Resets the context's per-transaction state when its transaction commits or rolls back.</summary>
-    private static void EndTransaction(TransactionEventData eventData)
-    {
-        if (eventData.Context is AppIdentityDbContext context)
-        {
-            context.EndTransaction();
-        }
-    }
-
-    // The AddAccessVersions migration seeds the system row. Without it no change would reach other instances, so the
-    // role change fails rather than commit unseen.
     /// <summary>Fails the commit when the system row is missing, so a role change never commits without reaching other instances.</summary>
     private static void EnsureRowUpdated(int rows)
     {

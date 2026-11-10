@@ -81,10 +81,10 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
     }
 
     [Fact]
-    public async Task SaveChangesAsync_NewUserGetsFirstRole_KeepsAccessVersion()
+    public async Task SaveChangesAsync_NewUserGetsFirstRoleInSameTransaction_KeepsAccessVersion()
     {
-        // Arrange — self-registration and invitations create the user and grant a role in one scope; a user created
-        // there holds no token, so nothing cached can be stale.
+        // Arrange — self-registration creates the user and grants the first role in one transaction; a user created
+        // in it holds no token yet, so nothing cached can be stale.
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
         var before = await ReadVersionAsync(world, ct);
@@ -92,14 +92,36 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         // Act
         using (var scope = world.Services.CreateScope())
         {
+            var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            await using var signup = await db.Database.BeginTransactionAsync(ct);
             AppUser user = new() { UserName = "new@example.com", Email = "new@example.com", TenantId = world.Tenants[0].Id };
             (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
             (await users.AddToRoleAsync(user, RoleName)).Succeeded.Should().BeTrue();
+            await signup.CommitAsync(ct);
         }
 
         // Assert
         (await ReadVersionAsync(world, ct)).Should().Be(before);
+    }
+
+    [Fact]
+    public async Task SaveChangesAsync_UserCreatedInEarlierSaveGetsRole_ChangesAccessVersion()
+    {
+        // Arrange — a long-lived context (a job, an import) creates a user in one save without a transaction.
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(ct);
+        using var scope = world.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        AppUser user = new() { UserName = "later@example.com", Email = "later@example.com", TenantId = world.Tenants[0].Id };
+        (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
+        var before = await ReadVersionAsync(world, ct);
+
+        // Act — a later save on the same context grants the user a role.
+        (await users.AddToRoleAsync(user, RoleName)).Succeeded.Should().BeTrue();
+
+        // Assert
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]

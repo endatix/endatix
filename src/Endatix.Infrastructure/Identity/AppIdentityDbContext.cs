@@ -36,27 +36,30 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         RenameIdentityTables(builder);
     }
 
-    // Users added through this context in the current transaction: a role granted to one of them before it commits
-    // (self-registration creates the user and grants the role in one transaction) cannot be in any cache yet, so it
-    // does not change the access version. Cleared when a transaction commits or rolls back.
+    // Users added through this context while a transaction is open: a role granted to one of them before it commits
+    // (self-registration creates the user and grants the first role in one transaction) cannot be in any cache yet,
+    // so it does not change the access version. A save without a transaction records nothing, so a long-lived
+    // context that creates a user and later changes that user's roles still writes a version.
     private readonly HashSet<long> _addedUserIds = [];
 
     /// <summary>Users added through this context in the current transaction (read by tests).</summary>
     internal IReadOnlyCollection<long> UsersAddedInTransaction => _addedUserIds;
 
-    /// <summary>Clears the per-transaction state when a transaction commits or rolls back.</summary>
-    internal void EndTransaction()
+    /// <summary>
+    /// Set when a save in the current transaction changed an authorization input;
+    /// <see cref="AccessVersionCommitInterceptor"/> writes a new access version right before that transaction commits.
+    /// </summary>
+    internal bool AccessVersionChangePending { get; private set; }
+
+    /// <summary>
+    /// The one reset of the per-transaction state: when a transaction starts, after its access version is written,
+    /// and when it commits or rolls back.
+    /// </summary>
+    internal void ResetAccessVersionState()
     {
         AccessVersionChangePending = false;
         _addedUserIds.Clear();
     }
-
-    /// <summary>
-    /// Set when a save in the current transaction changed an authorization input;
-    /// <see cref="AccessVersionCommitInterceptor"/> writes a new access version right before that transaction commits,
-    /// and clears it when a transaction starts or rolls back.
-    /// </summary>
-    internal bool AccessVersionChangePending { get; set; }
 
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
@@ -65,21 +68,11 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     /// <inheritdoc/>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        ProcessEntities();
-        if (!AuthorizationInputsChanged())
+        if (!NeedsOwnTransaction())
         {
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
-        if (Database.CurrentTransaction is not null)
-        {
-            AccessVersionChangePending = true;
-            return base.SaveChanges(acceptAllChangesOnSuccess);
-        }
-
-        // A save that would run without a transaction (EF skips one for a single statement) gets one, so the
-        // access version commits with the change. It runs through the execution strategy, which a retrying provider
-        // requires for a transaction it did not open, and accepts changes only after the commit that writes the access version.
         var saved = Database.CreateExecutionStrategy().Execute(() =>
         {
             using var transaction = Database.BeginTransaction();
@@ -95,15 +88,8 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     /// <inheritdoc/>
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
-        ProcessEntities();
-        if (!AuthorizationInputsChanged())
+        if (!NeedsOwnTransaction())
         {
-            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
-        }
-
-        if (Database.CurrentTransaction is not null)
-        {
-            AccessVersionChangePending = true;
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
@@ -121,6 +107,27 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         return saved;
     }
 
+    /// <summary>
+    /// Applies the save-time conventions and marks an authorization change for the open transaction. True when the
+    /// save changes an authorization input and no transaction is open: it then gets its own, through the execution
+    /// strategy (a retrying provider requires that), so the access version commits with the change.
+    /// </summary>
+    private bool NeedsOwnTransaction()
+    {
+        if (!ProcessEntities())
+        {
+            return false;
+        }
+
+        if (Database.CurrentTransaction is null)
+        {
+            return true;
+        }
+
+        AccessVersionChangePending = true;
+        return false;
+    }
+
     /// <summary>Accepts tracked changes only when the caller asked for it, after the commit that writes the access version.</summary>
     private void AcceptChangesIf(bool acceptAllChangesOnSuccess)
     {
@@ -131,43 +138,51 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     }
 
     /// <summary>
-    /// A role, a role's permissions, a user's roles, or a user's tenant changes in this save: everything
-    /// <see cref="Authorization.Data.DefaultAuthorizationDataProvider"/> and the external role mapper read.
+    /// Stamps <c>CreatedAt</c> / <c>ModifiedAt</c> and, in the same scan, tells whether this save changes an
+    /// authorization input: a role, a role's permissions, a user's roles, or a user's tenant (everything
+    /// <see cref="Authorization.Data.DefaultAuthorizationDataProvider"/> and the external role mapper read).
     /// Bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c> on these tables bypass this check and must change the access version themselves.
     /// </summary>
-    private bool AuthorizationInputsChanged()
+    private bool ProcessEntities()
     {
-        var entries = ChangeTracker.Entries().ToList();
-        foreach (var added in entries.Where(entry => entry.State == EntityState.Added && entry.Entity is AppUser))
+        var inTransaction = Database.CurrentTransaction is not null;
+        var inputChanged = false;
+        List<long>? roleUserIds = null;
+        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow, entry =>
         {
-            _addedUserIds.Add(((AppUser)added.Entity).Id);
-        }
+            if (entry.Entity is IdentityUserRole<long> userRole && entry.State is EntityState.Added or EntityState.Deleted or EntityState.Modified)
+            {
+                (roleUserIds ??= []).Add(userRole.UserId);
+            }
+            else if (entry.Entity is AppUser user && entry.State == EntityState.Added && inTransaction)
+            {
+                _addedUserIds.Add(user.Id);
+            }
+            else
+            {
+                inputChanged |= IsAuthorizationInputChange(entry);
+            }
+        });
 
-        return entries.Any(IsAuthorizationInputChange);
+        // Users and their roles can come in any order within one save, so roles are judged after the scan.
+        return inputChanged || (roleUserIds?.Exists(userId => !_addedUserIds.Contains(userId)) ?? false);
     }
 
-    /// <summary>True when this entry changes what <see cref="Authorization.Data.DefaultAuthorizationDataProvider"/> reads, other than a first role for a user added in this transaction.</summary>
-    private bool IsAuthorizationInputChange(EntityEntry entry) => entry.State switch
+    /// <summary>True when this entry changes what <see cref="Authorization.Data.DefaultAuthorizationDataProvider"/> reads, user roles aside.</summary>
+    private static bool IsAuthorizationInputChange(EntityEntry entry) => entry.State switch
     {
-        EntityState.Added or EntityState.Deleted or EntityState.Modified when entry.Entity is IdentityUserRole<long> userRole =>
-            !_addedUserIds.Contains(userRole.UserId),
-        EntityState.Added or EntityState.Deleted or EntityState.Modified => entry.Entity is RolePermission or AppRole or Permission
-            || (entry.State == EntityState.Deleted && entry.Entity is AppUser)
-            || (entry.State == EntityState.Modified && entry.Entity is AppUser && TenantChanged(entry)),
+        EntityState.Added or EntityState.Deleted or EntityState.Modified when entry.Entity is RolePermission or AppRole or Permission => true,
+        EntityState.Deleted => entry.Entity is AppUser,
+        EntityState.Modified => entry.Entity is AppUser && TenantChanged(entry),
         _ => false
     };
 
-    // UserManager.UpdateAsync marks every column modified, so compare values: a profile save or a sign-in
-    // must not change the access version.
     /// <summary>True only when the tenant value differs, since <c>UserManager.UpdateAsync</c> marks every column modified.</summary>
     private static bool TenantChanged(EntityEntry entry)
     {
         var tenantId = entry.Property(nameof(AppUser.TenantId));
         return tenantId.IsModified && !Equals(tenantId.OriginalValue, tenantId.CurrentValue);
     }
-
-    private void ProcessEntities() =>
-        ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
 
     private static void RenameIdentityTables(ModelBuilder builder)
     {
