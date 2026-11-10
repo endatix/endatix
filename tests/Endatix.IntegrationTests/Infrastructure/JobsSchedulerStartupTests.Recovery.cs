@@ -90,7 +90,7 @@ public sealed partial class JobsSchedulerStartupTests
         var node = JobsTestNode.Create(database, configureServices: configureServices, migrate: false);
 
         // The caller gets no node to dispose until this returns it, so a step that fails disposes it here.
-        return await FailedHostStart.DisposeOnFailureAsync(
+        return await FailedCreation.DisposeOnFailureAsync(
             async () =>
             {
                 await node.StartAsync(ct);

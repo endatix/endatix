@@ -1,37 +1,37 @@
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// A test host whose start fails is disposed before the failure reaches the test, every disposal runs, and the failure
-/// the test sees is the start's own, whatever a disposal throws.
+/// What a failed creation built is disposed before the failure reaches the test, every disposal runs, and the failure the
+/// test sees is the creation's own, whatever a disposal throws.
 /// </summary>
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class FailedHostStartTests
+public sealed class FailedCreationTests
 {
     // Named so that a reader of the test output sees these failures were produced on purpose.
-    private const string DeliberateStartFailure = "Deliberate start failure (FailedHostStartTests)";
-    private const string DeliberateDisposalFailure = "Deliberate disposal failure (FailedHostStartTests)";
+    private const string DeliberateCreationFailure = "Deliberate creation failure (FailedCreationTests)";
+    private const string DeliberateDisposalFailure = "Deliberate disposal failure (FailedCreationTests)";
 
     [Fact]
-    public async Task A_failed_start_runs_every_disposal_and_rethrows_its_own_failure_when_a_disposal_throws()
+    public async Task A_failed_creation_runs_every_disposal_and_rethrows_its_own_failure_when_a_disposal_throws()
     {
         // Arrange
-        InvalidOperationException startFailure = new(DeliberateStartFailure);
+        InvalidOperationException creationFailure = new(DeliberateCreationFailure);
         List<string> disposed = [];
 
         // Act
-        var thrown = await Record.ExceptionAsync(() => FailedHostStart.DisposeOnFailureAsync<object>(
-            () => throw startFailure,
+        var thrown = await Record.ExceptionAsync(() => FailedCreation.DisposeOnFailureAsync<object>(
+            () => throw creationFailure,
             () => throw new IOException(DeliberateDisposalFailure),
             () => Disposing(disposed, "database")));
 
         // Assert
-        Assert.Same(startFailure, thrown);
+        Assert.Same(creationFailure, thrown);
 
-        // The start's own frame is still on the trace: the failure was rethrown, not thrown anew.
+        // The creation's own frame is still on the trace: the failure was rethrown, not thrown anew.
         Assert.Contains(
-            nameof(A_failed_start_runs_every_disposal_and_rethrows_its_own_failure_when_a_disposal_throws),
-            startFailure.StackTrace,
+            nameof(A_failed_creation_runs_every_disposal_and_rethrows_its_own_failure_when_a_disposal_throws),
+            creationFailure.StackTrace,
             StringComparison.Ordinal);
         Assert.Equal(["database"], disposed);
         var warning = Assert.Single(TestContext.Current.Warnings ?? []);
@@ -40,18 +40,18 @@ public sealed class FailedHostStartTests
     }
 
     [Fact]
-    public async Task A_start_that_fails_after_an_await_runs_every_disposal_in_order_and_rethrows_its_own_failure()
+    public async Task A_creation_that_fails_after_an_await_runs_every_disposal_in_order_and_rethrows_its_own_failure()
     {
         // Arrange
-        InvalidOperationException startFailure = new(DeliberateStartFailure);
+        InvalidOperationException creationFailure = new(DeliberateCreationFailure);
         List<string> disposed = [];
 
         // Act
-        var thrown = await Record.ExceptionAsync(() => FailedHostStart.DisposeOnFailureAsync<object>(
+        var thrown = await Record.ExceptionAsync(() => FailedCreation.DisposeOnFailureAsync<object>(
             async () =>
             {
                 await Task.Yield();
-                throw startFailure;
+                throw creationFailure;
             },
             async () =>
             {
@@ -62,12 +62,12 @@ public sealed class FailedHostStartTests
             () => Disposing(disposed, "database")));
 
         // Assert
-        Assert.Same(startFailure, thrown);
+        Assert.Same(creationFailure, thrown);
         Assert.Equal(["host", "database"], disposed);
     }
 
     [Fact]
-    public async Task A_cancelled_start_runs_every_disposal_and_rethrows_its_cancellation()
+    public async Task A_cancelled_creation_runs_every_disposal_and_rethrows_its_cancellation()
     {
         // Arrange
         using CancellationTokenSource cancellation = new();
@@ -75,7 +75,7 @@ public sealed class FailedHostStartTests
         List<string> disposed = [];
 
         // Act
-        var thrown = await Record.ExceptionAsync(() => FailedHostStart.DisposeOnFailureAsync(
+        var thrown = await Record.ExceptionAsync(() => FailedCreation.DisposeOnFailureAsync(
             async () =>
             {
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellation.Token);
@@ -90,18 +90,18 @@ public sealed class FailedHostStartTests
     }
 
     [Fact]
-    public async Task A_start_that_succeeds_disposes_nothing()
+    public async Task A_creation_that_succeeds_disposes_nothing()
     {
         // Arrange
         List<string> disposed = [];
 
         // Act
-        var started = await FailedHostStart.DisposeOnFailureAsync(
+        var created = await FailedCreation.DisposeOnFailureAsync(
             () => Task.FromResult("host"),
             () => Disposing(disposed, "host"));
 
         // Assert
-        Assert.Equal("host", started);
+        Assert.Equal("host", created);
         Assert.Empty(disposed);
     }
 

@@ -114,7 +114,7 @@ internal sealed class JobsTestNode : IAsyncDisposable
     /// caller, which never gets a node to dispose.
     /// </summary>
     public Task<JobsTestNode> StartedAsync(CancellationToken cancellationToken) =>
-        FailedHostStart.DisposeOnFailureAsync(
+        FailedCreation.DisposeOnFailureAsync(
             async () =>
             {
                 await StartAsync(cancellationToken);
