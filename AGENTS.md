@@ -189,6 +189,13 @@ dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQu
 
 HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), including `view=bare` — recovery card, not a blank/plain 400. Recovery href = Kestrel's first `http://` bind (`IServerAddressesFeature`, `*`/`+` parsed by trailing port); no bind → no button, never a guessed `:5000`. Default launch profile is `:5000`. MapWhen is registered **before** HTTPS redirection so HTTP is not 307'd to `:5001`. Apply has no `action` (keeps PathBase). Bare links prefix `Request.PathBase`. Headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`. Anonymous when enabled (third-party host; Hub cookies do not apply). Force-open Configure is not persisted. **Open in new tab** = same query + `view=bare`. Loopback only when `AllowLoopback` (Development default; do not set true in Production). User doc: `docs/endatix-docs/docs/guides/embed-form-via-iframe.mdx`.
 
+## CI artifacts
+
+Every `upload-artifact` in `.github/workflows/` declares, in a comment next to its `retention-days`, whether it is internal or emitted:
+
+- **Internal**: only jobs of the same run read it, for example the `coverage-*` reports SonarCloud reads. Keep it 1–2 days, long enough to re-run a failed consumer, and delete it once the consumer succeeds, as `coverage-cleanup` does. Never delete it on a failed consumer. Do not name a new artifact `coverage-*`, because sonar downloads every artifact that matches that pattern.
+- **Emitted**: something outside the run reads it: releases, performance or load-test reports, and the `test-totals-*` files the CI-speed trend (#1550) reads across runs (90 days). Give it a retention that fits that reader, and keep it small: upload a summary rather than raw output where a summary is enough.
+
 ## Related
 
 - Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)
