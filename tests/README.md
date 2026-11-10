@@ -102,7 +102,7 @@ connection (`ServerConnectionString`) that creates and drops the others.
 | Variable                        | Default      | Notes                          |
 | ------------------------------- | ------------ | ------------------------------ |
 | `ENDATIX_TEST_DB_PROVIDER`      | `PostgreSql` | `SqlServer` for SQL Server leg |
-| `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only; a run drops the `endatix_fx_` and `endatix_template_` databases an earlier one left |
+| `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only; a run drops the `endatix_fx_` and `endatix_template_` databases older than 12 hours, which an earlier run left |
 
 ### Performance suite
 

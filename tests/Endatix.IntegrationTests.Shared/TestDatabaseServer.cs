@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Npgsql;
 
@@ -15,13 +16,30 @@ internal sealed class TestDatabaseServer(TestDatabaseProvider provider, string s
 
     public const string TemplatePrefix = "endatix_template_";
 
+    private const string CreatedFormat = "yyMMddHHmm";
+
+    // The template backup sits beside the database files of the Linux SQL Server image.
     private const string SqlServerBackupFolder = "/var/opt/mssql/data";
 
     public TestDatabaseProvider Provider { get; } = provider;
 
     public string ServerConnectionString { get; } = serverConnectionString;
 
-    public static string NewName(string prefix) => $"{prefix}{Guid.NewGuid():N}"[..(prefix.Length + 12)];
+    /// <summary>A new database name: the prefix, when it was made (UTC), and a random part.</summary>
+    public static string NewName(string prefix, DateTime utcNow) =>
+        $"{prefix}{utcNow.ToString(CreatedFormat, CultureInfo.InvariantCulture)}_{Guid.NewGuid().ToString("N")[..8]}";
+
+    /// <summary>
+    /// Whether <paramref name="name"/> was made before <paramref name="cutoff"/>. A name without a creation time, from
+    /// before the time was in it, counts as old.
+    /// </summary>
+    public static bool MadeBefore(string name, DateTime cutoff)
+    {
+        var prefix = name.StartsWith(FixturePrefix, StringComparison.Ordinal) ? FixturePrefix : TemplatePrefix;
+        var stamp = name.Length >= prefix.Length + CreatedFormat.Length ? name.Substring(prefix.Length, CreatedFormat.Length) : string.Empty;
+        return !DateTime.TryParseExact(stamp, CreatedFormat, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var made)
+            || made < cutoff;
+    }
 
     public string ConnectionStringFor(string database) => Provider switch
     {
@@ -42,10 +60,8 @@ internal sealed class TestDatabaseServer(TestDatabaseProvider provider, string s
     /// Stops the template changing and makes it copyable. PostgreSQL refuses connections to it from here on, so no
     /// session can block a copy; SQL Server backs it up once, to restore from.
     /// </summary>
-    public async Task SealTemplateAsync(string template, CancellationToken cancellationToken)
-    {
-        ClearPools();
-        await ExecuteAsync(Provider switch
+    public Task SealTemplateAsync(string template, CancellationToken cancellationToken) =>
+        ExecuteAsync(Provider switch
         {
             TestDatabaseProvider.PostgreSql => $"""
                 ALTER DATABASE {template} WITH ALLOW_CONNECTIONS false IS_TEMPLATE true;
@@ -54,7 +70,6 @@ internal sealed class TestDatabaseServer(TestDatabaseProvider provider, string s
             TestDatabaseProvider.SqlServer => $"BACKUP DATABASE [{template}] TO DISK = N'{BackupPath(template)}' WITH INIT, COPY_ONLY",
             _ => throw Unsupported(Provider),
         }, cancellationToken);
-    }
 
     public async Task CopyTemplateAsync(string template, string name, CancellationToken cancellationToken)
     {
@@ -89,11 +104,13 @@ internal sealed class TestDatabaseServer(TestDatabaseProvider provider, string s
             cancellationToken);
     }
 
-    /// <summary>Drops the database, ending every session on it first: a pooled connection would hold it open.</summary>
-    public async Task DropAsync(string name, CancellationToken cancellationToken)
-    {
-        ClearPools();
-        await ExecuteAsync(Provider switch
+    /// <summary>
+    /// Drops the database, ending every session on it first, pooled ones included. Pools are not cleared: clearing is
+    /// process-wide and would cost other fixtures' hosts their connections, and a pooled connection to a dropped database
+    /// is never asked for again.
+    /// </summary>
+    public Task DropAsync(string name, CancellationToken cancellationToken) =>
+        ExecuteAsync(Provider switch
         {
             TestDatabaseProvider.PostgreSql => $"DROP DATABASE IF EXISTS {name} WITH (FORCE)",
             TestDatabaseProvider.SqlServer => $"""
@@ -105,7 +122,6 @@ internal sealed class TestDatabaseServer(TestDatabaseProvider provider, string s
                 """,
             _ => throw Unsupported(Provider),
         }, cancellationToken);
-    }
 
     /// <summary>The fixture and template databases an earlier run on a reused container left behind.</summary>
     public Task<List<string>> LeftoversAsync(CancellationToken cancellationToken) =>
@@ -130,21 +146,6 @@ internal sealed class TestDatabaseServer(TestDatabaseProvider provider, string s
     private static string Escaped(string likePattern) => likePattern.Replace("_", "[_]", StringComparison.Ordinal);
 
     private static string BackupPath(string template) => $"{SqlServerBackupFolder}/{template}.bak";
-
-    private void ClearPools()
-    {
-        switch (Provider)
-        {
-            case TestDatabaseProvider.PostgreSql:
-                NpgsqlConnection.ClearAllPools();
-                break;
-            case TestDatabaseProvider.SqlServer:
-                SqlConnection.ClearAllPools();
-                break;
-            default:
-                throw Unsupported(Provider);
-        }
-    }
 
     private async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
     {

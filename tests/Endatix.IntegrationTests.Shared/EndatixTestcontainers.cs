@@ -28,6 +28,10 @@ internal static class EndatixTestcontainers
     /// <summary>SQL Server 2025+ is required for native <c>json</c> columns used by AppDbContext migrations.</summary>
     private const string DefaultSqlServerImage = "mcr.microsoft.com/mssql/server:2025-latest";
 
+    /// <summary>How old a fixture or template database on a reused container must be before a new run drops it.</summary>
+    private static readonly TimeSpan LeftoverAge = TimeSpan.FromHours(12);
+
+    // Also serializes the copies: PostgreSQL can refuse to copy a template while another copy of it is being made (55006).
     private static readonly SemaphoreSlim _sync = new(1, 1);
 
     private static INetwork? _network;
@@ -85,14 +89,24 @@ internal static class EndatixTestcontainers
         CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
-        var template = await EnsureTemplateAsync(server, containerSettings, cancellationToken);
+        var template = await EnsureTemplate(server, containerSettings).WaitAsync(cancellationToken);
         var templateWait = Stopwatch.GetElapsedTime(started);
 
-        var name = TestDatabaseServer.NewName(TestDatabaseServer.FixturePrefix);
+        var name = TestDatabaseServer.NewName(TestDatabaseServer.FixturePrefix, DateTime.UtcNow);
         started = Stopwatch.GetTimestamp();
-        await (template is null
-            ? server.CreateEmptyAsync(name, cancellationToken)
-            : server.CopyTemplateAsync(template, name, cancellationToken));
+        try
+        {
+            await (template is null
+                ? server.CreateEmptyAsync(name, cancellationToken)
+                : server.CopyTemplateAsync(template, name, cancellationToken));
+        }
+        catch
+        {
+            // A restore can fail after it made the database; no fixture holds the name to drop it later.
+            await server.DropAsync(name, CancellationToken.None);
+            throw;
+        }
+
         ReportSetup(
             $"{server.Provider} {name}: {(template is null ? "created empty" : "copied from template")} " +
             $"in {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0} ms (template wait {templateWait.TotalMilliseconds:F0} ms)");
@@ -111,12 +125,12 @@ internal static class EndatixTestcontainers
         new TestDatabaseServer(session.Provider, session.ServerConnectionString)
             .DropAsync(session.DatabaseName, CancellationToken.None);
 
-    // Built once per process: a failed build is not retried, so every later fixture fails with the same error.
-    private static Task<string?> EnsureTemplateAsync(
+    // Built once per process, on no caller's token: one caller's cancellation would otherwise fail every later fixture.
+    // A failed build is not retried, so every later fixture fails with the same error.
+    private static Task<string?> EnsureTemplate(
         TestDatabaseServer server,
-        EndatixTestcontainersSettings containerSettings,
-        CancellationToken cancellationToken) =>
-        _template ??= BuildTemplateAsync(server, containerSettings.ReuseContainers, cancellationToken);
+        EndatixTestcontainersSettings containerSettings) =>
+        _template ??= BuildTemplateAsync(server, containerSettings.ReuseContainers, CancellationToken.None);
 
     private static async Task<string?> BuildTemplateAsync(
         TestDatabaseServer server,
@@ -134,7 +148,7 @@ internal static class EndatixTestcontainers
             return null;
         }
 
-        var template = TestDatabaseServer.NewName(TestDatabaseServer.TemplatePrefix);
+        var template = TestDatabaseServer.NewName(TestDatabaseServer.TemplatePrefix, DateTime.UtcNow);
         var started = Stopwatch.GetTimestamp();
         await server.CreateEmptyAsync(template, cancellationToken);
         await migrate(server.ConnectionStringFor(template), server.Provider, cancellationToken);
@@ -147,12 +161,17 @@ internal static class EndatixTestcontainers
         return template;
     }
 
+    // Only databases old enough to belong to a run that has ended: another test process may share a reused container.
     private static async Task DropLeftoversAsync(TestDatabaseServer server, CancellationToken cancellationToken)
     {
+        var cutoff = DateTime.UtcNow - LeftoverAge;
         foreach (var leftover in await server.LeftoversAsync(cancellationToken))
         {
-            await server.UnmarkTemplateAsync(leftover, cancellationToken);
-            await server.DropAsync(leftover, cancellationToken);
+            if (TestDatabaseServer.MadeBefore(leftover, cutoff))
+            {
+                await server.UnmarkTemplateAsync(leftover, cancellationToken);
+                await server.DropAsync(leftover, cancellationToken);
+            }
         }
     }
 
