@@ -381,20 +381,26 @@ jobs:
       - name: 🔒 Check the scanner state holds no token
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
-          if grep -rqF "$ENDATIX_API_REPO_SONAR_TOKEN" .sonarqube; then
-            echo "::error::The SonarCloud token is in .sonarqube; not uploading it."
+          if grep -rqF "$ENDATIX_API_REPO_SONAR_TOKEN" .sonarqube "$HOME/.sonar"; then
+            echo "::error::The SonarCloud token is in the scanner state; not uploading it."
             exit 1
           fi
-          du -sh .sonarqube
-          find .sonarqube -maxdepth 2 | head -40
-          sed -E 's/(Value=")[^"]*(")/\1…\2/' .sonarqube/conf/SonarQubeAnalysisConfig.xml | grep -iE 'path|dir|java|engine' || true
+      # begin records absolute paths outside .sonarqube too: the JRE and scanner engine it
+      # downloaded to ~/.sonar/cache, and the sources the build generated under obj/. A tar
+      # keeps them at those paths and keeps the JRE's execute bits, which artifacts drop.
+      - name: 📦 Pack the scanner state
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: |
+          find "$PWD" -path '*/obj/*' -name '*.cs' > "$RUNNER_TEMP/obj-sources.txt"
+          tar -cPzf sonar-scanner-state.tgz "$PWD/.sonarqube" "$HOME/.sonar/cache" -T "$RUNNER_TEMP/obj-sources.txt"
+          ls -lh sonar-scanner-state.tgz
       - name: 📤 Upload the scanner state
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sonar-scanner-state
-          path: .sonarqube/
-          include-hidden-files: true # .sonarqube is a dot-directory
+          path: sonar-scanner-state.tgz
+          compression-level: 0 # already gzipped
           if-no-files-found: error
           retention-days: 7 # long enough to re-run the sonar job
 
@@ -444,7 +450,10 @@ jobs:
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sonar-scanner-state
-          path: .sonarqube
+          path: ${{ runner.temp }}
+      - name: 📦 Unpack the scanner state
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: tar -xPzf "$RUNNER_TEMP/sonar-scanner-state.tgz"
       - name: 🔧 Install SonarScanner
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: dotnet tool install --global dotnet-sonarscanner --version 11.3.0 # the version that ran begin
