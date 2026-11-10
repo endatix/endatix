@@ -55,7 +55,7 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
         // Assert
         var schema = await _world.ReadSchemaAsync(form.FormId);
         ColumnKeys(schema).Should().Contain(["q0", "qa", "ParticipantIdentifier", "participant_city"]);
-        schema.Codebook.Should().Contain("\"participant_city\"").And.Contain("\"personalization\"");
+        schema.Codebook.Should().Contain("\"participant_city\"").And.Contain("\"exportShape\": \"participant\"");
     }
 
     [Fact]

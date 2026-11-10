@@ -41,7 +41,7 @@ internal static partial class FormSchemaCodebookBuilder
             FormSchemaColumnKind.Calculated =>
                 new(FormSchemaCodebookPropertyNames.CalculatedValueSurveyJsType, column.Key),
             FormSchemaColumnKind.Personalization =>
-                new(FormSchemaCodebookPropertyNames.PersonalizationSurveyJsType, column.Label, column.DataType),
+                new(FormSchemaCodebookPropertyNames.ParticipantSurveyJsType, column.Label, column.DataType),
             FormSchemaColumnKind.SubmitterProfile =>
                 new(FormSchemaCodebookPropertyNames.SubmitterProfileSurveyJsType, column.Label, column.DataType),
             _ => throw new ArgumentOutOfRangeException(nameof(column), column.Kind, "A question owns this column."),

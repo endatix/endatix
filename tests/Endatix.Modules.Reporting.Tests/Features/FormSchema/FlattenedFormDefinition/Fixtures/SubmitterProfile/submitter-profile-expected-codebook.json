@@ -32,8 +32,8 @@
   "columns": {
     "ParticipantIdentifier": {
       "parentKey": "ParticipantIdentifier",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "Participant identifier"
@@ -41,8 +41,8 @@
     },
     "participant_city": {
       "parentKey": "participant_city",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "City"

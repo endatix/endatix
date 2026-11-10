@@ -752,8 +752,8 @@
   "columns": {
     "ParticipantIdentifier": {
       "parentKey": "ParticipantIdentifier",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "Participant identifier"
@@ -761,8 +761,8 @@
     },
     "participant_age": {
       "parentKey": "participant_age",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "number",
       "title": {
         "default": "Age"
@@ -770,8 +770,8 @@
     },
     "participant_full_name": {
       "parentKey": "participant_full_name",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "Full name"
@@ -779,8 +779,8 @@
     },
     "participant_hometown": {
       "parentKey": "participant_hometown",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "Hometown"
@@ -788,8 +788,8 @@
     },
     "participant_joined": {
       "parentKey": "participant_joined",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "date",
       "title": {
         "default": "Joined"
@@ -797,8 +797,8 @@
     },
     "participant_last_seen": {
       "parentKey": "participant_last_seen",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "date_time",
       "title": {
         "default": "Last seen"
@@ -806,8 +806,8 @@
     },
     "participant_panel_member": {
       "parentKey": "participant_panel_member",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "boolean",
       "title": {
         "default": "Panel member"
@@ -815,8 +815,8 @@
     },
     "participant_tags": {
       "parentKey": "participant_tags",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "multiple_choice",
       "title": {
         "default": "Tags"

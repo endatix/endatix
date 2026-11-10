@@ -67,7 +67,7 @@ public sealed class PersonalizationOrderTests
         SortedTypes(pipeline).Should().Equal(SortedTypes(expected));
         var keys = pipeline.ExportKeys();
         keys.Should().ContainInOrder("city", "consent", "age", "ParticipantIdentifier", "participant_age");
-        CodebookShape(pipeline, "participant_age").Should().Be("personalization");
+        CodebookShape(pipeline, "participant_age").Should().Be("participant");
         CodebookShape(pipeline, "age").Should().Be("scalar");
     }
 

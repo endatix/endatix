@@ -97,24 +97,41 @@ public sealed partial class AudienceDirectoryFlowTests
         using var codebook = JsonDocument.Parse(await ExportAsync(api, formId, "codebook"));
 
         // Assert
-        Assert.Contains("audience_full_name", AudienceHeaders(csvBefore, "audience_"));
-        Assert.Contains("participant_age", AudienceHeaders(csvBefore));
-        Assert.Contains("AQ-000002-01", csvBefore);
-        Assert.Equal(
-            "participant_age",
-            codebookBefore.RootElement.GetProperty("participants").GetProperty("variables").GetProperty("age").GetString());
+        AssertCanaryExportBeforeTheRebuild(csvBefore, codebookBefore.RootElement);
+        AssertParticipantExport(csvAfter, codebook.RootElement);
+    }
+
+    // A response flattened onto the canary schema fills participant_* columns; the participants block names no
+    // audience_ key.
+    private static void AssertCanaryExportBeforeTheRebuild(string csv, JsonElement codebook)
+    {
+        Assert.Contains("audience_full_name", AudienceHeaders(csv, "audience_"));
+        Assert.Contains("participant_age", AudienceHeaders(csv));
+        Assert.Contains("AQ-000002-01", csv);
+        var variables = codebook.GetProperty("participants").GetProperty("variables");
+        Assert.Equal("participant_age", variables.GetProperty("age").GetString());
         Assert.DoesNotContain(
-            codebookBefore.RootElement.GetProperty("participants").GetProperty("variables").EnumerateObject(),
+            variables.EnumerateObject(),
             variable => variable.Value.GetString()!.StartsWith("audience_", StringComparison.Ordinal));
+    }
+
+    private static void AssertParticipantExport(string csv, JsonElement codebook)
+    {
         Assert.Equal(
             ["ParticipantIdentifier", "participant_full_name", "participant_age", "participant_hometown", "participant_panel_member", "participant_joined", "participant_last_seen", "participant_tags"],
-            AudienceHeaders(csvAfter));
-        Assert.Empty(AudienceHeaders(csvAfter, "audience"));
-        Assert.Contains("John Smith", csvAfter);
-        var root = codebook.RootElement;
-        Assert.Equal("ParticipantIdentifier", root.GetProperty("participants").GetProperty("identifier").GetString());
-        Assert.False(root.TryGetProperty("personalization", out _));
-        Assert.DoesNotContain(root.GetProperty("columns").EnumerateObject(), column => column.Name.StartsWith("audience", StringComparison.OrdinalIgnoreCase));
+            AudienceHeaders(csv));
+        Assert.Empty(AudienceHeaders(csv, "audience"));
+        Assert.Contains("John Smith", csv);
+        var block = codebook.GetProperty("participants");
+        Assert.Equal("ParticipantIdentifier", block.GetProperty("identifier").GetString());
+        Assert.Equal("Participants", block.GetProperty("title").GetProperty("default").GetString());
+        Assert.False(codebook.TryGetProperty("personalization", out _));
+        var hometown = codebook.GetProperty("columns").GetProperty("participant_hometown");
+        Assert.Equal("participant", hometown.GetProperty("surveyJsType").GetString());
+        Assert.Equal("participant", hometown.GetProperty("exportShape").GetString());
+        Assert.DoesNotContain(
+            codebook.GetProperty("columns").EnumerateObject(),
+            column => column.Name.StartsWith("audience", StringComparison.OrdinalIgnoreCase));
     }
 
     // Rewrites the stored schema and flattened rows to the keys a canary before #1282 wrote.
@@ -152,7 +169,8 @@ public sealed partial class AudienceDirectoryFlowTests
 
     private static string AsInCanary(string json) =>
         json.Replace("ParticipantIdentifier", "AudienceIdentifier", StringComparison.Ordinal)
-            .Replace("participant_", "audience_", StringComparison.Ordinal);
+            .Replace("participant_", "audience_", StringComparison.Ordinal)
+            .Replace("\"participant\"", "\"personalization\"", StringComparison.Ordinal);
 
     private static string PersonalizedDefinition() =>
         File.ReadAllText(Path.Combine(

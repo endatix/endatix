@@ -114,11 +114,11 @@ If a form was prepared before this layout existed, its panels become folders nam
 
 ### Participant Columns
 
-On a personalized form, every export ends each row with the participant's values: CSV, Excel, JSON, and the Crunch.io CSV. The first of these columns is `ParticipantIdentifier`, labeled **Participant identifier**, and each property follows as `participant_<variable>`, such as `participant_city`. Both codebooks describe the same columns. The Endatix codebook lists them in a `participants` block, and the Shoji codebook puts them in the **Participant variables** folder.
+On a personalized form, every export ends each row with the participant's values: CSV, Excel, JSON, and the Crunch.io CSV. The first of these columns is `ParticipantIdentifier`, labeled **Participant identifier**, and each property follows as `participant_<variable>`, such as `participant_city`. Both codebooks describe the same columns. The Endatix codebook lists them in a `participants` block titled **Participants**, and marks each one with the type `participant`. The Shoji codebook puts them in the **Participant variables** folder.
 
 If a question's column key is the same as a participant column's, the question keeps the key and the participant column is left out.
 
-Pre-release (canary) builds from 0.8.1-canary.11 named these columns `AudienceIdentifier` and `audience_<variable>`, and called the codebook block `personalization`. A form prepared on one of those builds keeps the old columns until you run **Rebuild reporting data…** with **Full recompile**. Afterwards its exports show only the participant columns. If a Crunch.io dataset was loaded from such an export, alias its variables to the new names.
+Pre-release (canary) builds from 0.8.1-canary.11 named these columns `AudienceIdentifier` and `audience_<variable>`, and called the codebook block and each column's type `personalization`. A form prepared on one of those builds keeps the old columns until you run **Rebuild reporting data…** with **Full recompile**. Afterwards its exports show only the participant columns. If a Crunch.io dataset was loaded from such an export, alias its variables to the new names.
 
 Each format also has **Column naming** and a **key separator** (under **Advanced**) that control how nested question keys — a choice within a multi-select question, for example — are joined into one column header, such as `question__choice`. As a regular user exporting submissions, you don't need to touch any of this. It's here so you know who to ask if a format you need isn't in the list, or if you're the one setting up a new workspace.
 

@@ -18,7 +18,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 internal static class PersonalizationCodebook
 {
     public const string BlockPropertyName = FormSchemaCodebookPropertyNames.Participants;
-    public const string BlockTitle = "Personalized";
+    public const string BlockTitle = "Participants";
     private const string IdentifierPropertyName = "identifier";
     private const string VariablesPropertyName = "variables";
 
@@ -104,7 +104,7 @@ internal static class PersonalizationCodebook
             if (columns?.TryGetPropertyValue(column.Key, out var entry) == true &&
                 entry is JsonObject entryObj &&
                 entryObj.TryGetPropertyValue(FormSchemaCodebookPropertyNames.SurveyJsType, out var typeNode) &&
-                typeNode?.GetValue<string>() == FormSchemaCodebookPropertyNames.PersonalizationSurveyJsType)
+                typeNode?.GetValue<string>() == FormSchemaCodebookPropertyNames.ParticipantSurveyJsType)
             {
                 entryObj[SurveyJsPropertyNames.Title] = new JsonObject { [FormSchemaCodebookPropertyNames.Default] = column.Label };
             }

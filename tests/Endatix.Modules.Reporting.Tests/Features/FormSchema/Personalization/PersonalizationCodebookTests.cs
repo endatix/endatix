@@ -47,7 +47,7 @@ public sealed class PersonalizationCodebookTests
     }
 
     [Fact]
-    public void Overlay_PersonalizedSchema_AddsThePersonalizationBlock()
+    public void Overlay_PersonalizedSchema_AddsTheParticipantsBlock()
     {
         // Arrange
         var compiled = Personalized("city", "age");
@@ -61,7 +61,7 @@ public sealed class PersonalizationCodebookTests
         // Assert
         using var document = JsonDocument.Parse(codebook);
         var block = document.RootElement.GetProperty("participants");
-        block.GetProperty("title").GetProperty("default").GetString().Should().Be("Personalized");
+        block.GetProperty("title").GetProperty("default").GetString().Should().Be("Participants");
         block.GetProperty("identifier").GetString().Should().Be("ParticipantIdentifier");
         block.GetProperty("variables").EnumerateObject().Select(variable => (variable.Name, variable.Value.GetString()))
             .Should().Equal(("city", "participant_city"), ("age", "participant_age"));
