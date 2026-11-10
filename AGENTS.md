@@ -194,7 +194,7 @@ HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), in
 Every `upload-artifact` in `.github/workflows/` declares, in a comment next to its `retention-days`, whether it is internal or emitted:
 
 - **Internal**: only jobs of the same run read it, for example the `coverage-*` reports SonarCloud reads. Keep it 1–2 days, long enough to re-run a failed consumer, and delete it once the consumer succeeds, as `coverage-cleanup` does. Never delete it on a failed consumer. Do not name a new artifact `coverage-*`, because sonar downloads every artifact that matches that pattern.
-- **Emitted**: something outside the run reads it: releases, performance or load-test reports, and the `test-totals-*` files `ci-progress.py` uses to track CI speed (90 days). Give it a retention that fits that reader, and keep it small: upload a summary rather than raw output where a summary is enough.
+- **Emitted**: something outside the run reads it: releases, performance or load-test reports, and the `test-totals-*` files the CI-speed trend (#1550) reads across runs (90 days). Give it a retention that fits that reader, and keep it small: upload a summary rather than raw output where a summary is enough.
 
 ## Related
 
