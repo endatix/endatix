@@ -439,13 +439,22 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           ids=$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/artifacts?per_page=100" \
-            -q '.artifacts[] | select(.name | startswith("coverage-")) | .id')
+            -q '.artifacts[] | select(.name | startswith("coverage-")) | .id') \
+            || { echo "::warning::Could not list this run's artifacts; coverage expires in 2 days."; exit 0; }
           if [ -z "$ids" ]; then
             echo "::warning::No coverage artifacts found on this run; nothing deleted."
             exit 0
           fi
-          for id in $ids; do gh api -X DELETE "repos/$REPO/actions/artifacts/$id"; done
-          echo "Deleted $(printf '%s\n' "$ids" | wc -l) coverage artifacts." | tee -a "$GITHUB_STEP_SUMMARY"
+          # Housekeeping only: a failed delete warns, and the 2-day retention removes it anyway.
+          deleted=0
+          for id in $ids; do
+            if gh api -X DELETE "repos/$REPO/actions/artifacts/$id"; then
+              deleted=$((deleted + 1))
+            else
+              echo "::warning::Could not delete artifact $id; it expires in 2 days."
+            fi
+          done
+          echo "Deleted $deleted of $(printf '%s\n' "$ids" | wc -l) coverage artifacts." | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. docker-image makes the shared workflow log into GHCR and

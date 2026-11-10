@@ -40,7 +40,11 @@ export function summarizeReports(reports) {
 }
 
 // `Ns.Class.Method(arg: "a.b")` → `Ns.Class`: the arguments go first, since they may hold dots.
-const classOf = (testName) => testName.split('(')[0].split('.').slice(0, -1).join('.');
+// A name with no dot (a custom DisplayName) is its own class.
+const classOf = (testName) => {
+  const parts = String(testName).split('(')[0].split('.');
+  return parts.length > 1 ? parts.slice(0, -1).join('.') : parts[0];
+};
 
 // The few numbers the CI-speed trend reads (ci-progress.py), kept far longer than the raw reports.
 export function totalsOf({ tests }) {

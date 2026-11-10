@@ -70,3 +70,28 @@ test('totalsOf sums test time per class, counts slow tests, and drops theory arg
     classes: { 'Ns.Slow': 5_100, 'Other.Quick': 4_999 },
   });
 });
+
+test('totalsOf keeps a dotless display name as its own class and counts 5 s exactly as slow', () => {
+  const summary = summarizeReports([
+    report('A.Tests.dll', [
+      { name: 'Custom display name', status: 'passed', duration: 5_000 },
+      { name: 'Ns.Fast.Run', status: 'passed', duration: 4_999 },
+    ]),
+  ]);
+
+  assert.deepEqual(totalsOf(summary), {
+    tests: 2,
+    totalMs: 9_999,
+    slowTests: 1,
+    classes: { 'Custom display name': 5_000, 'Ns.Fast': 4_999 },
+  });
+});
+
+test('totalsOf of no tests is all zeros', () => {
+  assert.deepEqual(totalsOf(summarizeReports([report('A.Tests.dll', [])])), {
+    tests: 0,
+    totalMs: 0,
+    slowTests: 0,
+    classes: {},
+  });
+});
