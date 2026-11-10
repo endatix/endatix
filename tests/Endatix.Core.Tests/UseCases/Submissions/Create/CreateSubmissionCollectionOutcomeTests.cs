@@ -45,11 +45,13 @@ public class CreateSubmissionCollectionOutcomeTests
             new FormSubmissionsLockStub().Lock);
     }
 
-    [Fact]
-    public async Task Handle_QuotaFullOutcome_ReturnsServerOnlyMessageAndAddsNothing()
+    [Theory]
+    [InlineData(CollectionStatusCodes.QuotaFull)]
+    [InlineData(CollectionStatusCodes.Cancelled)]
+    public async Task Handle_ServerOnlyOutcome_ReturnsServerOnlyMessageAndAddsNothing(string outcome)
     {
         // Act
-        var result = await _handler.Handle(Command(CollectionStatusCodes.QuotaFull), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(Command(outcome), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);

@@ -30,6 +30,8 @@ public class CollectionStatusCatalogTests
 
     [Theory]
     [InlineData(CollectionStatusCodes.QuotaFull, true)]
+    [InlineData(CollectionStatusCodes.Cancelled, true)]
+    [InlineData(" QUOTA_FULL ", true)]
     [InlineData(CollectionStatusCodes.ScreenOut, false)]
     [InlineData(HostCollectionStatuses.PanelOverquota, false)]
     [InlineData("not_registered", false)]

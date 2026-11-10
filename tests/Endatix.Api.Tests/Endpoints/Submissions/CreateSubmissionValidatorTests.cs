@@ -1,10 +1,11 @@
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
-public sealed class CreateSubmissionValidatorTests
+public class CreateSubmissionValidatorTests
 {
     private readonly CreateSubmissionValidator _validator = new();
 
@@ -30,17 +31,19 @@ public sealed class CreateSubmissionValidatorTests
         result.ShouldNotHaveValidationErrorFor(x => x.CollectionOutcome);
     }
 
-    [Fact]
-    public void Validate_QuotaFullCollectionOutcome_FailsAsServerOnly()
+    [Theory]
+    [InlineData(CollectionStatusCodes.QuotaFull)]
+    [InlineData(CollectionStatusCodes.Cancelled)]
+    public void Validate_ServerOnlyCollectionOutcome_FailsAsServerOnly(string collectionOutcome)
     {
         // Arrange
-        var request = Request(CollectionStatusCodes.QuotaFull);
+        var request = Request(collectionOutcome);
 
         // Act
         var result = _validator.TestValidate(request);
 
         // Assert
         result.ShouldHaveValidationErrorFor(x => x.CollectionOutcome)
-            .WithErrorMessage("'quota_full' is set by the server; a respondent save can't set it.");
+            .WithErrorMessage(CollectionOutcomes.SERVER_ONLY_MESSAGE);
     }
 }

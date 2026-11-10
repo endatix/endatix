@@ -5,8 +5,8 @@ namespace Endatix.Core.UseCases.Submissions;
 
 /// <summary>
 /// The collection outcomes a save may request: a registered closed-phase status (<see cref="CollectionStatusCatalog"/>),
-/// e.g. <c>screen_out</c> or a host code, that only the server does not set (<see cref="CollectionStatusCatalog.IsServerOnly"/>).
-/// A normal save omits it.
+/// e.g. <c>screen_out</c> or a host code, other than a status only the server sets
+/// (<see cref="CollectionStatusCatalog.IsServerOnly"/>). A normal save omits it.
 /// </summary>
 public static class CollectionOutcomes
 {
@@ -19,7 +19,7 @@ public static class CollectionOutcomes
     /// <summary>Returned when a save names an outcome that is not a registered closed status.</summary>
     public const string UNSUPPORTED_MESSAGE = "The collection outcome is not a registered closed status.";
 
-    /// <summary>Returned when a save names an outcome only the server sets, e.g. <c>quota_full</c>.</summary>
+    /// <summary>Returned when a save names an outcome only the server sets, e.g. <c>quota_full</c> or <c>cancelled</c>.</summary>
     public const string SERVER_ONLY_MESSAGE = "This collection outcome is set by the server; a respondent save can't set it.";
 
     public static bool IsScreenOut(string? outcome) =>

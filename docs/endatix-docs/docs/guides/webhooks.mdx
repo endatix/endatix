@@ -254,7 +254,7 @@ To test your webhooks:
   - Can be used to process form responses, trigger workflows, or update external systems
 
 - `SubmissionClosed`: Triggered once when a submission ends in a closed outcome without completing: `screen_out`, `quota_full`, `cancelled`, or a closed code your host registered. `isComplete` stays false
-  - Endpoints that can trigger the event: the same public create and token update calls, with `collectionOutcome` set to a closed status such as `screen_out`. A respondent save can't send `quota_full`; only the server sets it
+  - Endpoints that can trigger the event: the same public create and token update calls, with `collectionOutcome` set to a closed status such as `screen_out`. A respondent save can't send `quota_full` or `cancelled`; only the server sets them
   - The payload carries `collectionStatus` and `previousCollectionStatus`, each as `{ "code": "screen_out", "phase": "closed" }`. It carries no answers (`jsonData`)
   - A closed submission can't move again, so it sends this event at most once
   - `expired` and `abandoned` are lapsed statuses, not closed ones: the submission can still resume, and they send no webhook

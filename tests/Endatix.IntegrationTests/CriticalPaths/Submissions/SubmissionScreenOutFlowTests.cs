@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -108,8 +109,10 @@ public sealed class SubmissionScreenOutFlowTests
         }
     }
 
-    [Fact]
-    public async Task Quota_full_by_token_is_refused_because_only_the_server_sets_it()
+    [Theory]
+    [InlineData(CollectionStatusCodes.QuotaFull)]
+    [InlineData(CollectionStatusCodes.Cancelled)]
+    public async Task Server_only_outcome_by_token_is_refused(string outcome)
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -130,13 +133,13 @@ public sealed class SubmissionScreenOutFlowTests
         // Act
         var response = await client.PatchAsJsonAsync(
             $"/api/forms/{formId}/submissions/by-token/{created.Token}",
-            new { jsonData = """{"age":"under_18"}""", currentPage = 0, collectionOutcome = "quota_full" },
+            new { jsonData = """{"age":"under_18"}""", currentPage = 0, collectionOutcome = outcome },
             cancellationToken);
 
         // Assert — a 400 that names the server-only status, and the stored row is unchanged
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        Assert.Contains("'quota_full' is set by the server; a respondent save can't set it.", body, StringComparison.Ordinal);
+        Assert.Contains(CollectionOutcomes.SERVER_ONLY_MESSAGE, body, StringComparison.Ordinal);
 
         var submissionId = long.Parse(created.Id);
         await using var scope = world.Services.CreateAsyncScope();

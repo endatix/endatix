@@ -334,13 +334,15 @@ public class PartialUpdateSubmissionHandlerTests
         await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task Handle_QuotaFullOutcome_ReturnsServerOnlyMessageAndSavesNothing()
+    [Theory]
+    [InlineData(CollectionStatusCodes.QuotaFull)]
+    [InlineData(CollectionStatusCodes.Cancelled)]
+    public async Task Handle_ServerOnlyOutcome_ReturnsServerOnlyMessageAndSavesNothing(string outcome)
     {
         // Arrange
         var submission = StoredSubmission(isComplete: false);
         var statusBefore = submission.CollectionStatus.Code;
-        var request = new PartialUpdateSubmissionCommand(1, 2, false, 1, "{ \"age\": \"12\" }", null, CollectionStatusCodes.QuotaFull);
+        var request = new PartialUpdateSubmissionCommand(1, 2, false, 1, "{ \"age\": \"12\" }", null, outcome);
         _repository.SingleOrDefaultAsync(
             Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
             Arg.Any<CancellationToken>())
