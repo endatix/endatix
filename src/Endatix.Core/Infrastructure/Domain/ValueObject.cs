@@ -82,25 +82,9 @@ public abstract class ValueObject : IComparable, IComparable<ValueObject>
         return CompareTo(other as object);
     }
 
-    public static bool operator <(ValueObject? left, ValueObject? right)
-    {
-        if (left is null)
-        {
-            return right is not null;
-        }
+    public static bool operator <(ValueObject? left, ValueObject? right) => ComparisonOperators.LessThan(left, right);
 
-        return left.CompareTo(right) < 0;
-    }
-
-    public static bool operator <=(ValueObject? left, ValueObject? right)
-    {
-        if (left is null)
-        {
-            return true;
-        }
-
-        return left.CompareTo(right) <= 0;
-    }
+    public static bool operator <=(ValueObject? left, ValueObject? right) => ComparisonOperators.LessThanOrEqual(left, right);
 
     public static bool operator >(ValueObject? left, ValueObject? right) => !(left <= right);
 

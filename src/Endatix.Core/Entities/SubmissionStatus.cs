@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
@@ -83,25 +84,9 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
 
-    public static bool operator <(SubmissionStatus? left, SubmissionStatus? right)
-    {
-        if (left is null)
-        {
-            return right is not null;
-        }
+    public static bool operator <(SubmissionStatus? left, SubmissionStatus? right) => ComparisonOperators.LessThan(left, right);
 
-        return left.CompareTo(right) < 0;
-    }
-
-    public static bool operator <=(SubmissionStatus? left, SubmissionStatus? right)
-    {
-        if (left is null)
-        {
-            return true;
-        }
-
-        return left.CompareTo(right) <= 0;
-    }
+    public static bool operator <=(SubmissionStatus? left, SubmissionStatus? right) => ComparisonOperators.LessThanOrEqual(left, right);
 
     public static bool operator >(SubmissionStatus? left, SubmissionStatus? right) => !(left <= right);
 

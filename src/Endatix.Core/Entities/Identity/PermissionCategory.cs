@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities.Identity;
 
@@ -107,25 +108,9 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
 
-    public static bool operator <(PermissionCategory? left, PermissionCategory? right)
-    {
-        if (left is null)
-        {
-            return right is not null;
-        }
+    public static bool operator <(PermissionCategory? left, PermissionCategory? right) => ComparisonOperators.LessThan(left, right);
 
-        return left.CompareTo(right) < 0;
-    }
-
-    public static bool operator <=(PermissionCategory? left, PermissionCategory? right)
-    {
-        if (left is null)
-        {
-            return true;
-        }
-
-        return left.CompareTo(right) <= 0;
-    }
+    public static bool operator <=(PermissionCategory? left, PermissionCategory? right) => ComparisonOperators.LessThanOrEqual(left, right);
 
     public static bool operator >(PermissionCategory? left, PermissionCategory? right) => !(left <= right);
 

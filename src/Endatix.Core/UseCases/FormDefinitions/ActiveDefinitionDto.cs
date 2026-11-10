@@ -47,7 +47,7 @@ public class ActiveDefinitionDto
 
     /// <summary>
     /// The JSON schema data for the form definition.
-    /// Defaults to the system's default form definition JSON if not specified.
+    /// Copied from the form definition when the DTO is created.
     /// </summary>
     public string JsonData { get; set; }
 
