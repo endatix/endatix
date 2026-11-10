@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
@@ -10,7 +11,8 @@ using Testcontainers.PostgreSql;
 namespace Endatix.IntegrationTests.Shared;
 
 /// <summary>
-/// Shared Testcontainers session: one Docker network and one database container per test process.
+/// Shared Testcontainers session: one Docker network and one database container per test process, one template
+/// database on it (see <see cref="IntegrationDatabaseTemplate"/>), and a database of its own for every fixture.
 /// Ryuk removes resources when the test host exits unless <c>ENDATIX_TEST_REUSE_CONTAINERS</c> is enabled.
 /// </summary>
 internal static class EndatixTestcontainers
@@ -31,7 +33,8 @@ internal static class EndatixTestcontainers
     private static INetwork? _network;
     private static IContainer? _databaseContainer;
     private static TestDatabaseProvider _provider;
-    private static string _connectionString = string.Empty;
+    private static TestDatabaseServer? _server;
+    private static Task<string?>? _template;
     private static string? _runId;
     private static bool _databaseStarted;
     private static IntegrationDatabaseSettings? _activeDatabaseSettings;
@@ -45,6 +48,10 @@ internal static class EndatixTestcontainers
     /// </summary>
     public static Guid ResourceReaperSessionId { get; private set; }
 
+    /// <summary>
+    /// Starts the provider's container on first use, builds the template database once, and creates a database of the
+    /// caller's own from it.
+    /// </summary>
     public static async Task<EndatixTestcontainersSession> AcquireDatabaseAsync(
         IntegrationDatabaseSettings settings,
         CancellationToken cancellationToken = default)
@@ -64,17 +71,94 @@ internal static class EndatixTestcontainers
                 EnsureActiveDatabaseSettingsMatch(settings);
             }
 
-            return new EndatixTestcontainersSession(
-                _connectionString,
-                _provider,
-                RunId,
-                ResourceReaperSessionId);
+            return await CreateFixtureDatabaseAsync(_server!, settings.ContainerSettings, cancellationToken);
         }
         finally
         {
             _sync.Release();
         }
     }
+
+    private static async Task<EndatixTestcontainersSession> CreateFixtureDatabaseAsync(
+        TestDatabaseServer server,
+        EndatixTestcontainersSettings containerSettings,
+        CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        var template = await EnsureTemplateAsync(server, containerSettings, cancellationToken);
+        var templateWait = Stopwatch.GetElapsedTime(started);
+
+        var name = TestDatabaseServer.NewName(TestDatabaseServer.FixturePrefix);
+        started = Stopwatch.GetTimestamp();
+        await (template is null
+            ? server.CreateEmptyAsync(name, cancellationToken)
+            : server.CopyTemplateAsync(template, name, cancellationToken));
+        ReportSetup(
+            $"{server.Provider} {name}: {(template is null ? "created empty" : "copied from template")} " +
+            $"in {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0} ms (template wait {templateWait.TotalMilliseconds:F0} ms)");
+
+        return new EndatixTestcontainersSession(
+            name,
+            server.ConnectionStringFor(name),
+            server.ServerConnectionString,
+            server.Provider,
+            RunId,
+            ResourceReaperSessionId);
+    }
+
+    /// <summary>Drops the caller's database; the container stays alive until the test process exits (Ryuk cleanup).</summary>
+    public static Task ReleaseDatabaseAsync(EndatixTestcontainersSession session) =>
+        new TestDatabaseServer(session.Provider, session.ServerConnectionString)
+            .DropAsync(session.DatabaseName, CancellationToken.None);
+
+    // Built once per process: a failed build is not retried, so every later fixture fails with the same error.
+    private static Task<string?> EnsureTemplateAsync(
+        TestDatabaseServer server,
+        EndatixTestcontainersSettings containerSettings,
+        CancellationToken cancellationToken) =>
+        _template ??= BuildTemplateAsync(server, containerSettings.ReuseContainers, cancellationToken);
+
+    private static async Task<string?> BuildTemplateAsync(
+        TestDatabaseServer server,
+        bool reusedContainer,
+        CancellationToken cancellationToken)
+    {
+        if (reusedContainer)
+        {
+            await DropLeftoversAsync(server, cancellationToken);
+        }
+
+        var migrate = IntegrationDatabaseTemplate.Seal();
+        if (migrate is null)
+        {
+            return null;
+        }
+
+        var template = TestDatabaseServer.NewName(TestDatabaseServer.TemplatePrefix);
+        var started = Stopwatch.GetTimestamp();
+        await server.CreateEmptyAsync(template, cancellationToken);
+        await migrate(server.ConnectionStringFor(template), server.Provider, cancellationToken);
+        var migrated = Stopwatch.GetElapsedTime(started);
+        started = Stopwatch.GetTimestamp();
+        await server.SealTemplateAsync(template, cancellationToken);
+        ReportSetup(
+            $"{server.Provider} {template}: created and migrated in {migrated.TotalMilliseconds:F0} ms, " +
+            $"sealed in {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0} ms");
+        return template;
+    }
+
+    private static async Task DropLeftoversAsync(TestDatabaseServer server, CancellationToken cancellationToken)
+    {
+        foreach (var leftover in await server.LeftoversAsync(cancellationToken))
+        {
+            await server.UnmarkTemplateAsync(leftover, cancellationToken);
+            await server.DropAsync(leftover, cancellationToken);
+        }
+    }
+
+    // A diagnostic message, shown when the runner's diagnosticMessages is on: the per-collection setup cost.
+    private static void ReportSetup(string message) =>
+        TestContext.Current.SendDiagnosticMessage($"[endatix-db] {message}");
 
     public static async Task<INetwork> AcquireNetworkAsync(
         EndatixTestcontainersSettings settings,
@@ -100,12 +184,6 @@ internal static class EndatixTestcontainers
         builder = builder.WithName(ContainerName(settings, "keycloak"));
         return ApplyReuse(builder, settings, "endatix-keycloak");
     }
-
-    /// <summary>
-    /// Fixtures call this on dispose; the shared session stays alive until the test process exits (Ryuk cleanup).
-    /// </summary>
-    public static Task ReleaseSessionAsync(CancellationToken _ = default) =>
-        Task.CompletedTask;
 
     private static async Task EnsureSessionStartedAsync(
         EndatixTestcontainersSettings settings,
@@ -153,7 +231,8 @@ internal static class EndatixTestcontainers
         CancellationToken cancellationToken)
     {
         _provider = settings.Provider;
-        (_databaseContainer, _connectionString) = settings.Provider switch
+        string serverConnectionString;
+        (_databaseContainer, serverConnectionString) = settings.Provider switch
         {
             TestDatabaseProvider.PostgreSql => await StartPostgreSqlAsync(settings, cancellationToken),
             TestDatabaseProvider.SqlServer => await StartSqlServerAsync(settings, cancellationToken),
@@ -162,6 +241,7 @@ internal static class EndatixTestcontainers
                 settings.Provider,
                 "Unsupported test database provider."),
         };
+        _server = new TestDatabaseServer(settings.Provider, serverConnectionString);
     }
 
     private static async Task<(IContainer Container, string ConnectionString)> StartPostgreSqlAsync(
@@ -190,7 +270,8 @@ internal static class EndatixTestcontainers
         return (postgresContainer, postgresContainer.GetConnectionString());
     }
 
-    // Testcontainers creates the database at startup, and its connection string names it rather than master.
+    // Testcontainers creates the database at startup, and its connection string names it rather than master. It stays
+    // empty: it is the server connection that creates, copies and drops the fixture databases.
     private static async Task<(IContainer Container, string ConnectionString)> StartSqlServerAsync(
         IntegrationDatabaseSettings settings,
         CancellationToken cancellationToken)
@@ -336,8 +417,11 @@ internal static class EndatixTestcontainers
             : builder;
 }
 
+/// <summary>A fixture's own database on the shared container, and the container's server connection.</summary>
 internal sealed record EndatixTestcontainersSession(
+    string DatabaseName,
     string ConnectionString,
+    string ServerConnectionString,
     TestDatabaseProvider Provider,
     string RunId,
     Guid ResourceReaperSessionId);

@@ -57,11 +57,28 @@ lists the provider filter's tests and fails when one is in neither lane or in bo
 |        | PostgreSQL                                      | SQL Server                                 |
 | ------ | ----------------------------------------------- | ------------------------------------------ |
 | Env    | `ENDATIX_TEST_DB_PROVIDER=PostgreSql` (default) | `ENDATIX_TEST_DB_PROVIDER=SqlServer`       |
-| DB     | `endatix_test`                                  | `endatix_test`                             |
+| DB     | `endatix_fx_<id>`, copied from the template     | `endatix_fx_<id>`, restored from the template |
 | Filter | `IntegrationTestFilters.Default`                | `IntegrationTestFilters.SqlServer`         |
 | Runs   | Provider-agnostic + `DbSpecific=PostgreSql`     | Provider-agnostic + `DbSpecific=SqlServer` |
 
 Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-specific tests.
+
+### Databases
+
+One container per provider per test process. Its own database, `endatix_test`, stays empty: it is the server
+connection (`ServerConnectionString`) that creates and drops the others.
+
+- **Template.** On the first fixture, a host with every module on (Reporting included) migrates `endatix_template_<id>`
+  once (`MigratedDatabaseTemplate`, registered through `IntegrationDatabaseTemplate.Use`). PostgreSQL then refuses
+  connections to it; SQL Server backs it up.
+- **A database per fixture.** Every `DatabaseInfrastructureFixture` gets `endatix_fx_<id>`, a copy of the template
+  (`CREATE DATABASE … TEMPLATE` on PostgreSQL, `RESTORE` on SQL Server), and drops it on dispose. Its `ConnectionString`
+  points there, so a Respawn reset in one collection never reaches another's rows.
+- **A test that changes the schema** (rolls a migration back) runs on `OwnDatabaseWebHost`, a host on a database of its
+  own. A test that needs an empty database of its own uses `JobsTestDatabase` on `ServerConnectionString`.
+- **Setup cost.** Each copy and the template build print an `[endatix-db]` diagnostic line when the test app runs on its
+  own (`dotnet test` hides them). Locally: the template takes ~5 s on PostgreSQL and ~10 s on SQL Server once, then a copy
+  takes ~0.1 s and ~0.8 s.
 
 ### Collections
 
@@ -85,7 +102,7 @@ Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-sp
 | Variable                        | Default      | Notes                          |
 | ------------------------------- | ------------ | ------------------------------ |
 | `ENDATIX_TEST_DB_PROVIDER`      | `PostgreSql` | `SqlServer` for SQL Server leg |
-| `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only                 |
+| `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only; a run drops the `endatix_fx_` and `endatix_template_` databases an earlier one left |
 
 ### Performance suite
 

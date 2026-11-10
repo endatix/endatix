@@ -21,7 +21,7 @@ public sealed partial class JobsSqlServerStoreTests
         // Arrange — group A is full and its backlog is due before B's only trigger, as in the flat-reads test.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         await store.ScheduleAsync(AcquisitionTestTrigger.Of("A", BacklogTemplate, 0), ct);
         var behind = AcquisitionTestTrigger.Of("B", "b1", 1500);
         await store.ScheduleAsync(behind, ct);
@@ -46,7 +46,7 @@ public sealed partial class JobsSqlServerStoreTests
         // already stored, as a node of the earlier version would have it.
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         var behind = await store.SeedHeadOfLineAsync(ct);
         await store.MigrateToAsync(InitialMigrationId, ct);
         var collationBefore = await AcquireGroupCollationAsync(store.Database, ct);

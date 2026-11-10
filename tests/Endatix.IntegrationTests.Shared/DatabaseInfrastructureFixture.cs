@@ -1,8 +1,9 @@
 namespace Endatix.IntegrationTests.Shared;
 
 /// <summary>
-/// Shared database infrastructure fixture with provider selection via environment.
-/// All fixtures in the same test process share one container via <see cref="EndatixTestcontainers" />.
+/// A database of this fixture's own, with provider selection via environment. All fixtures in the same test process
+/// share one container via <see cref="EndatixTestcontainers" />, and each gets a copy of the template database
+/// (<see cref="IntegrationDatabaseTemplate"/>), dropped when the fixture is disposed.
 /// </summary>
 /// <remarks>
 /// Initializes the database infrastructure fixture.
@@ -18,9 +19,15 @@ public sealed class DatabaseInfrastructureFixture(IntegrationDatabaseSettings se
     public TestDatabaseProvider Provider { get; private set; }
 
     /// <summary>
-    /// The database connection string.
+    /// The connection string of this fixture's own database. No other fixture uses it.
     /// </summary>
     public string ConnectionString { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// A connection string to the database server rather than to this fixture's database, for a test that creates
+    /// databases of its own. Its database is the container's maintenance database, which stays empty.
+    /// </summary>
+    public string ServerConnectionString { get; private set; } = string.Empty;
 
     /// <summary>
     /// Checkpoint for resetting the database between tests.
@@ -39,22 +46,29 @@ public sealed class DatabaseInfrastructureFixture(IntegrationDatabaseSettings se
     }
 
     /// <summary>
-    /// Starts the database container (shared per process) and captures connection details.
+    /// Starts the database container (shared per process) and creates this fixture's database on it.
     /// </summary>
     public async ValueTask InitializeAsync()
     {
         _session = await EndatixTestcontainers.AcquireDatabaseAsync(_settings);
         ConnectionString = _session.ConnectionString;
+        ServerConnectionString = _session.ServerConnectionString;
         Provider = _session.Provider;
         RunId = _session.RunId;
     }
 
     /// <summary>
-    /// Releases the session reference; the container stays alive until Ryuk cleans up.
+    /// Drops this fixture's database; the container stays alive until Ryuk cleans up. Dispose a host on it first.
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        await EndatixTestcontainers.ReleaseSessionAsync();
+        if (_session is null)
+        {
+            return;
+        }
+
+        var session = _session;
         _session = null;
+        await EndatixTestcontainers.ReleaseDatabaseAsync(session);
     }
 }

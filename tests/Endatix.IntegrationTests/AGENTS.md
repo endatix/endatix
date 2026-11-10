@@ -58,7 +58,7 @@ EndatixTestcontainers → DatabaseInfrastructureFixture → DbIntegrationFixture
                                                       ↘ EndatixIntegrationWebHostFixture (IntegrationTests project)
 ```
 
-- One DB container per process (`EndatixTestcontainers`).
+- One DB container per process (`EndatixTestcontainers`), and a database per fixture copied from a migrated template — see [`../README.md`](../README.md#databases). A test that rolls the schema back uses `OwnDatabaseWebHost`.
 - Provider from `ENDATIX_TEST_DB_PROVIDER`.
 - Module helpers (e.g. `ReportingTestSchema`, `IntegrationTenantContext`) live in **IntegrationTests**, not Shared: Shared ships as the **`Endatix.IntegrationTesting`** package, so anything added there becomes public API, and its NSubstitute is `PrivateAssets="all"` — Shared helpers are plain classes, never `Substitute.For<>` factories.
 - Tenant for a hand-built DbContext: `new IntegrationTenantContext(id)`, which rejects 0 so isolation tests use two real tenants. `IntegrationTenantContext.Bypass` (tenant 0) turns the query filter off for DbContext reads only — Core handlers reject it. Substitute an `ITenantContext` only where `TenantId` changes mid-test (`OutboxCaptureTests`).
