@@ -240,7 +240,7 @@ jobs:
       REST_LANE_FILTER: Lane!=Jobs
       # Test collections run in parallel (tests/README.md, Collections); this many at once on the
       # 4-vCPU runner. Locally the default is one per CPU.
-      INTEGRATION_MAX_THREADS: 3
+      INTEGRATION_MAX_THREADS: 2
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
