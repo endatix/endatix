@@ -83,9 +83,10 @@ connection (`ServerConnectionString`) that creates and drops the others.
 ### Collections
 
 Collections run in parallel, each with its own fixture, so its own host and database; the classes in one collection run
-one after another. CI runs tests on `INTEGRATION_MAX_THREADS` threads (`ci.yml`, tuned for the 4-vCPU runner), so that
-many collections at once; locally, one per CPU (`--max-threads` overrides it). The definitions, with this table, are in
-`Endatix.IntegrationTests/Infrastructure/IntegrationTestCollections.cs`.
+one after another. Three run at once (`maxParallelThreads` in `xunit.runner.json`, tuned for CI's 4-vCPU runner),
+locally too, since all of them share one database container. CI passes the same number as `--max-threads
+$INTEGRATION_MAX_THREADS`, which overrides the file; pass `--max-threads` locally to try another. The definitions, with
+this table, are in `Endatix.IntegrationTests/Infrastructure/IntegrationTestCollections.cs`.
 
 A new class picks its collection by its [lane](#lanes) and the fixture it needs:
 

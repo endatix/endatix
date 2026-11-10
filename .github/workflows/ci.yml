@@ -238,10 +238,10 @@ jobs:
       # The lane filters, in one place: the test step runs this lane's, the lane check runs both.
       JOBS_LANE_FILTER: Lane=Jobs
       REST_LANE_FILTER: Lane!=Jobs
-      # Test collections run in parallel (tests/README.md, Collections); this many at once on the
-      # 4-vCPU runner. Locally the default is one per CPU. Measured in #1661: SQL Server Rest takes
-      # ~330 s at 2, 3 or 4 (AudienceDirectoryFlowTests alone is most of it); 2 slows the Jobs lanes
-      # to the same ~330 s, and 3 matches 4 with a lower CPU peak.
+      # Test collections run in parallel (tests/README.md, Collections), this many at once on the
+      # 4-vCPU runner. Overrides maxParallelThreads in xunit.runner.json (also 3). Measured in #1661:
+      # AudienceDirectoryFlowTests (~300 s) caps SQL Server Rest at any thread count; 2 slows the Jobs
+      # lanes to the same ~330 s, and 3 keeps them well under Rest with a lower CPU peak than 4.
       INTEGRATION_MAX_THREADS: 3
     steps:
       - name: 🔍 Checkout code
