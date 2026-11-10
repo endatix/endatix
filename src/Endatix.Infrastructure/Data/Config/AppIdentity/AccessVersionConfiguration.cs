@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Endatix.Infrastructure.Data.Config.AppIdentity;
 
-/// <summary>Maps <see cref="AccessVersion"/>, one row per tenant, and seeds the system-roles row.</summary>
+/// <summary>Maps <see cref="AccessVersion"/>, one row per tenant; rows are inserted on their first change, never seeded with a shared value.</summary>
 [ApplyConfigurationFor<AppIdentityDbContext>()]
 internal sealed class AccessVersionConfiguration : IEntityTypeConfiguration<AccessVersion>
 {
@@ -21,7 +21,5 @@ internal sealed class AccessVersionConfiguration : IEntityTypeConfiguration<Acce
 
         builder.Property(version => version.Value)
             .IsRequired();
-
-        builder.HasData(new { TenantId = AccessVersion.SYSTEM_TENANT_ID, Value = AccessVersion.Initial });
     }
 }

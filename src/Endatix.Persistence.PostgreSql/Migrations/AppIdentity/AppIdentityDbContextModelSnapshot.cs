@@ -116,6 +116,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .IsUnique();
 
                     b.ToTable("Permissions", "identity");
+
+                    b.HasAnnotation("Endatix:AccessInput", true);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.Identity.RolePermission", b =>
@@ -159,6 +161,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                     b.HasIndex("RoleId");
 
                     b.ToTable("RolePermissions", "identity");
+
+                    b.HasAnnotation("Endatix:AccessInput", true);
                 });
 
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppRole", b =>
@@ -204,6 +208,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasDatabaseName("IX_AppRole_NormalizedName_TenantId");
 
                     b.ToTable("Roles", "identity");
+
+                    b.HasAnnotation("Endatix:AccessInput", true);
                 });
 
             modelBuilder.Entity("Endatix.Infrastructure.Identity.AppUser", b =>
@@ -312,6 +318,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                         .HasFilter("\"ExternalSubjectId\" IS NOT NULL");
 
                     b.ToTable("Users", "identity");
+
+                    b.HasAnnotation("Endatix:AccessInput", true);
                 });
 
             modelBuilder.Entity("Endatix.Infrastructure.Identity.Authorization.AccessVersion", b =>
@@ -325,13 +333,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                     b.HasKey("TenantId");
 
                     b.ToTable("AccessVersions", "identity");
-
-                    b.HasData(
-                        new
-                        {
-                            TenantId = 0L,
-                            Value = new Guid("00000000-0000-0000-0000-000000000000")
-                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<long>", b =>
@@ -416,6 +417,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppIdentity
                     b.HasIndex("RoleId");
 
                     b.ToTable("UserRoles", "identity");
+
+                    b.HasAnnotation("Endatix:AccessInput", true);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<long>", b =>

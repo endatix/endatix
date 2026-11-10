@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Repositories;
@@ -6,88 +7,89 @@ using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using static Endatix.IntegrationTests.AccessVersionTestWorld;
 
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// <see cref="AppIdentityDbContext"/> changes the <see cref="AccessVersion"/> in the same save as a change to
-/// an authorization input, and leaves it alone otherwise.
+/// <see cref="AppIdentityDbContext"/> changes the <see cref="AccessVersion"/> of the tenant an authorization input
+/// belongs to (system roles: the system version) in the same transaction as the change, and leaves every other
+/// version alone.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string SeedPassword = "Password123!";
-    private const string RoleName = "VersionedRole";
-    private const string UserName = "versioned@example.com";
 
     [Fact]
-    public async Task SaveChangesAsync_UserRoleAdded_ChangesAccessVersion()
+    public async Task SaveChangesAsync_UserRoleAdded_ChangesTenantVersionOnly()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var tenantId = world.Tenants[0].Id;
+        var before = await RowsAsync(world, ct, tenantId, SYSTEM_TENANT);
 
         // Act
         IntegrationSeedBuilder builder = new(world.Services);
-        await builder.SeedUserRoleAssignmentAsync(world.Tenants[0].Id, UserName, RoleName, ct);
+        await builder.SeedUserRoleAssignmentAsync(tenantId, USER_NAME, ROLE_NAME, ct);
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        var after = await RowsAsync(world, ct, tenantId, SYSTEM_TENANT);
+        after[tenantId].Should().NotBe(before[tenantId]);
+        after[SYSTEM_TENANT].Should().Be(before[SYSTEM_TENANT]);
     }
 
     [Fact]
-    public async Task SaveChanges_RolePermissionRemoved_ChangesAccessVersion()
+    public async Task SaveChanges_RolePermissionRemoved_ChangesTenantVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await TenantVersionAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-            var rolePermission = await db.RolePermissions.FirstAsync(ct);
-            db.RolePermissions.Remove(rolePermission);
+            db.RolePermissions.Remove(await TenantRolePermissionAsync(db, world, ct));
             db.SaveChanges();
         }
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        (await TenantVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_UserProfileChanged_KeepsAccessVersion()
+    public async Task SaveChangesAsync_UserProfileChanged_KeepsAccessVersions()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await AllRowsAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            var user = (await users.FindByNameAsync(UserName))!;
+            var user = (await users.FindByNameAsync(USER_NAME))!;
             user.PhoneNumber = "+10000000000";
             (await users.UpdateAsync(user)).Succeeded.Should().BeTrue();
         }
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().Be(before);
+        (await AllRowsAsync(world, ct)).Should().Equal(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_NewUserGetsFirstRoleInSameTransaction_KeepsAccessVersion()
+    public async Task SaveChangesAsync_NewUserGetsFirstRoleInSameTransaction_KeepsAccessVersions()
     {
         // Arrange — self-registration creates the user and grants the first role in one transaction; a user created
         // in it holds no token yet, so nothing cached can be stale.
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await AllRowsAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
@@ -97,52 +99,52 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
             await using var signup = await db.Database.BeginTransactionAsync(ct);
             AppUser user = new() { UserName = "new@example.com", Email = "new@example.com", TenantId = world.Tenants[0].Id };
             (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
-            (await users.AddToRoleAsync(user, RoleName)).Succeeded.Should().BeTrue();
+            (await users.AddToRoleAsync(user, ROLE_NAME)).Succeeded.Should().BeTrue();
             await signup.CommitAsync(ct);
         }
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().Be(before);
+        (await AllRowsAsync(world, ct)).Should().Equal(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_UserCreatedInEarlierSaveGetsRole_ChangesAccessVersion()
+    public async Task SaveChangesAsync_UserCreatedInEarlierSaveGetsRole_ChangesTenantVersion()
     {
         // Arrange — a long-lived context (a job, an import) creates a user in one save without a transaction.
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
+        var world = await PrepareAsync(fixture, ct);
         using var scope = world.Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         AppUser user = new() { UserName = "later@example.com", Email = "later@example.com", TenantId = world.Tenants[0].Id };
         (await users.CreateAsync(user)).Succeeded.Should().BeTrue();
-        var before = await ReadVersionAsync(world, ct);
+        var before = await TenantVersionAsync(world, ct);
 
         // Act — a later save on the same context grants the user a role.
-        (await users.AddToRoleAsync(user, RoleName)).Succeeded.Should().BeTrue();
+        (await users.AddToRoleAsync(user, ROLE_NAME)).Succeeded.Should().BeTrue();
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        (await TenantVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task Commit_AfterRoleChangeTransactionDisposedWithoutCommit_KeepsAccessVersion()
+    public async Task Commit_AfterRoleChangeTransactionDisposedWithoutCommit_KeepsAccessVersions()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await AllRowsAsync(world, ct);
         using var scope = world.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
         // Act — a role change saved in a transaction that is dropped, then an unrelated save on the same context.
         await using (var abandoned = await db.Database.BeginTransactionAsync(ct))
         {
-            db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
+            db.RolePermissions.Remove(await TenantRolePermissionAsync(db, world, ct));
             await db.SaveChangesAsync(ct);
         }
 
         db.ChangeTracker.Clear();
-        var user = await db.Users.SingleAsync(u => u.UserName == UserName, ct);
+        var user = await db.Users.SingleAsync(u => u.UserName == USER_NAME, ct);
         user.PhoneNumber = "+10000000001";
         await using (var unrelated = await db.Database.BeginTransactionAsync(ct))
         {
@@ -151,139 +153,131 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         }
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().Be(before);
+        (await AllRowsAsync(world, ct)).Should().Equal(before);
         (await db.RolePermissions.AsNoTracking().CountAsync(ct)).Should().BeGreaterThan(0);
     }
 
     [Fact]
-    public async Task DeleteRole_ThroughUnitOfWorkTransaction_ChangesAccessVersion()
+    public async Task DeleteRole_ThroughUnitOfWorkTransaction_ChangesTenantVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await TenantVersionAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
             var roles = scope.ServiceProvider.GetRequiredService<IRolesRepository>();
-            var role = await db.Roles.SingleAsync(r => r.Name == RoleName, ct);
+            var role = await db.Roles.SingleAsync(r => r.Name == ROLE_NAME, ct);
             await roles.DeleteRoleAsync(role, ct);
         }
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        (await TenantVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_WithRetryingExecutionStrategy_ChangesAccessVersion()
+    public async Task SaveChangesAsync_WithRetryingExecutionStrategy_ChangesTenantVersion()
     {
         // Arrange — a host may enable retries on its provider, which refuses transactions opened outside the
         // execution strategy.
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await TenantVersionAsync(world, ct);
         await using var db = new AppIdentityDbContext(RetryingOptions());
-        db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
+        db.RolePermissions.Remove(await TenantRolePermissionAsync(db, world, ct));
 
         // Act
         await db.SaveChangesAsync(ct);
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        (await TenantVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChanges_WithRetryingExecutionStrategy_ChangesAccessVersion()
+    public async Task SaveChanges_WithRetryingExecutionStrategy_ChangesTenantVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await TenantVersionAsync(world, ct);
         using var db = new AppIdentityDbContext(RetryingOptions());
-        db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
+        db.RolePermissions.Remove(await TenantRolePermissionAsync(db, world, ct));
 
         // Act
         db.SaveChanges();
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        (await TenantVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_UserTenantChanged_ChangesAccessVersion()
+    public async Task SaveChangesAsync_UserTenantChanged_ChangesOldAndNewTenantVersions()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var tenantId = world.Tenants[0].Id;
+        var before = await RowsAsync(world, ct, tenantId, SYSTEM_TENANT);
 
         // Act — removing a user's tenant access moves the user to tenant 0.
         using (var scope = world.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-            var user = await db.Users.SingleAsync(u => u.UserName == UserName, ct);
+            var user = await db.Users.SingleAsync(u => u.UserName == USER_NAME, ct);
             user.TenantId = 0;
             await db.SaveChangesAsync(ct);
         }
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        var after = await RowsAsync(world, ct, tenantId, SYSTEM_TENANT);
+        after[tenantId].Should().NotBe(before[tenantId]);
+        after[SYSTEM_TENANT].Should().NotBe(before[SYSTEM_TENANT]);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_UserDeleted_ChangesAccessVersion()
+    public async Task SaveChangesAsync_UserDeleted_ChangesTenantVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var before = await ReadVersionAsync(world, ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await TenantVersionAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            var user = (await users.FindByNameAsync(UserName))!;
+            var user = (await users.FindByNameAsync(USER_NAME))!;
             (await users.DeleteAsync(user)).Succeeded.Should().BeTrue();
         }
 
         // Assert
-        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
+        (await TenantVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task Commit_RetriedAfterAccessVersionUpdateFailed_WritesAccessVersion()
+    public async Task Commit_RetriedAfterAccessVersionWriteFailed_WritesAccessVersion()
     {
-        // Arrange — the system row is missing when the role change first commits, so that commit fails.
+        // Arrange — the first access version write of the commit fails before it reaches the database.
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
-        var restored = Guid.NewGuid();
-        using var scope = world.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-        try
-        {
-            await DeleteSystemRowAsync(world, ct);
-            await using var roleChange = await db.Database.BeginTransactionAsync(ct);
-            db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
-            await db.SaveChangesAsync(ct);
-            var firstCommit = () => roleChange.CommitAsync(ct);
-            await firstCommit.Should().ThrowAsync<InvalidOperationException>();
-            // Restored on the same connection: on SQL Server without READ_COMMITTED_SNAPSHOT, a second connection
-            // would wait for this open transaction.
-            db.AccessVersions.Add(new AccessVersion { TenantId = AccessVersion.SYSTEM_TENANT_ID, Value = restored });
-            await db.SaveChangesAsync(ct);
+        var world = await PrepareAsync(fixture, ct);
+        var before = await TenantVersionAsync(world, ct);
+        FailFirstAccessVersionWrite fault = new();
+        await using var db = new AppIdentityDbContext(ProviderOptions(builder => builder.AddInterceptors(fault)));
+        await using var roleChange = await db.Database.BeginTransactionAsync(ct);
+        db.RolePermissions.Remove(await TenantRolePermissionAsync(db, world, ct));
+        await db.SaveChangesAsync(ct);
+        var firstCommit = () => roleChange.CommitAsync(ct);
+        await firstCommit.Should().ThrowAsync<InvalidOperationException>();
 
-            // Act
-            await roleChange.CommitAsync(ct);
+        // Act
+        await roleChange.CommitAsync(ct);
 
-            // Assert
-            (await ReadVersionAsync(world, ct)).Should().NotBe(restored);
-        }
-        finally
-        {
-            await RestoreSystemRowAsync(world, AccessVersion.Initial, CancellationToken.None);
-        }
+        // Assert
+        fault.Failed.Should().BeTrue();
+        (await TenantVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
@@ -291,7 +285,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
+        var world = await PrepareAsync(fixture, ct);
         using var scope = world.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -312,7 +306,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var world = await PrepareAsync(ct);
+        var world = await PrepareAsync(fixture, ct);
         using var scope = world.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -328,22 +322,25 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         db.UsersAddedInTransaction.Should().BeEmpty();
     }
 
-    /// <summary>Removes the system row, to make the next access version update fail.</summary>
-    private static async Task DeleteSystemRowAsync(IntegrationTestWorld world, CancellationToken ct)
+    /// <summary>Fails the first access version write it sees, before the command reaches the database.</summary>
+    private sealed class FailFirstAccessVersionWrite : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
     {
-        using var scope = world.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-        await db.AccessVersions.Where(v => v.TenantId == AccessVersion.SYSTEM_TENANT_ID).ExecuteDeleteAsync(ct);
-    }
+        public bool Failed { get; private set; }
 
-    /// <summary>Puts the system row back with the given value; the integration reset keeps the row, so tests that delete it restore it.</summary>
-    private static async Task RestoreSystemRowAsync(IntegrationTestWorld world, Guid value, CancellationToken ct)
-    {
-        using var scope = world.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
-        await db.AccessVersions.Where(v => v.TenantId == AccessVersion.SYSTEM_TENANT_ID).ExecuteDeleteAsync(ct);
-        db.AccessVersions.Add(new AccessVersion { TenantId = AccessVersion.SYSTEM_TENANT_ID, Value = value });
-        await db.SaveChangesAsync(ct);
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> NonQueryExecutingAsync(
+            System.Data.Common.DbCommand command,
+            Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (!Failed && command.CommandText.Contains("AccessVersions", StringComparison.Ordinal))
+            {
+                Failed = true;
+                throw new InvalidOperationException("Simulated access version write failure.");
+            }
+
+            return ValueTask.FromResult(result);
+        }
     }
 
     /// <summary>Identity context options with the active provider's retrying execution strategy, as a host may configure.</summary>
@@ -362,21 +359,24 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         return builder.Options;
     }
 
-    private async Task<IntegrationTestWorld> PrepareAsync(CancellationToken ct)
+    /// <summary>Identity context options for the active provider, with extra configuration.</summary>
+    private DbContextOptions<AppIdentityDbContext> ProviderOptions(Action<DbContextOptionsBuilder<AppIdentityDbContext>> configure)
     {
-        var world = await fixture.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, ct);
-        var tenantId = world.Tenants[0].Id;
-        IntegrationSeedBuilder builder = new(world.Services);
-        await builder.SeedRoleAsync(tenantId, RoleName, ct);
-        await builder.SeedRolePermissionsAsync(tenantId, RoleName, [Actions.Forms.View], ct);
-        await builder.SeedUserAsync(tenantId, UserName, UserName, password: SeedPassword, cancellationToken: ct);
-        return world;
+        var builder = new DbContextOptionsBuilder<AppIdentityDbContext>();
+        if (fixture.Database.Provider == TestDatabaseProvider.SqlServer)
+        {
+            builder.UseSqlServer(fixture.Database.ConnectionString);
+        }
+        else
+        {
+            builder.UseNpgsql(fixture.Database.ConnectionString);
+        }
+
+        configure(builder);
+        return builder.Options;
     }
 
-    private static async Task<Guid> ReadVersionAsync(IntegrationTestWorld world, CancellationToken ct)
-    {
-        using var scope = world.Services.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<IAccessVersionReader>().ReadAsync(ct);
-    }
+    /// <summary>The world tenant's row, the system row and the row every change moves.</summary>
+    private static Task<Dictionary<long, Guid>> AllRowsAsync(IntegrationTestWorld world, CancellationToken ct) =>
+        RowsAsync(world, ct, world.Tenants[0].Id, SYSTEM_TENANT, ANY_TENANT);
 }

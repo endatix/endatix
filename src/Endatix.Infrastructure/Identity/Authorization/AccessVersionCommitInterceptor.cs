@@ -1,15 +1,13 @@
 using System.Data.Common;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Query;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
 /// <summary>
-/// Writes a new <see cref="AccessVersion"/> value as the last statement before an identity transaction that changed an
-/// authorization input commits. Every authenticated request reads the access version; on SQL Server without
-/// <c>READ_COMMITTED_SNAPSHOT</c> that read waits for a transaction holding the row, so the row is held only for the
-/// commit itself, never while the rest of a role change runs.
+/// Writes new <see cref="AccessVersion"/> values, for the tenants whose authorization inputs the transaction changed, as
+/// the last statements before an identity transaction commits. Every authenticated request reads its tenant's access
+/// version; on SQL Server without <c>READ_COMMITTED_SNAPSHOT</c> that read waits for a transaction holding the row, so
+/// the row is held only for the commit itself, never while the rest of a role change runs.
 /// </summary>
 internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
 {
@@ -20,28 +18,28 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     {
     }
 
-    /// <summary>Writes the new access version as the last statement before a transaction that changed an authorization input commits.</summary>
+    /// <summary>Writes the new access versions as the last statements before a transaction that changed an authorization input commits.</summary>
     public override InterceptionResult TransactionCommitting(
         DbTransaction transaction, TransactionEventData eventData, InterceptionResult result)
     {
         if (PendingChange(eventData) is { } context)
         {
-            EnsureRowUpdated(SystemVersion(context).ExecuteUpdate(NewValue()));
+            Store(context).Change(context.PendingAccessVersionRows);
             context.ResetAccessVersionState();
         }
 
         return result;
     }
 
-    /// <summary>Writes the new access version as the last statement before a transaction that changed an authorization input commits.</summary>
+    /// <inheritdoc cref="TransactionCommitting"/>
     public override async ValueTask<InterceptionResult> TransactionCommittingAsync(
         DbTransaction transaction, TransactionEventData eventData, InterceptionResult result,
         CancellationToken cancellationToken = default)
     {
-        // The flag clears only after the update succeeds, so a commit retried after a failed update still writes.
+        // The state clears only after the write succeeds, so a commit retried after a failed write still writes.
         if (PendingChange(eventData) is { } context)
         {
-            EnsureRowUpdated(await SystemVersion(context).ExecuteUpdateAsync(NewValue(), cancellationToken));
+            await Store(context).ChangeAsync(context.PendingAccessVersionRows, cancellationToken);
             context.ResetAccessVersionState();
         }
 
@@ -52,7 +50,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override void TransactionCommitted(DbTransaction transaction, TransactionEndEventData eventData) =>
         Reset(eventData);
 
-    /// <summary>Clears the per-transaction state once the commit has succeeded.</summary>
+    /// <inheritdoc cref="TransactionCommitted"/>
     public override Task TransactionCommittedAsync(
         DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
     {
@@ -60,7 +58,6 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         return Task.CompletedTask;
     }
 
-    // A change pending from a transaction that ended without a commit (disposed, or rolled back) is moot.
     /// <summary>Drops a change left pending by a transaction that ended without a commit, so it writes no access version for this one.</summary>
     public override DbTransaction TransactionStarted(
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result)
@@ -69,7 +66,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         return result;
     }
 
-    /// <summary>Drops a change left pending by a transaction that ended without a commit, so it writes no access version for this one.</summary>
+    /// <inheritdoc cref="TransactionStarted"/>
     public override ValueTask<DbTransaction> TransactionStartedAsync(
         DbConnection connection, TransactionEndEventData eventData, DbTransaction result,
         CancellationToken cancellationToken = default)
@@ -82,7 +79,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData) =>
         Reset(eventData);
 
-    /// <summary>Clears the per-transaction state, so a rolled-back change writes no access version.</summary>
+    /// <inheritdoc cref="TransactionRolledBack"/>
     public override Task TransactionRolledBackAsync(
         DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
     {
@@ -92,7 +89,13 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
 
     /// <summary>The identity context of this transaction when it has an authorization change to commit; otherwise null.</summary>
     private static AppIdentityDbContext? PendingChange(TransactionEventData eventData) =>
-        eventData.Context is AppIdentityDbContext { AccessVersionChangePending: true } context ? context : null;
+        eventData.Context is AppIdentityDbContext { PendingAccessVersionRows.Count: > 0 } context ? context : null;
+
+    /// <summary>
+    /// The database store, the only one that can write inside the committing transaction. A store kept outside the
+    /// identity database (endatix#1637) writes after the commit instead, so it hooks <see cref="TransactionCommitted"/>.
+    /// </summary>
+    private static DatabaseAccessVersionStore Store(AppIdentityDbContext context) => new(context);
 
     /// <summary>Resets the context's per-transaction state; the context owns the one reset.</summary>
     private static void Reset(TransactionEventData eventData)
@@ -101,27 +104,5 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         {
             context.ResetAccessVersionState();
         }
-    }
-
-    /// <summary>Fails the commit when the system row is missing, so a role change never commits without reaching other instances.</summary>
-    private static void EnsureRowUpdated(int rows)
-    {
-        if (rows != 1)
-        {
-            throw new InvalidOperationException(
-                "The system access version row is missing. Apply the AppIdentity migrations (AddAccessVersions).");
-        }
-    }
-
-    // ExecuteUpdate runs on the context's connection inside the transaction that is about to commit.
-    /// <summary>The system-roles row, the only row this release reads and writes.</summary>
-    private static IQueryable<AccessVersion> SystemVersion(AppIdentityDbContext context) =>
-        context.AccessVersions.Where(version => version.TenantId == AccessVersion.SYSTEM_TENANT_ID);
-
-    /// <summary>Sets a fresh random value; a random value never repeats after a restore or a cache flush.</summary>
-    private static Action<UpdateSettersBuilder<AccessVersion>> NewValue()
-    {
-        var value = Guid.NewGuid();
-        return setters => setters.SetProperty(version => version.Value, value);
     }
 }
