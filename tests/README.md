@@ -22,7 +22,23 @@ ENDATIX_TEST_DB_PROVIDER=SqlServer \
   --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=PostgreSql"
 ```
 
-Filter constants: `Endatix.IntegrationTests.Shared/IntegrationTestFilters.cs`. CI runs both legs via `.github/workflows/ci.yml` (provider matrix).
+Filter constants: `Endatix.IntegrationTests.Shared/IntegrationTestFilters.cs`. CI runs both providers via `.github/workflows/ci.yml`, each as two lanes (below).
+
+### Lanes
+
+CI splits each provider's run into two jobs that run in parallel, each with its own database container. A class picks
+its lane with the `Lane` trait, which is the only place lane membership lives:
+
+| Lane | Classes | CI filter |
+| ---- | ------- | --------- |
+| Jobs | `[Trait("Lane", "Jobs")]`: background jobs, the scheduler, the outbox, webhook delivery | provider filter `&Lane=Jobs` |
+| Rest | every class without the trait | provider filter `&Lane!=Jobs` |
+
+A new class lands in Rest. Tag it `Jobs` when its main subject is jobs, the scheduler, the outbox or webhook delivery.
+A class that only touches them on the way (such as `AudienceDirectoryFlowTests`, whose bulk import runs a job) stays in
+Rest, which keeps the lanes even; each lane's slowest-tests summary on the CI run page shows the balance. Each lane's `--minimum-expected-tests` sits about 10% under
+its count; adjust both when a class moves. Before the tests, each lane runs `scripts/check-integration-lanes.mjs`, which
+lists the provider filter's tests and fails when one is in neither lane or in both.
 
 ### Provider matrix
 
@@ -49,6 +65,7 @@ Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-sp
 | `Category`   | `CriticalPath`, `FeatureFlow`, `Infrastructure`, `Keycloak`, `Performance` | Suite grouping / CI; `Performance` never runs in CI |
 | `Priority`   | `P0`, `P1`, `P2`                                            | PR gate excludes `P2`                               |
 | `DbSpecific` | `PostgreSql`, `SqlServer`                                   | Only when the test cannot run on the other provider |
+| `Lane`       | `Jobs`                                                      | CI lane; see [Lanes](#lanes). Untagged classes run in Rest |
 
 ### Environment
 

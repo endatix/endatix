@@ -13,6 +13,7 @@ namespace Endatix.IntegrationTests;
 /// </summary>
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class StopOnceHostTests
 {
     private static readonly TimeSpan StopBound = TimeSpan.FromSeconds(2);

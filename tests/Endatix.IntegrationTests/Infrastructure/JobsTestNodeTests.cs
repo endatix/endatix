@@ -12,6 +12,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class JobsTestNodeTests(DbIntegrationFixture fixture)
 {
     // Named so that a reader of the test output sees these failures were produced on purpose.

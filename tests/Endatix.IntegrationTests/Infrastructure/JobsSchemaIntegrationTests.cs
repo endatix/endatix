@@ -13,6 +13,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class JobsSchemaIntegrationTests(EndatixIntegrationWebHostFixture fixture) : IAsyncDisposable
 {
     [Fact]

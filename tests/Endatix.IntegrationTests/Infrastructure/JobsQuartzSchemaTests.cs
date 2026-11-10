@@ -16,6 +16,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class JobsQuartzSchemaTests(DbIntegrationFixture fixture)
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(60);

@@ -31,6 +31,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "SqlServer")]
+[Trait("Lane", "Jobs")]
 public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture)
 {
     private const string SkipReason = "Asserts SQL Server catalog views and T-SQL.";

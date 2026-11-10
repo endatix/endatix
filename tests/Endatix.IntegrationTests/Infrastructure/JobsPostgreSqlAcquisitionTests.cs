@@ -11,6 +11,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class JobsPostgreSqlAcquisitionTests(DbIntegrationFixture fixture)
 {
     [PostgreSqlSpecificFact]

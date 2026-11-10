@@ -13,6 +13,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegrationFixture fixture)
 {
     private const long TenantId = 5;
