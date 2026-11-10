@@ -306,6 +306,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         db.UsersAddedInTransaction.Should().BeEmpty();
     }
 
+    /// <summary>Removes the system row, to make the next access version update fail.</summary>
     private static async Task DeleteSystemRowAsync(IntegrationTestWorld world, CancellationToken ct)
     {
         using var scope = world.Services.CreateScope();
@@ -313,6 +314,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         await db.AccessVersions.Where(v => v.TenantId == AccessVersion.SYSTEM_TENANT_ID).ExecuteDeleteAsync(ct);
     }
 
+    /// <summary>Puts the system row back with the given value; the integration reset keeps the row, so tests that delete it restore it.</summary>
     private static async Task RestoreSystemRowAsync(IntegrationTestWorld world, Guid value, CancellationToken ct)
     {
         using var scope = world.Services.CreateScope();
@@ -322,6 +324,7 @@ public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
         await db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Identity context options with the active provider's retrying execution strategy, as a host may configure.</summary>
     private DbContextOptions<AppIdentityDbContext> RetryingOptions()
     {
         var builder = new DbContextOptionsBuilder<AppIdentityDbContext>();

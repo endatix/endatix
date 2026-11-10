@@ -235,6 +235,7 @@ public class InfrastructureSecurityBuilder
        });
     }
 
+    /// <summary>Registers the policies, the authorization cache with its access version reader, and the permission handlers.</summary>
     private void AddDefaultAuthorization()
     {
         LogSetupInfo("Adding default authorization policies");

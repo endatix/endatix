@@ -132,9 +132,11 @@ internal class AuthorizationCache(
     }
 
     // Generate cache key for saving authorization data for a claims principal given the JWT Identity ID (jti)
+    /// <summary>Per-token key; the access version in it retires every entry when an authorization input changes.</summary>
     private static string GetClaimsCacheKey(Guid accessVersion, string jti) => $"{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{accessVersion:N}:{jti}";
 
     // Generate cache key for saving authorization data for a user with explicit userId and tenantId
+    /// <summary>Per-user-and-tenant key; the access version in it retires every entry when an authorization input changes.</summary>
     private static string GetUserAuthDataCacheKey(Guid accessVersion, string userId, long tenantId) => $"{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{accessVersion:N}:{userId}:{tenantId}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";

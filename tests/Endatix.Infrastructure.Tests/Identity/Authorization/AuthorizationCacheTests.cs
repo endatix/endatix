@@ -346,8 +346,10 @@ public sealed class AuthorizationCacheTests
         private Guid _current = first;
         private bool _started;
 
+        /// <summary>Queues the value the next read returns, to simulate an access version change.</summary>
         public void Then(Guid value) => _next.Enqueue(value);
 
+        /// <summary>Returns the first value, then each queued value once, then repeats the last.</summary>
         public Task<Guid> ReadAsync(CancellationToken cancellationToken)
         {
             if (_started && _next.Count > 0)

@@ -173,6 +173,7 @@ public sealed class DatabaseCheckpoint
         return [.. tables];
     }
 
+    /// <summary>Resets the module schemas but keeps migration history, the Quartz tables and the seeded access version row.</summary>
     private static RespawnerOptions BuildOptions(TestDatabaseProvider provider, Table[] keptTables)
     {
         var schemas = provider switch

@@ -121,6 +121,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         return saved;
     }
 
+    /// <summary>Accepts tracked changes only when the caller asked for it, after the commit that writes the access version.</summary>
     private void AcceptChangesIf(bool acceptAllChangesOnSuccess)
     {
         if (acceptAllChangesOnSuccess)
@@ -145,6 +146,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
         return entries.Any(IsAuthorizationInputChange);
     }
 
+    /// <summary>True when this entry changes what <see cref="Authorization.Data.DefaultAuthorizationDataProvider"/> reads, other than a first role for a user added in this transaction.</summary>
     private bool IsAuthorizationInputChange(EntityEntry entry) => entry.State switch
     {
         EntityState.Added or EntityState.Deleted or EntityState.Modified when entry.Entity is IdentityUserRole<long> userRole =>
@@ -157,6 +159,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 
     // UserManager.UpdateAsync marks every column modified, so compare values: a profile save or a sign-in
     // must not change the access version.
+    /// <summary>True only when the tenant value differs, since <c>UserManager.UpdateAsync</c> marks every column modified.</summary>
     private static bool TenantChanged(EntityEntry entry)
     {
         var tenantId = entry.Property(nameof(AppUser.TenantId));
