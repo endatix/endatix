@@ -1,11 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Endatix.Infrastructure.Identity;
 
 /// <summary>
 /// Configuration options for JWT (JSON Web Token) Bearer token used for authentication and authorization
 /// </summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
 [Obsolete("Use EndatixJwtOptions instead. Will be removed in the future.")]
+#pragma warning restore S1133
 public class JwtOptions
 {
     /// <summary>

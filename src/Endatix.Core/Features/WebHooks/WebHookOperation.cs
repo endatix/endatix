@@ -33,7 +33,9 @@ public record WebHookOperation
     public static readonly WebHookOperation SubmissionClosed = new("submission_closed", nameof(Submission), ActionName.Updated);
 
     /// <summary>Retired: nothing delivers it.</summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Retired: use WebHookOperation.SubmissionClosed.", error: true)]
+#pragma warning restore S1133
     public static readonly WebHookOperation SubmissionCollectionStatusChanged = new("submission_collection_status_changed", nameof(Submission), ActionName.Updated);
 
     /// <summary>

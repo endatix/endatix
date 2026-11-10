@@ -3,18 +3,19 @@ using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Configuration;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Core.Infrastructure;
 using Endatix.Infrastructure.Email;
-using Endatix.Infrastructure.Integrations.Slack;
-using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
 using Endatix.Infrastructure.Features.Outbox;
-using Endatix.Core.Abstractions.BackgroundJobs;
-using Endatix.Infrastructure.Exporting.Exporters.Submissions;
+using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Integrations.Slack;
 using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Storage;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -22,7 +23,6 @@ using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Timeout;
-using Endatix.Core.Infrastructure;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -254,7 +254,9 @@ public static class ServiceCollectionExtensions
     }
 
 
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Sets the HubUrl from the HubSettings.HubBaseUrl if the HubUrl is not set. Will be removed in the future.")]
+#pragma warning restore S1133
     private static void HandleLegacyHubUrl(EmailTemplateSettings options, IOptions<HubSettings> hubSettings)
     {
         if (!string.IsNullOrWhiteSpace(options.HubUrl))
