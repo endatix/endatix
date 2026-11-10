@@ -134,7 +134,7 @@ jobs:
             unit: true
             jobs-lane: integration-jobs
             rest-lane: integration-rest
-            jobs-min: 148
+            jobs-min: 99999 # spike: deliberate failure, reverted next commit
             rest-min: 678
           - name: SQL Server tests
             provider: SqlServer
