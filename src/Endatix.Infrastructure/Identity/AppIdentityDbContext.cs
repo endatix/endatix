@@ -113,8 +113,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
-        var saved = await Database.CreateExecutionStrategy().ExecuteAsync(
-            async ct =>
+        var saved = await Database.CreateExecutionStrategy().ExecuteAsync(async ct =>
             {
                 await using var transaction = await Database.BeginTransactionAsync(ct);
                 _pendingAccessRows.UnionWith(accessRows);

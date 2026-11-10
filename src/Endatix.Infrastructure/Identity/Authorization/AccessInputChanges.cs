@@ -24,7 +24,7 @@ internal sealed class AccessInputChanges(IReadOnlySet<long> usersAddedInTransact
     private readonly Dictionary<long, long> _trackedRoleTenants = [];
     private readonly Dictionary<long, long> _trackedUserTenants = [];
 
-    /// <summary>Records one tracked entry of the save.</summary>
+    /// <summary>Records one tracked entry of the save; entries of other entity types are ignored.</summary>
     public void Add(EntityEntry entry)
     {
         if (!entry.Metadata.IsAccessInput())
@@ -32,31 +32,45 @@ internal sealed class AccessInputChanges(IReadOnlySet<long> usersAddedInTransact
             return;
         }
 
+        Track(entry.Entity);
+        if (IsChanged(entry))
+        {
+            RecordChange(entry);
+        }
+    }
+
+    /// <summary>Remembers the tenant of every tracked role and user, changed or not, for the lookups.</summary>
+    private void Track(object entity)
+    {
+        if (entity is AppRole role)
+        {
+            _trackedRoleTenants[role.Id] = role.TenantId;
+        }
+        else if (entity is AppUser user)
+        {
+            _trackedUserTenants[user.Id] = user.TenantId;
+        }
+    }
+
+    private void RecordChange(EntityEntry entry)
+    {
         switch (entry.Entity)
         {
             case AppRole role:
-                _trackedRoleTenants[role.Id] = role.TenantId;
                 AddRole(entry, role);
                 break;
             case AppUser user:
-                _trackedUserTenants[user.Id] = user.TenantId;
                 AddUser(entry, user);
                 break;
-            case IdentityUserRole<long> userRole when IsChanged(entry):
+            case IdentityUserRole<long> userRole:
                 _userRoles.Add((userRole.UserId, userRole.RoleId));
                 break;
-            case RolePermission rolePermission when IsChanged(entry):
+            case RolePermission rolePermission:
                 _rolePermissionRoleIds.Add(rolePermission.RoleId);
-                break;
-            case IdentityUserRole<long> or RolePermission:
                 break;
             default:
                 // Permissions are global; an access input without a rule of its own is treated the same way.
-                if (IsChanged(entry))
-                {
-                    _rows.Add(AccessVersion.SYSTEM_TENANT_ID);
-                }
-
+                _rows.Add(AccessVersion.SYSTEM_TENANT_ID);
                 break;
         }
     }
@@ -91,11 +105,6 @@ internal sealed class AccessInputChanges(IReadOnlySet<long> usersAddedInTransact
 
     private void AddRole(EntityEntry entry, AppRole role)
     {
-        if (!IsChanged(entry))
-        {
-            return;
-        }
-
         _rows.Add(AccessVersion.RowFor(role.TenantId));
         if (entry.State == EntityState.Modified)
         {

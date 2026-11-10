@@ -62,9 +62,7 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            GetClaimsCacheKey(versions, cacheKeyTokenPart),
-            ComputeLifetime(principal),
-            GetAuthDataCacheTags(userId, tenantId),
+            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId)),
             dataFactory,
             cancellationToken);
     }
@@ -75,44 +73,35 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            GetUserAuthDataCacheKey(versions, userId, tenantId),
-            ComputeLifetime(principal),
-            GetAuthDataCacheTags(userId, tenantId),
+            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId)),
             dataFactory,
             cancellationToken);
     }
 
     /// <summary>
-    /// Serves the entry under <paramref name="cacheKey"/>, building it on a miss. An entry past its own
-    /// <see cref="AuthorizationData.ExpiresAt"/> (a role permission it holds has lapsed) counts as a miss: HybridCache
-    /// fixes an entry's lifetime before the data is built, so the data carries the shorter bound itself.
+    /// Serves the entry, building it on a miss. An entry past its own <see cref="AuthorizationData.ExpiresAt"/> (a role
+    /// permission it holds has lapsed) counts as a miss: HybridCache fixes an entry's lifetime before the data is
+    /// built, so the data carries the shorter bound itself.
     /// </summary>
     private async Task<AuthorizationData> GetOrCreateEntryAsync(
-        string cacheKey,
-        TimeSpan lifetime,
-        string[] tags,
+        CacheEntry entry,
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
-        var entryOptions = new HybridCacheEntryOptions
-        {
-            Expiration = lifetime,
-            LocalCacheExpiration = lifetime
-        };
-
+        var options = new HybridCacheEntryOptions { Expiration = entry.Lifetime, LocalCacheExpiration = entry.Lifetime };
         var cached = await hybridCache.GetOrCreateAsync(
-            cacheKey,
-            async _ => await BuildAsync(dataFactory, lifetime, cancellationToken),
-            entryOptions,
-            tags,
+            entry.Key,
+            async _ => await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
+            options,
+            entry.Tags,
             cancellationToken);
         if (cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime)
         {
             return cached;
         }
 
-        var rebuilt = await BuildAsync(dataFactory, lifetime, cancellationToken);
-        await hybridCache.SetAsync(cacheKey, rebuilt, entryOptions, tags, cancellationToken);
+        var rebuilt = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken);
+        await hybridCache.SetAsync(entry.Key, rebuilt, options, entry.Tags, cancellationToken);
         return rebuilt;
     }
 
@@ -129,15 +118,16 @@ internal class AuthorizationCache(
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
 
-        var expiresAt = now.Add(lifetime);
-        var permissionsExpireAt = result.Value.ExpiresAt;
-        if (permissionsExpireAt != default && permissionsExpireAt < expiresAt)
-        {
-            expiresAt = permissionsExpireAt;
-        }
-
+        var expiresAt = EarlierOf(now.Add(lifetime), result.Value.ExpiresAt);
         return result.Value.WithCacheMetadata(now, expiresAt, GenerateETag(result.Value));
     }
+
+    /// <summary>The entry's end, or the earliest permission expiry the data carries when that comes first.</summary>
+    private static DateTime EarlierOf(DateTime entryEnd, DateTime permissionsExpireAt) =>
+        permissionsExpireAt != default && permissionsExpireAt < entryEnd ? permissionsExpireAt : entryEnd;
+
+    /// <summary>One cache entry's key, lifetime and tags.</summary>
+    private readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags);
 
     /// <inheritdoc />
     public async Task InvalidateAsync(string userId, long tenantId, CancellationToken cancellationToken)
