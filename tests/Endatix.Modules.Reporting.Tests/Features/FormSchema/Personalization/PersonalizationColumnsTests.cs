@@ -30,9 +30,9 @@ public sealed class PersonalizationColumnsTests
 
         // Assert
         columns.Select(column => (column.Key, column.Label, column.DataType)).Should().Equal(
-            ("AudienceIdentifier", "Audience identifier", "text"),
-            ("audience_age", "Age", "number"),
-            ("audience_city", "City", "text"));
+            ("ParticipantIdentifier", "Participant identifier", "text"),
+            ("participant_age", "Age", "number"),
+            ("participant_city", "City", "text"));
         columns.Should().OnlyContain(column => column.Kind == FormSchemaColumnKind.Personalization);
     }
 
@@ -47,7 +47,7 @@ public sealed class PersonalizationColumnsTests
         var read = PersonalizationReader.Read("""{"identifier":"CG-1","variables":{"score":""" + value + "}}");
 
         // Act
-        var column = PersonalizationColumns.From(read).Single(column => column.Key == "audience_score");
+        var column = PersonalizationColumns.From(read).Single(column => column.Key == "participant_score");
 
         // Assert
         column.DataType.Should().Be(expectedType);
@@ -67,9 +67,9 @@ public sealed class PersonalizationColumnsTests
         // Assert
         values.Should().BeEquivalentTo(new Dictionary<string, string?>
         {
-            ["AudienceIdentifier"] = "\"CG-1\"",
-            ["audience_age"] = "65",
-            ["audience_city"] = "\"Columbus\"",
+            ["ParticipantIdentifier"] = "\"CG-1\"",
+            ["participant_age"] = "65",
+            ["participant_city"] = "\"Columbus\"",
         });
     }
 
@@ -77,12 +77,29 @@ public sealed class PersonalizationColumnsTests
     public void ValueOf_ResponseWithoutTheVariableOrWithoutASnapshot_IsNull()
     {
         // Arrange
-        var column = PersonalizationColumns.From(PersonalizationReader.Read(Snapshot)).Single(column => column.Key == "audience_city");
+        var column = PersonalizationColumns.From(PersonalizationReader.Read(Snapshot)).Single(column => column.Key == "participant_city");
         var other = PersonalizationReader.Read("""{"identifier":"CG-2","variables":{"age":40}}""");
 
         // Act & Assert
         PersonalizationColumns.ValueOf(column, other).Should().BeNull();
         PersonalizationColumns.ValueOf(column, null).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("AudienceIdentifier")]
+    [InlineData("audience_city")]
+    [InlineData("audience_a")]
+    public void ValueOf_ColumnKeyedBeforeTheParticipantRename_IsNull(string canaryKey)
+    {
+        // Arrange: a schema flattened by a canary keeps these keys until the form is re-flattened.
+        var read = PersonalizationReader.Read("""{"identifier":"CG-1","variables":{"city":"Columbus","a":"x","y":"z"}}""");
+        FormSchemaColumn column = new(canaryKey, FormSchemaColumnKind.Personalization, canaryKey, "text");
+
+        // Act
+        var value = PersonalizationColumns.ValueOf(column, read);
+
+        // Assert
+        value.Should().BeNull();
     }
 
     [Fact]
@@ -97,7 +114,7 @@ public sealed class PersonalizationColumnsTests
 
         // Assert
         included.Columns.Select(column => column.Key).Should().Equal(
-            "city", "AudienceIdentifier", "audience_age", "audience_city", "audience_joined");
+            "city", "ParticipantIdentifier", "participant_age", "participant_city", "participant_joined");
     }
 
     [Theory]
@@ -133,7 +150,7 @@ public sealed class PersonalizationColumnsTests
     public void AreCoveredBy_QuestionAlreadyUsingTheKey_KeepsTheQuestion()
     {
         // Arrange: the first column a key had wins, as for every column.
-        var schema = Questions("audience_city");
+        var schema = Questions("participant_city");
 
         // Act
         var covered = PersonalizationColumns.AreCoveredBy(schema, [Column("city", "text")]);

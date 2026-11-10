@@ -31,19 +31,19 @@ public sealed partial class ShojiCodebookGeneratorTests
         // Assert
         var metadata = table.GetProperty("metadata");
         metadata.GetProperty("qCity").GetProperty("name").GetString().Should().Be("City");
-        metadata.GetProperty("audience_city").GetProperty("name").GetString().Should().Be("City -- audience_city");
+        metadata.GetProperty("participant_city").GetProperty("name").GetString().Should().Be("City -- participant_city");
         ReadOrder(table).Skip(OrderedSystemColumnCount)
-            .Should().Equal(PersonalizationColumns.IdentifierKey, "audience_city", "qCity");
+            .Should().Equal(PersonalizationColumns.IdentifierKey, "participant_city", "qCity");
     }
 
     [Fact]
     public void Generate_QuestionAliasMatchesAnAudienceKey_TheQuestionKeepsItsPlaceInTheOrder()
     {
-        // Arrange: with "_" as the separator, item "region" of question "audience" takes the alias "audience_region".
+        // Arrange: with "_" as the separator, item "region" of question "audience" takes the alias "participant_region".
         const string definitionJson = """
             {"pages":[{"name":"page1","elements":[
               {"type":"text","name":"qFirst"},
-              {"type":"multipletext","name":"audience","items":[{"name":"region"}]}
+              {"type":"multipletext","name":"participant","items":[{"name":"region"}]}
             ]}]}
             """;
         FormSchemaCompiler compiler = new();
@@ -58,6 +58,6 @@ public sealed partial class ShojiCodebookGeneratorTests
 
         // Assert
         ReadOrder(table).Skip(OrderedSystemColumnCount)
-            .Should().Equal(PersonalizationColumns.IdentifierKey, "qFirst", "audience_region");
+            .Should().Equal(PersonalizationColumns.IdentifierKey, "qFirst", "participant_region");
     }
 }

@@ -37,7 +37,7 @@ public sealed class OmittedColumnWarningTests
     [InlineData("csv-shoji", "qName")]
     public async Task PrepareOptionsAsync_QuestionTakesAnAudienceKey_LogsOneWarningAndSucceeds(string format, string? scopedQuestion)
     {
-        // Arrange: with "_" as the separator, multipletext "audience" item "region" exports as "audience_region".
+        // Arrange: with "_" as the separator, multipletext "participant" item "region" exports as "participant_region".
         var dataSource = DataSource(ExportColumnPlanBuilderTests.AudienceRegionCollisionSchema());
 
         // Act
@@ -50,7 +50,7 @@ public sealed class OmittedColumnWarningTests
         var entry = _entries.Should().ContainSingle().Subject;
         entry.Level.Should().Be(LogLevel.Warning);
         entry.Values["FormId"].Should().Be(FormId);
-        entry.Values["AudienceKeys"].Should().Be("audience_region");
+        entry.Values["AudienceKeys"].Should().Be("participant_region");
     }
 
     [Theory]
@@ -58,8 +58,8 @@ public sealed class OmittedColumnWarningTests
     [InlineData("csv", """{"keySeparator":"_"}""", "qName")]
     public async Task PrepareOptionsAsync_NoQuestionTakesAnAudienceKey_LogsNothing(string format, string? settingsJson, string? scopedQuestion)
     {
-        // Arrange: with "__" the item exports as "audience__region"; a plain export scoped to "qName" has no codebook
-        // that gives "audience_region" to the question.
+        // Arrange: with "__" the item exports as "participant__region"; a plain export scoped to "qName" has no codebook
+        // that gives "participant_region" to the question.
         var dataSource = DataSource(ExportColumnPlanBuilderTests.AudienceRegionCollisionSchema());
 
         // Act
