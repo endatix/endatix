@@ -51,7 +51,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override Task TransactionCommittedAsync(
         DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
     {
-        EndTransaction(eventData);
+        TransactionCommitted(transaction, eventData);
         return Task.CompletedTask;
     }
 
@@ -77,7 +77,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     public override Task TransactionRolledBackAsync(
         DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
     {
-        EndTransaction(eventData);
+        TransactionRolledBack(transaction, eventData);
         return Task.CompletedTask;
     }
 
