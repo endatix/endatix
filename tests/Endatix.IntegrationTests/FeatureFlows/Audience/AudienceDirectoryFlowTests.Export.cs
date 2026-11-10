@@ -73,7 +73,8 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task A_reflatten_moves_a_canary_form_from_audience_keys_to_participant_keys()
     {
-        // Arrange: the form was flattened by a canary that keyed participant columns as audience_* (#1282).
+        // Arrange: the form was flattened by a canary that keyed participant columns as audience_* (#1282), and a
+        // response came in after the upgrade, before anyone rebuilt it.
         await using ReportingWebHost host = new(fixture);
         var world = await WorldAsync(host);
         var api = await AsAsync(world, TestPersona.TenantAdmin);
@@ -84,7 +85,10 @@ public sealed partial class AudienceDirectoryFlowTests
         await CompletedOnBehalfAsync(api, formId, "AQ-000001-01");
         await ExpectOkAsync(api.PostAsync($"/api/forms/{formId}/submissions/backfill", new { }));
         await KeyAsInCanaryAsync(world.Services, formId);
+        await CompletedOnBehalfAsync(api, formId, "AQ-000002-01");
+        await ExpectOkAsync(api.PostAsync($"/api/forms/{formId}/submissions/backfill", new { }));
         var csvBefore = await ExportAsync(api, formId, "csv");
+        using var codebookBefore = JsonDocument.Parse(await ExportAsync(api, formId, "codebook"));
 
         // Act
         await ExpectOkAsync(api.PostAsync($"/api/forms/{formId}/reporting/compile-schema", new { replace = true }));
@@ -94,6 +98,14 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Contains("audience_full_name", AudienceHeaders(csvBefore, "audience_"));
+        Assert.Contains("participant_age", AudienceHeaders(csvBefore));
+        Assert.Contains("AQ-000002-01", csvBefore);
+        Assert.Equal(
+            "participant_age",
+            codebookBefore.RootElement.GetProperty("participants").GetProperty("variables").GetProperty("age").GetString());
+        Assert.DoesNotContain(
+            codebookBefore.RootElement.GetProperty("participants").GetProperty("variables").EnumerateObject(),
+            variable => variable.Value.GetString()!.StartsWith("audience_", StringComparison.Ordinal));
         Assert.Equal(
             ["ParticipantIdentifier", "participant_full_name", "participant_age", "participant_hometown", "participant_panel_member", "participant_joined", "participant_last_seen", "participant_tags"],
             AudienceHeaders(csvAfter));
