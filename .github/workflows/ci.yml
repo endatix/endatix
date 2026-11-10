@@ -58,7 +58,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Elevated permissions live on the pipeline job only — test jobs run read-only.
+# Elevated permissions live on the pipeline job, plus `actions: write` on coverage-cleanup to
+# delete this run's coverage — test jobs run read-only.
 permissions:
   contents: read
 
@@ -158,10 +159,18 @@ jobs:
           path: .coverage/**/*.ctrf
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 7 # emitted: per-test detail for a recent run; the trend reads test-totals-*
       - name: ⏱️ Unit test durations summary
         if: ${{ !cancelled() }}
-        run: node scripts/test-durations-summary.mjs .coverage "Unit test durations"
+        run: node scripts/test-durations-summary.mjs .coverage "Unit test durations" --totals test-totals.json
+      - name: ⏱️ Upload unit test totals
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-totals-unit
+          path: test-totals.json
+          if-no-files-found: warn
+          retention-days: 90 # emitted: ci-progress.py reads it to track CI speed over time (~10 KB)
       - name: 📊 Upload unit coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -169,7 +178,10 @@ jobs:
           path: .coverage/**/coverage.opencover.*.xml
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: error
-          retention-days: 7 # long enough to re-run the sonar job
+          compression-level: 9 # XML: ~8% smaller than the default 6
+          # Internal: only the sonar job of this run reads it, and coverage-cleanup deletes it once
+          # sonar succeeds. Two days still covers re-running a failed sonar job.
+          retention-days: 2
       - name: 📊 Install DotNet Report Generator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.5.11
       # Coveralls tracks unit coverage only, so its report leaves out the assemblies
@@ -280,12 +292,20 @@ jobs:
           path: .coverage/**/*.ctrf
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 7 # emitted: per-test detail for a recent run; the trend reads test-totals-*
       - name: ⏱️ Integration test durations summary
         if: ${{ !cancelled() }}
         env:
           TITLE: ${{ matrix.title }} integration test durations (${{ matrix.lane }} lane)
-        run: node scripts/test-durations-summary.mjs .coverage "$TITLE"
+        run: node scripts/test-durations-summary.mjs .coverage "$TITLE" --totals test-totals.json
+      - name: ⏱️ Upload integration test totals
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-totals-${{ matrix.artifact }}
+          path: test-totals.json
+          if-no-files-found: warn
+          retention-days: 90 # emitted: ci-progress.py reads it to track CI speed over time (~10 KB)
       - name: 📊 Upload integration coverage for SonarCloud
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -293,7 +313,8 @@ jobs:
           path: .coverage/**/coverage.opencover.*.xml
           include-hidden-files: true # .coverage is a dot-directory
           if-no-files-found: error
-          retention-days: 7 # long enough to re-run the sonar job
+          compression-level: 9 # XML: ~8% smaller than the default 6
+          retention-days: 2 # internal, as coverage-unit above
 
   # CI-based SonarCloud analysis with unit + PostgreSQL + SQL Server coverage (all four lanes).
   # Automatic Analysis (the SonarCloud app's own scan) cannot import coverage,
@@ -366,7 +387,7 @@ jobs:
         run: |
           for a in unit integration-jobs integration-rest integration-sqlserver-jobs integration-sqlserver-rest; do
             if ! find ".sonar-coverage/coverage-$a" -name "coverage.opencover.*.xml" 2>/dev/null | grep -q .; then
-              echo "::error::No coverage-$a report (artifacts expire after 7 days: re-run the whole workflow)."
+              echo "::error::No coverage-$a report (deleted after a successful analysis, or expired after 2 days): re-run all jobs."
               exit 1
             fi
           done
@@ -395,6 +416,36 @@ jobs:
           SONAR_TOKEN: ${{ env.ENDATIX_API_REPO_SONAR_TOKEN }}
           SONAR_ADVISORY_METRICS: ${{ github.event_name == 'pull_request' && 'new_duplicated_lines_density' || '*' }}
         run: node scripts/sonar-gate.mjs
+
+  # Coverage is internal to this run: delete it once SonarCloud has read it. Never after a failed
+  # sonar job, so re-running it still finds the reports. A separate job, so the token that can
+  # delete artifacts never reaches a job that builds PR code. Fork and Dependabot PRs get a
+  # read-only token whatever `permissions` says; their coverage just expires.
+  coverage-cleanup:
+    name: "Endatix API: Delete consumed coverage"
+    needs: [sonar]
+    if: >-
+      needs.sonar.result == 'success' &&
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write # delete this run's artifacts
+    steps:
+      - name: 🧹 Delete this run's coverage artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          ids=$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/artifacts?per_page=100" \
+            -q '.artifacts[] | select(.name | startswith("coverage-")) | .id')
+          if [ -z "$ids" ]; then
+            echo "::warning::No coverage artifacts found on this run; nothing deleted."
+            exit 0
+          fi
+          for id in $ids; do gh api -X DELETE "repos/$REPO/actions/artifacts/$id"; done
+          echo "Deleted $(printf '%s\n' "$ids" | wc -l) coverage artifacts." | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. docker-image makes the shared workflow log into GHCR and

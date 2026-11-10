@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderMarkdown, summarizeReports } from '../lib/test-durations.mjs';
+import { renderMarkdown, summarizeReports, totalsOf } from '../lib/test-durations.mjs';
 
 const report = (dll, tests, { start = 0, stop = 10_000, failed = 0, skipped = 0 } = {}) => ({
   results: {
@@ -52,4 +52,21 @@ test('renderMarkdown reports a zero share when no test time was recorded', () =>
   const markdown = renderMarkdown(summarizeReports([report('A.Tests.dll', [])]), { title: 'Empty', top: 5 });
 
   assert.match(markdown, /0 tests, 0\.0 s of test time\. The 0 slowest take 0% of it\./);
+});
+
+test('totalsOf sums test time per class, counts slow tests, and drops theory arguments from the class', () => {
+  const summary = summarizeReports([
+    report('A.Tests.dll', [
+      { name: 'Ns.Slow.Fast', status: 'passed', duration: 100 },
+      { name: 'Ns.Slow.Theory(input: "a.b")', status: 'passed', duration: 5_000 },
+    ]),
+    report('B.Tests.dll', [{ name: 'Other.Quick.Run', status: 'failed', duration: 4_999 }]),
+  ]);
+
+  assert.deepEqual(totalsOf(summary), {
+    tests: 3,
+    totalMs: 10_099,
+    slowTests: 1,
+    classes: { 'Ns.Slow': 5_100, 'Other.Quick': 4_999 },
+  });
 });

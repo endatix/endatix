@@ -1,6 +1,8 @@
 // Reads xUnit CTRF reports (`--report-xunit-ctrf`) and renders the job-summary Markdown for
 // scripts/test-durations-summary.mjs. One report per test app.
 
+const SLOW_TEST_MS = 5_000;
+
 const assemblyOf = (report) => {
   const filePath = report.results?.extra?.suites?.[0]?.filePath ?? '';
   return filePath.split(/[\\/]/).pop()?.replace(/\.dll$/, '') || 'unknown';
@@ -35,6 +37,24 @@ export function summarizeReports(reports) {
   );
 
   return { assemblies, tests };
+}
+
+// `Ns.Class.Method(arg: "a.b")` → `Ns.Class`: the arguments go first, since they may hold dots.
+const classOf = (testName) => testName.split('(')[0].split('.').slice(0, -1).join('.');
+
+// The few numbers the CI-speed trend reads (ci-progress.py), kept far longer than the raw reports.
+export function totalsOf({ tests }) {
+  const classes = {};
+  for (const test of tests) {
+    const name = classOf(test.name);
+    classes[name] = (classes[name] ?? 0) + test.durationMs;
+  }
+  return {
+    tests: tests.length,
+    totalMs: tests.reduce((sum, test) => sum + test.durationMs, 0),
+    slowTests: tests.filter((test) => test.durationMs >= SLOW_TEST_MS).length,
+    classes,
+  };
 }
 
 export function renderMarkdown({ assemblies, tests }, { title, top }) {
