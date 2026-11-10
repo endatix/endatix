@@ -17,8 +17,6 @@ internal sealed class NamespaceFilteringMigrationsAssembly : IMigrationsAssembly
 {
     private readonly IMigrationsAssembly _inner;
     private readonly string _namespacePrefix;
-    private IReadOnlyDictionary<string, TypeInfo>? _filteredMigrations;
-    private ModelSnapshot? _modelSnapshot;
 
     public NamespaceFilteringMigrationsAssembly(
         ICurrentDbContext currentContext,
@@ -34,18 +32,20 @@ internal sealed class NamespaceFilteringMigrationsAssembly : IMigrationsAssembly
         }
 
         _namespacePrefix = namespacePrefix;
+#pragma warning disable EF1001 // EF has no public IMigrationsAssembly base; this filter wraps the internal assembly for provider-scoped migration folders (see class summary).
         _inner = new MigrationsAssembly(currentContext, dbContextOptions, migrationsIdGenerator, logger);
+#pragma warning restore EF1001
     }
 
     public Assembly Assembly => _inner.Assembly;
 
     public IReadOnlyDictionary<string, TypeInfo> Migrations =>
-        _filteredMigrations ??= _inner.Migrations
+        field ??= _inner.Migrations
             .Where(pair => pair.Value.Namespace?.StartsWith(_namespacePrefix, StringComparison.Ordinal) == true)
             .ToDictionary(pair => pair.Key, pair => pair.Value);
 
     public ModelSnapshot? ModelSnapshot =>
-        _modelSnapshot ??= ResolveModelSnapshot();
+        field ??= ResolveModelSnapshot();
 
     public string? FindMigrationId(string nameOrId)
     {
@@ -92,8 +92,6 @@ internal sealed class NamespaceFilteringMigrationsAssembly : IMigrationsAssembly
 
 internal sealed class ProviderMigrationsNamespaceExtension : IDbContextOptionsExtension
 {
-    private DbContextOptionsExtensionInfo? _info;
-
     public string MigrationsNamespace { get; private set; } = string.Empty;
 
     public ProviderMigrationsNamespaceExtension WithNamespace(string migrationsNamespace)
@@ -105,7 +103,7 @@ internal sealed class ProviderMigrationsNamespaceExtension : IDbContextOptionsEx
     }
 
     public DbContextOptionsExtensionInfo Info =>
-        _info ??= new ExtensionInfo(this);
+        field ??= new ExtensionInfo(this);
 
     public void ApplyServices(IServiceCollection services)
     {

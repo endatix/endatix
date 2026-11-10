@@ -19,12 +19,16 @@ public sealed class MeasureExecution : IDisposable
         _className = Path.GetFileNameWithoutExtension(filePath);
         _methodName = methodName;
         _startTime = Stopwatch.GetTimestamp();
+#pragma warning disable S1215 // DEBUG-only diagnostic: intentional heap snapshot around the measured call.
         _memoryBefore = GC.GetTotalMemory(true);
+#pragma warning restore S1215
     }
 
     public void Dispose()
     {
+#pragma warning disable S1215 // DEBUG-only diagnostic: intentional heap snapshot around the measured call.
         var memoryAfter = GC.GetTotalMemory(true);
+#pragma warning restore S1215
         var elapsedTime = Stopwatch.GetElapsedTime(_startTime);
         Console.WriteLine($"⌚ {_className}.{_methodName} completed in {elapsedTime.TotalMilliseconds}ms | memory allocated: {(memoryAfter - _memoryBefore) / (1024.0 * 1024.0):F2} MB");
     }

@@ -7,7 +7,7 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// <summary>Shoji variables for the audience values frozen on each response.</summary>
 internal static partial class ShojiCodebookGenerator
 {
-    private const string PersonalizationDescription = "Audience value frozen when the response was opened.";
+    private const string PersonalizationDescription = "Participant value frozen when the response was opened.";
 
     private sealed record ShojiVariableTracking(
         HashSet<string> WrittenVariables,

@@ -34,15 +34,15 @@ internal sealed record FormSchemaCodebookExportShape
     public static readonly FormSchemaCodebookExportShape Scalar = new("scalar");
     /// <summary>Calculated value saved to the survey results (one column, any value).</summary>
     public static readonly FormSchemaCodebookExportShape Calculated = new("calculated");
-    /// <summary>Audience value frozen on the response (one column, typed by the audience property).</summary>
-    public static readonly FormSchemaCodebookExportShape Personalization = new("personalization");
+    /// <summary>Participant value frozen on the response (one column, typed by the audience property).</summary>
+    public static readonly FormSchemaCodebookExportShape Participant = new("participant");
     /// <summary>Submitter profile field captured with the response (one text column).</summary>
     public static readonly FormSchemaCodebookExportShape SubmitterProfile = new("submitter_profile");
 
     // Declared after the shapes it holds: static fields initialize in declaration order.
     private static readonly Dictionary<FormSchemaColumnKind, FormSchemaCodebookExportShape> _byColumnKind = new()
     {
-        [FormSchemaColumnKind.Personalization] = Personalization,
+        [FormSchemaColumnKind.Personalization] = Participant,
         [FormSchemaColumnKind.SubmitterProfile] = SubmitterProfile,
         [FormSchemaColumnKind.ChoiceIndicator] = MultipleResponse,
         [FormSchemaColumnKind.CheckboxOtherText] = MultipleResponse,

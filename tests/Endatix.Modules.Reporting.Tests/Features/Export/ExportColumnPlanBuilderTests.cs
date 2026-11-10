@@ -76,9 +76,9 @@ public sealed class ExportColumnPlanBuilderTests
 
         // Assert
         plan.Columns.TakeLast(3).Select(column => (column.ExportKey, column.HeaderLabel)).Should().Equal(
-            ("AudienceIdentifier", "Audience identifier"),
-            ("audience_last_seen", "Last seen"),
-            ("audience_panel_member", "Panel member"));
+            ("ParticipantIdentifier", "Participant identifier"),
+            ("participant_last_seen", "Last seen"),
+            ("participant_panel_member", "Panel member"));
     }
 
     [Fact]
@@ -93,15 +93,15 @@ public sealed class ExportColumnPlanBuilderTests
 
         // Assert
         plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
-            "qName", "AudienceIdentifier", "audience_last_seen", "audience_panel_member");
+            "qName", "ParticipantIdentifier", "participant_last_seen", "participant_panel_member");
     }
 
     [Fact]
     public void Build_QuestionExportKeyMatchesAnAudienceKey_TheQuestionKeepsTheKey()
     {
-        // Arrange: with "_" as the separator, question "audience__region" exports as "audience_region".
+        // Arrange: with "_" as the separator, question "participant__region" exports as "participant_region".
         const string definitionJson = """
-            {"pages":[{"name":"p1","elements":[{"type":"text","name":"audience__region"}]}]}
+            {"pages":[{"name":"p1","elements":[{"type":"text","name":"participant__region"}]}]}
             """;
         FormSchemaCompiler compiler = new();
         var compiled = compiler.CompilePersisted(definitionJson);
@@ -115,16 +115,16 @@ public sealed class ExportColumnPlanBuilderTests
         IExportColumnPlan plan = ExportColumnPlanBuilder.Build(schema, keySeparator: "_");
 
         // Assert
-        plan.Columns.Where(column => column.ExportKey == "audience_region")
+        plan.Columns.Where(column => column.ExportKey == "participant_region")
             .Select(column => column.CanonicalKey)
-            .Should().Equal("audience__region");
+            .Should().Equal("participant__region");
         plan.Columns.Should().Contain(column => column.ExportKey == PersonalizationColumns.IdentifierKey);
     }
 
     [Fact]
     public void Build_ShojiScopeLeavesOutTheQuestionThatTakesAnAudienceKey_TheAudienceColumnStaysOut()
     {
-        // Arrange: with "_" as the separator, multipletext "audience" item "region" exports as "audience_region".
+        // Arrange: with "_" as the separator, multipletext "participant" item "region" exports as "participant_region".
         var schema = AudienceRegionCollisionSchema();
 
         // Act
@@ -133,7 +133,7 @@ public sealed class ExportColumnPlanBuilderTests
         // Assert
         plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
             "qName", PersonalizationColumns.IdentifierKey);
-        plan.OmittedKeys.Audience.Should().Equal("audience_region");
+        plan.OmittedKeys.Audience.Should().Equal("participant_region");
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public sealed class ExportColumnPlanBuilderTests
 
         // Assert
         plan.Columns.Skip(SubmissionExportRow.SystemColumns.Count).Select(column => column.ExportKey).Should().Equal(
-            "qName", PersonalizationColumns.IdentifierKey, "audience_region");
+            "qName", PersonalizationColumns.IdentifierKey, "participant_region");
         plan.OmittedKeys.Audience.Should().BeEmpty();
     }
 
@@ -200,7 +200,7 @@ public sealed class ExportColumnPlanBuilderTests
     {
         const string definitionJson = """
             {"pages":[{"name":"p1","elements":[{"type":"text","name":"qName"},
-              {"type":"multipletext","name":"audience","items":[{"name":"region"},{"name":"city"}]}]}]}
+              {"type":"multipletext","name":"participant","items":[{"name":"region"},{"name":"city"}]}]}]}
             """;
         FormSchemaCompiler compiler = new();
         var compiled = compiler.CompilePersisted(definitionJson);

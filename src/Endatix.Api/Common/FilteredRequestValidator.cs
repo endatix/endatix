@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentValidation;
 
 namespace Endatix.Api.Common;
@@ -112,7 +113,7 @@ public class FilteredRequestValidator : AbstractValidator<IFilterable>
             Type t when t == typeof(int) => int.TryParse(value, out _),
             Type t when t == typeof(long) => long.TryParse(value, out _),
             Type t when t == typeof(bool) => bool.TryParse(value, out _),
-            Type t when t == typeof(DateTime) => DateTime.TryParse(value, out _),
+            Type t when t == typeof(DateTime) => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
             Type t when t == typeof(string) => true,
             _ => false
         };

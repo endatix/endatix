@@ -114,7 +114,9 @@ public class WebHookSettings : IEndatixSettings
         public EventSetting SubmissionClosed { get; set; } = new() { EventName = EventNames.SUBMISSION_CLOSED };
 
         /// <summary>Retired: use <see cref="SubmissionClosed"/>.</summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
         [Obsolete("Retired: use SubmissionClosed.", error: true)]
+#pragma warning restore S1133
         public EventSetting SubmissionCollectionStatusChanged { get; set; } = new() { EventName = EventNames.SUBMISSION_COLLECTION_STATUS_CHANGED };
 
         /// <summary>

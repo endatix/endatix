@@ -40,8 +40,8 @@ internal static class FormSchemaCodebookPropertyNames
     /// <summary>Choice catalog: where the Other text is stored, "comment" or "value"; only with an Other item.</summary>
     public const string OtherStorage = "otherStorage";
 
-    /// <summary>The audience block an export adds: its title, identifier column and variable columns.</summary>
-    public const string Personalization = "personalization";
+    /// <summary>The participants block an export adds: its title, identifier column and variable columns.</summary>
+    public const string Participants = "participants";
     public const string Identifier = "identifier";
     public const string Variables = "variables";
 
@@ -53,8 +53,8 @@ internal static class FormSchemaCodebookPropertyNames
     /// <summary>SurveyJS class name of a calculated value (custom variable).</summary>
     public const string CalculatedValueSurveyJsType = "calculatedvalue";
 
-    /// <summary>Not a SurveyJS class: an audience value frozen on the response, which a survey reads as a variable.</summary>
-    public const string PersonalizationSurveyJsType = "personalization";
+    /// <summary>Not a SurveyJS class: a participant value frozen on the response, which a survey reads as a variable.</summary>
+    public const string ParticipantSurveyJsType = "participant";
 
     /// <summary>Not a SurveyJS class: a submitter profile field captured with the response.</summary>
     public const string SubmitterProfileSurveyJsType = "submitter_profile";

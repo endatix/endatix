@@ -116,7 +116,7 @@ public sealed partial class ShojiCodebookGeneratorTests
             ShojiFolderNames.ParticipantVariables,
             ShojiFolderNames.Questions);
         ShojiOrder.Aliases(ShojiOrder.Folder(order, ShojiFolderNames.ParticipantVariables))
-            .Should().Equal(PersonalizationColumns.IdentifierKey, "audience_city");
+            .Should().Equal(PersonalizationColumns.IdentifierKey, "participant_city");
         ShojiOrder.Aliases(ShojiOrder.Folder(order, ShojiFolderNames.Questions)).Should().Equal("qCity");
     }
 

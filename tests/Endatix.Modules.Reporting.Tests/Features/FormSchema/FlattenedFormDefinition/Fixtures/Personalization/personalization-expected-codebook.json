@@ -22,73 +22,73 @@
     }
   },
   "columns": {
-    "AudienceIdentifier": {
-      "parentKey": "AudienceIdentifier",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "ParticipantIdentifier": {
+      "parentKey": "ParticipantIdentifier",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
-        "default": "Audience identifier"
+        "default": "Participant identifier"
       }
     },
-    "audience_age": {
-      "parentKey": "audience_age",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_age": {
+      "parentKey": "participant_age",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "Age"
       }
     },
-    "audience_city": {
-      "parentKey": "audience_city",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_city": {
+      "parentKey": "participant_city",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "City"
       }
     },
-    "audience_joined": {
-      "parentKey": "audience_joined",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_joined": {
+      "parentKey": "participant_joined",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "date",
       "title": {
         "default": "Joined"
       }
     },
-    "audience_last_seen": {
-      "parentKey": "audience_last_seen",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_last_seen": {
+      "parentKey": "participant_last_seen",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "date_time",
       "title": {
         "default": "Last seen"
       }
     },
-    "audience_panel_member": {
-      "parentKey": "audience_panel_member",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_panel_member": {
+      "parentKey": "participant_panel_member",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "boolean",
       "title": {
         "default": "Panel member"
       }
     },
-    "audience_score": {
-      "parentKey": "audience_score",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_score": {
+      "parentKey": "participant_score",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "number",
       "title": {
         "default": "score"
       }
     },
-    "audience_tags": {
-      "parentKey": "audience_tags",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_tags": {
+      "parentKey": "participant_tags",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "multiple_choice",
       "title": {
         "default": "tags"

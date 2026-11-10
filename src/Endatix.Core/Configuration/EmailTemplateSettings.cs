@@ -47,7 +47,9 @@ public class EmailTemplateSettings
     /// <summary>
     /// The base URL for Endatix Hub application.
     /// </summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Use Endatix:Hub:HubBaseUrl instead")]
+#pragma warning restore S1133
     public string HubUrl { get; set; } = string.Empty;
 
     /// <summary>
