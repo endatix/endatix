@@ -267,8 +267,11 @@ jobs:
           echo "INTEGRATION_TEST_FILTER=$base&$lane" >> "$GITHUB_ENV"
       # Debug, like the unit run: Debug gives braces their own sequence points, so a
       # Release report would leave them 0-hit in the merged Sonar coverage.
+      # No analyzers, code-style checks or NuGet audit here: the unit job builds the same projects
+      # (Endatix.slnx) with all of them and fails on a vulnerable package, and the sonar job runs its
+      # own analyzed build. Source generators still run, so the compiled code is the same.
       - name: Build integration tests
-        run: dotnet build "$INTEGRATION_PROJECT"
+        run: dotnet build "$INTEGRATION_PROJECT" -p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false -p:NuGetAudit=false
       # Lists tests only (seconds, no database): fails when a test is in neither lane or in both.
       - name: Check the lanes split the suite
         run: node scripts/check-integration-lanes.mjs "$INTEGRATION_PROJECT" "$INTEGRATION_BASE_FILTER" "$JOBS_LANE_FILTER" "$REST_LANE_FILTER"
