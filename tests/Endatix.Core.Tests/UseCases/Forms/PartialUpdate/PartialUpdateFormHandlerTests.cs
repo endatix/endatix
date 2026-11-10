@@ -47,6 +47,24 @@ public class PartialUpdateFormHandlerTests
     }
 
     [Fact]
+    public async Task Handle_FolderIdProvided_EvaluatesFolderMoveWithoutUpdatingOtherFields()
+    {
+        // Arrange
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
+        form.Id = 1;
+        var request = new PartialUpdateFormCommand(1) { FolderId = 5 };
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+                   .Returns(form);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        form.Name.Should().Be("Test Form");
+    }
+
+    [Fact]
     public async Task Handle_ValidRequest_UpdatesForm()
     {
         // Arrange

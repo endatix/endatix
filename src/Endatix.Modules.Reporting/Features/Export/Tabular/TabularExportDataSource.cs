@@ -105,7 +105,7 @@ internal sealed partial class TabularExportDataSource(
         {
             return ReportingExportSchemaHelper.InvalidLocaleResult<ExportOptions>(
                 schema.Locales,
-                settings.Locale!);
+                settings.Locale);
         }
 
         context.Options.Metadata ??= new Dictionary<string, object>();

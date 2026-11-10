@@ -55,7 +55,7 @@ internal sealed class GoogleReCaptchaService : IReCaptchaPolicyService
     {
         Guard.Against.Null(context);
 
-        if (context.IsComplete == false)
+        if (!context.IsComplete)
         {
             return Result.Success();
         }
