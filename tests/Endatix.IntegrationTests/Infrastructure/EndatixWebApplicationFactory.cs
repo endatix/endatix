@@ -100,7 +100,7 @@ public enum OutboxPolling
 /// <summary>How a test host hashes passwords and refresh tokens.</summary>
 public enum PasswordHashing
 {
-    /// <summary>At <see cref="IntegrationPasswordHashing.FAST_ITERATION_COUNT"/>, so seeding and signing in skip the hashing cost.</summary>
+    /// <summary>At <see cref="IntegrationPasswordHashing.FastIterationCount"/>, so seeding and signing in skip the hashing cost.</summary>
     Fast,
 
     /// <summary>At the production settings. Seed the world on this host too: see <see cref="IntegrationPasswordHashing"/>.</summary>

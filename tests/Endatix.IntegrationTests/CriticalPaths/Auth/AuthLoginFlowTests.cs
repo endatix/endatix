@@ -76,9 +76,9 @@ public sealed class AuthLoginFlowTests
         using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.Login, cancellationToken: cancellationToken);
 
         // Assert
-        var (passwordHash, refreshTokenHash) = await SignedInUserHashesAsync(world.Services, cancellationToken);
-        Assert.Equal(IntegrationPasswordHashing.FAST_ITERATION_COUNT, IterationCount(passwordHash));
-        Assert.Equal(IntegrationPasswordHashing.FAST_ITERATION_COUNT, IterationCount(refreshTokenHash));
+        var (passwordHash, refreshTokenHash) = await StoredHashesAsync(world.Services, world.Tenants[0].Admin.Id, cancellationToken);
+        Assert.Equal(IntegrationPasswordHashing.FastIterationCount, IterationCount(passwordHash));
+        Assert.Equal(IntegrationPasswordHashing.FastIterationCount, IterationCount(refreshTokenHash));
     }
 
     [Fact]
@@ -87,6 +87,7 @@ public sealed class AuthLoginFlowTests
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new ProductionPasswordHashingHost(_fixture);
+        // src configures no PasswordHasherOptions, so production hashes at the Identity default.
         var productionIterationCount = new PasswordHasherOptions().IterationCount;
         Assert.Equal(productionIterationCount, host.Services.GetRequiredService<IOptions<PasswordHasherOptions>>().Value.IterationCount);
 
@@ -100,19 +101,21 @@ public sealed class AuthLoginFlowTests
 
         // Assert
         Assert.Equal(world.Tenants[0].Id, me.TenantId);
-        var (passwordHash, refreshTokenHash) = await SignedInUserHashesAsync(world.Services, cancellationToken);
+        var (passwordHash, refreshTokenHash) = await StoredHashesAsync(world.Services, world.Tenants[0].Admin.Id, cancellationToken);
         Assert.Equal(productionIterationCount, IterationCount(passwordHash));
         Assert.Equal(productionIterationCount, IterationCount(refreshTokenHash));
     }
 
-    private static async Task<(string PasswordHash, string RefreshTokenHash)> SignedInUserHashesAsync(
-        IServiceProvider services, CancellationToken cancellationToken)
+    private static async Task<(string PasswordHash, string RefreshTokenHash)> StoredHashesAsync(
+        IServiceProvider services, long userId, CancellationToken cancellationToken)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         var user = await db.Users.IgnoreQueryFilters().AsNoTracking()
-            .SingleAsync(x => x.RefreshTokenHash != null, cancellationToken);
-        return (user.PasswordHash!, user.RefreshTokenHash!);
+            .SingleAsync(x => x.Id == userId, cancellationToken);
+        Assert.NotNull(user.PasswordHash);
+        Assert.NotNull(user.RefreshTokenHash);
+        return (user.PasswordHash, user.RefreshTokenHash);
     }
 
     /// <summary>The count an Identity V3 hash records: format marker, PRF and iteration count, big-endian.</summary>
