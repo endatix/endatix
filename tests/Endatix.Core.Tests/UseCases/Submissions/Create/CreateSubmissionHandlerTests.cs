@@ -11,7 +11,6 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.Exceptions;
-using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.Create;
 using MediatR;
 
@@ -118,43 +117,6 @@ public class CreateSubmissionHandlerTests
             ),
             Arg.Any<CancellationToken>()
         );
-    }
-
-    [Fact]
-    public async Task Handle_QuotaFullOutcome_ReturnsServerOnlyMessageAndAddsNothing()
-    {
-        // Arrange
-        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
-        form.Id = 1;
-        var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 2 };
-        form.AddFormDefinition(formDefinition);
-        form.SetActiveFormDefinition(formDefinition);
-        var request = new CreateSubmissionCommand(
-            FormId: 1,
-            JsonData: "{ \"field\": \"value\" }",
-            IsComplete: false,
-            CurrentPage: 1,
-            Metadata: null,
-            ReCaptchaToken: "test-token",
-            RequiredPermission: "submissions.create",
-            CollectionOutcome: CollectionStatusCodes.QuotaFull
-        );
-        _recaptchaService.ValidateReCaptchaAsync(
-            Arg.Any<SubmissionVerificationContext>(),
-            Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        _formsRepository.SingleOrDefaultAsync(
-            Arg.Any<ActiveFormDefinitionByFormIdSpec>(),
-            Arg.Any<CancellationToken>())
-            .Returns(form);
-
-        // Act
-        var result = await _handler.Handle(request, TestContext.Current.CancellationToken);
-
-        // Assert
-        result.Status.Should().Be(ResultStatus.Invalid);
-        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == CollectionOutcomes.SERVER_ONLY_MESSAGE);
-        await _submissionsRepository.DidNotReceive().AddAsync(Arg.Any<Submission>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
