@@ -21,18 +21,24 @@ public sealed class JobsTestDatabaseTests(DbIntegrationFixture fixture)
         // Arrange — PostgreSQL-only: the database is renamed away and another takes its name, so renaming it back fails.
         var ct = TestContext.Current.CancellationToken;
         var database = await JobsTestDatabase.CreateAsync(fixture, ct);
-        var name = new NpgsqlConnectionStringBuilder(database.ConnectionString).Database;
-        await database.TakeAwayAsync(ct);
-        await ExecuteAsync($"CREATE DATABASE {name}", ct);
+        var name = new NpgsqlConnectionStringBuilder(database.ConnectionString).Database!;
+        try
+        {
+            await database.TakeAwayAsync(ct);
+            await ExecuteAsync($"CREATE DATABASE {name}", ct);
 
-        // Act
-        var thrown = await Record.ExceptionAsync(() => database.DisposeAsync().AsTask());
-        var left = await CountAsync($"SELECT count(*) FROM pg_database WHERE datname = '{name}_away'", ct);
-        await ExecuteAsync($"DROP DATABASE {name}", ct);
+            // Act
+            var thrown = await Record.ExceptionAsync(() => database.DisposeAsync().AsTask());
+            var left = await CountAsync($"SELECT count(*) FROM pg_database WHERE datname = '{name}_away'", ct);
 
-        // Assert
-        Assert.Equal(PostgresErrorCodes.DuplicateDatabase, Assert.IsType<PostgresException>(thrown).SqlState);
-        Assert.Equal(0, left);
+            // Assert
+            Assert.Equal(PostgresErrorCodes.DuplicateDatabase, Assert.IsType<PostgresException>(thrown).SqlState);
+            Assert.Equal(0, left);
+        }
+        finally
+        {
+            await DropPostgreSqlLeftoversAsync(name);
+        }
     }
 
     [PostgreSqlSpecificFact]
@@ -42,17 +48,24 @@ public sealed class JobsTestDatabaseTests(DbIntegrationFixture fixture)
         // once it is writable again runs out.
         var ct = TestContext.Current.CancellationToken;
         var database = await JobsTestDatabase.CreateAsync(fixture, ct);
-        var name = new NpgsqlConnectionStringBuilder(database.ConnectionString).Database;
-        await database.SetReadOnlyAsync(true, ct);
-        await ExecuteAsync($"ALTER DATABASE {name} ALLOW_CONNECTIONS false", ct);
+        var name = new NpgsqlConnectionStringBuilder(database.ConnectionString).Database!;
+        try
+        {
+            await database.SetReadOnlyAsync(true, ct);
+            await ExecuteAsync($"ALTER DATABASE {name} ALLOW_CONNECTIONS false", ct);
 
-        // Act
-        var thrown = await Record.ExceptionAsync(() => database.DisposeAsync().AsTask());
-        var left = await CountAsync($"SELECT count(*) FROM pg_database WHERE datname = '{name}'", ct);
+            // Act
+            var thrown = await Record.ExceptionAsync(() => database.DisposeAsync().AsTask());
+            var left = await CountAsync($"SELECT count(*) FROM pg_database WHERE datname = '{name}'", ct);
 
-        // Assert
-        Assert.Equal(PostgresErrorCodes.ObjectNotInPrerequisiteState, Assert.IsType<PostgresException>(thrown).SqlState);
-        Assert.Equal(0, left);
+            // Assert
+            Assert.Equal(PostgresErrorCodes.ObjectNotInPrerequisiteState, Assert.IsType<PostgresException>(thrown).SqlState);
+            Assert.Equal(0, left);
+        }
+        finally
+        {
+            await DropPostgreSqlLeftoversAsync(name);
+        }
     }
 
     [Fact]
@@ -65,19 +78,26 @@ public sealed class JobsTestDatabaseTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         var name = new SqlConnectionStringBuilder(database.ConnectionString).InitialCatalog;
-        var files = await DatabaseFilesAsync(name, ct);
-        await database.TakeAwayAsync(ct);
-        await ExecuteAsync(
-            $"ALTER DATABASE [{name}] MODIFY FILE (NAME = N'{files.DataName}', FILENAME = N'{files.Data}.missing')", ct);
+        DatabaseFiles? files = null;
+        try
+        {
+            files = await DatabaseFilesAsync(name, ct);
+            await database.TakeAwayAsync(ct);
+            await ExecuteAsync(
+                $"ALTER DATABASE [{name}] MODIFY FILE (NAME = N'{files.DataName}', FILENAME = N'{files.Data}.missing')", ct);
 
-        // Act
-        var thrown = await Record.ExceptionAsync(() => database.DisposeAsync().AsTask());
-        var left = await CountAsync($"SELECT count(*) FROM sys.databases WHERE name = N'{name}'", ct);
-        await DeleteLeftFilesAsync(name, files, ct);
+            // Act
+            var thrown = await Record.ExceptionAsync(() => database.DisposeAsync().AsTask());
+            var left = await CountAsync($"SELECT count(*) FROM sys.databases WHERE name = N'{name}'", ct);
 
-        // Assert — 5120: SQL Server cannot open the data file.
-        Assert.Equal(5120, Assert.IsType<SqlException>(thrown).Number);
-        Assert.Equal(0, left);
+            // Assert — 5120: SQL Server cannot open the data file.
+            Assert.Equal(5120, Assert.IsType<SqlException>(thrown).Number);
+            Assert.Equal(0, left);
+        }
+        finally
+        {
+            await DropSqlServerLeftoversAsync(name, files);
+        }
     }
 
     private sealed record DatabaseFiles(string DataName, string Data, string Log);
@@ -97,16 +117,29 @@ public sealed class JobsTestDatabaseTests(DbIntegrationFixture fixture)
         return new DatabaseFiles(reader.GetString(0), reader.GetString(1), reader.GetString(2));
     }
 
-    // SQL Server keeps the files of a database dropped while it was not online, so they are attached again and dropped
-    // with the database, which deletes them.
-    private Task DeleteLeftFilesAsync(string name, DatabaseFiles files, CancellationToken ct) =>
-        ExecuteAsync($"""
-            IF DB_ID(N'{name}') IS NULL
-            BEGIN
-                CREATE DATABASE [{name}] ON (FILENAME = N'{files.Data}'), (FILENAME = N'{files.Log}') FOR ATTACH;
-                DROP DATABASE [{name}];
-            END
-            """, ct);
+    // Two commands, since PostgreSQL refuses DROP DATABASE inside the transaction a multi-statement command runs in.
+    private async Task DropPostgreSqlLeftoversAsync(string name)
+    {
+        await ExecuteAsync($"DROP DATABASE IF EXISTS {name}_away WITH (FORCE)", CancellationToken.None);
+        await ExecuteAsync($"DROP DATABASE IF EXISTS {name} WITH (FORCE)", CancellationToken.None);
+    }
+
+    // SQL Server keeps the files of a database dropped while it was not online, so files still there are attached
+    // again and dropped with the database, which deletes them.
+    private async Task DropSqlServerLeftoversAsync(string name, DatabaseFiles? files)
+    {
+        await ExecuteAsync($"IF DB_ID(N'{name}') IS NOT NULL DROP DATABASE [{name}]", CancellationToken.None);
+        if (files is not null)
+        {
+            await ExecuteAsync($"""
+                IF EXISTS (SELECT 1 FROM sys.dm_os_file_exists(N'{files.Data}') WHERE file_exists = 1)
+                BEGIN
+                    CREATE DATABASE [{name}] ON (FILENAME = N'{files.Data}'), (FILENAME = N'{files.Log}') FOR ATTACH;
+                    DROP DATABASE [{name}];
+                END
+                """, CancellationToken.None);
+        }
+    }
 
     private async Task ExecuteAsync(string sql, CancellationToken ct)
     {
