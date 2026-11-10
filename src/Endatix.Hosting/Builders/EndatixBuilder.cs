@@ -368,6 +368,7 @@ public class EndatixBuilder : IBuilderRoot
         return this;
     }
 
+#pragma warning disable CA2254 // Setup-log relay: callers supply the message template, so it is not a fixed literal here.
     /// <summary>Logs a setup information message during host composition.</summary>
     internal void LogSetupInfo(string message, params object?[] args) =>
         _logger.LogInformation(message, args);
@@ -379,6 +380,7 @@ public class EndatixBuilder : IBuilderRoot
     /// <summary>Logs a setup error during host composition.</summary>
     internal void LogSetupError(string message, params object?[] args) =>
         _logger.LogError(message, args);
+#pragma warning restore CA2254
 
     /// <summary>
     /// Finalizes all configurations and applies pending builder configurations.
