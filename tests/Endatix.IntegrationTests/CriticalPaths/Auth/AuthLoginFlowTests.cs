@@ -137,10 +137,10 @@ public sealed class AuthLoginFlowTests
         public ProductionPasswordHashingHost(EndatixIntegrationWebHostFixture fixture)
         {
             Database = fixture.Database;
-            _factory = new EndatixWebApplicationFactory(
-                fixture.Database.ConnectionString,
-                fixture.Database.Provider,
-                passwordHashing: PasswordHashing.Production);
+            _factory = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider)
+            {
+                PasswordHashing = PasswordHashing.Production,
+            };
 
             // Reading Services starts the host.
             Seed = new IntegrationSeedBuilder(_factory.Services);

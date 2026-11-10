@@ -30,24 +30,24 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
     private readonly string _connectionString;
     private readonly TestDatabaseProvider _provider;
     private readonly OutboxPolling _outboxPolling;
-    private readonly PasswordHashing _passwordHashing;
 
     public EndatixWebApplicationFactory(
         string connectionString,
         TestDatabaseProvider provider,
-        OutboxPolling outboxPolling = OutboxPolling.Fast,
-        PasswordHashing passwordHashing = PasswordHashing.Fast)
+        OutboxPolling outboxPolling = OutboxPolling.Fast)
     {
         _connectionString = connectionString;
         _provider = provider;
         _outboxPolling = outboxPolling;
-        _passwordHashing = passwordHashing;
     }
+
+    /// <summary>How the host hashes passwords and refresh tokens. Read when the host starts.</summary>
+    public PasswordHashing PasswordHashing { get; init; } = PasswordHashing.Fast;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider, _outboxPolling);
-        if (_passwordHashing == PasswordHashing.Fast)
+        if (PasswordHashing == PasswordHashing.Fast)
         {
             builder.ConfigureTestServices(services => services.UseFastPasswordHashing());
         }
