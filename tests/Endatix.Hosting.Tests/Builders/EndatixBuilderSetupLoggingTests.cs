@@ -45,6 +45,24 @@ public class EndatixBuilderSetupLoggingTests
         act.Should().NotThrow();
     }
 
+    [Fact]
+    public void LogSetup_OnChildBuilder_ReturnsSameChildBuilder()
+    {
+        // Arrange
+        var api = CreateBuilder().Api;
+
+        // Act
+        var results = new[]
+        {
+            api.LogSetupInfo("info {Value}", 1),
+            api.LogSetupWarning("warning {Value}", 1),
+            api.LogSetupError("error {Value}", 1)
+        };
+
+        // Assert
+        results.Should().OnlyContain(result => ReferenceEquals(result, api));
+    }
+
     private static EndatixBuilder CreateBuilder() =>
         new(new ServiceCollection(), new ConfigurationBuilder().Build());
 }
