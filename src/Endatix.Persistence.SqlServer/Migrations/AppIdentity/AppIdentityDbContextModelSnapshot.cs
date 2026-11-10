@@ -18,7 +18,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -314,6 +314,26 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
                         .HasFilter("\"ExternalSubjectId\" IS NOT NULL");
 
                     b.ToTable("Users", "identity");
+                });
+
+            modelBuilder.Entity("Endatix.Infrastructure.Identity.Authorization.AccessVersion", b =>
+                {
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("Value")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("AccessVersions", "identity");
+
+                    b.HasData(
+                        new
+                        {
+                            TenantId = 0L,
+                            Value = new Guid("00000000-0000-0000-0000-000000000000")
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<long>", b =>

@@ -173,6 +173,7 @@ public sealed class DatabaseCheckpoint
         return [.. tables];
     }
 
+    /// <summary>Resets the module schemas but keeps migration history, the Quartz tables and the seeded access version row.</summary>
     private static RespawnerOptions BuildOptions(TestDatabaseProvider provider, Table[] keptTables)
     {
         var schemas = provider switch
@@ -190,7 +191,8 @@ public sealed class DatabaseCheckpoint
         return new RespawnerOptions
         {
             SchemasToInclude = schemas,
-            TablesToIgnore = [.. migrationsHistoryTables, .. keptTables]
+            // The migration seeds the system access version row; role changes update it and expect it to exist.
+            TablesToIgnore = [.. migrationsHistoryTables, .. keptTables, new Table("identity", "AccessVersions")]
         };
     }
 }
