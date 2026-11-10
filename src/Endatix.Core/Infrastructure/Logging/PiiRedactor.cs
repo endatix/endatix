@@ -1,4 +1,3 @@
-using System.Linq;
 namespace Endatix.Core.Infrastructure.Logging;
 
 /// <summary>
