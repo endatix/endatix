@@ -299,7 +299,7 @@ public sealed class AuthorizationCacheTests
     public async Task GetOrCreateAsync_TenantPrincipal_ReadsVersionsForItsTenant()
     {
         // Arrange
-        var principal = CreatePrincipal("123", "jti-1", tenantId: 7);
+        var principal = CreatePrincipal("123", "jti-1", TenantClaim(7));
         CaptureKeysAndRunFactory();
 
         // Act
@@ -316,8 +316,8 @@ public sealed class AuthorizationCacheTests
         var keys = CaptureKeysAndRunFactory();
 
         // Act
-        await _cache.GetOrCreateAsync(CreatePrincipal("123", tenantId: 1), _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
-        await _cache.GetOrCreateAsync(CreatePrincipal("123", tenantId: 2), _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+        await _cache.GetOrCreateAsync(CreatePrincipal("123", null, TenantClaim(1)), _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+        await _cache.GetOrCreateAsync(CreatePrincipal("123", null, TenantClaim(2)), _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
 
         // Assert
         keys.Should().HaveCount(2);
@@ -328,7 +328,7 @@ public sealed class AuthorizationCacheTests
     public async Task GetOrCreateAsync_TokenExpiresWithinAMinute_EntryLivesUntilTheTokenBuffer()
     {
         // Arrange — the token expires in 40 s; entries stop 10 s before the token.
-        var principal = CreatePrincipal("123", "jti-1", expiresAt: _now.AddSeconds(40));
+        var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddSeconds(40)));
         HybridCacheEntryOptions? capturedOptions = null;
         _hybridCache.GetOrCreateAsync(
                 Arg.Any<string>(),
@@ -350,7 +350,7 @@ public sealed class AuthorizationCacheTests
     public async Task GetOrCreateAsync_TokenLivesLongerThanAMinute_EntryLivesSixtySeconds()
     {
         // Arrange
-        var principal = CreatePrincipal("123", "jti-1", expiresAt: _now.AddMinutes(15));
+        var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddMinutes(15)));
         HybridCacheEntryOptions? capturedOptions = null;
         _hybridCache.GetOrCreateAsync(
                 Arg.Any<string>(),
@@ -422,7 +422,7 @@ public sealed class AuthorizationCacheTests
         return keys;
     }
 
-    private static ClaimsPrincipal CreatePrincipal(string userId, string? jti = null, long? tenantId = null, DateTimeOffset? expiresAt = null)
+    private static ClaimsPrincipal CreatePrincipal(string userId, string? jti = null, params Claim[] extraClaims)
     {
         var claims = new List<Claim>
         {
@@ -434,18 +434,15 @@ public sealed class AuthorizationCacheTests
             claims.Add(new Claim(JwtRegisteredClaimNames.Jti, jti));
         }
 
-        if (tenantId is not null)
-        {
-            claims.Add(new Claim(ClaimNames.TenantId, tenantId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        }
-
-        if (expiresAt is not null)
-        {
-            claims.Add(new Claim(JwtRegisteredClaimNames.Exp, expiresAt.Value.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        }
-
+        claims.AddRange(extraClaims);
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
     }
+
+    private static Claim TenantClaim(long tenantId) =>
+        new(ClaimNames.TenantId, tenantId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+    private static Claim ExpiryClaim(DateTimeOffset expiresAt) =>
+        new(JwtRegisteredClaimNames.Exp, expiresAt.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture));
 
     private static AuthorizationData CreateAuthorizationData(string userId, DateTime expiresAt = default) =>
         AuthorizationData.ForAuthenticatedUser(

@@ -54,25 +54,16 @@ internal sealed class AccessInputChanges(IReadOnlySet<long> usersAddedInTransact
 
     private void RecordChange(EntityEntry entry)
     {
-        switch (entry.Entity)
+        Action record = entry.Entity switch
         {
-            case AppRole role:
-                AddRole(entry, role);
-                break;
-            case AppUser user:
-                AddUser(entry, user);
-                break;
-            case IdentityUserRole<long> userRole:
-                _userRoles.Add((userRole.UserId, userRole.RoleId));
-                break;
-            case RolePermission rolePermission:
-                _rolePermissionRoleIds.Add(rolePermission.RoleId);
-                break;
-            default:
-                // Permissions are global; an access input without a rule of its own is treated the same way.
-                _rows.Add(AccessVersion.SYSTEM_TENANT_ID);
-                break;
-        }
+            AppRole role => () => AddRole(entry, role),
+            AppUser user => () => AddUser(entry, user),
+            IdentityUserRole<long> userRole => () => _userRoles.Add((userRole.UserId, userRole.RoleId)),
+            RolePermission rolePermission => () => _rolePermissionRoleIds.Add(rolePermission.RoleId),
+            // Permissions are global; an access input without a rule of its own is treated the same way.
+            _ => () => _rows.Add(AccessVersion.SYSTEM_TENANT_ID),
+        };
+        record();
     }
 
     /// <summary>The rows the save moves, looking up the tenants of the roles and users it touched.</summary>

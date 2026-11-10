@@ -88,20 +88,25 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
-        var options = new HybridCacheEntryOptions { Expiration = entry.Lifetime, LocalCacheExpiration = entry.Lifetime };
         var cached = await hybridCache.GetOrCreateAsync(
             entry.Key,
             async _ => await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
-            options,
+            entry.Options,
             entry.Tags,
             cancellationToken);
-        if (cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime)
-        {
-            return cached;
-        }
+        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime
+            ? cached
+            : await RebuildAsync(entry, dataFactory, cancellationToken);
+    }
 
+    /// <summary>Replaces an entry whose data has lapsed with freshly built data.</summary>
+    private async Task<AuthorizationData> RebuildAsync(
+        CacheEntry entry,
+        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
+        CancellationToken cancellationToken)
+    {
         var rebuilt = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken);
-        await hybridCache.SetAsync(entry.Key, rebuilt, options, entry.Tags, cancellationToken);
+        await hybridCache.SetAsync(entry.Key, rebuilt, entry.Options, entry.Tags, cancellationToken);
         return rebuilt;
     }
 
@@ -127,7 +132,11 @@ internal class AuthorizationCache(
         permissionsExpireAt != default && permissionsExpireAt < entryEnd ? permissionsExpireAt : entryEnd;
 
     /// <summary>One cache entry's key, lifetime and tags.</summary>
-    private readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags);
+    private readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags)
+    {
+        /// <summary>The entry lives <see cref="Lifetime"/> in both cache levels.</summary>
+        public HybridCacheEntryOptions Options => new() { Expiration = Lifetime, LocalCacheExpiration = Lifetime };
+    }
 
     /// <inheritdoc />
     public async Task InvalidateAsync(string userId, long tenantId, CancellationToken cancellationToken)

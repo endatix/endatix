@@ -85,8 +85,7 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .ToArray();
 
             var authorizationData = AuthorizationData.ForAuthenticatedUser(
-                    userId: userId.ToString(),
-                    tenantId: tenantId,
+                    userId: userId.ToString(), tenantId: tenantId,
                     roles: assignedRoles,
                     permissions: assignedPermissions,
                     expiresAt: EarliestPermissionExpiry(userRoles)
