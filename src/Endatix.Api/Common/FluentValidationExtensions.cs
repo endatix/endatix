@@ -49,10 +49,10 @@ public static class FluentValidationExtensions
     /// <summary>
     /// When the value is present, requires a UTC calendar date (<c>YYYY-MM-DD</c>).
     /// </summary>
-    private static IRuleBuilderOptions<T, string?> MustBeUtcCalendarDateWhenPresent<T>(
+    private static void MustBeUtcCalendarDateWhenPresent<T>(
         this IRuleBuilder<T, string?> ruleBuilder)
     {
-        return ruleBuilder
+        ruleBuilder
             .Must(value => string.IsNullOrWhiteSpace(value) || UtcCalendarDay.TryParse(value, out _))
             .WithMessage("{PropertyName} must be a UTC calendar date (YYYY-MM-DD).");
     }

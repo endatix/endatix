@@ -54,5 +54,5 @@ public sealed class ThemeJsonData
     /// <summary>
     /// Returns the validated JSON string
     /// </summary>
-    public override string ToString() => JsonSerializer.Serialize(ThemeData);
+    public override string ToString() => _json;
 }

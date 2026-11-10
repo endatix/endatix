@@ -61,7 +61,10 @@ public sealed class Member : BaseEntity, IAggregateRoot, ITenantOwned
     /// The person's Submitter, set once by the first submission created on their behalf (a
     /// conditional update in <c>OnBehalfPersonalizer.BindAsync</c>) and never re-pointed.
     /// </summary>
+    // Bound once via EF ExecuteUpdate in OnBehalfPersonalizer; keep private set for the model.
+#pragma warning disable S1144
     public long? SubmitterId { get; private set; }
+#pragma warning restore S1144
 
     /// <summary>
     /// Rejects a blank or too-long identifier, and an email identifier that is not one address.

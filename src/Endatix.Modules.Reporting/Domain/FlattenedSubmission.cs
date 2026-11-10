@@ -41,7 +41,10 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// Flat key-value answers aligned to <see cref="Domain.FormSchema.FlatteningMap"/>.
     /// Populated when <see cref="Integration"/> is processed.
     /// </summary>
+    // Written by FlattenedSubmissionRepository ExecuteUpdate; keep private set for EF.
+#pragma warning disable S1144
     public string? DataJson { get; private set; }
+#pragma warning restore S1144
 
     /// <summary>
     /// The search copy of <see cref="DataJson"/>: the answered search keys, text lowercased and dates normalised, so
@@ -89,7 +92,10 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// worker sets after it has read the submission. Null until processed, and for rows processed
     /// before this was stored — those are reprocessed on the next backfill.
     /// </summary>
+    // Written by FlattenedSubmissionRepository ExecuteUpdate; keep private set for EF.
+#pragma warning disable S1144
     public DateTime? SourceModifiedAt { get; private set; }
+#pragma warning restore S1144
 
     public void MarkDeleted()
     {

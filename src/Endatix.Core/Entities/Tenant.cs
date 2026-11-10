@@ -62,7 +62,10 @@ namespace Endatix.Core.Entities
         [NotMapped]
         public ICollection<User> Users { get; set; } = new List<User>();
 
+        // EF-owned settings row: materialised by the ORM; domain code never assigns it.
+#pragma warning disable S1144
         public TenantSettings? Settings { get; private set; }
+#pragma warning restore S1144
 
         /// <summary>
         /// Updates the tenant display name. Does not change <see cref="ShortUrl"/>.

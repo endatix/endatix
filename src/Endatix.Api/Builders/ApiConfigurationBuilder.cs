@@ -27,7 +27,6 @@ public class ApiConfigurationBuilder
     private readonly IConfiguration? _configuration;
     private readonly IAppEnvironment? _environment;
 
-    private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
     /// <summary>
     /// Gets the service collection.
@@ -63,7 +62,7 @@ public class ApiConfigurationBuilder
     /// <returns>The builder for chaining.</returns>
     public virtual ApiConfigurationBuilder UseDefaults()
     {
-        LogSetupInfo("Configuring API endpoints with default settings");
+        LogSetupInfo($"Configuring API endpoints with default settings (env: {_environment?.EnvironmentName ?? "n/a"})");
 
         if (_configuration != null)
         {
