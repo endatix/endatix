@@ -107,8 +107,6 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
         {
             _ = builder.SetPreflightMaxAge(TimeSpan.FromSeconds(policySetting.PreflightMaxAgeInSeconds));
         }
-
-
     }
 
     private CorsWildcardResult AddAllowedOrigins(CorsPolicyBuilder builder, IList<string> allowedOrigins) => AddValuesOrApplyWildcard(

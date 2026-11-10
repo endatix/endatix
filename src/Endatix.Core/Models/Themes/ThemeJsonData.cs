@@ -8,11 +8,8 @@ namespace Endatix.Core.Models.Themes;
 /// </summary>
 public sealed class ThemeJsonData
 {
-    private readonly string _json;
-
-    private ThemeJsonData(string json, ThemeData themeData)
+    private ThemeJsonData(ThemeData themeData)
     {
-        _json = json;
         ThemeData = themeData;
     }
 
@@ -36,7 +33,7 @@ public sealed class ThemeJsonData
                 return Result.Invalid(new ValidationError("Invalid theme data structure"));
             }
 
-            return Result.Success(new ThemeJsonData(json, themeData));
+            return Result.Success(new ThemeJsonData(themeData));
         }
         catch (JsonException)
         {
@@ -54,5 +51,5 @@ public sealed class ThemeJsonData
     /// <summary>
     /// Returns the validated JSON string
     /// </summary>
-    public override string ToString() => _json;
+    public override string ToString() => JsonSerializer.Serialize(ThemeData);
 }

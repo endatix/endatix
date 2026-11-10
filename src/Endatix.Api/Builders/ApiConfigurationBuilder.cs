@@ -25,8 +25,6 @@ public class ApiConfigurationBuilder
 {
     private readonly ILogger? _logger;
     private readonly IConfiguration? _configuration;
-    private readonly IAppEnvironment? _environment;
-
 
     /// <summary>
     /// Gets the service collection.
@@ -48,7 +46,6 @@ public class ApiConfigurationBuilder
     {
         Services = services;
         _configuration = configuration;
-        _environment = environment;
 
         if (loggerFactory != null)
         {
@@ -62,7 +59,7 @@ public class ApiConfigurationBuilder
     /// <returns>The builder for chaining.</returns>
     public virtual ApiConfigurationBuilder UseDefaults()
     {
-        LogSetupInfo($"Configuring API endpoints with default settings (env: {_environment?.EnvironmentName ?? "n/a"})");
+        LogSetupInfo("Configuring API endpoints with default settings");
 
         if (_configuration != null)
         {
