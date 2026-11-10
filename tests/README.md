@@ -57,6 +57,7 @@ lists the provider filter's tests and fails when one is in neither lane or in bo
 |        | PostgreSQL                                      | SQL Server                                 |
 | ------ | ----------------------------------------------- | ------------------------------------------ |
 | Env    | `ENDATIX_TEST_DB_PROVIDER=PostgreSql` (default) | `ENDATIX_TEST_DB_PROVIDER=SqlServer`       |
+| DB     | `endatix_test`                                  | `endatix_test`                             |
 | Filter | `IntegrationTestFilters.Default`                | `IntegrationTestFilters.SqlServer`         |
 | Runs   | Provider-agnostic + `DbSpecific=PostgreSql`     | Provider-agnostic + `DbSpecific=SqlServer` |
 
