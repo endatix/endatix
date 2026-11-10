@@ -164,9 +164,15 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         _ => throw ConnectionTarget.Unsupported(provider),
     };
 
-    public async ValueTask DisposeAsync()
+    /// <summary>
+    /// Restores a database a test left away or read-only, then drops it whatever the restore did; when both fail, the
+    /// restore's failure is thrown and the drop's is reported as a test warning.
+    /// </summary>
+    public ValueTask DisposeAsync() =>
+        DisposalFailures.DisposeInOrderAsync(RestoreAsync, DropAsync, "the database drop after a failed restore");
+
+    private async ValueTask RestoreAsync()
     {
-        // A test that failed while its database was away still drops it: neither provider drops it from there.
         if (_away)
         {
             await BringBackAsync(CancellationToken.None);
@@ -176,19 +182,28 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
         {
             await SetReadOnlyAsync(false, CancellationToken.None);
         }
-
-        // Pooled connections hold the database open, and both providers refuse to drop a database in use.
-        _server.ClearPools();
-        await _server.ExecuteAsync(DropDatabaseSql(_server.Provider, _name), NoParameters, CancellationToken.None);
     }
 
+    // Pooled connections hold the database open, and both providers refuse to drop a database in use.
+    private async ValueTask DropAsync()
+    {
+        _server.ClearPools();
+        await _server.ExecuteAsync(DropDatabaseSql(_server.Provider, NameOnServer), NoParameters, CancellationToken.None);
+    }
+
+    // A database that could not be brought back is dropped where it is, which on PostgreSQL is under its away name.
+    private string NameOnServer => _away && _server.Provider == TestDatabaseProvider.PostgreSql ? $"{_name}_away" : _name;
+
+    // On SQL Server a database that is not online has no sessions to end, and one that failed to come online refuses to
+    // be set single-user, since that opens it again. Dropped as it is, it leaves its files on the server's disk.
     private static string DropDatabaseSql(TestDatabaseProvider provider, string name) => provider switch
     {
         TestDatabaseProvider.PostgreSql => $"DROP DATABASE IF EXISTS {name} WITH (FORCE)",
         TestDatabaseProvider.SqlServer => $"""
             IF DB_ID(N'{name}') IS NOT NULL
             BEGIN
-                ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                IF DATABASEPROPERTYEX(N'{name}', 'Status') = 'ONLINE'
+                    ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
                 DROP DATABASE [{name}];
             END
             """,
