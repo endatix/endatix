@@ -1,12 +1,12 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.UseCases.Submissions.CreateAccessToken;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.UseCases.Submissions.CreateAccessToken;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -59,7 +59,7 @@ public class CreateAccessToken(IMediator mediator)
             request.FormId,
             request.SubmissionId,
             request.ExpiryMinutes!.Value,
-            request.Permissions!
+            request.Permissions
         );
         var result = await mediator.Send(command, ct);
 

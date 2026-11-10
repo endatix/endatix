@@ -110,10 +110,22 @@ internal static class HealthCheckOptionsFactory
             {
                 context.Response.ContentType = "text/html";
 
-                var color = report.Status == HealthStatus.Healthy ? "green" :
-                            report.Status == HealthStatus.Degraded ? "orange" : "red";
+                string color;
+                if (report.Status == HealthStatus.Healthy)
+                {
+                    color = "green";
+                }
+                else if (report.Status == HealthStatus.Degraded)
+                {
+                    color = "orange";
+                }
+                else
+                {
+                    color = "red";
+                }
 
-                var html = $@"
+                var html = new System.Text.StringBuilder();
+                html.Append($@"
 <!DOCTYPE html>
 <html>
 <head>
@@ -140,26 +152,26 @@ internal static class HealthCheckOptionsFactory
             <th>Status</th>
             <th>Duration</th>
             <th>Description</th>
-        </tr>";
+        </tr>");
 
                 foreach (var entry in report.Entries)
                 {
                     var status = entry.Value.Status.ToString().ToLower();
-                    html += $@"
+                    html.Append($@"
         <tr>
             <td>{entry.Key}</td>
             <td class='{status}'>{entry.Value.Status}</td>
             <td>{entry.Value.Duration.TotalMilliseconds}ms</td>
             <td>{entry.Value.Description}</td>
-        </tr>";
+        </tr>");
                 }
 
-                html += @"
+                html.Append(@"
     </table>
 </body>
-</html>";
+</html>");
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(html);
+                var bytes = System.Text.Encoding.UTF8.GetBytes(html.ToString());
                 await context.Response.Body.WriteAsync(bytes, 0, bytes.Length);
             }
         };

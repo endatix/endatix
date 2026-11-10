@@ -722,7 +722,7 @@ public sealed class RoleManagementService : IRoleManagementService
         }
 
         var sortDescending = sort.IsDescending;
-        IOrderedEnumerable<RoleListItem> ordered = sort.Field switch
+        var ordered = sort.Field switch
         {
             RoleListSortBy.IsActive when sortDescending =>
                 roles.OrderByDescending(role => role.IsActive).ThenBy(role => role.Name, StringComparer.OrdinalIgnoreCase),
@@ -1102,12 +1102,9 @@ public sealed class RoleManagementService : IRoleManagementService
             }
 
             HashSet<string> distinctRoleNames = new(StringComparer.OrdinalIgnoreCase);
-            foreach (var roleName in roleNames)
+            foreach (var roleName in roleNames.Where(roleName => !string.IsNullOrWhiteSpace(roleName)))
             {
-                if (!string.IsNullOrWhiteSpace(roleName))
-                {
-                    distinctRoleNames.Add(roleName.Trim());
-                }
+                distinctRoleNames.Add(roleName.Trim());
             }
 
             return distinctRoleNames.Count == 0 ? [] : [.. distinctRoleNames];

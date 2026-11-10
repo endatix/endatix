@@ -70,8 +70,8 @@ namespace Endatix.Infrastructure.Identity.Seed
             {
                 logger.LogInitialUserRegistrationFailed(
                     SensitiveValue.Email(email),
-                    string.Join(", ", registerUserResult.Errors!),
-                    string.Join(", ", registerUserResult.ValidationErrors!));
+                    string.Join(", ", registerUserResult.Errors),
+                    string.Join(", ", registerUserResult.ValidationErrors));
                 return;
             }
 
@@ -81,8 +81,8 @@ namespace Endatix.Infrastructure.Identity.Seed
             {
                 logger.LogInitialUserRoleAssignmentFailed(
                     SensitiveValue.Email(email),
-                    string.Join(", ", assignRoleResult.Errors!),
-                    string.Join(", ", assignRoleResult.ValidationErrors!));
+                    string.Join(", ", assignRoleResult.Errors),
+                    string.Join(", ", assignRoleResult.ValidationErrors));
                 return;
             }
 

@@ -1,9 +1,9 @@
-using MediatR;
-using Microsoft.Extensions.DependencyInjection;
-using Endatix.Core.Infrastructure.Messaging;
-using Endatix.Core.UseCases.Folders;
 using System.Reflection;
 using Endatix.Core.Infrastructure.Logging;
+using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.UseCases.Folders;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Messaging;
 
@@ -51,7 +51,7 @@ public static class MessagingConfiguration
 
         services.AddMediatR(config =>
         {
-            config.RegisterServicesFromAssemblies(mediatRAssemblies!);
+            config.RegisterServicesFromAssemblies(mediatRAssemblies);
         });
 
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();

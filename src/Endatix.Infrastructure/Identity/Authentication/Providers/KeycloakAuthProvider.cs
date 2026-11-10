@@ -43,7 +43,7 @@ public class KeycloakAuthProvider : IAuthProvider
 
         builder.AddJwtBearer(SchemeName, options =>
            {
-               options.RequireHttpsMetadata = !isDevelopment ? false : keycloakOptions.RequireHttpsMetadata;
+               options.RequireHttpsMetadata = isDevelopment && keycloakOptions.RequireHttpsMetadata;
                options.Audience = keycloakOptions.Audience;
                options.MetadataAddress = keycloakOptions.MetadataAddress;
                options.MapInboundClaims = keycloakOptions.MapInboundClaims;

@@ -98,7 +98,7 @@ internal sealed class PlatformAdminLocalApprovalGate(
             .Where(role => role.IsActive && normalizedRoleNames.Contains(role.NormalizedName))
             .SelectMany(role => role.RolePermissions)
             .Where(rolePermission => rolePermission.IsActive && rolePermission.Permission != null)
-            .Select(rolePermission => rolePermission.Permission!.Name)
+            .Select(rolePermission => rolePermission.Permission.Name)
             .Where(permissionName => !string.IsNullOrEmpty(permissionName))
             .Distinct()
             .ToArrayAsync(cancellationToken);
