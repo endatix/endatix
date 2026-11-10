@@ -220,7 +220,7 @@ public sealed class JobTypeIsolationTests(DbIntegrationFixture fixture)
 
         // Assert
         warned.Should().BeTrue();
-        misfires.JobTypes.Should().Contain(WebHook);
+        misfires.JobTypesOn(node).Should().Contain(WebHook);
     }
 
     // The caps, and a one-second shutdown wait: the test releases every held job before its node stops.
