@@ -265,13 +265,36 @@ jobs:
           if [ "$LANE" = "Jobs" ]; then lane="$JOBS_LANE_FILTER"; else lane="$REST_LANE_FILTER"; fi
           echo "INTEGRATION_BASE_FILTER=$base" >> "$GITHUB_ENV"
           echo "INTEGRATION_TEST_FILTER=$base&$lane" >> "$GITHUB_ENV"
+      # Pulls the lane's database image and Ryuk while the build runs, so Testcontainers finds them
+      # locally (its default pull policy is "missing"). The image is the ENDATIX_TEST_DB_*_IMAGE override
+      # when set, else the Default*Image constant in EndatixTestcontainers.cs; the Ryuk tag is
+      # Testcontainers 4.16's and needs bumping with it.
+      # Best effort: a failed pull only warns, and Testcontainers pulls the image itself.
+      - name: 🐳 Pull the database image
+        id: pull-images
+        background: true
+        run: |
+          if [ "$ENDATIX_TEST_DB_PROVIDER" = "SqlServer" ]; then image=$ENDATIX_TEST_DB_SQLSERVER_IMAGE; else image=$ENDATIX_TEST_DB_POSTGRES_IMAGE; fi
+          [ -n "$image" ] || image=$(sed -n "s/.*Default${ENDATIX_TEST_DB_PROVIDER}Image = \"\(.*\)\";/\1/p" \
+            tests/Endatix.IntegrationTests.Shared/EndatixTestcontainers.cs)
+          [ -n "$image" ] || echo "::warning::No Default${ENDATIX_TEST_DB_PROVIDER}Image in EndatixTestcontainers.cs; Testcontainers will pull it."
+          for i in $image testcontainers/ryuk:0.14.0; do
+            start=$(date +%s)
+            docker pull --quiet "$i" || echo "::warning::Could not pull $i; Testcontainers will pull it."
+            echo "$i: $(( $(date +%s) - start )) s"
+          done
       # Debug, like the unit run: Debug gives braces their own sequence points, so a
       # Release report would leave them 0-hit in the merged Sonar coverage.
+      # No analyzers, code-style checks or NuGet audit here: the unit job builds the same projects
+      # (Endatix.slnx) with all of them and fails on a vulnerable package, and the sonar job runs its
+      # own analyzed build. Source generators still run, so the compiled code is the same.
       - name: Build integration tests
-        run: dotnet build "$INTEGRATION_PROJECT"
+        run: dotnet build "$INTEGRATION_PROJECT" -p:RunAnalyzers=false -p:EnforceCodeStyleInBuild=false -p:NuGetAudit=false
       # Lists tests only (seconds, no database): fails when a test is in neither lane or in both.
       - name: Check the lanes split the suite
         run: node scripts/check-integration-lanes.mjs "$INTEGRATION_PROJECT" "$INTEGRATION_BASE_FILTER" "$JOBS_LANE_FILTER" "$REST_LANE_FILTER"
+      - name: ⏳ Wait for the image pull
+        wait: [pull-images]
       - name: Run integration tests
         env:
           MIN_TESTS: ${{ matrix.min-tests }}
