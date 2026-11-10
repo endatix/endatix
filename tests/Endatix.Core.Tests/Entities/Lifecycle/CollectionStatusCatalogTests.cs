@@ -29,6 +29,21 @@ public class CollectionStatusCatalogTests
     }
 
     [Theory]
+    [InlineData(CollectionStatusCodes.QuotaFull, true)]
+    [InlineData(CollectionStatusCodes.ScreenOut, false)]
+    [InlineData(HostCollectionStatuses.PanelOverquota, false)]
+    [InlineData("not_registered", false)]
+    [InlineData(null, false)]
+    public void IsServerOnly_AnswersWhetherOnlyTheServerSetsTheCode(string? code, bool expected)
+    {
+        // Act
+        var serverOnly = CollectionStatusCatalog.IsServerOnly(code);
+
+        // Assert
+        serverOnly.Should().Be(expected);
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]

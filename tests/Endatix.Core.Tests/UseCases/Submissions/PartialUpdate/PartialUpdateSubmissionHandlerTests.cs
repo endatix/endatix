@@ -3,6 +3,7 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Tests.Entities.Lifecycle;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
 using MediatR;
@@ -331,6 +332,47 @@ public class PartialUpdateSubmissionHandlerTests
         result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == CollectionOutcomes.UNSUPPORTED_MESSAGE);
         submission.CollectionStatus.Code.Should().Be(statusBefore);
         await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_QuotaFullOutcome_ReturnsServerOnlyMessageAndSavesNothing()
+    {
+        // Arrange
+        var submission = StoredSubmission(isComplete: false);
+        var statusBefore = submission.CollectionStatus.Code;
+        var request = new PartialUpdateSubmissionCommand(1, 2, false, 1, "{ \"age\": \"12\" }", null, CollectionStatusCodes.QuotaFull);
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage == CollectionOutcomes.SERVER_ONLY_MESSAGE);
+        submission.CollectionStatus.Code.Should().Be(statusBefore);
+        await _repository.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_HostClosedOutcome_StoresTheHostCode()
+    {
+        // Arrange
+        var submission = StoredSubmission(isComplete: false);
+        var request = new PartialUpdateSubmissionCommand(1, 2, false, 1, "{ \"age\": \"12\" }", null, HostCollectionStatuses.PanelOverquota);
+        _repository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns(submission);
+
+        // Act
+        var result = await _handler.Handle(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        submission.CollectionStatus.Code.Should().Be(HostCollectionStatuses.PanelOverquota);
     }
 
     [Theory]
