@@ -239,8 +239,10 @@ jobs:
       JOBS_LANE_FILTER: Lane=Jobs
       REST_LANE_FILTER: Lane!=Jobs
       # Test collections run in parallel (tests/README.md, Collections); this many at once on the
-      # 4-vCPU runner. Locally the default is one per CPU.
-      INTEGRATION_MAX_THREADS: 2
+      # 4-vCPU runner. Locally the default is one per CPU. Measured in #1661: SQL Server Rest takes
+      # ~330 s at 2, 3 or 4 (AudienceDirectoryFlowTests alone is most of it); 2 slows the Jobs lanes
+      # to the same ~330 s, and 3 matches 4 with a lower CPU peak.
+      INTEGRATION_MAX_THREADS: 3
     steps:
       - name: 🔍 Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
