@@ -301,7 +301,7 @@ internal static class FormDefinitionFlattener
             return false;
         }
 
-        if (!elementsByName.TryGetValue(valueName!, out var resolvedDriver))
+        if (!elementsByName.TryGetValue(valueName, out var resolvedDriver))
         {
             return false;
         }

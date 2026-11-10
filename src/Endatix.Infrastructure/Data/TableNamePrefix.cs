@@ -1,4 +1,3 @@
-using System.Linq;
 using Endatix.Core.Configuration;
 
 namespace Endatix.Infrastructure.Data
@@ -8,7 +7,7 @@ namespace Endatix.Infrastructure.Data
         public static string GetEntityName(string entityName)
         {
             var entityEntryTypeArray = entityName.Split('.');
-            return entityEntryTypeArray.Last();
+            return entityEntryTypeArray[^1];
         }
 
         public static string GetTableName(string entityName, string? configuredTableName = null)
