@@ -56,10 +56,11 @@ public sealed class AccessVersionSqlServerTests(EndatixIntegrationWebHostFixture
         (await read).Should().Be(committed);
     }
 
-    private static async Task<Guid> ReadVersionAsync(IntegrationTestWorld world, CancellationToken ct)
+    /// <summary>Reads the versions of the world's tenant, whose row the open role change writes at commit.</summary>
+    private static async Task<AccessVersionKey> ReadVersionAsync(IntegrationTestWorld world, CancellationToken ct)
     {
         using var scope = world.Services.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<IAccessVersionReader>().ReadAsync(ct);
+        return await scope.ServiceProvider.GetRequiredService<IAccessVersionStore>().ReadAsync(world.Tenants[0].Id, ct);
     }
 
     private static async Task<bool> ReadCommittedSnapshotOnAsync(IntegrationTestWorld world, CancellationToken ct)

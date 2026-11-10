@@ -263,7 +263,7 @@ public class InfrastructureSecurityBuilder
 
         // Register core authorization services
         Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
-        Services.AddScoped<IAccessVersionReader, AccessVersionReader>();
+        Services.AddScoped<IAccessVersionStore, DatabaseAccessVersionStore>();
         Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();

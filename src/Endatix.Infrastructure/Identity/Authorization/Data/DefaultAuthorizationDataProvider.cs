@@ -84,11 +84,18 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .Distinct()
                 .ToArray();
 
+            // The cache must stop serving these permissions when the first of them lapses.
+            var earliestExpiry = userRoles
+                .SelectMany(r => r.RolePermissions)
+                .Select(rp => rp.ExpiresAt)
+                .Min();
+
             var authorizationData = AuthorizationData.ForAuthenticatedUser(
                     userId: userId.ToString(),
                     tenantId: tenantId,
                     roles: assignedRoles,
-                    permissions: assignedPermissions
+                    permissions: assignedPermissions,
+                    expiresAt: earliestExpiry ?? default
             );
 
             return Result.Success(authorizationData);

@@ -20,18 +20,22 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// Internal helper class for managing the authorization cache.
 /// </summary>
 /// <remarks>
-/// Every key carries the current <see cref="AccessVersion"/>, read uncached on each lookup. A role change writes
-/// a new access version as the last statement of its transaction, so every API instance misses its old entries on the next
-/// request; the in-memory cache has no backplane, and <see cref="InvalidateAsync"/> only frees memory on the instance
-/// it runs on.
+/// Every key carries this deployment's prefix and the access versions of the request's tenant and of system roles,
+/// read uncached on each lookup. A role change writes a new access version for its tenant as the last statement of its
+/// transaction, so every API instance misses its old entries on the next request; <see cref="InvalidateAsync"/> only
+/// frees memory on the instance it runs on. An entry lives at most 60 seconds, never past its
+/// token, and is never served past the earliest expiry of the role permissions it holds.
 /// </remarks>
 internal class AuthorizationCache(
     HybridCache hybridCache,
     IDateTimeProvider dateTimeProvider,
     IHttpContextAccessor httpContextAccessor,
     IOptions<EndatixJwtOptions> endatixJwtOptions,
-    IAccessVersionReader accessVersionReader) : IAuthorizationCache
+    IAccessVersionStore accessVersionStore) : IAuthorizationCache
 {
+    /// <summary>The longest an entry lives, which bounds a change that skips the save hook.</summary>
+    private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
+
     private const short ETAG_LENGTH = 12;
 
     // Cache key prefixes
@@ -41,82 +45,98 @@ internal class AuthorizationCache(
     // Cache tags
     private const string ALL_AUTH_DATA_TAG = "auth_data:all";
 
-    // Default expiration
-    private static readonly TimeSpan _defaultExpiration = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan _cacheExpiryBuffer = TimeSpan.FromSeconds(10);
 
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(ClaimsPrincipal principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
     {
         var userId = principal.GetUserId() ?? throw new InvalidOperationException("Principal must have a user ID");
-
-        var cacheExpiration = ComputeExpiration(principal);
+        var tenantId = principal.GetTenantId();
         var accessToken = BearerAccessTokenResolver.Resolve(httpContextAccessor);
         var claimIdentityId = !string.IsNullOrWhiteSpace(accessToken)
             ? accessToken
-            : principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}";
+            : principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}_{tenantId}";
         var cacheKeyTokenPart = CacheKeyFingerprint.ComputeHmacSha256Hex(
             claimIdentityId,
             endatixJwtOptions.Value.SigningKey);
-        var accessVersion = await accessVersionReader.ReadAsync(cancellationToken);
-        var cacheKey = GetClaimsCacheKey(accessVersion, cacheKeyTokenPart);
-        var tenantId = principal.GetTenantId();
-        var now = dateTimeProvider.Now.UtcDateTime;
+        var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
-        return await hybridCache.GetOrCreateAsync(
-            cacheKey,
-            async _ =>
-            {
-                var result = await dataFactory(cancellationToken);
-                if (result is null || !result.IsSuccess)
-                {
-                    throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
-                }
-
-                var etag = GenerateETag(result.Value);
-                return result.Value.WithCacheMetadata(now, now.Add(cacheExpiration), etag);
-            },
-            new HybridCacheEntryOptions
-            {
-                Expiration = cacheExpiration,
-                LocalCacheExpiration = cacheExpiration
-            },
-            tags: GetAuthDataCacheTags(userId, tenantId),
-            cancellationToken
-        );
+        return await GetOrCreateEntryAsync(
+            GetClaimsCacheKey(versions, cacheKeyTokenPart),
+            ComputeLifetime(principal),
+            GetAuthDataCacheTags(userId, tenantId),
+            dataFactory,
+            cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(string userId, long tenantId, ClaimsPrincipal? principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
     {
-        var accessVersion = await accessVersionReader.ReadAsync(cancellationToken);
-        var cacheKey = GetUserAuthDataCacheKey(accessVersion, userId, tenantId);
-        var expiration = principal is not null
-            ? ComputeExpiration(principal)
-            : _defaultExpiration;
-        var tags = GetAuthDataCacheTags(userId, tenantId);
-        var now = dateTimeProvider.Now.UtcDateTime;
+        var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
-        return await hybridCache.GetOrCreateAsync(
-            cacheKey,
-            async _ =>
-            {
-                var result = await dataFactory(cancellationToken);
-                if (result is null || !result.IsSuccess)
-                {
-                    throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
-                }
-
-                var etag = GenerateETag(result.Value);
-                return result.Value.WithCacheMetadata(now, now.Add(expiration), etag);
-            },
-            new HybridCacheEntryOptions
-            {
-                Expiration = expiration,
-                LocalCacheExpiration = expiration
-            },
-            tags: tags,
+        return await GetOrCreateEntryAsync(
+            GetUserAuthDataCacheKey(versions, userId, tenantId),
+            ComputeLifetime(principal),
+            GetAuthDataCacheTags(userId, tenantId),
+            dataFactory,
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Serves the entry under <paramref name="cacheKey"/>, building it on a miss. An entry past its own
+    /// <see cref="AuthorizationData.ExpiresAt"/> (a role permission it holds has lapsed) counts as a miss: HybridCache
+    /// fixes an entry's lifetime before the data is built, so the data carries the shorter bound itself.
+    /// </summary>
+    private async Task<AuthorizationData> GetOrCreateEntryAsync(
+        string cacheKey,
+        TimeSpan lifetime,
+        string[] tags,
+        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
+        CancellationToken cancellationToken)
+    {
+        var entryOptions = new HybridCacheEntryOptions
+        {
+            Expiration = lifetime,
+            LocalCacheExpiration = lifetime
+        };
+
+        var cached = await hybridCache.GetOrCreateAsync(
+            cacheKey,
+            async _ => await BuildAsync(dataFactory, lifetime, cancellationToken),
+            entryOptions,
+            tags,
+            cancellationToken);
+        if (cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime)
+        {
+            return cached;
+        }
+
+        var rebuilt = await BuildAsync(dataFactory, lifetime, cancellationToken);
+        await hybridCache.SetAsync(cacheKey, rebuilt, entryOptions, tags, cancellationToken);
+        return rebuilt;
+    }
+
+    /// <summary>Builds the data and stamps it with the time it stops being served.</summary>
+    private async Task<AuthorizationData> BuildAsync(
+        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken)
+    {
+        var now = dateTimeProvider.Now.UtcDateTime;
+        var result = await dataFactory(cancellationToken);
+        if (result is null || !result.IsSuccess)
+        {
+            throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
+        }
+
+        var expiresAt = now.Add(lifetime);
+        var permissionsExpireAt = result.Value.ExpiresAt;
+        if (permissionsExpireAt != default && permissionsExpireAt < expiresAt)
+        {
+            expiresAt = permissionsExpireAt;
+        }
+
+        return result.Value.WithCacheMetadata(now, expiresAt, GenerateETag(result.Value));
     }
 
     /// <inheritdoc />
@@ -132,13 +152,13 @@ internal class AuthorizationCache(
         await hybridCache.RemoveByTagAsync(AllAuthDataCacheTags, cancellationToken);
     }
 
-    // Generate cache key for saving authorization data for a claims principal given the JWT Identity ID (jti)
-    /// <summary>Per-token key; the access version in it retires every entry when an authorization input changes.</summary>
-    private static string GetClaimsCacheKey(Guid accessVersion, string jti) => $"{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{accessVersion:N}:{jti}";
+    /// <summary>Per-token key; the access versions in it retire every entry when an authorization input changes.</summary>
+    private static string GetClaimsCacheKey(AccessVersionKey versions, string tokenPart) =>
+        $"{versions.Prefix}:{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{versions.Versions}:{tokenPart}";
 
-    // Generate cache key for saving authorization data for a user with explicit userId and tenantId
-    /// <summary>Per-user-and-tenant key; the access version in it retires every entry when an authorization input changes.</summary>
-    private static string GetUserAuthDataCacheKey(Guid accessVersion, string userId, long tenantId) => $"{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{accessVersion:N}:{userId}:{tenantId}";
+    /// <summary>Per-user-and-tenant key; the access versions in it retire every entry when an authorization input changes.</summary>
+    private static string GetUserAuthDataCacheKey(AccessVersionKey versions, string userId, long tenantId) =>
+        $"{versions.Prefix}:{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{versions.Versions}:{userId}:{tenantId}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
 
@@ -155,28 +175,22 @@ internal class AuthorizationCache(
     ];
 
     /// <summary>
-    /// Computes the expiration time for the authorization data cache.
+    /// How long an entry lives: 60 seconds, or less when the principal's token expires sooner
+    /// (with a buffer, so an entry never outlives its token).
     /// </summary>
-    /// <param name="principal">The claims principal to compute the expiration for.</param>
-    /// <param name="fallback">The fallback expiration time if the principal is null.</param>
-    /// <returns>The expiration time.</returns>
-    private static TimeSpan ComputeExpiration(ClaimsPrincipal? principal, TimeSpan? fallback = null)
+    private TimeSpan ComputeLifetime(ClaimsPrincipal? principal)
     {
-        if (principal is null)
-        {
-            return fallback ?? _defaultExpiration;
-        }
-
-
-        var expClaim = principal.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
+        var expClaim = principal?.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
         if (expClaim is not null && long.TryParse(expClaim, out var expirySeconds))
         {
-            var expirationDateTime = DateTimeOffset.FromUnixTimeSeconds(expirySeconds);
-            var timeUntilExpiry = expirationDateTime - DateTimeOffset.UtcNow - _cacheExpiryBuffer;
-            return timeUntilExpiry > TimeSpan.Zero ? timeUntilExpiry : (fallback ?? _defaultExpiration);
+            var timeUntilExpiry = DateTimeOffset.FromUnixTimeSeconds(expirySeconds) - dateTimeProvider.Now - _cacheExpiryBuffer;
+            if (timeUntilExpiry > TimeSpan.Zero && timeUntilExpiry < _maxEntryLifetime)
+            {
+                return timeUntilExpiry;
+            }
         }
 
-        return fallback ?? _defaultExpiration;
+        return _maxEntryLifetime;
     }
 
     /// <summary>

@@ -1,15 +1,13 @@
 using System.Data.Common;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Query;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
 /// <summary>
-/// Writes a new <see cref="AccessVersion"/> value as the last statement before an identity transaction that changed an
-/// authorization input commits. Every authenticated request reads the access version; on SQL Server without
-/// <c>READ_COMMITTED_SNAPSHOT</c> that read waits for a transaction holding the row, so the row is held only for the
-/// commit itself, never while the rest of a role change runs.
+/// Writes new <see cref="AccessVersion"/> values, for the tenants whose authorization inputs the transaction changed, as
+/// the last statements before an identity transaction commits. Every authenticated request reads its tenant's access
+/// version; on SQL Server without <c>READ_COMMITTED_SNAPSHOT</c> that read waits for a transaction holding the row, so
+/// the row is held only for the commit itself, never while the rest of a role change runs.
 /// </summary>
 internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
 {
@@ -26,7 +24,7 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
     {
         if (PendingChange(eventData) is { } context)
         {
-            EnsureRowUpdated(SystemVersion(context).ExecuteUpdate(NewValue()));
+            Store(context).Change(context.PendingAccessVersionRows);
             context.ResetAccessVersionState();
         }
 
@@ -38,10 +36,10 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         DbTransaction transaction, TransactionEventData eventData, InterceptionResult result,
         CancellationToken cancellationToken = default)
     {
-        // The flag clears only after the update succeeds, so a commit retried after a failed update still writes.
+        // The state clears only after the write succeeds, so a commit retried after a failed write still writes.
         if (PendingChange(eventData) is { } context)
         {
-            EnsureRowUpdated(await SystemVersion(context).ExecuteUpdateAsync(NewValue(), cancellationToken));
+            await Store(context).ChangeAsync(context.PendingAccessVersionRows, cancellationToken);
             context.ResetAccessVersionState();
         }
 
@@ -92,7 +90,10 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
 
     /// <summary>The identity context of this transaction when it has an authorization change to commit; otherwise null.</summary>
     private static AppIdentityDbContext? PendingChange(TransactionEventData eventData) =>
-        eventData.Context is AppIdentityDbContext { AccessVersionChangePending: true } context ? context : null;
+        eventData.Context is AppIdentityDbContext { PendingAccessVersionRows.Count: > 0 } context ? context : null;
+
+    /// <summary>The store that writes on the committing transaction's own connection.</summary>
+    private static IAccessVersionStore Store(AppIdentityDbContext context) => new DatabaseAccessVersionStore(context);
 
     /// <summary>Resets the context's per-transaction state; the context owns the one reset.</summary>
     private static void Reset(TransactionEventData eventData)
@@ -101,27 +102,5 @@ internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
         {
             context.ResetAccessVersionState();
         }
-    }
-
-    /// <summary>Fails the commit when the system row is missing, so a role change never commits without reaching other instances.</summary>
-    private static void EnsureRowUpdated(int rows)
-    {
-        if (rows != 1)
-        {
-            throw new InvalidOperationException(
-                "The system access version row is missing. Apply the AppIdentity migrations (AddAccessVersions).");
-        }
-    }
-
-    // ExecuteUpdate runs on the context's connection inside the transaction that is about to commit.
-    /// <summary>The system-roles row, the only row this release reads and writes.</summary>
-    private static IQueryable<AccessVersion> SystemVersion(AppIdentityDbContext context) =>
-        context.AccessVersions.Where(version => version.TenantId == AccessVersion.SYSTEM_TENANT_ID);
-
-    /// <summary>Sets a fresh random value; a random value never repeats after a restore or a cache flush.</summary>
-    private static Action<UpdateSettersBuilder<AccessVersion>> NewValue()
-    {
-        var value = Guid.NewGuid();
-        return setters => setters.SetProperty(version => version.Value, value);
     }
 }
