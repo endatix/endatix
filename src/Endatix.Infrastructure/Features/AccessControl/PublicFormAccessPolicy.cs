@@ -451,9 +451,6 @@ public sealed class PublicFormAccessPolicy(
         return authData.Permissions.Contains(permission);
     }
 
-    private static bool IsAuthenticatedUser(AuthorizationData authData) =>
-        authData.UserId != AuthorizationData.ANONYMOUS_USER_ID;
-
     private static PublicFormAccessData CreatePrivateFormAccessData(
         long formId,
         AuthorizationData authData,

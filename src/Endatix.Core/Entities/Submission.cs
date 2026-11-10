@@ -142,7 +142,10 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
     public string? Metadata { get; private set; }
     public string? SubmittedBy { get; private set; }
     public long? SubmitterId { get; private set; }
+    // EF navigation: materialised by the ORM; domain code never assigns it.
+#pragma warning disable S1144
     public Submitter? Submitter { get; private set; }
+#pragma warning restore S1144
     public string? SubmitterDisplayId { get; private set; }
     public string? SubmitterProfileSnapshot { get; private set; }
 

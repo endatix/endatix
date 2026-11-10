@@ -9,7 +9,6 @@ using Endatix.Hosting.DevTools;
 using Endatix.Hosting.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Endatix.Hosting;
 
@@ -32,7 +31,7 @@ internal static class EndatixServiceCollectionExtensions
         Guard.Against.Null(configuration);
 
         // Register core framework services FIRST to ensure IAppEnvironment is available
-        RegisterCoreFrameworkServices(services, configuration);
+        RegisterCoreFrameworkServices(services);
 
         // Register standard Endatix options
         services.AddStandardEndatixOptions(configuration);
@@ -53,20 +52,15 @@ internal static class EndatixServiceCollectionExtensions
 
         // Now create the logging builder which will get environment from services
         var loggingBuilder = new EndatixLoggingBuilder(services, configuration);
-        var loggerFactory = loggingBuilder.GetComponents();
+        _ = loggingBuilder.GetComponents();
 
         // Create the main builder with logging already configured
         var builder = new EndatixBuilder(services, configuration);
-        var logger = builder.LoggerFactory.CreateLogger(typeof(EndatixServiceCollectionExtensions));
-
-        // Register remaining services
-        logger.LogInformation("Registering identity services");
-        RegisterIdentityServices(services, configuration);
 
         return builder;
     }
 
-    private static void RegisterCoreFrameworkServices(IServiceCollection services, IConfiguration configuration)
+    private static void RegisterCoreFrameworkServices(IServiceCollection services)
     {
         // Use the existing framework service registration that includes IAppEnvironment
         services.AddEndatixFrameworkServices();
@@ -74,10 +68,5 @@ internal static class EndatixServiceCollectionExtensions
         // Add additional core services as needed
         services.AddOptions();
         services.AddHealthChecks();
-    }
-
-    private static void RegisterIdentityServices(IServiceCollection services, IConfiguration configuration)
-    {
-        // Register identity services
     }
 }

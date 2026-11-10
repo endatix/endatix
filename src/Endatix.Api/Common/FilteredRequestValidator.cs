@@ -24,7 +24,7 @@ public class FilteredRequestValidator : AbstractValidator<IFilterable>
     private void ConfigureRules()
     {
         RuleForEach(x => x.Filter)
-            .Must((filter) => BeValidFilterFormat(filter, out var errorMessage))
+            .Must((filter) => BeValidFilterFormat(filter, out _))
             .WithMessage((_, filter) => GetFilterErrorMessage(filter));
     }
 

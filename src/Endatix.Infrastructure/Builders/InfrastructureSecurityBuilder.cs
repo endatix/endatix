@@ -201,7 +201,7 @@ public class InfrastructureSecurityBuilder
     /// </summary>
     public AuthProviderRegistry GetRegistry() => _authProviderRegistry;
 
-    private InfrastructureSecurityBuilder ConfigureAspNetCoreAuthentication()
+    private void ConfigureAspNetCoreAuthentication()
     {
         LogSetupInfo("Configuring ASP.NET Core authentication");
         var authOptions = Configuration.GetSection(AuthOptions.SECTION_NAME)
@@ -233,11 +233,9 @@ public class InfrastructureSecurityBuilder
                return AuthSchemes.EndatixJwt;
            };
        });
-
-        return this;
     }
 
-    private InfrastructureSecurityBuilder AddDefaultAuthorization()
+    private void AddDefaultAuthorization()
     {
         LogSetupInfo("Adding default authorization policies");
 
@@ -274,8 +272,6 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
-
-        return this;
     }
 
     private void RegisterKeycloakAuthorizationServices()

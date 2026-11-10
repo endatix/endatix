@@ -88,7 +88,10 @@ public sealed class AudienceImport : BaseEntity, IAggregateRoot, ITenantOwned
 
     public int RejectedCount { get; private set; }
 
+    // Written by persistence / future blob upload path; keep private set for EF.
+#pragma warning disable S1144
     public string? RejectedRowsBlobKey { get; private set; }
+#pragma warning restore S1144
 
     public long? PerformedById { get; private set; }
 

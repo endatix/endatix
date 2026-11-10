@@ -161,7 +161,7 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
         }
 
         var userId = principal.GetUserId();
-        if (userId is null || !long.TryParse(userId, out var parsedUserId))
+        if (userId is null || !long.TryParse(userId, out _))
         {
             return false;
         }

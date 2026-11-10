@@ -151,18 +151,16 @@ public class EndatixMiddlewareBuilder
         return this;
     }
 
-    private EndatixMiddlewareBuilder UseAuthentication()
+    private void UseAuthentication()
     {
         _logger?.LogInformation("Adding authentication middleware");
         App.UseAuthentication();
-        return this;
     }
 
-    private EndatixMiddlewareBuilder UseAuthorization()
+    private void UseAuthorization()
     {
         _logger?.LogInformation("Adding authorization middleware");
         App.UseAuthorization();
-        return this;
     }
 
     /// <summary>

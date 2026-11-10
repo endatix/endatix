@@ -79,7 +79,10 @@ public sealed class Property : BaseEntity, IAggregateRoot, ITenantOwned
 
     public int SortOrder { get; private set; }
 
+    // FK materialised / updated by persistence; keep private set for EF.
+#pragma warning disable S1144
     public long? DataListId { get; private set; }
+#pragma warning restore S1144
 
     public string? ChoicesJson { get; private set; }
 

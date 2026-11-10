@@ -45,14 +45,6 @@ public static class IdentityServiceCollectionExtensions
         services.AddIdentityCore<AppUser>(identityOptions =>
                 {
                     identityOptions.ClaimsIdentity.UserIdClaimType = JwtRegisteredClaimNames.Sub;
-                    // identityOptions.Password.RequireDigit = true;
-                    // identityOptions.Password.RequireLowercase = true;
-                    // identityOptions.Password.RequireUppercase = true;
-                    // identityOptions.Password.RequireNonAlphanumeric = true;
-                    // identityOptions.Password.RequiredLength = 8;
-
-                    // identityOptions.SignIn.RequireConfirmedEmail = true;
-                    // identityOptions.User.RequireUniqueEmail = true;
                 })
                 .AddRoles<AppRole>()
                 .AddUserValidator<ExternalAppUserValidator>()
