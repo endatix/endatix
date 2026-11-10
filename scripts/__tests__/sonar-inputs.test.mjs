@@ -51,6 +51,30 @@ test('a first attempt with a missing input fails: nothing earlier can vouch for 
   assert.deepEqual(decision, { action: 'fail', missing: ['sonar-scanner-state'] });
 });
 
+// Spec review: attempt 1 green, attempt 2 red (inputs kept), attempt 3 after the state expired.
+test('a red analysis after a green one fails: only the latest finished analysis counts', () => {
+  const decision = decideSonarRun({
+    required: REQUIRED,
+    present: REQUIRED.slice(0, 5),
+    attempt: 3,
+    jobs: [job(1, 'success'), job(2, 'failure'), job(3, null)],
+    sonarJob: SONAR,
+  });
+  assert.deepEqual(decision, { action: 'fail', missing: ['sonar-scanner-state'] });
+});
+
+test('a skipped or cancelled analysis is passed over for the one before it', () => {
+  const decision = decideSonarRun({
+    required: REQUIRED,
+    present: [],
+    attempt: 4,
+    jobs: [job(1, 'success'), job(2, 'skipped'), job(3, 'cancelled'), job(4, null)],
+    sonarJob: SONAR,
+  });
+  assert.equal(decision.action, 'skip');
+  assert.equal(decision.greenAttempt, 1);
+});
+
 test('a green job of another name does not count as a green analysis', () => {
   const decision = decideSonarRun({
     required: REQUIRED,
