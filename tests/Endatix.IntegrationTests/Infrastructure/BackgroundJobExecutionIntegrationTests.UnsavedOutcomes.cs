@@ -39,8 +39,8 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         invocations.CountFor(jobId).Should().Be(1);
         failures.CompletionsRemaining.Should().Be(0);
         (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
-        CountOf(lifecycle, "completed").Should().Be(1);
-        CountOf(lifecycle, "dead_lettered").Should().Be(0);
+        CountOf(lifecycle, node, "completed").Should().Be(1);
+        CountOf(lifecycle, node, "dead_lettered").Should().Be(0);
     }
 
     [Fact]
@@ -96,8 +96,8 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         writeFailures.CompletionsRemaining.Should().Be(0);
         refusals.Remaining.Should().Be(0);
         (await NoTriggerLeftAsync(database, jobId, ct)).Should().BeTrue();
-        CountOf(lifecycle, "completed").Should().Be(1);
-        CountOf(lifecycle, "dead_lettered").Should().Be(0);
+        CountOf(lifecycle, worker, "completed").Should().Be(1);
+        CountOf(lifecycle, worker, "dead_lettered").Should().Be(0);
     }
 
     [Fact]
@@ -214,8 +214,8 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
             },
             ct);
 
-    private static int CountOf(JobLifecycleEventListener lifecycle, string lifecycleEvent) =>
-        lifecycle.Events.Count(entry => entry.Event == lifecycleEvent && entry.JobType == ProbePayload.JobType);
+    private static int CountOf(JobLifecycleEventListener lifecycle, JobsTestNode node, string lifecycleEvent) =>
+        lifecycle.EventsOn(node).Count(entry => entry.Event == lifecycleEvent && entry.JobType == ProbePayload.JobType);
 
     private static async Task ReplaceWithLegacyReclaimTriggerAsync(JobsTestNode node, long jobId, CancellationToken ct)
     {

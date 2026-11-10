@@ -11,6 +11,11 @@ namespace Endatix.Core.Entities;
 /// value converter, the API validator and the entity all see one table. It is process-wide, so every host in one
 /// process registers the same codes.
 /// </summary>
+/// <remarks>
+/// Hosts sharing a process (integration tests) share it safely: <see cref="Configure"/> and the freeze take one lock,
+/// a host with the same codes changes nothing, and one with other codes fails its start. The warning for an
+/// unregistered stored code is written once per process, to the logger of the host that started last.
+/// </remarks>
 public static class CollectionStatusCatalog
 {
     private static readonly FrozenDictionary<string, CollectionPhase> _builtIn =

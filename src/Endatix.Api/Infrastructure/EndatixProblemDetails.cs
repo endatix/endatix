@@ -15,6 +15,10 @@ namespace Endatix.Api.Infrastructure;
 /// </summary>
 public static class EndatixProblemDetails
 {
+    // Process-wide: with several hosts in one process (integration tests), the last host to start sets both, and that
+    // is harmless. ASP.NET Core's HttpContextAccessor keeps the request in a static AsyncLocal, so any host's accessor
+    // returns the request of the current flow. The logger factory is only a fallback: a request's own RequestServices
+    // log first, so the static one is reached only when no request is running, which no caller does today.
     private static IHttpContextAccessor? _httpContextAccessor;
     private static ILoggerFactory? _loggerFactory;
 
