@@ -19,15 +19,13 @@ public sealed class TestDatabaseTests(DbIntegrationFixture fixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var sql = fixture.Provider switch
+        var (connection, sql) = fixture.Provider switch
         {
-            TestDatabaseProvider.PostgreSql => "SELECT current_database()",
-            TestDatabaseProvider.SqlServer => "SELECT DB_NAME()",
+            TestDatabaseProvider.PostgreSql => ((DbConnection)new NpgsqlConnection(fixture.ConnectionString), "SELECT current_database()"),
+            TestDatabaseProvider.SqlServer => (new SqlConnection(fixture.ConnectionString), "SELECT DB_NAME()"),
             _ => throw new ArgumentOutOfRangeException(nameof(fixture), fixture.Provider, "Unsupported test database provider."),
         };
-        await using DbConnection connection = fixture.Provider == TestDatabaseProvider.SqlServer
-            ? new SqlConnection(fixture.ConnectionString)
-            : new NpgsqlConnection(fixture.ConnectionString);
+        await using var _ = connection;
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
