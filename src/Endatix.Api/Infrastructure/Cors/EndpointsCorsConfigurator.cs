@@ -67,7 +67,6 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
         {
             var isDevelopment = IsDevelopment();
             options.DefaultPolicyName = isDevelopment ? ALLOW_ALL_POLICY_NAME : DISALLOW_ALL_POLICY_NAME;
-            isDefaultPolicySet = true;
         }
 
         if (_logger.IsEnabled(LogLevel.Debug))
@@ -76,7 +75,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
         }
     }
 
-    private CorsPolicyBuilder BuildFrom(CorsPolicyBuilder builder, CorsPolicySettings policySetting)
+    private void BuildFrom(CorsPolicyBuilder builder, CorsPolicySettings policySetting)
     {
         AddAllowedHeaders(builder, policySetting.AllowedHeaders);
         AddAllowedMethods(builder, policySetting.AllowedMethods);
@@ -87,7 +86,7 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
         {
             _logger.LogCorsCredentialsIgnored("AllowCredentials", "The CORS protocol does not allow specifying a wildcard (any) origin and credentials at the same time. Configure the CORS policy by listing individual origins if credentials needs to be supported.");
             _ = builder.DisallowCredentials();
-            return builder;
+            return;
         }
 
         if (policySetting.AllowCredentials)
@@ -108,8 +107,6 @@ public class EndpointsCorsConfigurator : IConfigureOptions<CorsOptions>
         {
             _ = builder.SetPreflightMaxAge(TimeSpan.FromSeconds(policySetting.PreflightMaxAgeInSeconds));
         }
-
-        return builder;
     }
 
     private CorsWildcardResult AddAllowedOrigins(CorsPolicyBuilder builder, IList<string> allowedOrigins) => AddValuesOrApplyWildcard(

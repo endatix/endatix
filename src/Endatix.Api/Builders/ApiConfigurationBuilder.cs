@@ -25,9 +25,6 @@ public class ApiConfigurationBuilder
 {
     private readonly ILogger? _logger;
     private readonly IConfiguration? _configuration;
-    private readonly IAppEnvironment? _environment;
-
-    private const int JWT_CLOCK_SKEW_IN_SECONDS = 15;
 
     /// <summary>
     /// Gets the service collection.
@@ -49,7 +46,6 @@ public class ApiConfigurationBuilder
     {
         Services = services;
         _configuration = configuration;
-        _environment = environment;
 
         if (loggerFactory != null)
         {

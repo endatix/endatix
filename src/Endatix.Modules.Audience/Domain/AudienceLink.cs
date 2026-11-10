@@ -43,9 +43,15 @@ public sealed class AudienceLink : BaseEntity, ITenantOwned
 
     public string TokenHash { get; private set; }
 
+    // Set via EF ExecuteUpdate in RedeemLink; keep private set for the model.
+#pragma warning disable S1144
     public DateTime? OpenedAt { get; private set; }
+#pragma warning restore S1144
 
+    // Set via EF ExecuteUpdate in RedeemLink; keep private set for the model.
+#pragma warning disable S1144
     public long? SubmissionId { get; private set; }
+#pragma warning restore S1144
 
     public static (AudienceLink Link, string Token) Issue(long tenantId, long formId, long membershipId)
     {

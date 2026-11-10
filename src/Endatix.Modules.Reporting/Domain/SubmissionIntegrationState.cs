@@ -20,9 +20,15 @@ public sealed class SubmissionIntegrationState
 
     public DateTime? LastAttemptAt { get; private set; }
 
+    // Written by FlattenedSubmissionRepository ExecuteUpdate; keep private set for EF.
+#pragma warning disable S1144
     public DateTime? ProcessedAt { get; private set; }
+#pragma warning restore S1144
 
+    // Written by FlattenedSubmissionRepository ExecuteUpdate; keep private set for EF.
+#pragma warning disable S1144
     public string? LastError { get; private set; }
+#pragma warning restore S1144
 
     public static SubmissionIntegrationState CreatePending(DateTime attemptedAt) =>
         new()

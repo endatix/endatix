@@ -42,7 +42,7 @@ public class BackgroundTaskWebHookService(
             await backgroundQueue.EnqueueAsync(async token =>
             {
                 var instructions = TaskInstructions.FromWebHookEndpointConfig(endpoint);
-                var result = await httpServer.FireWebHookAsync(message, instructions, token);
+                await httpServer.FireWebHookAsync(message, instructions, token);
             });
         }
     }
