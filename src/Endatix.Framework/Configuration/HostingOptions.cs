@@ -72,4 +72,14 @@ public class ReverseProxyOptions
     /// This is a local development convenience only; production keeps known proxy restrictions.
     /// </summary>
     public bool TrustAllProxiesInDevelopment { get; set; } = true;
+
+    /// <summary>
+    /// Proxy addresses allowed to supply <c>X-Forwarded-For</c>. Empty keeps the loopback defaults.
+    /// </summary>
+    public string[] KnownProxies { get; set; } = [];
+
+    /// <summary>
+    /// Proxy CIDRs allowed to supply <c>X-Forwarded-For</c>. <c>0.0.0.0/0</c> and <c>::/0</c> are rejected.
+    /// </summary>
+    public string[] KnownNetworks { get; set; } = [];
 }
