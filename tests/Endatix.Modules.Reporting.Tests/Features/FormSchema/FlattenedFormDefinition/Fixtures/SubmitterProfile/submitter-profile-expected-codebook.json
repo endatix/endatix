@@ -30,17 +30,17 @@
     }
   },
   "columns": {
-    "AudienceIdentifier": {
-      "parentKey": "AudienceIdentifier",
+    "ParticipantIdentifier": {
+      "parentKey": "ParticipantIdentifier",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "text",
       "title": {
-        "default": "Audience identifier"
+        "default": "Participant identifier"
       }
     },
-    "audience_city": {
-      "parentKey": "audience_city",
+    "participant_city": {
+      "parentKey": "participant_city",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "text",

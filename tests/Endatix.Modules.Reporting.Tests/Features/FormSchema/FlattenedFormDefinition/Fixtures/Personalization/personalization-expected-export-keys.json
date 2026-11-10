@@ -13,14 +13,14 @@
     "SubmitterDisplayId",
     "city",
     "consent",
-    "AudienceIdentifier",
-    "audience_age",
-    "audience_city",
-    "audience_joined",
-    "audience_last_seen",
-    "audience_panel_member",
-    "audience_score",
-    "audience_tags"
+    "ParticipantIdentifier",
+    "participant_age",
+    "participant_city",
+    "participant_joined",
+    "participant_last_seen",
+    "participant_panel_member",
+    "participant_score",
+    "participant_tags"
   ],
   "crunch": [
     "FormId",
@@ -36,13 +36,13 @@
     "SubmitterDisplayId",
     "Q1",
     "Q2",
-    "AudienceIdentifier",
-    "audience_age",
-    "audience_city",
-    "audience_joined",
-    "audience_last_seen",
-    "audience_panel_member",
-    "audience_score",
-    "audience_tags"
+    "ParticipantIdentifier",
+    "participant_age",
+    "participant_city",
+    "participant_joined",
+    "participant_last_seen",
+    "participant_panel_member",
+    "participant_score",
+    "participant_tags"
   ]
 }

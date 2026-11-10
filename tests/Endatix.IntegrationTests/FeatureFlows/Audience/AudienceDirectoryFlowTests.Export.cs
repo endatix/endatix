@@ -2,6 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Modules.Reporting.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
@@ -53,19 +56,91 @@ public sealed partial class AudienceDirectoryFlowTests
 
         // Assert
         Assert.Equal(
-            ["AudienceIdentifier", "audience_full_name", "audience_age", "audience_hometown", "audience_panel_member", "audience_joined", "audience_last_seen", "audience_tags"],
+            ["ParticipantIdentifier", "participant_full_name", "participant_age", "participant_hometown", "participant_panel_member", "participant_joined", "participant_last_seen", "participant_tags"],
             AudienceHeaders(csvBefore));
         Assert.Contains("John Smith", csvBefore);
         Assert.Contains("AQ-000002-01", csvBefore);
         Assert.Equal(
-            ["AudienceIdentifier", "audience_hometown", "audience_full_name", "audience_age", "audience_panel_member", "audience_joined", "audience_last_seen", "audience_tags"],
+            ["ParticipantIdentifier", "participant_hometown", "participant_full_name", "participant_age", "participant_panel_member", "participant_joined", "participant_last_seen", "participant_tags"],
             AudienceHeaders(csvAfter));
         var root = codebook.RootElement;
         Assert.Equal(
             "Home city",
-            root.GetProperty("columns").GetProperty("audience_hometown").GetProperty("title").GetProperty("default").GetString());
-        Assert.Equal("hometown", root.GetProperty("personalization").GetProperty("variables").EnumerateObject().First().Name);
+            root.GetProperty("columns").GetProperty("participant_hometown").GetProperty("title").GetProperty("default").GetString());
+        Assert.Equal("hometown", root.GetProperty("participants").GetProperty("variables").EnumerateObject().First().Name);
     }
+
+    [Fact]
+    public async Task A_reflatten_moves_a_canary_form_from_audience_keys_to_participant_keys()
+    {
+        // Arrange: the form was flattened by a canary that keyed participant columns as audience_* (#1282).
+        await using ReportingWebHost host = new(fixture);
+        var world = await WorldAsync(host);
+        var api = await AsAsync(world, TestPersona.TenantAdmin);
+        using var key = await api.PutKeyAsync("external_id");
+        var formId = await api.CreateFormAsync(definition: PersonalizedDefinition());
+        await CreateAudiencePropertiesAsync(api, formId);
+        await ImportAudienceAsync(api, formId);
+        await CompletedOnBehalfAsync(api, formId, "AQ-000001-01");
+        await ExpectOkAsync(api.PostAsync($"/api/forms/{formId}/submissions/backfill", new { }));
+        await KeyAsInCanaryAsync(world.Services, formId);
+        var csvBefore = await ExportAsync(api, formId, "csv");
+
+        // Act
+        await ExpectOkAsync(api.PostAsync($"/api/forms/{formId}/reporting/compile-schema", new { replace = true }));
+        await ExpectOkAsync(api.PostAsync($"/api/forms/{formId}/submissions/backfill", new { }));
+        var csvAfter = await ExportAsync(api, formId, "csv");
+        using var codebook = JsonDocument.Parse(await ExportAsync(api, formId, "codebook"));
+
+        // Assert
+        Assert.Contains("audience_full_name", AudienceHeaders(csvBefore, "audience_"));
+        Assert.Equal(
+            ["ParticipantIdentifier", "participant_full_name", "participant_age", "participant_hometown", "participant_panel_member", "participant_joined", "participant_last_seen", "participant_tags"],
+            AudienceHeaders(csvAfter));
+        Assert.Empty(AudienceHeaders(csvAfter, "audience"));
+        Assert.Contains("John Smith", csvAfter);
+        var root = codebook.RootElement;
+        Assert.Equal("ParticipantIdentifier", root.GetProperty("participants").GetProperty("identifier").GetString());
+        Assert.False(root.TryGetProperty("personalization", out _));
+        Assert.DoesNotContain(root.GetProperty("columns").EnumerateObject(), column => column.Name.StartsWith("audience", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Rewrites the stored schema and flattened rows to the keys a canary before #1282 wrote.
+    private static async Task KeyAsInCanaryAsync(IServiceProvider services, long formId)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var scope = services.CreateAsyncScope();
+        var reporting = scope.ServiceProvider.GetRequiredService<IReportingDbContext>();
+        var schema = await reporting.FormSchemas.AsNoTracking().SingleAsync(row => row.FormId == formId, cancellationToken);
+        var (flatteningMap, codebook) = (AsInCanary(schema.FlatteningMap), AsInCanary(schema.Codebook));
+        await reporting.FormSchemas
+            .Where(row => row.FormId == formId)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(row => row.FlatteningMap, flatteningMap)
+                    .SetProperty(row => row.Codebook, codebook),
+                cancellationToken);
+        var rows = await reporting.FlattenedSubmissions
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(row => row.FormId == formId)
+            .Select(row => new { row.SubmissionId, row.DataJson })
+            .ToListAsync(cancellationToken);
+        foreach (var row in rows)
+        {
+            var dataJson = AsInCanary(row.DataJson!);
+            await reporting.FlattenedSubmissions
+                .IgnoreQueryFilters()
+                .Where(flattened => flattened.SubmissionId == row.SubmissionId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(flattened => flattened.DataJson, dataJson), cancellationToken);
+        }
+
+        Assert.Single(rows);
+    }
+
+    private static string AsInCanary(string json) =>
+        json.Replace("ParticipantIdentifier", "AudienceIdentifier", StringComparison.Ordinal)
+            .Replace("participant_", "audience_", StringComparison.Ordinal);
 
     private static string PersonalizedDefinition() =>
         File.ReadAllText(Path.Combine(
@@ -128,9 +203,9 @@ public sealed partial class AudienceDirectoryFlowTests
         return await response.Content.ReadAsStringAsync(api.CancellationToken);
     }
 
-    private static List<string> AudienceHeaders(string csv) =>
+    private static List<string> AudienceHeaders(string csv, string prefix = "Participant") =>
         csv.Split('\n', 2)[0].TrimEnd('\r').Split(',')
             .Select(header => header.Trim('"'))
-            .Where(header => header.StartsWith("Audience", StringComparison.OrdinalIgnoreCase))
+            .Where(header => header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             .ToList();
 }

@@ -1002,49 +1002,49 @@
           "name": "qCalculatedTotal",
           "description": ""
         },
-        "AudienceIdentifier": {
+        "ParticipantIdentifier": {
           "type": "text",
-          "alias": "AudienceIdentifier",
-          "name": "Audience identifier",
-          "description": "Audience value frozen when the response was opened."
+          "alias": "ParticipantIdentifier",
+          "name": "Participant identifier",
+          "description": "Participant value frozen when the response was opened."
         },
-        "audience_age": {
+        "participant_age": {
           "type": "numeric",
-          "alias": "audience_age",
+          "alias": "participant_age",
           "name": "Age",
-          "description": "Audience value frozen when the response was opened."
+          "description": "Participant value frozen when the response was opened."
         },
-        "audience_full_name": {
+        "participant_full_name": {
           "type": "text",
-          "alias": "audience_full_name",
+          "alias": "participant_full_name",
           "name": "Full name",
-          "description": "Audience value frozen when the response was opened."
+          "description": "Participant value frozen when the response was opened."
         },
-        "audience_hometown": {
+        "participant_hometown": {
           "type": "text",
-          "alias": "audience_hometown",
+          "alias": "participant_hometown",
           "name": "Hometown",
-          "description": "Audience value frozen when the response was opened."
+          "description": "Participant value frozen when the response was opened."
         },
-        "audience_joined": {
+        "participant_joined": {
           "type": "datetime",
-          "alias": "audience_joined",
+          "alias": "participant_joined",
           "name": "Joined",
-          "description": "Audience value frozen when the response was opened.",
+          "description": "Participant value frozen when the response was opened.",
           "resolution": "D"
         },
-        "audience_last_seen": {
+        "participant_last_seen": {
           "type": "datetime",
-          "alias": "audience_last_seen",
+          "alias": "participant_last_seen",
           "name": "Last seen",
-          "description": "Audience value frozen when the response was opened.",
+          "description": "Participant value frozen when the response was opened.",
           "resolution": "s"
         },
-        "audience_panel_member": {
+        "participant_panel_member": {
           "type": "categorical",
-          "alias": "audience_panel_member",
+          "alias": "participant_panel_member",
           "name": "Panel member",
-          "description": "Audience value frozen when the response was opened.",
+          "description": "Participant value frozen when the response was opened.",
           "categories": [
             {
               "name": "No",
@@ -1060,11 +1060,11 @@
             }
           ]
         },
-        "audience_tags": {
+        "participant_tags": {
           "type": "text",
-          "alias": "audience_tags",
+          "alias": "participant_tags",
           "name": "Tags",
-          "description": "Audience value frozen when the response was opened."
+          "description": "Participant value frozen when the response was opened."
         }
       },
       "order": [
@@ -1086,14 +1086,14 @@
         {
           "group": "Participant variables",
           "entities": [
-            "AudienceIdentifier",
-            "audience_age",
-            "audience_full_name",
-            "audience_hometown",
-            "audience_joined",
-            "audience_last_seen",
-            "audience_panel_member",
-            "audience_tags"
+            "ParticipantIdentifier",
+            "participant_age",
+            "participant_full_name",
+            "participant_hometown",
+            "participant_joined",
+            "participant_last_seen",
+            "participant_panel_member",
+            "participant_tags"
           ]
         },
         {

@@ -40,8 +40,8 @@ internal static class FormSchemaCodebookPropertyNames
     /// <summary>Choice catalog: where the Other text is stored, "comment" or "value"; only with an Other item.</summary>
     public const string OtherStorage = "otherStorage";
 
-    /// <summary>The audience block an export adds: its title, identifier column and variable columns.</summary>
-    public const string Personalization = "personalization";
+    /// <summary>The participants block an export adds: its title, identifier column and variable columns.</summary>
+    public const string Participants = "participants";
     public const string Identifier = "identifier";
     public const string Variables = "variables";
 

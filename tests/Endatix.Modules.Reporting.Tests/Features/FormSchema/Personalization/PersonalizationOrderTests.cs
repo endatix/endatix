@@ -66,8 +66,8 @@ public sealed class PersonalizationOrderTests
         // Assert
         SortedTypes(pipeline).Should().Equal(SortedTypes(expected));
         var keys = pipeline.ExportKeys();
-        keys.Should().ContainInOrder("city", "consent", "age", "AudienceIdentifier", "audience_age");
-        CodebookShape(pipeline, "audience_age").Should().Be("personalization");
+        keys.Should().ContainInOrder("city", "consent", "age", "ParticipantIdentifier", "participant_age");
+        CodebookShape(pipeline, "participant_age").Should().Be("personalization");
         CodebookShape(pipeline, "age").Should().Be("scalar");
     }
 
@@ -113,7 +113,7 @@ public sealed class PersonalizationOrderTests
 
         // Assert
         pipeline.PersonalizationColumnTypes().Should().BeEmpty();
-        pipeline.ExportKeys().Should().NotContain(key => key.StartsWith("audience_") || key == "AudienceIdentifier");
+        pipeline.ExportKeys().Should().NotContain(key => key.StartsWith("audience_") || key == "ParticipantIdentifier");
     }
 
     private static IEnumerable<IReadOnlyList<FixtureResponse>> Permutations(IReadOnlyList<FixtureResponse> items)

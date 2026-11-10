@@ -8,22 +8,22 @@ using Endatix.Modules.Reporting.Shared.SurveyJs;
 namespace Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 
 /// <summary>
-/// The audience block of a codebook as an export shows it: each column under its property's current name, in the
+/// The participants block of a codebook as an export shows it: each column under its property's current name, in the
 /// order set on the Audience tab. Applied when an export runs, so a rename or reorder never touches the stored schema.
 /// </summary>
 /// <remarks>
-/// The block is the codebook's <c>personalization</c> object. The tabular export and Shoji read the block order from
+/// The block is the codebook's <c>participants</c> object. The tabular export and Shoji read the block order from
 /// it, so all three exports follow one rule. A codebook without the block (as stored) orders the block by key.
 /// </remarks>
 internal static class PersonalizationCodebook
 {
-    public const string BlockPropertyName = "personalization";
+    public const string BlockPropertyName = FormSchemaCodebookPropertyNames.Participants;
     public const string BlockTitle = "Personalized";
     private const string IdentifierPropertyName = "identifier";
     private const string VariablesPropertyName = "variables";
 
     /// <summary>
-    /// Returns the codebook with current audience names and the <c>personalization</c> block; unchanged when the
+    /// Returns the codebook with current audience names and the <c>participants</c> block; unchanged when the
     /// schema has no audience columns or the form has no properties (the Audience module is off).
     /// </summary>
     public static string Overlay(
@@ -113,12 +113,6 @@ internal static class PersonalizationCodebook
 
     private static JsonObject Block(IReadOnlyList<FormSchemaColumn> block)
     {
-        JsonObject variables = [];
-        foreach (var columnKey in block.Where(c => c.Key != PersonalizationColumns.IdentifierKey).Select(c => c.Key))
-        {
-            variables[columnKey[PersonalizationColumns.VariablePrefix.Length..]] = columnKey;
-        }
-
         JsonObject result = new()
         {
             [SurveyJsPropertyNames.Title] = new JsonObject { [FormSchemaCodebookPropertyNames.Default] = BlockTitle },
@@ -128,8 +122,23 @@ internal static class PersonalizationCodebook
             result[IdentifierPropertyName] = PersonalizationColumns.IdentifierKey;
         }
 
-        result[VariablesPropertyName] = variables;
+        result[VariablesPropertyName] = VariablesOf(block);
         return result;
+    }
+
+    // A column keyed before the participant rename names no variable, so it stays out of the block.
+    private static JsonObject VariablesOf(IReadOnlyList<FormSchemaColumn> block)
+    {
+        JsonObject variables = [];
+        foreach (var columnKey in block.Select(column => column.Key))
+        {
+            if (PersonalizationColumns.VariableNameOf(columnKey) is { } variableName)
+            {
+                variables[variableName] = columnKey;
+            }
+        }
+
+        return variables;
     }
 
     private static IEnumerable<string> BlockKeys(JsonElement codebook)

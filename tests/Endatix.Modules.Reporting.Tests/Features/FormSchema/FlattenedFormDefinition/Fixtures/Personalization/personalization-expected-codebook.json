@@ -22,17 +22,17 @@
     }
   },
   "columns": {
-    "AudienceIdentifier": {
-      "parentKey": "AudienceIdentifier",
+    "ParticipantIdentifier": {
+      "parentKey": "ParticipantIdentifier",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "text",
       "title": {
-        "default": "Audience identifier"
+        "default": "Participant identifier"
       }
     },
-    "audience_age": {
-      "parentKey": "audience_age",
+    "participant_age": {
+      "parentKey": "participant_age",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "text",
@@ -40,8 +40,8 @@
         "default": "Age"
       }
     },
-    "audience_city": {
-      "parentKey": "audience_city",
+    "participant_city": {
+      "parentKey": "participant_city",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "text",
@@ -49,8 +49,8 @@
         "default": "City"
       }
     },
-    "audience_joined": {
-      "parentKey": "audience_joined",
+    "participant_joined": {
+      "parentKey": "participant_joined",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "date",
@@ -58,8 +58,8 @@
         "default": "Joined"
       }
     },
-    "audience_last_seen": {
-      "parentKey": "audience_last_seen",
+    "participant_last_seen": {
+      "parentKey": "participant_last_seen",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "date_time",
@@ -67,8 +67,8 @@
         "default": "Last seen"
       }
     },
-    "audience_panel_member": {
-      "parentKey": "audience_panel_member",
+    "participant_panel_member": {
+      "parentKey": "participant_panel_member",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "boolean",
@@ -76,8 +76,8 @@
         "default": "Panel member"
       }
     },
-    "audience_score": {
-      "parentKey": "audience_score",
+    "participant_score": {
+      "parentKey": "participant_score",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "number",
@@ -85,8 +85,8 @@
         "default": "score"
       }
     },
-    "audience_tags": {
-      "parentKey": "audience_tags",
+    "participant_tags": {
+      "parentKey": "participant_tags",
       "surveyJsType": "personalization",
       "exportShape": "personalization",
       "dataType": "multiple_choice",

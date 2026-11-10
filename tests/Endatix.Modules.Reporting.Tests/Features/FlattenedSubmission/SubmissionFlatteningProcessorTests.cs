@@ -111,8 +111,8 @@ public partial class SubmissionFlatteningProcessorTests
             Arg.Any<FlattenedRevision>(),
             Arg.Is<FlattenedRowData>(data =>
                 data.DataJson.Contains("firstName") &&
-                data.DataJson.Contains("\"AudienceIdentifier\":\"CG-1\"") &&
-                data.DataJson.Contains("\"audience_city\":\"Columbus\"")),
+                data.DataJson.Contains("\"ParticipantIdentifier\":\"CG-1\"") &&
+                data.DataJson.Contains("\"participant_city\":\"Columbus\"")),
             Arg.Any<CancellationToken>());
     }
 

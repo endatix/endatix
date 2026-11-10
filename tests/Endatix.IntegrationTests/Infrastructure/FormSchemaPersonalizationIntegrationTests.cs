@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixture fixture)
 {
-    private const string IdentifierKey = "AudienceIdentifier";
+    private const string IdentifierKey = "ParticipantIdentifier";
     private const string PersonalizationPrefix = "audience_";
 
     private readonly FormSchemaRebuildWorld _world = new(fixture);
@@ -35,7 +35,7 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
 
         // Assert
         var schema = await _world.ReadSchemaAsync(form.FormId);
-        ColumnKeys(schema).Should().Contain(["q0", "AudienceIdentifier", "audience_city", "audience_age"]);
+        ColumnKeys(schema).Should().Contain(["q0", "ParticipantIdentifier", "participant_city", "participant_age"]);
         (await _world.ReadFlattenedAsync(withCity)).DataJson.Should().Contain("Columbus");
         (await _world.ReadFlattenedAsync(withAge)).DataJson.Should().Contain("65");
     }
@@ -54,8 +54,8 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
 
         // Assert
         var schema = await _world.ReadSchemaAsync(form.FormId);
-        ColumnKeys(schema).Should().Contain(["q0", "qa", "AudienceIdentifier", "audience_city"]);
-        schema.Codebook.Should().Contain("\"audience_city\"").And.Contain("\"personalization\"");
+        ColumnKeys(schema).Should().Contain(["q0", "qa", "ParticipantIdentifier", "participant_city"]);
+        schema.Codebook.Should().Contain("\"participant_city\"").And.Contain("\"personalization\"");
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
 
         // Assert
         afterReplace.Should().NotContain(key => key.StartsWith(PersonalizationPrefix) || key == IdentifierKey);
-        ColumnKeys(await _world.ReadSchemaAsync(form.FormId)).Should().Contain([IdentifierKey, "audience_city"]);
+        ColumnKeys(await _world.ReadSchemaAsync(form.FormId)).Should().Contain([IdentifierKey, "participant_city"]);
         (await _world.ReadFlattenedAsync(withCity)).DataJson.Should().Contain("Columbus");
     }
 
@@ -100,8 +100,8 @@ public sealed class FormSchemaPersonalizationIntegrationTests(DbIntegrationFixtu
 
         // Assert
         var schema = await _world.ReadSchemaAsync(form.FormId);
-        ColumnKeys(schema).Should().Contain(["q0", "qa", IdentifierKey, "audience_city"]);
-        schema.Codebook.Should().Contain("\"audience_city\"");
+        ColumnKeys(schema).Should().Contain(["q0", "qa", IdentifierKey, "participant_city"]);
+        schema.Codebook.Should().Contain("\"participant_city\"");
         (await _world.ReadFlattenedAsync(withCity)).DataJson.Should().Contain("Columbus");
     }
 

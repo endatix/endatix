@@ -14,8 +14,8 @@
     "department",
     "submitter_region",
     "recommend",
-    "AudienceIdentifier",
-    "audience_city",
+    "ParticipantIdentifier",
+    "participant_city",
     "submitter_email",
     "submitter_department"
   ],
@@ -34,8 +34,8 @@
     "Q1",
     "Q2",
     "Q3",
-    "AudienceIdentifier",
-    "audience_city",
+    "ParticipantIdentifier",
+    "participant_city",
     "submitter_email",
     "submitter_department"
   ]
