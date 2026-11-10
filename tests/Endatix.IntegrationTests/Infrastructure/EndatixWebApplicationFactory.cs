@@ -41,9 +41,16 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
         _outboxPolling = outboxPolling;
     }
 
+    /// <summary>How the host hashes passwords and refresh tokens. Read when the host starts.</summary>
+    public PasswordHashing PasswordHashing { get; init; } = PasswordHashing.Fast;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider, _outboxPolling);
+        if (PasswordHashing == PasswordHashing.Fast)
+        {
+            builder.ConfigureTestServices(services => services.UseFastPasswordHashing());
+        }
     }
 
     // Factories derived through WithWebHostBuilder build their hosts through this method too.
@@ -88,6 +95,16 @@ public enum OutboxPolling
 
     /// <summary>Every second through <c>Endatix:Outbox:PollIntervalSeconds</c>, the interval production binds.</summary>
     Configured,
+}
+
+/// <summary>How a test host hashes passwords and refresh tokens.</summary>
+public enum PasswordHashing
+{
+    /// <summary>At <see cref="IntegrationPasswordHashing.FastIterationCount"/>, so seeding and signing in skip the hashing cost.</summary>
+    Fast,
+
+    /// <summary>At the production settings. Seed the world on this host too: see <see cref="IntegrationPasswordHashing"/>.</summary>
+    Production,
 }
 
 internal static class EndatixWebApplicationFactoryConfiguration
