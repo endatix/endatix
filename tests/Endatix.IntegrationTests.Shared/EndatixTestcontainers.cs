@@ -17,9 +17,6 @@ internal static class EndatixTestcontainers
 {
     private const string SqlServerPassword = "yourStrong(!)Password";
 
-    /// <summary>The user database every provider's tests run on, so none runs in a server's system database.</summary>
-    private const string TestDatabaseName = "endatix_test";
-
     /// <summary>
     /// Same default the obsolete parameterless <see cref="PostgreSqlBuilder"/> used
     /// (<c>PostgreSqlBuilder.PostgreSqlImage</c> = <c>postgres:15.1</c>).
@@ -164,7 +161,7 @@ internal static class EndatixTestcontainers
             {
                 var postgresBuilder = new PostgreSqlBuilder(
                         NormalizeImageOverride(settings.PostgreSqlImage) ?? DefaultPostgreSqlImage)
-                    .WithDatabase(TestDatabaseName)
+                    .WithDatabase("endatix_test")
                     .WithUsername("postgres")
                     .WithPassword("postgres")
                     .WithNetwork(_network!)
@@ -188,7 +185,7 @@ internal static class EndatixTestcontainers
             {
                 var sqlBuilder = new MsSqlBuilder(
                         NormalizeImageOverride(settings.SqlServerImage) ?? DefaultSqlServerImage)
-                    .WithDatabase(TestDatabaseName)
+                    .WithDatabase("endatix_test")
                     .WithPassword(SqlServerPassword)
                     .WithNetwork(_network!)
                     .WithNetworkAliases("sqlserver")
