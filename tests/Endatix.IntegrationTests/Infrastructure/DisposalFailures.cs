@@ -3,8 +3,8 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// Disposes what a test host built without letting a disposal's failure replace a failure that is already on its way
 /// to the test. Such a disposal failure is reported as a warning on the running test, which xUnit prints next to the
-/// test's outcome. Outside a test, xUnit only sends it as a diagnostic message, which is off by default, so a failure
-/// reported there is not shown.
+/// test's outcome. Outside a test, xUnit only sends it as a diagnostic message: this project turns diagnostic messages
+/// on, but <c>dotnet test</c> hides them, so a failure reported there shows only when the test app runs on its own.
 /// </summary>
 internal static class DisposalFailures
 {

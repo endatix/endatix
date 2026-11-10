@@ -32,7 +32,7 @@ internal sealed class JobsTestDatabase : IAsyncDisposable
 
     /// <summary>Creates a database of the fixture's provider on the fixture's server.</summary>
     public static Task<JobsTestDatabase> CreateAsync(DbIntegrationFixture fixture, CancellationToken cancellationToken) =>
-        CreateAsync(fixture.Provider, fixture.ConnectionString, cancellationToken);
+        CreateAsync(fixture.Provider, fixture.ServerConnectionString, cancellationToken);
 
     /// <summary>Creates a database of <paramref name="provider"/> on the server <paramref name="serverConnectionString"/> points at.</summary>
     /// <remarks>

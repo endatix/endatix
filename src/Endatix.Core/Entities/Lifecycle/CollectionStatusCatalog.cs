@@ -13,6 +13,10 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public static class CollectionStatusCatalog
 {
+    // Hosts sharing a process (integration tests) share these safely: Configure and the freeze take one lock, a host
+    // with the same codes changes nothing, and one with other codes fails while its services are registered; no
+    // integration-test host registers codes. The warning for an unregistered stored code goes to the logger of the host
+    // that started last, which may be stopped already, and each host that starts later writes the codes seen again.
     private static readonly FrozenDictionary<string, CollectionPhase> _builtIn =
         new Dictionary<string, CollectionPhase>(StringComparer.Ordinal)
         {

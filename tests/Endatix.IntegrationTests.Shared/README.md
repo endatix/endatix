@@ -15,7 +15,8 @@ This is a test-only package — reference it from a test project, not from produ
 
 ## What it provides:
 
-- **`DbIntegrationFixture`** — a database-backed fixture that provisions a container, applies migrations and resets state between tests.
+- **`DbIntegrationFixture`** / **`DatabaseInfrastructureFixture`** — a database of the fixture's own on a shared container, dropped when the fixture is disposed, with Respawn resets between tests. `ConnectionString` is that database; `ServerConnectionString` is the server, for a test that creates databases of its own.
+- **`IntegrationDatabaseTemplate.Use(...)`** — what every fixture database starts with: the test process migrates one template database once, and each fixture gets a copy. Call it from a module initializer. Without it, a fixture database starts empty and the host migrates it at startup.
 - **`IntegrationTestWorld`** / **`IntegrationSeedBuilder`** — declarative seeding of tenants, forms and submissions, with `StandardSeedPresets` for the common shapes.
 - **`IIntegrationTestHostFixture`** — a host fixture over `WebApplicationFactory` with authentication wired up.
 - **`TestPersona`** / **`IntegrationAuthClients`** — authenticated callers for permission and tenant-isolation tests.
