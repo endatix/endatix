@@ -264,7 +264,8 @@ jobs:
           status=0
           # Exit code 8 is the integration project, where this filter matches zero tests.
           # No --minimum-expected-tests here: it applies to each test app, and that one runs none.
-          dotnet test --no-build \
+          # nice: the unit apps are short and CPU-heavy; the lanes, which set the wall time, go first.
+          nice -n 10 dotnet test --no-build \
             --filter "FullyQualifiedName!~Endatix.IntegrationTests" \
             --ignore-exit-code 8 \
             --report-xunit-ctrf \
@@ -312,7 +313,10 @@ jobs:
       - name: ⏱️ Test durations summaries
         if: ${{ !cancelled() }}
         run: |
-          summarize() { node scripts/test-durations-summary.mjs ".coverage/$1" "$2" --totals "$RUNNER_TEMP/totals/$1/test-totals.json"; }
+          summarize() {
+            local lane="$1" title="$2"
+            node scripts/test-durations-summary.mjs ".coverage/$lane" "$title" --totals "$RUNNER_TEMP/totals/$lane/test-totals.json"
+          }
           mkdir -p "$RUNNER_TEMP"/totals/{unit,integration-jobs,integration-rest,integration-sqlserver-jobs,integration-sqlserver-rest}
           summarize unit "Unit test durations"
           summarize integration-jobs "PostgreSQL integration test durations (Jobs lane)"
