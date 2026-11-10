@@ -108,6 +108,46 @@ public sealed class SubmissionScreenOutFlowTests
         }
     }
 
+    [Fact]
+    public async Task Quota_full_by_token_is_refused_because_only_the_server_sets_it()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await _fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword },
+            cancellationToken);
+
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+        var formId = await CreateEnabledFormAsync(client, cancellationToken);
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions",
+            new { isComplete = false, jsonData = """{"age":"18_or_over"}""", currentPage = 0 },
+            cancellationToken);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await ReadSubmissionAsync(createResponse, cancellationToken);
+
+        // Act
+        var response = await client.PatchAsJsonAsync(
+            $"/api/forms/{formId}/submissions/by-token/{created.Token}",
+            new { jsonData = """{"age":"under_18"}""", currentPage = 0, collectionOutcome = "quota_full" },
+            cancellationToken);
+
+        // Assert — a 400 that names the server-only status, and the stored row is unchanged
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        Assert.Contains("'quota_full' is set by the server; a respondent save can't set it.", body, StringComparison.Ordinal);
+
+        var submissionId = long.Parse(created.Id);
+        await using var scope = world.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var stored = await db.Submissions
+            .AsNoTracking()
+            .SingleAsync(row => row.Id == submissionId, cancellationToken);
+        Assert.Equal(CollectionStatusCodes.InProgress, stored.CollectionStatus.Code);
+        Assert.Equal("18_or_over", AgeOf(stored.JsonData));
+    }
+
     private static string? AgeOf(string jsonData)
     {
         using var document = JsonDocument.Parse(jsonData);
