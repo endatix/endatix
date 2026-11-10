@@ -46,7 +46,7 @@ const classOf = (testName) => {
   return parts.length > 1 ? parts.slice(0, -1).join('.') : parts[0];
 };
 
-// The few numbers the CI-speed trend reads (ci-progress.py), kept far longer than the raw reports.
+// The few numbers the CI-speed trend (#1550) reads across runs, kept far longer than the raw reports.
 export function totalsOf({ tests }) {
   const classes = {};
   for (const test of tests) {
