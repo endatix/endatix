@@ -1,11 +1,11 @@
-using Endatix.Infrastructure.Data.Abstractions;
-using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Reflection;
+using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
+using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Data.Config;
-using Ardalis.GuardClauses;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.SqlServer.Metadata;
@@ -39,9 +39,11 @@ public static class DbContextModelBuilderExtensions
     /// Same as <see cref="ApplySnowflakeIdValueGenerators(ModelBuilder, DatabaseFacade)"/>, but writes
     /// the <c>ValueGenerationStrategy</c> annotation of both PostgreSQL and SQL Server.
     /// </summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Writes the id annotations of both PostgreSQL and SQL Server, so every scaffolded snapshot and " +
         "designer carries the other provider's annotation, which has to be deleted by hand. Use " +
         "ApplySnowflakeIdValueGenerators(ModelBuilder, DatabaseFacade) with the context's Database instead.")]
+#pragma warning restore S1133
     public static void ApplySnowflakeIdValueGenerators(this ModelBuilder builder)
     {
         Guard.Against.Null(builder);
@@ -72,7 +74,7 @@ public static class DbContextModelBuilderExtensions
     {
         foreach (var entityType in builder.Model.GetEntityTypes().Where(HasLongIdKey))
         {
-            IMutableProperty idProperty = builder.Entity(entityType.ClrType)
+            var idProperty = builder.Entity(entityType.ClrType)
                 .Property<long>("Id")
                 .HasValueGeneratorFactory<SnowflakeValueGeneratorFactory>()
                 .ValueGeneratedOnAdd()
@@ -158,7 +160,7 @@ public static class DbContextModelBuilderExtensions
     /// Re-applies each entity's table name so it resolves against the context's default schema.
     /// </summary>
     /// <remarks>
-    /// Needed by module contexts that call <see cref="RelationalModelBuilderExtensions.HasDefaultSchema"/>: entities
+    /// Needed by module contexts that call <c>HasDefaultSchema</c>: entities
     /// mapped with an explicit <c>ToTable(name)</c> keep the schema they were configured with, so
     /// without this pass a module's tables can land outside its own schema.
     /// </remarks>

@@ -30,19 +30,19 @@
     }
   },
   "columns": {
-    "AudienceIdentifier": {
-      "parentKey": "AudienceIdentifier",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "ParticipantIdentifier": {
+      "parentKey": "ParticipantIdentifier",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
-        "default": "Audience identifier"
+        "default": "Participant identifier"
       }
     },
-    "audience_city": {
-      "parentKey": "audience_city",
-      "surveyJsType": "personalization",
-      "exportShape": "personalization",
+    "participant_city": {
+      "parentKey": "participant_city",
+      "surveyJsType": "participant",
+      "exportShape": "participant",
       "dataType": "text",
       "title": {
         "default": "City"

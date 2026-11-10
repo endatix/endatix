@@ -79,7 +79,9 @@ public static class EndatixApplicationBuilderExtensions
     /// <param name="app">The application builder.</param>
     /// <param name="configureAction">Action to configure middleware after defaults are applied.</param>
     /// <returns>The application builder for chaining.</returns>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Use UseEndatix(options => ...) for defaults plus overrides, or UseEndatix(builder => ...) for manual composition.")]
+#pragma warning restore S1133
     public static IApplicationBuilder UseEndatixWithDefaults(
         this IApplicationBuilder app,
         Action<EndatixMiddlewareBuilder> configureAction)

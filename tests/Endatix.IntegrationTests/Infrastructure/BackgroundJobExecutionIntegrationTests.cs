@@ -414,7 +414,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
 
         // Assert
-        var recorded = lifecycle.Events;
+        var recorded = lifecycle.EventsOn(node);
         recorded.Should().OnlyContain(entry => entry.JobType == ProbePayload.JobType);
         recorded.GroupBy(entry => entry.Event).ToDictionary(group => group.Key, group => group.Count())
             .Should().BeEquivalentTo(new Dictionary<string, int>

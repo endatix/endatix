@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Framework.Modules;
@@ -21,9 +22,16 @@ internal sealed class JobsTestNode : IAsyncDisposable
     private bool _stopped;
     private Exception? _startFailure;
 
-    private JobsTestNode(IHost host) => _host = host;
+    private JobsTestNode(IHost host)
+    {
+        _host = host;
+        Meters = host.Services.GetRequiredService<IMeterFactory>();
+    }
 
     public IServiceProvider Services => _host.Services;
+
+    /// <summary>The scope of this node's meters, kept so it can be read after the node is stopped or killed.</summary>
+    public IMeterFactory Meters { get; }
 
     /// <summary>
     /// Builds a node on whatever <paramref name="database"/> points at, including a server that is not there.

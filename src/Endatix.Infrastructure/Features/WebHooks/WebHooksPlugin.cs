@@ -14,7 +14,9 @@ public class WebHooksPlugin : IPluginInitializer
         /// <summary>A submission ended in a closed outcome, e.g. a screen-out.</summary>
         public const string SUBMISSION_CLOSED = "submission_closed";
 
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
         [Obsolete("Retired: use SUBMISSION_CLOSED.", error: true)]
+#pragma warning restore S1133
         public const string SUBMISSION_COLLECTION_STATUS_CHANGED = "submission_collection_status_changed";
         public const string FORM_DELETED = "form_deleted";
     }

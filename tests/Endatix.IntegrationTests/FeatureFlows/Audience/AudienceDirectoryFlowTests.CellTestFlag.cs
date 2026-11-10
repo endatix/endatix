@@ -21,33 +21,27 @@ public sealed partial class AudienceDirectoryFlowTests
     [Fact]
     public async Task Cells_written_before_the_test_flag_moved_onto_them_still_count_for_their_participants()
     {
-        // Arrange
-        var world = await WorldAsync();
+        // Arrange: a database of its own, since the schema goes back a migration
+        await using var host = await OwnDatabaseWebHost.StartAsync();
+        var world = await WorldAsync(host);
         var admin = await AsAsync(world, TestPersona.TenantAdmin);
         var form = await FormWithCoverageAsync(admin);
-        try
-        {
-            await MigrateAudienceToBeforeAsync(world.Services, CellTestFlagMigration);
+        await MigrateAudienceToBeforeAsync(world.Services, CellTestFlagMigration);
 
-            // Act
-            await MigrateAudienceToLatestAsync(world.Services);
+        // Act
+        await MigrateAudienceToLatestAsync(world.Services);
 
-            // Assert: the tester's Seats cell counts as test, not as a second real value
-            AssertJson(
-                """
-                {"participants":{"test":1,"real":2},
-                 "properties":[
-                   {"variableName":"city","filledTest":0,"filledReal":2},
-                   {"variableName":"seats","filledTest":1,"filledReal":1},
-                   {"variableName":"tier","filledTest":0,"filledReal":0}
-                 ]}
-                """,
-                (await GetVariablesAsync(admin, form.FormId)).GetProperty("coverage"));
-        }
-        finally
-        {
-            await MigrateAudienceToLatestAsync(world.Services);
-        }
+        // Assert: the tester's Seats cell counts as test, not as a second real value
+        AssertJson(
+            """
+            {"participants":{"test":1,"real":2},
+             "properties":[
+               {"variableName":"city","filledTest":0,"filledReal":2},
+               {"variableName":"seats","filledTest":1,"filledReal":1},
+               {"variableName":"tier","filledTest":0,"filledReal":0}
+             ]}
+            """,
+            (await GetVariablesAsync(admin, form.FormId)).GetProperty("coverage"));
     }
 
     [Fact]

@@ -20,7 +20,7 @@ public sealed class JobsPostgreSqlAcquisitionTests(DbIntegrationFixture fixture)
         // Arrange — PostgreSQL-only: the PostgreSQL store and its unnest/LATERAL acquisition; SQL Server's twin is in
         // JobsSqlServerStoreTests.
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.PostgreSql, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.PostgreSql, fixture.ServerConnectionString, ct);
         var behind = await store.SeedHeadOfLineAsync(ct);
 
         // Act

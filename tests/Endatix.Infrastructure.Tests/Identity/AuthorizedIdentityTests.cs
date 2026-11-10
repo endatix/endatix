@@ -40,6 +40,22 @@ public sealed class AuthorizedIdentityTests
     }
 
     [Fact]
+    public void CachedAt_And_CacheExpiresIn_FallBackToNow_WhenClaimsMissing()
+    {
+        // Arrange
+        var identity = new AuthorizedIdentity(null!);
+        var before = DateTime.UtcNow;
+
+        // Act
+        var cachedAt = identity.CachedAt;
+        var expiresIn = identity.CacheExpiresIn;
+
+        // Assert
+        cachedAt.Should().BeOnOrAfter(before);
+        expiresIn.Should().BeOnOrAfter(before);
+    }
+
+    [Fact]
     public void TenantId_ReturnsDefault_WhenClaimMissing()
     {
         // Arrange

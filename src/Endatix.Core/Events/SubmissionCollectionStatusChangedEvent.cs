@@ -7,12 +7,16 @@ namespace Endatix.Core.Events;
 /// Retired: nothing raises it. A collection status change raises one <see cref="SubmissionLifecycleEvent"/> named by
 /// its phases; a screen-out is <see cref="SubmissionLifecycleEvent.EventTypes.Closed"/>.
 /// </summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
 [Obsolete("Retired: subscribe to SubmissionLifecycleEvent.EventTypes (a screen-out is EventTypes.Closed) and read SubmissionLifecyclePayload.", error: true)]
+#pragma warning restore S1133
 public sealed class SubmissionCollectionStatusChangedEvent(Submission submission, CollectionStatus? previousCollectionStatus)
     : DomainEventBase, IIntegrationEvent
 {
     /// <summary>The retired outbox event type.</summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Retired: use SubmissionLifecycleEvent.EventTypes.Closed for a screen-out.", error: true)]
+#pragma warning restore S1133
     public const string EventTypeName = "submission.collection_status_changed";
 
     public Submission Submission { get; init; } = submission;
