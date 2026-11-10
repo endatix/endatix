@@ -36,7 +36,19 @@ its lane with the `Lane` trait, which is the only place lane membership lives:
 
 A new class lands in Rest. Tag it `Jobs` when its main subject is jobs, the scheduler, the outbox or webhook delivery.
 A class that only touches them on the way (such as `AudienceDirectoryFlowTests`, whose bulk import runs a job) stays in
-Rest, which keeps the lanes even; each lane's slowest-tests summary on the CI run page shows the balance. Each lane's `--minimum-expected-tests` sits about 10% under
+Rest, which keeps the lanes even; each lane's slowest-tests summary on the CI run page shows the balance.
+
+Balance comes before subject. These jobs classes run in Rest so the two SQL Server lanes take about the same time
+(#1632). Each runs on a database of its own, so nothing in Rest affects them. Leave them untagged:
+
+| Class | SQL Server | PostgreSQL |
+| ----- | ---------- | ---------- |
+| `ReportingJobsTests` | ~33 s | ~14 s |
+| `OutboxFanOutTests` | ~27 s | ~15 s |
+| `JobsSqlServerStoreTests` | ~19 s | SQL Server only |
+
+To rebalance, move whole classes by their time in the lanes' `test-durations-*` artifacts. `AudienceDirectoryFlowTests`
+swings 60–90 s between runs, so balance against its middle. Each lane's `--minimum-expected-tests` sits about 10% under
 its count; adjust both when a class moves. Before the tests, each lane runs `scripts/check-integration-lanes.mjs`, which
 lists the provider filter's tests and fails when one is in neither lane or in both.
 

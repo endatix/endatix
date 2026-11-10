@@ -201,7 +201,8 @@ jobs:
 
   # Each provider's suite runs as two lanes in parallel, each with its own database container.
   # A class joins the Jobs lane with [Trait("Lane", "Jobs")] (jobs, scheduler, outbox and
-  # webhook-delivery classes); every other class runs in Rest. See tests/README.md → Lanes.
+  # webhook-delivery classes); every other class runs in Rest. A few jobs classes run in Rest
+  # to keep the SQL Server lanes even. See tests/README.md → Lanes.
   integration-tests:
     name: "Endatix API: ${{ matrix.title }} integration tests (${{ matrix.lane }})"
     needs: [changes]
@@ -210,15 +211,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # min-tests: ~10% under each lane's count on 2026-11-09 (PostgreSQL 183 + 734 = 917,
-        # SQL Server 193 + 748 = 941), so a filter that silently drops a whole area fails the
+        # min-tests: ~10% under each lane's count on 2026-11-10 (PostgreSQL 165 + 754 = 919,
+        # SQL Server 163 + 780 = 943), so a filter that silently drops a whole area fails the
         # lane. A misspelled Lane trait moves its class to Rest without breaking the lane check;
         # the Jobs guard is what catches that. Raise them as the suite grows.
         include:
-          - { provider: PostgreSql, title: PostgreSQL, lane: Jobs, artifact: integration-jobs, min-tests: 165 }
-          - { provider: PostgreSql, title: PostgreSQL, lane: Rest, artifact: integration-rest, min-tests: 660 }
-          - { provider: SqlServer, title: SQL Server, lane: Jobs, artifact: integration-sqlserver-jobs, min-tests: 175 }
-          - { provider: SqlServer, title: SQL Server, lane: Rest, artifact: integration-sqlserver-rest, min-tests: 675 }
+          - { provider: PostgreSql, title: PostgreSQL, lane: Jobs, artifact: integration-jobs, min-tests: 148 }
+          - { provider: PostgreSql, title: PostgreSQL, lane: Rest, artifact: integration-rest, min-tests: 678 }
+          - { provider: SqlServer, title: SQL Server, lane: Jobs, artifact: integration-sqlserver-jobs, min-tests: 146 }
+          - { provider: SqlServer, title: SQL Server, lane: Rest, artifact: integration-sqlserver-rest, min-tests: 702 }
     env:
       ENDATIX_TEST_DB_PROVIDER: ${{ matrix.provider }}
       INTEGRATION_PROJECT: tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj
