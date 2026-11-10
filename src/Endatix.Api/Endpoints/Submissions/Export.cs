@@ -1,23 +1,23 @@
+using System.IO.Pipelines;
 using Endatix.Api;
-using FastEndpoints;
-using Microsoft.AspNetCore.Http;
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Submissions.Export;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Specifications;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Paging;
-using Microsoft.Extensions.Logging;
-using MediatR;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Abstractions.Authorization;
-using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
-using Endatix.Core.Entities;
-using System.IO.Pipelines;
+using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions.Export;
 using Endatix.Modules.Reporting.Contracts.Export;
+using FastEndpoints;
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -85,13 +85,13 @@ public partial class Export : Endpoint<ExportRequest>
     }
 
     /// <inheritdoc/>
-    public override async Task HandleAsync(ExportRequest request, CancellationToken cancellationToken)
+    public override async Task HandleAsync(ExportRequest request, CancellationToken ct)
     {
         PipeWriter? pipeWriter = null;
 
         try
         {
-            var exportValidationResult = await ResolveExportConfigurationAsync(request, cancellationToken);
+            var exportValidationResult = await ResolveExportConfigurationAsync(request, ct);
             if (!exportValidationResult.IsSuccess)
             {
                 var validationError = exportValidationResult.ValidationErrors.FirstOrDefault();
@@ -126,7 +126,7 @@ public partial class Export : Endpoint<ExportRequest>
                     validatedExportOperation.ExecutionSettings;
             }
 
-            var headersResult = await exporter.GetHeadersAsync(options, cancellationToken);
+            var headersResult = await exporter.GetHeadersAsync(options, ct);
             if (!headersResult.IsSuccess)
             {
                 _logger.LogError("Failed to get export headers: {Errors}", string.Join(", ", headersResult.Errors));
@@ -151,7 +151,7 @@ public partial class Export : Endpoint<ExportRequest>
                 IncludeTestSubmissions: validatedExportOperation.IncludeTestSubmissions
             );
 
-            var result = await _mediator.Send(exportQuery, cancellationToken);
+            var result = await _mediator.Send(exportQuery, ct);
 
             if (!result.IsSuccess)
             {
@@ -166,7 +166,7 @@ public partial class Export : Endpoint<ExportRequest>
                 return;
             }
 
-            await pipeWriter.FlushAsync(cancellationToken);
+            await pipeWriter.FlushAsync(ct);
             await pipeWriter.CompleteAsync();
             _logger.LogDebug("Successfully exported submissions for form {FormId}", request.FormId);
         }
@@ -474,7 +474,7 @@ public partial class Export : Endpoint<ExportRequest>
             return;
         }
 
-        int resolvedStatus = statusCode ?? StatusCodes.Status500InternalServerError;
+        var resolvedStatus = statusCode ?? StatusCodes.Status500InternalServerError;
         await HttpContext.WriteEndatixProblemAsync(
             resolvedStatus,
             title: "Export failed",

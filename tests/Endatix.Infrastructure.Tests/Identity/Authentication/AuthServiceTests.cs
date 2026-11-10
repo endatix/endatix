@@ -334,7 +334,7 @@ public class AuthServiceTests
 
         // Assert
         await act.Should().ThrowAsync<ArgumentNullException>()
-            .WithMessage(ErrorMessages.GetErrorMessage("token", ErrorType.Null));
+            .WithMessage(ErrorMessages.GetErrorMessage("refreshToken", ErrorType.Null));
     }
 
     [Fact]
@@ -349,7 +349,7 @@ public class AuthServiceTests
 
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
-            .WithMessage(ErrorMessages.GetErrorMessage("token", ErrorType.Empty));
+            .WithMessage(ErrorMessages.GetErrorMessage("refreshToken", ErrorType.Empty));
     }
 
     [Fact]

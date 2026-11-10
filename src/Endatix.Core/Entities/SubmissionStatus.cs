@@ -22,6 +22,15 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
         Code = string.Empty;
     }
 
+    private SubmissionStatus(string name, string code)
+    {
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrWhiteSpace(code);
+
+        Name = name;
+        Code = code.ToLowerInvariant();
+    }
+
     /// <summary>
     /// Catalog value for comparisons. Do not assign catalog instances to aggregates —
     /// use <see cref="FromCode(string)"/> / <see cref="CreateInstance"/> so each entity
@@ -36,15 +45,6 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 
     public string Name { get; }
     public string Code { get; }
-
-    private SubmissionStatus(string name, string code)
-    {
-        Guard.Against.NullOrWhiteSpace(name);
-        Guard.Against.NullOrWhiteSpace(code);
-
-        Name = name;
-        Code = code.ToLowerInvariant();
-    }
 
     /// <summary>
     /// Fresh instance for EF <c>OwnsOne</c> tracking (same value, different object identity).
@@ -82,4 +82,28 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
+
+    public static bool operator <(SubmissionStatus? left, SubmissionStatus? right)
+    {
+        if (left is null)
+        {
+            return right is not null;
+        }
+
+        return left.CompareTo(right) < 0;
+    }
+
+    public static bool operator <=(SubmissionStatus? left, SubmissionStatus? right)
+    {
+        if (left is null)
+        {
+            return true;
+        }
+
+        return left.CompareTo(right) <= 0;
+    }
+
+    public static bool operator >(SubmissionStatus? left, SubmissionStatus? right) => !(left <= right);
+
+    public static bool operator >=(SubmissionStatus? left, SubmissionStatus? right) => !(left < right);
 }

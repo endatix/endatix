@@ -17,6 +17,20 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
         Code = string.Empty;
     }
 
+    private PermissionCategory(string name, string code)
+    {
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrWhiteSpace(code);
+
+        if (code.Length > CATEGORY_CODE_MAX_LENGTH)
+        {
+            throw new ArgumentException($"Code cannot be longer than {CATEGORY_CODE_MAX_LENGTH} characters", nameof(code));
+        }
+
+        Name = name;
+        Code = code.ToLowerInvariant();
+    }
+
     // System-defined categories
     public static readonly PermissionCategory Access = new("Access", "access");
     public static readonly PermissionCategory Platform = new("Platform Management", "platform");
@@ -31,20 +45,6 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
 
     public string Name { get; }
     public string Code { get; }
-
-    private PermissionCategory(string name, string code)
-    {
-        Guard.Against.NullOrWhiteSpace(name);
-        Guard.Against.NullOrWhiteSpace(code);
-
-        if (code.Length > CATEGORY_CODE_MAX_LENGTH)
-        {
-            throw new ArgumentException($"Code cannot be longer than {CATEGORY_CODE_MAX_LENGTH} characters", nameof(code));
-        }
-
-        Name = name;
-        Code = code.ToLowerInvariant();
-    }
 
     /// <summary>
     /// Creates a PermissionCategory from a code string
@@ -106,4 +106,28 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
 
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
+
+    public static bool operator <(PermissionCategory? left, PermissionCategory? right)
+    {
+        if (left is null)
+        {
+            return right is not null;
+        }
+
+        return left.CompareTo(right) < 0;
+    }
+
+    public static bool operator <=(PermissionCategory? left, PermissionCategory? right)
+    {
+        if (left is null)
+        {
+            return true;
+        }
+
+        return left.CompareTo(right) <= 0;
+    }
+
+    public static bool operator >(PermissionCategory? left, PermissionCategory? right) => !(left <= right);
+
+    public static bool operator >=(PermissionCategory? left, PermissionCategory? right) => !(left < right);
 }

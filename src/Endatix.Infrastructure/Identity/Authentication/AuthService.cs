@@ -1,8 +1,8 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
-using Endatix.Core.Entities.Identity;
 
 namespace Endatix.Infrastructure.Identity.Authentication;
 
@@ -92,10 +92,10 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
     }
 
     /// <inheritdoc/>
-    public async Task<Result<User>> ValidateRefreshToken(long userId, string token, CancellationToken cancellationToken)
+    public async Task<Result<User>> ValidateRefreshToken(long userId, string refreshToken, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(userId);
-        Guard.Against.NullOrEmpty(token);
+        Guard.Against.NullOrEmpty(refreshToken);
 
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null || user.RefreshTokenHash is null || user.RefreshTokenExpireAt is null)
@@ -103,7 +103,7 @@ internal sealed class AuthService(UserManager<AppUser> userManager, IPasswordHas
             return Result.Invalid(new ValidationError("Invalid input"));
         }
 
-        var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.RefreshTokenHash, token);
+        var verificationResult = _passwordHasher.VerifyHashedPassword(user, user.RefreshTokenHash, refreshToken);
         if (verificationResult != PasswordVerificationResult.Success || user.RefreshTokenExpireAt < DateTime.UtcNow)
         {
             return Result.Invalid(new ValidationError("The supplied refresh token is invalid!"));

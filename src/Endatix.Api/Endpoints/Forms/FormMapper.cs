@@ -37,6 +37,15 @@ public static class FormMapper
     };
 
     /// <summary>
+    /// Maps a collection of form entities to a collection of form API models.
+    /// </summary>
+    /// <typeparam name="T">The type of the form API model, which inherits FormModel.</typeparam>
+    /// <param name="forms">The collection of form entities.</param>
+    /// <returns>A collection of mapped form API models.</returns>
+    public static IEnumerable<T> Map<T>(IEnumerable<Form> forms) where T : FormModel, new() =>
+        forms.Select(Map<T>).ToList();
+
+    /// <summary>
     /// Parses a JSON string to a JsonElement, returning null if the string is empty or invalid.
     /// </summary>
     internal static JsonElement? ParseJsonString(string? jsonString)
@@ -55,15 +64,6 @@ public static class FormMapper
             return null;
         }
     }
-
-    /// <summary>
-    /// Maps a collection of form entities to a collection of form API models.
-    /// </summary>
-    /// <typeparam name="T">The type of the form API model, which inherits FormModel.</typeparam>
-    /// <param name="forms">The collection of form entities.</param>
-    /// <returns>A collection of mapped form API models.</returns>
-    public static IEnumerable<T> Map<T>(IEnumerable<Form> forms) where T : FormModel, new() =>
-        forms.Select(Map<T>).ToList();
 }
 
 public static class FormMapperExtensions

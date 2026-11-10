@@ -49,7 +49,7 @@ public class ActiveDefinitionDto
     /// The JSON schema data for the form definition.
     /// Defaults to the system's default form definition JSON if not specified.
     /// </summary>
-    public string JsonData { get; set; } = "{}";
+    public string JsonData { get; set; }
 
     /// <summary>
     /// Optional JSON data for the theme associated with this form definition.

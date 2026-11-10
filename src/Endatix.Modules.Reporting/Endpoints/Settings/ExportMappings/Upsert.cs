@@ -49,7 +49,7 @@ public sealed class Upsert(
     /// <inheritdoc />
     public override async Task<Results<Ok<ExportMappingDto>, ProblemHttpResult>> ExecuteAsync(
         UpsertExportMappingEndpointRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         UpsertExportMappingRequest mappingRequest = new(
             request.ExportFormatId,
@@ -58,7 +58,7 @@ public sealed class Upsert(
 
         var result = await mediator.Send(
             new UpsertExportMappingCommand(tenantContext.TenantId, mappingRequest),
-            cancellationToken);
+            ct);
 
         return TypedResultsBuilder
             .MapResult(result, mapping => mapping)
