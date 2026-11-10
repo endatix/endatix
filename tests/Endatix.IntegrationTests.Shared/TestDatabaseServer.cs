@@ -129,21 +129,34 @@ internal sealed class TestDatabaseServer(TestDatabaseProvider provider, string s
             Provider switch
             {
                 TestDatabaseProvider.PostgreSql =>
-                    $"SELECT datname FROM pg_database WHERE datname LIKE '{FixturePrefix}%' OR datname LIKE '{TemplatePrefix}%'",
+                    $"SELECT datname FROM pg_database WHERE datname LIKE '{EscapedLike(FixturePrefix)}%' ESCAPE '!' OR datname LIKE '{EscapedLike(TemplatePrefix)}%' ESCAPE '!'",
                 TestDatabaseProvider.SqlServer =>
-                    $"SELECT name FROM sys.databases WHERE name LIKE '{Escaped(FixturePrefix)}%' OR name LIKE '{Escaped(TemplatePrefix)}%'",
+                    $"SELECT name FROM sys.databases WHERE name LIKE '{EscapedLike(FixturePrefix)}%' ESCAPE '!' OR name LIKE '{EscapedLike(TemplatePrefix)}%' ESCAPE '!'",
                 _ => throw Unsupported(Provider),
             },
             reader => reader.GetString(0),
             cancellationToken);
 
-    /// <summary>Lets a template from an earlier run be dropped: PostgreSQL refuses to drop a database marked as one.</summary>
+    /// <summary>
+    /// Lets a template be dropped: PostgreSQL refuses to drop a database marked as one. A database another run dropped
+    /// first is skipped.
+    /// </summary>
     public Task UnmarkTemplateAsync(string name, CancellationToken cancellationToken) =>
         Provider == TestDatabaseProvider.PostgreSql
-            ? ExecuteAsync($"ALTER DATABASE {name} WITH IS_TEMPLATE false", cancellationToken)
+            ? ExecuteAsync(
+                $"""
+                DO $$
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM pg_database WHERE datname = '{name}' AND datistemplate) THEN
+                        ALTER DATABASE {name} WITH IS_TEMPLATE false;
+                    END IF;
+                END $$
+                """,
+                cancellationToken)
             : Task.CompletedTask;
 
-    private static string Escaped(string likePattern) => likePattern.Replace("_", "[_]", StringComparison.Ordinal);
+    // `_` is a LIKE wildcard on both providers; `!` is the escape character each pattern declares.
+    private static string EscapedLike(string prefix) => prefix.Replace("_", "!_", StringComparison.Ordinal);
 
     private static string BackupPath(string template) => $"{SqlServerBackupFolder}/{template}.bak";
 

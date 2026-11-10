@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Diagnostics;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
@@ -103,7 +104,7 @@ internal static class EndatixTestcontainers
         catch
         {
             // A restore can fail after it made the database; no fixture holds the name to drop it later.
-            await server.DropAsync(name, CancellationToken.None);
+            await DropBestEffortAsync(server, name, "after its failed copy");
             throw;
         }
 
@@ -150,11 +151,21 @@ internal static class EndatixTestcontainers
 
         var template = TestDatabaseServer.NewName(TestDatabaseServer.TemplatePrefix, DateTime.UtcNow);
         var started = Stopwatch.GetTimestamp();
-        await server.CreateEmptyAsync(template, cancellationToken);
-        await migrate(server.ConnectionStringFor(template), server.Provider, cancellationToken);
-        var migrated = Stopwatch.GetElapsedTime(started);
-        started = Stopwatch.GetTimestamp();
-        await server.SealTemplateAsync(template, cancellationToken);
+        TimeSpan migrated;
+        try
+        {
+            await server.CreateEmptyAsync(template, cancellationToken);
+            await migrate(server.ConnectionStringFor(template), server.Provider, cancellationToken);
+            migrated = Stopwatch.GetElapsedTime(started);
+            started = Stopwatch.GetTimestamp();
+            await server.SealTemplateAsync(template, cancellationToken);
+        }
+        catch
+        {
+            await DropBestEffortAsync(server, template, "after its failed build");
+            throw;
+        }
+
         ReportSetup(
             $"{server.Provider} {template}: created and migrated in {migrated.TotalMilliseconds:F0} ms, " +
             $"sealed in {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0} ms");
@@ -162,16 +173,38 @@ internal static class EndatixTestcontainers
     }
 
     // Only databases old enough to belong to a run that has ended: another test process may share a reused container.
+    // Best effort: a leftover another run drops first, or one that will not go, must not fail this run's fixtures.
     private static async Task DropLeftoversAsync(TestDatabaseServer server, CancellationToken cancellationToken)
     {
         var cutoff = DateTime.UtcNow - LeftoverAge;
-        foreach (var leftover in await server.LeftoversAsync(cancellationToken))
+        List<string> leftovers;
+        try
         {
-            if (TestDatabaseServer.MadeBefore(leftover, cutoff))
-            {
-                await server.UnmarkTemplateAsync(leftover, cancellationToken);
-                await server.DropAsync(leftover, cancellationToken);
-            }
+            leftovers = await server.LeftoversAsync(cancellationToken);
+        }
+        catch (DbException ex)
+        {
+            ReportSetup($"{server.Provider}: could not list leftover databases: {ex.Message}");
+            return;
+        }
+
+        foreach (var leftover in leftovers.Where(name => TestDatabaseServer.MadeBefore(name, cutoff)))
+        {
+            await DropBestEffortAsync(server, leftover, "left by an earlier run");
+        }
+    }
+
+    // Reports a failed drop instead of throwing it: the caller either rethrows a failure of its own or must go on.
+    private static async Task DropBestEffortAsync(TestDatabaseServer server, string name, string why)
+    {
+        try
+        {
+            await server.UnmarkTemplateAsync(name, CancellationToken.None);
+            await server.DropAsync(name, CancellationToken.None);
+        }
+        catch (DbException ex)
+        {
+            ReportSetup($"{server.Provider}: could not drop {name} {why}: {ex.Message}");
         }
     }
 
