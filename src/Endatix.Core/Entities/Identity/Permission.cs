@@ -88,7 +88,7 @@ public sealed class Permission : BaseEntity, IAggregateRoot
     /// <exception cref="InvalidOperationException">Thrown when the permission is system defined and cannot be activated.</exception>
     public void Activate()
     {
-        if (IsActive is true)
+        if (IsActive)
         {
             return;
         }
@@ -107,7 +107,7 @@ public sealed class Permission : BaseEntity, IAggregateRoot
     /// <exception cref="InvalidOperationException">Thrown when the permission is system defined and cannot be deactivated.</exception>
     public void Deactivate()
     {
-        if (IsActive is false)
+        if (!IsActive)
         {
             return;
         }

@@ -30,7 +30,7 @@ public sealed class DefaultAuthorization(
             .GetActiveProviders()
             .FirstOrDefault(provider => provider.CanHandle(issuer, string.Empty));
 
-        return activeProvider is not null && activeProvider is EndatixUserJwtAuthProvider;
+        return activeProvider is EndatixUserJwtAuthProvider;
     }
 
     /// <inheritdoc />

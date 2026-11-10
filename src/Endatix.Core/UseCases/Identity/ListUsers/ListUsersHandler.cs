@@ -27,6 +27,6 @@ public class ListUsersHandler(IUserService userService)
                 new ErrorList(result.Errors ?? [], result.CorrelationId));
         }
 
-        return Result.Success(result.Value!);
+        return Result.Success(result.Value);
     }
 }

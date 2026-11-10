@@ -33,7 +33,7 @@ public class SendVerificationEmailHandler(
             return Result.Success();
         }
 
-        var user = userResult.Value!;
+        var user = userResult.Value;
         if (user.IsVerified)
         {
             logger.LogWarning("Verification email requested for already verified user (UserId: {UserId})", user.Id);
@@ -49,7 +49,7 @@ public class SendVerificationEmailHandler(
             {
                 var emailModel = emailTemplateService.CreateVerificationEmail(
                     user.Email,
-                    tokenResult.Value!.RawToken!);
+                    tokenResult.Value.RawToken!);
 
                 await emailSender.SendEmailAsync(emailModel, cancellationToken);
 

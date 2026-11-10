@@ -27,7 +27,7 @@ public class ReCaptchaHttpClient(HttpClient client, ILogger<ReCaptchaHttpClient>
         {
             var response = await client.PostAsync("https://www.google.com/recaptcha/api/siteverify", content, cancellationToken);
 
-            var responseContent = await response!.Content.ReadAsStreamAsync(cancellationToken);
+            var responseContent = await response.Content.ReadAsStreamAsync(cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {

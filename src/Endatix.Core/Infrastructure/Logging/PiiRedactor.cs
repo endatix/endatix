@@ -117,12 +117,9 @@ public static class PiiRedactor
             }
         }
 
-        foreach (var index in digitIndexes)
+        foreach (var index in digitIndexes.Where(index => !digitsToKeepIndexes.Contains(index)))
         {
-            if (!digitsToKeepIndexes.Contains(index))
-            {
-                chars[index] = '*';
-            }
+            chars[index] = '*';
         }
 
         return new string(chars);

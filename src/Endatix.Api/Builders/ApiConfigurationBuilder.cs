@@ -162,7 +162,7 @@ public class ApiConfigurationBuilder
             options.EndpointFilter = ep =>
             {
                 var hasHiddenTag = ep.EndpointTags?.Contains("hidden") ?? false;
-                return hasHiddenTag ? false : true;
+                return !hasHiddenTag;
             };
         });
 
