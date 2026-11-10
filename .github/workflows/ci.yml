@@ -198,9 +198,13 @@ jobs:
         run: dotnet tool install --global dotnet-coverage --version 18.12.0
       - name: 📊 Coveralls report
         run: dotnet-coverage merge .coverage/report/Cobertura.xml -f cobertura -o .coverage/merged.cobertura.xml
+      # Coveralls closes a build after its one upload, and every attempt of a run shares the
+      # run id as its build number, so a re-run gets its own build: <run id>-<attempt>.
+      # The first attempt sends no build number and keeps the run id, as before.
       - name: 📊 Upload to Coveralls
         uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
+          build-number: ${{ github.run_attempt != '1' && format('{0}-{1}', github.run_id, github.run_attempt) || '' }}
           format: cobertura
           file: .coverage/merged.cobertura.xml
           coverage-reporter-version: v0.6.22
