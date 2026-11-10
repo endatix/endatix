@@ -13,7 +13,8 @@ public abstract class BasePublicSubmissionRequest : BaseSubmissionRequest
     /// <summary>
     /// A closed collection status that ends the interview, e.g. <c>screen_out</c> or a closed code the host registered.
     /// The submission stays incomplete and later updates are rejected. Omit for a normal save. Any other value is
-    /// rejected. Respondent saves only: staff endpoints do not accept it.
+    /// rejected, including <c>quota_full</c> and <c>cancelled</c>, which only the server sets. Respondent saves only:
+    /// staff endpoints do not accept it.
     /// </summary>
     public string? CollectionOutcome { get; set; }
 }

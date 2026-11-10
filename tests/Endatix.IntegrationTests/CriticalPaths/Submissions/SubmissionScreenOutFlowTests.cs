@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -106,6 +107,48 @@ public sealed class SubmissionScreenOutFlowTests
             Assert.Equal("under_18", AgeOf(stored.JsonData));
             Assert.Equal(CollectionStatusCodes.ScreenOut, stored.CollectionStatus.Code);
         }
+    }
+
+    [Theory]
+    [InlineData(CollectionStatusCodes.QuotaFull)]
+    [InlineData(CollectionStatusCodes.Cancelled)]
+    public async Task Server_only_outcome_by_token_is_refused(string outcome)
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await _fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword },
+            cancellationToken);
+
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+        var formId = await CreateEnabledFormAsync(client, cancellationToken);
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/forms/{formId}/submissions",
+            new { isComplete = false, jsonData = """{"age":"18_or_over"}""", currentPage = 0 },
+            cancellationToken);
+        createResponse.EnsureSuccessStatusCode();
+        var created = await ReadSubmissionAsync(createResponse, cancellationToken);
+
+        // Act
+        var response = await client.PatchAsJsonAsync(
+            $"/api/forms/{formId}/submissions/by-token/{created.Token}",
+            new { jsonData = """{"age":"under_18"}""", currentPage = 0, collectionOutcome = outcome },
+            cancellationToken);
+
+        // Assert — a 400 that names the server-only status, and the stored row is unchanged
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        Assert.Contains(CollectionOutcomes.SERVER_ONLY_MESSAGE, body, StringComparison.Ordinal);
+
+        var submissionId = long.Parse(created.Id);
+        await using var scope = world.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var stored = await db.Submissions
+            .AsNoTracking()
+            .SingleAsync(row => row.Id == submissionId, cancellationToken);
+        Assert.Equal(CollectionStatusCodes.InProgress, stored.CollectionStatus.Code);
+        Assert.Equal("18_or_over", AgeOf(stored.JsonData));
     }
 
     private static string? AgeOf(string jsonData)

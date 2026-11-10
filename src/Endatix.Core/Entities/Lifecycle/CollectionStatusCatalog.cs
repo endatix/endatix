@@ -31,6 +31,11 @@ public static class CollectionStatusCatalog
             [CollectionStatusCodes.Abandoned] = CollectionPhase.Lapsed,
         }.ToFrozenDictionary(StringComparer.Ordinal);
 
+    // Built-in closed codes only the server sets: a quota product closes an interview as quota_full, staff or the system
+    // void one as cancelled. A host code is never server-only.
+    private static readonly FrozenSet<string> _serverOnly =
+        new[] { CollectionStatusCodes.QuotaFull, CollectionStatusCodes.Cancelled }.ToFrozenSet(StringComparer.Ordinal);
+
     private static readonly Lock _configureLock = new();
     private static FrozenDictionary<string, CollectionPhase> _phases = _builtIn;
     private static FrozenDictionary<string, CollectionPhase> _custom = FrozenDictionary<string, CollectionPhase>.Empty;
@@ -116,6 +121,10 @@ public static class CollectionStatusCatalog
         status = CollectionStatus.FromCode(normalized);
         return true;
     }
+
+    /// <summary>True when only the server sets the code, e.g. <c>quota_full</c> or <c>cancelled</c>; case and padding are ignored.</summary>
+    public static bool IsServerOnly(string? code) =>
+        TryNormalize(code, out var normalized) && _serverOnly.Contains(normalized);
 
     /// <summary>
     /// The phase of a code. A stored code that is not registered reads as <see cref="CollectionPhase.Active"/>, so its

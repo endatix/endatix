@@ -19,8 +19,9 @@ namespace Endatix.Core.UseCases.Submissions.Create;
 /// <param name="SubmitterPrincipal"></param>
 /// <param name="Submitter"></param>
 /// <param name="CollectionOutcome">
-/// Optional collection outcome: a registered closed-phase status (<see cref="CollectionOutcomes"/>). It ends the
-/// interview like a completion, and the submission is created in it.
+/// Optional collection outcome: a registered closed-phase status that is not server-only (<see cref="CollectionOutcomes"/>).
+/// It ends the interview like a completion, and the submission is created in it. A server-only status such as
+/// <c>quota_full</c> is refused; the server closes a submission with <see cref="Submission.Close(CollectionStatus)"/> instead.
 /// </param>
 /// <param name="PersonalizationSnapshot">Frozen audience values for a trusted on-behalf create.</param>
 /// <param name="IsTest">
