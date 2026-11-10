@@ -11,7 +11,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Identity;
 
 /// <summary>
 /// A role change applies to the user's next request, with the access token they already hold, on every API
-/// instance: permissions are cached per token, and the cache key carries the authorization stamp each role change
+/// instance: permissions are cached per token, and the cache key carries the access version each role change
 /// writes.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]

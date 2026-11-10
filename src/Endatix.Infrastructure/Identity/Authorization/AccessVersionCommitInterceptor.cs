@@ -6,16 +6,16 @@ using Microsoft.EntityFrameworkCore.Query;
 namespace Endatix.Infrastructure.Identity.Authorization;
 
 /// <summary>
-/// Writes a new <see cref="AuthorizationStamp"/> as the last statement before an identity transaction that changed an
-/// authorization input commits. Every authenticated request reads the stamp row; on SQL Server without
+/// Writes a new <see cref="AccessVersion"/> value as the last statement before an identity transaction that changed an
+/// authorization input commits. Every authenticated request reads the access version; on SQL Server without
 /// <c>READ_COMMITTED_SNAPSHOT</c> that read waits for a transaction holding the row, so the row is held only for the
 /// commit itself, never while the rest of a role change runs.
 /// </summary>
-internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterceptor
+internal sealed class AccessVersionCommitInterceptor : DbTransactionInterceptor
 {
-    public static readonly AuthorizationStampCommitInterceptor Instance = new();
+    public static readonly AccessVersionCommitInterceptor Instance = new();
 
-    private AuthorizationStampCommitInterceptor()
+    private AccessVersionCommitInterceptor()
     {
     }
 
@@ -24,7 +24,7 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
     {
         if (TakePendingChange(eventData) is { } context)
         {
-            EnsureRowUpdated(Stamp(context).ExecuteUpdate(NewValue()));
+            EnsureRowUpdated(SystemVersion(context).ExecuteUpdate(NewValue()));
         }
 
         return result;
@@ -36,7 +36,7 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
     {
         if (TakePendingChange(eventData) is { } context)
         {
-            EnsureRowUpdated(await Stamp(context).ExecuteUpdateAsync(NewValue(), cancellationToken));
+            EnsureRowUpdated(await SystemVersion(context).ExecuteUpdateAsync(NewValue(), cancellationToken));
         }
 
         return result;
@@ -70,33 +70,33 @@ internal sealed class AuthorizationStampCommitInterceptor : DbTransactionInterce
 
     private static AppIdentityDbContext? TakePendingChange(TransactionEventData eventData)
     {
-        if (eventData.Context is not AppIdentityDbContext { AuthorizationStampChangePending: true } context)
+        if (eventData.Context is not AppIdentityDbContext { AccessVersionChangePending: true } context)
         {
             return null;
         }
 
-        context.AuthorizationStampChangePending = false;
+        context.AccessVersionChangePending = false;
         return context;
     }
 
-    // The AddAuthorizationStamp migration seeds the row. Without it no change would reach other instances, so the
+    // The AddAccessVersions migration seeds the system row. Without it no change would reach other instances, so the
     // role change fails rather than commit unseen.
     private static void EnsureRowUpdated(int rows)
     {
         if (rows != 1)
         {
             throw new InvalidOperationException(
-                "The authorization stamp row is missing. Apply the AppIdentity migrations (AddAuthorizationStamp).");
+                "The system access version row is missing. Apply the AppIdentity migrations (AddAccessVersions).");
         }
     }
 
     // ExecuteUpdate runs on the context's connection inside the transaction that is about to commit.
-    private static IQueryable<AuthorizationStamp> Stamp(AppIdentityDbContext context) =>
-        context.AuthorizationStamps.Where(stamp => stamp.Id == AuthorizationStamp.ROW_ID);
+    private static IQueryable<AccessVersion> SystemVersion(AppIdentityDbContext context) =>
+        context.AccessVersions.Where(version => version.TenantId == AccessVersion.SYSTEM_TENANT_ID);
 
-    private static Action<UpdateSettersBuilder<AuthorizationStamp>> NewValue()
+    private static Action<UpdateSettersBuilder<AccessVersion>> NewValue()
     {
         var value = Guid.NewGuid();
-        return setters => setters.SetProperty(stamp => stamp.Value, value);
+        return setters => setters.SetProperty(version => version.Value, value);
     }
 }

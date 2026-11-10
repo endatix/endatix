@@ -19,8 +19,8 @@ using Microsoft.Extensions.Options;
 /// Internal helper class for managing the authorization cache.
 /// </summary>
 /// <remarks>
-/// Every key carries the current <see cref="AuthorizationStamp"/>, read uncached on each lookup. A role change writes
-/// a new stamp as the last statement of its transaction, so every API instance misses its old entries on the next
+/// Every key carries the current <see cref="AccessVersion"/>, read uncached on each lookup. A role change writes
+/// a new access version as the last statement of its transaction, so every API instance misses its old entries on the next
 /// request; the in-memory cache has no backplane, and <see cref="InvalidateAsync"/> only frees memory on the instance
 /// it runs on.
 /// </remarks>
@@ -29,7 +29,7 @@ internal class AuthorizationCache(
     IDateTimeProvider dateTimeProvider,
     IHttpContextAccessor httpContextAccessor,
     IOptions<EndatixJwtOptions> endatixJwtOptions,
-    IAuthorizationStampReader authorizationStampReader) : IAuthorizationCache
+    IAccessVersionReader accessVersionReader) : IAuthorizationCache
 {
     private const short ETAG_LENGTH = 12;
 
@@ -57,8 +57,8 @@ internal class AuthorizationCache(
         var cacheKeyTokenPart = CacheKeyFingerprint.ComputeHmacSha256Hex(
             claimIdentityId,
             endatixJwtOptions.Value.SigningKey);
-        var stamp = await authorizationStampReader.ReadAsync(cancellationToken);
-        var cacheKey = GetClaimsCacheKey(stamp, cacheKeyTokenPart);
+        var accessVersion = await accessVersionReader.ReadAsync(cancellationToken);
+        var cacheKey = GetClaimsCacheKey(accessVersion, cacheKeyTokenPart);
         var tenantId = principal.GetTenantId();
         var now = dateTimeProvider.Now.UtcDateTime;
 
@@ -88,8 +88,8 @@ internal class AuthorizationCache(
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(string userId, long tenantId, ClaimsPrincipal? principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
     {
-        var stamp = await authorizationStampReader.ReadAsync(cancellationToken);
-        var cacheKey = GetUserAuthDataCacheKey(stamp, userId, tenantId);
+        var accessVersion = await accessVersionReader.ReadAsync(cancellationToken);
+        var cacheKey = GetUserAuthDataCacheKey(accessVersion, userId, tenantId);
         var expiration = principal is not null
             ? ComputeExpiration(principal)
             : _defaultExpiration;
@@ -132,10 +132,10 @@ internal class AuthorizationCache(
     }
 
     // Generate cache key for saving authorization data for a claims principal given the JWT Identity ID (jti)
-    private static string GetClaimsCacheKey(Guid stamp, string jti) => $"{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{stamp:N}:{jti}";
+    private static string GetClaimsCacheKey(Guid accessVersion, string jti) => $"{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{accessVersion:N}:{jti}";
 
     // Generate cache key for saving authorization data for a user with explicit userId and tenantId
-    private static string GetUserAuthDataCacheKey(Guid stamp, string userId, long tenantId) => $"{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{stamp:N}:{userId}:{tenantId}";
+    private static string GetUserAuthDataCacheKey(Guid accessVersion, string userId, long tenantId) => $"{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{accessVersion:N}:{userId}:{tenantId}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
 

@@ -17,7 +17,7 @@ public sealed class AuthorizationCacheTests
     private readonly HybridCache _hybridCache;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HttpContextAccessor _httpContextAccessor;
-    private readonly IAuthorizationStampReader _stampReader;
+    private readonly IAccessVersionReader _versionReader;
     private readonly AuthorizationCache _cache;
     private readonly DateTimeOffset _now;
 
@@ -35,9 +35,9 @@ public sealed class AuthorizationCacheTests
         {
             SigningKey = "test-signing-key-32-characters",
         });
-        _stampReader = Substitute.For<IAuthorizationStampReader>();
-        _stampReader.ReadAsync(Arg.Any<CancellationToken>()).Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
-        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions, _stampReader);
+        _versionReader = Substitute.For<IAccessVersionReader>();
+        _versionReader.ReadAsync(Arg.Any<CancellationToken>()).Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions, _versionReader);
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public sealed class AuthorizationCacheTests
     }
 
     [Fact]
-    public async Task GetOrCreateAsync_StampChanges_UsesNewKeyForSameToken()
+    public async Task GetOrCreateAsync_AccessVersionChanges_UsesNewKeyForSameToken()
     {
         // Arrange
         var principal = CreatePrincipal("123", "jti-1");
@@ -261,7 +261,7 @@ public sealed class AuthorizationCacheTests
                 Arg.Any<string[]>(),
                 Arg.Any<CancellationToken>())
             .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
-        _stampReader.ReadAsync(Arg.Any<CancellationToken>())
+        _versionReader.ReadAsync(Arg.Any<CancellationToken>())
             .Returns(Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222"));
 
         // Act
@@ -275,7 +275,7 @@ public sealed class AuthorizationCacheTests
     }
 
     [Fact]
-    public async Task GetOrCreateAsync_ByUserId_KeyCarriesStamp()
+    public async Task GetOrCreateAsync_ByUserId_KeyCarriesAccessVersion()
     {
         // Arrange
         string? capturedKey = null;

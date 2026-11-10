@@ -20,8 +20,8 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     public DbSet<Permission> Permissions { get; set; }
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
-    /// <summary>The one authorization stamp row; see <see cref="AuthorizationStamp"/>.</summary>
-    public DbSet<AuthorizationStamp> AuthorizationStamps { get; set; }
+    /// <summary>Access versions, one row per tenant; see <see cref="AccessVersion"/>.</summary>
+    public DbSet<AccessVersion> AccessVersions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -37,19 +37,19 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     }
 
     // Users added through this context: a role granted to one of them in the same scope (self-registration,
-    // invitation) cannot be in any cache yet, so it does not change the stamp.
+    // invitation) cannot be in any cache yet, so it does not change the access version.
     private readonly HashSet<long> _addedUserIds = [];
 
     /// <summary>
     /// Set when a save in the current transaction changed an authorization input;
-    /// <see cref="AuthorizationStampCommitInterceptor"/> writes a new stamp right before that transaction commits,
+    /// <see cref="AccessVersionCommitInterceptor"/> writes a new access version right before that transaction commits,
     /// and clears it when a transaction starts or rolls back.
     /// </summary>
-    internal bool AuthorizationStampChangePending { get; set; }
+    internal bool AccessVersionChangePending { get; set; }
 
     /// <inheritdoc/>
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
-        optionsBuilder.AddInterceptors(AuthorizationStampCommitInterceptor.Instance);
+        optionsBuilder.AddInterceptors(AccessVersionCommitInterceptor.Instance);
 
     /// <inheritdoc/>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -62,17 +62,17 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 
         if (Database.CurrentTransaction is not null)
         {
-            AuthorizationStampChangePending = true;
+            AccessVersionChangePending = true;
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
         // A save that would run without a transaction (EF skips one for a single statement) gets one, so the
-        // stamp commits with the change. It runs through the execution strategy, which a retrying provider
-        // requires for a transaction it did not open, and accepts changes only after the commit that writes the stamp.
+        // access version commits with the change. It runs through the execution strategy, which a retrying provider
+        // requires for a transaction it did not open, and accepts changes only after the commit that writes the access version.
         var saved = Database.CreateExecutionStrategy().Execute(() =>
         {
             using var transaction = Database.BeginTransaction();
-            AuthorizationStampChangePending = true;
+            AccessVersionChangePending = true;
             var rows = base.SaveChanges(acceptAllChangesOnSuccess: false);
             transaction.Commit();
             return rows;
@@ -92,7 +92,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
 
         if (Database.CurrentTransaction is not null)
         {
-            AuthorizationStampChangePending = true;
+            AccessVersionChangePending = true;
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
 
@@ -100,7 +100,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
             async ct =>
             {
                 await using var transaction = await Database.BeginTransactionAsync(ct);
-                AuthorizationStampChangePending = true;
+                AccessVersionChangePending = true;
                 var rows = await base.SaveChangesAsync(acceptAllChangesOnSuccess: false, ct);
                 await transaction.CommitAsync(ct);
                 return rows;
@@ -121,7 +121,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     /// <summary>
     /// A role, a role's permissions, a user's roles, or a user's tenant changes in this save: everything
     /// <see cref="Authorization.Data.DefaultAuthorizationDataProvider"/> and the external role mapper read.
-    /// Bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c> on these tables bypass this check and must change the stamp themselves.
+    /// Bulk <c>ExecuteUpdate</c> / <c>ExecuteDelete</c> on these tables bypass this check and must change the access version themselves.
     /// </summary>
     private bool AuthorizationInputsChanged()
     {
@@ -145,7 +145,7 @@ public class AppIdentityDbContext : IdentityDbContext<AppUser, AppRole, long>
     };
 
     // UserManager.UpdateAsync marks every column modified, so compare values: a profile save or a sign-in
-    // must not change the stamp.
+    // must not change the access version.
     private static bool TenantChanged(EntityEntry entry)
     {
         var tenantId = entry.Property(nameof(AppUser.TenantId));

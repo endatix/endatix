@@ -10,41 +10,41 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// <see cref="AppIdentityDbContext"/> changes the <see cref="AuthorizationStamp"/> in the same save as a change to
+/// <see cref="AppIdentityDbContext"/> changes the <see cref="AccessVersion"/> in the same save as a change to
 /// an authorization input, and leaves it alone otherwise.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fixture)
+public sealed class AccessVersionTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SeedPassword = "Password123!";
-    private const string RoleName = "StampedRole";
-    private const string UserName = "stamped@example.com";
+    private const string RoleName = "VersionedRole";
+    private const string UserName = "versioned@example.com";
 
     [Fact]
-    public async Task SaveChangesAsync_UserRoleAdded_ChangesStamp()
+    public async Task SaveChangesAsync_UserRoleAdded_ChangesAccessVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
 
         // Act
         IntegrationSeedBuilder builder = new(world.Services);
         await builder.SeedUserRoleAssignmentAsync(world.Tenants[0].Id, UserName, RoleName, ct);
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().NotBe(before);
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChanges_RolePermissionRemoved_ChangesStamp()
+    public async Task SaveChanges_RolePermissionRemoved_ChangesAccessVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
@@ -56,16 +56,16 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         }
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().NotBe(before);
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_UserProfileChanged_KeepsStamp()
+    public async Task SaveChangesAsync_UserProfileChanged_KeepsAccessVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
@@ -77,17 +77,17 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         }
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().Be(before);
+        (await ReadVersionAsync(world, ct)).Should().Be(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_NewUserGetsFirstRole_KeepsStamp()
+    public async Task SaveChangesAsync_NewUserGetsFirstRole_KeepsAccessVersion()
     {
         // Arrange — self-registration and invitations create the user and grant a role in one scope; a user created
         // there holds no token, so nothing cached can be stale.
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
@@ -99,16 +99,16 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         }
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().Be(before);
+        (await ReadVersionAsync(world, ct)).Should().Be(before);
     }
 
     [Fact]
-    public async Task Commit_AfterRoleChangeTransactionDisposedWithoutCommit_KeepsStamp()
+    public async Task Commit_AfterRoleChangeTransactionDisposedWithoutCommit_KeepsAccessVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
         using var scope = world.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
 
@@ -129,17 +129,17 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         }
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().Be(before);
+        (await ReadVersionAsync(world, ct)).Should().Be(before);
         (await db.RolePermissions.AsNoTracking().CountAsync(ct)).Should().BeGreaterThan(0);
     }
 
     [Fact]
-    public async Task DeleteRole_ThroughUnitOfWorkTransaction_ChangesStamp()
+    public async Task DeleteRole_ThroughUnitOfWorkTransaction_ChangesAccessVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
 
         // Act
         using (var scope = world.Services.CreateScope())
@@ -151,17 +151,17 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         }
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().NotBe(before);
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChangesAsync_WithRetryingExecutionStrategy_ChangesStamp()
+    public async Task SaveChangesAsync_WithRetryingExecutionStrategy_ChangesAccessVersion()
     {
         // Arrange — a host may enable retries on its provider, which refuses transactions opened outside the
         // execution strategy.
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
         await using var db = new AppIdentityDbContext(RetryingOptions());
         db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
 
@@ -169,16 +169,16 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         await db.SaveChangesAsync(ct);
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().NotBe(before);
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     [Fact]
-    public async Task SaveChanges_WithRetryingExecutionStrategy_ChangesStamp()
+    public async Task SaveChanges_WithRetryingExecutionStrategy_ChangesAccessVersion()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await PrepareAsync(ct);
-        var before = await ReadStampAsync(world, ct);
+        var before = await ReadVersionAsync(world, ct);
         using var db = new AppIdentityDbContext(RetryingOptions());
         db.RolePermissions.Remove(await db.RolePermissions.FirstAsync(ct));
 
@@ -186,7 +186,7 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         db.SaveChanges();
 
         // Assert
-        (await ReadStampAsync(world, ct)).Should().NotBe(before);
+        (await ReadVersionAsync(world, ct)).Should().NotBe(before);
     }
 
     private DbContextOptions<AppIdentityDbContext> RetryingOptions()
@@ -216,9 +216,9 @@ public sealed class AuthorizationStampTests(EndatixIntegrationWebHostFixture fix
         return world;
     }
 
-    private static async Task<Guid> ReadStampAsync(IntegrationTestWorld world, CancellationToken ct)
+    private static async Task<Guid> ReadVersionAsync(IntegrationTestWorld world, CancellationToken ct)
     {
         using var scope = world.Services.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<IAuthorizationStampReader>().ReadAsync(ct);
+        return await scope.ServiceProvider.GetRequiredService<IAccessVersionReader>().ReadAsync(ct);
     }
 }

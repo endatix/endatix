@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    [Migration("20261106140346_AddAuthorizationStamp")]
-    partial class AddAuthorizationStamp
+    [Migration("20261110082326_AddAccessVersions")]
+    partial class AddAccessVersions
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -317,22 +317,22 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                     b.ToTable("Users", "identity");
                 });
 
-            modelBuilder.Entity("Endatix.Infrastructure.Identity.Authorization.AuthorizationStamp", b =>
+            modelBuilder.Entity("Endatix.Infrastructure.Identity.Authorization.AccessVersion", b =>
                 {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
 
                     b.Property<Guid>("Value")
                         .HasColumnType("uuid");
 
-                    b.HasKey("Id");
+                    b.HasKey("TenantId");
 
-                    b.ToTable("AuthorizationStamps", "identity");
+                    b.ToTable("AccessVersions", "identity");
 
                     b.HasData(
                         new
                         {
-                            Id = 1,
+                            TenantId = 0L,
                             Value = new Guid("00000000-0000-0000-0000-000000000000")
                         });
                 });
