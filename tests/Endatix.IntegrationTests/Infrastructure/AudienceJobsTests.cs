@@ -20,6 +20,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);

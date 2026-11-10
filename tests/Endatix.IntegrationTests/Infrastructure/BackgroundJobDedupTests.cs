@@ -12,6 +12,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
 {
     private const string JobType = "T";
@@ -182,14 +183,11 @@ public sealed class BackgroundJobDedupTests(DbIntegrationFixture fixture)
     private static BackgroundJobRequest Request(long tenantId, string? dedupKey) =>
         new(JobType, """{"same":"payload"}""", tenantId, DedupKey: dedupKey);
 
-    private static async Task<JobsTestNode> StartScheduleOnlyNodeAsync(JobsTestDatabase database, CancellationToken ct)
-    {
-        var node = JobsTestNode.Create(
+    private static Task<JobsTestNode> StartScheduleOnlyNodeAsync(JobsTestDatabase database, CancellationToken ct) =>
+        JobsTestNode.Create(
             database,
-            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
-        await node.StartAsync(ct);
-        return node;
-    }
+            new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" })
+            .StartedAsync(ct);
 
     private static Task<long> CountRowsAsync(JobsTestDatabase database, CancellationToken ct) =>
         database.CountAsync("""SELECT count(*) FROM jobs."BackgroundJobs" """, ct);

@@ -16,6 +16,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class JobRetentionTests(DbIntegrationFixture fixture)
 {
     [Fact]
@@ -94,15 +95,13 @@ public sealed class JobRetentionTests(DbIntegrationFixture fixture)
         row.ExpiresAt.Should().Be(row.CompletedAt.Value.AddDays(3));
     }
 
-    private static async Task<JobsTestNode> StartScheduleOnlyNodeAsync(
+    private static Task<JobsTestNode> StartScheduleOnlyNodeAsync(
         JobsTestDatabase database,
         CancellationToken ct,
         Dictionary<string, string?>? settings = null)
     {
         var all = new Dictionary<string, string?>(settings ?? []) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" };
-        var node = JobsTestNode.Create(database, all);
-        await node.StartAsync(ct);
-        return node;
+        return JobsTestNode.Create(database, all).StartedAsync(ct);
     }
 
     private static async Task<int> RunRetentionAsync(JobsTestNode node, CancellationToken ct)

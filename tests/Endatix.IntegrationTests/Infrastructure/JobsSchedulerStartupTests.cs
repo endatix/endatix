@@ -20,6 +20,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed partial class JobsSchedulerStartupTests(DbIntegrationFixture fixture)
 {
     // How the error a deferred start logs begins; the count of tries and the driver's failure follow.

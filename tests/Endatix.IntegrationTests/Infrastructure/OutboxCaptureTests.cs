@@ -19,6 +19,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "PostgreSql")]
+[Trait("Lane", "Jobs")]
 public sealed class OutboxCaptureTests
 {
     private const long AmbientTenantId = 42;

@@ -17,7 +17,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppIdentity
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-
+            // Intentionally empty: invalidating plaintext email tokens is irreversible without the original values.
         }
     }
 }

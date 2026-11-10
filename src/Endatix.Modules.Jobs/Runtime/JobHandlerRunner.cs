@@ -9,18 +9,19 @@ namespace Endatix.Modules.Jobs.Runtime;
 
 /// <summary>
 /// Runs a claimed attempt's handler under every limit that can stop it — the scheduler's token, host shutdown,
-/// the runtime ceiling and the row's own cancellation — and says how the run ended.
+/// the runtime ceiling, counted on the scheduler's clock, and the row's own cancellation — and says how the run ended.
 /// </summary>
 internal sealed class JobHandlerRunner(
     IServiceScopeFactory scopeFactory,
     JobHandlerRegistry registry,
     IOptions<BackgroundJobsOptions> options,
     JobsShutdownSignal shutdownSignal,
+    [FromKeyedServices(QuartzRegistration.SchedulerName)] TimeProvider clock,
     ILogger<JobHandlerRunner> logger)
 {
     public async Task<HandlerRun> RunAsync(ClaimedAttempt attempt, CancellationToken schedulerToken)
     {
-        using var runtime = new CancellationTokenSource(attempt.Policy.MaxRuntime);
+        using var runtime = new CancellationTokenSource(attempt.Policy.MaxRuntime, clock);
         await using var watcher = CancellationWatcher.Start(scopeFactory, WatchedAttemptOf(attempt), logger);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             schedulerToken, shutdownSignal.Token, runtime.Token, watcher.Token);

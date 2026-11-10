@@ -20,6 +20,7 @@ This is a test-only package — reference it from a test project, not from produ
 - **`IIntegrationTestHostFixture`** — a host fixture over `WebApplicationFactory` with authentication wired up.
 - **`TestPersona`** / **`IntegrationAuthClients`** — authenticated callers for permission and tenant-isolation tests.
 - **`DatabaseCheckpoint`** — Respawn-based reset so each test starts from a known state.
+- **`IntegrationPasswordHashing.UseFastPasswordHashing()`** — hashes passwords and refresh tokens at one iteration instead of 100,000, so seeding users and signing in skip the hashing cost. Call it from a test host's `ConfigureTestServices` only, and seed and sign in on the same host.
 
 Docker must be available on the machine running the tests: the fixtures start real PostgreSQL, SQL Server and Keycloak containers rather than using in-memory substitutes.
 

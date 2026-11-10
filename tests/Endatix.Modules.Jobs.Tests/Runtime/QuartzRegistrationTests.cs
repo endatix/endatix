@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using Quartz;
 using Quartz.Impl.AdoJobStore;
 
@@ -106,6 +107,72 @@ public sealed class QuartzRegistrationTests
         // Assert
         threads.Should().Be(5);
         batchSize.Should().Be(threads);
+    }
+
+    [Fact]
+    public void AddJobExecution_NoOutageWaitsGiven_UsesTheProductionWaits()
+    {
+        // Arrange
+        using var provider = new ServiceCollection().AddJobExecution().BuildServiceProvider();
+
+        // Act
+        var refire = provider.GetRequiredService<RefireDelay>();
+        var writes = provider.GetRequiredService<OutcomeWriteRetries>();
+        var stores = provider.GetRequiredService<TriggerStoreBackoff>();
+
+        // Assert
+        refire.Value.Should().Be(TimeSpan.FromSeconds(5));
+        writes.Delays.Should().Equal(TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
+        writes.Tries.Should().Be(4);
+        stores.Should().Be(TriggerStoreBackoff.Default);
+    }
+
+    [Fact]
+    public void AddJobExecution_OutageWaitsRegisteredFirst_KeepsThem()
+    {
+        // Arrange
+        var refire = new RefireDelay(TimeSpan.FromMilliseconds(1));
+        var writes = new OutcomeWriteRetries([TimeSpan.FromMilliseconds(1)]);
+        var stores = new TriggerStoreBackoff(TimeSpan.FromMilliseconds(1), TimeSpan.FromMilliseconds(1));
+        var services = new ServiceCollection();
+        services.AddSingleton(refire);
+        services.AddSingleton(writes);
+        services.AddSingleton(stores);
+
+        // Act
+        using var provider = services.AddJobExecution().BuildServiceProvider();
+
+        // Assert
+        provider.GetRequiredService<RefireDelay>().Should().BeSameAs(refire);
+        provider.GetRequiredService<OutcomeWriteRetries>().Should().BeSameAs(writes);
+        provider.GetRequiredService<TriggerStoreBackoff>().Should().BeSameAs(stores);
+    }
+
+    [Fact]
+    public void AddJobsScheduler_NoClockGiven_SchedulerRunsOnTheSystemClock()
+    {
+        // Arrange
+        using var provider = SchedulerServices(new Dictionary<string, string?>(), ["A"]);
+
+        // Act
+        var clock = provider.GetKeyedService<TimeProvider>(QuartzRegistration.SchedulerName);
+
+        // Assert
+        clock.Should().BeSameAs(TimeProvider.System);
+    }
+
+    [Fact]
+    public void TriggerFor_NoStartTime_StartsAtNowOnTheGivenClock()
+    {
+        // Arrange — a clock an hour behind real time, as a frozen test clock soon is.
+        var now = DateTimeOffset.UtcNow.AddHours(-1);
+        var clock = new FakeTimeProvider(now);
+
+        // Act
+        var trigger = QuartzRegistration.TriggerFor(new JobTriggerSpec(42, "A"), clock);
+
+        // Assert
+        trigger.StartTimeUtc.Should().Be(now);
     }
 
     [Fact]

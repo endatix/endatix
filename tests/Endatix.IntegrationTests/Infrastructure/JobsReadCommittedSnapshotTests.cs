@@ -17,6 +17,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("DbSpecific", "SqlServer")]
+[Trait("Lane", "Jobs")]
 public sealed class JobsReadCommittedSnapshotTests(DbIntegrationFixture fixture)
 {
     private const string SkipReason = "Asserts SQL Server's READ_COMMITTED_SNAPSHOT database option.";

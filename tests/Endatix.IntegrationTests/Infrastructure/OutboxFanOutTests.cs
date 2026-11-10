@@ -18,6 +18,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+// No Lane trait: runs in CI's Rest lane to even out the SQL Server lanes (tests/README.md, Lanes).
 public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
 {
     private const int Pending = 0;
@@ -183,11 +184,12 @@ public sealed class OutboxFanOutTests(DbIntegrationFixture fixture)
     [Fact]
     public async Task Relay_latency_does_not_depend_on_subscriber_duration()
     {
-        // Arrange — the subscriber's job holds its slot for a minute.
+        // Arrange — the subscriber's job holds its slot for a minute. The host's stop gives the running job a second,
+        // rather than its shutdown timeout, since only the relay's latency is measured.
         var ct = TestContext.Current.CancellationToken;
         await using var host = await FanOutHost.StartAsync(
             fixture,
-            JobQueueWith(SlowSubscriber(new NamedProbeRuns())),
+            JobQueueWith(SlowSubscriber(new NamedProbeRuns())) with { Settings = OneSecondJobShutdownWait },
             ct);
         var ids = Enumerable.Range(1_000, 50).Select(id => (long)id).ToList();
         foreach (var id in ids)

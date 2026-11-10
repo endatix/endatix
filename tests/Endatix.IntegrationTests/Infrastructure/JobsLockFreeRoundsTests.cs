@@ -16,6 +16,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class JobsLockFreeRoundsTests(DbIntegrationFixture fixture)
 {
     // Quartz's event 3056, with the reason it gives for a delegate of its own that it did not ship.

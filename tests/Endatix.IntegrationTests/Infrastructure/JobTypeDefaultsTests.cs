@@ -25,6 +25,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
+[Trait("Lane", "Jobs")]
 public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
 {
     private const string WebHook = "WebHookDelivery";
@@ -53,23 +54,30 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         var ct = TestContext.Current.CancellationToken;
         var runs = new NamedProbeRuns();
         await using var host = await HostWithoutJobSettingsAsync(fixture, services => ReplaceWebHookHandler(services, runs), ct);
+
+        // A host without job settings keeps the 30 s shutdown wait, so nothing may still hold a slot at teardown.
+        using var releaseAtTeardown = runs.ReleaseAllOnDispose();
         await BackgroundWork.Of(host.Services).StartJobsAsync(ct);
 
-        // Act
+        // Act — every job holds its slot until released, so a fifth could only start by taking a slot past the cap.
         var webhooks = await EnqueueAsync(
             host.Services,
-            Enumerable.Range(0, 6).Select(_ => NamedProbeHandler.Request(WebHook, holdMilliseconds: 20_000)).ToList(),
+            Enumerable.Range(0, 6).Select(_ => NamedProbeHandler.HeldUntilReleased(WebHook)).ToList(),
             ct);
         await JobsTestWait.UntilAsync(() => Task.FromResult(runs.Count >= 4), TimeSpan.FromSeconds(15), ct);
+
+        // Longer than the shipped 2 s idle wait, so the scheduler had another acquisition in which to take a fifth.
         await Task.Delay(TimeSpan.FromSeconds(3), ct);
         var processing = await host.Database.CountAsync(
             $"""SELECT count(*) FROM jobs."BackgroundJobs" WHERE "Status" = 1 AND "Id" IN ({webhooks.IdList()})""", ct);
+        var peak = runs.PeakConcurrency(WebHook);
+        runs.Release(WebHook);
 
         // Assert
         host.Services.GetRequiredService<IConfiguration>().GetSection("Endatix:BackgroundJobs").GetChildren()
             .Should().BeEmpty();
         processing.Should().Be(4);
-        runs.PeakConcurrency(WebHook).Should().Be(4);
+        peak.Should().Be(4);
     }
 
     [Fact]
@@ -146,7 +154,8 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
             },
             cancellationToken);
 
-    // A start that fails returns no host to dispose, so it stops the host and drops its database here.
+    // A start that fails returns no host to dispose, so it drops its database here. The factory needs no disposal then:
+    // it keeps a host only once the host has started, and the application's own app.Run() disposes one that did not.
     private static async Task<HostOnItsDatabase> StartedHostAsync(
         DbIntegrationFixture fixture,
         Action<IWebHostBuilder> configure,
@@ -163,7 +172,6 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
                 _ = factory.Services;
                 return Task.FromResult(new HostOnItsDatabase(factory, database));
             },
-            factory.DisposeAsync,
             database.DisposeAsync);
     }
 

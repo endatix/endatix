@@ -66,6 +66,7 @@ public sealed partial class JobsSchedulerStartupTests
             {
                 services.AddScoped<IBackgroundJobHandler>(_ => new NamedProbeHandler(jobType, runs));
                 services.AddSingleton<ILoggerProvider>(logs);
+                services.UseQuickOutageRetries();
             });
         await node.StartAsync(ct);
         var jobId = await node.EnqueueAsync(NamedProbeHandler.Request(jobType, holdMilliseconds: 3000), ct);
@@ -82,6 +83,7 @@ public sealed partial class JobsSchedulerStartupTests
 
         // Assert — the outcome was carried through the outage rather than dropped, and the job ran once.
         saidReadOnly.Should().BeTrue();
+        row.Status.Should().Be(JobStatus.Completed);
         row.AttemptCount.Should().Be(1);
     }
 }

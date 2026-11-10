@@ -51,6 +51,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
             {
                 services.AddProbe(invocations);
                 FailingStateRepository.Register(services, new StateRepositoryFailures(claims: 1));
+                services.UseQuickOutageRetries();
             });
         await node.StartAsync(ct);
 
@@ -125,7 +126,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         await ReplaceWithThrowingTriggerAsync(scheduleOnly, jobId, ct);
 
         // Act
-        await using var worker = await StartNodeAsync(new(database, invocations), ct);
+        await using var worker = await JobsTestNode.Create(
+            database,
+            configureServices: services =>
+            {
+                services.AddProbe(invocations);
+                services.UseQuickOutageRetries();
+            })
+            .StartedAsync(ct);
         var row = await database.WaitForStatusAsync(new ExpectedJobStatus(jobId, JobStatus.Completed, RetryPatience), ct);
 
         // Assert — a trigger of the job's own took it over and ran it.
@@ -147,7 +155,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.ThrowOnce), ct);
 
         // Act
-        await using var worker = await StartNodeFailingTriggerStoresAsync(
+        await using var worker = await StartNodeFailingTriggerStoresQuicklyAsync(
             new(database, invocations, FastAttempts(3)), failures, ct);
         var row = await database.WaitForStatusAsync(new ExpectedJobStatus(jobId, JobStatus.Completed, RetryPatience), ct);
 
@@ -171,7 +179,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         var jobId = await scheduleOnly.EnqueueAsync(Probe(ProbeBehaviours.Throw), ct);
 
         // Act
-        await using var worker = await StartNodeFailingTriggerStoresAsync(
+        await using var worker = await StartNodeFailingTriggerStoresQuicklyAsync(
             new(database, invocations, FastAttempts(2)), failures, ct);
         var row = await database.WaitForStatusAsync(new ExpectedJobStatus(jobId, JobStatus.DeadLettered, RetryPatience), ct);
 
@@ -189,17 +197,14 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         [ProbeKey("BackoffBaseSeconds")] = "1",
     };
 
-    private static async Task<JobsTestNode> StartScheduleOnlyNodeAsync(
+    private static Task<JobsTestNode> StartScheduleOnlyNodeAsync(
         JobsTestDatabase database,
         Dictionary<string, string?> settings,
-        CancellationToken ct)
-    {
-        var node = JobsTestNode.Create(
+        CancellationToken ct) =>
+        JobsTestNode.Create(
             database,
-            new Dictionary<string, string?>(settings) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" });
-        await node.StartAsync(ct);
-        return node;
-    }
+            new Dictionary<string, string?>(settings) { ["Endatix:BackgroundJobs:RunInProcess"] = "false" })
+            .StartedAsync(ct);
 
     // Only this node's stores spend the failures: the tests enqueue from another node, whose stores never fail.
     private static Task<JobsTestNode> StartNodeFailingTriggerStoresAsync(
@@ -208,6 +213,20 @@ public sealed partial class BackgroundJobExecutionIntegrationTests
         CancellationToken ct) =>
         StartNodeFailingAsync(
             setup, services => FailingTriggerStoreDelegate.Register(services, setup.Database.Provider, failures), ct);
+
+    // As above, with the waits past those failures cut short.
+    private static Task<JobsTestNode> StartNodeFailingTriggerStoresQuicklyAsync(
+        ProbeNodeSetup setup,
+        TriggerStoreFailures failures,
+        CancellationToken ct) =>
+        StartNodeFailingAsync(
+            setup,
+            services =>
+            {
+                FailingTriggerStoreDelegate.Register(services, setup.Database.Provider, failures);
+                services.UseQuickOutageRetries();
+            },
+            ct);
 
     private static Task<IScheduler> SchedulerOfAsync(JobsTestNode node, CancellationToken ct) =>
         node.Services.GetRequiredKeyedService<ISchedulerFactory>(QuartzRegistration.SchedulerName).GetScheduler(ct).AsTask();
