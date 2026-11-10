@@ -9,7 +9,9 @@ namespace Endatix.Infrastructure.Identity;
 /// It will be removed in the future.
 /// </summary>
 /// <returns>The new EndatixJwtOptions.</returns>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
 [Obsolete("Will be removed with the depreciated JwtOptions class. This is a temporary solution to avoid breaking changes.")]
+#pragma warning restore S1133
 public static class JwtOptionsMapper
 {
     /// <summary>

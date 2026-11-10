@@ -83,7 +83,6 @@ public partial class GetFormDefinitionFieldsHandler(
             catch (JsonException ex)
             {
                 LogJsonParsingError(definition.Id, ex);
-                continue;
             }
         }
 

@@ -243,12 +243,10 @@ internal static class FormDefinitionFlattener
         HashSet<string> drivingCheckboxNames)
     {
         Dictionary<string, CollectedElement> elementsByName = new(StringComparer.Ordinal);
-        foreach (var collected in allElements)
+        foreach (var collected in allElements.Where(static c => !string.IsNullOrWhiteSpace(c.Name)))
         {
-            if (!string.IsNullOrWhiteSpace(collected.Name))
-            {
-                elementsByName.TryAdd(collected.Name, collected);
-            }
+            // Name is string? on CollectedElement; IsNullOrWhiteSpace does not narrow for nullable.
+            elementsByName.TryAdd(collected.Name!, collected);
         }
 
         List<DynamicPanelNode> nodes = [];

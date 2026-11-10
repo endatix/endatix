@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using Ardalis.GuardClauses;
@@ -107,7 +108,7 @@ public static class SpecificationHelper
 
         if (actualType == typeof(DateTime))
         {
-            var dateTime = DateTime.Parse(value);
+            var dateTime = DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.None);
             return dateTime.Kind == DateTimeKind.Unspecified
                 ? DateTime.SpecifyKind(dateTime, DateTimeKind.Utc)
                 : dateTime.ToUniversalTime();

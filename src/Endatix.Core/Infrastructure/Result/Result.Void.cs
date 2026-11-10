@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace Endatix.Core.Infrastructure.Result;
 
@@ -70,7 +70,7 @@ public class Result : Result<Result>
     /// </summary>
     /// <param name="errorMessage"></param>
     /// <returns></returns>
-    public static Result Error(string errorMessage)
+    public static new Result Error(string errorMessage)
     {
         return new Result(ResultStatus.Error) { Errors = new[] { errorMessage } };
     }

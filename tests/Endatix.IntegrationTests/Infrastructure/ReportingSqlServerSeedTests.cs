@@ -66,7 +66,7 @@ public sealed class ReportingSqlServerSeedTests(DbIntegrationFixture fixture)
         await ReportingTestSchema.RunFrozenSeedAsync(context, cancellationToken);
 
         // Assert
-        countsAfterMigration.Should().Be((Formats: 4, Mappings: 1), "the migration seeds the active tenant only");
+        countsAfterMigration.Should().Be((4, 1), "the migration seeds the active tenant only");
         (await RowCountsAsync(context, cancellationToken)).Should().Be(countsAfterMigration);
     }
 

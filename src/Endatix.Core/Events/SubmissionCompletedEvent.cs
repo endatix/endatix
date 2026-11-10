@@ -12,7 +12,9 @@ namespace Endatix.Core.Events;
 public sealed class SubmissionCompletedEvent(Submission submission) : DomainEventBase
 {
     /// <summary>The outbox event type of a completion.</summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("This event no longer reaches the outbox. Use SubmissionLifecycleEvent.EventTypes.Completed.")]
+#pragma warning restore S1133
     public const string EventTypeName = SubmissionLifecycleEvent.EventTypes.Completed;
 
     public Submission Submission { get; init; } = submission;

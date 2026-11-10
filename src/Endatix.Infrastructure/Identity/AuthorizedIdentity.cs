@@ -71,12 +71,12 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
     /// <summary>
     /// Gets the cached at timestamp from this identity.
     /// </summary>
-    public DateTime CachedAt => DateTime.Parse(FindFirst(ClaimNames.CachedAt)?.Value ?? DateTime.UtcNow.ToString("O"), null, DateTimeStyles.RoundtripKind);
+    public DateTime CachedAt => DateTime.Parse(FindFirst(ClaimNames.CachedAt)?.Value ?? DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
     /// <summary>
     /// Gets the cache expires in from this identity.
     /// </summary>
-    public DateTime CacheExpiresIn => DateTime.Parse(FindFirst(ClaimNames.ExpiresAt)?.Value ?? DateTime.UtcNow.ToString("O"), null, DateTimeStyles.RoundtripKind);
+    public DateTime CacheExpiresIn => DateTime.Parse(FindFirst(ClaimNames.ExpiresAt)?.Value ?? DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
     /// <summary>
     /// Gets the ETag from this identity.
