@@ -16,6 +16,7 @@ internal static class AccessVersionTestWorld
     public const string USER_NAME = "versioned@example.com";
     public const long SYSTEM_TENANT = AccessVersion.SYSTEM_TENANT_ID;
     public const long ANY_TENANT = AccessVersion.ANY_TENANT_ID;
+    public const long DEPLOYMENT = AccessVersion.DEPLOYMENT_ID;
 
     /// <summary>A one-tenant world with the test role (one permission) and the test user, who holds no role yet.</summary>
     public static async Task<IntegrationTestWorld> PrepareAsync(EndatixIntegrationWebHostFixture fixture, CancellationToken ct)

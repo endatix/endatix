@@ -1,3 +1,4 @@
+using System.Net;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -167,6 +168,60 @@ public sealed class AccessVersionScopeTests(EndatixIntegrationWebHostFixture fix
         first.Deployment.Should().NotBe(Guid.Empty);
         second.Deployment.Should().Be(first.Deployment);
         second.Scope.Should().NotBe(first.Scope);
+    }
+
+    [Fact]
+    public async Task ReadAsync_PrincipalWithoutTenant_KeyMovesWhenAnyTenantChanges()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(fixture, ct);
+        var before = await ReadVersionsAsync(world, SYSTEM_TENANT, ct);
+
+        // Act
+        IntegrationSeedBuilder builder = new(world.Services);
+        await builder.SeedUserRoleAssignmentAsync(world.Tenants[0].Id, USER_NAME, ROLE_NAME, ct);
+
+        // Assert
+        var after = await ReadVersionsAsync(world, SYSTEM_TENANT, ct);
+        after.Scope.Should().NotBe(before.Scope, "a principal without a tenant keys on the row every change moves");
+        after.System.Should().Be(before.System);
+        after.Deployment.Should().Be(before.Deployment);
+    }
+
+    [Fact]
+    public async Task ReadAsync_DeploymentRowMissing_FailsClosed()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(fixture, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        var deployment = (await RowsAsync(world, ct, DEPLOYMENT))[DEPLOYMENT];
+        await DeleteRowAsync(world, DEPLOYMENT, ct);
+        try
+        {
+            // Act
+            var read = () => ReadVersionsAsync(world, world.Tenants[0].Id, ct);
+            using var response = await admin.GetAsync("/api/forms", ct);
+
+            // Assert
+            await read.Should().ThrowAsync<InvalidOperationException>();
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden, "without the deployment row the request gets no permissions");
+        }
+        finally
+        {
+            // Access version rows outlive a database reset, so put the deployment row back for the next test.
+            await RestoreRowAsync(world, (DEPLOYMENT, deployment), CancellationToken.None);
+        }
+    }
+
+    /// <summary>Writes a row back with the value it had.</summary>
+    private static async Task RestoreRowAsync(IntegrationTestWorld world, (long TenantId, Guid Value) row, CancellationToken ct)
+    {
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        db.AccessVersions.Add(new AccessVersion { TenantId = row.TenantId, Value = row.Value });
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>Grants the user the role the predicate matches, through the context.</summary>
