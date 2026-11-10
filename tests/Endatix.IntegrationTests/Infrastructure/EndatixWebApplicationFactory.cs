@@ -30,20 +30,27 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
     private readonly string _connectionString;
     private readonly TestDatabaseProvider _provider;
     private readonly OutboxPolling _outboxPolling;
+    private readonly PasswordHashing _passwordHashing;
 
     public EndatixWebApplicationFactory(
         string connectionString,
         TestDatabaseProvider provider,
-        OutboxPolling outboxPolling = OutboxPolling.Fast)
+        OutboxPolling outboxPolling = OutboxPolling.Fast,
+        PasswordHashing passwordHashing = PasswordHashing.Fast)
     {
         _connectionString = connectionString;
         _provider = provider;
         _outboxPolling = outboxPolling;
+        _passwordHashing = passwordHashing;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider, _outboxPolling);
+        if (_passwordHashing == PasswordHashing.Fast)
+        {
+            builder.ConfigureTestServices(services => services.UseFastPasswordHashing());
+        }
     }
 
     // Factories derived through WithWebHostBuilder build their hosts through this method too.
@@ -88,6 +95,16 @@ public enum OutboxPolling
 
     /// <summary>Every second through <c>Endatix:Outbox:PollIntervalSeconds</c>, the interval production binds.</summary>
     Configured,
+}
+
+/// <summary>How a test host hashes passwords and refresh tokens.</summary>
+public enum PasswordHashing
+{
+    /// <summary>At <see cref="IntegrationPasswordHashing.FAST_ITERATION_COUNT"/>, so seeding and signing in skip the hashing cost.</summary>
+    Fast,
+
+    /// <summary>At the production settings. Seed the world on this host too: see <see cref="IntegrationPasswordHashing"/>.</summary>
+    Production,
 }
 
 internal static class EndatixWebApplicationFactoryConfiguration
