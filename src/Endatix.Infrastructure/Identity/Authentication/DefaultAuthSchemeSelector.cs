@@ -22,21 +22,21 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
     public string DefaultScheme => AuthSchemes.EndatixJwt;
 
     /// <inheritdoc />
-    public string SelectScheme(string token)
+    public string SelectScheme(string rawToken)
     {
-        if (string.IsNullOrWhiteSpace(token))
+        if (string.IsNullOrWhiteSpace(rawToken))
         {
             return DefaultScheme;
         }
 
-        var issuer = ExtractIssuerFromToken(token);
+        var issuer = ExtractIssuerFromToken(rawToken);
         if (string.IsNullOrEmpty(issuer))
         {
             return DefaultScheme;
         }
 
         // Use dynamic provider selection
-        return _providerRegistry.SelectScheme(issuer, token) ?? DefaultScheme;
+        return _providerRegistry.SelectScheme(issuer, rawToken) ?? DefaultScheme;
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ internal sealed class DefaultAuthSchemeSelector : IAuthSchemeSelector
         var payload = parts[1];
 
         // Add Base64URL padding if missing
-        var padding = 4 - payload.Length % 4;
+        var padding = 4 - (payload.Length % 4);
         if (padding < 4)
         {
             payload += new string('=', padding);

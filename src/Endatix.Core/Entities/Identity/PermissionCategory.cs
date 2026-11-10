@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities.Identity;
 
@@ -17,6 +18,20 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
         Code = string.Empty;
     }
 
+    private PermissionCategory(string name, string code)
+    {
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrWhiteSpace(code);
+
+        if (code.Length > CATEGORY_CODE_MAX_LENGTH)
+        {
+            throw new ArgumentException($"Code cannot be longer than {CATEGORY_CODE_MAX_LENGTH} characters", nameof(code));
+        }
+
+        Name = name;
+        Code = code.ToLowerInvariant();
+    }
+
     // System-defined categories
     public static readonly PermissionCategory Access = new("Access", "access");
     public static readonly PermissionCategory Platform = new("Platform Management", "platform");
@@ -31,20 +46,6 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
 
     public string Name { get; }
     public string Code { get; }
-
-    private PermissionCategory(string name, string code)
-    {
-        Guard.Against.NullOrWhiteSpace(name);
-        Guard.Against.NullOrWhiteSpace(code);
-
-        if (code.Length > CATEGORY_CODE_MAX_LENGTH)
-        {
-            throw new ArgumentException($"Code cannot be longer than {CATEGORY_CODE_MAX_LENGTH} characters", nameof(code));
-        }
-
-        Name = name;
-        Code = code.ToLowerInvariant();
-    }
 
     /// <summary>
     /// Creates a PermissionCategory from a code string
@@ -106,4 +107,16 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
 
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
+
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
+    public static bool operator <(PermissionCategory? left, PermissionCategory? right) => ComparisonOperators.LessThan(left, right);
+
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
+    public static bool operator <=(PermissionCategory? left, PermissionCategory? right) => ComparisonOperators.LessThanOrEqual(left, right);
+
+    /// <summary>Inverse of <c>&lt;=</c>.</summary>
+    public static bool operator >(PermissionCategory? left, PermissionCategory? right) => !(left <= right);
+
+    /// <summary>Inverse of <c>&lt;</c>.</summary>
+    public static bool operator >=(PermissionCategory? left, PermissionCategory? right) => !(left < right);
 }

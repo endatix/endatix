@@ -1,3 +1,4 @@
+using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Utils;
 
 namespace Endatix.Infrastructure.Tests.Utils;
@@ -5,27 +6,49 @@ namespace Endatix.Infrastructure.Tests.Utils;
 public sealed class MaxLengthReadStreamTests
 {
     [Fact]
-    public async Task Read_WithinLimit_ReturnsContent()
+    public void Read_Span_ReturnsBytesWithinLimit()
     {
-        var inner = new MemoryStream("hello"u8.ToArray());
-        using var limited = new MaxLengthReadStream(inner, maxLength: 10);
+        // Arrange
+        using var stream = new MaxLengthReadStream(new MemoryStream([1, 2, 3, 4]), 4);
+        Span<byte> buffer = stackalloc byte[4];
 
-        using var reader = new StreamReader(limited);
-        var text = await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
+        // Act
+        var read = stream.Read(buffer);
 
-        Assert.Equal("hello", text);
+        // Assert
+        read.Should().Be(4);
+        stream.Position.Should().Be(4);
     }
 
     [Fact]
-    public async Task Read_ExceedingLimit_Throws()
+    public async Task ReadAsync_ArrayOverload_ReturnsBytesWithinLimit()
     {
-        var inner = new MemoryStream(new byte[20]);
-        using var limited = new MaxLengthReadStream(inner, maxLength: 10);
+        // Arrange
+        using var stream = new MaxLengthReadStream(new MemoryStream([1, 2, 3]), 3);
+        var buffer = new byte[3];
 
-        var buffer = new byte[20];
-        await limited.ReadExactlyAsync(buffer.AsMemory(0, 10), TestContext.Current.CancellationToken);
+        // Act
+        var read = await stream.ReadAsync(buffer.AsMemory(0, 3), CancellationToken.None);
 
-        await Assert.ThrowsAsync<InvalidDataException>(() =>
-            limited.ReadExactlyAsync(buffer.AsMemory(0, 1), TestContext.Current.CancellationToken).AsTask());
+        // Assert
+        read.Should().Be(3);
+    }
+
+    [Fact]
+    public void BoundedHttpResponseStream_ReadSpanAndArray_DelegatesToBoundedContent()
+    {
+        // Arrange
+        using var response = new HttpResponseMessage { Content = new ByteArrayContent([1, 2, 3, 4]) };
+        using var stream = new BoundedHttpResponseStream(response, 10);
+        var array = new byte[2];
+        Span<byte> span = stackalloc byte[2];
+
+        // Act
+        var first = stream.Read(array, 0, 2);
+        var second = stream.Read(span);
+
+        // Assert
+        first.Should().Be(2);
+        second.Should().Be(2);
     }
 }

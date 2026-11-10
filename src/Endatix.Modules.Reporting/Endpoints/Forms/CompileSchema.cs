@@ -45,11 +45,11 @@ public sealed class CompileSchema(
     /// <inheritdoc/>
     public override async Task<Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult>> ExecuteAsync(
         CompileFormSchemaRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         if (request.Replace)
         {
-            var access = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, cancellationToken);
+            var access = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, ct);
             if (!access.IsSuccess)
             {
                 return access.ToProblem();
@@ -58,7 +58,7 @@ public sealed class CompileSchema(
 
         CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId, request.Replace);
 
-        var result = await mediator.Send(command, cancellationToken);
+        var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
             .MapResult(

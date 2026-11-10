@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
 
+namespace Endatix.Infrastructure.Identity.Authorization;
 
 /// <summary>
 /// Internal helper class for managing the authorization cache.
@@ -39,11 +40,7 @@ internal class AuthorizationCache(
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(ClaimsPrincipal principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
     {
-        var userId = principal.GetUserId();
-        if (userId is null)
-        {
-            throw new InvalidOperationException("Principal must have a user ID");
-        }
+        var userId = principal.GetUserId() ?? throw new InvalidOperationException("Principal must have a user ID");
 
         var cacheExpiration = ComputeExpiration(principal);
         var accessToken = BearerAccessTokenResolver.Resolve(httpContextAccessor);
@@ -113,7 +110,7 @@ internal class AuthorizationCache(
     }
 
     /// <inheritdoc />
-    public async Task InvalidateAsync(string userId, long tenantId, CancellationToken cancellationToken = default)
+    public async Task InvalidateAsync(string userId, long tenantId, CancellationToken cancellationToken)
     {
         var cacheKey = GetUserAuthDataCacheKey(userId, tenantId);
         await hybridCache.RemoveAsync(cacheKey, cancellationToken);
@@ -122,7 +119,7 @@ internal class AuthorizationCache(
     }
 
     /// <inheritdoc />
-    public async Task InvalidateAllAsync(CancellationToken cancellationToken = default)
+    public async Task InvalidateAllAsync(CancellationToken cancellationToken)
     {
         await hybridCache.RemoveByTagAsync(AllAuthDataCacheTags, cancellationToken);
     }

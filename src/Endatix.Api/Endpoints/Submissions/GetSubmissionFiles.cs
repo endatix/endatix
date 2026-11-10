@@ -30,19 +30,19 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
     }
 
     /// <inheritdoc/>
-    public override async Task HandleAsync(GetSubmissionFilesRequest request, CancellationToken cancellationToken)
+    public override async Task HandleAsync(GetSubmissionFilesRequest request, CancellationToken ct)
     {
         try
         {
-            await SendFilesAsync(request, cancellationToken);
+            await SendFilesAsync(request, ct);
         }
-        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        catch (Exception) when (ct.IsCancellationRequested)
         {
             AbortIfResponseStarted();
         }
         catch (Exception ex)
         {
-            await SendFailureAsync(ex, cancellationToken);
+            await SendFailureAsync(ex, ct);
         }
     }
 

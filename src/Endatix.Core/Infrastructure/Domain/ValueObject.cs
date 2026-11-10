@@ -18,10 +18,14 @@ public abstract class ValueObject : IComparable, IComparable<ValueObject>
     public override bool Equals(object? obj)
     {
         if (obj == null)
+        {
             return false;
+        }
 
         if (GetUnproxiedType(this) != GetUnproxiedType(obj))
+        {
             return false;
+        }
 
         var valueObject = (ValueObject)obj;
 
@@ -36,7 +40,7 @@ public abstract class ValueObject : IComparable, IComparable<ValueObject>
             {
                 unchecked
                 {
-                    return current * 23 + (obj?.GetHashCode() ?? 0);
+                    return (current * 23) + (obj?.GetHashCode() ?? 0);
                 }
             });
     }
@@ -44,16 +48,29 @@ public abstract class ValueObject : IComparable, IComparable<ValueObject>
     public int CompareTo(object? obj)
     {
         if (obj == null)
+        {
             return 1;
+        }
 
         var thisType = GetUnproxiedType(this);
         var otherType = GetUnproxiedType(obj);
 
         if (thisType != otherType)
+        {
             return string.Compare(thisType.ToString(), otherType.ToString(), StringComparison.Ordinal);
+        }
 
-        var other = (ValueObject)obj;
+        return CompareEqualityComponents((ValueObject)obj);
+    }
 
+    /// <inheritdoc/>
+    public int CompareTo(ValueObject? other)
+    {
+        return CompareTo(other as object);
+    }
+
+    private int CompareEqualityComponents(ValueObject other)
+    {
         var components = GetEqualityComponents().ToArray();
         var otherComponents = other.GetEqualityComponents().ToArray();
 
@@ -61,46 +78,59 @@ public abstract class ValueObject : IComparable, IComparable<ValueObject>
         {
             var comparison = CompareComponents(components[i], otherComponents[i]);
             if (comparison != 0)
+            {
                 return comparison;
+            }
         }
 
         return 0;
     }
 
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
+    public static bool operator <(ValueObject? left, ValueObject? right) => ComparisonOperators.LessThan(left, right);
+
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
+    public static bool operator <=(ValueObject? left, ValueObject? right) => ComparisonOperators.LessThanOrEqual(left, right);
+
+    /// <summary>Inverse of <c>&lt;=</c>.</summary>
+    public static bool operator >(ValueObject? left, ValueObject? right) => !(left <= right);
+
+    /// <summary>Inverse of <c>&lt;</c>.</summary>
+    public static bool operator >=(ValueObject? left, ValueObject? right) => !(left < right);
+
     private static int CompareComponents(object? object1, object? object2)
     {
-        if (object1 is null && object2 is null)
-            return 0;
-
-        if (object1 is null)
-            return -1;
-
-        if (object2 is null)
-            return 1;
-
         if (object1 is IComparable comparable1 && object2 is IComparable comparable2)
+        {
             return comparable1.CompareTo(comparable2);
+        }
+
+        if (object1 is null || object2 is null)
+        {
+            return (object1 is null ? 0 : 1) - (object2 is null ? 0 : 1);
+        }
 
         return object1.Equals(object2) ? 0 : -1;
     }
 
-    public int CompareTo(ValueObject? other)
-    {
-        return CompareTo(other as object);
-    }
-
-    public static bool operator ==(ValueObject a, ValueObject b)
+    /// <summary>Value equality; two nulls are equal.</summary>
+    public static bool operator ==(ValueObject? a, ValueObject? b)
     {
         if (a is null && b is null)
+        {
             return true;
+        }
 
         if (a is null || b is null)
+        {
             return false;
+        }
 
         return a.Equals(b);
     }
 
-    public static bool operator !=(ValueObject a, ValueObject b)
+    /// <summary>Negation of <c>==</c>.</summary>
+    public static bool operator !=(ValueObject? a, ValueObject? b)
     {
         return !(a == b);
     }
@@ -116,7 +146,9 @@ public abstract class ValueObject : IComparable, IComparable<ValueObject>
         var typeString = type.ToString();
 
         if (typeString.Contains(EFCoreProxyPrefix) || typeString.EndsWith(NHibernateProxyPostfix))
+        {
             return type.BaseType!;
+        }
 
         return type;
     }

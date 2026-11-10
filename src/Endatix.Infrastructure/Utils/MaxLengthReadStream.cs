@@ -36,16 +36,16 @@ internal sealed class MaxLengthReadStream(Stream inner, long maxLength) : Stream
         return read;
     }
 
-    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+    public override int Read(Span<byte> buffer)
     {
-        var read = await inner.ReadAsync(buffer.AsMemory(offset, GetAllowedCount(count)), cancellationToken);
+        var read = inner.Read(buffer[..GetAllowedCount(buffer.Length)]);
         TrackBytesRead(read);
         return read;
     }
 
-    public override int Read(Span<byte> buffer)
+    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
-        var read = inner.Read(buffer[..GetAllowedCount(buffer.Length)]);
+        var read = await inner.ReadAsync(buffer.AsMemory(offset, GetAllowedCount(count)), cancellationToken);
         TrackBytesRead(read);
         return read;
     }
