@@ -89,4 +89,23 @@ public sealed class SubmissionStatusTests
         act.Should().Throw<ArgumentException>().WithParameterName("code");
         submission.Status.Should().Be(SubmissionStatus.New);
     }
+
+    [Fact]
+    public void RelationalOperators_OrderByCode()
+    {
+        // Arrange
+        SubmissionStatus? none = null;
+        SubmissionStatus? alsoNone = null;
+        var sameApproved = SubmissionStatus.FromCode(SubmissionStatusCodes.Approved);
+        var sameNew = SubmissionStatus.FromCode(SubmissionStatusCodes.New);
+
+        // Act & Assert
+        (SubmissionStatus.Approved < SubmissionStatus.New).Should().BeTrue();
+        (SubmissionStatus.Approved <= sameApproved).Should().BeTrue();
+        (SubmissionStatus.New > SubmissionStatus.Approved).Should().BeTrue();
+        (SubmissionStatus.New >= sameNew).Should().BeTrue();
+        (none < SubmissionStatus.New).Should().BeTrue();
+        (SubmissionStatus.New > none).Should().BeTrue();
+        (none <= alsoNone).Should().BeTrue();
+    }
 }

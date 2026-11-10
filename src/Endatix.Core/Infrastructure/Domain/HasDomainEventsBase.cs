@@ -7,9 +7,11 @@ namespace Endatix.Core.Infrastructure.Domain;
 public abstract class HasDomainEventsBase
 {
     private readonly List<DomainEventBase> _domainEvents = new();
+    /// <summary>Domain events registered on this entity and not yet cleared.</summary>
     [NotMapped]
     public IEnumerable<DomainEventBase> DomainEvents => _domainEvents.AsReadOnly();
 
+    /// <summary>Registers a domain event to be dispatched or captured when the entity is saved.</summary>
     protected void RegisterDomainEvent(DomainEventBase domainEvent) => _domainEvents.Add(domainEvent);
 
     /// <summary>

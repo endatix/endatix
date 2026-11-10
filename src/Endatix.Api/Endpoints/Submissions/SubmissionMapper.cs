@@ -30,9 +30,11 @@ public static class SubmissionMapper
         Personalization = PersonalizationReader.Read(submission.PersonalizationSnapshot, includeValues: false),
     };
 
+    /// <summary>Maps a collection of submission entities to API models.</summary>
     public static IEnumerable<T> Map<T>(IEnumerable<Submission> submissions) where T : SubmissionModel, new() =>
         submissions.Select(Map<T>).ToList();
 
+    /// <summary>Maps a submission DTO to the API model.</summary>
     public static SubmissionModel MapFromDto(SubmissionDto dto) => new SubmissionModel
     {
         Id = dto.Id.ToString(),

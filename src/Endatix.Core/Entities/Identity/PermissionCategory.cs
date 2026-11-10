@@ -108,11 +108,15 @@ public sealed record PermissionCategory : IComparable<PermissionCategory>
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
 
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
     public static bool operator <(PermissionCategory? left, PermissionCategory? right) => ComparisonOperators.LessThan(left, right);
 
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
     public static bool operator <=(PermissionCategory? left, PermissionCategory? right) => ComparisonOperators.LessThanOrEqual(left, right);
 
+    /// <summary>Inverse of <c>&lt;=</c>.</summary>
     public static bool operator >(PermissionCategory? left, PermissionCategory? right) => !(left <= right);
 
+    /// <summary>Inverse of <c>&lt;</c>.</summary>
     public static bool operator >=(PermissionCategory? left, PermissionCategory? right) => !(left < right);
 }
