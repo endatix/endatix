@@ -83,8 +83,8 @@ connection (`ServerConnectionString`) that creates and drops the others.
 ### Collections
 
 Collections run in parallel, each with its own fixture, so its own host and database; the classes in one collection run
-one after another. CI runs `INTEGRATION_MAX_THREADS` collections at once (`ci.yml`, tuned for the 4-vCPU runner);
-locally, one per CPU (`--max-threads` overrides it). The definitions, with this table, are in
+one after another. CI runs tests on `INTEGRATION_MAX_THREADS` threads (`ci.yml`, tuned for the 4-vCPU runner), so that
+many collections at once; locally, one per CPU (`--max-threads` overrides it). The definitions, with this table, are in
 `Endatix.IntegrationTests/Infrastructure/IntegrationTestCollections.cs`.
 
 A new class picks its collection by its [lane](#lanes) and the fixture it needs:
@@ -104,9 +104,12 @@ The other collections keep any one collection from outlasting its lane's share o
 | `JobExecutionTestCollection`         | Jobs | `BackgroundJobExecutionIntegrationTests` alone                |
 | `JobStoreTestCollection`             | Jobs | the job store, its schema, scheduler nodes and job types      |
 
-A lane takes at least as long as its slowest collection, so rebalance by moving whole classes between a lane's
-collections, by their times in the lane's `test-durations-*` artifact. Keycloak smoke tests (`Category=Keycloak`,
-`Priority=P2`) use no collection, only `KeycloakTestContainerFixture`.
+A lane takes at least as long as its slowest collection, so these start first (`SlowestCollectionsFirst`). Rebalance
+by moving whole classes between a lane's collections, by their times in the lane's `test-durations-*` artifact; the
+collection only sets the balance, the `Lane` trait still decides the lane, so keep the two in step. A class with no
+`[Collection]` is a collection of its own and runs in parallel with the rest: keep that for quick classes that need no
+shared fixture (`ProblemDetailsJsonTests`, `FailedHostStartTests`) and for the Keycloak smoke tests
+(`KeycloakTestContainerFixture`).
 
 Parallel collections share the process: a test must not change process-wide state (environment variables, statics, a
 fixed scheduler instance id another test uses) that another collection can see.

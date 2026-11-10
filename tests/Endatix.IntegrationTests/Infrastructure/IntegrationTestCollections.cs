@@ -1,4 +1,9 @@
+using Endatix.IntegrationTests;
 using Endatix.IntegrationTests.Shared;
+using Xunit.Sdk;
+using Xunit.v3;
+
+[assembly: TestCollectionOrderer(typeof(SlowestCollectionsFirst))]
 
 namespace Endatix.IntegrationTests;
 
@@ -12,8 +17,8 @@ namespace Endatix.IntegrationTests;
 //   Jobs  | JobsHostTestCollection                      | JobsDbTestCollection
 //
 // The other collections hold one slow class, or a group, so that no collection outlasts its lane's share of the
-// test time. Move a class only to rebalance, by the times in the lane's durations summary (tests/README.md,
-// Collections).
+// test time, and start first (SlowestCollectionsFirst). Move a class only to rebalance, by the times in the lane's
+// test-durations-* artifact (tests/README.md, Collections). A test class with no [Collection] is a collection of its own.
 
 /// <summary>Rest lane, web host: HTTP and API tests.</summary>
 [CollectionDefinition(nameof(EndatixIntegrationTestCollection))]
@@ -50,3 +55,26 @@ public sealed class JobsSchedulerStartupTestCollection : ICollectionFixture<DbIn
 /// <summary>Jobs lane, database only: <c>BackgroundJobExecutionIntegrationTests</c> alone.</summary>
 [CollectionDefinition(nameof(JobExecutionTestCollection))]
 public sealed class JobExecutionTestCollection : ICollectionFixture<DbIntegrationFixture>;
+
+/// <summary>
+/// Starts the collections that hold one slow class first, so none of them waits for a thread behind shorter ones and
+/// lengthens its lane. The rest keep xUnit's default order.
+/// </summary>
+public sealed class SlowestCollectionsFirst : ITestCollectionOrderer
+{
+    private static readonly string[] _slowest =
+    [
+        nameof(AudienceDirectoryTestCollection),
+        nameof(JobsSchedulerStartupTestCollection),
+        nameof(JobExecutionTestCollection),
+    ];
+
+    public IReadOnlyCollection<TTestCollection> OrderTestCollections<TTestCollection>(
+        IReadOnlyCollection<TTestCollection> testCollections)
+        where TTestCollection : ITestCollection =>
+        [.. DefaultTestCollectionOrderer.Instance.OrderTestCollections(testCollections)
+            .OrderBy(collection => Rank(collection.TestCollectionDisplayName))];
+
+    private static int Rank(string displayName) =>
+        Array.IndexOf(_slowest, displayName) is var index and >= 0 ? index : _slowest.Length;
+}
