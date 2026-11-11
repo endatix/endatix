@@ -13,7 +13,7 @@ public class TenantContext : ITenantContext
     public long TenantId { get; private set; }
 
     /// <summary>
-    /// Sets the current tenant ID (from <see cref="TenantMiddleware"/>).
+    /// Sets the current tenant ID (from <c>TenantMiddleware</c> in Endatix.Api).
     /// </summary>
     /// <param name="tenantId">The tenant ID to set</param>
     internal void SetTenant(long tenantId)

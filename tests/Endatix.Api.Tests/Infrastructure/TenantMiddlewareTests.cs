@@ -1,17 +1,19 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 
-namespace Endatix.Infrastructure.Tests.Multitenancy;
+namespace Endatix.Api.Tests.Infrastructure;
 
 public sealed class TenantMiddlewareTests
 {
@@ -159,12 +161,13 @@ public sealed class TenantMiddlewareTests
 
         // Assert
         await _next.DidNotReceiveWithAnyArgs().Invoke(default!);
-        await AssertProblemAsync(
-            httpContext,
-            StatusCodes.Status500InternalServerError,
-            "https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error",
-            "An unexpected error occurred",
-            "An unexpected error occurred");
+        await AssertProblemAsync(httpContext, new ProblemDetails
+        {
+            Status = StatusCodes.Status500InternalServerError,
+            Type = "https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error",
+            Title = "An unexpected error occurred",
+            Detail = "An unexpected error occurred",
+        });
     }
 
     private Task InvokeAsync(HttpContext httpContext) =>
@@ -174,17 +177,18 @@ public sealed class TenantMiddlewareTests
     {
         _tenantContext.TenantId.Should().Be(0);
         await _next.DidNotReceiveWithAnyArgs().Invoke(default!);
-        await AssertProblemAsync(
-            httpContext,
-            StatusCodes.Status403Forbidden,
-            "https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden",
-            "Forbidden access",
-            "The tenant for this request could not be resolved.");
+        await AssertProblemAsync(httpContext, new ProblemDetails
+        {
+            Status = StatusCodes.Status403Forbidden,
+            Type = "https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden",
+            Title = "Forbidden access",
+            Detail = "The tenant for this request could not be resolved.",
+        });
     }
 
-    private static async Task AssertProblemAsync(HttpContext httpContext, int status, string type, string title, string detail)
+    private static async Task AssertProblemAsync(HttpContext httpContext, ProblemDetails expected)
     {
-        httpContext.Response.StatusCode.Should().Be(status);
+        httpContext.Response.StatusCode.Should().Be(expected.Status);
         httpContext.Response.ContentType.Should().Be("application/problem+json");
 
         httpContext.Response.Body.Position = 0;
@@ -192,10 +196,10 @@ public sealed class TenantMiddlewareTests
         var root = problem.RootElement;
         root.EnumerateObject().Select(property => property.Name).Should()
             .BeEquivalentTo("type", "title", "status", "detail", "instance", "traceId");
-        root.GetProperty("type").GetString().Should().Be(type);
-        root.GetProperty("title").GetString().Should().Be(title);
-        root.GetProperty("status").GetInt32().Should().Be(status);
-        root.GetProperty("detail").GetString().Should().Be(detail);
+        root.GetProperty("type").GetString().Should().Be(expected.Type);
+        root.GetProperty("title").GetString().Should().Be(expected.Title);
+        root.GetProperty("status").GetInt32().Should().Be(expected.Status);
+        root.GetProperty("detail").GetString().Should().Be(expected.Detail);
         root.GetProperty("instance").GetString().Should().Be(REQUEST_PATH);
         root.GetProperty("traceId").GetString().Should().Be(httpContext.TraceIdentifier);
     }

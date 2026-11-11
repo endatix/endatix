@@ -1,14 +1,13 @@
-using System.Diagnostics;
 using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Endatix.Infrastructure.Multitenancy;
+namespace Endatix.Api.Infrastructure;
 
 /// <summary>
 /// Middleware that handles tenant context initialization based on user claims.
@@ -20,17 +19,7 @@ namespace Endatix.Infrastructure.Multitenancy;
 /// </remarks>
 public class TenantMiddleware
 {
-    private static readonly ProblemShape _tenantRequiredProblem = new(
-        StatusCodes.Status403Forbidden,
-        "https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden",
-        "Forbidden access",
-        "The tenant for this request could not be resolved.");
-
-    private static readonly ProblemShape _serverErrorProblem = new(
-        StatusCodes.Status500InternalServerError,
-        "https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error",
-        "An unexpected error occurred",
-        "An unexpected error occurred");
+    private const string TENANT_REQUIRED_DETAIL = "The tenant for this request could not be resolved.";
 
     private readonly RequestDelegate _next;
     private readonly ILogger<TenantMiddleware> _logger;
@@ -64,7 +53,7 @@ public class TenantMiddleware
         if (tenantContext is not TenantContext writableTenantContext)
         {
             _logger.LogError("Expected TenantContext but got {ActualType}", tenantContext.GetType().Name);
-            await WriteProblemAsync(context, _serverErrorProblem);
+            await WriteServerErrorAsync(context);
             return;
         }
 
@@ -72,7 +61,7 @@ public class TenantMiddleware
         if (tenantId <= 0)
         {
             LogMissingTenant(context.User);
-            await WriteProblemAsync(context, _tenantRequiredProblem);
+            await WriteTenantRequiredAsync(context);
             return;
         }
 
@@ -98,17 +87,17 @@ public class TenantMiddleware
             user.GetIssuer() ?? "unknown",
             user.IsHydrated());
 
-    private static Task WriteProblemAsync(HttpContext context, ProblemShape shape) =>
-        Results.Problem(new ProblemDetails
-        {
-            Status = shape.Status,
-            Type = shape.Type,
-            Title = shape.Title,
-            Detail = shape.Detail,
-            Instance = context.Request.Path.Value,
-            Extensions = { ["traceId"] = Activity.Current?.Id ?? context.TraceIdentifier }
-        }).ExecuteAsync(context);
+    private static Task WriteTenantRequiredAsync(HttpContext context) =>
+        context.WriteEndatixProblemAsync(
+            StatusCodes.Status403Forbidden,
+            title: null,
+            detail: TENANT_REQUIRED_DETAIL,
+            cancellationToken: context.RequestAborted);
 
-    /// <summary>The fields of the API's canonical ProblemDetails for one status.</summary>
-    private sealed record ProblemShape(int Status, string Type, string Title, string Detail);
+    private static Task WriteServerErrorAsync(HttpContext context) =>
+        context.WriteEndatixProblemAsync(
+            StatusCodes.Status500InternalServerError,
+            title: null,
+            detail: null,
+            cancellationToken: context.RequestAborted);
 }
