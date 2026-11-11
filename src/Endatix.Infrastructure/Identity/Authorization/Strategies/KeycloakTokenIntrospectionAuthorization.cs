@@ -42,15 +42,10 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
     /// <inheritdoc />
     public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
-        if (!CanHandle(principal))
-        {
-            return Result.Error("Provider cannot handle the given issuer");
-        }
-
         var keycloakSettings = keycloakOptions.Value;
-        if (keycloakSettings.DefaultTenantId <= 0)
+        if (RejectRequest(principal, keycloakSettings) is { } rejection)
         {
-            return Result.Error("Tenant ID is required");
+            return rejection;
         }
 
         if (keycloakSettings.Authorization is null || keycloakSettings.Authorization.RoleMappings is not { Count: > 0 })
@@ -148,6 +143,20 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
         }
     }
 
+    private Result<AuthorizationData>? RejectRequest(ClaimsPrincipal principal, KeycloakOptions keycloakSettings)
+    {
+        if (!CanHandle(principal))
+        {
+            return Result.Error("Provider cannot handle the given issuer");
+        }
+
+        if (keycloakSettings.DefaultTenantId <= 0)
+        {
+            return Result.Error("Tenant ID is required");
+        }
+
+        return null;
+    }
     private async Task<Result<AuthorizationData>> BuildAuthorizationDataAsync(
         long tenantId,
         string authProvider,

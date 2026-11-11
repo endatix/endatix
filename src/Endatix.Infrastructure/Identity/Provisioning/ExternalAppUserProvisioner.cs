@@ -44,14 +44,9 @@ internal sealed class ExternalAppUserProvisioner(
         ExternalIdentityProfile identityProfile,
         CancellationToken cancellationToken)
     {
-        if (tenantId <= 0)
+        if (RejectRequest(tenantId, mappedAppRoles) is { } rejection)
         {
-            return Result<AppUser>.Invalid(new ValidationError(TENANT_REQUIRED_MESSAGE));
-        }
-
-        if (mappedAppRoles.Count == 0)
-        {
-            return Result<AppUser>.NotFound("No mapped Hub AppUser roles.");
+            return rejection;
         }
 
         if (RequireEmail(identityProfile) is null)
@@ -110,6 +105,20 @@ internal sealed class ExternalAppUserProvisioner(
         }
     }
 
+    private static Result<AppUser>? RejectRequest(long tenantId, IReadOnlyCollection<string> mappedAppRoles)
+    {
+        if (tenantId <= 0)
+        {
+            return Result<AppUser>.Invalid(new ValidationError(TENANT_REQUIRED_MESSAGE));
+        }
+
+        if (mappedAppRoles.Count == 0)
+        {
+            return Result<AppUser>.NotFound("No mapped Hub AppUser roles.");
+        }
+
+        return null;
+    }
     private Task<AppUser?> FindByExternalKeyAsync(
         long tenantId,
         string authProvider,

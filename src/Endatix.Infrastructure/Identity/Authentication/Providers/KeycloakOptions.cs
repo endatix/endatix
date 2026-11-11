@@ -48,7 +48,10 @@ public class KeycloakOptions : JwtAuthProviderOptions, IValidatableObject
     /// </summary>
     public KeycloakProvisioningOptions Provisioning { get; set; } = new();
 
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) =>
+        ValidateDefaultTenant().Concat(ValidateRoleMappings());
+
+    private IEnumerable<ValidationResult> ValidateDefaultTenant()
     {
         if (Enabled && DefaultTenantId <= 0)
         {
@@ -56,27 +59,22 @@ public class KeycloakOptions : JwtAuthProviderOptions, IValidatableObject
                 "Keycloak sign-ins require a tenant. Set Endatix:Auth:Providers:Keycloak:DefaultTenantId to the id of an existing tenant.",
                 [nameof(DefaultTenantId)]);
         }
+    }
 
-        var roleMappings = Authorization?.RoleMappings;
-        if (roleMappings is not { Count: > 0 })
-        {
-            yield break;
-        }
-
-        var ambiguousKeys = roleMappings.Keys
+    private IEnumerable<ValidationResult> ValidateRoleMappings()
+    {
+        var ambiguousKeys = (Authorization?.RoleMappings?.Keys ?? Enumerable.Empty<string>())
             .GroupBy(key => key, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
             .Select(group => string.Join(", ", group.OrderBy(key => key, StringComparer.Ordinal)))
             .ToList();
 
-        if (ambiguousKeys.Count == 0)
+        if (ambiguousKeys.Count > 0)
         {
-            yield break;
+            yield return new ValidationResult(
+                $"Keycloak role mappings contain ambiguous case-insensitive keys: {string.Join("; ", ambiguousKeys)}.",
+                [nameof(Authorization)]);
         }
-
-        yield return new ValidationResult(
-            $"Keycloak role mappings contain ambiguous case-insensitive keys: {string.Join("; ", ambiguousKeys)}.",
-            [nameof(Authorization)]);
     }
 
 

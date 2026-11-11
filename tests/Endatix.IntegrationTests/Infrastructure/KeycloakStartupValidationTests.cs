@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string KeycloakSection = "Endatix:Auth:Providers:Keycloak";
+    private const string KEYCLOAK_SECTION = "Endatix:Auth:Providers:Keycloak";
 
     [Theory]
     [InlineData(null)]
@@ -32,7 +32,7 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
 
         // Assert
         (await start.Should().ThrowAsync<OptionsValidationException>())
-            .Which.Message.Should().Contain($"{KeycloakSection}:DefaultTenantId");
+            .Which.Message.Should().Contain($"{KEYCLOAK_SECTION}:DefaultTenantId");
     }
 
     [Fact]
@@ -65,13 +65,13 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
             ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = auth.Issuer,
             ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = auth.Audience,
             ["Endatix:Submissions:AccessTokenSigningKey"] = auth.SigningKey,
-            [$"{KeycloakSection}:Enabled"] = "true",
-            [$"{KeycloakSection}:Issuer"] = "http://localhost:8080/realms/endatix",
-            [$"{KeycloakSection}:Audience"] = "endatix-hub",
-            [$"{KeycloakSection}:ClientId"] = "endatix-hub",
-            [$"{KeycloakSection}:ClientSecret"] = "client-secret",
-            [$"{KeycloakSection}:RequireHttpsMetadata"] = "false",
-            [$"{KeycloakSection}:DefaultTenantId"] = defaultTenantId,
+            [$"{KEYCLOAK_SECTION}:Enabled"] = "true",
+            [$"{KEYCLOAK_SECTION}:Issuer"] = "http://localhost:8080/realms/endatix",
+            [$"{KEYCLOAK_SECTION}:Audience"] = "endatix-hub",
+            [$"{KEYCLOAK_SECTION}:ClientId"] = "endatix-hub",
+            [$"{KEYCLOAK_SECTION}:ClientSecret"] = "client-secret",
+            [$"{KEYCLOAK_SECTION}:RequireHttpsMetadata"] = "false",
+            [$"{KEYCLOAK_SECTION}:DefaultTenantId"] = defaultTenantId,
             ["Logging:LogLevel:Default"] = "Warning",
         });
         builder.Host.ConfigureEndatixWithDefaults(endatix => endatix.Infrastructure.Security.AddKeycloakAuthProvider());

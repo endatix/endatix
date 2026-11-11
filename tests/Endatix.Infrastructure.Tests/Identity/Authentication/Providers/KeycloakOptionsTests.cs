@@ -8,7 +8,7 @@ namespace Endatix.Infrastructure.Tests.Identity.Authentication.Providers;
 
 public sealed class KeycloakOptionsTests
 {
-    private const string DefaultTenantIdKey = "Endatix:Auth:Providers:Keycloak:DefaultTenantId";
+    private const string DEFAULT_TENANT_ID_KEY = "Endatix:Auth:Providers:Keycloak:DefaultTenantId";
 
     [Theory]
     [InlineData(null)]
@@ -24,7 +24,7 @@ public sealed class KeycloakOptionsTests
 
         // Assert
         validate.Should().Throw<OptionsValidationException>()
-            .Which.Message.Should().Contain(DefaultTenantIdKey);
+            .Which.Message.Should().Contain(DEFAULT_TENANT_ID_KEY);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class KeycloakOptionsTests
             ["Endatix:Auth:Providers:Keycloak:Audience"] = "endatix-hub",
             ["Endatix:Auth:Providers:Keycloak:ClientId"] = "endatix-hub",
             ["Endatix:Auth:Providers:Keycloak:ClientSecret"] = "client-secret",
-            [DefaultTenantIdKey] = defaultTenantId
+            [DEFAULT_TENANT_ID_KEY] = defaultTenantId
         };
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
         var services = new ServiceCollection();

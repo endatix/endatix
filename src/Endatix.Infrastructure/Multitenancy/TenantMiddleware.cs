@@ -1,10 +1,10 @@
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 using Endatix.Core.Abstractions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Multitenancy;
 
@@ -18,7 +18,7 @@ namespace Endatix.Infrastructure.Multitenancy;
 /// </remarks>
 public class TenantMiddleware
 {
-    private const string TenantRequiredDetail = "The tenant for this request could not be resolved.";
+    private const string TENANT_REQUIRED_DETAIL = "The tenant for this request could not be resolved.";
 
     private readonly RequestDelegate _next;
     private readonly ILogger<TenantMiddleware> _logger;
@@ -52,7 +52,7 @@ public class TenantMiddleware
         if (tenantContext is not TenantContext writableTenantContext)
         {
             _logger.LogError("Expected TenantContext but got {ActualType}", tenantContext.GetType().Name);
-            await WriteProblemAsync(context, StatusCodes.Status500InternalServerError, "Internal Server Error", "The request could not be processed.");
+            await Results.Problem(statusCode: StatusCodes.Status500InternalServerError, detail: "The request could not be processed.").ExecuteAsync(context);
             return;
         }
 
@@ -60,7 +60,7 @@ public class TenantMiddleware
         if (tenantId <= 0)
         {
             _logger.LogWarning("Rejected a signed-in request without a valid tenant.");
-            await WriteProblemAsync(context, StatusCodes.Status403Forbidden, "Forbidden", TenantRequiredDetail);
+            await Results.Problem(statusCode: StatusCodes.Status403Forbidden, detail: TENANT_REQUIRED_DETAIL).ExecuteAsync(context);
             return;
         }
 
@@ -79,7 +79,4 @@ public class TenantMiddleware
 
         return user.Identities.OfType<AuthorizedIdentity>().FirstOrDefault()?.TenantId ?? 0;
     }
-
-    private static Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail) =>
-        Results.Problem(statusCode: statusCode, title: title, detail: detail).ExecuteAsync(context);
 }
