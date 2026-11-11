@@ -100,10 +100,10 @@ public sealed class SignedInTenantFlowTests(EndatixIntegrationWebHostFixture fix
 
         // Act
         using var ownResponse = await client.GetAsync(
-            new Uri($"/api/forms/{formId}/data-lists/{ownDataListId}/search", UriKind.Relative),
+            new Uri($"/api/public/forms/{formId}/data-lists/{ownDataListId}/search", UriKind.Relative),
             cancellationToken);
         using var otherResponse = await client.GetAsync(
-            new Uri($"/api/forms/{formId}/data-lists/{otherDataListId}/search", UriKind.Relative),
+            new Uri($"/api/public/forms/{formId}/data-lists/{otherDataListId}/search", UriKind.Relative),
             cancellationToken);
 
         // Assert
