@@ -314,7 +314,7 @@ Authentication headers (such as an API key) are added according to your webhook 
 
 A screen-out reaches your endpoint as one `submission_closed` webhook whose `payload.collectionStatus.code` is `screen_out`. Endatix 0.9.1 replaced the old screen-out webhook (`submission_collection_status_changed`) with this one. At the end of this section your endpoint checks the API key, acts on real screen-outs only, and ignores duplicates.
 
-1. Subscribe an endpoint to `SubmissionClosed`, at the form or tenant level. In Endatix Hub, the event is **Submission Closed** in the form's or the tenant's webhook settings.
+1. Subscribe an endpoint to `SubmissionClosed`, at the form or tenant level. In Endatix Hub, open the form and turn on **Submission Closed** under **Webhooks**. Tenant settings are set in the database (see [Tenant-Level Configuration](#tenant-level-configuration)).
 
    ```json
    {

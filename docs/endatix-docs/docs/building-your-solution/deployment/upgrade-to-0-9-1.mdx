@@ -52,7 +52,7 @@ The migration renames `SubmissionCollectionStatusChanged` to `SubmissionClosed` 
 
 After the upgrade:
 
-- Hub 0.9.1 shows and saves the event as **Submission Closed**.
+- Hub 0.9.1 shows and saves the event as **Submission Closed** in a form's **Webhooks** section.
 - A form create or update that sends `SubmissionCollectionStatusChanged` gets a 400.
 - For this release, a stored `SubmissionCollectionStatusChanged` still counts as `SubmissionClosed` when the new key is absent, so settings written by an older instance after the migration keep delivering.
 
