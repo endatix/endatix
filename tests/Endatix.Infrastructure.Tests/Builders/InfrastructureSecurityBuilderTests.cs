@@ -1,14 +1,16 @@
+using System.Reflection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Framework.Hosting;
-using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Features.Submitters;
+using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
-using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authorization.Data;
+using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Provisioning;
 using Microsoft.AspNetCore.Authentication;
@@ -19,8 +21,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
-using Endatix.Infrastructure.Identity.Authorization.Data;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Builders;

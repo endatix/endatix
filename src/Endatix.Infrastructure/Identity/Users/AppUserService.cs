@@ -6,10 +6,10 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Core.UseCases.Identity.ListUsers;
-using Microsoft.AspNetCore.Identity;
 using Endatix.Infrastructure.Data.Querying;
+using Endatix.Infrastructure.Identity.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
