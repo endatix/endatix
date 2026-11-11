@@ -179,10 +179,10 @@ public sealed class SubmissionExporterBaseTests
         }
 
         // Assert
-        var streamContext = Assert.Single(contexts);
-        Assert.Null(streamContext.Doc);
+        var (_, doc, columns) = Assert.Single(contexts);
+        Assert.Null(doc);
         // Should only have static columns
-        Assert.All(streamContext.Columns, c => Assert.DoesNotContain("question", c.Name, StringComparison.OrdinalIgnoreCase));
+        Assert.All(columns, c => Assert.DoesNotContain("question", c.Name, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -206,8 +206,8 @@ public sealed class SubmissionExporterBaseTests
         }
 
         // Assert
-        var streamContext = Assert.Single(contexts);
-        Assert.Null(streamContext.Doc);
+        var (_, doc, _) = Assert.Single(contexts);
+        Assert.Null(doc);
         var logCalls = _logger.ReceivedCalls().Where(c => c.GetMethodInfo().Name == "Log").ToList();
         Assert.True(logCalls.Count >= 1);
         var warningCall = logCalls.FirstOrDefault(c =>
