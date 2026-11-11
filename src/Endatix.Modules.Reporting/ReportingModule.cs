@@ -94,7 +94,6 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
             SubmitterProfileFields.From(sp.GetRequiredService<IOptions<ReportingOptions>>().Value));
         services.AddSingleton(sp =>
             new FormSchemaCompiler(submitterProfileFields: sp.GetRequiredService<SubmitterProfileFields>()));
-        services.AddScoped<FormSchemaWriters>();
     }
 
     private static void AddExports(IServiceCollection services)

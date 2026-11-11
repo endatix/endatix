@@ -1,29 +1,29 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Account;
-using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities.Identity;
-using Endatix.Core.Features.Auth;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Framework.Configuration;
-using Endatix.Infrastructure.Caching;
-using Endatix.Infrastructure.Features.AccessControl;
-using Endatix.Infrastructure.Features.Account;
-using Endatix.Infrastructure.Features.Authorization.PublicForm;
-using Endatix.Infrastructure.Features.PlatformAdmin;
-using Endatix.Infrastructure.Features.Submissions;
-using Endatix.Infrastructure.Features.Submitters;
 using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.EmailVerification;
-using Endatix.Infrastructure.Identity.Repositories;
-using Endatix.Infrastructure.Identity.Services;
 using Endatix.Infrastructure.Identity.Users;
+using Endatix.Infrastructure.Identity.EmailVerification;
+using Endatix.Infrastructure.Features.Submissions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Endatix.Infrastructure.Features.Account;
+using Endatix.Core.Abstractions.Account;
+using Endatix.Infrastructure.Identity.Services;
+using Endatix.Infrastructure.Identity.Repositories;
+using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Features.Submitters;
+using Endatix.Core.Authorization.Access;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
+using Endatix.Core.Features.Auth;
+using Endatix.Infrastructure.Caching;
+using Endatix.Infrastructure.Features.Authorization.PublicForm;
+using Endatix.Infrastructure.Features.PlatformAdmin;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -79,7 +79,7 @@ public static class IdentityServiceCollectionExtensions
     {
         // Register essential identity services
         services.AddScoped<IAuthService, AuthService>();
-        AddUserAndRoleServices(services);
+        services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserContext, UserContext>();
         services.AddSubmitterResolution(configuration);
 
@@ -89,6 +89,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserPasswordManageService, UserPasswordManageService>();
         services.AddScoped<IUserTokenService, JwtTokenService>();
         services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
+        services.AddScoped<IRoleManagementService, RoleManagementService>();
 
         // Register Identity repositories
         services.AddScoped<IRolesRepository, RolesRepository>();
@@ -131,14 +132,5 @@ public static class IdentityServiceCollectionExtensions
                 .ValidateOnStart();
 
         return services;
-    }
-
-    private static void AddUserAndRoleServices(IServiceCollection services)
-    {
-        services.AddScoped<AppUserAudit>();
-        services.AddScoped<IUserService, AppUserService>();
-        services.AddScoped<RoleManagementActor>();
-        services.AddScoped<RoleManagementState>();
-        services.AddScoped<IRoleManagementService, RoleManagementService>();
     }
 }

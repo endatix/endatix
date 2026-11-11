@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
@@ -35,24 +36,27 @@ public sealed class RoleManagementService : IRoleManagementService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ICurrentUserAuthorizationService _currentUserAuthorizationService;
     private readonly IAuthorizationCache _authorizationCache;
-    private readonly ILogger<RoleManagementState> _logger;
+    private readonly ILogger<RoleManagementService> _logger;
 
+    [SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "Public DI constructor consumed by endatix-saas; grouping the collaborators into holders would break it and adds types with no behaviour.")]
     public RoleManagementService(
         UserManager<AppUser> userManager,
         AppIdentityDbContext identityDbContext,
         ITenantContext tenantContext,
         IRolesRepository rolesRepository,
-        RoleManagementActor actor,
-        RoleManagementState state)
+        IHttpContextAccessor httpContextAccessor,
+        ICurrentUserAuthorizationService currentUserAuthorizationService,
+        IAuthorizationCache authorizationCache,
+        ILogger<RoleManagementService> logger)
     {
         _userManager = userManager;
         _identityDbContext = identityDbContext;
         _tenantContext = tenantContext;
         _rolesRepository = rolesRepository;
-        _httpContextAccessor = actor.HttpContextAccessor;
-        _currentUserAuthorizationService = actor.CurrentUserAuthorization;
-        _authorizationCache = state.AuthorizationCache;
-        _logger = state.Logger;
+        _httpContextAccessor = httpContextAccessor;
+        _currentUserAuthorizationService = currentUserAuthorizationService;
+        _authorizationCache = authorizationCache;
+        _logger = logger;
     }
     /// <inheritdoc/>
     public async Task<Result> AssignRoleToUserAsync(long userId, string roleName, CancellationToken cancellationToken = default)

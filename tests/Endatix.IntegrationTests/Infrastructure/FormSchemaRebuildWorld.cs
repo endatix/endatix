@@ -420,7 +420,8 @@ internal sealed class RebuildScope(
             flattenedRows ?? new FlattenedSubmissionRepository(reportingDb, unitOfWork, new DateTimeProvider()),
             unitOfWork,
             appDb,
-            new FormSchemaWriters(compiler, ReportingTestSchema.SearchCopyFor(reportingDb)),
+            compiler,
+            ReportingTestSchema.SearchCopyFor(reportingDb),
             NullLogger<FormSchemaProcessor>.Instance);
     }
 

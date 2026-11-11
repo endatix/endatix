@@ -1,12 +1,12 @@
-using System.Security.Claims;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Infrastructure.Data.Querying;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using System.Security.Claims;
+using Endatix.Infrastructure.Data.Querying;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Identity.Users;
@@ -20,7 +20,7 @@ public class AppUserServiceTests
     private readonly IUserContext _userContext;
     private readonly IRelationalSubstringLikeFilter _substringLikeFilter;
     private readonly IAuthorizationCache _authorizationCache;
-    private readonly ILogger<AppUserAudit> _logger;
+    private readonly ILogger<AppUserService> _logger;
     private readonly AppUserService _userService;
 
     public AppUserServiceTests()
@@ -35,7 +35,7 @@ public class AppUserServiceTests
         _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();
         _authorizationCache = Substitute.For<IAuthorizationCache>();
-        _logger = Substitute.For<ILogger<AppUserAudit>>();
+        _logger = Substitute.For<ILogger<AppUserService>>();
         _userService = new AppUserService(
             _userManager,
             _tenantContext,
@@ -43,7 +43,8 @@ public class AppUserServiceTests
             _emailVerificationService,
             _userContext,
             _substringLikeFilter,
-            new AppUserAudit(_authorizationCache, _logger));
+            _authorizationCache,
+            _logger);
     }
 
 

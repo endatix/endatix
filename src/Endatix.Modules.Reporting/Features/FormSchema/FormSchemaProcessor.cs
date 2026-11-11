@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
@@ -34,19 +35,15 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// rebuild before it did not finish.
 /// </para>
 /// </remarks>
-internal sealed class FormSchemaWriters(FormSchemaCompiler compiler, FormSearchCopy searchCopy)
-{
-    public FormSchemaCompiler Compiler { get; } = compiler;
-    public FormSearchCopy SearchCopy { get; } = searchCopy;
-}
-
+[SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "DI constructor of the schema compile pipeline; grouping the collaborators into a holder adds a type with no behaviour.")]
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
     IFormSchemaRepository schemaRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
     IReportingUnitOfWork unitOfWork,
     AppDbContext appDbContext,
-    FormSchemaWriters writers,
+    FormSchemaCompiler compiler,
+    FormSearchCopy searchCopy,
     ILogger<FormSchemaProcessor> logger) : IFormSchemaProcessor
 {
     /// <inheritdoc />
@@ -98,7 +95,7 @@ internal sealed class FormSchemaProcessor(
             return null;
         }
 
-        var columns = Compiling(target, () => writers.Compiler.Columns(definitionJson));
+        var columns = Compiling(target, () => compiler.Columns(definitionJson));
         return new SchemaRebuild(target, trigger, new DefinitionSource(definitionJson, columns));
     }
 
@@ -171,7 +168,7 @@ internal sealed class FormSchemaProcessor(
     private FormSchemaEntity? CompileSchema(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
     {
         var compiled = Compiling(rebuild.Target, () => Compile(rebuild, existing, mode));
-        var searchKeys = writers.SearchCopy.KeysAfter(existing, compiled);
+        var searchKeys = searchCopy.KeysAfter(existing, compiled);
         if (existing is null)
         {
             return NewSchema(rebuild.Target, compiled, searchKeys);
@@ -192,7 +189,7 @@ internal sealed class FormSchemaProcessor(
     // only a later flatten carrying the same variables would bring the columns back.
     private FormSchemaCompileResult Compile(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
     {
-        var compiled = writers.Compiler.CompilePersisted(rebuild.Definition.Json, existing?.FlatteningMap, existing?.Codebook, mode);
+        var compiled = compiler.CompilePersisted(rebuild.Definition.Json, existing?.FlatteningMap, existing?.Codebook, mode);
         var kept = mode == FormSchemaCompileMode.Replace && !rebuild.ClearsFlattenedRows && existing is not null
             ? PersonalizationColumns.In(existing.FlatteningMap)
             : [];
@@ -208,7 +205,7 @@ internal sealed class FormSchemaProcessor(
     {
         try
         {
-            return writers.Compiler.IncludePersonalization(
+            return compiler.IncludePersonalization(
                 rebuild.Definition.Json,
                 new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
                 kept);
@@ -267,7 +264,7 @@ internal sealed class FormSchemaProcessor(
     // with an older search keys revision than the schema's, so it catches up rows this compile's keys left behind, and
     // rows a rebuild before it did not finish; with none behind it costs one empty batch.
     private Task<int> CatchUpSearchCopyAsync(CompileTarget target, CancellationToken cancellationToken) =>
-        writers.SearchCopy.RebuildAsync(target.TenantId, target.FormId, cancellationToken);
+        searchCopy.RebuildAsync(target.TenantId, target.FormId, cancellationToken);
 
     // A form deleted after this compile read it would keep the schema the compile wrote, when its deletion sync ran
     // in between. The deletion is committed before its sync runs, so reading again after the write sees it, and the

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
@@ -5,10 +6,10 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.Identity.ListUsers;
-using Endatix.Infrastructure.Data.Querying;
 using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Core.UseCases.Identity.ListUsers;
 using Microsoft.AspNetCore.Identity;
+using Endatix.Infrastructure.Data.Querying;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,7 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// <summary>
 /// Implements the user service by leveraging the integration with ASP.NET Core Identity including the registered <see cref="AppUser" /> persisted object />
 /// </summary>
+[SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "Public DI constructor consumed by endatix-saas; grouping the collaborators into holders would break it and adds types with no behaviour.")]
 public sealed class AppUserService(
     UserManager<AppUser> userManager,
     ITenantContext tenantContext,
@@ -24,9 +26,9 @@ public sealed class AppUserService(
     IEmailVerificationService emailVerificationService,
     IUserContext userContext,
     IRelationalSubstringLikeFilter substringLikeFilter,
-    AppUserAudit audit) : IUserService
+    IAuthorizationCache authorizationCache,
+    ILogger<AppUserService> logger) : IUserService
 {
-    private IAuthorizationCache AuthorizationCache => audit.AuthorizationCache; private ILogger<AppUserAudit> Logger => audit.Logger;
     private const string SelfRemovalForbiddenMessage = "You cannot remove your own tenant access.";
     private const string LastTenantAdminRemovalForbiddenMessage = "Cannot remove the last active tenant admin.";
     private const string SelfLockoutForbiddenMessage = "You cannot lock out your own account.";
@@ -395,7 +397,7 @@ public sealed class AppUserService(
             return ToErrorResult(lockoutResult);
         }
 
-        await AuthorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
+        await authorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
         return Result.Success();
     }
 
@@ -420,7 +422,7 @@ public sealed class AppUserService(
             return ToErrorResult(unlockResult);
         }
 
-        await AuthorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
+        await authorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
         return Result.Success();
     }
 
@@ -563,7 +565,7 @@ public sealed class AppUserService(
         }
         catch (JsonException ex)
         {
-            Logger.LogWarning(
+            logger.LogWarning(
                 ex,
                 "Failed to deserialize external roles for user {UserId}. ExternalRolesJson: {ExternalRolesJson}",
                 userId,
