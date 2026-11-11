@@ -18,7 +18,7 @@ namespace Endatix.Modules.Jobs.Tests;
 /// </summary>
 public sealed partial class DocsTests
 {
-    private const string Section = "Endatix:BackgroundJobs";
+    private const string SECTION = "Endatix:BackgroundJobs";
 
     [Fact]
     public void Docs_ListEveryBackgroundJobsOption()
@@ -92,7 +92,7 @@ public sealed partial class DocsTests
         // which then calls them "any other job type".
         declaring.Should().NotBeEmpty();
         declaring.Should().BeSubsetOf(
-            ProjectsDeclaringJobTypeDefaults,
+            _projectsDeclaringJobTypeDefaults,
             "DeclaredJobTypeDefaults must register every project that declares job type defaults");
     }
 
@@ -128,13 +128,13 @@ public sealed partial class DocsTests
 
         // Act — an option with no value in code has nothing to compare here: the generated instance id, and the
         // trigger lock, whose default depends on the provider and is checked on its own.
-        var options = Options(new BackgroundJobsOptions(), Section).ToList();
+        var options = Options(new BackgroundJobsOptions(), SECTION).ToList();
         var defaults = options.Where(option => option.Default is not null).ToList();
         var withoutDefault = options.Where(option => option.Default is null).Select(option => option.Key);
 
         // Assert — a new option with no value in code must be checked on its own, not skipped here.
         withoutDefault.Should().BeEquivalentTo(
-            [$"{Section}:{nameof(BackgroundJobsOptions.LockOnInsert)}", $"{Section}:Clustering:{nameof(BackgroundJobsClusteringOptions.InstanceId)}"],
+            [$"{SECTION}:{nameof(BackgroundJobsOptions.LockOnInsert)}", $"{SECTION}:Clustering:{nameof(BackgroundJobsClusteringOptions.InstanceId)}"],
             "only the provider-dependent trigger lock and the generated instance id have no value in code");
         defaults.Should().NotBeEmpty();
         foreach (var (key, value) in defaults)
@@ -150,7 +150,7 @@ public sealed partial class DocsTests
         var documented = ReadmeDefaults();
 
         // Act
-        var defaults = Options(new BackgroundJobsOptions(), Section)
+        var defaults = Options(new BackgroundJobsOptions(), SECTION)
             .Where(option => option.Default is not null)
             .ToList();
 
@@ -173,10 +173,10 @@ public sealed partial class DocsTests
 
         // Assert — "any other" is the row for every job type that declares nothing.
         var maxConcurrency = nameof(BackgroundJobTypeOptions.MaxConcurrency);
-        documented.Should().ContainKey(AnyOtherJobType);
-        documented[AnyOtherJobType].Should().BeEquivalentTo(
+        documented.Should().ContainKey(ANY_OTHER_JOB_TYPE);
+        documented[ANY_OTHER_JOB_TYPE].Should().BeEquivalentTo(
             new Dictionary<string, int> { [maxConcurrency] = BackgroundJobsOptions.DefaultJobTypeMaxConcurrency });
-        documented.Remove(AnyOtherJobType);
+        documented.Remove(ANY_OTHER_JOB_TYPE);
         documented.Keys.Should().BeEquivalentTo(
             declared.Keys, "the README must list every job type that declares defaults in code, and only those");
         foreach (var (jobType, defaults) in declared)
@@ -199,7 +199,7 @@ public sealed partial class DocsTests
         var locksOnInsert = JobStoreDatabase.From(configuration, new BackgroundJobsOptions()).LocksOnInsert;
 
         // Assert
-        var key = $"{Section}:{nameof(BackgroundJobsOptions.LockOnInsert)}";
+        var key = $"{SECTION}:{nameof(BackgroundJobsOptions.LockOnInsert)}";
         documented.Should().ContainKey(key);
         documented[key].Should().Contain(
             $"{AsDocumented(locksOnInsert)} on {providerName}",
@@ -214,14 +214,14 @@ public sealed partial class DocsTests
             .Select(property => property.Name)
             .Where(name => typeof(BackgroundJobsOptions).GetProperty(name) is null);
 
-        return Options(new BackgroundJobsOptions(), Section)
+        return Options(new BackgroundJobsOptions(), SECTION)
             .Select(option => option.Key)
-            .Concat(perJobTypeOnly.Select(name => $"{Section}:JobTypes:{{JobType}}:{name}"))
+            .Concat(perJobTypeOnly.Select(name => $"{SECTION}:JobTypes:{{JobType}}:{name}"))
             .ToList();
     }
 
     // The src/ projects whose registrations DeclaredJobTypeDefaults runs.
-    private static readonly string[] ProjectsDeclaringJobTypeDefaults =
+    private static readonly string[] _projectsDeclaringJobTypeDefaults =
         ["Endatix.Infrastructure", "Endatix.Modules.Reporting", "Endatix.Modules.Audience"];
 
     // The registrations that declare job type defaults: webhook delivery, and each module's outbox work. Registering
@@ -264,7 +264,7 @@ public sealed partial class DocsTests
             setting => setting.Groups["name"].Value,
             setting => int.Parse(setting.Groups["value"].Value, CultureInfo.InvariantCulture));
 
-    private const string AnyOtherJobType = "any other";
+    private const string ANY_OTHER_JOB_TYPE = "any other";
 
     // The README's job type table: the job types in backticks, then MaxAttempts, MaxRuntimeMinutes,
     // BackoffBaseSeconds / BackoffCapSeconds, RetentionDays and MaxConcurrency; "global" is a value the type does not
@@ -289,8 +289,8 @@ public sealed partial class DocsTests
                 var declared = columns.Zip(values)
                     .Where(setting => setting.Second != "global")
                     .ToDictionary(setting => setting.First, setting => int.Parse(setting.Second, CultureInfo.InvariantCulture));
-                var jobTypes = cells[0] == AnyOtherJobType
-                    ? [AnyOtherJobType]
+                var jobTypes = cells[0] == ANY_OTHER_JOB_TYPE
+                    ? [ANY_OTHER_JOB_TYPE]
                     : BacktickedNames().Matches(cells[0]).Select(name => name.Groups["name"].Value);
                 return jobTypes.Select(jobType => (JobType: jobType, Values: declared));
             })
@@ -309,7 +309,7 @@ public sealed partial class DocsTests
                 return keys.Count != defaults.Count
                     ? []
                     : keys.Select(key => key.Contains(':') ? key : section + key)
-                        .Zip(defaults, (key, value) => (Key: $"{Section}:{key}", Value: value));
+                        .Zip(defaults, (key, value) => (Key: $"{SECTION}:{key}", Value: value));
             })
             .ToDictionary(entry => entry.Key, entry => entry.Value);
 
