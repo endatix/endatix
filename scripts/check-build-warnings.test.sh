@@ -5,8 +5,9 @@ cd "$(dirname "$0")"
 tmp=$(mktemp); trap 'rm -f "$tmp"' EXIT
 fail=0
 expect() { # name expected_exit
-    ./check-build-warnings.sh "$tmp" >/dev/null 2>&1; local got=$?
-    if [[ $got -ne $2 ]]; then echo "FAIL $1: expected $2 got $got"; fail=1; else echo "ok   $1"; fi
+    local name="$1" expected="$2" got
+    ./check-build-warnings.sh "$tmp" >/dev/null 2>&1; got=$?
+    if [[ $got -ne $expected ]]; then echo "FAIL $name: expected $expected got $got"; fail=1; else echo "ok   $name"; fi
 }
 
 printf 'Build succeeded.\n' > "$tmp"; expect "no warnings" 0
