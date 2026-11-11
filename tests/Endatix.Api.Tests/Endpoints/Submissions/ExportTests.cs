@@ -46,7 +46,7 @@ public class ExportTests
             _tenantSettingsRepository,
             _tenantContext,
             _logger,
-            null);
+            new ExportAddons());
         _reportingEndpoint = Factory.Create<Export>(
             _mediator,
             _exporterFactory,

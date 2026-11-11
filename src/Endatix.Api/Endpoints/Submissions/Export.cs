@@ -55,14 +55,14 @@ public partial class Export : Endpoint<ExportRequest>
         IRepository<TenantSettingsEntity> tenantSettingsRepository,
         ITenantContext tenantContext,
         ILogger<Export> logger,
-        ExportAddons? exportAddons = null)
+        ExportAddons exportAddons)
     {
         _mediator = mediator;
         _exporterFactory = exporterFactory;
         _formsRepository = formsRepository;
         _tenantSettingsRepository = tenantSettingsRepository;
-        _exportFormatRepository = exportAddons?.ExportFormatRepository;
-        _exportCapabilityRegistry = exportAddons?.ExportCapabilityRegistry;
+        _exportFormatRepository = exportAddons.ExportFormatRepository;
+        _exportCapabilityRegistry = exportAddons.ExportCapabilityRegistry;
         _tenantContext = tenantContext;
         _logger = logger;
     }
