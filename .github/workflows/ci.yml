@@ -407,8 +407,9 @@ jobs:
           env-slug: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
           project-slug: "github-actions-for-endatix"
           identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
-          # Root folder only (no recursive): keeps folders such as the GitHub App
-          # credentials out of a job that builds PR code.
+          # Only the one secret this job uses: the root folder also holds other repos' tokens,
+          # and none of them may reach a job that builds PR code or the public scanner state.
+          secret-name: ENDATIX_API_REPO_SONAR_TOKEN
       - name: ℹ️ No SonarCloud analysis on fork and Dependabot PRs
         if: steps.infisical.outcome == 'skipped'
         run: echo "::notice::SonarCloud analysis skipped - fork and Dependabot PRs get no Infisical secrets."
@@ -460,7 +461,8 @@ jobs:
           tar -cPzf sonar-scanner-state.tgz "$PWD/.sonarqube" "$HOME/.sonar/cache" -T "$RUNNER_TEMP/obj-sources.txt"
           ls -lh sonar-scanner-state.tgz
       # The repo is public, so its artifacts are too: the scanner keeps the token out of its state
-      # (end takes it again), and this check holds it to that over exactly what is uploaded.
+      # (end takes it again), and this check holds it to that over exactly what is uploaded. The token
+      # is the only secret in this job (secret-name above).
       # Fails closed: only grep's "no match" (1) lets the upload run, a read error (2) stops it.
       - name: 🔒 Check the scanner state holds no token
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
@@ -486,7 +488,8 @@ jobs:
           compression-level: 0 # already gzipped
           if-no-files-found: error
           # Internal: only the sonar job of this run reads it (~160 MB), and coverage-cleanup deletes
-          # it once sonar succeeds. One day still covers re-running a failed sonar job.
+          # it once sonar succeeds. After a red gate, a failed lane or a cancelled run it is kept for
+          # this one day, so re-running the failed jobs still finds it, as the coverage is.
           retention-days: 1
 
   sonar:
@@ -517,8 +520,9 @@ jobs:
           env-slug: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
           project-slug: "github-actions-for-endatix"
           identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
-          # Root folder only (no recursive): keeps folders such as the GitHub App
-          # credentials out of a job that builds PR code.
+          # Only the one secret this job uses: the root folder also holds other repos' tokens,
+          # and none of them may reach a job that builds PR code or the public scanner state.
+          secret-name: ENDATIX_API_REPO_SONAR_TOKEN
       - name: ℹ️ No SonarCloud analysis on fork and Dependabot PRs
         if: steps.infisical.outcome == 'skipped'
         run: echo "::notice::SonarCloud analysis skipped - fork and Dependabot PRs get no Infisical secrets."
