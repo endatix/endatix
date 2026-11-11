@@ -470,11 +470,10 @@ jobs:
             /d:sonar.issue.ignore.multicriteria="sqlliterals" \
             /d:sonar.issue.ignore.multicriteria.sqlliterals.ruleKey="plsql:S1192" \
             /d:sonar.issue.ignore.multicriteria.sqlliterals.resourceKey="**/Scripts/**/*.sql" \
-            /d:sonar.plugin.cache.directory="$SONAR_PLUGIN_CACHE" \
-            /d:sonar.dotnet.excludeTestProjects=true
-      # tests/** is already out of the analysis (sonar.exclusions); excludeTestProjects also skips the
-      # analyzers in the test projects' build. A full, server-less build, as the scanner docs ask, so
-      # every project is compiled under the analyzers.
+            /d:sonar.plugin.cache.directory="$SONAR_PLUGIN_CACHE"
+      # A full, server-less build, as the scanner docs ask, so every project is compiled under the
+      # analyzers. No sonar.dotnet.excludeTestProjects: it removes every analyzer from the test
+      # projects, source generators included, and their [GeneratedRegex] methods then fail (CS8795).
       - name: 🏗️ Build under the scanner
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: dotnet build --no-incremental --disable-build-servers
