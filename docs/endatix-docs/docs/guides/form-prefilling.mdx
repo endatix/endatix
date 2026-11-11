@@ -59,7 +59,7 @@ Content-Type: application/json
 
 **Key Features:**
 - Public access (no authentication required)
-- Cannot specify `submittedBy` field
+- Cannot name a submitter
 - Ideal for anonymous form submissions
 - May require reCAPTCHA validation (if configured)
 
@@ -69,7 +69,7 @@ Use the **authenticated endpoint** when you need to create submissions on behalf
 
 **Endpoint:** `POST /api/forms/{formId}/submissions/onbehalf`
 
-**Authentication:** Required with `Submissions.CreateOnBehalf` permission
+**Authentication:** Required, with the `submissions.create.onbehalf` permission
 
 **Request Example:**
 ```http
@@ -82,29 +82,33 @@ Authorization: Bearer YOUR_JWT_TOKEN
   "isComplete": false,
   "currentPage": 0,
   "metadata": "{}",
-  "submittedBy": "user123"
+  "submitter": {
+    "externalSubjectId": "user123"
+  }
 }
 ```
 
 **Response:**
 ```json
 {
-  "id": 1443953837470646272,
-  "formId": 1442869143157080064,
+  "id": "1443953837470646272",
+  "formId": "1442869143157080064",
   "jsonData": "{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\"}",
   "isComplete": false,
-  "submittedBy": "user123",
+  "submitterId": "1443953837403537408",
+  "submitterDisplayId": "user123",
+  "isTestSubmission": false,
   "createdAt": "2026-01-19T10:00:00Z"
   /* other submission fields */
 }
 ```
 
 **Key Features:**
-- Requires authentication and `Submissions.CreateOnBehalf` permission
-- Can specify `submittedBy` field to track the user the submission is for
+- Requires authentication and the `submissions.create.onbehalf` permission
+- The `submitter` object names the person the submission is for. See [Create submissions on behalf of a submitter](/docs/guides/collecting-submitters-data#recipe-2-create-submissions-on-behalf-of-a-submitter)
 - No reCAPTCHA required (authenticated requests)
 - Ideal for admin/staff creating submissions on behalf of users
-- Set `isTest: true` (needs `forms.test`) to create a test submission that skips the one-submission-per-user limit and stays out of default exports. See [Create a test submission](/docs/guides/collecting-submitters-data#create-a-test-submission).
+- Set `isTest: true` (needs `forms.test`) to create a test submission that skips the one-submission-per-user limit and stays out of default exports. See [Create a test submission](/docs/guides/collecting-submitters-data#create-a-test-submission) for the full request and its `403` and `409` responses.
 
 **Common Use Cases:**
 - Healthcare staff pre-filling patient forms
@@ -191,7 +195,7 @@ Content-Type: application/json
 }
 ```
 
-> **Note**: If you're a staff member creating this submission on behalf of a specific user (e.g., a patient, customer, or client), use the authenticated `/onbehalf` endpoint instead and include the `submittedBy` field to track who the submission is for.
+> **Note**: If you're a staff member creating this submission on behalf of a specific user (e.g., a patient, customer, or client), use the authenticated `/onbehalf` endpoint instead and include the `submitter` object to track who the submission is for.
 
 ### Step 2: Generate an Access Token
 

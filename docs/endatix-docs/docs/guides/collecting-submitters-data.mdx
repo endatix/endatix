@@ -1,6 +1,6 @@
 ---
 title: Collecting Submitters Data
-description: Configure how Endatix identifies authenticated form submitters
+description: Configure how Endatix identifies form submitters from sign-in claims or a trusted on-behalf API call, and create test submissions with isTest on POST /api/forms/{formId}/submissions/onbehalf.
 sidebar_position: 8
 ---
 
@@ -138,10 +138,10 @@ Use this path for trusted server-to-server integrations, imports, panel-provider
 The endpoint is:
 
 ```http
-POST /forms/{formId}/submissions/onbehalf
+POST /api/forms/{formId}/submissions/onbehalf
 ```
 
-It is protected by the `Submissions.CreateOnBehalf` permission. Public clients should not call this endpoint directly.
+It needs the `submissions.create.onbehalf` permission. Public clients should not call this endpoint directly.
 
 The route value supplies `formId`. The request body extends the normal submission payload with an optional `submitter` object. The smallest submitter is the subject alone, your system's stable id for the respondent:
 
@@ -189,24 +189,93 @@ Use this endpoint when the integration is already trusted. Do not accept submitt
 
 ### Create a test submission
 
-Testers can fill in a form many times without counting as real respondents. Create a test submission in the same call with `isTest`:
+Testers can fill in a form many times without counting as real respondents. Create a test submission in the same call with `isTest: true`. The caller needs two permissions:
+
+* `submissions.create.onbehalf` for the endpoint.
+* `forms.test` for `isTest: true`.
+
+Send the request with an access token for that caller:
+
+```bash
+curl -X POST "https://your-api.com/api/forms/1569960310821879808/submissions/onbehalf" \
+  -H "Authorization: Bearer $ENDATIX_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "isTest": true,
+    "submitter": {
+      "externalSubjectId": "panel-user-7831",
+      "displayId": "7831"
+    }
+  }'
+```
+
+A `201 Created` returns the submission with `isTestSubmission: true`. Its `token` is the submission token that `PATCH /api/forms/{formId}/submissions/by-token/{token}` accepts:
 
 ```json
 {
-  "isTest": true,
-  "submitter": {
-    "externalSubjectId": "panel-user-7831"
-  }
+  "id": "1569960319868993536",
+  "isComplete": false,
+  "jsonData": "{}",
+  "formId": "1569960310821879808",
+  "formDefinitionId": "1569960310834462720",
+  "currentPage": 0,
+  "metadata": "{}",
+  "token": "<submission token>",
+  "completedAt": null,
+  "startedAt": null,
+  "createdAt": "2026-11-11T06:21:48.712456Z",
+  "modifiedAt": null,
+  "status": "new",
+  "submittedBy": "1569960319797690368",
+  "submitterId": "1569960319797690368",
+  "submitterDisplayId": "7831",
+  "submitterProfile": null,
+  "isTestSubmission": true,
+  "collectionStatus": "not_started"
 }
 ```
 
-* `isTest: true` needs the `forms.test` permission as well as `submissions.create.onbehalf`. Without it, the call returns `403`.
+How `isTest` decides the kind of submission:
+
+* `isTest: true` creates a test submission.
 * Without `isTest`, the audience decides: when the submitter matches a person added to the form as a test participant, the submission is a test one. Any other submitter gets a real submission.
 * `isTest: false` creates a real submission, even for a test participant.
 * A test submission skips the one-submission-per-user limit and does not use the person's slot, so a later real create for the same person still succeeds.
-* A test submission is personalized like a real one. Exports leave it out unless you include test submissions.
+* A test submission is personalized like a real one. Exports leave it out unless you include test submissions, and its [webhooks](/docs/guides/webhooks#react-to-a-screen-out) carry `isTestSubmission: true`.
 
 Prefer `isTest` over marking the submission as test afterward. Until it is marked, the submission counts as real: it takes the person's slot, and a completed one has already been reported as real.
+
+#### Errors
+
+A caller with `submissions.create.onbehalf` but without `forms.test` gets `403 Forbidden` for `isTest: true`. The same caller can still create real submissions.
+
+```json
+{
+  "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden",
+  "title": "Forbidden access",
+  "status": 403,
+  "detail": "Permission 'forms.test' required to create a test submission.",
+  "instance": "/api/forms/1569960310821879808/submissions/onbehalf",
+  "traceId": "00-7aa8846e56efeef6a1fd5613e5739f5e-e84c4c31adb13582-00"
+}
+```
+
+On a form limited to one submission per user, a second real create for the same submitter gets `409 Conflict` with `errorCode: "submission_exists"`. Use `submissionId` to resume the existing submission instead of creating another one:
+
+```json
+{
+  "type": "https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict",
+  "title": "There was a conflict",
+  "status": 409,
+  "detail": "A submission already exists for this user and form.",
+  "instance": "/api/forms/1569960310821879808/submissions/onbehalf",
+  "traceId": "00-228dcbd8b5adf6a44acde524bd86c3aa-88b7042518d38cf7-00",
+  "errorCode": "submission_exists",
+  "submissionId": "1569960339166986240"
+}
+```
+
+A test create never gets this 409, because a test submission holds no slot.
 
 ## Recipe 3: Customize submitter extraction
 
