@@ -23,6 +23,7 @@ internal sealed class ExternalAppUserProvisioner(
     private const string DUPLICATE_EMAIL_MESSAGE = "Email already in use.";
     private const string APP_USER_EMAIL_REQUIRED_MESSAGE = "App user email is required.";
     private const string TENANT_REQUIRED_MESSAGE = "Tenant ID is required.";
+    private const long NO_TENANT_ID = 0;
     private static readonly string[] _duplicateEmailIndexNames =
     [
         AppUser.UniqueConstraints.EmailPerTenant,
@@ -64,7 +65,7 @@ internal sealed class ExternalAppUserProvisioner(
         await semaphore.WaitAsync(cancellationToken);
         try
         {
-            var user = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
+            var user = await FindOrMoveUserWithoutTenantAsync(new(tenantId, authProvider, externalSubjectId), cancellationToken);
             if (user is not null)
             {
                 return await ProcessExistingUserAsync(user, externalSubjectId, identityProfile, mappedAppRoles);
@@ -131,6 +132,40 @@ internal sealed class ExternalAppUserProvisioner(
                 user.AuthProvider == authProvider &&
                 user.ExternalSubjectId == externalSubjectId,
                 cancellationToken);
+    }
+
+    /// <summary>
+    /// Finds the user at the tenant. A user provisioned while Keycloak sign-ins ran without a tenant (tenant 0) is moved
+    /// to the tenant on this sign-in instead of being created again; a user at another tenant is never moved.
+    /// </summary>
+    private async Task<AppUser?> FindOrMoveUserWithoutTenantAsync(ExternalKey key, CancellationToken cancellationToken)
+    {
+        return await FindByExternalKeyAsync(key.TenantId, key.AuthProvider, key.SubjectId, cancellationToken)
+            ?? await MoveUserWithoutTenantAsync(key, cancellationToken);
+    }
+
+    /// <summary>
+    /// Moves the user at tenant 0 through a tracked update, so the user's concurrency stamp guards it: when another
+    /// sign-in moved the user first, the update fails and the user is read again at the tenant.
+    /// </summary>
+    private async Task<AppUser?> MoveUserWithoutTenantAsync(ExternalKey key, CancellationToken cancellationToken)
+    {
+        var user = await FindByExternalKeyAsync(NO_TENANT_ID, key.AuthProvider, key.SubjectId, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        user.TenantId = key.TenantId;
+        var updateResult = await userManager.UpdateAsync(user);
+        if (updateResult.Succeeded)
+        {
+            logger.LogInformation("Moved external Hub AppUser {UserId} to tenant {TenantId}.", user.Id, key.TenantId);
+            return user;
+        }
+
+        identityDbContext.Entry(user).State = EntityState.Detached;
+        return await FindByExternalKeyAsync(key.TenantId, key.AuthProvider, key.SubjectId, cancellationToken);
     }
 
     private async Task<Result<AppUser>> ProcessExistingUserAsync(
@@ -376,6 +411,8 @@ internal sealed class ExternalAppUserProvisioner(
         string alphaNumeric = new(value.Where(char.IsLetterOrDigit).ToArray());
         return string.IsNullOrWhiteSpace(alphaNumeric) ? "External" : alphaNumeric;
     }
+
+    private readonly record struct ExternalKey(long TenantId, string AuthProvider, string SubjectId);
 
     private static string? RequireEmail(ExternalIdentityProfile identityProfile)
     {

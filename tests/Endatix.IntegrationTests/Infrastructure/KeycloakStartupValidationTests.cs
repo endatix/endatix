@@ -3,14 +3,22 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Hosting;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Provisioning;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -22,8 +30,9 @@ using Microsoft.IdentityModel.Tokens;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// A host that adds the Keycloak provider refuses to start until <c>DefaultTenantId</c> names a tenant, and a
-/// Keycloak sign-in that still resolves no tenant is rejected with 403.
+/// A host that adds the Keycloak provider refuses to start until <c>DefaultTenantId</c> names a tenant, a Keycloak
+/// sign-in that still resolves no tenant is rejected with 403, and an existing user at tenant 0 moves to
+/// <c>DefaultTenantId</c> on sign-in.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -34,6 +43,8 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
     private const string KEYCLOAK_ISSUER = "http://localhost:8080/realms/endatix";
     private const string KEYCLOAK_AUDIENCE = "endatix-hub";
     private const string KEYCLOAK_SIGNING_KEY = "keycloak-test-signing-key-at-least-32-bytes";
+    private const string KEYCLOAK_SUBJECT = "0f6d8b28-e761-4033-8e84-2ddebcec49ce";
+    private const string MAPPED_EXTERNAL_ROLE = "hub-admin";
 
     [Theory]
     [InlineData(null)]
@@ -81,7 +92,9 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
         });
         await app.StartAsync(cancellationToken);
         using var client = app.GetTestClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CreateKeycloakToken(tenantId: "5"));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CreateKeycloakToken(tenantId: "5", KEYCLOAK_SUBJECT));
 
         // Act
         using var response = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), cancellationToken);
@@ -92,13 +105,86 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
         await app.StopAsync(cancellationToken);
     }
 
+    [Fact]
+    public async Task Keycloak_sign_in_of_an_existing_user_at_tenant_0_moves_it_to_the_default_tenant()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
+        var tenantId = world.Tenants[0].Id;
+        var subject = Guid.NewGuid().ToString();
+        var email = $"{subject}@example.com";
+        await using var app = BuildMappedKeycloakHost(tenantId, email);
+        await app.StartAsync(cancellationToken);
+        var existingUserId = await SeedKeycloakUserAtTenant0Async(app, subject, email);
+        using var client = app.GetTestClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CreateKeycloakToken(tenantId: tenantId.ToString(), subject));
+
+        // Act
+        using var response = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), cancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await ResponseTenantIdAsync(response, cancellationToken)).Should().Be(tenantId);
+        using var scope = app.Services.CreateScope();
+        var users = await scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>().Users
+            .AsNoTracking()
+            .Where(user => user.AuthProvider == AuthProviders.Keycloak && user.ExternalSubjectId == subject)
+            .Select(user => new { user.Id, user.TenantId })
+            .ToListAsync(cancellationToken);
+        users.Should().ContainSingle().Which.Should().Be(new { Id = existingUserId, TenantId = tenantId });
+        await app.StopAsync(cancellationToken);
+    }
+
+    private WebApplication BuildMappedKeycloakHost(long tenantId, string email) =>
+        BuildKeycloakHost(tenantId.ToString(), services =>
+        {
+            services.PostConfigure<JwtBearerOptions>("Keycloak", options =>
+            {
+                options.Configuration = new OpenIdConnectConfiguration { Issuer = KEYCLOAK_ISSUER };
+                options.TokenValidationParameters.IssuerSigningKey = SigningKey();
+            });
+            services.PostConfigure<KeycloakOptions>(options => options.Authorization = new()
+            {
+                RoleMappings = new() { [MAPPED_EXTERNAL_ROLE] = SystemRole.Admin.Name }
+            });
+            services.RemoveAll<IKeycloakTokenIntrospectionService>();
+            services.AddSingleton<IKeycloakTokenIntrospectionService>(new FakeIntrospection(email));
+        });
+
+    private static async Task<long> SeedKeycloakUserAtTenant0Async(WebApplication app, string subject, string email)
+    {
+        using var scope = app.Services.CreateScope();
+        AppUser user = new()
+        {
+            TenantId = 0,
+            AuthProvider = AuthProviders.Keycloak,
+            ExternalSubjectId = subject,
+            UserName = ExternalAppUserProvisioner.BuildExternalUserName(AuthProviders.Keycloak, subject),
+            Email = email,
+            EmailConfirmed = true,
+            LockoutEnabled = true
+        };
+        var created = await scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>().CreateAsync(user);
+        created.Succeeded.Should().BeTrue(string.Join("; ", created.Errors.Select(error => error.Description)));
+        return user.Id;
+    }
+
+    private static async Task<long> ResponseTenantIdAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        return body.RootElement.GetProperty("tenantId").GetInt64();
+    }
+
     private static SymmetricSecurityKey SigningKey() => new(Encoding.UTF8.GetBytes(KEYCLOAK_SIGNING_KEY));
 
-    private static string CreateKeycloakToken(string tenantId)
+    private static string CreateKeycloakToken(string tenantId, string subject)
     {
         Claim[] claims =
         [
-            new(JwtRegisteredClaimNames.Sub, "0f6d8b28-e761-4033-8e84-2ddebcec49ce"),
+            new(JwtRegisteredClaimNames.Sub, subject),
             new(ClaimNames.TenantId, tenantId)
         ];
         JwtSecurityToken token = new(
@@ -148,5 +234,17 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
         var app = builder.Build();
         app.UseEndatix();
         return app;
+    }
+
+    /// <summary>Stands in for the Keycloak introspection endpoint: one mapped role and a full profile.</summary>
+    private sealed class FakeIntrospection(string email) : IKeycloakTokenIntrospectionService
+    {
+        public Task<Result<KeycloakTokenIntrospectionResult>> IntrospectAsync(
+            string accessToken,
+            KeycloakOptions keycloakOptions,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Result.Success(new KeycloakTokenIntrospectionResult(
+                [MAPPED_EXTERNAL_ROLE],
+                new ExternalIdentityProfile(email, "Keycloak user"))));
     }
 }
