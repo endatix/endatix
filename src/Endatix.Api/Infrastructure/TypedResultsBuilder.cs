@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
@@ -85,19 +86,18 @@ public class TypedResultsBuilder<TData> : TypedResultsBuilder
     }
 
     /// <summary>
-    /// Produces a new TypedResultsBuilder instance that can map to additional result types.
+    /// Names the result types the caller maps to. The conversion is chosen by the <c>Results&lt;&gt;</c> union the
+    /// builder is assigned to.
     /// </summary>
     /// <typeparam name="TResult1">The first result type to map to.</typeparam>
     /// <typeparam name="TResult2">The second result type to map to.</typeparam>
-    /// <returns>A new instance of TypedResultsBuilder that can map to TResult1 and TResult2.</returns>
+    /// <returns>This same builder, for chaining.</returns>
+    [SuppressMessage("csharpsquid", "S2326:Unused type parameters should be removed",
+        Justification = "Public API used by endatix-saas; the type arguments document the Results<> union at call sites.")]
     public TypedResultsBuilder<TData> SetTypedResults<TResult1, TResult2>()
           where TResult1 : HttpResults.IResult
           where TResult2 : HttpResults.IResult
     {
-        // The type arguments name the Results<> union the caller returns. The conversion
-        // itself is selected by the assignment target, so the arguments are checked here.
-        _ = typeof(TResult1);
-        _ = typeof(TResult2);
         return this;
     }
 
