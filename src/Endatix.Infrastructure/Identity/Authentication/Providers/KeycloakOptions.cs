@@ -50,6 +50,13 @@ public class KeycloakOptions : JwtAuthProviderOptions, IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (Enabled && DefaultTenantId <= 0)
+        {
+            yield return new ValidationResult(
+                "Keycloak sign-ins require a tenant. Set Endatix:Auth:Providers:Keycloak:DefaultTenantId to the id of an existing tenant.",
+                [nameof(DefaultTenantId)]);
+        }
+
         var roleMappings = Authorization?.RoleMappings;
         if (roleMappings is not { Count: > 0 })
         {

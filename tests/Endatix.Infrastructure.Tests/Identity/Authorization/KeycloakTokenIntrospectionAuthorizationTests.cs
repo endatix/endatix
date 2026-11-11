@@ -69,6 +69,30 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         result.Errors.Should().Contain("Provider cannot handle the given issuer");
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetAuthorizationDataAsync_ReturnsError_WhenDefaultTenantIdMissing(bool hasRoleMappings)
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TestIssuer, activate: true);
+        context.Options.DefaultTenantId = 0;
+        if (!hasRoleMappings)
+        {
+            context.Options.Authorization = null;
+        }
+
+        var principal = CreatePrincipal("123", TestIssuer);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Tenant ID is required");
+    }
+
     [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsSuccessWithEmptyRoles_WhenAuthorizationSectionMissing()
     {

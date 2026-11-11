@@ -112,8 +112,8 @@ Resource name this access token is for. Must match the token `aud` claim. The de
 <Setting name="RequireHttpsMetadata">
 `false` for this HTTP dev server. `true` in production.
 </Setting>
-<Setting name="DefaultTenantId" default="0">
-Tenant id stored for users who sign in through Keycloak.
+<Setting name="DefaultTenantId" required>
+Id of the tenant that users who sign in through Keycloak belong to. Must be an existing tenant id greater than 0: the API refuses to start without it.
 </Setting>
 <Setting name="ClientId" required>
 Keycloak client id. This realm uses `endatix-hub`. The API sends it when calling token introspection. See [Keycloak RBAC](/docs/building-your-solution/authorization/keycloak-rbac).
@@ -177,6 +177,8 @@ API startup should log `Configured Keycloak auth provider`. Hub startup should l
 **`IDX10205` and the issuer is a Keycloak URL.** `Endatix:Auth:Providers:Keycloak:Issuer` does not equal the token `iss`. Align Hub `AUTH_KEYCLOAK_ISSUER`, the API issuer, and the host you use in the browser. Do not mix `localhost` and `127.0.0.1`.
 
 **Invalid redirect URI.** The redirect URI and the post-logout URI must match the client, including `http://` and with no trailing slash.
+
+**API stops at startup naming `DefaultTenantId`.** Keycloak is enabled and `Endatix:Auth:Providers:Keycloak:DefaultTenantId` is missing or 0. Set it to the id of the tenant your Keycloak users belong to.
 
 **Audience validation failed.** Set `Audience` to the `aud` claim in the access token. Decode the token to read it.
 

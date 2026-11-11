@@ -22,6 +22,7 @@ internal sealed class ExternalAppUserProvisioner(
     private const int MAX_USER_NAME_LENGTH = 256;
     private const string DUPLICATE_EMAIL_MESSAGE = "Email already in use.";
     private const string APP_USER_EMAIL_REQUIRED_MESSAGE = "App user email is required.";
+    private const string TENANT_REQUIRED_MESSAGE = "Tenant ID is required.";
     private static readonly string[] _duplicateEmailIndexNames =
     [
         AppUser.UniqueConstraints.EmailPerTenant,
@@ -43,6 +44,11 @@ internal sealed class ExternalAppUserProvisioner(
         ExternalIdentityProfile identityProfile,
         CancellationToken cancellationToken)
     {
+        if (tenantId <= 0)
+        {
+            return Result<AppUser>.Invalid(new ValidationError(TENANT_REQUIRED_MESSAGE));
+        }
+
         if (mappedAppRoles.Count == 0)
         {
             return Result<AppUser>.NotFound("No mapped Hub AppUser roles.");

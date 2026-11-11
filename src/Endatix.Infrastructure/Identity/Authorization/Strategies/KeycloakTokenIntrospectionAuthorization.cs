@@ -48,6 +48,11 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
         }
 
         var keycloakSettings = keycloakOptions.Value;
+        if (keycloakSettings.DefaultTenantId <= 0)
+        {
+            return Result.Error("Tenant ID is required");
+        }
+
         if (keycloakSettings.Authorization is null || keycloakSettings.Authorization.RoleMappings is not { Count: > 0 })
         {
             return Result.Success(AuthorizationData.ForAuthenticatedUser(

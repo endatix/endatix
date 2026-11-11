@@ -1,7 +1,10 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Endatix.Core.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Authentication.Providers;
 
 namespace Endatix.Infrastructure.Multitenancy;
 
@@ -9,13 +12,14 @@ namespace Endatix.Infrastructure.Multitenancy;
 /// Middleware that handles tenant context initialization based on user claims.
 /// </summary>
 /// <remarks>
-/// Public form-access (ReBAC) requests send the minted JWT as <c>Authorization: Bearer</c>; JWT bearer authentication
-/// runs before this middleware and puts the <c>tid</c> claim on <see cref="HttpContext.User"/>. This middleware copies
-/// that claim into <see cref="ITenantContext"/> so EF global filters apply. Prefer that path over mutating
-/// <see cref="TenantContext"/> from individual endpoints.
+/// Anonymous requests pass through without a tenant. A signed-in request must resolve a tenant greater than zero,
+/// or it ends with 403. The tenant comes from the token's own <c>tid</c> claim when Endatix issued the token (user JWT
+/// or ReBAC form-access JWT), and from the hydrated <see cref="AuthorizedIdentity"/> for every other issuer.
 /// </remarks>
 public class TenantMiddleware
 {
+    private const string TenantRequiredDetail = "The tenant for this request could not be resolved.";
+
     private readonly RequestDelegate _next;
     private readonly ILogger<TenantMiddleware> _logger;
 
@@ -35,32 +39,47 @@ public class TenantMiddleware
     /// </summary>
     /// <param name="context">The current HTTP context.</param>
     /// <param name="tenantContext">The tenant context to be initialized.</param>
+    /// <param name="jwtOptions">The Endatix JWT options naming the issuers whose <c>tid</c> claim is read directly.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext)
+    public async Task InvokeAsync(HttpContext context, ITenantContext tenantContext, IOptions<EndatixJwtOptions> jwtOptions)
     {
-        // For public ReBAC endpoints, tenant ID is provided via the authenticated principal's tid claim.
-        var tenantClaim = context.User.FindFirst(ClaimNames.TenantId);
-        if (tenantClaim == null)
+        if (!context.User.Identities.Any(identity => identity.IsAuthenticated))
         {
             await _next(context);
             return;
         }
 
-        if (!long.TryParse(tenantClaim.Value, out var tenantId))
-        {
-            _logger.LogError("Invalid tenant ID format: {TenantClaimValue}", tenantClaim.Value);
-            await _next(context);
-            return;
-        }
-
-        if (tenantContext is not TenantContext)
+        if (tenantContext is not TenantContext writableTenantContext)
         {
             _logger.LogError("Expected TenantContext but got {ActualType}", tenantContext.GetType().Name);
-            await _next(context);
+            await WriteProblemAsync(context, StatusCodes.Status500InternalServerError, "Internal Server Error", "The request could not be processed.");
             return;
         }
 
-        ((TenantContext)tenantContext).SetTenant(tenantId);
+        var tenantId = ResolveTenantId(context.User, jwtOptions.Value);
+        if (tenantId <= 0)
+        {
+            _logger.LogWarning("Rejected a signed-in request without a valid tenant.");
+            await WriteProblemAsync(context, StatusCodes.Status403Forbidden, "Forbidden", TenantRequiredDetail);
+            return;
+        }
+
+        writableTenantContext.SetTenant(tenantId);
         await _next(context);
     }
+
+    private static long ResolveTenantId(ClaimsPrincipal user, EndatixJwtOptions jwtOptions)
+    {
+        var issuer = user.GetIssuer();
+        if (issuer is not null && (issuer == jwtOptions.Issuer || issuer == jwtOptions.ReBacIssuer))
+        {
+            var tenantClaim = (user.Identity as ClaimsIdentity)?.FindFirst(ClaimNames.TenantId);
+            return long.TryParse(tenantClaim?.Value, out var tokenTenantId) ? tokenTenantId : 0;
+        }
+
+        return user.Identities.OfType<AuthorizedIdentity>().FirstOrDefault()?.TenantId ?? 0;
+    }
+
+    private static Task WriteProblemAsync(HttpContext context, int statusCode, string title, string detail) =>
+        Results.Problem(statusCode: statusCode, title: title, detail: detail).ExecuteAsync(context);
 }
