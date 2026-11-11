@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
@@ -37,6 +38,7 @@ public sealed class RoleManagementService : IRoleManagementService
     private readonly IAuthorizationCache _authorizationCache;
     private readonly ILogger<RoleManagementService> _logger;
 
+    [SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "Public DI constructor consumed by endatix-saas; grouping the collaborators into holders would break it and adds types with no behaviour.")]
     public RoleManagementService(
         UserManager<AppUser> userManager,
         AppIdentityDbContext identityDbContext,

@@ -1,4 +1,5 @@
 using System.Reflection;
+using Endatix.Api.Endpoints.Submissions;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
 using Endatix.Api.Setup;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NJsonSchema;
@@ -242,6 +244,7 @@ public class ApiConfigurationBuilder
     {
         var registration = EndpointDiscoveryRegistration.GetOrAdd(Services);
         var added = registration.Add([typeof(ApiConfigurationBuilder).Assembly]);
+        Services.TryAddTransient<ExportAddons>();
 
         // Re-registering is wasted work only when nothing changed *and* a registration already
         // exists. "Nothing new was added" alone is not the test: ScanAssemblies may have

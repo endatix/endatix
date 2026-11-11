@@ -1,8 +1,9 @@
-using Microsoft.AspNetCore.Http.HttpResults;
-using HttpResults = Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http;
+using System.Diagnostics.CodeAnalysis;
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using HttpResults = Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -85,38 +86,19 @@ public class TypedResultsBuilder<TData> : TypedResultsBuilder
     }
 
     /// <summary>
-    /// Produces a new TypedResultsBuilder instance that can map to additional result types.
+    /// Names the result types the caller maps to. The conversion is chosen by the <c>Results&lt;&gt;</c> union the
+    /// builder is assigned to.
     /// </summary>
     /// <typeparam name="TResult1">The first result type to map to.</typeparam>
     /// <typeparam name="TResult2">The second result type to map to.</typeparam>
-    /// <returns>A new instance of TypedResultsBuilder that can map to TResult1 and TResult2.</returns>
-    public TypedResultsBuilder<TData, TResult1, TResult2> SetTypedResults<TResult1, TResult2>()
+    /// <returns>This same builder, for chaining.</returns>
+    [SuppressMessage("csharpsquid", "S2326:Unused type parameters should be removed",
+        Justification = "Public API used by endatix-saas; the type arguments document the Results<> union at call sites.")]
+    public TypedResultsBuilder<TData> SetTypedResults<TResult1, TResult2>()
           where TResult1 : HttpResults.IResult
           where TResult2 : HttpResults.IResult
     {
-        return new TypedResultsBuilder<TData, TResult1, TResult2>(SourceResult, ErrorMessage);
-    }
-}
-
-/// <summary>
-/// Maps results to HTTP typed results for a specific data type and multiple result types.
-/// </summary>
-/// <typeparam name="TData">The type of the data in the result.</typeparam>
-/// <typeparam name="TResult1">The first result type to map to.</typeparam>
-/// <typeparam name="TResult2">The second result type to map to.</typeparam>
-public class TypedResultsBuilder<TData, TResult1, TResult2> : TypedResultsBuilder<TData>
-where TData : class
-where TResult1 : HttpResults.IResult
-where TResult2 : HttpResults.IResult
-{
-    /// <summary>
-    /// Initializes a new instance of the TypedResultsBuilder with the specified source result and optional error message.
-    /// </summary>
-    /// <param name="sourceResult">The source result to map.</param>
-    /// <param name="errorMessage">Optional error message to set.</param>
-    protected internal TypedResultsBuilder(Result<TData> sourceResult, string? errorMessage = null) : base(sourceResult)
-    {
-        ErrorMessage = errorMessage;
+        return this;
     }
 
     /// <summary>
@@ -124,7 +106,7 @@ where TResult2 : HttpResults.IResult
     /// </summary>
     /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
     /// <returns>A Results instance for Ok and ProblemDetails.</returns>
-    public static implicit operator Results<Ok<TData>, ProblemHttpResult>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
+    public static implicit operator Results<Ok<TData>, ProblemHttpResult>(TypedResultsBuilder<TData> resultMapper)
     {
         return resultMapper.SourceResult.Status switch
         {
@@ -142,7 +124,7 @@ where TResult2 : HttpResults.IResult
     /// </summary>
     /// <param name="resultMapper">The TypedResultsBuilder instance to convert.</param>
     /// <returns>A Results instance for Created and ProblemHttpResult.</returns>
-    public static implicit operator Results<Created<TData>, ProblemHttpResult>(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper)
+    public static implicit operator Results<Created<TData>, ProblemHttpResult>(TypedResultsBuilder<TData> resultMapper)
     {
         return resultMapper.SourceResult.Status switch
         {
@@ -155,6 +137,6 @@ where TResult2 : HttpResults.IResult
         };
     }
 
-    private static string BuildCastErrorMessage(TypedResultsBuilder<TData, TResult1, TResult2> resultMapper) =>
+    private static string BuildCastErrorMessage(TypedResultsBuilder<TData> resultMapper) =>
         $"Cannot cast the {resultMapper.SourceResult.ValueType} with status {resultMapper.SourceResult.Status}";
 }

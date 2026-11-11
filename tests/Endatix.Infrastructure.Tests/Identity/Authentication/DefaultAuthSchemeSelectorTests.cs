@@ -80,10 +80,13 @@ public class DefaultAuthSchemeSelectorTests
         Assert.Equal(AuthSchemes.EndatixJwt, defaultScheme);
     }
 
+    [Fact]
+    public void SelectScheme_ShouldReturnDefaultScheme_ForNullToken() =>
+        SelectScheme_ShouldReturnDefaultScheme_ForInvalidTokens(null);
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData(null)]
     [InlineData("invalid.token")]
     public void SelectScheme_ShouldReturnDefaultScheme_ForInvalidTokens(string? token)
     {

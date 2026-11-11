@@ -1,8 +1,8 @@
+using Endatix.Samples.WebApp.ApiClient;
+using Endatix.Samples.WebApp.ApiClient.Common;
+using Endatix.Samples.WebApp.ApiClient.Model.Responses;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
-using Endatix.Samples.WebApp.ApiClient;
-using Endatix.Samples.WebApp.ApiClient.Model.Responses;
-using Endatix.Samples.WebApp.ApiClient.Common;
 
 namespace Endatix.Samples.WebApp.Pages;
 
@@ -10,22 +10,21 @@ public class FormPage : PageModel
 {
     private readonly ILogger<FormPage> _logger;
     private readonly IEndatixClient _client;
-    private readonly HttpClientOptions _settings;
 
     public string FormId { get; set; } = string.Empty;
     public FormDefinitionResponse? Form { get; set; }
 
     public ApiError? ErrorState { get; private set; }
 
-    public readonly string BaseUrl = string.Empty;
+    public string BaseUrl { get; }
 
     public FormPage(ILogger<FormPage> logger, IEndatixClient client, IOptions<HttpClientOptions> options)
     {
         _logger = logger;
         _client = client;
-        _settings = options.Value;
+        var settings = options.Value;
 
-        BaseUrl = _settings.ApiBaseUrl;
+        BaseUrl = settings.ApiBaseUrl;
     }
 
     public async Task OnGetAsync(long id, CancellationToken cancellationToken)
@@ -37,7 +36,10 @@ public class FormPage : PageModel
             onSuccess: form =>
             {
                 Form = form;
-                _logger.LogInformation("Form fetching complete. Results is {@response}", form);
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation("Form fetching complete. Results is {@Response}", form);
+                }
             },
             onError: error => ErrorState = error
         );

@@ -109,13 +109,20 @@ public sealed class TenantAdminHandlerTests
     }
 
     [Fact]
-    public async Task HandleRequirementAsync_AdminAndNotHydrated_Fails()
+    public async Task HandleRequirementAsync_AdminClaimWithoutHydration_SucceedsWhenServiceConfirms()
     {
-        // Arrange
+        // Arrange — the admin claim is present, but an unhydrated principal is not trusted until the service agrees.
         var user = CreateClaimsPrincipal(userId: "123", isAdmin: true, isHydrated: false);
         _authorizationService.IsAdminAsync(Arg.Any<CancellationToken>())
             .Returns(Result.Success(true));
         var context = CreateAuthorizationContext(user: user);
+
+        // Act
+        await _handler.HandleAsync(context);
+
+        // Assert
+        context.HasSucceeded.Should().BeTrue();
+        await _authorizationService.Received(1).IsAdminAsync(Arg.Any<CancellationToken>());
     }
 
 

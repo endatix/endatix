@@ -1,22 +1,26 @@
+using System.Reflection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Framework.Hosting;
 using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Features.Submitters;
+using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
-using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.Infrastructure.Identity.Authorization.Data;
+using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Provisioning;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
-using Endatix.Infrastructure.Identity.Authorization.Data;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Builders;
@@ -646,6 +650,42 @@ public class InfrastructureSecurityBuilderTests
                                   sd.ImplementationType == typeof(DefaultAuthorizationMapper));
         Assert.NotNull(authorizationMapperDescriptor);
         Assert.Equal(ServiceLifetime.Scoped, authorizationMapperDescriptor.Lifetime);
+    }
+
+    [Fact]
+    public void AddKeycloakAuthProvider_ResolvesKeycloakStrategyFromScopedContainer()
+    {
+        // Arrange
+        var builder = new InfrastructureSecurityBuilder(_parentBuilder);
+        builder.AddKeycloakAuthProvider();
+        AddKeycloakLeafDependencies(builder.GetRegistry());
+        using var provider = _services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+            ValidateOnBuild = true
+        });
+        using var scope = provider.CreateScope();
+
+        // Act
+        var strategies = scope.ServiceProvider.GetServices<IAuthorizationStrategy>();
+
+        // Assert
+        strategies.Should().ContainSingle(strategy => strategy is KeycloakTokenIntrospectionAuthorization);
+    }
+
+    private void AddKeycloakLeafDependencies(AuthProviderRegistry registry)
+    {
+        _services.AddLogging();
+        _services.AddSingleton(_configuration);
+        _services.AddSingleton(registry);
+        _services.AddSingleton(Substitute.For<IHttpContextAccessor>());
+        _services.AddSingleton(Substitute.For<IHttpClientFactory>());
+        _services.AddSingleton(Substitute.For<ILookupNormalizer>());
+        _services.AddScoped(_ => Substitute.For<AppIdentityDbContext>(new DbContextOptionsBuilder<AppIdentityDbContext>().Options));
+        _services.AddScoped(_ => Substitute.For<UserManager<AppUser>>(
+            Substitute.For<IUserStore<AppUser>>(), null, null, null, null, null, null, null, null));
+        _services.AddScoped(_ => Substitute.For<RoleManager<AppRole>>(
+            Substitute.For<IRoleStore<AppRole>>(), null, null, null, null));
     }
 
     private bool IsKeycloakAuthorizationStrategyRegistered()

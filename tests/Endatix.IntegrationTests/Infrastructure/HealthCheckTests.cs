@@ -1,11 +1,11 @@
 using System.Net;
+using Endatix.Hosting.HealthChecks;
+using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Endatix.Hosting.HealthChecks;
-using Endatix.IntegrationTests.Shared;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.IntegrationTests;
 
@@ -32,7 +32,7 @@ public sealed class HealthCheckTests
         var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
 
         // Assert
-        response.EnsureSuccessStatusCode();
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class HealthCheckTests
         var response = await client.GetAsync(new Uri("/alive", UriKind.Relative), cancellationToken);
 
         // Assert
-        response.EnsureSuccessStatusCode();
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     /// <summary>

@@ -8,9 +8,9 @@ using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Persistence;
 using FluentAssertions;
-using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FormSchema;
 
@@ -27,13 +27,13 @@ public class FormSchemaProcessorTests
     [Fact]
     public async Task FormSchemaProcessor_ProcessAsync_WithMissingDefinition_DoesNotPersistSchema()
     {
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
-        IFlattenedSubmissionRepository flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        var formsRepository = Substitute.For<IFormsRepository>();
+        var schemaRepository = Substitute.For<IFormSchemaRepository>();
+        var flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns((FormDefinition?)null);
 
-        FormSchemaProcessor processor = CreateProcessor(
+        var processor = CreateProcessor(
             formsRepository,
             schemaRepository,
             flattenedRepository);
@@ -49,14 +49,14 @@ public class FormSchemaProcessorTests
     [Fact]
     public async Task FormSchemaProcessor_ProcessAsync_WithTenantMismatch_ThrowsInvalidOperationException()
     {
-        IFormsRepository formsRepository = Substitute.For<IFormsRepository>();
-        IFormSchemaRepository schemaRepository = Substitute.For<IFormSchemaRepository>();
-        IFlattenedSubmissionRepository flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
+        var formsRepository = Substitute.For<IFormsRepository>();
+        var schemaRepository = Substitute.For<IFormSchemaRepository>();
+        var flattenedRepository = Substitute.For<IFlattenedSubmissionRepository>();
         FormDefinition definition = new(tenantId: 2, jsonData: """{"pages":[]}""") { Id = FormDefinitionId };
         formsRepository.SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(definition);
 
-        FormSchemaProcessor processor = CreateProcessor(
+        var processor = CreateProcessor(
             formsRepository,
             schemaRepository,
             flattenedRepository);

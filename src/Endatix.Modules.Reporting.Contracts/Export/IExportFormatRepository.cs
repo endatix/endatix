@@ -13,6 +13,17 @@ public sealed record ExportFormatRecord(
     string? SettingsJson);
 
 /// <summary>
+/// Values required to create an export format. Description and settings are optional.
+/// </summary>
+public sealed record NewExportFormat(
+    string Name,
+    ExportTarget ExportTarget,
+    ExportDeliveryFormat DeliveryFormat,
+    ExportProfile Profile,
+    string? Description,
+    string? SettingsJson);
+
+/// <summary>
 /// Reads and writes tenant-scoped export format definitions from the reporting schema.
 /// </summary>
 public interface IExportFormatRepository
@@ -55,22 +66,12 @@ public interface IExportFormatRepository
     /// Creates a new export format.
     /// </summary>
     /// <param name="tenantId">The ID of the tenant.</param>
-    /// <param name="name">The name of the export format.</param>
-    /// <param name="exportTarget">The target of the export format.</param>
-    /// <param name="deliveryFormat">The delivery format of the export format.</param>
-    /// <param name="profile">The profile of the export format.</param>
-    /// <param name="description">The description of the export format.</param>
-    /// <param name="settingsJson">The settings of the export format.</param>
+    /// <param name="format">The name, target, delivery, profile, description, and settings.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The created export format record.</returns>
     Task<ExportFormatDto> CreateAsync(
         long tenantId,
-        string name,
-        ExportTarget exportTarget,
-        ExportDeliveryFormat deliveryFormat,
-        ExportProfile profile,
-        string? description,
-        string? settingsJson,
+        NewExportFormat format,
         CancellationToken cancellationToken);
 
     /// <summary>

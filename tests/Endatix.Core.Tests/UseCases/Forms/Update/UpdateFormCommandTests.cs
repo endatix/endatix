@@ -58,4 +58,16 @@ public class UpdateFormCommandTests
         command.Description.Should().Be(description);
         command.IsEnabled.Should().Be(isEnabled);
     }
+
+    [Fact]
+    public void Constructor_NegativeExpiryHours_ThrowsArgumentException()
+    {
+        var options = new UpdateFormOptions(SubmissionTokenExpiryHours: -1);
+        UpdateFormCommand? command = null;
+
+        Action act = () => command = new UpdateFormCommand(1, SampleData.FORM_NAME_1, null, true, null, options);
+
+        act.Should().Throw<ArgumentException>();
+        command.Should().BeNull();
+    }
 }

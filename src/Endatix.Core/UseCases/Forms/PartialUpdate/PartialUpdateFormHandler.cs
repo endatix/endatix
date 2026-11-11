@@ -32,47 +32,18 @@ public class PartialUpdateFormHandler(
         }
 
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
-
-        if (form.LimitOnePerUser && !requestedLimitOnePerUser)
+        var gate = await RejectSingleSubmissionConflictsAsync(form, request, cancellationToken);
+        if (gate is not null)
         {
-            return Result<Form>.Conflict(DISABLE_CONFLICT_MESSAGE);
-        }
-
-        var requestedIsPublic = request.IsPublic ?? form.IsPublic;
-        if (requestedIsPublic && requestedLimitOnePerUser)
-        {
-            return Result<Form>.Conflict(PUBLIC_CONFLICT_MESSAGE);
-        }
-
-        if (!form.LimitOnePerUser && requestedLimitOnePerUser)
-        {
-            var hasDuplicateEligibleSubmissions = await HasDuplicateEligibleSubmissionsAsync(
-                form.Id,
-                submissionRepository,
-                cancellationToken);
-            if (hasDuplicateEligibleSubmissions)
-            {
-                return Result<Form>.Conflict(ENABLE_CONFLICT_MESSAGE);
-            }
+            return gate;
         }
 
         form.SetEnabled(request.IsEnabled ?? form.IsEnabled); // raises form.enabled_state_changed (outbox) on a change
 
-        if (request.ThemeId.HasValue && form.ThemeId != request.ThemeId)
+        var theme = await ApplyThemeAsync(form, request.ThemeId, cancellationToken);
+        if (theme is not null)
         {
-            if (request.ThemeId.Value == DEFAULT_THEME_ID)
-            {
-                form.SetTheme(null);
-            }
-            else
-            {
-                var theme = await themeRepository.GetByIdAsync(request.ThemeId.Value, cancellationToken);
-                if (theme == null)
-                {
-                    return Result.NotFound("Form Theme not found.");
-                }
-                form.SetTheme(theme);
-            }
+            return theme;
         }
 
         if (request.WebHookSettingsJson != null)
@@ -80,41 +51,10 @@ public class PartialUpdateFormHandler(
             UpdateWebHookSettings(request, form);
         }
 
-        if (request.ClearFolderId)
+        var folder = await ApplyFolderAsync(form, request, cancellationToken);
+        if (folder is not null)
         {
-            var clearCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
-                form.FolderId,
-                null,
-                _ => form.ClearFolder(),
-                "Form cannot be cleared from the requested folder.",
-                cancellationToken);
-            if (!clearCheck.IsOk())
-            {
-                return clearCheck.ToErrorResult<Form>();
-            }
-        }
-        else if (request.FolderId.HasValue)
-        {
-            var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
-                form.FolderId,
-                request.FolderId,
-                form.MoveToFolder,
-                "Form cannot be moved to the requested folder.",
-                cancellationToken);
-            if (!folderCheck.IsOk())
-            {
-                return folderCheck.ToErrorResult<Form>();
-            }
-        }
-
-        var submissionTokenExpiryHours = form.SubmissionTokenExpiryHours;
-        if (request.ClearSubmissionTokenExpiryHours)
-        {
-            submissionTokenExpiryHours = null;
-        }
-        else if (request.SubmissionTokenExpiryHours.HasValue)
-        {
-            submissionTokenExpiryHours = request.SubmissionTokenExpiryHours;
+            return folder;
         }
 
         // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
@@ -125,7 +65,7 @@ public class PartialUpdateFormHandler(
             request.IsPublic ?? form.IsPublic,
             requestedLimitOnePerUser,
             request.Metadata ?? form.Metadata,
-            submissionTokenExpiryHours);
+            ResolveExpiry(form, request));
         await repository.UpdateAsync(form, cancellationToken);
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
@@ -134,6 +74,75 @@ public class PartialUpdateFormHandler(
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
 
         return Result.Success(form);
+    }
+
+    private async Task<Result<Form>?> RejectSingleSubmissionConflictsAsync(Form form, PartialUpdateFormCommand request, CancellationToken cancellationToken)
+    {
+        var limit = request.LimitOnePerUser ?? form.LimitOnePerUser;
+        if (form.LimitOnePerUser && !limit)
+        {
+            return Result<Form>.Conflict(DISABLE_CONFLICT_MESSAGE);
+        }
+        if ((request.IsPublic ?? form.IsPublic) && limit)
+        {
+            return Result<Form>.Conflict(PUBLIC_CONFLICT_MESSAGE);
+        }
+
+        if (form.LimitOnePerUser || !limit)
+        {
+            return null;
+        }
+
+        var duplicates = await HasDuplicateEligibleSubmissionsAsync(form.Id, submissionRepository, cancellationToken);
+        return duplicates ? Result<Form>.Conflict(ENABLE_CONFLICT_MESSAGE) : null;
+    }
+
+    private async Task<Result<Form>?> ApplyThemeAsync(Form form, long? themeId, CancellationToken cancellationToken)
+    {
+        if (!themeId.HasValue || form.ThemeId == themeId)
+        {
+            return null;
+        }
+        if (themeId.Value == DEFAULT_THEME_ID)
+        {
+            form.SetTheme(null);
+            return null;
+        }
+        var theme = await themeRepository.GetByIdAsync(themeId.Value, cancellationToken);
+        if (theme == null)
+        {
+            return Result.NotFound("Form Theme not found.");
+        }
+
+        form.SetTheme(theme);
+        return null;
+    }
+
+    private async Task<Result<Form>?> ApplyFolderAsync(Form form, PartialUpdateFormCommand request, CancellationToken cancellationToken)
+    {
+        if (!request.ClearFolderId && !request.FolderId.HasValue)
+        {
+            return null;
+        }
+
+        var clearing = request.ClearFolderId;
+        var check = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
+            form.FolderId,
+            clearing ? null : request.FolderId,
+            clearing ? _ => form.ClearFolder() : form.MoveToFolder,
+            clearing ? "Form cannot be cleared from the requested folder." : "Form cannot be moved to the requested folder.",
+            cancellationToken);
+        return check.IsOk() ? null : check.ToErrorResult<Form>();
+    }
+
+    private static int? ResolveExpiry(Form form, PartialUpdateFormCommand request)
+    {
+        if (request.ClearSubmissionTokenExpiryHours)
+        {
+            return null;
+        }
+
+        return request.SubmissionTokenExpiryHours ?? form.SubmissionTokenExpiryHours;
     }
 
     private static void UpdateWebHookSettings(PartialUpdateFormCommand request, Form form)

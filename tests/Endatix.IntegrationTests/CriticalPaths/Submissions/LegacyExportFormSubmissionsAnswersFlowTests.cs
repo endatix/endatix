@@ -81,9 +81,9 @@ public sealed class LegacyExportFormSubmissionsAnswersFlowTests
         }
 
         // Assert — keys that were blank in submissions-all-questions-sql-server.csv
-        Assert.Single(rows);
+        var exported = Assert.Single(rows);
         using JsonDocument expectedDocument = JsonDocument.Parse(submissionJson);
-        using JsonDocument actualDocument = JsonDocument.Parse(rows[0].AnswersModel);
+        using var actualDocument = JsonDocument.Parse(exported.AnswersModel);
         JsonElement expected = expectedDocument.RootElement;
         JsonElement actual = actualDocument.RootElement;
 

@@ -1,4 +1,4 @@
-﻿using Ardalis.GuardClauses;
+using Ardalis.GuardClauses;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
@@ -27,28 +27,34 @@ public record UpdateFormCommand : ICommand<Result<Form>>
         string? description,
         bool isEnabled,
         string? webHookSettingsJson = null,
-        bool? limitOnePerUser = null,
-        int? submissionTokenExpiryHours = null,
-        bool clearSubmissionTokenExpiryHours = false,
-        string? metadata = null,
-        long? folderId = null)
+        UpdateFormOptions options = default)
     {
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NullOrWhiteSpace(name);
-        if (submissionTokenExpiryHours.HasValue)
+        if (options.SubmissionTokenExpiryHours.HasValue)
         {
-            Guard.Against.NegativeOrZero(submissionTokenExpiryHours.Value);
+            Guard.Against.NegativeOrZero(options.SubmissionTokenExpiryHours.Value);
         }
 
         FormId = formId;
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
-        LimitOnePerUser = limitOnePerUser;
-        SubmissionTokenExpiryHours = submissionTokenExpiryHours;
-        ClearSubmissionTokenExpiryHours = clearSubmissionTokenExpiryHours;
-        Metadata = metadata;
+        LimitOnePerUser = options.LimitOnePerUser;
+        SubmissionTokenExpiryHours = options.SubmissionTokenExpiryHours;
+        ClearSubmissionTokenExpiryHours = options.ClearSubmissionTokenExpiryHours;
+        Metadata = options.Metadata;
         WebHookSettingsJson = webHookSettingsJson;
-        FolderId = folderId;
+        FolderId = options.FolderId;
     }
 }
+
+/// <summary>
+/// Optional values for <see cref="UpdateFormCommand"/>. Defaults match the previous constructor.
+/// </summary>
+public readonly record struct UpdateFormOptions(
+    bool? LimitOnePerUser = null,
+    int? SubmissionTokenExpiryHours = null,
+    bool ClearSubmissionTokenExpiryHours = false,
+    string? Metadata = null,
+    long? FolderId = null);

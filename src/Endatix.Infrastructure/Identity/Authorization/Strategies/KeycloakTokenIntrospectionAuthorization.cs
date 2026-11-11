@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
@@ -11,6 +12,7 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Identity.Authorization.Strategies;
 
+[method: SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "DI constructor of the Keycloak strategy; grouping the collaborators into a holder adds a type with no behaviour.")]
 internal sealed class KeycloakTokenIntrospectionAuthorization(
     AuthProviderRegistry authProviderRegistry,
     IOptions<KeycloakOptions> keycloakOptions,
@@ -91,13 +93,14 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             if (!RequiresHubAppUser(mappingResult))
             {
                 return await BuildAuthorizationDataAsync(
-                    keycloakSettings.DefaultTenantId,
-                    AuthProviders.Keycloak,
-                    subject,
-                    userId: subject,
-                    provisionedUserId: null,
-                    mappingResult.Roles,
-                    mappingResult.Permissions,
+                    new MappedAuthorization(
+                        keycloakSettings.DefaultTenantId,
+                        AuthProviders.Keycloak,
+                        subject,
+                        UserId: subject,
+                        ProvisionedUserId: null,
+                        mappingResult.Roles,
+                        mappingResult.Permissions),
                     cancellationToken);
             }
 
@@ -127,13 +130,14 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             }
 
             return await BuildAuthorizationDataAsync(
-                keycloakSettings.DefaultTenantId,
-                AuthProviders.Keycloak,
-                subject,
-                userId: provisionResult.Value.Id.ToString(),
-                provisionedUserId: provisionResult.Value.Id,
-                mappingResult.Roles,
-                mappingResult.Permissions,
+                new MappedAuthorization(
+                    keycloakSettings.DefaultTenantId,
+                    AuthProviders.Keycloak,
+                    subject,
+                    UserId: provisionResult.Value.Id.ToString(),
+                    ProvisionedUserId: provisionResult.Value.Id,
+                    mappingResult.Roles,
+                    mappingResult.Permissions),
                 cancellationToken);
         }
         catch (Exception ex)
@@ -158,30 +162,33 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
         return null;
     }
     private async Task<Result<AuthorizationData>> BuildAuthorizationDataAsync(
-        long tenantId,
-        string authProvider,
-        string externalSubjectId,
-        string userId,
-        long? provisionedUserId,
-        string[] mappedRoles,
-        string[] mappedPermissions,
+        MappedAuthorization mapped,
         CancellationToken cancellationToken)
     {
         var filteredAuthorization = await platformAdminLocalApprovalGate.ApplyAsync(
-            tenantId,
-            authProvider,
-            externalSubjectId,
-            provisionedUserId,
-            mappedRoles,
-            mappedPermissions,
+            mapped.TenantId,
+            mapped.AuthProvider,
+            mapped.ExternalSubjectId,
+            mapped.ProvisionedUserId,
+            mapped.Roles,
+            mapped.Permissions,
             cancellationToken);
 
         return Result.Success(AuthorizationData.ForAuthenticatedUser(
-            userId: userId,
-            tenantId: tenantId,
+            userId: mapped.UserId,
+            tenantId: mapped.TenantId,
             roles: filteredAuthorization.Roles,
             permissions: filteredAuthorization.Permissions));
     }
+
+    private readonly record struct MappedAuthorization(
+        long TenantId,
+        string AuthProvider,
+        string ExternalSubjectId,
+        string UserId,
+        long? ProvisionedUserId,
+        string[] Roles,
+        string[] Permissions);
 
     private Result<string> ResolveAccessToken()
     {

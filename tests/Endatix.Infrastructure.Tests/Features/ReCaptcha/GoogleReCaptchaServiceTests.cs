@@ -30,9 +30,11 @@ public class GoogleReCaptchaServiceTests
         EnabledForTenantIds = [1]
     };
 
+    [Fact]
+    public void IsEnabled_NullSecret_IsDisabled() => IsEnabled_ValidationCases(true, null, 0.5, false);
+
     [Theory]
     [InlineData(false, "secret", 0.5, false)] // IsEnabled false
-    [InlineData(true, null, 0.5, false)]      // SecretKey null
     [InlineData(true, "", 0.5, false)]       // SecretKey empty
     [InlineData(true, "secret", 0.0, false)] // MinimumScore zero
     [InlineData(true, "secret", -0.1, false)]// MinimumScore negative

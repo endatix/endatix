@@ -234,10 +234,13 @@ public class EmailTemplateServiceTests
         result.Metadata["verificationToken"].Should().Be("xyz789-token");
     }
 
+    [Fact]
+    public void CreateVerificationEmail_WithNullEmail_StillCreatesEmailWithGivenEmail() =>
+        CreateVerificationEmail_WithInvalidEmail_StillCreatesEmailWithGivenEmail(null);
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    [InlineData(null)]
     public void CreateVerificationEmail_WithInvalidEmail_StillCreatesEmailWithGivenEmail(string? email)
     {
         // Arrange
@@ -263,10 +266,13 @@ public class EmailTemplateServiceTests
         result.Metadata["verificationToken"].Should().Be("abc123-token");
     }
 
+    [Fact]
+    public void CreateVerificationEmail_WithNullToken_StillCreatesEmailWithGivenToken() =>
+        CreateVerificationEmail_WithInvalidToken_StillCreatesEmailWithGivenToken(null);
+
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    [InlineData(null)]
     public void CreateVerificationEmail_WithInvalidToken_StillCreatesEmailWithGivenToken(string? token)
     {
         // Arrange

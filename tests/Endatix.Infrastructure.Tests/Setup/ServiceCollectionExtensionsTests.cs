@@ -17,8 +17,8 @@ public sealed class ServiceCollectionExtensionsTests
 
         var transformers = provider.GetServices<IValueTransformer>().ToList();
 
-        Assert.Single(transformers);
-        Assert.IsType<FirstTransformer>(transformers[0]);
+        var transformer = Assert.Single(transformers);
+        Assert.IsType<FirstTransformer>(transformer);
     }
 
     [Fact]
@@ -50,8 +50,8 @@ public sealed class ServiceCollectionExtensionsTests
 
         var transformers = provider.GetServices<IValueTransformer>().ToList();
 
-        Assert.Single(transformers);
-        Assert.IsType<FirstTransformer>(transformers[0]);
+        var transformer = Assert.Single(transformers);
+        Assert.IsType<FirstTransformer>(transformer);
     }
 
     private sealed class FirstTransformer : IValueTransformer

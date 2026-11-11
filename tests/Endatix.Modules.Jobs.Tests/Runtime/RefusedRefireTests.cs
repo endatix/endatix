@@ -16,28 +16,28 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 /// </summary>
 public sealed class RefusedRefireTests
 {
-    public static TheoryData<Exception> DatabaseFailures() => new()
+    public static TheoryData<string> DatabaseFailures() => new()
     {
-        new TimeoutException("The command timed out."),
-        new JobPersistenceException("Couldn't store trigger.", new NpgsqlException("Connection refused.")),
-        new JobPersistenceException("Couldn't store trigger.", new TimeoutException("The pool is exhausted.")),
-        new SchedulerException("Couldn't store trigger.", new JobPersistenceException("Lock failed.", new TestDbException())),
+        "timeout",
+        "npgsql-connection-refused",
+        "pool-exhausted",
+        "scheduler-lock-failed",
     };
 
-    public static TheoryData<Exception> SchedulerRefusals() => new()
+    public static TheoryData<string> SchedulerRefusals() => new()
     {
-        new JobPersistenceException("The job (endatix.TenantProbe) referenced by the trigger does not exist."),
-        new SchedulerException("The trigger will never fire."),
-        new JobPersistenceException("Couldn't store trigger because the BLOB couldn't be serialized.", new IOException("Bad data.")),
-        new InvalidOperationException("Unexpected."),
+        "missing-job",
+        "never-fires",
+        "blob-not-serialized",
+        "unexpected",
     };
 
     [Theory]
     [MemberData(nameof(DatabaseFailures))]
-    public void IsTransient_FailureCausedByTheDatabase_ReturnsTrue(Exception failure)
+    public void IsTransient_FailureCausedByTheDatabase_ReturnsTrue(string failureKind)
     {
         // Act
-        var transient = RefusedRefire.IsTransient(failure);
+        var transient = RefusedRefire.IsTransient(DatabaseFailure(failureKind));
 
         // Assert
         transient.Should().BeTrue();
@@ -45,10 +45,10 @@ public sealed class RefusedRefireTests
 
     [Theory]
     [MemberData(nameof(SchedulerRefusals))]
-    public void IsTransient_RefusalOfTheSchedulersOwn_ReturnsFalse(Exception failure)
+    public void IsTransient_RefusalOfTheSchedulersOwn_ReturnsFalse(string failureKind)
     {
         // Act
-        var transient = RefusedRefire.IsTransient(failure);
+        var transient = RefusedRefire.IsTransient(SchedulerRefusal(failureKind));
 
         // Assert
         transient.Should().BeFalse();
@@ -87,7 +87,8 @@ public sealed class RefusedRefireTests
         // Arrange — the carried completion's write breaks a rule of the table while the row still reads, and the
         // outcome has one rejection left before this firing's.
         var carried = new UnsavedOutcome(2, AttemptRowWrite.Completed, null, DateTime.UtcNow, DateTime.UtcNow)
-            with { Rejections = UnsavedOutcome.MaxRejections - 2 };
+            with
+        { Rejections = UnsavedOutcome.MaxRejections - 2 };
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository.TryCompleteAsync(Arg.Any<AttemptRef>(), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new InvalidOperationException("The row breaks a constraint."));
@@ -112,6 +113,29 @@ public sealed class RefusedRefireTests
         await repository.Received(1).TryDeadLetterAsync(
             new UnfinishedRow(JobId, JobStatus.Processing, carried.Attempt), Arg.Any<AttemptFailure>(), Arg.Any<CancellationToken>());
     }
+
+    private static Exception DatabaseFailure(string failureKind) => failureKind switch
+    {
+        "timeout" => new TimeoutException("The command timed out."),
+        "npgsql-connection-refused" => new JobPersistenceException(
+            "Couldn't store trigger.", new NpgsqlException("Connection refused.")),
+        "pool-exhausted" => new JobPersistenceException(
+            "Couldn't store trigger.", new TimeoutException("The pool is exhausted.")),
+        "scheduler-lock-failed" => new SchedulerException(
+            "Couldn't store trigger.", new JobPersistenceException("Lock failed.", new TestDbException())),
+        _ => throw new ArgumentOutOfRangeException(nameof(failureKind), failureKind, null),
+    };
+
+    private static Exception SchedulerRefusal(string failureKind) => failureKind switch
+    {
+        "missing-job" => new JobPersistenceException(
+            "The job (endatix.TenantProbe) referenced by the trigger does not exist."),
+        "never-fires" => new SchedulerException("The trigger will never fire."),
+        "blob-not-serialized" => new JobPersistenceException(
+            "Couldn't store trigger because the BLOB couldn't be serialized.", new IOException("Bad data.")),
+        "unexpected" => new InvalidOperationException("Unexpected."),
+        _ => throw new ArgumentOutOfRangeException(nameof(failureKind), failureKind, null),
+    };
 
     private static RefireRefusal SchedulerRefusalOf(UnsavedOutcome carried) =>
         new(
