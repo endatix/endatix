@@ -41,6 +41,13 @@ const sidebars: SidebarsConfig = {
         "guides/api-permissions-reference",
         "guides/form-prefilling",
         "guides/json-to-jsonb-migration",
+        {
+          type: "category",
+          label: "Upgrading",
+          collapsed: true,
+          link: { type: "doc", id: "guides/upgrading/index" },
+          items: ["guides/upgrading/v0-9-1"],
+        },
       ],
     },
     {
@@ -85,7 +92,6 @@ const sidebars: SidebarsConfig = {
             "building-your-solution/deployment/azure",
             "building-your-solution/deployment/subfolder-deployment",
             "building-your-solution/deployment/reverse-proxy-deployment",
-            "building-your-solution/deployment/upgrade-to-0-9-1",
           ],
         },
       ],

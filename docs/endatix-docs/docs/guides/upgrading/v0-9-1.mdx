@@ -1,12 +1,14 @@
 ---
-sidebar_position: 5
 title: Upgrade to Endatix 0.9.1
+sidebar_label: v0.9.1
 description: Upgrade the Endatix API and Endatix Hub from 0.9.0 to 0.9.1 together, without a rolling update - stop every 0.9.0 API instance, move screen-out handlers to submission.closed, and rebuild participant columns.
 ---
 
 # Upgrade to Endatix 0.9.1
 
-When you finish, the Endatix API and Endatix Hub both run 0.9.1, every stored webhook setting uses the `SubmissionClosed` key, and no screen-out webhook was dropped during the switch. This page covers an upgrade from 0.9.0. The full list of changes is in the [API](https://github.com/endatix/endatix/releases/tag/v0.9.1) and [Hub](https://github.com/endatix/endatix-hub/releases/tag/v0.9.1) release notes.
+Release notes: [Endatix API v0.9.1](https://github.com/endatix/endatix/releases/tag/v0.9.1) and [Endatix Hub v0.9.1](https://github.com/endatix/endatix-hub/releases/tag/v0.9.1).
+
+When you finish, the Endatix API and Endatix Hub both run 0.9.1, every stored webhook setting uses the `SubmissionClosed` key, and no screen-out webhook was dropped during the switch. This page covers an upgrade from 0.9.0.
 
 :::warning[No rolling update]
 Stop every 0.9.0 API instance before the first 0.9.1 instance starts. A 0.9.0 instance that keeps running after the migration finds no endpoints under the renamed `SubmissionClosed` setting, and it drops the new `submission.closed` outbox rows without sending a webhook.
@@ -76,7 +78,7 @@ A form prepared for export before the upgrade keeps its old columns until you ru
 
 ## Limitations
 
-- An upgrade that skips 0.9.0 is not covered here. Read the release notes of every version in between.
+- An upgrade that skips 0.9.0 is not covered here. Read the upgrade guide and release notes of every version in between (see [Upgrading Endatix](/docs/guides/upgrading)).
 - Hub 0.9.0 does not work with API 0.9.1, so the Hub can't stay on 0.9.0 while you check the API.
 
 ## See also
