@@ -281,6 +281,17 @@ public class EndatixBuilder : IBuilderRoot
     }
 
     /// <summary>
+    /// Sets the Snowflake worker id used when <c>Endatix:Data:SnowflakeWorkerId</c> is not set.
+    /// </summary>
+    /// <param name="workerId">The worker id, from 0 to 1023.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixBuilder UseSnowflakeWorkerId(int workerId)
+    {
+        Persistence.UseSnowflakeWorkerId(workerId);
+        return this;
+    }
+
+    /// <summary>
     /// Registers an Endatix module: scans its assembly for MediatR handlers, and invokes
     /// <see cref="IEndatixModule.ConfigureServices"/> during finalization.
     /// Modules implementing <see cref="IHasFeatureFlag"/> are skipped when their flag is disabled.

@@ -1,9 +1,9 @@
 using System.Diagnostics.Metrics;
 using Endatix.Core.Abstractions;
-using Endatix.IntegrationTests.Shared;
+using Endatix.Core.Infrastructure;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Data;
-using Endatix.Core.Infrastructure;
+using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Jobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -64,6 +64,7 @@ internal sealed class JobsTestNode : IAsyncDisposable
 
         var services = builder.Services;
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Warning));
+        services.AddOptions<DataOptions>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         services.AddScoped<ITenantContext>(_ => IntegrationTenantContext.Bypass);

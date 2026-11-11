@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Reflection;
+using System.Threading;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
@@ -24,6 +26,8 @@ public class EndatixPersistenceBuilder
     // Only track default values that will be applied if not specified in configuration
     private bool _autoMigrationsSetting = false;
     private bool _sampleDataSeedingSetting = false;
+    private int? _snowflakeWorkerIdSetting;
+    private int _snowflakeWorkerIdWarningLogged;
 
     // Track whether configurations have been applied
     private bool _configurationsApplied = false;
@@ -206,6 +210,17 @@ public class EndatixPersistenceBuilder
     }
 
     /// <summary>
+    /// Sets the Snowflake worker id used when <c>Endatix:Data:SnowflakeWorkerId</c> is not set.
+    /// </summary>
+    /// <param name="workerId">The worker id, from 0 to 1023.</param>
+    /// <returns>The builder for chaining.</returns>
+    public EndatixPersistenceBuilder UseSnowflakeWorkerId(int workerId)
+    {
+        _snowflakeWorkerIdSetting = workerId;
+        return this;
+    }
+
+    /// <summary>
     /// Builds and returns the parent builder.
     /// </summary>
     /// <returns>The parent builder.</returns>
@@ -241,45 +256,65 @@ public class EndatixPersistenceBuilder
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        // Then configure with our defaults where not specified in configuration
+        // Then configure with our defaults where not specified in configuration.
+        // The callbacks read the tracked fields when options are resolved, so a later builder call still applies.
         _parentBuilder.Services.Configure<DataOptions>(opts =>
         {
-            // Check if EnableAutoMigrations is in configuration
-            var enableAutoMigrationsConfigValue = section.GetSection(nameof(DataOptions.EnableAutoMigrations));
-            if (!enableAutoMigrationsConfigValue.Exists())
+            if (MissingFromConfiguration(section, nameof(DataOptions.EnableAutoMigrations), _autoMigrationsSetting.ToString()))
             {
-                // Not in config - apply our tracked default
-                _logger?.LogDataOptionFromDefault(
-                    nameof(DataOptions.EnableAutoMigrations),
-                    _autoMigrationsSetting.ToString());
                 opts.EnableAutoMigrations = _autoMigrationsSetting;
             }
-            else
-            {
-                _logger?.LogDataOptionFromConfiguration(
-                    nameof(DataOptions.EnableAutoMigrations),
-                    enableAutoMigrationsConfigValue.Value!);
-            }
 
-            // Check if SeedSampleData is in configuration
-            var seedSampleDataConfigValue = section.GetSection(nameof(DataOptions.SeedSampleData));
-            if (!seedSampleDataConfigValue.Exists())
+            if (MissingFromConfiguration(section, nameof(DataOptions.SeedSampleData), _sampleDataSeedingSetting.ToString()))
             {
-                // Not in config - apply our tracked default
-                _logger?.LogDataOptionFromDefault(
-                    nameof(DataOptions.SeedSampleData),
-                    _sampleDataSeedingSetting.ToString());
                 opts.SeedSampleData = _sampleDataSeedingSetting;
             }
-            else
-            {
-                _logger?.LogDataOptionFromConfiguration(
-                    nameof(DataOptions.SeedSampleData),
-                    seedSampleDataConfigValue.Value!);
-            }
+            ApplySnowflakeWorkerId(section, opts);
         });
 
         _configurationsApplied = true;
+    }
+
+    private bool MissingFromConfiguration(IConfigurationSection dataSection, string settingName, string trackedValue)
+    {
+        var configured = dataSection.GetSection(settingName);
+        if (!configured.Exists())
+        {
+            _logger?.LogDataOptionFromDefault(settingName, trackedValue);
+            return true;
+        }
+
+        _logger?.LogDataOptionFromConfiguration(settingName, configured.Value ?? string.Empty);
+        return false;
+    }
+
+    private void ApplySnowflakeWorkerId(IConfigurationSection dataSection, DataOptions opts)
+    {
+        const string settingName = nameof(DataOptions.SnowflakeWorkerId);
+        var configuredText = dataSection.GetSection(settingName).Value;
+        if (configuredText is null)
+        {
+            var workerId = _snowflakeWorkerIdSetting ?? 0;
+            _logger?.LogDataOptionFromDefault(settingName, workerId.ToString(CultureInfo.InvariantCulture));
+            opts.SnowflakeWorkerId = workerId;
+            return;
+        }
+
+        _logger?.LogDataOptionFromConfiguration(settingName, configuredText);
+        WarnWhenSnowflakeConfigurationWins(configuredText);
+    }
+
+    private void WarnWhenSnowflakeConfigurationWins(string configuredText)
+    {
+        if (_snowflakeWorkerIdSetting is not int builderValue ||
+            !int.TryParse(configuredText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var configuredValue) ||
+            builderValue == configuredValue ||
+            Interlocked.Exchange(ref _snowflakeWorkerIdWarningLogged, 1) != 0)
+        {
+            return;
+        }
+
+        _logger?.LogSnowflakeWorkerIdConfigurationWins(configuredText, builderValue);
     }
 
     private void LogSetupInfo(string message)

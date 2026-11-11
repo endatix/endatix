@@ -5,7 +5,7 @@ title: Data Settings
 
 # Data Settings
 
-These are **Endatix API** settings (`Endatix:Data`). They control migrations and sample seeding.
+These are **Endatix API** settings (`Endatix:Data`). They control migrations, sample seeding, and the Snowflake worker id.
 
 ## Configuration
 
@@ -15,6 +15,7 @@ To configure the data settings, add the following snippet to your `appsettings.j
 "Endatix": {
     "Data": {
         "EnableAutoMigrations": true,
+        "SnowflakeWorkerId": 1,
         "SeedSampleData": true,
         "InitialUser": {
             "Email": "admin@example.com",
@@ -29,8 +30,11 @@ To configure the data settings, add the following snippet to your `appsettings.j
 | Setting | Description | Default |
 |---------|-------------|---------|
 | `EnableAutoMigrations` | Controls whether database migrations are automatically applied at application startup | `false` |
+| `SnowflakeWorkerId` | Worker id (0–1023) for Snowflake identifiers. Give each instance that writes to the same database its own id. | `0` |
 | `SeedSampleData` | Controls whether initial sample data (including user) is seeded at startup | `false` |
 | `InitialUser` | Configuration for the initial admin user when seeding sample data | *(see below)* |
+
+Each API instance that writes to the same database needs its own `SnowflakeWorkerId`. Instances that share an id can generate the same identifier.
 
 ### InitialUser Options
 
@@ -61,9 +65,12 @@ You can also configure data settings using the builder pattern:
 builder.Services.AddEndatix(configuration)
     .Persistence
         .EnableAutoMigrations(true)
+        .UseSnowflakeWorkerId(1)
         .EnableSampleDataSeeding(true)
     .Build();
 ```
+
+`UseSnowflakeWorkerId` is the default. `Endatix:Data:SnowflakeWorkerId` wins when it is set.
 
 :::warning[Note on importance]
  
