@@ -35,7 +35,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// rebuild before it did not finish.
 /// </para>
 /// </remarks>
-[SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "DI constructor of the schema compile pipeline; grouping the collaborators into a holder adds a type with no behaviour.")]
+[method: SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "DI constructor of the schema compile pipeline; grouping the collaborators into a holder adds a type with no behaviour.")]
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
     IFormSchemaRepository schemaRepository,

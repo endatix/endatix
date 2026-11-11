@@ -18,7 +18,7 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// <summary>
 /// Implements the user service by leveraging the integration with ASP.NET Core Identity including the registered <see cref="AppUser" /> persisted object />
 /// </summary>
-[SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "Public DI constructor consumed by endatix-saas; grouping the collaborators into holders would break it and adds types with no behaviour.")]
+[method: SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "Public DI constructor consumed by endatix-saas; grouping the collaborators into holders would break it and adds types with no behaviour.")]
 public sealed class AppUserService(
     UserManager<AppUser> userManager,
     ITenantContext tenantContext,
