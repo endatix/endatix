@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
@@ -34,6 +35,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// rebuild before it did not finish.
 /// </para>
 /// </remarks>
+[method: SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "DI constructor of the schema compile pipeline; grouping the collaborators into a holder adds a type with no behaviour.")]
 internal sealed class FormSchemaProcessor(
     IFormsRepository formsRepository,
     IFormSchemaRepository schemaRepository,

@@ -1,11 +1,11 @@
-﻿using FastEndpoints;
+using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Forms.Update;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Common;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Forms.Update;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -62,11 +62,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
                 request.Description,
                 request.IsEnabled!.Value,
                 request.WebHookSettingsJson,
-                request.LimitOnePerUser,
-                request.SubmissionTokenExpiryHours,
-                request.ClearSubmissionTokenExpiryHours,
-                request.Metadata,
-                folderId),
+                new UpdateFormOptions(request.LimitOnePerUser, request.SubmissionTokenExpiryHours, request.ClearSubmissionTokenExpiryHours, request.Metadata, folderId)),
             ct);
 
         return TypedResultsBuilder

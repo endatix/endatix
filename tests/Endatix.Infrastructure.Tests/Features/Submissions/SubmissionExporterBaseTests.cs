@@ -110,8 +110,7 @@ public sealed class SubmissionExporterBaseTests
         }
 
         // Assert
-        Assert.Single(contexts);
-        var (row, doc, columns) = contexts[0];
+        var (row, doc, columns) = Assert.Single(contexts);
         Assert.Equal(1, row.Id);
         Assert.NotNull(doc);
 
@@ -180,10 +179,10 @@ public sealed class SubmissionExporterBaseTests
         }
 
         // Assert
-        Assert.Single(contexts);
-        Assert.Null(contexts[0].Doc);
+        var (_, doc, columns) = Assert.Single(contexts);
+        Assert.Null(doc);
         // Should only have static columns
-        Assert.All(contexts[0].Columns, c => Assert.DoesNotContain("question", c.Name, StringComparison.OrdinalIgnoreCase));
+        Assert.All(columns, c => Assert.DoesNotContain("question", c.Name, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -207,8 +206,8 @@ public sealed class SubmissionExporterBaseTests
         }
 
         // Assert
-        Assert.Single(contexts);
-        Assert.Null(contexts[0].Doc);
+        var (_, doc, _) = Assert.Single(contexts);
+        Assert.Null(doc);
         var logCalls = _logger.ReceivedCalls().Where(c => c.GetMethodInfo().Name == "Log").ToList();
         Assert.True(logCalls.Count >= 1);
         var warningCall = logCalls.FirstOrDefault(c =>
@@ -244,8 +243,7 @@ public sealed class SubmissionExporterBaseTests
         }
 
         // Assert
-        Assert.Single(contexts);
-        var columns = contexts[0].Columns;
+        var columns = Assert.Single(contexts).Columns;
         Assert.Equal(3, columns.Count);
         Assert.Contains(columns, c => c.Name == "Id");
         Assert.Contains(columns, c => c.Name == "FormId");

@@ -91,8 +91,8 @@ public class AuthProviderRegistryTests
         // Assert
         Assert.True(_registry.IsProviderRegistrationRequested("TestProvider"));
         var registrations = _registry.GetRequestedRegistrations().ToList();
-        Assert.Single(registrations);
-        Assert.Equal("TestProvider", registrations[0].Provider.SchemeName);
+        var registration = Assert.Single(registrations);
+        Assert.Equal("TestProvider", registration.Provider.SchemeName);
     }
 
     [Fact]

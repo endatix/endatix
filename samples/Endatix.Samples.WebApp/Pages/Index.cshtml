@@ -8,7 +8,7 @@
 
 @if (Model.ErrorState != null)
 {
-    @await Html.PartialAsync("_ErrorDetails", Model.ErrorState);
+    @await Html.PartialAsync("_ErrorDetails", Model.ErrorState)
 }
 else
 {

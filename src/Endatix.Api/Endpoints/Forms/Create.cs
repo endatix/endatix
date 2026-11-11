@@ -70,10 +70,7 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
             request.IsEnabled!.Value,
             formDefinitionJsonData,
             webHookSettingsJson,
-            request.LimitOnePerUser ?? false,
-            request.SubmissionTokenExpiryHours,
-            request.Metadata,
-            folderId);
+            new CreateFormOptions(request.LimitOnePerUser ?? false, request.SubmissionTokenExpiryHours, request.Metadata, folderId));
 
         var result = await mediator.Send(createFormCommand, ct);
 

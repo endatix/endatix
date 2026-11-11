@@ -11,11 +11,12 @@ public sealed class ExcelExportValueTests
     {
         // Arrange
         // Act
-        var unwrapped = ExcelExportValue.Unwrap(JsonValue.Create(true));
+        var unwrappedTrue = ExcelExportValue.Unwrap(JsonValue.Create(true));
+        var unwrappedFalse = ExcelExportValue.Unwrap(JsonValue.Create(false));
 
         // Assert
-        Assert.Equal(true, unwrapped);
-        Assert.Equal(false, ExcelExportValue.Unwrap(JsonValue.Create(false)));
+        Assert.True(Assert.IsType<bool>(unwrappedTrue));
+        Assert.False(Assert.IsType<bool>(unwrappedFalse));
     }
 
     [Fact]

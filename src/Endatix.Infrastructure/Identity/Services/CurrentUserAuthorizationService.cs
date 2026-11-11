@@ -15,6 +15,7 @@ namespace Endatix.Infrastructure.Identity.Services;
 /// </summary>
 internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizationService
 {
+    private const string PERMISSIONS_LOOKUP_FAILED = "Failed to get user permissions info";
 
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IAuthorizationCache _authorizationCache;
@@ -96,7 +97,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var authDataResult = await GetAuthorizationDataAsync(cancellationToken);
         if (!authDataResult.IsSuccess)
         {
-            return Result.Error("Failed to get user permissions info");
+            return Result.Error(PERMISSIONS_LOOKUP_FAILED);
         }
 
         var authData = authDataResult.Value;
@@ -110,7 +111,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var authDataResult = await GetAuthorizationDataAsync(cancellationToken);
         if (!authDataResult.IsSuccess)
         {
-            return Result.Error("Failed to get user permissions info");
+            return Result.Error(PERMISSIONS_LOOKUP_FAILED);
         }
 
         var authData = authDataResult.Value;
@@ -124,7 +125,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var permissionsInfoResult = await GetAuthorizationDataAsync(cancellationToken);
         if (!permissionsInfoResult.IsSuccess)
         {
-            return Result.Error("Failed to get user permissions info");
+            return Result.Error(PERMISSIONS_LOOKUP_FAILED);
         }
 
         var permissionInfo = permissionsInfoResult.Value;
@@ -138,7 +139,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var permissionsInfoResult = await GetAuthorizationDataAsync(cancellationToken);
         if (!permissionsInfoResult.IsSuccess)
         {
-            return Result.Error("Failed to get user permissions info");
+            return Result.Error(PERMISSIONS_LOOKUP_FAILED);
         }
 
         var permissionInfo = permissionsInfoResult.Value;

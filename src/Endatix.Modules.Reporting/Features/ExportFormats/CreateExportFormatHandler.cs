@@ -71,15 +71,8 @@ internal sealed class CreateExportFormatHandler(
 
         try
         {
-            var created = await repository.CreateAsync(
-                request.TenantId,
-                request.Name,
-                request.ExportTarget,
-                request.DeliveryFormat,
-                request.Profile,
-                request.Description,
-                settingsResult.Value,
-                cancellationToken);
+            var format = new NewExportFormat(request.Name, request.ExportTarget, request.DeliveryFormat, request.Profile, request.Description, settingsResult.Value);
+            var created = await repository.CreateAsync(request.TenantId, format, cancellationToken);
 
             return Result<ExportFormatDto>.Created(created);
         }

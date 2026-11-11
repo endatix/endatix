@@ -272,11 +272,11 @@ public sealed class SubmissionStartedAtFlowTests
             rows.Add(row);
         }
 
-        Assert.Single(rows);
-        Assert.Equal(CollectionStatusCodes.Complete, rows[0].CollectionStatus);
-        Assert.Equal(startedAt, rows[0].StartedAt);
-        Assert.Equal(completedAt, rows[0].CompletedAt);
-        Assert.Equal(125, SubmissionExportRow.CalculateDurationSeconds(rows[0].StartedAt, rows[0].CompletedAt));
+        var exported = Assert.Single(rows);
+        Assert.Equal(CollectionStatusCodes.Complete, exported.CollectionStatus);
+        Assert.Equal(startedAt, exported.StartedAt);
+        Assert.Equal(completedAt, exported.CompletedAt);
+        Assert.Equal(125, SubmissionExportRow.CalculateDurationSeconds(exported.StartedAt, exported.CompletedAt));
     }
 
     private static async Task EnsureTenantSettingsAsync(

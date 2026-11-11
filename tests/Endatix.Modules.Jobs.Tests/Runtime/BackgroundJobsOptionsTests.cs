@@ -1,8 +1,8 @@
+using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Modules.Jobs.Runtime;
 using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.Extensions.Configuration;
-using Endatix.Framework.Modules;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -10,84 +10,28 @@ namespace Endatix.Modules.Jobs.Tests.Runtime;
 
 public class BackgroundJobsOptionsTests
 {
-    public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidValues => new()
+    public static TheoryData<string, string, string> InvalidValues => new()
     {
-        {
-            "job type concurrency below 0",
-            new() { ["JobTypes:X:MaxConcurrency"] = "-1" },
-            ["JobTypes:X:MaxConcurrency"]
-        },
-        {
-            "job type concurrency above its upper bound",
-            new() { ["JobTypes:X:MaxConcurrency"] = "1001" },
-            ["JobTypes:X:MaxConcurrency"]
-        },
-        {
-            "idle wait below 1",
-            new() { ["IdleWaitTimeSeconds"] = "0" },
-            ["IdleWaitTimeSeconds"]
-        },
-        {
-            "cancellation poll below 1",
-            new() { ["CancellationPollSeconds"] = "0" },
-            ["CancellationPollSeconds"]
-        },
-        {
-            "check-in interval not positive",
-            new() { ["Clustering:CheckinIntervalSeconds"] = "0" },
-            ["Clustering:CheckinIntervalSeconds"]
-        },
-        {
-            "retention below 1 day",
-            new() { ["JobTypes:X:RetentionDays"] = "0" },
-            ["JobTypes:X:RetentionDays"]
-        },
-        {
-            "backoff cap below base",
-            new() { ["BackoffBaseSeconds"] = "30", ["BackoffCapSeconds"] = "10" },
-            ["BackoffCapSeconds"]
-        },
-        {
-            "job type attempts below 1",
-            new() { ["JobTypes:X:MaxAttempts"] = "0" },
-            ["JobTypes:X:MaxAttempts"]
-        },
-        {
-            // The job type overrides one side of the pair and inherits the other, so each key has to be named
-            // where its value was written.
-            "job type backoff cap below the inherited global base",
-            new() { ["BackoffBaseSeconds"] = "120", ["JobTypes:X:BackoffCapSeconds"] = "60" },
-            ["JobTypes:X:BackoffCapSeconds", "BackoffBaseSeconds"]
-        },
-        {
-            "job type backoff base above the inherited global cap",
-            new() { ["BackoffCapSeconds"] = "60", ["JobTypes:X:BackoffBaseSeconds"] = "120" },
-            ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
-        },
-        {
-            "job type backoff base above the global default cap",
-            new() { ["JobTypes:X:BackoffBaseSeconds"] = "1000" },
-            ["JobTypes:X:BackoffBaseSeconds", "BackoffCapSeconds"]
-        },
-        {
-            "global attempts above its upper bound",
-            new() { ["MaxAttempts"] = "11" },
-            ["MaxAttempts"]
-        },
+        { "job type concurrency below 0", "JobTypes:X:MaxConcurrency=-1", "JobTypes:X:MaxConcurrency" },
+        { "job type concurrency above its upper bound", "JobTypes:X:MaxConcurrency=1001", "JobTypes:X:MaxConcurrency" },
+        { "idle wait below 1", "IdleWaitTimeSeconds=0", "IdleWaitTimeSeconds" },
+        { "cancellation poll below 1", "CancellationPollSeconds=0", "CancellationPollSeconds" },
+        { "check-in interval not positive", "Clustering:CheckinIntervalSeconds=0", "Clustering:CheckinIntervalSeconds" },
+        { "retention below 1 day", "JobTypes:X:RetentionDays=0", "JobTypes:X:RetentionDays" },
+        { "backoff cap below base", "BackoffBaseSeconds=30;BackoffCapSeconds=10", "BackoffCapSeconds" },
+        { "job type attempts below 1", "JobTypes:X:MaxAttempts=0", "JobTypes:X:MaxAttempts" },
+        // The job type overrides one side of the pair and inherits the other, so each key has to be named
+        // where its value was written.
+        { "job type backoff cap below the inherited global base", "BackoffBaseSeconds=120;JobTypes:X:BackoffCapSeconds=60", "JobTypes:X:BackoffCapSeconds|BackoffBaseSeconds" },
+        { "job type backoff base above the inherited global cap", "BackoffCapSeconds=60;JobTypes:X:BackoffBaseSeconds=120", "JobTypes:X:BackoffBaseSeconds|BackoffCapSeconds" },
+        { "job type backoff base above the global default cap", "JobTypes:X:BackoffBaseSeconds=1000", "JobTypes:X:BackoffBaseSeconds|BackoffCapSeconds" },
+        { "global attempts above its upper bound", "MaxAttempts=11", "MaxAttempts" },
     };
 
-    public static TheoryData<string, Dictionary<string, string?>, string[]> InvalidRetentionValues => new()
+    public static TheoryData<string, string, string> InvalidRetentionValues => new()
     {
-        {
-            "retention cron not a cron expression",
-            new() { ["Retention:Cron"] = "every quarter hour" },
-            ["Retention:Cron"]
-        },
-        {
-            "retention batch size below 1",
-            new() { ["Retention:BatchSize"] = "0" },
-            ["Retention:BatchSize"]
-        },
+        { "retention cron not a cron expression", "Retention:Cron=every quarter hour", "Retention:Cron" },
+        { "retention batch size below 1", "Retention:BatchSize=0", "Retention:BatchSize" },
     };
 
     [Fact]
@@ -244,11 +188,11 @@ public class BackgroundJobsOptionsTests
     [MemberData(nameof(InvalidRetentionValues))]
     public void Validate_InvalidValue_FailsNamingKey(
         string caseId,
-        Dictionary<string, string?> section,
-        string[] expectedKeys)
+        string pairs,
+        string expectedKeys)
     {
         // Arrange
-        var options = Bind(section);
+        var options = Bind(Section(pairs));
         var validator = new BackgroundJobsOptionsValidator(DeclaredDefaults.None);
 
         // Act
@@ -256,7 +200,7 @@ public class BackgroundJobsOptionsTests
 
         // Assert — an operator finds the value by its full configuration key.
         result.Failed.Should().BeTrue("the case '{0}' is invalid", caseId);
-        result.FailureMessage.Should().ContainAll(expectedKeys.Select(FullKey));
+        result.FailureMessage.Should().ContainAll(expectedKeys.Split('|').Select(FullKey));
     }
 
     [Fact]
@@ -467,6 +411,18 @@ public class BackgroundJobsOptionsTests
         JobsModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
         configureServices?.Invoke(services);
         return services.BuildServiceProvider();
+    }
+
+    private static Dictionary<string, string?> Section(string pairs)
+    {
+        var section = new Dictionary<string, string?>();
+        foreach (var pair in pairs.Split(';'))
+        {
+            var separator = pair.IndexOf('=');
+            section[pair[..separator]] = pair[(separator + 1)..];
+        }
+
+        return section;
     }
 
     /// <summary>

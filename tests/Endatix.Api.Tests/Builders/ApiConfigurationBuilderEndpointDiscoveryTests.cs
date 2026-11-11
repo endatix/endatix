@@ -1,5 +1,6 @@
 using System.Reflection;
 using Endatix.Api.Builders;
+using Endatix.Api.Endpoints.Submissions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Tests.Builders;
@@ -20,6 +21,22 @@ public sealed class ApiConfigurationBuilderEndpointDiscoveryTests
 
         // Assert
         CountEndpointDataRegistrations(services).Should().Be(1);
+    }
+
+    [Fact]
+    public void RegisterEndpointDiscovery_WithoutUseDefaults_MakesExportAddonsResolvable()
+    {
+        // Arrange
+        // The Export endpoint requires ExportAddons; a host that registers endpoints without
+        // UseDefaults must still be able to construct it.
+        var services = new ServiceCollection();
+
+        // Act
+        new ApiConfigurationBuilder(services).RegisterEndpointDiscovery();
+
+        // Assert
+        using var provider = services.BuildServiceProvider();
+        provider.GetService<ExportAddons>().Should().NotBeNull();
     }
 
     [Fact]
