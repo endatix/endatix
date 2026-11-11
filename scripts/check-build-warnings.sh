@@ -37,7 +37,7 @@ classify_warning() {
         echo "nu190x"
     elif [[ "$code" == "CS0618" && "$message" == "'EndatixConfig' is obsolete:"* ]]; then
         echo "excluded_endatixconfig"
-    elif [[ "$code" =~ ^CS061[28]$ && "$file" =~ (^|/)(EndatixConfig|IEndatixConfig)\.cs$ ]]; then
+    elif [[ "$file" =~ (^|/)(EndatixConfig|IEndatixConfig)\.cs$ ]]; then
         echo "excluded_endatixconfig"
     else
         echo "in_scope"

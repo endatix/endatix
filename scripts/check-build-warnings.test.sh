@@ -17,7 +17,9 @@ printf 'src/A.cs(1,2,1,9): warning CA1062: validate [a.csproj]\n' > "$tmp"; expe
 printf 'CSC : warning CS8032: analyzer failed [a.csproj]\n' > "$tmp"; expect "no-file warning" 1
 printf 'a.csproj : warning NETSDK1138: eol [a.csproj]\n' > "$tmp"; expect "location-less non-NU" 1
 printf 'src/My Dir/A.cs(1,2): warning CS0168: unused [a.csproj]\n' > "$tmp"; expect "path with space" 1
-printf 'src/EndatixConfig.cs(1,2): warning CS8618: nullable [a.csproj]\n' > "$tmp"; expect "other warning in EndatixConfig.cs" 1
+printf 'src/Endatix.Core/Configuration/EndatixConfig.cs(11,49): warning CS1574: cref [a.csproj]\n' > "$tmp"; expect "CS1574 in EndatixConfig.cs" 0
+printf 'src/Endatix.Core/Configuration/EndatixConfig.cs(16,6): warning S1133: deprecated [a.csproj]\n' > "$tmp"; expect "S1133 in EndatixConfig.cs" 0
+printf 'src/Other.cs(1,2): warning S1133: deprecated [a.csproj]\n' > "$tmp"; expect "S1133 elsewhere" 1
 printf 'src/B.cs(1,2): warning CS0168: msg mentions warning CS0618: x [a.csproj]\n' > "$tmp"; expect "message containing warning text" 1
 ./check-build-warnings.sh /nonexistent >/dev/null 2>&1; [[ $? -eq 2 ]] && echo "ok   missing file" || { echo "FAIL missing file"; fail=1; }
 exit $fail
