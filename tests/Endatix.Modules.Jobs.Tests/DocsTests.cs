@@ -143,6 +143,49 @@ public sealed partial class DocsTests
         }
     }
 
+    [Fact]
+    public void Readme_StateTheDefaultTheCodeSetsForEveryBackgroundJobsOption()
+    {
+        // Arrange
+        var documented = ReadmeDefaults();
+
+        // Act
+        var defaults = Options(new BackgroundJobsOptions(), Section)
+            .Where(option => option.Default is not null)
+            .ToList();
+
+        // Assert
+        defaults.Should().NotBeEmpty();
+        foreach (var (key, value) in defaults)
+        {
+            documented.Should().Contain(key, AsDocumented(value!), "the README must state the default the code sets for {0}", key);
+        }
+    }
+
+    [Fact]
+    public void Readme_StateTheBuiltInDefaultsEveryJobTypeDeclaresInCode()
+    {
+        // Arrange
+        var declared = DeclaredJobTypeDefaults();
+
+        // Act
+        var documented = ReadmeJobTypeDefaults();
+
+        // Assert — "any other" is the row for every job type that declares nothing.
+        var maxConcurrency = nameof(BackgroundJobTypeOptions.MaxConcurrency);
+        documented.Should().ContainKey(AnyOtherJobType);
+        documented[AnyOtherJobType].Should().BeEquivalentTo(
+            new Dictionary<string, int> { [maxConcurrency] = BackgroundJobsOptions.DefaultJobTypeMaxConcurrency });
+        documented.Remove(AnyOtherJobType);
+        documented.Keys.Should().BeEquivalentTo(
+            declared.Keys, "the README must list every job type that declares defaults in code, and only those");
+        foreach (var (jobType, defaults) in declared)
+        {
+            documented[jobType].Should().BeEquivalentTo(
+                defaults, "the README must state the defaults {0} declares in code", jobType);
+        }
+    }
+
     [Theory]
     [InlineData("postgresql", "PostgreSQL")]
     [InlineData("sqlserver", "SQL Server")]
@@ -221,6 +264,63 @@ public sealed partial class DocsTests
             setting => setting.Groups["name"].Value,
             setting => int.Parse(setting.Groups["value"].Value, CultureInfo.InvariantCulture));
 
+    private const string AnyOtherJobType = "any other";
+
+    // The README's job type table: the job types in backticks, then MaxAttempts, MaxRuntimeMinutes,
+    // BackoffBaseSeconds / BackoffCapSeconds, RetentionDays and MaxConcurrency; "global" is a value the type does not
+    // declare, and a backoff cell of "global" alone stands for both.
+    private static Dictionary<string, Dictionary<string, int>> ReadmeJobTypeDefaults()
+    {
+        string[] columns =
+        [
+            nameof(BackgroundJobTypeOptions.MaxAttempts),
+            nameof(BackgroundJobTypeOptions.MaxRuntimeMinutes),
+            nameof(BackgroundJobTypeOptions.BackoffBaseSeconds),
+            nameof(BackgroundJobTypeOptions.BackoffCapSeconds),
+            nameof(BackgroundJobTypeOptions.RetentionDays),
+            nameof(BackgroundJobTypeOptions.MaxConcurrency),
+        ];
+
+        return ReadmeTable("| Job type |")
+            .SelectMany(cells =>
+            {
+                var backoff = cells[3] == "global" ? ["global", "global"] : cells[3].Split(" / ");
+                string[] values = [cells[1], cells[2], .. backoff, cells[4], cells[5]];
+                var declared = columns.Zip(values)
+                    .Where(setting => setting.Second != "global")
+                    .ToDictionary(setting => setting.First, setting => int.Parse(setting.Second, CultureInfo.InvariantCulture));
+                var jobTypes = cells[0] == AnyOtherJobType
+                    ? [AnyOtherJobType]
+                    : BacktickedNames().Matches(cells[0]).Select(name => name.Groups["name"].Value);
+                return jobTypes.Select(jobType => (JobType: jobType, Values: declared));
+            })
+            .ToDictionary(entry => entry.JobType, entry => entry.Values);
+    }
+
+    // The README's key table: one row may list several keys and their defaults, separated by " / ", and a key after
+    // the first without a section of its own is in the first key's section.
+    private static Dictionary<string, string> ReadmeDefaults() =>
+        ReadmeTable("| Key |")
+            .SelectMany(cells =>
+            {
+                var keys = BacktickedValues().Matches(cells[0]).Select(key => key.Groups["value"].Value).ToList();
+                var defaults = BacktickedValues().Matches(cells[1]).Select(value => value.Groups["value"].Value).ToList();
+                var section = keys[0].Contains(':') ? keys[0][..(keys[0].LastIndexOf(':') + 1)] : string.Empty;
+                return keys.Count != defaults.Count
+                    ? []
+                    : keys.Select(key => key.Contains(':') ? key : section + key)
+                        .Zip(defaults, (key, value) => (Key: $"{Section}:{key}", Value: value));
+            })
+            .ToDictionary(entry => entry.Key, entry => entry.Value);
+
+    // The body rows of the README table whose header starts with header, each split into its trimmed cells.
+    private static IEnumerable<string[]> ReadmeTable(string header) =>
+        File.ReadLines(Path.Combine(RepositoryRoot(), "src", "Endatix.Modules.Jobs", "README.md"))
+            .SkipWhile(line => !line.StartsWith(header, StringComparison.Ordinal))
+            .Skip(2)
+            .TakeWhile(line => line.StartsWith('|'))
+            .Select(line => line.Trim('|').Split('|').Select(cell => cell.Trim()).ToArray());
+
     private static IConfiguration ProviderConfiguration(string provider) =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -269,6 +369,9 @@ public sealed partial class DocsTests
 
     [GeneratedRegex("`(?<name>\\w+)`")]
     private static partial Regex BacktickedNames();
+
+    [GeneratedRegex("`(?<value>[^`]+)`")]
+    private static partial Regex BacktickedValues();
 
     [GeneratedRegex("`(?<name>\\w+)` (?<value>\\d+)")]
     private static partial Regex DocumentedSetting();
