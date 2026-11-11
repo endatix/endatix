@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
@@ -11,22 +12,15 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Identity.Authorization.Strategies;
 
-internal sealed class KeycloakOperatorPipeline(
-    IKeycloakTokenIntrospectionService tokenIntrospectionService,
-    KeycloakExternalIdentityProfileResolver identityProfileResolver,
-    IExternalAppUserProvisioner externalAppUserProvisioner)
-{
-    public IKeycloakTokenIntrospectionService TokenIntrospectionService { get; } = tokenIntrospectionService;
-    public KeycloakExternalIdentityProfileResolver IdentityProfileResolver { get; } = identityProfileResolver;
-    public IExternalAppUserProvisioner ExternalAppUserProvisioner { get; } = externalAppUserProvisioner;
-}
-
+[method: SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "DI constructor of the Keycloak strategy; grouping the collaborators into a holder adds a type with no behaviour.")]
 internal sealed class KeycloakTokenIntrospectionAuthorization(
     AuthProviderRegistry authProviderRegistry,
     IOptions<KeycloakOptions> keycloakOptions,
     IExternalAuthorizationMapper externalAuthorizationMapper,
     IHttpContextAccessor httpContextAccessor,
-    KeycloakOperatorPipeline pipeline,
+    IKeycloakTokenIntrospectionService tokenIntrospectionService,
+    KeycloakExternalIdentityProfileResolver identityProfileResolver,
+    IExternalAppUserProvisioner externalAppUserProvisioner,
     IPlatformAdminLocalApprovalGate platformAdminLocalApprovalGate,
     ILogger<KeycloakTokenIntrospectionAuthorization> logger
     ) : IAuthorizationStrategy
@@ -70,10 +64,12 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
         {
             return accessTokenResult.ToErrorResult<AuthorizationData>();
         }
+
         var accessToken = accessTokenResult.Value;
+
         try
         {
-            var introspectionResult = await pipeline.TokenIntrospectionService.IntrospectAsync(accessToken, keycloakSettings, cancellationToken);
+            var introspectionResult = await tokenIntrospectionService.IntrospectAsync(accessToken, keycloakSettings, cancellationToken);
             if (!introspectionResult.IsSuccess)
             {
                 return introspectionResult.ToErrorResult<AuthorizationData>();
@@ -101,14 +97,14 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                         keycloakSettings.DefaultTenantId,
                         AuthProviders.Keycloak,
                         subject,
-                        subject,
-                        null,
+                        UserId: subject,
+                        ProvisionedUserId: null,
                         mappingResult.Roles,
                         mappingResult.Permissions),
                     cancellationToken);
             }
 
-            var identityProfileResult = await pipeline.IdentityProfileResolver.ResolveAsync(
+            var identityProfileResult = await identityProfileResolver.ResolveAsync(
                 keycloakSettings.DefaultTenantId,
                 AuthProviders.Keycloak,
                 subject,
@@ -121,7 +117,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 return identityProfileResult.ToErrorResult<AuthorizationData>();
             }
 
-            var provisionResult = await pipeline.ExternalAppUserProvisioner.ProvisionAsync(
+            var provisionResult = await externalAppUserProvisioner.ProvisionAsync(
                 keycloakSettings.DefaultTenantId,
                 AuthProviders.Keycloak,
                 subject,
@@ -138,8 +134,8 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                     keycloakSettings.DefaultTenantId,
                     AuthProviders.Keycloak,
                     subject,
-                    provisionResult.Value.Id.ToString(),
-                    provisionResult.Value.Id,
+                    UserId: provisionResult.Value.Id.ToString(),
+                    ProvisionedUserId: provisionResult.Value.Id,
                     mappingResult.Roles,
                     mappingResult.Permissions),
                 cancellationToken);
@@ -150,15 +146,6 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             return Result.Error("Failed to get authorization data from Keycloak");
         }
     }
-
-    private readonly record struct MappedAuthorization(
-        long TenantId,
-        string AuthProvider,
-        string ExternalSubjectId,
-        string UserId,
-        long? ProvisionedUserId,
-        string[] Roles,
-        string[] Permissions);
 
     private async Task<Result<AuthorizationData>> BuildAuthorizationDataAsync(
         MappedAuthorization mapped,
@@ -179,6 +166,15 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             roles: filteredAuthorization.Roles,
             permissions: filteredAuthorization.Permissions));
     }
+
+    private readonly record struct MappedAuthorization(
+        long TenantId,
+        string AuthProvider,
+        string ExternalSubjectId,
+        string UserId,
+        long? ProvisionedUserId,
+        string[] Roles,
+        string[] Permissions);
 
     private Result<string> ResolveAccessToken()
     {

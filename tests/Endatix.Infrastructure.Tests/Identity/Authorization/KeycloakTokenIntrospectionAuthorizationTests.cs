@@ -436,7 +436,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
             options,
             mapper,
             httpContextAccessor,
-            new KeycloakOperatorPipeline(tokenIntrospectionService, profileResolver, externalOperatorProvisioner),
+            tokenIntrospectionService,
+            profileResolver,
+            externalOperatorProvisioner,
             platformAdminLocalApprovalGate,
             logger);
 
