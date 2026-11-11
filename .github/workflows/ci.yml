@@ -471,12 +471,13 @@ jobs:
             /d:sonar.issue.ignore.multicriteria.sqlliterals.ruleKey="plsql:S1192" \
             /d:sonar.issue.ignore.multicriteria.sqlliterals.resourceKey="**/Scripts/**/*.sql" \
             /d:sonar.plugin.cache.directory="$SONAR_PLUGIN_CACHE"
-      # A full, server-less build, as the scanner docs ask, so every project is compiled under the
-      # analyzers. No sonar.dotnet.excludeTestProjects: it removes every analyzer from the test
+      # A full build, as the scanner docs ask, so every project is compiled under the analyzers. Not
+      # --disable-build-servers, which the docs also suggest: without the compiler server every project
+      # starts a cold csc, and the build took 3:53 instead of 1:52 (#1667). No sonar.dotnet.excludeTestProjects: it removes every analyzer from the test
       # projects, source generators included, and their [GeneratedRegex] methods then fail (CS8795).
       - name: 🏗️ Build under the scanner
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
-        run: dotnet build --no-incremental --disable-build-servers
+        run: dotnet build --no-incremental
       # Named after the cache's file list (paths and sizes): the same downloads give the same key.
       - name: 🔑 Key the scanner cache
         id: scanner-cache-key
