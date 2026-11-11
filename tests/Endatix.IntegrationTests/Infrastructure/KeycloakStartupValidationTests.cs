@@ -31,8 +31,8 @@ namespace Endatix.IntegrationTests;
 
 /// <summary>
 /// A host that adds the Keycloak provider refuses to start until <c>DefaultTenantId</c> names a tenant, a Keycloak
-/// sign-in that still resolves no tenant is rejected with 403, and an existing user at tenant 0 moves to
-/// <c>DefaultTenantId</c> on sign-in.
+/// sign-in that still resolves no tenant is rejected with 403, and a mapped Keycloak sign-in runs at
+/// <c>DefaultTenantId</c> whatever <c>tid</c> its token carries, moving an existing user at tenant 0 there.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -106,6 +106,31 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
     }
 
     [Fact]
+    public async Task Mapped_keycloak_sign_in_runs_at_the_default_tenant_not_the_token_tid()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
+        var tenantId = world.Tenants[0].Id;
+        var subject = Guid.NewGuid().ToString();
+        await using var app = BuildMappedKeycloakHost(tenantId, $"{subject}@example.com");
+        await app.StartAsync(cancellationToken);
+        using var client = app.GetTestClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CreateKeycloakToken(tenantId: (tenantId + 4).ToString(), subject));
+
+        // Act
+        using var response = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), cancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await ResponseTenantIdAsync(response, cancellationToken)).Should().Be(tenantId);
+        (await KeycloakUserTenantsAsync(app, subject, cancellationToken)).Should().Equal(tenantId);
+        await app.StopAsync(cancellationToken);
+    }
+
+    [Fact]
     public async Task Keycloak_sign_in_of_an_existing_user_at_tenant_0_moves_it_to_the_default_tenant()
     {
         // Arrange
@@ -170,6 +195,16 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
         var created = await scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>().CreateAsync(user);
         created.Succeeded.Should().BeTrue(string.Join("; ", created.Errors.Select(error => error.Description)));
         return user.Id;
+    }
+
+    private static async Task<List<long>> KeycloakUserTenantsAsync(WebApplication app, string subject, CancellationToken cancellationToken)
+    {
+        using var scope = app.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>().Users
+            .AsNoTracking()
+            .Where(user => user.AuthProvider == AuthProviders.Keycloak && user.ExternalSubjectId == subject)
+            .Select(user => user.TenantId)
+            .ToListAsync(cancellationToken);
     }
 
     private static async Task<long> ResponseTenantIdAsync(HttpResponseMessage response, CancellationToken cancellationToken)
