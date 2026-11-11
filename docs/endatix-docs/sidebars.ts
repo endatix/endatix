@@ -85,6 +85,7 @@ const sidebars: SidebarsConfig = {
             "building-your-solution/deployment/azure",
             "building-your-solution/deployment/subfolder-deployment",
             "building-your-solution/deployment/reverse-proxy-deployment",
+            "building-your-solution/deployment/upgrade-to-0-9-1",
           ],
         },
       ],

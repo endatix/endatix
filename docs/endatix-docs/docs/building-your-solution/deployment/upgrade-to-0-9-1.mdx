@@ -1,0 +1,88 @@
+---
+sidebar_position: 5
+title: Upgrade to Endatix 0.9.1
+description: Upgrade the Endatix API and Endatix Hub from 0.9.0 to 0.9.1 together, without a rolling update - stop every 0.9.0 API instance, move screen-out handlers to submission.closed, and rebuild participant columns.
+---
+
+# Upgrade to Endatix 0.9.1
+
+When you finish, the Endatix API and Endatix Hub both run 0.9.1, every stored webhook setting uses the `SubmissionClosed` key, and no screen-out webhook was dropped during the switch. This page covers an upgrade from 0.9.0. The full list of changes is in the [API](https://github.com/endatix/endatix/releases/tag/v0.9.1) and [Hub](https://github.com/endatix/endatix-hub/releases/tag/v0.9.1) release notes.
+
+:::warning[No rolling update]
+Stop every 0.9.0 API instance before the first 0.9.1 instance starts. A 0.9.0 instance that keeps running after the migration finds no endpoints under the renamed `SubmissionClosed` setting, and it drops the new `submission.closed` outbox rows without sending a webhook.
+:::
+
+## Before you start
+
+- **Upgrade the API and the Hub together.** Hub 0.9.1 needs API 0.9.1, and API 0.9.1 needs Hub 0.9.1. Hub 0.9.0 saves webhook settings under the old `SubmissionCollectionStatusChanged` key, and API 0.9.1 rejects that save with a 400. Against API 0.9.0, Hub 0.9.1's form-open call gets a 404.
+- **Plan a short outage.** The API is down between stopping the last 0.9.0 instance and starting the first 0.9.1 instance.
+- **Freeze role changes for the deploy.** Don't change roles, role permissions, or user roles until the upgrade finishes. See [Access cache versions](#access-cache-versions).
+- **Back up the database.** The upgrade runs schema and data migrations.
+
+## Update your integrations first
+
+Endatix 0.9.1 replaces the screen-out webhook and outbox event. Move your code before the upgrade, because rows left from 0.9.0 are delivered under the new names (see [Outbox rows and queued webhook jobs](#outbox-rows-and-queued-webhook-jobs)).
+
+1. **Webhook receivers:** handle `submission_closed` and filter on `payload.collectionStatus.code`, for example `screen_out`. `submission_collection_status_changed` is no longer sent. See [React to a screen-out](/docs/guides/webhooks#react-to-a-screen-out).
+2. **Payload parsing:** `collectionStatus` and `previousCollectionStatus` are now objects, `{ "code": "screen_out", "phase": "closed" }`, not strings.
+3. **In-process outbox handlers:** an `IOutboxIntegrationEventHandler` subscribed to `submission.collection_status_changed` receives nothing in 0.9.1. Subscribe to `SubmissionLifecycleEvent.EventTypes.Closed` (`submission.closed`) and read `collectionStatus.code`. See [React to a screen-out](/docs/configuration/background-processing#react-to-a-screen-out) in Background Processing.
+4. **Clients that save submissions:** a public create or token update that sends `collectionOutcome: "quota_full"` or `"cancelled"` now gets a 400. Only the server sets those outcomes. `screen_out` still works.
+
+## Upgrade the API and the Hub
+
+1. Stop every 0.9.0 API instance. On Kubernetes, either scale the API deployment to 0 replicas, or set the deployment's strategy to `Recreate` for this release:
+
+   ```yaml
+   spec:
+     strategy:
+       type: Recreate
+   ```
+
+2. Check that no 0.9.0 API instance is left, including scheduled jobs or a second deployment that shares the database.
+3. Start API 0.9.1. With `Endatix:Data:EnableAutoMigrations` on (the default), it applies the migrations at startup. With it off, apply the 0.9.1 migrations yourself now, before any API instance starts.
+4. Deploy Hub 0.9.1.
+5. Return the API deployment to your usual strategy and replica count.
+6. (Optional) If the Reporting preview is on and a form was prepared for export before the upgrade, open the form's export dialog and run **Rebuild reporting data…** with **Full recompile**. See [Participant columns](#participant-columns).
+
+## What the upgrade changes
+
+### Webhook settings key
+
+The migration renames `SubmissionCollectionStatusChanged` to `SubmissionClosed` in every form's and every tenant's webhook settings, keeping the enabled flag and the endpoints. A document that already has `SubmissionClosed` keeps it and loses the old key.
+
+After the upgrade:
+
+- Hub 0.9.1 shows and saves the event as **Submission Closed**.
+- A form create or update that sends `SubmissionCollectionStatusChanged` gets a 400.
+- For this release, a stored `SubmissionCollectionStatusChanged` still counts as `SubmissionClosed` when the new key is absent, so settings written by an older instance after the migration keep delivering.
+
+### Outbox rows and queued webhook jobs
+
+Nothing is lost across the upgrade. A `submission.collection_status_changed` row still in the outbox is delivered as `submission.closed` to the `submission.closed` handlers and as the `submission_closed` webhook, with `collectionStatus` set to `{ "code": "screen_out", "phase": "closed" }`. A webhook job queued for such a row delivers the same way.
+
+This bridge lasts one release. Let the outbox drain before you upgrade past 0.9.1.
+
+### Access cache versions
+
+The `RandomizeAccessVersions` migration gives each deployment its own random access version, so a role change applies at once on every 0.9.1 instance. It is one-way: rolling back the migration keeps the new values, which 0.9.0 also accepts.
+
+While a 0.9.0 instance still serves requests, it picks up a role change, a revoked permission included, only when the user's access token expires. That is the reason to avoid role changes until the upgrade finishes.
+
+### Participant columns
+
+This applies only when the Reporting preview is on (`Endatix:FeatureFlags:ReportingModule`). Exports name audience values as participant columns: `ParticipantIdentifier` and `participant_<variable>`, and the native codebook block is `participants`. They replace `AudienceIdentifier`, `audience_<variable>` and `personalization`.
+
+A form prepared for export before the upgrade keeps its old columns until you run **Rebuild reporting data…** with **Full recompile**. Full recompile rebuilds the export structure from the form's current questions, so a removed or renamed question loses its column history. See [Rebuild Reporting Data](/docs/end-users/submissions/exporting-submissions#rebuild-reporting-data).
+
+## Limitations
+
+- An upgrade that skips 0.9.0 is not covered here. Read the release notes of every version in between.
+- Hub 0.9.0 does not work with API 0.9.1, so the Hub can't stay on 0.9.0 while you check the API.
+
+## See also
+
+<CardGrid compact>
+  <LinkCard title="Webhooks" to="/docs/guides/webhooks#react-to-a-screen-out" description="The submission_closed payload and a receiver sample." />
+  <LinkCard title="Background Processing" to="/docs/configuration/background-processing#submission-lifecycle-events" description="Lifecycle events and in-process outbox handlers." />
+  <LinkCard title="Self-Hosting using Docker" to="/docs/building-your-solution/deployment/self-hosting" description="Run the API and the Hub on your own infrastructure." />
+</CardGrid>
