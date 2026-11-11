@@ -58,13 +58,26 @@ Both tenant and form webhook configurations use the same JSON format:
           }
         }
       ]
+    },
+    "SubmissionClosed": {
+      "IsEnabled": true,
+      "WebHookEndpoints": [
+        {
+          "Url": "https://your-endpoint.com/webhook",
+          "Authentication": {
+            "Type": "ApiKey",
+            "ApiKeyHeader": "X-API-KEY",
+            "ApiKey": "your-secret-key"
+          }
+        }
+      ]
     }
   }
 }
 ```
 
 :::tip
-This example shows `FormCreated` and `SubmissionCompleted`. `FormUpdated`, `FormEnabledStateChanged`, `FormDeleted`, and `SubmissionClosed` use the same shape.
+This example shows `FormCreated`, `SubmissionCompleted`, and `SubmissionClosed`. `FormUpdated`, `FormEnabledStateChanged`, and `FormDeleted` use the same shape. The same document goes in a form's `webHookSettingsJson` and in the tenant's `WebHookSettingsJson` column.
 :::
 
 :::warning[Renamed setting]
@@ -436,7 +449,7 @@ Endatix delivers at least once. Two cases send a message you have already seen:
 - **A retry** repeats the message with the same `X-Endatix-Hook-Id`.
 - **Concurrent saves.** Two saves that reach the same submission at the same moment can both commit, and each sends its own message with its own `X-Endatix-Hook-Id`. The pair can be two screen-outs, or a screen-out and a `submission_completed`. This stays possible until [#1181](https://github.com/endatix/endatix/issues/1181) ships.
 
-The Hook-Id alone does not catch the second case, so key on `payload.submissionId`, `eventName` and `payload.revision`, as the sample does. A closed submission never reopens, so you can also keep only the first `submission_closed` per submission id.
+The Hook-Id alone does not catch the second case, so key on `payload.submissionId`, `eventName` and `payload.revision`, as the sample does. A completed or closed submission never moves again, so the first `submission_completed` or `submission_closed` for a submission id is its outcome: when your system counts outcomes, keep only that first one per submission id, which also settles a screen-out and a completion that raced.
 
 ### Self-hosted: run the code inside the API
 

@@ -64,7 +64,7 @@ This bridge lasts one release. Let the outbox drain before you upgrade past 0.9.
 
 ### Access cache versions
 
-The `RandomizeAccessVersions` migration gives each deployment its own random access version, so a role change applies at once on every 0.9.1 instance. It is one-way: rolling back the migration keeps the new values, which 0.9.0 also accepts.
+The `RandomizeAccessVersions` migration replaces the shared all-zero access versions with random values and adds a deployment-wide one, so two deployments never share access cache keys and a role change applies at once on every 0.9.1 instance. It is one-way: rolling back the migration keeps the new values, which 0.9.0 also accepts.
 
 While a 0.9.0 instance still serves requests, it picks up a role change, a revoked permission included, only when the user's access token expires. That is the reason to avoid role changes until the upgrade finishes.
 
