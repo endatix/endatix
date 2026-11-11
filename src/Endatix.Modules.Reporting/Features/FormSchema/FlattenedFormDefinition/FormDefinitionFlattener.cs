@@ -14,6 +14,7 @@ internal static class FormDefinitionFlattener
 {
     private const string STRING_COLUMN_TYPE = "string";
     private const string NUMBER_COLUMN_TYPE = "number";
+    private const string NUMBER_INPUT_TYPE = "number";
 
     private sealed record CollectedElement(
         JsonElement Element,
@@ -834,7 +835,7 @@ internal static class FormDefinitionFlattener
 
         if (string.Equals(
                 columnElement.GetStringProperty(SurveyJsPropertyNames.InputType),
-                NUMBER_COLUMN_TYPE,
+                NUMBER_INPUT_TYPE,
                 StringComparison.OrdinalIgnoreCase))
         {
             return NUMBER_COLUMN_TYPE;
@@ -1708,7 +1709,7 @@ internal static class FormDefinitionFlattener
         if (SurveyJsElementType.Text.Matches(type) &&
             string.Equals(
                 element.GetStringProperty(SurveyJsPropertyNames.InputType),
-                NUMBER_COLUMN_TYPE,
+                NUMBER_INPUT_TYPE,
                 StringComparison.OrdinalIgnoreCase))
         {
             return NUMBER_COLUMN_TYPE;
