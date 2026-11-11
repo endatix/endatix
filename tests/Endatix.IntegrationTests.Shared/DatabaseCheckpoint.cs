@@ -79,8 +79,6 @@ public sealed class DatabaseCheckpoint
         }
     }
 
-    // SQL Server's own tables are left out: the Testcontainers connection string points at master, whose dbo
-    // schema ships with tables such as spt_monitor before any migration has run.
     private static async Task<string> ResettableTablesAsync(
         DbConnection connection,
         TestDatabaseProvider provider,
@@ -99,8 +97,7 @@ public sealed class DatabaseCheckpoint
             TestDatabaseProvider.SqlServer => $"""
                 SELECT SCHEMA_NAME(schema_id) + '.' + name
                 FROM sys.tables
-                WHERE is_ms_shipped = 0
-                  AND SCHEMA_NAME(schema_id) IN ({QuotedSchemas(_sqlServerSchemas)})
+                WHERE SCHEMA_NAME(schema_id) IN ({QuotedSchemas(_sqlServerSchemas)})
                   AND name <> '__EFMigrationsHistory'
                 ORDER BY 1
                 """,
@@ -142,8 +139,7 @@ public sealed class DatabaseCheckpoint
     // Tables a reset leaves alone. The job scheduler's own tables: a running host's scheduler keeps its check-in,
     // locks and durable jobs there, so wiping them under it would break the host rather than reset data; triggers
     // left behind by an earlier test point at job rows that no longer exist and fire into nothing. They are read
-    // from the database, because the migration takes them from whichever Quartz version is referenced. On SQL
-    // Server also its own shipped tables (master's dbo.spt_*), which are not test data.
+    // from the database, because the migration takes them from whichever Quartz version is referenced.
     private static async Task<Table[]> KeptTablesAsync(
         DbConnection connection,
         TestDatabaseProvider provider,
@@ -159,8 +155,7 @@ public sealed class DatabaseCheckpoint
             TestDatabaseProvider.SqlServer => """
                 SELECT SCHEMA_NAME(schema_id), name
                 FROM sys.tables
-                WHERE (SCHEMA_NAME(schema_id) = 'jobs' AND name LIKE 'qrtz[_]%')
-                   OR is_ms_shipped = 1
+                WHERE SCHEMA_NAME(schema_id) = 'jobs' AND name LIKE 'qrtz[_]%'
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported test database provider.")
         };
@@ -173,6 +168,7 @@ public sealed class DatabaseCheckpoint
         return [.. tables];
     }
 
+    /// <summary>Resets the module schemas but keeps migration history, the Quartz tables and the access version rows.</summary>
     private static RespawnerOptions BuildOptions(TestDatabaseProvider provider, Table[] keptTables)
     {
         var schemas = provider switch
@@ -190,7 +186,8 @@ public sealed class DatabaseCheckpoint
         return new RespawnerOptions
         {
             SchemasToInclude = schemas,
-            TablesToIgnore = [.. migrationsHistoryTables, .. keptTables]
+            // Access version rows outlive a reset: the migration writes the deployment row, which every access cache read requires.
+            TablesToIgnore = [.. migrationsHistoryTables, .. keptTables, new Table("identity", "AccessVersions")]
         };
     }
 }

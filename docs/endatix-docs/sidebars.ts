@@ -41,6 +41,13 @@ const sidebars: SidebarsConfig = {
         "guides/api-permissions-reference",
         "guides/form-prefilling",
         "guides/json-to-jsonb-migration",
+        {
+          type: "category",
+          label: "Upgrading",
+          collapsed: true,
+          link: { type: "doc", id: "guides/upgrading/index" },
+          items: ["guides/upgrading/v0-9-1"],
+        },
       ],
     },
     {

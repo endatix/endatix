@@ -5,8 +5,8 @@ using Endatix.Framework.Hosting;
 using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
 using Endatix.Infrastructure.Identity;
-using Endatix.Modules.Jobs;
 using Endatix.Modules.Audience;
+using Endatix.Modules.Jobs;
 using Endatix.Modules.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -367,6 +367,20 @@ public class EndatixBuilder : IBuilderRoot
         Persistence.ScanAssembliesForEntities(assemblies);
         return this;
     }
+
+#pragma warning disable CA2254 // Setup-log relay: callers supply the message template, so it is not a fixed literal here.
+    /// <summary>Logs a setup information message during host composition.</summary>
+    internal void LogSetupInfo(string message, params object?[] args) =>
+        _logger.LogInformation(message, args);
+
+    /// <summary>Logs a setup warning during host composition.</summary>
+    internal void LogSetupWarning(string message, params object?[] args) =>
+        _logger.LogWarning(message, args);
+
+    /// <summary>Logs a setup error during host composition.</summary>
+    internal void LogSetupError(string message, params object?[] args) =>
+        _logger.LogError(message, args);
+#pragma warning restore CA2254
 
     /// <summary>
     /// Finalizes all configurations and applies pending builder configurations.

@@ -12,7 +12,7 @@ namespace Endatix.IntegrationTests;
 /// its first attempt; on the job queue, the subscriber's job fails on its first attempt. Any other exception is still
 /// retried. Each test runs a web host on a database of its own.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

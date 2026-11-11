@@ -20,7 +20,7 @@ namespace Endatix.IntegrationTests;
 /// locks every table one at a time in an order of its own, so the two can deadlock. Each test forces that interleaving,
 /// pausing the handler where it would hold its first table, and resets.
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(JobsHostTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

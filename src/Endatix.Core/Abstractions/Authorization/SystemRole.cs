@@ -108,9 +108,11 @@ public sealed record SystemRole
         PlatformAdmin
         ];
 
+#pragma warning disable S3887, S2386 // Public string[] kept for NuGet ABI; ImmutableArray/IReadOnlyList would change the published member type.
     public static readonly string[] AllSystemRoleNames = AllSystemRoles
         .Select(role => role.Name)
         .ToArray();
+#pragma warning restore S3887, S2386
 
     /// <summary>
     /// Checks if the given role name is the platform administrator role.

@@ -15,6 +15,12 @@ namespace Endatix.Api.Infrastructure;
 /// </summary>
 public static class EndatixProblemDetails
 {
+    // Process-wide: with several hosts in one process (integration tests), the last host to build its pipeline sets
+    // both. The accessor is harmless: ASP.NET Core's HttpContextAccessor keeps the request in a static AsyncLocal, so
+    // any host's accessor returns the request of the current flow. The logger factory is not: it may belong to a host
+    // that is disposed already, and CreateLogger on a disposed factory throws ObjectDisposedException. It is safe only
+    // because it is a fallback that every caller today skips: they all run inside a request, whose own
+    // RequestServices log first. A caller outside a request would have to stop relying on it.
     private static IHttpContextAccessor? _httpContextAccessor;
     private static ILoggerFactory? _loggerFactory;
 

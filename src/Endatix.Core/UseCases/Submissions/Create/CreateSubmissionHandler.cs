@@ -76,7 +76,7 @@ public class CreateSubmissionHandler(
 
         if (!CollectionOutcomes.IsSupported(request.CollectionOutcome))
         {
-            return Result.Invalid(new ValidationError(CollectionOutcomes.UNSUPPORTED_MESSAGE));
+            return Result.Invalid(new ValidationError(CollectionOutcomes.UnsupportedMessage(request.CollectionOutcome)));
         }
 
         var validationContext = new SubmissionVerificationContext(

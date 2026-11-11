@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
+using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Options;
@@ -16,6 +17,9 @@ public sealed class AuthorizationCacheTests
     private readonly HybridCache _hybridCache;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HttpContextAccessor _httpContextAccessor;
+    private static readonly Guid _deployment = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
+    private static readonly Guid _tenantVersion = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private readonly StubAccessVersionStore _versionStore;
     private readonly AuthorizationCache _cache;
     private readonly DateTimeOffset _now;
 
@@ -33,7 +37,8 @@ public sealed class AuthorizationCacheTests
         {
             SigningKey = "test-signing-key-32-characters",
         });
-        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions);
+        _versionStore = new StubAccessVersionStore(Guid.Parse("11111111-1111-1111-1111-111111111111"));
+        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions, _versionStore);
     }
 
     [Fact]
@@ -51,7 +56,7 @@ public sealed class AuthorizationCacheTests
     }
 
     [Fact]
-    public async Task GetOrCreateAsync_WithValidPrincipal_SetsCacheMetadata()
+    public async Task GetOrCreateAsync_WithValidPrincipal_SetsCacheMetadataForSixtySeconds()
     {
         var principal = CreatePrincipal("123");
         HybridCacheEntryOptions? capturedOptions = null;
@@ -77,11 +82,11 @@ public sealed class AuthorizationCacheTests
             CancellationToken.None);
 
         result.CachedAt.Should().Be(_now.UtcDateTime);
-        result.ExpiresAt.Should().Be(_now.UtcDateTime.AddMinutes(15));
+        result.ExpiresAt.Should().Be(_now.UtcDateTime.AddSeconds(60));
         result.ETag.Should().NotBeNullOrEmpty();
         capturedOptions.Should().NotBeNull();
-        capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(15));
-        capturedOptions.LocalCacheExpiration.Should().Be(TimeSpan.FromMinutes(15));
+        capturedOptions!.Expiration.Should().Be(TimeSpan.FromSeconds(60));
+        capturedOptions.LocalCacheExpiration.Should().Be(TimeSpan.FromSeconds(60));
     }
 
     [Fact]
@@ -137,7 +142,7 @@ public sealed class AuthorizationCacheTests
             CancellationToken.None);
 
         capturedKey.Should().NotBeNull();
-        capturedKey.Should().StartWith("jwt_auth:");
+        capturedKey.Should().StartWith($"{_deployment:N}:jwt_auth:");
         capturedKey.Should().NotContain(jti);
     }
 
@@ -166,7 +171,7 @@ public sealed class AuthorizationCacheTests
             CancellationToken.None);
 
         capturedKey.Should().NotBeNull();
-        capturedKey.Should().StartWith("jwt_auth:");
+        capturedKey.Should().StartWith($"{_deployment:N}:jwt_auth:");
         capturedKey.Should().NotContain("jti_123");
     }
 
@@ -206,14 +211,14 @@ public sealed class AuthorizationCacheTests
             CancellationToken.None);
 
         capturedKeys.Should().HaveCount(2);
-        capturedKeys[0].Should().StartWith("jwt_auth:");
+        capturedKeys[0].Should().StartWith($"{_deployment:N}:jwt_auth:");
         capturedKeys[0].Should().NotBe(capturedKeys[1]);
         capturedKeys[0].Should().NotContain(jti);
         capturedKeys[0].Should().NotContain(accessToken);
     }
 
     [Fact]
-    public async Task GetOrCreateAsync_ByUserId_UsesDefaultExpirationWhenPrincipalMissing()
+    public async Task GetOrCreateAsync_ByUserIdWithoutPrincipal_EntryLivesSixtySeconds()
     {
         HybridCacheEntryOptions? capturedOptions = null;
 
@@ -238,18 +243,157 @@ public sealed class AuthorizationCacheTests
             CancellationToken.None);
 
         result.CachedAt.Should().Be(_now.UtcDateTime);
-        result.ExpiresAt.Should().Be(_now.UtcDateTime.AddMinutes(15));
+        result.ExpiresAt.Should().Be(_now.UtcDateTime.AddSeconds(60));
         capturedOptions.Should().NotBeNull();
-        capturedOptions!.Expiration.Should().Be(TimeSpan.FromMinutes(15));
-        capturedOptions.LocalCacheExpiration.Should().Be(TimeSpan.FromMinutes(15));
+        capturedOptions!.Expiration.Should().Be(TimeSpan.FromSeconds(60));
+        capturedOptions.LocalCacheExpiration.Should().Be(TimeSpan.FromSeconds(60));
     }
 
     [Fact]
-    public async Task InvalidateAsync_RemovesUserCacheEntry()
+    public async Task GetOrCreateAsync_AccessVersionChanges_UsesNewKeyForSameToken()
     {
-        await _cache.InvalidateAsync("123", 42, CancellationToken.None);
+        // Arrange
+        var principal = CreatePrincipal("123", "jti-1");
+        var capturedKeys = new List<string>();
+        _hybridCache.GetOrCreateAsync(
+                Arg.Do<string>(key => capturedKeys.Add(key)),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+        _versionStore.Then(Guid.Parse("22222222-2222-2222-2222-222222222222"));
 
-        await _hybridCache.Received(1).RemoveAsync("usr_auth:123:42", Arg.Any<CancellationToken>());
+        // Act
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        capturedKeys.Should().HaveCount(2);
+        capturedKeys[0].Should().StartWith($"{_deployment:N}:jwt_auth:11111111111111111111111111111111{_tenantVersion:N}:");
+        capturedKeys[1].Should().StartWith($"{_deployment:N}:jwt_auth:22222222222222222222222222222222{_tenantVersion:N}:");
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_ByUserId_KeyCarriesAccessVersion()
+    {
+        // Arrange
+        string? capturedKey = null;
+        _hybridCache.GetOrCreateAsync(
+                Arg.Do<string>(key => capturedKey = key),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+
+        // Act
+        await _cache.GetOrCreateAsync("123", 42, null, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        capturedKey.Should().Be($"{_deployment:N}:usr_auth:11111111111111111111111111111111{_tenantVersion:N}:123:42");
+        _versionStore.ReadTenants.Should().Equal(42);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_TenantPrincipal_ReadsVersionsForItsTenant()
+    {
+        // Arrange
+        var principal = CreatePrincipal("123", "jti-1", TenantClaim(7));
+        CaptureKeysAndRunFactory();
+
+        // Act
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        _versionStore.ReadTenants.Should().Equal(7);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_NoTokenAndNoJti_FallbackKeyCarriesTenant()
+    {
+        // Arrange — the same user in two tenants, with no access token and no jti claim.
+        var keys = CaptureKeysAndRunFactory();
+
+        // Act
+        await _cache.GetOrCreateAsync(CreatePrincipal("123", null, TenantClaim(1)), _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+        await _cache.GetOrCreateAsync(CreatePrincipal("123", null, TenantClaim(2)), _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        keys.Should().HaveCount(2);
+        keys[0].Should().NotBe(keys[1]);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_TokenExpiresWithinAMinute_EntryLivesUntilTheTokenBuffer()
+    {
+        // Arrange — the token expires in 40 s; entries stop 10 s before the token.
+        var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddSeconds(40)));
+        var options = CaptureOptionsAndRunFactory();
+
+        // Act
+        var result = await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        options[0].Expiration.Should().Be(TimeSpan.FromSeconds(30));
+        result.ExpiresAt.Should().Be(_now.UtcDateTime.AddSeconds(30));
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_TokenWithinItsExpiryBuffer_EntryLivesOneSecond()
+    {
+        // Arrange — the token expires in 5 s, inside the 10 s buffer, so no entry may outlive it.
+        var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddSeconds(5)));
+        var options = CaptureOptionsAndRunFactory();
+
+        // Act
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        options[0].Expiration.Should().Be(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_TokenLivesLongerThanAMinute_EntryLivesSixtySeconds()
+    {
+        // Arrange
+        var principal = CreatePrincipal("123", "jti-1", ExpiryClaim(_now.AddMinutes(15)));
+        var options = CaptureOptionsAndRunFactory();
+
+        // Act
+        await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
+
+        // Assert
+        options[0].Expiration.Should().Be(TimeSpan.FromSeconds(60));
+        options[0].LocalCacheExpiration.Should().Be(TimeSpan.FromSeconds(60));
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_PermissionExpiresBeforeTheEntry_ExpiresWithThePermission()
+    {
+        // Arrange — the data holds a role permission that expires in 20 s.
+        var principal = CreatePrincipal("123", "jti-1");
+        CaptureKeysAndRunFactory();
+        var data = CreateAuthorizationData("123", expiresAt: _now.UtcDateTime.AddSeconds(20));
+
+        // Act
+        var result = await _cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(data)), CancellationToken.None);
+
+        // Assert
+        result.ExpiresAt.Should().Be(_now.UtcDateTime.AddSeconds(20));
+    }
+
+    [Fact]
+    public async Task InvalidateAsync_UserInTenant_RemovesUserAndUserTenantTags()
+    {
+        // Arrange
+        const string userId = "123";
+        const long tenantId = 42;
+
+        // Act
+        await _cache.InvalidateAsync(userId, tenantId, CancellationToken.None);
+
+        // Assert
         await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123", Arg.Any<CancellationToken>());
         await _hybridCache.Received(1).RemoveByTagAsync("auth_data:user:123:tenant:42", Arg.Any<CancellationToken>());
     }
@@ -265,7 +409,33 @@ public sealed class AuthorizationCacheTests
     }
 
     #region Helper Methods
-    private static ClaimsPrincipal CreatePrincipal(string userId, string? jti = null)
+    private List<HybridCacheEntryOptions> CaptureOptionsAndRunFactory()
+    {
+        List<HybridCacheEntryOptions> options = [];
+        _hybridCache.GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Do<HybridCacheEntryOptions?>(option => options.Add(option!)),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+        return options;
+    }
+
+    private List<string> CaptureKeysAndRunFactory()
+    {
+        List<string> keys = [];
+        _hybridCache.GetOrCreateAsync(
+                Arg.Do<string>(keys.Add),
+                Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<string[]>(),
+                Arg.Any<CancellationToken>())
+            .Returns(callInfo => callInfo.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>()(CancellationToken.None));
+        return keys;
+    }
+
+    private static ClaimsPrincipal CreatePrincipal(string userId, string? jti = null, params Claim[] extraClaims)
     {
         var claims = new List<Claim>
         {
@@ -277,18 +447,54 @@ public sealed class AuthorizationCacheTests
             claims.Add(new Claim(JwtRegisteredClaimNames.Jti, jti));
         }
 
+        claims.AddRange(extraClaims);
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
     }
 
-    private static AuthorizationData CreateAuthorizationData(string userId) =>
+    private static Claim TenantClaim(long tenantId) =>
+        new(ClaimNames.TenantId, tenantId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+    private static Claim ExpiryClaim(DateTimeOffset expiresAt) =>
+        new(JwtRegisteredClaimNames.Exp, expiresAt.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+    private static AuthorizationData CreateAuthorizationData(string userId, DateTime expiresAt = default) =>
         AuthorizationData.ForAuthenticatedUser(
             userId: userId,
             tenantId: 42,
             roles: [],
             permissions: [],
-            cachedAt: DateTime.UtcNow,
-            expiresAt: DateTime.UtcNow,
-            eTag: string.Empty);
+            expiresAt: expiresAt);
 
     #endregion
+
+    /// <summary>Returns its system versions in order and then repeats the last one; records the tenants read.</summary>
+    private sealed class StubAccessVersionStore(Guid firstSystemVersion) : IAccessVersionStore
+    {
+        private readonly Queue<Guid> _next = new();
+        private Guid _current = firstSystemVersion;
+        private bool _started;
+
+        public List<long> ReadTenants { get; } = [];
+
+        /// <summary>Queues the system version the next read returns, to simulate an access version change.</summary>
+        public void Then(Guid value) => _next.Enqueue(value);
+
+        /// <summary>Returns the first value, then each queued value once, then repeats the last.</summary>
+        public Task<AccessVersionKey> ReadAsync(long tenantId, CancellationToken cancellationToken)
+        {
+            if (_started && _next.Count > 0)
+            {
+                _current = _next.Dequeue();
+            }
+
+            _started = true;
+            ReadTenants.Add(tenantId);
+            return Task.FromResult(new AccessVersionKey(_deployment, _current, _tenantVersion));
+        }
+
+        public void Change(IReadOnlyCollection<long> tenantIds) => throw new NotSupportedException();
+
+        public Task ChangeAsync(IReadOnlyCollection<long> tenantIds, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
 }

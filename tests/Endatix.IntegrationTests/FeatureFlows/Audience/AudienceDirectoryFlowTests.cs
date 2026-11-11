@@ -11,7 +11,7 @@ namespace Endatix.IntegrationTests;
 /// indexes and the tenant match-key lock settle, the match-key rules, value checks by data type,
 /// and the CSV import (<c>AudienceDirectoryFlowTests.Import.cs</c>).
 /// </summary>
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(AudienceDirectoryTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
 public sealed partial class AudienceDirectoryFlowTests(EndatixIntegrationWebHostFixture fixture) : IAsyncDisposable

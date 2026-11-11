@@ -8,7 +8,7 @@ using Quartz;
 namespace Endatix.IntegrationTests;
 
 /// <summary>The jobs test clock reaches what it stands in for on a real node: the scheduler and the host's now.</summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

@@ -62,7 +62,6 @@ public sealed class AuthProviderRegistry
         var configPath = provider.ConfigurationSectionPath;
 
         // Register the provider configuration in DI
-        var providerConfigSection = configuration.GetSection(configPath);
         services.AddOptions<TConfig>()
                 .BindConfiguration(configPath)
                 .ValidateDataAnnotations()

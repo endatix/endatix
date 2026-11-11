@@ -49,7 +49,7 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(schema, PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
+        result.Columns.Select(column => column.Key).Should().Equal("city", "ParticipantIdentifier", "participant_city");
         await _schemas.DidNotReceiveWithAnyArgs().LockAndGetByFormIdAsync(default, default, Arg.Any<CancellationToken>());
     }
 
@@ -65,8 +65,8 @@ public sealed class FormSchemaPersonalizationTests
         var result = await Personalization().IncludeAsync(Compiled(), PersonalizationReader.Read(Snapshot), TestContext.Current.CancellationToken);
 
         // Assert
-        result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
-        locked.Codebook.Should().Contain("\"audience_city\"");
+        result.Columns.Select(column => column.Key).Should().Equal("city", "ParticipantIdentifier", "participant_city");
+        locked.Codebook.Should().Contain("\"participant_city\"");
         locked.FormDefinitionRevision.Should().Be(FormDefinitionId);
         await _schemas.Received(1).SaveAsync(locked, Arg.Any<CancellationToken>());
         await _unitOfWork.Received(1).CommitTransactionAsync(Arg.Any<CancellationToken>());
@@ -117,7 +117,7 @@ public sealed class FormSchemaPersonalizationTests
         // Assert
         await _forms.Received(2).SingleOrDefaultAsync(Arg.Any<DefinitionByFormAndDefinitionIdSpec>(), Arg.Any<CancellationToken>());
         locked.FormDefinitionRevision.Should().Be(newerDefinitionId);
-        result.Columns.Should().Contain(column => column.Key == "audience_city");
+        result.Columns.Should().Contain(column => column.Key == "participant_city");
     }
 
     [Fact]
@@ -153,8 +153,8 @@ public sealed class FormSchemaPersonalizationTests
     [Fact]
     public async Task IncludeAsync_ColumnsAddedWhileWaitingReachTheColumnLimit_ReturnsTheLockedSchemaAndSavesNothing()
     {
-        // Arrange: the schema this flatten read has room for its three columns; another flatten added audience_city
-        // before the lock, and audience_age no longer fits.
+        // Arrange: the schema this flatten read has room for its three columns; another flatten added participant_city
+        // before the lock, and participant_age no longer fits.
         GivenLocked(Compiled(withSnapshot: true));
         GivenDefinition();
         FormSchemaCompiler compiler = new(new SchemaCompilationLimits { MaxColumns = 3 });
@@ -166,7 +166,7 @@ public sealed class FormSchemaPersonalizationTests
             TestContext.Current.CancellationToken);
 
         // Assert
-        result.Columns.Select(column => column.Key).Should().Equal("city", "AudienceIdentifier", "audience_city");
+        result.Columns.Select(column => column.Key).Should().Equal("city", "ParticipantIdentifier", "participant_city");
         await _schemas.Received(1).LockAndGetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>());
         await _schemas.DidNotReceiveWithAnyArgs().SaveAsync(default!, Arg.Any<CancellationToken>());
     }

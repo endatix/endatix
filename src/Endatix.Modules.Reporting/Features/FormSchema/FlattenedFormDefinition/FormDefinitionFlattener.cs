@@ -245,9 +245,9 @@ internal static class FormDefinitionFlattener
         Dictionary<string, CollectedElement> elementsByName = new(StringComparer.Ordinal);
         foreach (var collected in allElements)
         {
-            if (!string.IsNullOrWhiteSpace(collected.Name))
+            if (collected.Name is { } name && !string.IsNullOrWhiteSpace(name))
             {
-                elementsByName.TryAdd(collected.Name, collected);
+                elementsByName.TryAdd(name, collected);
             }
         }
 
@@ -301,7 +301,7 @@ internal static class FormDefinitionFlattener
             return false;
         }
 
-        if (!elementsByName.TryGetValue(valueName!, out var resolvedDriver))
+        if (!elementsByName.TryGetValue(valueName, out var resolvedDriver))
         {
             return false;
         }

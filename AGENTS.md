@@ -189,6 +189,13 @@ dotnet test tests/Endatix.Core.Tests/Endatix.Core.Tests.csproj --filter "FullyQu
 
 HTTPS playground + HTTP Hub = mixed content: **builder UI** (200, no script), including `view=bare` — recovery card, not a blank/plain 400. Recovery href = Kestrel's first `http://` bind (`IServerAddressesFeature`, `*`/`+` parsed by trailing port); no bind → no button, never a guessed `:5000`. Default launch profile is `:5000`. MapWhen is registered **before** HTTPS redirection so HTTP is not 307'd to `:5001`. Apply has no `action` (keeps PathBase). Bare links prefix `Request.PathBase`. Headers: `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`. Anonymous when enabled (third-party host; Hub cookies do not apply). Force-open Configure is not persisted. **Open in new tab** = same query + `view=bare`. Loopback only when `AllowLoopback` (Development default; do not set true in Production). User doc: `docs/endatix-docs/docs/guides/embed-form-via-iframe.mdx`.
 
+## CI artifacts
+
+Every `upload-artifact` in `.github/workflows/` declares, in a comment next to its `retention-days`, whether it is internal or emitted:
+
+- **Internal**: only jobs of the same run read it, for example the `coverage-*` reports and the `sonar-scanner-state` SonarCloud reads. Keep it 1–2 days, long enough to re-run a failed consumer, and delete it once the consumer succeeds, as `coverage-cleanup` does. Never delete it on a failed consumer. Do not name a new artifact `coverage-*`, because sonar downloads every artifact that matches that pattern.
+- **Emitted**: something outside the run reads it: releases, performance or load-test reports, and the `test-totals-*` files the CI-speed trend (#1550) reads across runs (90 days). Give it a retention that fits that reader, and keep it small: upload a summary rather than raw output where a summary is enough.
+
 ## Related
 
 - Integration contributor notes: `tests/Endatix.IntegrationTests/AGENTS.md` (linked from `tests/README.md`)
@@ -212,6 +219,7 @@ Single-context. `GLOSSARY.md` at the root is created lazily by `domain-modeling`
 - Build: `dotnet build Endatix.slnx`
 - Test: `dotnet test Endatix.slnx --filter "FullyQualifiedName!~Endatix.IntegrationTests" --ignore-exit-code 8` (Microsoft.Testing.Platform via `global.json`; exit code 8 is the integration project matching zero tests); integration: `dotnet test tests/Endatix.IntegrationTests/Endatix.IntegrationTests.csproj --filter "Category!=Keycloak&Category!=Performance&DbSpecific!=SqlServer"` (needs Docker, see `tests/README.md`)
 - Lint: `dotnet format Endatix.slnx --verify-no-changes --include <changed files>`. CI has no lint step and the whole solution does not pass yet, so check only the files you touched
+- Check (build-warnings): a C# change adds no in-scope build warning, as CI's gate counts them. `dotnet build Endatix.slnx --no-incremental 2>&1 | tee build.log; ./scripts/check-build-warnings.sh build.log` (exit 0; 1 lists the in-scope warnings; EndatixConfig and NU1901-NU1904 are allowed). `--no-incremental` matters: an incremental build skips projects and hides their warnings. `./scripts/check-build-warnings.test.sh` tests the script itself
 - Run: `dotnet run --project src/Endatix.WebHost` (API on https://localhost:5001)
 - PR title scope: `e[0-9]+|deps|deps-dev` (the full title and branch rules are in [CONTRIBUTING.md](CONTRIBUTING.md))
 - Branch name: `<type>/e<issue>-<slug>`

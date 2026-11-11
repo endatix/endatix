@@ -22,6 +22,7 @@ public interface IOutboxWork<TSelf> : IOutboxIntegrationEventHandler
     /// The job type literal persisted on queued jobs. Declare it once and never rename it: a rename leaves jobs
     /// already queued with no handler.
     /// </summary>
+#pragma warning disable S2743 // Static abstract interface members are per closed constructed type by design (C# generic statics).
     static abstract string JobType { get; }
 
     /// <summary>
@@ -29,6 +30,7 @@ public interface IOutboxWork<TSelf> : IOutboxIntegrationEventHandler
     /// can be registered from it.
     /// </summary>
     static abstract IReadOnlyCollection<string> HandledEventTypes { get; }
+#pragma warning restore S2743
 
     /// <summary>
     /// Reads the work from <paramref name="message"/>, or <see cref="OutboxWork.None"/> when the message needs

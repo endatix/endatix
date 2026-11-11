@@ -31,6 +31,12 @@ internal class FormSchemaCompiler(
     public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null) =>
         Merge(FormDefinitionFlattener.Flatten(definition, _limits), existing);
 
+    public MergedFormSchema Compile(string definitionJson, MergedFormSchema? existing = null)
+    {
+        using var definition = JsonDocument.Parse(definitionJson);
+        return Compile(definition.RootElement, existing);
+    }
+
     /// <summary>One column per configured submitter profile field, in the configured order.</summary>
     public IReadOnlyList<FormSchemaColumn> SubmitterProfileColumns => _submitterProfileFields.Columns;
 
@@ -38,12 +44,6 @@ internal class FormSchemaCompiler(
         existing is null
             ? new MergedFormSchema(currentColumns)
             : existing.MergeAppendOnly(currentColumns, _limits);
-
-    public MergedFormSchema Compile(string definitionJson, MergedFormSchema? existing = null)
-    {
-        using var definition = JsonDocument.Parse(definitionJson);
-        return Compile(definition.RootElement, existing);
-    }
 
     public virtual FormSchemaCompileResult CompilePersisted(
         string definitionJson,

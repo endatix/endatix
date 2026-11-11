@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 /// Endatix delegates' <c>SelectTriggers</c>, so recovered triggers would not count against their job type's cap.
 /// Quartz runs such rounds only through the delegates it ships; the store's own startup line is the verdict.
 /// </remarks>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

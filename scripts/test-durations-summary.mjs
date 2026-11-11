@@ -2,16 +2,20 @@
 // CI step for the test jobs (ci.yml): writes each run's slowest tests to the job summary, so a
 // slow test shows up on the run page instead of only in the raw log.
 //
-// Usage: node scripts/test-durations-summary.mjs <results dir> <title> [top=20]
+// Usage: node scripts/test-durations-summary.mjs <results dir> <title> [top=20] [--totals <file>]
 //        (reads every *.ctrf under the dir, written by `--report-xunit-ctrf`)
+//        --totals also writes the per-class totals as JSON, for the long-lived test-totals-* artifact
 // Env:   GITHUB_STEP_SUMMARY   set by GitHub Actions; without it the Markdown goes to stdout
-import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { renderMarkdown, summarizeReports } from './lib/test-durations.mjs';
+import { renderMarkdown, summarizeReports, totalsOf } from './lib/test-durations.mjs';
 
-const [dir, title, top = '20'] = process.argv.slice(2);
-if (!dir || !title) {
-  console.error('Usage: node scripts/test-durations-summary.mjs <results dir> <title> [top=20]');
+const args = process.argv.slice(2);
+const totalsAt = args.indexOf('--totals');
+const totalsFile = totalsAt === -1 ? undefined : args.splice(totalsAt, 2)[1];
+const [dir, title, top = '20'] = args;
+if (!dir || !title || (totalsAt !== -1 && !totalsFile)) {
+  console.error('Usage: node scripts/test-durations-summary.mjs <results dir> <title> [top=20] [--totals <file>]');
   process.exit(2);
 }
 
@@ -27,7 +31,9 @@ if (files.length === 0) {
 }
 
 const reports = files.map((file) => JSON.parse(readFileSync(join(dir, file), 'utf8')));
-const markdown = renderMarkdown(summarizeReports(reports), { title, top: Number(top) });
+const summary = summarizeReports(reports);
+const markdown = renderMarkdown(summary, { title, top: Number(top) });
+if (totalsFile) writeFileSync(totalsFile, JSON.stringify(totalsOf(summary)));
 
 if (process.env.GITHUB_STEP_SUMMARY) {
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);

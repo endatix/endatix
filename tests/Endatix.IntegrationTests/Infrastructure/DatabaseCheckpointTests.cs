@@ -33,7 +33,7 @@ public sealed class DatabaseCheckpointTests(DbIntegrationFixture fixture)
         // Arrange
         Assert.SkipWhen(fixture.Provider != TestDatabaseProvider.SqlServer, SkipReason);
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.SqlServer, fixture.ServerConnectionString, ct);
         await store.ScheduleAsync(AcquisitionTestTrigger.Of("A", "a1", 0), ct);
         await store.Database.ExecuteAsync(InsertThreeJobs, ct);
         var keptBefore = await RowsPerKeptTableAsync(store.Database, ct);

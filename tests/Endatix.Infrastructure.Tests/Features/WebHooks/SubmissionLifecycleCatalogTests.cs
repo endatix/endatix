@@ -201,7 +201,7 @@ public sealed class SubmissionLifecycleCatalogTests
     private static string RenderWebHooks()
     {
         StringBuilder table = new();
-        table.AppendLine("| Webhook `EventName` | Settings key | Outbox event it delivers |");
+        table.AppendLine("| Webhook `eventName` | Settings key | Outbox event it delivers |");
         table.AppendLine("|---------------------|--------------|--------------------------|");
         foreach (var operation in CurrentOperations().Where(operation => operation.Entity == nameof(Submission)))
         {

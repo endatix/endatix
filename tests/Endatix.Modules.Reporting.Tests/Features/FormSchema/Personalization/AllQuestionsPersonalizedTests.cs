@@ -118,7 +118,7 @@ public sealed class AllQuestionsPersonalizedTests
         var order = table.GetProperty("order");
         ShojiOrder.FolderNames(order).Should().Equal("Meta-data", "Participant variables", "Calculated values", "Questions");
         ShojiOrder.FolderNames(ShojiOrder.Folder(order, "Questions")).Should().Equal("Internal Panel Group", "Loop Question (Based on Brands)");
-        ShojiOrder.Aliases(ShojiOrder.Folder(order, "Participant variables")).Should().StartWith("AudienceIdentifier");
+        ShojiOrder.Aliases(ShojiOrder.Folder(order, "Participant variables")).Should().StartWith("ParticipantIdentifier");
         table.GetProperty("hidden").EnumerateArray().Select(alias => alias.GetString()).Should().Equal("FormId");
     }
 

@@ -13,6 +13,10 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public static class CollectionStatusCatalog
 {
+    // Hosts sharing a process (integration tests) share these safely: Configure and the freeze take one lock, a host
+    // with the same codes changes nothing, and one with other codes fails while its services are registered; no
+    // integration-test host registers codes. The warning for an unregistered stored code goes to the logger of the host
+    // that started last, which may be stopped already, and each host that starts later writes the codes seen again.
     private static readonly FrozenDictionary<string, CollectionPhase> _builtIn =
         new Dictionary<string, CollectionPhase>(StringComparer.Ordinal)
         {
@@ -26,6 +30,11 @@ public static class CollectionStatusCatalog
             [CollectionStatusCodes.Expired] = CollectionPhase.Lapsed,
             [CollectionStatusCodes.Abandoned] = CollectionPhase.Lapsed,
         }.ToFrozenDictionary(StringComparer.Ordinal);
+
+    // Built-in closed codes only the server sets: a quota product closes an interview as quota_full, staff or the system
+    // void one as cancelled. A host code is never server-only.
+    private static readonly FrozenSet<string> _serverOnly =
+        new[] { CollectionStatusCodes.QuotaFull, CollectionStatusCodes.Cancelled }.ToFrozenSet(StringComparer.Ordinal);
 
     private static readonly Lock _configureLock = new();
     private static FrozenDictionary<string, CollectionPhase> _phases = _builtIn;
@@ -112,6 +121,10 @@ public static class CollectionStatusCatalog
         status = CollectionStatus.FromCode(normalized);
         return true;
     }
+
+    /// <summary>True when only the server sets the code, e.g. <c>quota_full</c> or <c>cancelled</c>; case and padding are ignored.</summary>
+    public static bool IsServerOnly(string? code) =>
+        TryNormalize(code, out var normalized) && _serverOnly.Contains(normalized);
 
     /// <summary>
     /// The phase of a code. A stored code that is not registered reads as <see cref="CollectionPhase.Active"/>, so its

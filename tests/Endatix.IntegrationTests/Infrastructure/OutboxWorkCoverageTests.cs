@@ -12,7 +12,7 @@ namespace Endatix.IntegrationTests;
 /// and the modules' inline handlers kept, the host starts only when each inline handler's events have a job
 /// subscription from its own module.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobsDbTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]

@@ -13,10 +13,10 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// Reporting's outbox work delivered as background jobs, each its own job with its own retries.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(RestLaneJobsTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-[Trait("Lane", "Jobs")]
+// No Lane trait: runs in CI's Rest lane to even out the SQL Server lanes (tests/README.md, Lanes).
 public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);

@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
 
@@ -22,6 +23,15 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
         Code = string.Empty;
     }
 
+    private SubmissionStatus(string name, string code)
+    {
+        Guard.Against.NullOrWhiteSpace(name);
+        Guard.Against.NullOrWhiteSpace(code);
+
+        Name = name;
+        Code = code.ToLowerInvariant();
+    }
+
     /// <summary>
     /// Catalog value for comparisons. Do not assign catalog instances to aggregates —
     /// use <see cref="FromCode(string)"/> / <see cref="CreateInstance"/> so each entity
@@ -36,15 +46,6 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 
     public string Name { get; }
     public string Code { get; }
-
-    private SubmissionStatus(string name, string code)
-    {
-        Guard.Against.NullOrWhiteSpace(name);
-        Guard.Against.NullOrWhiteSpace(code);
-
-        Name = name;
-        Code = code.ToLowerInvariant();
-    }
 
     /// <summary>
     /// Fresh instance for EF <c>OwnsOne</c> tracking (same value, different object identity).
@@ -82,4 +83,16 @@ public sealed record SubmissionStatus : IComparable<SubmissionStatus>
 
         return string.Compare(Code, other.Code, StringComparison.Ordinal);
     }
+
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
+    public static bool operator <(SubmissionStatus? left, SubmissionStatus? right) => ComparisonOperators.LessThan(left, right);
+
+    /// <summary>Null sorts before any value; otherwise compares by <c>CompareTo</c>.</summary>
+    public static bool operator <=(SubmissionStatus? left, SubmissionStatus? right) => ComparisonOperators.LessThanOrEqual(left, right);
+
+    /// <summary>Inverse of <c>&lt;=</c>.</summary>
+    public static bool operator >(SubmissionStatus? left, SubmissionStatus? right) => !(left <= right);
+
+    /// <summary>Inverse of <c>&lt;</c>.</summary>
+    public static bool operator >=(SubmissionStatus? left, SubmissionStatus? right) => !(left < right);
 }

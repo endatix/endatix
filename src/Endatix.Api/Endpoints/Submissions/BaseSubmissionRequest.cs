@@ -55,11 +55,13 @@ internal static class SubmissionRequestValidationExtensions
     }
 
     /// <summary>
-    /// Accepts an omitted outcome or a registered closed-phase status such as <c>screen_out</c>; anything else is a 400,
-    /// not a silent normal save.
+    /// Accepts an omitted outcome or a registered closed-phase status such as <c>screen_out</c>. A server-only status such
+    /// as <c>quota_full</c> or <c>cancelled</c>, and anything else, is a 400, not a silent normal save.
     /// </summary>
     internal static IRuleBuilderOptions<T, string?> ValidCollectionOutcome<T>(this IRuleBuilder<T, string?> ruleBuilder) =>
         ruleBuilder
             .Must(CollectionOutcomes.IsSupported)
-            .WithMessage($"'{{PropertyName}}' must be a registered closed collection status, such as '{CollectionStatusCodes.ScreenOut}', when set.");
+            .WithMessage((_, outcome) => CollectionStatusCatalog.IsServerOnly(outcome)
+                ? CollectionOutcomes.SERVER_ONLY_MESSAGE
+                : $"'{{PropertyName}}' must be a registered closed collection status, such as '{CollectionStatusCodes.ScreenOut}', when set.");
 }

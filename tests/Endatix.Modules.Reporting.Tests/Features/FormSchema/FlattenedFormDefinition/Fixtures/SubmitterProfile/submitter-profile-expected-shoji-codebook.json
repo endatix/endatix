@@ -122,17 +122,17 @@
           "name": "Which region do you work in?",
           "description": ""
         },
-        "AudienceIdentifier": {
+        "ParticipantIdentifier": {
           "type": "text",
-          "alias": "AudienceIdentifier",
-          "name": "Audience identifier",
-          "description": "Audience value frozen when the response was opened."
+          "alias": "ParticipantIdentifier",
+          "name": "Participant identifier",
+          "description": "Participant value frozen when the response was opened."
         },
-        "audience_city": {
+        "participant_city": {
           "type": "text",
-          "alias": "audience_city",
+          "alias": "participant_city",
           "name": "City",
-          "description": "Audience value frozen when the response was opened."
+          "description": "Participant value frozen when the response was opened."
         },
         "submitter_email": {
           "type": "text",
@@ -166,8 +166,8 @@
         {
           "group": "Participant variables",
           "entities": [
-            "AudienceIdentifier",
-            "audience_city"
+            "ParticipantIdentifier",
+            "participant_city"
           ]
         },
         {

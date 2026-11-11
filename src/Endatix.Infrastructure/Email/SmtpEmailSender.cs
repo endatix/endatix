@@ -1,15 +1,15 @@
-using MailKit;
-using MailKit.Net.Smtp;
-using MailKit.Security;
-using MimeKit;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Ardalis.GuardClauses;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Features.Email;
-using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Logging;
+using MailKit;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -178,18 +178,29 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     /// unencrypted connection when the server doesn't advertise STARTTLS, whereas EnableSsl = true
     /// previously guaranteed encryption or failure.
     /// </summary>
-    internal SecureSocketOptions ResolveSecureSocketOptions() => _settings.SecurityMode switch
+    internal SecureSocketOptions ResolveSecureSocketOptions()
     {
-        SmtpSecurityMode.None => SecureSocketOptions.None,
-        SmtpSecurityMode.StartTls => SecureSocketOptions.StartTls,
-        SmtpSecurityMode.StartTlsWhenAvailable => SecureSocketOptions.StartTlsWhenAvailable,
-        SmtpSecurityMode.SslOnConnect => SecureSocketOptions.SslOnConnect,
-        _ => !_settings.EnableSsl
-            ? SecureSocketOptions.None
-            : _settings.Port == 465
-                ? SecureSocketOptions.SslOnConnect
-                : SecureSocketOptions.StartTls
-    };
+        switch (_settings.SecurityMode)
+        {
+            case SmtpSecurityMode.None:
+                return SecureSocketOptions.None;
+            case SmtpSecurityMode.StartTls:
+                return SecureSocketOptions.StartTls;
+            case SmtpSecurityMode.StartTlsWhenAvailable:
+                return SecureSocketOptions.StartTlsWhenAvailable;
+            case SmtpSecurityMode.SslOnConnect:
+                return SecureSocketOptions.SslOnConnect;
+            default:
+                if (!_settings.EnableSsl)
+                {
+                    return SecureSocketOptions.None;
+                }
+
+                return _settings.Port == 465
+                    ? SecureSocketOptions.SslOnConnect
+                    : SecureSocketOptions.StartTls;
+        }
+    }
 
     private MimeMessage CreateMimeMessage(EmailWithBody email)
     {

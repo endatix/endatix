@@ -238,7 +238,7 @@ public class EmailTemplateServiceTests
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
-    public void CreateVerificationEmail_WithInvalidEmail_StillCreatesEmailWithGivenEmail(string email)
+    public void CreateVerificationEmail_WithInvalidEmail_StillCreatesEmailWithGivenEmail(string? email)
     {
         // Arrange
         var settings = new EmailTemplateSettings
@@ -255,7 +255,7 @@ public class EmailTemplateServiceTests
         var token = "abc123-token";
 
         // Act
-        var result = service.CreateVerificationEmail(email, token);
+        var result = service.CreateVerificationEmail(email!, token);
 
         // Assert
         result.Should().NotBeNull();
@@ -267,7 +267,7 @@ public class EmailTemplateServiceTests
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
-    public void CreateVerificationEmail_WithInvalidToken_StillCreatesEmailWithGivenToken(string token)
+    public void CreateVerificationEmail_WithInvalidToken_StillCreatesEmailWithGivenToken(string? token)
     {
         // Arrange
         var settings = new EmailTemplateSettings
@@ -284,7 +284,7 @@ public class EmailTemplateServiceTests
         var userEmail = "test@example.com";
 
         // Act
-        var result = service.CreateVerificationEmail(userEmail, token);
+        var result = service.CreateVerificationEmail(userEmail, token!);
 
         // Assert
         result.Should().NotBeNull();

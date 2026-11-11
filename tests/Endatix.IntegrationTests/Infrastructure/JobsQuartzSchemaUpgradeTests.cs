@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 /// the referenced Quartz, so the upgrade migration would only ever run as a no-op there. These tests migrate down
 /// past it first, which leaves the 4.2.2 tables, and then up again.
 /// </remarks>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]
@@ -28,8 +28,8 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        await using var fresh = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ConnectionString, ct);
-        await using var upgraded = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ConnectionString, ct);
+        await using var fresh = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ServerConnectionString, ct);
+        await using var upgraded = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ServerConnectionString, ct);
         var (previousMigration, addedColumns) = UpgradeOf(fixture.Provider);
         await upgraded.MigrateToAsync(previousMigration, ct);
         var columnsOnQuartz422 = await ColumnsAsync(upgraded.Database, ct);
@@ -48,8 +48,8 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
         // Arrange — the execution-history table is out of the way, so the upgrade's first statement on it fails, after
         // the earlier statements on the fired-trigger and trigger tables.
         var ct = TestContext.Current.CancellationToken;
-        await using var fresh = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ConnectionString, ct);
-        await using var upgraded = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ConnectionString, ct);
+        await using var fresh = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ServerConnectionString, ct);
+        await using var upgraded = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ServerConnectionString, ct);
         var (previousMigration, addedColumns) = UpgradeOf(fixture.Provider);
         await upgraded.MigrateToAsync(previousMigration, ct);
         var history = HistoryTableOf(fixture.Provider);
@@ -75,7 +75,7 @@ public sealed class JobsQuartzSchemaUpgradeTests(DbIntegrationFixture fixture)
     {
         // Arrange — triggers stored while the database is on the earlier tables, as a 4.2.2 node would leave them.
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(fixture.Provider, fixture.ServerConnectionString, ct);
         var behind = await store.SeedHeadOfLineAsync(ct);
         await store.MigrateToAsync(UpgradeOf(fixture.Provider).PreviousMigration, ct);
 

@@ -18,13 +18,21 @@ public static class ChangeTrackerExtensions
     /// </summary>
     public static void ApplyEndatixEntityDefaults(
         this ChangeTracker changeTracker,
-        DateTime utcNow)
-    {
-        var entries = changeTracker.Entries()
-            .Where(entry => entry.State is EntityState.Added or EntityState.Modified);
+        DateTime utcNow) =>
+        changeTracker.ApplyEndatixEntityDefaults(utcNow, inspect: null);
 
-        foreach (var entry in entries)
+    /// <summary>
+    /// <c>CreatedAt</c> on insert, <c>ModifiedAt</c> on update, and <paramref name="inspect"/> called once for every
+    /// tracked entry in the same scan, so a context can examine its save without a second pass over the change tracker.
+    /// </summary>
+    public static void ApplyEndatixEntityDefaults(
+        this ChangeTracker changeTracker,
+        DateTime utcNow,
+        Action<EntityEntry>? inspect)
+    {
+        foreach (var entry in changeTracker.Entries())
         {
+            inspect?.Invoke(entry);
             var properties = entry.CurrentValues.Properties;
 
             switch (entry.State)

@@ -1,4 +1,6 @@
 using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.Entities;
+using Endatix.Core.UseCases.Submissions;
 using FluentValidation.TestHelper;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
@@ -43,6 +45,23 @@ public class PartialUpdateSubmissionByTokenValidatorTests
         var result = _validator.TestValidate(request);
 
         // Assert
-        result.ShouldHaveValidationErrorFor(x => x.CollectionOutcome);
+        result.ShouldHaveValidationErrorFor(x => x.CollectionOutcome)
+            .WithErrorMessage("'Collection Outcome' must be a registered closed collection status, such as 'screen_out', when set.");
+    }
+
+    [Theory]
+    [InlineData(CollectionStatusCodes.QuotaFull)]
+    [InlineData(CollectionStatusCodes.Cancelled)]
+    public void Validate_ServerOnlyCollectionOutcome_FailsAsServerOnly(string collectionOutcome)
+    {
+        // Arrange
+        var request = Request(collectionOutcome);
+
+        // Act
+        var result = _validator.TestValidate(request);
+
+        // Assert
+        result.ShouldHaveValidationErrorFor(x => x.CollectionOutcome)
+            .WithErrorMessage(CollectionOutcomes.SERVER_ONLY_MESSAGE);
     }
 }

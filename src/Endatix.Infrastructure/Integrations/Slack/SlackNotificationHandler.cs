@@ -4,8 +4,8 @@ using System.Text.Json;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
-using Endatix.Core.Specifications;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Specifications;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -31,12 +31,13 @@ public class SlackNotificationHandler : INotificationHandler<SubmissionCompleted
     private readonly IRepository<TenantSettings> _tenantSettingsRepository;
     private readonly IRepository<Form> _formRepository;
 
-    //TODO: The Slack message template should be configurable through the Hub's UI
-    // {0} is the submissionURL, {1} is the form name
+    // Hub UI will own the Slack message template later; {0} submission URL, {1} form name.
     private const string MessageTemplate = ":page_with_curl: <{0}|New submission> for {1}";
     // Submission URL parameters: {0} is the Hub's base URL, {1} is FormId, {2} is SubmissionId
     private const string SubmissionsUrlTemplate = "{0}/forms/{1}/submissions/{2}";
+#pragma warning disable S1075 // Slack's public chat.postMessage endpoint; not environment-specific.
     private const string PostUrl = "https://slack.com/api/chat.postMessage";
+#pragma warning restore S1075
 
     public SlackNotificationHandler(
         ILogger<SlackNotificationHandler> logger,

@@ -18,7 +18,7 @@ public static class JsonStringValidation
 
         try
         {
-            using var document = JsonDocument.Parse(json!);
+            using var document = JsonDocument.Parse(json);
             return true;
         }
         catch (JsonException)

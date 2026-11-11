@@ -57,9 +57,9 @@ public sealed class AudienceNamesAtExportTests
 
         // Assert
         var root = codebook.RootElement;
-        root.GetProperty("columns").GetProperty("audience_city").GetProperty("title").GetProperty("default").GetString()
+        root.GetProperty("columns").GetProperty("participant_city").GetProperty("title").GetProperty("default").GetString()
             .Should().Be("Town");
-        root.GetProperty("personalization").GetProperty("variables").EnumerateObject().Select(variable => variable.Name)
+        root.GetProperty("participants").GetProperty("variables").EnumerateObject().Select(variable => variable.Name)
             .Should().Equal("city", "age");
         await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, Arg.Any<CancellationToken>());
     }
@@ -78,10 +78,10 @@ public sealed class AudienceNamesAtExportTests
 
         // Assert
         var table = codebook.RootElement.GetProperty("body").GetProperty("table");
-        table.GetProperty("metadata").GetProperty("audience_city").GetProperty("name").GetString().Should().Be("Town");
+        table.GetProperty("metadata").GetProperty("participant_city").GetProperty("name").GetString().Should().Be("Town");
         ShojiOrder.Aliases(table.GetProperty("order"))
-            .Where(alias => alias.StartsWith("Audience", StringComparison.OrdinalIgnoreCase))
-            .Should().Equal("AudienceIdentifier", "audience_city", "audience_age");
+            .Where(alias => alias.StartsWith("Participant", StringComparison.OrdinalIgnoreCase))
+            .Should().Equal("ParticipantIdentifier", "participant_city", "participant_age");
         await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, Arg.Any<CancellationToken>());
     }
 
@@ -104,9 +104,9 @@ public sealed class AudienceNamesAtExportTests
 
         // Assert
         var plan = (SubmissionExportColumnPlan)context.Options.Metadata![SubmissionExportMetadataKeys.ColumnPlan];
-        plan.Columns.Where(column => column.ExportKey.StartsWith("Audience", StringComparison.OrdinalIgnoreCase))
+        plan.Columns.Where(column => column.ExportKey.StartsWith("Participant", StringComparison.OrdinalIgnoreCase))
             .Select(column => (column.ExportKey, column.HeaderLabel))
-            .Should().Equal(("AudienceIdentifier", "Audience identifier"), ("audience_city", "Town"), ("audience_age", "Age"));
+            .Should().Equal(("ParticipantIdentifier", "Participant identifier"), ("participant_city", "Town"), ("participant_age", "Age"));
         await _catalog.ReceivedWithAnyArgs(1).ListForFormAsync(default, default, Arg.Any<CancellationToken>());
     }
 

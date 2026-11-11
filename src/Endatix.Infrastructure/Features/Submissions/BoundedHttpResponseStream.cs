@@ -41,10 +41,10 @@ internal sealed class BoundedHttpResponseStream : Stream
 
     public override int Read(byte[] buffer, int offset, int count) => _content.Read(buffer, offset, count);
 
+    public override int Read(Span<byte> buffer) => _content.Read(buffer);
+
     public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
         _content.ReadAsync(buffer, offset, count, cancellationToken);
-
-    public override int Read(Span<byte> buffer) => _content.Read(buffer);
 
     public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
         _content.ReadAsync(buffer, cancellationToken);

@@ -1,4 +1,4 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -98,7 +98,7 @@ public class PartialUpdateFormHandler(
             var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
                 form.FolderId,
                 request.FolderId,
-                form.MoveToFolder!,
+                form.MoveToFolder,
                 "Form cannot be moved to the requested folder.",
                 cancellationToken);
             if (!folderCheck.IsOk())

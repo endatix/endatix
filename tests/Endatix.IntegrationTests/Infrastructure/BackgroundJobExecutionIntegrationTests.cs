@@ -10,7 +10,7 @@ namespace Endatix.IntegrationTests;
 /// The job wrapper against a real scheduler store: every outcome it records, recovery, cancellation, the runtime
 /// ceiling, tracing and metrics. Short retry intervals stand in for a fake clock.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobExecutionTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]
@@ -414,7 +414,7 @@ public sealed partial class BackgroundJobExecutionIntegrationTests(DbIntegration
         await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
 
         // Assert
-        var recorded = lifecycle.Events;
+        var recorded = lifecycle.EventsOn(node);
         recorded.Should().OnlyContain(entry => entry.JobType == ProbePayload.JobType);
         recorded.GroupBy(entry => entry.Event).ToDictionary(group => group.Key, group => group.Count())
             .Should().BeEquivalentTo(new Dictionary<string, int>

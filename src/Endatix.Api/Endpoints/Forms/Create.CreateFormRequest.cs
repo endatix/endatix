@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -40,7 +40,9 @@ public class CreateFormRequest
     /// <summary>
     /// The JSON data of the active form definition as a string.
     /// </summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Use FormDefinitionSchema instead.")]
+#pragma warning restore S1133
     public string? FormDefinitionJsonData { get; set; }
 
     /// <summary>
@@ -51,7 +53,9 @@ public class CreateFormRequest
     /// <summary>
     /// The JSON data containing webhook configuration settings for this form as a string.
     /// </summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Use WebHookSettings instead.")]
+#pragma warning restore S1133
     public string? WebHookSettingsJson { get; set; }
 
     /// <summary>

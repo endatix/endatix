@@ -25,9 +25,11 @@ public class ReCaptchaHttpClient(HttpClient client, ILogger<ReCaptchaHttpClient>
         });
         try
         {
+#pragma warning disable S1075 // Google's fixed siteverify endpoint; BaseAddress alone is set in ReCaptchaSetup.
             var response = await client.PostAsync("https://www.google.com/recaptcha/api/siteverify", content, cancellationToken);
+#pragma warning restore S1075
 
-            var responseContent = await response!.Content.ReadAsStreamAsync(cancellationToken);
+            var responseContent = await response.Content.ReadAsStreamAsync(cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {

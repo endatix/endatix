@@ -8,7 +8,7 @@ namespace Endatix.IntegrationTests;
 /// Which triggers the PostgreSQL driver delegate acquires, on the fixture the SQL Server delegate is proven on in
 /// <see cref="JobsSqlServerStoreTests"/>, so both providers are held to the same keys.
 /// </summary>
-[Collection(nameof(DbIntegrationTestCollection))]
+[Collection(nameof(JobStoreTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 [Trait("Lane", "Jobs")]
@@ -20,7 +20,7 @@ public sealed class JobsPostgreSqlAcquisitionTests(DbIntegrationFixture fixture)
         // Arrange — PostgreSQL-only: the PostgreSQL store and its unnest/LATERAL acquisition; SQL Server's twin is in
         // JobsSqlServerStoreTests.
         var ct = TestContext.Current.CancellationToken;
-        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.PostgreSql, fixture.ConnectionString, ct);
+        await using var store = await AcquisitionTestStore.CreateAsync(TestDatabaseProvider.PostgreSql, fixture.ServerConnectionString, ct);
         var behind = await store.SeedHeadOfLineAsync(ct);
 
         // Act

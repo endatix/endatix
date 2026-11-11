@@ -36,7 +36,19 @@ its lane with the `Lane` trait, which is the only place lane membership lives:
 
 A new class lands in Rest. Tag it `Jobs` when its main subject is jobs, the scheduler, the outbox or webhook delivery.
 A class that only touches them on the way (such as `AudienceDirectoryFlowTests`, whose bulk import runs a job) stays in
-Rest, which keeps the lanes even; each lane's slowest-tests summary on the CI run page shows the balance. Each lane's `--minimum-expected-tests` sits about 10% under
+Rest, which keeps the lanes even; each lane's slowest-tests summary on the CI run page shows the balance.
+
+Balance comes before subject. These jobs classes run in Rest so the two SQL Server lanes take about the same time
+(#1632). Each runs on a database of its own, so nothing in Rest affects them. Leave them untagged:
+
+| Class | SQL Server | PostgreSQL |
+| ----- | ---------- | ---------- |
+| `ReportingJobsTests` | ~33 s | ~14 s |
+| `OutboxFanOutTests` | ~27 s | ~15 s |
+| `JobsSqlServerStoreTests` | ~19 s | SQL Server only |
+
+To rebalance, move whole classes by their time in the lanes' `test-durations-*` artifacts. `AudienceDirectoryFlowTests`
+swings 60–90 s between runs, so balance against its middle. Each lane's `--minimum-expected-tests` sits about 10% under
 its count; adjust both when a class moves. Before the tests, each lane runs `scripts/check-integration-lanes.mjs`, which
 lists the provider filter's tests and fails when one is in neither lane or in both.
 
@@ -45,18 +57,63 @@ lists the provider filter's tests and fails when one is in neither lane or in bo
 |        | PostgreSQL                                      | SQL Server                                 |
 | ------ | ----------------------------------------------- | ------------------------------------------ |
 | Env    | `ENDATIX_TEST_DB_PROVIDER=PostgreSql` (default) | `ENDATIX_TEST_DB_PROVIDER=SqlServer`       |
+| DB     | `endatix_fx_<id>`, copied from the template     | `endatix_fx_<id>`, restored from the template |
 | Filter | `IntegrationTestFilters.Default`                | `IntegrationTestFilters.SqlServer`         |
 | Runs   | Provider-agnostic + `DbSpecific=PostgreSql`     | Provider-agnostic + `DbSpecific=SqlServer` |
 
 Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-specific tests.
 
+### Databases
+
+One container per provider per test process. Its own database, `endatix_test`, stays empty: it is the server
+connection (`ServerConnectionString`) that creates and drops the others.
+
+- **Template.** On the first fixture, a host with every module on (Reporting included) migrates `endatix_template_<id>`
+  once (`MigratedDatabaseTemplate`, registered through `IntegrationDatabaseTemplate.Use`). PostgreSQL then refuses
+  connections to it; SQL Server backs it up.
+- **A database per fixture.** Every `DatabaseInfrastructureFixture` gets `endatix_fx_<id>`, a copy of the template
+  (`CREATE DATABASE … TEMPLATE` on PostgreSQL, `RESTORE` on SQL Server), and drops it on dispose. Its `ConnectionString`
+  points there, so a Respawn reset in one collection never reaches another's rows.
+- **A test that changes the schema** (rolls a migration back) runs on `OwnDatabaseWebHost`, a host on a database of its
+  own. A test that needs an empty database of its own uses `JobsTestDatabase` on `ServerConnectionString`.
+- **Setup cost.** Each copy and the template build print an `[endatix-db]` diagnostic line when the test app runs on its
+  own (`dotnet test` hides them). Locally: the template takes ~5 s on PostgreSQL and ~10 s on SQL Server once, then a copy
+  takes ~0.1 s and ~0.8 s.
+
 ### Collections
 
-| Collection                         | Fixture                            | Use for                                             |
-| ---------------------------------- | ---------------------------------- | --------------------------------------------------- |
-| `EndatixIntegrationTestCollection` | `EndatixIntegrationWebHostFixture` | HTTP / API tests                                    |
-| `DbIntegrationTestCollection`      | `DbIntegrationFixture`             | Migrations, EF, query filters without full host     |
-| (none)                             | `KeycloakTestContainerFixture`     | Keycloak smoke — `Category=Keycloak`, `Priority=P2` |
+Collections run in parallel, each with its own fixture, so its own host and database; the classes in one collection run
+one after another. Three run at once (`maxParallelThreads` in `xunit.runner.json`, tuned for CI's 4-vCPU runner),
+locally too, since all of them share one database container. CI passes the same number as `--max-threads
+$INTEGRATION_MAX_THREADS`, which overrides the file; pass `--max-threads` locally to try another. The definitions, with
+this table, are in `Endatix.IntegrationTests/Infrastructure/IntegrationTestCollections.cs`.
+
+A new class picks its collection by its [lane](#lanes) and the fixture it needs:
+
+| Lane | Web host (`EndatixIntegrationWebHostFixture`) | Database only (`DbIntegrationFixture`) |
+| ---- | --------------------------------------------- | -------------------------------------- |
+| Rest | `EndatixIntegrationTestCollection`            | `DbIntegrationTestCollection`          |
+| Jobs | `JobsHostTestCollection`                      | `JobsDbTestCollection`                 |
+
+The other collections keep any one collection from outlasting its lane's share of the test time:
+
+| Collection                           | Lane | Holds                                                         |
+| ------------------------------------ | ---- | ------------------------------------------------------------- |
+| `AudienceDirectoryTestCollection`    | Rest | `AudienceDirectoryFlowTests` alone, about half the lane       |
+| `RestLaneJobsTestCollection`         | Rest | the jobs classes that run in Rest for balance (see Lanes)     |
+| `JobsSchedulerStartupTestCollection` | Jobs | `JobsSchedulerStartupTests` alone, the lane's slowest class   |
+| `JobExecutionTestCollection`         | Jobs | `BackgroundJobExecutionIntegrationTests` alone                |
+| `JobStoreTestCollection`             | Jobs | the job store, its schema, scheduler nodes and job types      |
+
+A lane takes at least as long as its slowest collection, so these start first (`SlowestCollectionsFirst`). Rebalance
+by moving whole classes between a lane's collections, by their times in the lane's `test-durations-*` artifact; the
+collection only sets the balance, the `Lane` trait still decides the lane, so keep the two in step. A class with no
+`[Collection]` is a collection of its own and runs in parallel with the rest: keep that for quick classes that need no
+shared fixture (`ProblemDetailsJsonTests`, `FailedHostStartTests`) and for the Keycloak smoke tests
+(`KeycloakTestContainerFixture`).
+
+Parallel collections share the process: a test must not change process-wide state (environment variables, statics, a
+fixed scheduler instance id another test uses) that another collection can see.
 
 ### Traits
 
@@ -72,7 +129,7 @@ Write product tests once (no `DbSpecific` trait). Tag only dialect- or module-sp
 | Variable                        | Default      | Notes                          |
 | ------------------------------- | ------------ | ------------------------------ |
 | `ENDATIX_TEST_DB_PROVIDER`      | `PostgreSql` | `SqlServer` for SQL Server leg |
-| `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only                 |
+| `ENDATIX_TEST_REUSE_CONTAINERS` | off          | Local dev only; a run drops the `endatix_fx_` and `endatix_template_` databases older than 12 hours, which an earlier run left |
 
 ### Performance suite
 
@@ -87,7 +144,7 @@ ENDATIX_PERF=1 ENDATIX_PERF_SHAPE=realistic ENDATIX_PERF_ROWS=50000 \
 Shapes: `realistic` (1,000 questions, 20% answered), `worst` (1,000, all answered), `mid` (200, 50%). Add
 `ENDATIX_TEST_DB_PROVIDER=SqlServer` for SQL Server. Reports go to `ENDATIX_PERF_OUT` (default `$TMPDIR/endatix-perf`).
 
-`xunit.runner.json` disables parallelism — collections share one DB per process; tests reset via Respawn.
+`xunit.runner.json` runs collections in parallel; each has a database of its own, which its tests reset via Respawn.
 
 ---
 

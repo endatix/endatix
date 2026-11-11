@@ -85,10 +85,10 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .ToArray();
 
             var authorizationData = AuthorizationData.ForAuthenticatedUser(
-                    userId: userId.ToString(),
-                    tenantId: tenantId,
+                    userId: userId.ToString(), tenantId: tenantId,
                     roles: assignedRoles,
-                    permissions: assignedPermissions
+                    permissions: assignedPermissions,
+                    expiresAt: EarliestPermissionExpiry(userRoles)
             );
 
             return Result.Success(authorizationData);
@@ -99,6 +99,10 @@ internal sealed class DefaultAuthorizationDataProvider(
             return Result.Error("Failed to get user permissions info from the identity store");
         }
     }
+
+    /// <summary>When the first of the loaded permissions lapses, so the cache stops serving them; default when none expires.</summary>
+    private static DateTime EarliestPermissionExpiry(List<AppRole> roles) =>
+        roles.SelectMany(role => role.RolePermissions).Min(rolePermission => rolePermission.ExpiresAt) ?? default;
 
     internal static Expression<Func<AppRole, bool>> IsRoleInAuthorizationScope(long tenantId)
     {

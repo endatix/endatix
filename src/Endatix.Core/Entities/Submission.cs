@@ -39,7 +39,9 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         Id = id;
     }
 
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
+#pragma warning restore S1133
     public Submission(
         long tenantId,
         string jsonData,
@@ -142,7 +144,10 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
     public string? Metadata { get; private set; }
     public string? SubmittedBy { get; private set; }
     public long? SubmitterId { get; private set; }
+    // EF navigation: materialised by the ORM; domain code never assigns it.
+#pragma warning disable S1144
     public Submitter? Submitter { get; private set; }
+#pragma warning restore S1144
     public string? SubmitterDisplayId { get; private set; }
     public string? SubmitterProfileSnapshot { get; private set; }
 
@@ -315,7 +320,9 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
 
     /// <summary>Not supported: only the submission's own events raise its revision.</summary>
     /// <exception cref="NotSupportedException">Always.</exception>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
     [Obsolete("Retired: a submission raises its own revision with each event it raises.", error: true)]
+#pragma warning restore S1133
     public void IncrementRevision() =>
         throw new NotSupportedException("A submission raises its own revision with each event it raises.");
 
