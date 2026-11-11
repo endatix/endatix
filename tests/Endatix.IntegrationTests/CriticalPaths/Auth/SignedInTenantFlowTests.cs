@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
+using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
@@ -87,19 +88,37 @@ public sealed class SignedInTenantFlowTests(EndatixIntegrationWebHostFixture fix
             .Where(form => form.TenantId == tenantId && form.Name == "Form access token form")
             .Select(form => form.Id)
             .SingleAsync(cancellationToken);
+        var ownDataListId = await SeedDataListAsync(scope, tenantId, cancellationToken);
+        var otherDataListId = await SeedDataListAsync(
+            scope,
+            await IntegrationTenants.InsertAsync(fixture.Database, cancellationToken),
+            cancellationToken);
         var formAccessToken = scope.ServiceProvider.GetRequiredService<IFormAccessTokenService>()
             .CreateToken(formId, tenantId).Value.Token;
         using var client = world.AnonymousClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", formAccessToken);
 
         // Act
-        using var response = await client.GetAsync(
-            new Uri($"/api/forms/{formId}/data-lists/999999/search", UriKind.Relative),
+        using var ownResponse = await client.GetAsync(
+            new Uri($"/api/forms/{formId}/data-lists/{ownDataListId}/search", UriKind.Relative),
+            cancellationToken);
+        using var otherResponse = await client.GetAsync(
+            new Uri($"/api/forms/{formId}/data-lists/{otherDataListId}/search", UriKind.Relative),
             cancellationToken);
 
         // Assert
-        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
-        response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
+        ownResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        otherResponse.StatusCode.Should().Be(HttpStatusCode.NotFound, "the request runs at the token's tenant");
+    }
+
+    private static async Task<long> SeedDataListAsync(IServiceScope scope, long tenantId, CancellationToken cancellationToken)
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        DataList dataList = new(tenantId, $"Fruits-{Guid.NewGuid():N}");
+        dataList.AddItem("Apple", "apple");
+        db.DataLists.Add(dataList);
+        await db.SaveChangesAsync(cancellationToken);
+        return dataList.Id;
     }
 
     [Fact]
