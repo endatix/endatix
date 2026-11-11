@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
 using Endatix.Api.Infrastructure;
@@ -126,7 +127,7 @@ public sealed class TenantMiddlewareTests
         root.GetProperty("status").GetInt32().Should().Be(expected.Status);
         root.GetProperty("detail").GetString().Should().Be(expected.Detail);
         root.GetProperty("instance").GetString().Should().Be(REQUEST_PATH);
-        root.GetProperty("traceId").GetString().Should().Be(httpContext.TraceIdentifier);
+        root.GetProperty("traceId").GetString().Should().Be(Activity.Current?.Id ?? httpContext.TraceIdentifier);
     }
 
     private static DefaultHttpContext CreateHttpContext(ClaimsPrincipal user)
