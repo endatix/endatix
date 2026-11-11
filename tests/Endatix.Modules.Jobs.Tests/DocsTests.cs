@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Features.BackgroundJobs;
+using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Audience;
 using Endatix.Modules.Jobs.Runtime;
 using Endatix.Modules.Reporting;
@@ -28,14 +29,16 @@ public sealed partial class DocsTests
         // Act
         var keys = LeafKeys();
 
-        // Assert — every key has its own entry with its default, and the cut-over switch is listed as off.
+        var deliverToJobQueue = AsDocumented(new OutboxDeliveryOptions().DeliverToJobQueue);
+
+        // Assert — every key has its own entry with its default, and the cut-over switch with the default the code sets.
         keys.Should().NotBeEmpty();
         foreach (var key in keys)
         {
             page.Should().Contain($"<Setting name=\"{key}\" default=", "the page must document {0} and its default", key);
         }
 
-        page.Should().MatchRegex(@"(?m)^\| `DeliverToJobQueue` \|[^\n]*\| `false` \|\s*$");
+        page.Should().MatchRegex($@"(?m)^\| `DeliverToJobQueue` \|[^\n]*\| `{deliverToJobQueue}` \|\s*$");
     }
 
     [Fact]
@@ -73,6 +76,27 @@ public sealed partial class DocsTests
     }
 
     [Fact]
+    public void Docs_ReadJobTypeDefaultsFromEveryProjectThatDeclaresThem()
+    {
+        // Arrange
+        var sourceRoot = Path.Combine(RepositoryRoot(), "src");
+
+        // Act
+        var declaring = Directory.EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(file => File.ReadLines(file).Any(line => JobTypeDefaultsRegistration().IsMatch(line)))
+            .Select(file => Path.GetRelativePath(sourceRoot, file).Split(Path.DirectorySeparatorChar)[0])
+            .Distinct()
+            .ToList();
+
+        // Assert — a project that registers job types this class does not read would leave them off the page,
+        // which then calls them "any other job type".
+        declaring.Should().NotBeEmpty();
+        declaring.Should().BeSubsetOf(
+            ProjectsDeclaringJobTypeDefaults,
+            "DeclaredJobTypeDefaults must register every project that declares job type defaults");
+    }
+
+    [Fact]
     public void Docs_StateTheConcurrencyCapTheCodeSetsForEachKindOfJobType()
     {
         // Arrange
@@ -104,11 +128,14 @@ public sealed partial class DocsTests
 
         // Act — an option with no value in code has nothing to compare here: the generated instance id, and the
         // trigger lock, whose default depends on the provider and is checked on its own.
-        var defaults = Options(new BackgroundJobsOptions(), Section)
-            .Where(option => option.Default is not null)
-            .ToList();
+        var options = Options(new BackgroundJobsOptions(), Section).ToList();
+        var defaults = options.Where(option => option.Default is not null).ToList();
+        var withoutDefault = options.Where(option => option.Default is null).Select(option => option.Key);
 
-        // Assert
+        // Assert — a new option with no value in code must be checked on its own, not skipped here.
+        withoutDefault.Should().BeEquivalentTo(
+            [$"{Section}:{nameof(BackgroundJobsOptions.LockOnInsert)}", $"{Section}:Clustering:{nameof(BackgroundJobsClusteringOptions.InstanceId)}"],
+            "only the provider-dependent trigger lock and the generated instance id have no value in code");
         defaults.Should().NotBeEmpty();
         foreach (var (key, value) in defaults)
         {
@@ -149,6 +176,10 @@ public sealed partial class DocsTests
             .Concat(perJobTypeOnly.Select(name => $"{Section}:JobTypes:{{JobType}}:{name}"))
             .ToList();
     }
+
+    // The src/ projects whose registrations DeclaredJobTypeDefaults runs.
+    private static readonly string[] ProjectsDeclaringJobTypeDefaults =
+        ["Endatix.Infrastructure", "Endatix.Modules.Reporting", "Endatix.Modules.Audience"];
 
     // The registrations that declare job type defaults: webhook delivery, and each module's outbox work. Registering
     // them only describes services, so nothing here needs a database.
@@ -225,6 +256,10 @@ public sealed partial class DocsTests
 
     private static bool IsDictionary(Type type) =>
         type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Dictionary<,>);
+
+    // A call, not a declaration or a doc comment: every way code declares a job type's defaults goes through these.
+    [GeneratedRegex(@"^(?!\s*//).*\.(AddBackgroundJobHandler<|AddBackgroundJobTypeDefaults\(|AddOutboxWork<)")]
+    private static partial Regex JobTypeDefaultsRegistration();
 
     [GeneratedRegex("<Setting name=\"(?<key>[^\"]+)\" default=\"(?<default>[^\"]*)\"")]
     private static partial Regex SettingDefaults();
