@@ -403,6 +403,9 @@ public class EndatixBuilder : IBuilderRoot
 
         Infrastructure.Build();
 
+        // Idempotent: binds DataOptions on paths that skipped UseDefaults and Persistence.Build().
+        Persistence.Build();
+
         // Deferred so that Telemetry.DisableInstrumentation(...) and WithOtlpExporter(...) apply
         // whatever order the consumer called them in.
         Telemetry.Build();

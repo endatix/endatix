@@ -1,5 +1,6 @@
 using System.Reflection;
 using Endatix.Hosting.Builders;
+using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,6 +11,15 @@ namespace Endatix.Hosting.Tests.Builders;
 
 public class SnowflakeWorkerIdOptionsTests
 {
+    private static readonly Dictionary<string, string?> _securityConfig = new()
+    {
+        ["Endatix:Auth:DefaultScheme"] = InfrastructureSecurityBuilder.MULTI_JWT_SCHEME_NAME,
+        ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "test",
+        ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters-long",
+        ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "test",
+        ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true"
+    };
+
     [Theory]
     [InlineData("-1")]
     [InlineData("1024")]
@@ -128,6 +138,24 @@ public class SnowflakeWorkerIdOptionsTests
         warnings.Should().BeEmpty();
     }
 
+    [Fact]
+    public void FinalizeConfiguration_WithoutPersistenceBuild_AppliesConfiguredWorkerId()
+    {
+        using var provider = Finalize(
+            new Dictionary<string, string?> { ["Endatix:Data:SnowflakeWorkerId"] = "7" },
+            builderWorkerId: null);
+
+        provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(7);
+    }
+
+    [Fact]
+    public void FinalizeConfiguration_WithoutPersistenceBuild_AppliesBuilderWorkerId()
+    {
+        using var provider = Finalize(configuration: null, builderWorkerId: 5);
+
+        provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(5);
+    }
+
     private static ServiceProvider Build(Dictionary<string, string?> settings)
     {
         var (services, _) = Compose(settings, builderWorkerId: null);
@@ -152,6 +180,30 @@ public class SnowflakeWorkerIdOptionsTests
 
         builder.Persistence.Build();
         return (services, logs);
+    }
+
+    private static ServiceProvider Finalize(
+        Dictionary<string, string?>? configuration,
+        int? builderWorkerId,
+        Action<EndatixBuilder>? configure = null)
+    {
+        var services = new ServiceCollection();
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(_securityConfig)
+            .AddInMemoryCollection(configuration)
+            .Build();
+        services.AddSingleton(config);
+        var builder = new EndatixBuilder(services, config);
+        builder.Infrastructure.Security.UseDefaults();
+        configure?.Invoke(builder);
+
+        if (builderWorkerId is int workerId)
+        {
+            builder.UseSnowflakeWorkerId(workerId);
+        }
+
+        builder.FinalizeConfiguration();
+        return services.BuildServiceProvider();
     }
 
     private static void AddLogger(ILoggerFactory factory, ILoggerProvider provider)
