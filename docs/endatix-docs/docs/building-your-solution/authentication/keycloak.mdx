@@ -180,7 +180,7 @@ API startup should log `Configured Keycloak auth provider`. Hub startup should l
 
 **API stops at startup naming `DefaultTenantId`.** Keycloak is enabled and `Endatix:Auth:Providers:Keycloak:DefaultTenantId` is missing or 0. Set it to the id of the tenant your Keycloak users belong to.
 
-**Upgrading with existing Keycloak users.** Users that Keycloak sign-ins created before `DefaultTenantId` was required are stored at tenant 0. Each one moves to the configured tenant on their next sign-in, with no manual step. A user already stored at another tenant is not moved.
+**Upgrading with existing Keycloak users.** Users that Keycloak sign-ins created before `DefaultTenantId` was required are stored at tenant 0. Each one moves to the configured tenant on their next sign-in, with no manual step. A user already stored at another tenant is not moved. After the move, roles the user held at tenant 0 no longer apply unless they are system roles; the Keycloak role mappings give the user their roles at the configured tenant.
 
 **Audience validation failed.** Set `Audience` to the `aud` claim in the access token. Decode the token to read it.
 
