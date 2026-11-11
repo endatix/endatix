@@ -1,123 +1,106 @@
 #!/usr/bin/env bash
-# Check build warnings against allowed set (EndatixConfig + NU190x).
-# Exit 0: only allowed warnings. Exit 1: in-scope warnings found. Exit 2: error.
+# Check build warnings against the allowed set (EndatixConfig obsolete usage + NU1901-NU1904).
+# Exit 0: only allowed warnings. Exit 1: in-scope warnings found. Exit 2: usage or input error.
+#
+# Handles every MSBuild warning shape:
+#   path/file.cs(10,5): warning CS0168: msg [proj.csproj]
+#   path/file.cs(10,5,10,20): warning CA1062: msg [proj.csproj]   (ranged)
+#   proj.csproj : warning NU1903: msg                             (no line/column)
+#   CSC : warning CS8032: msg [proj.csproj]                       (no file)
 
 set -euo pipefail
 
-# Parse MSBuild warning lines from stdin (dotnet build 2>&1 output).
-# Expected format: path/file.cs(line,col): warning CODE: message [project.csproj]
-# Normalize: remove runner path prefixes, trailing [*.csproj], and deduplicate.
-
+# Warning lines are those containing ": warning CODE: ".
 parse_warnings() {
-    grep -E '^[^ ]+\([0-9]+,[0-9]+\): warning [A-Za-z0-9]+:' || true
+    grep -E ': warning [A-Za-z]+[0-9]+: ' || true
+    return 0
 }
 
+# Strip the runner/workspace prefix so lines are stable across machines.
 normalize_path() {
-    # Strip common CI runner prefixes like /home/runner/work/endatix/endatix/
-    sed 's|^/[^:]*endatix/endatix/||' | sed 's|^/[^:]*endatix/||'
+    local line="$1"
+    line="${line//"$PWD"\//}"
+    sed -E 's|/[^ :(]*/endatix/endatix/||g' <<< "$line"
+    return 0
 }
 
-normalize_message() {
-    # Strip trailing [ [*.csproj] ] from messages
-    sed 's/ \[[^]]*\.csproj\]$//'
-}
-
-deduplicate() {
-    sort -u
-}
-
+# Prints "bucket" for one normalized warning line.
 classify_warning() {
     local line="$1"
-    
-    # Extract components: file(line,col): warning CODE: message
-    local file=$(echo "$line" | sed -n 's/^\([^(]*\)(.*/\1/p')
-    local code=$(echo "$line" | sed -n 's/.*warning \([A-Za-z0-9]*\):.*/\1/p')
-    local message=$(echo "$line" | sed -n 's/.*warning [A-Za-z0-9]*: \(.*\)/\1/p')
-    
-    # NU190x bucket
+    local location="${line%%: warning *}"
+    local rest="${line#*: warning }"
+    local code="${rest%%:*}"
+    local message="${rest#*: }"
+    local file="${location%%(*}"
+
     if [[ "$code" =~ ^NU190[1-4]$ ]]; then
         echo "nu190x"
-        return
-    fi
-    
-    # excluded_endatixconfig bucket
-    # Rule: (CS0618 AND message starts with 'EndatixConfig' is obsolete:)
-    #    OR file matches (^|/)(EndatixConfig|IEndatixConfig)\.cs$
-    if [[ "$code" == "CS0618" ]] && [[ "$message" =~ ^\'EndatixConfig\'\ is\ obsolete: ]]; then
+    elif [[ "$code" == "CS0618" && "$message" == "'EndatixConfig' is obsolete:"* ]]; then
         echo "excluded_endatixconfig"
-        return
-    fi
-    
-    if [[ "$file" =~ (^|/)(EndatixConfig|IEndatixConfig)\.cs$ ]]; then
+    elif [[ "$code" =~ ^CS061[28]$ && "$file" =~ (^|/)(EndatixConfig|IEndatixConfig)\.cs$ ]]; then
         echo "excluded_endatixconfig"
-        return
+    else
+        echo "in_scope"
     fi
-    
-    # Everything else is in_scope
-    echo "in_scope"
+    return 0
 }
 
 main() {
     local input="${1:-}"
-    
+
     if [[ -z "$input" ]]; then
         echo "Usage: $0 <build-log-file>" >&2
         echo "  or: dotnet build 2>&1 | $0 -" >&2
         exit 2
     fi
-    
-    local warnings
+
+    local raw
     if [[ "$input" == "-" ]]; then
-        warnings=$(parse_warnings | normalize_path | normalize_message | deduplicate)
+        raw=$(parse_warnings)
+    elif [[ -f "$input" ]]; then
+        raw=$(parse_warnings < "$input")
     else
-        warnings=$(parse_warnings < "$input" | normalize_path | normalize_message | deduplicate)
+        echo "Build log not found: $input" >&2
+        exit 2
     fi
-    
-    if [[ -z "$warnings" ]]; then
-        echo "✓ No warnings found."
-        exit 0
-    fi
-    
-    # Classify all warnings
-    local in_scope=()
-    local excluded=()
-    local nu190x=()
-    
+
+    local in_scope=() excluded=() nu190x=()
+    local line bucket
     while IFS= read -r line; do
-        local bucket=$(classify_warning "$line")
+        [[ -z "$line" ]] && continue
+        line=$(normalize_path "$line")
+        bucket=$(classify_warning "$line")
         case "$bucket" in
-            in_scope)
-                in_scope+=("$line")
-                ;;
-            excluded_endatixconfig)
-                excluded+=("$line")
-                ;;
-            nu190x)
-                nu190x+=("$line")
-                ;;
+            in_scope) in_scope+=("$line") ;;
+            excluded_endatixconfig) excluded+=("$line") ;;
+            nu190x) nu190x+=("$line") ;;
+            *) echo "Unknown bucket: $bucket" >&2; exit 2 ;;
         esac
-    done <<< "$warnings"
-    
-    local in_scope_count=${#in_scope[@]}
-    local excluded_count=${#excluded[@]}
-    local nu190x_count=${#nu190x[@]}
-    
+    done <<< "$raw"
+
+    # Deduplicate (the same warning repeats across multi-targeting and incremental passes).
+    if [[ ${#in_scope[@]} -gt 0 ]]; then
+        local unique
+        unique=$(printf '%s\n' "${in_scope[@]}" | sort -u)
+        in_scope=()
+        while IFS= read -r line; do in_scope+=("$line"); done <<< "$unique"
+    fi
+
     echo "Build warning summary:"
-    echo "  in_scope: $in_scope_count"
-    echo "  excluded_endatixconfig: $excluded_count"
-    echo "  nu190x: $nu190x_count"
-    
-    if [[ $in_scope_count -gt 0 ]]; then
+    echo "  in_scope: ${#in_scope[@]}"
+    echo "  excluded_endatixconfig: ${#excluded[@]}"
+    echo "  nu190x: ${#nu190x[@]}"
+
+    if [[ ${#in_scope[@]} -gt 0 ]]; then
         echo ""
-        echo "❌ Found $in_scope_count in-scope warning(s) that should not exist:"
+        echo "❌ Found ${#in_scope[@]} in-scope warning(s) that should not exist:"
         echo ""
         printf '%s\n' "${in_scope[@]}"
         exit 1
     fi
-    
+
     echo ""
     echo "✓ All warnings are in allowed categories (EndatixConfig or NU190x)."
-    exit 0
 }
 
 main "$@"

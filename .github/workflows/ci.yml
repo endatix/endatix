@@ -141,7 +141,7 @@ jobs:
           dotnet build --no-restore 2>&1 | tee build.log
           exit ${PIPESTATUS[0]}
       - name: ⚠️ Check build warnings
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && hashFiles('build.log') != '' }}
         run: ./scripts/check-build-warnings.sh build.log
       - name: 🧪 Run unit tests
         run: |
