@@ -373,8 +373,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             new FlattenedSubmissionRepository(reportingDb, unitOfWork, new DateTimeProvider()),
             unitOfWork,
             appDb,
-            new FormSchemaCompiler(),
-            ReportingTestSchema.SearchCopyFor(reportingDb),
+            new FormSchemaWriters(new FormSchemaCompiler(), ReportingTestSchema.SearchCopyFor(reportingDb)),
             NullLogger<FormSchemaProcessor>.Instance);
     }
 

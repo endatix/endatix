@@ -18,47 +18,71 @@ public static class StringUtils
 
         ReadOnlySpan<char> src = input;
         Span<char> buffer = src.Length <= 128 ? stackalloc char[src.Length * 2] : new char[src.Length * 2];
-        var pos = 0;
-        var wasLower = false;
-
+        var cursor = new KebabCursor(buffer);
         for (var i = 0; i < src.Length; i++)
         {
-            var c = src[i];
+            cursor.Write(src[i]);
+        }
+
+        return cursor.Finish();
+    }
+
+    private ref struct KebabCursor(Span<char> buffer)
+    {
+        private readonly Span<char> _buffer = buffer;
+        private int _pos;
+        private bool _wasLower;
+
+        public void Write(char c)
+        {
             if (char.IsWhiteSpace(c) || c == '_' || c == '-')
             {
-                if (pos > 0 && buffer[pos - 1] != '-')
-                {
-                    buffer[pos++] = '-';
-                }
-                wasLower = false;
+                WriteSeparator();
+                _wasLower = false;
+                return;
             }
-            else if (char.IsUpper(c))
+
+            if (char.IsUpper(c))
             {
-                if (wasLower && pos > 0 && buffer[pos - 1] != '-')
-                {
-                    buffer[pos++] = '-';
-                }
-                buffer[pos++] = char.ToLowerInvariant(c);
-                wasLower = false;
+                WriteUpper(c);
+                return;
             }
-            else
-            {
-                buffer[pos++] = c;
-                wasLower = true;
-            }
-        }
-        if (pos > 0 && buffer[pos - 1] == '-')
-        {
-            pos--;
+
+            _buffer[_pos++] = c;
+            _wasLower = true;
         }
 
-        var start = 0;
-        if (pos > 0 && buffer[0] == '-')
+        public string Finish()
         {
-            start = 1;
+            var pos = _pos;
+            if (pos > 0 && _buffer[pos - 1] == '-')
+            {
+                pos--;
+            }
+
+            var start = pos > 0 && _buffer[0] == '-' ? 1 : 0;
+            return new string(_buffer[start..pos]);
         }
 
-        return new string(buffer[start..pos]);
+        private void WriteUpper(char c)
+        {
+            // A previous lower-case character always leaves a non-separator in the buffer.
+            if (_wasLower)
+            {
+                _buffer[_pos++] = '-';
+            }
+
+            _buffer[_pos++] = char.ToLowerInvariant(c);
+            _wasLower = false;
+        }
+
+        private void WriteSeparator()
+        {
+            if (_pos > 0 && _buffer[_pos - 1] != '-')
+            {
+                _buffer[_pos++] = '-';
+            }
+        }
     }
 
     /// <summary>

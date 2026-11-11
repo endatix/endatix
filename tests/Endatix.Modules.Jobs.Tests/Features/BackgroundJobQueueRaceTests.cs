@@ -66,11 +66,11 @@ public sealed class BackgroundJobQueueRaceTests
 
     [Theory]
     [MemberData(nameof(Deadlocks))]
-    public async Task EnqueueAsync_InsertDeadlocksOnce_RetriesAndReturnsTheJob(Exception deadlock)
+    public async Task EnqueueAsync_InsertDeadlocksOnce_RetriesAndReturnsTheJob(string deadlockKind)
     {
         // Arrange
         await using var context = new TestJobsDbContext(
-            TestJobsDbContext.InMemoryOptions(new FailingSaves(deadlock, failures: 1)), new FixedTenantContext(0));
+            TestJobsDbContext.InMemoryOptions(new FailingSaves(Deadlock(deadlockKind), failures: 1)), new FixedTenantContext(0));
         var queue = QueueOver(context);
 
         // Act
@@ -83,11 +83,11 @@ public sealed class BackgroundJobQueueRaceTests
 
     [Theory]
     [MemberData(nameof(Deadlocks))]
-    public async Task EnqueueAsync_InsertDeadlocksTwice_Throws(Exception deadlock)
+    public async Task EnqueueAsync_InsertDeadlocksTwice_Throws(string deadlockKind)
     {
         // Arrange — a second deadlock in a row is not the race the retry is for.
         await using var context = new TestJobsDbContext(
-            TestJobsDbContext.InMemoryOptions(new FailingSaves(deadlock, failures: 2)), new FixedTenantContext(0));
+            TestJobsDbContext.InMemoryOptions(new FailingSaves(Deadlock(deadlockKind), failures: 2)), new FixedTenantContext(0));
         var queue = QueueOver(context);
 
         // Act
@@ -100,13 +100,13 @@ public sealed class BackgroundJobQueueRaceTests
 
     [Theory]
     [MemberData(nameof(Deadlocks))]
-    public async Task EnqueueAsync_DeadlockWhileStoringTriggers_RetriesTheWholeAttemptOnce(Exception deadlock)
+    public async Task EnqueueAsync_DeadlockWhileStoringTriggers_RetriesTheWholeAttemptOnce(string deadlockKind)
     {
         // Arrange — Quartz wraps what the driver raised while it stored the triggers. The in-memory store keeps the
         // first attempt's row, which a database rolls back, so the job carries no key: the retry inserts it afresh.
         await using var context = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
         _triggerScheduler.ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>()).ReturnsForAnyArgs(
-            Task.FromException(new JobPersistenceException("Couldn't store trigger.", deadlock)),
+            Task.FromException(new JobPersistenceException("Couldn't store trigger.", Deadlock(deadlockKind))),
             Task.CompletedTask);
         var queue = QueueOver(context);
 
@@ -121,12 +121,12 @@ public sealed class BackgroundJobQueueRaceTests
 
     [Theory]
     [MemberData(nameof(Deadlocks))]
-    public async Task EnqueueAsync_DeadlockWhileStoringTriggersTwice_Throws(Exception deadlock)
+    public async Task EnqueueAsync_DeadlockWhileStoringTriggersTwice_Throws(string deadlockKind)
     {
         // Arrange
         await using var context = new TestJobsDbContext(TestJobsDbContext.InMemoryOptions(), new FixedTenantContext(0));
         _triggerScheduler.ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>()).ReturnsForAnyArgs(
-            Task.FromException(new JobPersistenceException("Couldn't store trigger.", deadlock)));
+            Task.FromException(new JobPersistenceException("Couldn't store trigger.", Deadlock(deadlockKind))));
         var queue = QueueOver(context);
 
         // Act
@@ -137,11 +137,21 @@ public sealed class BackgroundJobQueueRaceTests
         await _triggerScheduler.ReceivedWithAnyArgs(2).ScheduleAndCommitAsync(default!, default!, Arg.Any<CancellationToken>());
     }
 
-    public static TheoryData<Exception> Deadlocks() => new()
+    public static TheoryData<string> Deadlocks() => new()
     {
-        SqlServerExceptions.WithNumbers(1205),
-        new PostgresException("deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected),
-        new PostgresException("could not serialize access", "ERROR", "ERROR", PostgresErrorCodes.SerializationFailure),
+        "sqlserver-1205",
+        "postgres-deadlock",
+        "postgres-serialization",
+    };
+
+    private static Exception Deadlock(string deadlockKind) => deadlockKind switch
+    {
+        "sqlserver-1205" => SqlServerExceptions.WithNumbers(1205),
+        "postgres-deadlock" => new PostgresException(
+            "deadlock detected", "ERROR", "ERROR", PostgresErrorCodes.DeadlockDetected),
+        "postgres-serialization" => new PostgresException(
+            "could not serialize access", "ERROR", "ERROR", PostgresErrorCodes.SerializationFailure),
+        _ => throw new ArgumentOutOfRangeException(nameof(deadlockKind), deadlockKind, null),
     };
 
     // A SQL Server context over a server that is not there, so any query would fail.

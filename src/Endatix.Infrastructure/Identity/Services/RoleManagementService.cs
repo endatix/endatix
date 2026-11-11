@@ -35,26 +35,24 @@ public sealed class RoleManagementService : IRoleManagementService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ICurrentUserAuthorizationService _currentUserAuthorizationService;
     private readonly IAuthorizationCache _authorizationCache;
-    private readonly ILogger<RoleManagementService> _logger;
+    private readonly ILogger<RoleManagementState> _logger;
 
     public RoleManagementService(
         UserManager<AppUser> userManager,
         AppIdentityDbContext identityDbContext,
         ITenantContext tenantContext,
         IRolesRepository rolesRepository,
-        IHttpContextAccessor httpContextAccessor,
-        ICurrentUserAuthorizationService currentUserAuthorizationService,
-        IAuthorizationCache authorizationCache,
-        ILogger<RoleManagementService> logger)
+        RoleManagementActor actor,
+        RoleManagementState state)
     {
         _userManager = userManager;
         _identityDbContext = identityDbContext;
         _tenantContext = tenantContext;
         _rolesRepository = rolesRepository;
-        _httpContextAccessor = httpContextAccessor;
-        _currentUserAuthorizationService = currentUserAuthorizationService;
-        _authorizationCache = authorizationCache;
-        _logger = logger;
+        _httpContextAccessor = actor.HttpContextAccessor;
+        _currentUserAuthorizationService = actor.CurrentUserAuthorization;
+        _authorizationCache = state.AuthorizationCache;
+        _logger = state.Logger;
     }
     /// <inheritdoc/>
     public async Task<Result> AssignRoleToUserAsync(long userId, string roleName, CancellationToken cancellationToken = default)

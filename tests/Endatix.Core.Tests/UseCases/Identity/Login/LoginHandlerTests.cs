@@ -51,11 +51,16 @@ public class LoginHandlerTests
     /// indistinguishable to the caller, whatever the IAuthService implementation returns.
     /// </summary>
     [Theory]
-    [MemberData(nameof(CredentialFailureResults))]
-    public async Task Handle_AnyCredentialFailure_ReturnsIdenticalInvalidResult(Result<User> authFailure)
+    [InlineData("invalid")]
+    [InlineData("not-found")]
+    [InlineData("unauthorized")]
+    [InlineData("forbidden")]
+    [InlineData("error")]
+    public async Task Handle_AnyCredentialFailure_ReturnsIdenticalInvalidResult(string failureKind)
     {
         // Arrange
         var command = new LoginCommand("test@example.com", "password");
+        var authFailure = CredentialFailure(failureKind);
         _authService.ValidateCredentials(command.Email, command.Password, Arg.Any<CancellationToken>())
             .Returns(authFailure);
 
@@ -70,13 +75,14 @@ public class LoginHandlerTests
         _tokenService.DidNotReceive().IssueRefreshToken();
     }
 
-    public static TheoryData<Result<User>> CredentialFailureResults() => new()
+    private static Result<User> CredentialFailure(string failureKind) => failureKind switch
     {
-        Result<User>.Invalid(new ValidationError("No such user")),
-        Result<User>.NotFound("User does not exist"),
-        Result<User>.Unauthorized("Account is locked"),
-        Result<User>.Forbidden("Email not confirmed"),
-        Result<User>.Error("Upstream identity provider failed"),
+        "invalid" => Result<User>.Invalid(new ValidationError("No such user")),
+        "not-found" => Result<User>.NotFound("User does not exist"),
+        "unauthorized" => Result<User>.Unauthorized("Account is locked"),
+        "forbidden" => Result<User>.Forbidden("Email not confirmed"),
+        "error" => Result<User>.Error("Upstream identity provider failed"),
+        _ => throw new ArgumentOutOfRangeException(nameof(failureKind), failureKind, null),
     };
 
     [Fact]

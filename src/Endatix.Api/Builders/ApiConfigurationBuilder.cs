@@ -72,12 +72,12 @@ public class ApiConfigurationBuilder
 
         // Add CORS services
         AddCorsServices();
-
         // Add default JSON options
         AddDefaultJsonOptions();
 
         // Unhandled exceptions → canonical ProblemDetails (no exception text leak).
         Services.AddHttpContextAccessor();
+        Services.AddTransient<global::Endatix.Api.Endpoints.Submissions.ExportAddons>();
         Services.AddExceptionHandler<EndatixExceptionHandler>();
         Services.AddProblemDetails();
 

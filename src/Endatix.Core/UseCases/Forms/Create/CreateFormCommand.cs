@@ -26,23 +26,29 @@ public record CreateFormCommand : ICommand<Result<Form>>
         bool isEnabled,
         string formDefinitionJsonData,
         string? webHookSettingsJson = null,
-        bool limitOnePerUser = false,
-        int? submissionTokenExpiryHours = null,
-        string? metadata = null,
-        long? folderId = null)
+        CreateFormOptions options = default)
     {
         Guard.Against.NullOrWhiteSpace(name);
         Guard.Against.NullOrWhiteSpace(formDefinitionJsonData);
-        SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(submissionTokenExpiryHours);
+        SubmissionGuards.AgainstInvalidSubmissionTokenExpiry(options.SubmissionTokenExpiryHours);
 
         Name = name;
         Description = description;
         IsEnabled = isEnabled;
-        LimitOnePerUser = limitOnePerUser;
-        SubmissionTokenExpiryHours = submissionTokenExpiryHours;
-        Metadata = metadata;
+        LimitOnePerUser = options.LimitOnePerUser;
+        SubmissionTokenExpiryHours = options.SubmissionTokenExpiryHours;
+        Metadata = options.Metadata;
         FormDefinitionJsonData = formDefinitionJsonData;
         WebHookSettingsJson = webHookSettingsJson;
-        FolderId = folderId;
+        FolderId = options.FolderId;
     }
 }
+
+/// <summary>
+/// Optional values for <see cref="CreateFormCommand"/>. Defaults match the previous constructor.
+/// </summary>
+public readonly record struct CreateFormOptions(
+    bool LimitOnePerUser = false,
+    int? SubmissionTokenExpiryHours = null,
+    string? Metadata = null,
+    long? FolderId = null);

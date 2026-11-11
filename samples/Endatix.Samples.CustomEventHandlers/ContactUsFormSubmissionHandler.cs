@@ -22,9 +22,12 @@ public class ContactUsFormSubmissionHandler : INotificationHandler<SubmissionCom
         _settings = options.Value;
     }
 
-    public async Task Handle(SubmissionCompletedEvent domainEvent, CancellationToken cancellationToken = default)
+    public async Task Handle(SubmissionCompletedEvent domainEvent, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Handling form submission via the {handler}", nameof(ContactUsFormSubmissionHandler));
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation("Handling form submission via the {Handler}", nameof(ContactUsFormSubmissionHandler));
+        }
 
         await SendWelcomeEmailBackToSenderAsync(domainEvent, cancellationToken).ConfigureAwait(false);
         await SendSystemNotificationEmailAsync(domainEvent, cancellationToken).ConfigureAwait(false);
@@ -50,7 +53,7 @@ public class ContactUsFormSubmissionHandler : INotificationHandler<SubmissionCom
             var validationResult = new EmailWithTemplateValidator().Validate(emailModel);
             if (!validationResult.IsValid)
             {
-                _logger.LogError("Cannot system notification email as part of {operation} due to invalid data: {errors}", "Send Welcome Email", validationResult.ToString("~"));
+                _logger.LogError("Cannot system notification email as part of {Operation} due to invalid data: {Errors}", "Send Welcome Email", validationResult.ToString("~"));
                 return;
             }
             await _emailSender.SendEmailAsync(emailModel, cancellationToken);
@@ -75,7 +78,7 @@ public class ContactUsFormSubmissionHandler : INotificationHandler<SubmissionCom
         var validationResult = new EmailWithBodyValidator().Validate(emailModel);
         if (!validationResult.IsValid)
         {
-            _logger.LogError("Cannot system notification email as part of {operation} due to invalid data: {errors}", "Send System Notification Email", validationResult.ToString("~"));
+            _logger.LogError("Cannot system notification email as part of {Operation} due to invalid data: {Errors}", "Send System Notification Email", validationResult.ToString("~"));
             return;
         }
         await _emailSender.SendEmailAsync(emailModel, cancellationToken);

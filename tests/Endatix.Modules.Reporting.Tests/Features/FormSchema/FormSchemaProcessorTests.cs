@@ -79,6 +79,7 @@ public class FormSchemaProcessorTests
             Substitute.For<IReportingUnitOfWork>(),
             // Early-exit tests never query submissions.
             Substitute.For<AppDbContext>(),
+            new FormSchemaWriters(
             new FormSchemaCompiler(),
             new FormSearchCopy(
                 new DateTimeProvider(),
@@ -89,6 +90,6 @@ public class FormSchemaProcessorTests
                 new SearchCopyRebuildRequests(
                     Substitute.For<Endatix.Core.Infrastructure.Domain.IRepository<Endatix.Core.Entities.OutboxMessage>>(),
                     new DateTimeProvider(),
-                    NullLogger<SearchCopyRebuildRequests>.Instance)),
+                    NullLogger<SearchCopyRebuildRequests>.Instance))),
             NullLogger<FormSchemaProcessor>.Instance);
 }

@@ -210,7 +210,7 @@ public class UpdateFormHandlerTests
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: true));
         form.Id = 1;
-        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, false);
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: false));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
@@ -228,7 +228,7 @@ public class UpdateFormHandlerTests
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
         form.Id = 1;
-        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
@@ -250,7 +250,7 @@ public class UpdateFormHandlerTests
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
         form.Id = 1;
-        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
@@ -272,7 +272,7 @@ public class UpdateFormHandlerTests
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
         form.Id = 1;
-        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
@@ -294,7 +294,7 @@ public class UpdateFormHandlerTests
         // Arrange
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: true, LimitOnePerUser: false));
         form.Id = 1;
-        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, true);
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
 
@@ -318,7 +318,7 @@ public class UpdateFormHandlerTests
             description: SampleData.FORM_DESCRIPTION_1,
             isEnabled: true,
             webHookSettingsJson: null,
-            limitOnePerUser: null);
+            options: new UpdateFormOptions(LimitOnePerUser: null));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
 
@@ -360,7 +360,7 @@ public class UpdateFormHandlerTests
             SampleData.FORM_NAME_1,
             SampleData.FORM_DESCRIPTION_1,
             true,
-            folderId: 9);
+            options: new UpdateFormOptions(FolderId: 9));
         _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
 

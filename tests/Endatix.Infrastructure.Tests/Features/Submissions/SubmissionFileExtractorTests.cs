@@ -71,8 +71,7 @@ public sealed class SubmissionFileExtractorTests
     var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
 
     // Assert
-    Assert.Single(files);
-    var file = files[0];
+    var file = Assert.Single(files);
     Assert.Equal("fileQuestion.txt", file.FileName);
     Assert.Equal("text/plain", file.MimeType);
     using var reader = new StreamReader(file.Content);
@@ -95,8 +94,7 @@ public sealed class SubmissionFileExtractorTests
     var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
 
     // Assert
-    Assert.Single(files);
-    var file = files[0];
+    var file = Assert.Single(files);
     Assert.Equal("fileQuestion.txt", file.FileName);
     Assert.Equal("text/plain", file.MimeType);
     using var reader = new StreamReader(file.Content);
@@ -145,8 +143,8 @@ public sealed class SubmissionFileExtractorTests
     var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
 
     // Assert
-    Assert.Single(files);
-    Assert.Equal("imagesUpload.png", files[0].FileName);
+    var file = Assert.Single(files);
+    Assert.Equal("imagesUpload.png", file.FileName);
     Assert.True(_handler!.WasCalled);
   }
 
@@ -266,8 +264,8 @@ public sealed class SubmissionFileExtractorTests
 
     var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, prefix, cancellationToken: TestContext.Current.CancellationToken);
 
-    Assert.Single(files);
-    Assert.Equal("myprefixfileQuestion.txt", files[0].FileName);
+    var file = Assert.Single(files);
+    Assert.Equal("myprefixfileQuestion.txt", file.FileName);
   }
 
   [Fact]
@@ -288,8 +286,8 @@ public sealed class SubmissionFileExtractorTests
 
     var files = await _extractor.ExtractFilesAsync(doc.RootElement, FormId, SubmissionId, cancellationToken: TestContext.Current.CancellationToken);
 
-    Assert.Single(files);
-    Assert.Equal("question9.wav", files[0].FileName);
+    var file = Assert.Single(files);
+    Assert.Equal("question9.wav", file.FileName);
   }
 
   [Fact]

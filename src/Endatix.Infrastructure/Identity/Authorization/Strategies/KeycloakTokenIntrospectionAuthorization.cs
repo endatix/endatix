@@ -11,14 +11,22 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Identity.Authorization.Strategies;
 
+internal sealed class KeycloakOperatorPipeline(
+    IKeycloakTokenIntrospectionService tokenIntrospectionService,
+    KeycloakExternalIdentityProfileResolver identityProfileResolver,
+    IExternalAppUserProvisioner externalAppUserProvisioner)
+{
+    public IKeycloakTokenIntrospectionService TokenIntrospectionService { get; } = tokenIntrospectionService;
+    public KeycloakExternalIdentityProfileResolver IdentityProfileResolver { get; } = identityProfileResolver;
+    public IExternalAppUserProvisioner ExternalAppUserProvisioner { get; } = externalAppUserProvisioner;
+}
+
 internal sealed class KeycloakTokenIntrospectionAuthorization(
     AuthProviderRegistry authProviderRegistry,
     IOptions<KeycloakOptions> keycloakOptions,
     IExternalAuthorizationMapper externalAuthorizationMapper,
     IHttpContextAccessor httpContextAccessor,
-    IKeycloakTokenIntrospectionService tokenIntrospectionService,
-    KeycloakExternalIdentityProfileResolver identityProfileResolver,
-    IExternalAppUserProvisioner externalAppUserProvisioner,
+    KeycloakOperatorPipeline pipeline,
     IPlatformAdminLocalApprovalGate platformAdminLocalApprovalGate,
     ILogger<KeycloakTokenIntrospectionAuthorization> logger
     ) : IAuthorizationStrategy
@@ -62,12 +70,10 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
         {
             return accessTokenResult.ToErrorResult<AuthorizationData>();
         }
-
         var accessToken = accessTokenResult.Value;
-
         try
         {
-            var introspectionResult = await tokenIntrospectionService.IntrospectAsync(accessToken, keycloakSettings, cancellationToken);
+            var introspectionResult = await pipeline.TokenIntrospectionService.IntrospectAsync(accessToken, keycloakSettings, cancellationToken);
             if (!introspectionResult.IsSuccess)
             {
                 return introspectionResult.ToErrorResult<AuthorizationData>();
@@ -91,17 +97,18 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             if (!RequiresHubAppUser(mappingResult))
             {
                 return await BuildAuthorizationDataAsync(
-                    keycloakSettings.DefaultTenantId,
-                    AuthProviders.Keycloak,
-                    subject,
-                    userId: subject,
-                    provisionedUserId: null,
-                    mappingResult.Roles,
-                    mappingResult.Permissions,
+                    new MappedAuthorization(
+                        keycloakSettings.DefaultTenantId,
+                        AuthProviders.Keycloak,
+                        subject,
+                        subject,
+                        null,
+                        mappingResult.Roles,
+                        mappingResult.Permissions),
                     cancellationToken);
             }
 
-            var identityProfileResult = await identityProfileResolver.ResolveAsync(
+            var identityProfileResult = await pipeline.IdentityProfileResolver.ResolveAsync(
                 keycloakSettings.DefaultTenantId,
                 AuthProviders.Keycloak,
                 subject,
@@ -114,7 +121,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 return identityProfileResult.ToErrorResult<AuthorizationData>();
             }
 
-            var provisionResult = await externalAppUserProvisioner.ProvisionAsync(
+            var provisionResult = await pipeline.ExternalAppUserProvisioner.ProvisionAsync(
                 keycloakSettings.DefaultTenantId,
                 AuthProviders.Keycloak,
                 subject,
@@ -127,13 +134,14 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             }
 
             return await BuildAuthorizationDataAsync(
-                keycloakSettings.DefaultTenantId,
-                AuthProviders.Keycloak,
-                subject,
-                userId: provisionResult.Value.Id.ToString(),
-                provisionedUserId: provisionResult.Value.Id,
-                mappingResult.Roles,
-                mappingResult.Permissions,
+                new MappedAuthorization(
+                    keycloakSettings.DefaultTenantId,
+                    AuthProviders.Keycloak,
+                    subject,
+                    provisionResult.Value.Id.ToString(),
+                    provisionResult.Value.Id,
+                    mappingResult.Roles,
+                    mappingResult.Permissions),
                 cancellationToken);
         }
         catch (Exception ex)
@@ -143,28 +151,31 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
         }
     }
 
+    private readonly record struct MappedAuthorization(
+        long TenantId,
+        string AuthProvider,
+        string ExternalSubjectId,
+        string UserId,
+        long? ProvisionedUserId,
+        string[] Roles,
+        string[] Permissions);
+
     private async Task<Result<AuthorizationData>> BuildAuthorizationDataAsync(
-        long tenantId,
-        string authProvider,
-        string externalSubjectId,
-        string userId,
-        long? provisionedUserId,
-        string[] mappedRoles,
-        string[] mappedPermissions,
+        MappedAuthorization mapped,
         CancellationToken cancellationToken)
     {
         var filteredAuthorization = await platformAdminLocalApprovalGate.ApplyAsync(
-            tenantId,
-            authProvider,
-            externalSubjectId,
-            provisionedUserId,
-            mappedRoles,
-            mappedPermissions,
+            mapped.TenantId,
+            mapped.AuthProvider,
+            mapped.ExternalSubjectId,
+            mapped.ProvisionedUserId,
+            mapped.Roles,
+            mapped.Permissions,
             cancellationToken);
 
         return Result.Success(AuthorizationData.ForAuthenticatedUser(
-            userId: userId,
-            tenantId: tenantId,
+            userId: mapped.UserId,
+            tenantId: mapped.TenantId,
             roles: filteredAuthorization.Roles,
             permissions: filteredAuthorization.Permissions));
     }

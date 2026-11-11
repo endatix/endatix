@@ -29,13 +29,14 @@ public static class ApiApplicationBuilderExtensions
         var loggerFactory = app.ApplicationServices.GetService<ILoggerFactory>();
         var logger = loggerFactory?.CreateLogger("Endatix.Api.Setup");
 
-        logger?.LogInformation("Configuring Endatix API middleware");
-
         var options = GetApiOptions(app);
-
-        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-            options.UseSwagger,
-            options.SwaggerPath);
+        if (logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            logger.LogInformation(
+                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+                options.UseSwagger,
+                options.SwaggerPath);
+        }
 
         var result = app.UseEndatixApi(options);
         logger?.LogInformation("Endatix API middleware configured successfully");
@@ -53,16 +54,15 @@ public static class ApiApplicationBuilderExtensions
         var loggerFactory = app.ApplicationServices.GetService<ILoggerFactory>();
         var logger = loggerFactory?.CreateLogger("Endatix.Api.Setup");
 
-        logger?.LogInformation("Configuring Endatix API middleware with custom options");
-
         var options = GetApiOptions(app);
-
-        // Apply custom configuration on top of configuration-provided values
         configure(options);
-
-        logger?.LogInformation("Using API options with UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-            options.UseSwagger,
-            options.SwaggerPath);
+        if (logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            logger.LogInformation(
+                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+                options.UseSwagger,
+                options.SwaggerPath);
+        }
 
         var result = app.UseEndatixApi(options);
         logger?.LogInformation("Endatix API middleware configured successfully with custom options");

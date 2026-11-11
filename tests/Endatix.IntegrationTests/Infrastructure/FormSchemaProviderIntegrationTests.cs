@@ -136,8 +136,7 @@ public sealed class FormSchemaProviderIntegrationTests
             Substitute.For<IFlattenedSubmissionRepository>(),
             unitOfWork,
             appDbContext,
-            new FormSchemaCompiler(),
-            ReportingTestSchema.SearchCopyFor(dbContext),
+            new FormSchemaWriters(new FormSchemaCompiler(), ReportingTestSchema.SearchCopyFor(dbContext)),
             NullLogger<FormSchemaProcessor>.Instance);
 
         return new FormSchemaProvider(schemaRepository, schemaProcessor, new FormSchemaCoverage(formsRepository, new FormSchemaCompiler()));

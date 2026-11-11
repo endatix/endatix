@@ -62,11 +62,7 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
                 request.Description,
                 request.IsEnabled!.Value,
                 request.WebHookSettingsJson,
-                request.LimitOnePerUser,
-                request.SubmissionTokenExpiryHours,
-                request.ClearSubmissionTokenExpiryHours,
-                request.Metadata,
-                folderId),
+                new UpdateFormOptions(request.LimitOnePerUser, request.SubmissionTokenExpiryHours, request.ClearSubmissionTokenExpiryHours, request.Metadata, folderId)),
             ct);
 
         return TypedResultsBuilder

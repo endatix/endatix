@@ -32,7 +32,7 @@ public sealed class HealthCheckTests
         var response = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
 
         // Assert
-        response.EnsureSuccessStatusCode();
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -46,7 +46,7 @@ public sealed class HealthCheckTests
         var response = await client.GetAsync(new Uri("/alive", UriKind.Relative), cancellationToken);
 
         // Assert
-        response.EnsureSuccessStatusCode();
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     /// <summary>

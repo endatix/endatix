@@ -9,6 +9,8 @@ namespace Endatix.Persistence.PostgreSql.Config
     [ApplyConfigurationFor<AppDbContext>]
     public class SubmissionConfigurationPostgreSql : IEntityTypeConfiguration<Submission>
     {
+        private const string JsonbColumnType = "jsonb";
+
         public void Configure(EntityTypeBuilder<Submission> builder)
         {
             ConfigureJsonColumns(builder);
@@ -36,13 +38,13 @@ namespace Endatix.Persistence.PostgreSql.Config
         private static void ConfigureJsonColumns(EntityTypeBuilder<Submission> builder)
         {
             builder.Property(s => s.JsonData)
-                .HasColumnType("jsonb");
+                .HasColumnType(JsonbColumnType);
             builder.Property(s => s.Metadata)
-                .HasColumnType("jsonb");
+                .HasColumnType(JsonbColumnType);
             builder.Property(s => s.SubmitterProfileSnapshot)
-                .HasColumnType("jsonb");
+                .HasColumnType(JsonbColumnType);
             builder.Property(s => s.PersonalizationSnapshot)
-                .HasColumnType("jsonb");
+                .HasColumnType(JsonbColumnType);
         }
     }
 }

@@ -93,9 +93,12 @@ public sealed class QueryableUtcDateTimeRangeExtensionsTests
     /// per requested date and churn the server-side plan cache, so guard the tree shape here.
     /// </summary>
     [Theory]
-    [MemberData(nameof(BoundedPredicates))]
-    public void BoundIsLiftedToAParameterNotAConstant(Expression predicate)
+    [InlineData("created-at")]
+    [InlineData("modified-at")]
+    [InlineData("last-login")]
+    public void BoundIsLiftedToAParameterNotAConstant(string predicateKind)
     {
+        var predicate = Predicate(predicateKind);
         var constants = new ConstantCollector();
         constants.Visit(predicate);
 
@@ -103,14 +106,15 @@ public sealed class QueryableUtcDateTimeRangeExtensionsTests
             "date bounds must reach EF as parameters, not inlined literals");
     }
 
-    public static TheoryData<Expression> BoundedPredicates() => new()
+    private static Expression Predicate(string predicateKind) => predicateKind switch
     {
-        UtcDateTimeRangeExpressions.CompareDateTime<Row>(
+        "created-at" => UtcDateTimeRangeExpressions.CompareDateTime<Row>(
             x => x.CreatedAt, ExpressionType.GreaterThanOrEqual, Day2),
-        UtcDateTimeRangeExpressions.CompareNullableDateTime<Row>(
+        "modified-at" => UtcDateTimeRangeExpressions.CompareNullableDateTime<Row>(
             x => x.ModifiedAt, ExpressionType.LessThan, Day3),
-        UtcDateTimeRangeExpressions.CompareNullableDateTimeOffset<Row>(
+        "last-login" => UtcDateTimeRangeExpressions.CompareNullableDateTimeOffset<Row>(
             x => x.LastLoginAt, ExpressionType.LessThan, Day3),
+        _ => throw new ArgumentOutOfRangeException(nameof(predicateKind), predicateKind, null),
     };
 
     private sealed class ConstantCollector : ExpressionVisitor

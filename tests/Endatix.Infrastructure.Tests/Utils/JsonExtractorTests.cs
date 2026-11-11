@@ -263,13 +263,16 @@ public sealed class JsonExtractorTests
         // Arrange
         var json = """{ "test": "value" }""";
         var extractor = new JsonExtractor(json);
+        extractor.RootElement.GetProperty("test").GetString().Should().Be("value");
 
         // Act
         extractor.Dispose();
 
-        // Assert
-        // Should not throw on dispose
-        extractor.Dispose();
+        // Assert — the parsed document is released, and a second dispose is a no-op.
+        var readDisposedDocument = () => extractor.RootElement.GetProperty("test").GetString();
+        readDisposedDocument.Should().Throw<ObjectDisposedException>();
+        var disposeAgain = extractor.Dispose;
+        disposeAgain.Should().NotThrow();
     }
 
     [Fact]
@@ -279,11 +282,18 @@ public sealed class JsonExtractorTests
         var json = """{ "test": "value" }""";
         var extractor = new JsonExtractor(json);
 
-        // Act & Assert
-        extractor.Dispose();
-        extractor.Dispose();
-        extractor.Dispose();
-        // Should not throw
+        // Act
+        var dispose = () =>
+        {
+            extractor.Dispose();
+            extractor.Dispose();
+            extractor.Dispose();
+        };
+
+        // Assert
+        dispose.Should().NotThrow();
+        var readDisposedDocument = () => extractor.RootElement.GetProperty("test").GetString();
+        readDisposedDocument.Should().Throw<ObjectDisposedException>();
     }
 
     [Fact]

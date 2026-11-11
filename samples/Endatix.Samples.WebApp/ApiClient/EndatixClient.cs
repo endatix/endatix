@@ -26,7 +26,7 @@ public class EndatixClient(HttpClient client) : IEndatixClient
     /// <returns>A task that represents the asynchronous operation. The task result contains a list of form responses.</returns>
     public async Task<ApiResult<IEnumerable<FormModel>>> GetFormsAsync(FormListRequest request, CancellationToken cancellationToken = default)
     {
-        Guard.Against.Null(request, nameof(request));
+        Guard.Against.Null(request);
 
         var requestMessage = CreateGetHttpRequestMessage($"forms?page={request.Page}&pageSize={request.PageSize}");
         return await SendAsJsonAsync<IEnumerable<FormModel>>(requestMessage, cancellationToken);
@@ -38,7 +38,7 @@ public class EndatixClient(HttpClient client) : IEndatixClient
     /// <param name="formId">The unique identifier of the form.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The form definition model of type: <c>FormDefinitionResponse</c></returns>
-    public async Task<ApiResult<FormDefinitionResponse>> GetActiveDefinitionAsync(long formId, CancellationToken cancellationToken)
+    public async Task<ApiResult<FormDefinitionResponse>> GetActiveDefinitionAsync(long formId, CancellationToken cancellationToken = default)
     {
         var requestMessage = CreateGetHttpRequestMessage($"forms/{formId}/definition");
         return await SendAsJsonAsync<FormDefinitionResponse>(requestMessage, cancellationToken);
@@ -50,7 +50,7 @@ public class EndatixClient(HttpClient client) : IEndatixClient
     /// <param name="submissionRequest">The request object containing the submission details.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>Returns the response of type <c>CreateSubmissionResponse</c>, or null if the operation fails.</returns>
-    public async Task<CreateSubmissionResponse?> SubmitFormAsync(CreateSubmissionRequest submissionRequest, CancellationToken cancellationToken = default)
+    public async Task<CreateSubmissionResponse?> SubmitFormAsync(CreateSubmissionRequest submissionRequest, CancellationToken cancellationToken)
     {
         if (submissionRequest == null)
         {
@@ -61,13 +61,13 @@ public class EndatixClient(HttpClient client) : IEndatixClient
 
         if (!responseMessage.IsSuccessStatusCode)
         {
-            throw new Exception("Request failed with status: " + responseMessage.StatusCode);
+            throw new HttpRequestException("Request failed with status: " + responseMessage.StatusCode);
         }
 
         var contentStream = await responseMessage.Content.ReadAsStreamAsync(cancellationToken);
         if (contentStream == null || contentStream.Length == 0)
         {
-            throw new Exception("Request failed with status: " + HttpStatusCode.InternalServerError);
+            throw new HttpRequestException("Request failed with status: " + HttpStatusCode.InternalServerError);
         }
 
         try
@@ -77,7 +77,7 @@ public class EndatixClient(HttpClient client) : IEndatixClient
         }
         catch (JsonException)
         {
-            throw new Exception("Failed to deserialize the response.");
+            throw new InvalidOperationException("Failed to deserialize the response.");
         }
     }
 
@@ -93,7 +93,7 @@ public class EndatixClient(HttpClient client) : IEndatixClient
             {
                 try
                 {
-                    var contentStream = await response.Content.ReadAsStreamAsync();
+                    var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
                     var jsonSerializerOptions = options ?? _defaultJsonSerializerOptions;
 
                     var result = await JsonSerializer.DeserializeAsync<TResponse>(contentStream, jsonSerializerOptions, cancellationToken);
@@ -114,8 +114,6 @@ public class EndatixClient(HttpClient client) : IEndatixClient
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-
                 return ApiError.FromResponse(response);
             }
         }
@@ -130,23 +128,5 @@ public class EndatixClient(HttpClient client) : IEndatixClient
     }
 
 
-    private HttpRequestMessage CreateGetHttpRequestMessage(string uri) => new HttpRequestMessage(HttpMethod.Get, uri);
-
-    private HttpRequestMessage CreateHttpRequestMessage<TPayload>(
-    string uri, HttpMethod httpMethod, TPayload? payload)
-    {
-        Guard.Against.NullOrWhiteSpace(uri);
-
-        var requestMessage = new HttpRequestMessage(httpMethod, uri);
-
-        if (payload != null && ShouldIncludePayload(httpMethod))
-        {
-            requestMessage.Content = JsonContent.Create(payload);
-        }
-
-        return requestMessage;
-    }
-
-    private bool ShouldIncludePayload(HttpMethod httpMethod) => httpMethod == HttpMethod.Post || httpMethod == HttpMethod.Put;
-
+    private static HttpRequestMessage CreateGetHttpRequestMessage(string uri) => new HttpRequestMessage(HttpMethod.Get, uri);
 }

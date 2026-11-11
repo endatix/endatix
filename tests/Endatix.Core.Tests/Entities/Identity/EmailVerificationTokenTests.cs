@@ -42,8 +42,11 @@ public class EmailVerificationTokenTests
         action.Should().Throw<ArgumentException>();
     }
 
+    [Fact]
+    public void Constructor_NullToken_ThrowsArgumentException() =>
+        Constructor_InvalidToken_ThrowsArgumentException(null);
+
     [Theory]
-    [InlineData(null)]
     [InlineData("")]
     [InlineData(" ")]
     public void Constructor_InvalidToken_ThrowsArgumentException(string? token)

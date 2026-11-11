@@ -278,6 +278,7 @@ public class InfrastructureSecurityBuilder
     private void RegisterKeycloakAuthorizationServices()
     {
         AddExternalAppUserAuthorizationServices();
+        Services.AddScoped<KeycloakOperatorPipeline>();
         Services.AddScoped<IAuthorizationStrategy, KeycloakTokenIntrospectionAuthorization>();
         Services.AddScoped<IKeycloakTokenIntrospectionService, KeycloakTokenIntrospectionService>();
         Services.AddScoped<IKeycloakUserInfoProfileService, KeycloakUserInfoProfileService>();

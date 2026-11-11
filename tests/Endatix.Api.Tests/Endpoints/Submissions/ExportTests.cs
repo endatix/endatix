@@ -46,7 +46,6 @@ public class ExportTests
             _tenantSettingsRepository,
             _tenantContext,
             _logger,
-            null,
             null);
         _reportingEndpoint = Factory.Create<Export>(
             _mediator,
@@ -55,8 +54,7 @@ public class ExportTests
             _tenantSettingsRepository,
             _tenantContext,
             _logger,
-            _exportFormatRepository,
-            _exportCapabilityRegistry);
+            new ExportAddons(_exportFormatRepository, _exportCapabilityRegistry));
     }
 
     private static IExportCapabilityRegistry CreateCapabilityRegistry()

@@ -22,7 +22,7 @@ public class RoleManagementServiceTests
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ICurrentUserAuthorizationService _currentUserAuthorizationService;
     private readonly IAuthorizationCache _authorizationCache;
-    private readonly ILogger<RoleManagementService> _logger;
+    private readonly ILogger<RoleManagementState> _logger;
     private readonly RoleManagementService _service;
 
     public RoleManagementServiceTests()
@@ -42,17 +42,15 @@ public class RoleManagementServiceTests
         _httpContextAccessor = Substitute.For<IHttpContextAccessor>();
         _currentUserAuthorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _authorizationCache = Substitute.For<IAuthorizationCache>();
-        _logger = Substitute.For<ILogger<RoleManagementService>>();
+        _logger = Substitute.For<ILogger<RoleManagementState>>();
 
         _service = new RoleManagementService(
             _userManager,
             _identityDbContext,
             _tenantContext,
             _rolesRepository,
-            _httpContextAccessor,
-            _currentUserAuthorizationService,
-            _authorizationCache,
-            _logger);
+            new RoleManagementActor(_httpContextAccessor, _currentUserAuthorizationService),
+            new RoleManagementState(_authorizationCache, _logger));
     }
 
     #region AssignRoleToUserAsync Tests

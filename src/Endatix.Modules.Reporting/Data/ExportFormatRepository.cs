@@ -82,22 +82,17 @@ internal sealed class ExportFormatRepository(
     /// <inheritdoc />
     public async Task<ExportFormatDto> CreateAsync(
         long tenantId,
-        string name,
-        ExportTarget exportTarget,
-        ExportDeliveryFormat deliveryFormat,
-        ExportProfile profile,
-        string? description,
-        string? settingsJson,
+        NewExportFormat format,
         CancellationToken cancellationToken)
     {
         ExportFormat exportFormat = new(
             tenantId,
-            name.Trim(),
-            exportTarget,
-            deliveryFormat,
-            profile,
-            description?.Trim());
-        exportFormat.UpdateSettingsJson(settingsJson);
+            format.Name.Trim(),
+            format.ExportTarget,
+            format.DeliveryFormat,
+            format.Profile,
+            format.Description?.Trim());
+        exportFormat.UpdateSettingsJson(format.SettingsJson);
 
         await dbContext.ExportFormats.AddAsync(exportFormat, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);

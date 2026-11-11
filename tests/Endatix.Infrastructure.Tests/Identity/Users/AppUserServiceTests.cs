@@ -20,7 +20,7 @@ public class AppUserServiceTests
     private readonly IUserContext _userContext;
     private readonly IRelationalSubstringLikeFilter _substringLikeFilter;
     private readonly IAuthorizationCache _authorizationCache;
-    private readonly ILogger<AppUserService> _logger;
+    private readonly ILogger<AppUserAudit> _logger;
     private readonly AppUserService _userService;
 
     public AppUserServiceTests()
@@ -35,7 +35,7 @@ public class AppUserServiceTests
         _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();
         _authorizationCache = Substitute.For<IAuthorizationCache>();
-        _logger = Substitute.For<ILogger<AppUserService>>();
+        _logger = Substitute.For<ILogger<AppUserAudit>>();
         _userService = new AppUserService(
             _userManager,
             _tenantContext,
@@ -43,8 +43,7 @@ public class AppUserServiceTests
             _emailVerificationService,
             _userContext,
             _substringLikeFilter,
-            _authorizationCache,
-            _logger);
+            new AppUserAudit(_authorizationCache, _logger));
     }
 
 
