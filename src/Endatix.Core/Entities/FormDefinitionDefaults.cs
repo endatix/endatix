@@ -5,5 +5,8 @@ namespace Endatix.Core.Entities;
 /// </summary>
 public static class FormDefinitionDefaults
 {
+    /// <summary>
+    /// Survey JSON written when the caller does not supply any.
+    /// </summary>
     public const string Json = "{\"logoPosition\": \"right\"}";
 }

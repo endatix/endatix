@@ -295,13 +295,23 @@ public class EndatixPersistenceBuilder
         if (configuredText is null)
         {
             var workerId = _snowflakeWorkerIdSetting ?? 0;
-            _logger?.LogDataOptionFromDefault(settingName, workerId.ToString(CultureInfo.InvariantCulture));
             opts.SnowflakeWorkerId = workerId;
+            LogWorkerIdFromDefault(settingName, workerId);
             return;
         }
 
         _logger?.LogDataOptionFromConfiguration(settingName, configuredText);
         WarnWhenSnowflakeConfigurationWins(configuredText);
+    }
+
+    private void LogWorkerIdFromDefault(string settingName, int workerId)
+    {
+        if (_logger is not ILogger logger || !logger.IsEnabled(LogLevel.Debug))
+        {
+            return;
+        }
+
+        logger.LogDataOptionFromDefault(settingName, workerId.ToString(CultureInfo.InvariantCulture));
     }
 
     private void WarnWhenSnowflakeConfigurationWins(string configuredText)

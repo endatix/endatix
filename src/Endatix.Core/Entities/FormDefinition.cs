@@ -31,6 +31,10 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     public IReadOnlyList<Submission> Submissions => _submissions.AsReadOnly();
 
     public bool IsDraft { get; private set; }
+
+    /// <summary>
+    /// Survey JSON for this definition. Callers that omit it get <see cref="FormDefinitionDefaults.Json"/>.
+    /// </summary>
     public string JsonData { get; private set; } = FormDefinitionDefaults.Json;
 
 #pragma warning disable S1144 // EF Core sets it when it loads the definition, and FormDefinitionFactory in the tests.

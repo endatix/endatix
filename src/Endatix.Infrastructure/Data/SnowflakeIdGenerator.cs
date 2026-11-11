@@ -12,6 +12,10 @@ public class SnowflakeIdGenerator : IIdGenerator<long>
 {
     private readonly Snowflake.IdGenerator _generator;
 
+    /// <summary>
+    /// Creates a generator for <see cref="DataOptions.SnowflakeWorkerId"/>.
+    /// </summary>
+    /// <param name="options">Data options for this API instance.</param>
     public SnowflakeIdGenerator(IOptions<DataOptions> options)
         : this(options.Value.SnowflakeWorkerId)
     {

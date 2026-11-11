@@ -25,6 +25,10 @@ public partial class FormTemplate : TenantEntity, IAggregateRoot, IHasFolder
 
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Survey JSON for this template. Callers that omit it get <see cref="FormDefinitionDefaults.Json"/>.
+    /// </summary>
     public string JsonData { get; set; } = FormDefinitionDefaults.Json;
 
     public long? FolderId { get; private set; }
