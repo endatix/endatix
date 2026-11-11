@@ -32,7 +32,8 @@ Two stores in one `jobs` schema, with one job each:
   (tables `jobs.qrtz_*`), is the **queue**: it decides when and on which node a job runs, and
   re-runs the work of a node that stopped. A retry is a trigger the job wrapper stores itself.
 
-Every job has exactly one row and one Quartz trigger, keyed by the job's id; the trigger carries
+Every job has exactly one row and, while it waits to run, one Quartz trigger, keyed by the job's id
+(a job recovered from a dead node runs on a recovery trigger of Quartz's own); the trigger carries
 that id and, on a re-fire, what the re-fire is for. The payload and anything secret stay on the row.
 One thing is in both: a re-fire that carries a failure the handler returned holds its message, the
 handler's own `Result` text (never exception text), cut to 2048 characters as the row cuts it, in
@@ -210,7 +211,8 @@ inside the module's Quartz registration: anything a host registers for the sched
 lost on a rebuild, and the rebuilt scheduler runs without it.
 
 **Each job type is its own Quartz execution group**, capped per node at
-`JobTypes:{JobType}:MaxConcurrency` (default `1`). Every group this host has no handler for is
+`JobTypes:{JobType}:MaxConcurrency` (default: the job type's own, else `1`; 4 for `WebHookDelivery`,
+2 for the Reporting and Audience types). Every group this host has no handler for is
 capped at `0`, so a node never takes a job it cannot run; the job waits for a node that can. The
 thread pool holds every registered job type's full cap at once, so it is sized as the sum of the
 caps, and there is no global concurrency setting. Trigger acquisition reads, for each group with a
@@ -230,9 +232,11 @@ deploy the module that handles it.
 
 **Dashboard.** With `Dashboard:Enabled`, the Quartz dashboard is served at `/quartz` and its HTTP
 API at `/quartz-api`, both behind the `PlatformAdmin` policy and read-only unless
-`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can schedule jobs
-on the host, and it shows every tenant's triggers. Even with writes on, only Endatix's own job
-class may be named.
+`Dashboard:AllowWrites` is set. It is an operator tool: a caller that may write can trigger, pause,
+reschedule, unschedule or delete any tenant's jobs, and it shows every tenant's triggers. Even with
+writes on, only Endatix's own job class may be named, which narrows adding and scheduling only.
+Unscheduling a job's trigger, or deleting a job type's durable job (which deletes every trigger it
+has), leaves those jobs' rows unfinished with nothing to run them.
 
 Each job type the host has a handler for gets one durable Quartz job, which requests recovery,
 so a job cut off by a stopped or crashed node runs again on another. A host enqueueing a job type
@@ -448,8 +452,9 @@ Should that write fail too, the firing goes on trying as before.
 
 The row's `AttemptCount`, against the job type's `MaxAttempts` on the node that runs the attempt,
 decides dead-lettering, and the retry's backoff is that node's too. Nothing about retries is fixed
-at enqueue, so a change to either applies to jobs already waiting. Exception text never reaches
-`ErrorMessage`. `NextAttemptAt` is the time the retry's trigger was stored for.
+at enqueue, so a change to either applies to jobs already waiting. Only an exception that opts in
+through `IEndUserSafeError` puts its message on `ErrorMessage`; any other stores a fixed text.
+`NextAttemptAt` is the time the retry's trigger was stored for.
 
 **Triggers from earlier versions** carry a Quartz retry policy, because the wrapper used to throw
 for Quartz to retry. It no longer throws, so such a trigger ends its firing like any other, and the
@@ -480,6 +485,22 @@ pipeline to it.
 The outbox relay's fan-out into jobs reports on a meter of its own, `Endatix.Outbox`; its instrument is listed
 in the Background Processing docs (`docs/endatix-docs/docs/configuration/background-processing.mdx`, Metrics).
 
+## Outbox delivery to jobs
+
+With `Endatix:Outbox:DeliverToJobQueue` on (default `false`), the outbox relay delivers each message
+by enqueuing one job per subscriber, one `WebHookDelivery` job per distinct enabled endpoint URL and
+one job per Reporting or Audience handler that needs the message, with the dedup key
+`{outboxMessageId}:{subscriber}`, and marks it sent. A module registers each handler with `AddOutboxWork`, which registers it inline, as a
+job and as that job's subscriptions in one call; see
+[Domain and integration events](../../ARCHITECTURE.md#domain-and-integration-events).
+
+- Every host that runs the outbox relay must register every module that subscribes to outbox
+  events, with the same module feature flags.
+- With the switch on and this module off, the relay pauses rather than lose messages.
+- With the switch on, startup fails while an inline outbox handler has no job for one of its events.
+
+Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
+
 ## Configuration
 
 Under `Endatix:BackgroundJobs`, with per-job-type settings under `JobTypes:{JobType}`.
@@ -488,7 +509,7 @@ Under `Endatix:BackgroundJobs`, with per-job-type settings under `JobTypes:{JobT
 its own, and the first of these that has a value is used:
 
 1. the job type's own key, `JobTypes:{JobType}:{Setting}`, in appsettings or an environment variable;
-2. the global key, `{Setting}`, if the host set it;
+2. the global key, `{Setting}`, if the host set it, even to its default value;
 3. the job type's default, declared in code when its handler was registered (the table below);
 4. the global default (the second table below).
 
@@ -501,26 +522,31 @@ For example, a host whose `appsettings.json` has
 "Endatix": {
   "BackgroundJobs": {
     "RetentionDays": 30,
-    "JobTypes": { "WebHookDelivery": { "MaxAttempts": 10 } }
+    "JobTypes": { "WebHookDelivery": { "MaxAttempts": 6 } }
   }
 }
 ```
 
 keeps every finished job's row for 30 days, webhook deliveries included, and tries a webhook delivery
-10 times; the other webhook settings stay as declared in code. The same with environment variables:
+6 times; the other webhook settings stay as declared in code. The same with environment variables:
 
 ```bash
 Endatix__BackgroundJobs__RetentionDays=30
-Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10
+Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=6
 ```
 
 The options validator checks the values each job type runs with, and names the key each one came
 from; a value from code is named by the `JobTypes` key that replaces it.
+A global backoff value is checked against each job type's values from code, so a global
+`BackoffBaseSeconds` of `700` fails startup for any job type whose cap from code is lower, such as
+the Reporting types (`600`); set the job type's own key instead.
 
 | Job type | MaxAttempts | MaxRuntimeMinutes | BackoffBaseSeconds / BackoffCapSeconds | RetentionDays | MaxConcurrency | Declared in |
 |----------|-------------|-------------------|----------------------------------------|---------------|----------------|-------------|
 | `WebHookDelivery` | 8 | 5 | 10 / 3600 | 3 | 4 | `Endatix.Infrastructure` |
-| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Modules.Reporting` |
+| `ReportingCompileFormSchema`, `ReportingFlattenSubmission`, `ReportingRebuildSearchCopy`, `ReportingSeedDefaultExportFormats`, `ReportingSyncFormDeletion`, `ReportingSyncSubmissionDeletion`, `AudienceDeleteFormAudience`, `AudienceReleaseLinkOnTestMark` | 5 | 10 | 10 / 600 | 3 | 2 | `Endatix.Infrastructure` (`OutboxWorkServiceCollectionExtensions.DefaultJob`, which `AddOutboxWork` uses unless given others) |
+| `AudienceImportCheck` | 3 | global | global | global | 2 | `Endatix.Modules.Audience` |
+| `AudienceImportWrite` | 8 | global | 5 / 300 | global | 2 | `Endatix.Modules.Audience` |
 | any other | global | global | global | global | 1 | — |
 
 | Key | Default | Purpose |
@@ -532,11 +558,11 @@ from; a value from code is named by the `JobTypes` key that replaces it.
 | `ShutdownWaitSeconds` | `30` | How long a stopping host waits for running jobs before leaving them for recovery; never longer than the host's `HostOptions.ShutdownTimeout` (30 s by default) |
 | `LockOnInsert` | `false` on PostgreSQL, `true` on SQL Server | Whether enqueueing holds the scheduler's cluster-wide trigger lock until it commits. Read from configuration once, at registration: a `Configure` or `PostConfigure` in code does not change it, and a node whose options say otherwise logs a warning at startup |
 | `MaxRuntimeMinutes` | `60` | Ceiling on one attempt (per type) |
-| `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); read when an attempt ends, so a change also applies to jobs already waiting |
+| `MaxAttempts` | `3` | Attempts before `DeadLettered` (per type); each attempt runs with the value its node was started with, not one fixed at enqueue, so once the nodes restart a change also applies to jobs already waiting |
 | `BackoffBaseSeconds` / `BackoffCapSeconds` | `30` / `900` | Retry backoff (per type) |
 | `RetentionDays` | `7` | How long a finished job's row is kept (per type); stamped as `ExpiresAt` when it finishes |
 | `Retention:Cron` / `BatchSize` / `MaxBatchesPerRun` | `0 0/15 * * * ?` / `1000` / `50` | When the retention job runs and how much one run deletes |
-| `JobTypes:{JobType}:MaxConcurrency` | `1` | Jobs of this type one node runs at once; `0` declines the type |
+| `JobTypes:{JobType}:MaxConcurrency` | the job type's own, else `1` | Jobs of this type one node runs at once; `0` declines the type |
 | `Clustering:CheckinIntervalSeconds` / `CheckinMisfireThresholdSeconds` | `7.5` / `7.5` | A node silent for their sum is presumed dead |
 | `Dashboard:Enabled` / `Dashboard:AllowWrites` | `false` / `false` | The operator dashboard, for platform admins |
 | `Clustering:InstanceId` | generated | This node's identity; set only to a value no other running node uses |
@@ -763,7 +789,7 @@ that changes it fails in CI rather than at deploy time:
 The upgrade from 4.2.2 to 4.7.2 is `UpgradeQuartzTablesTo472`, for both providers. It adds the
 columns, the `qrtz_job_status` table and the execution-history indexes of Quartz's 4.3, 4.4, 4.6 and
 4.7 upgrade scripts, the execution-history ones included although the module does not turn
-execution history on, so that an upgraded database has what a fresh one gets. On SQL Server, a
+on the database-backed execution history (`UseExecutionHistory()`), so that an upgraded database has what a fresh one gets. On SQL Server, a
 database created before keeps `FK_qrtz_BLOB_TRIGGERS_qrtz_TRIGGERS`, which the 4.7.2 create script
 no longer makes ([quartznet#3949](https://github.com/quartznet/quartznet/issues/3949)); Quartz
 deletes blob rows itself, so nothing depends on it. `JobsQuartzSchemaUpgradeTests` migrates a
