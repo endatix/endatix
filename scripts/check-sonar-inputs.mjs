@@ -68,7 +68,8 @@ async function main() {
     append(process.env.GITHUB_STEP_SUMMARY, `ℹ️ ${text}`);
     return 0;
   }
-  console.log(`::error title=SonarCloud::${escapeCommand(`Missing ${missing}: deleted after a passed analysis, or expired. Re-run all jobs.`)}`);
+  const error = `Missing ${missing}: deleted after a passed analysis, or expired. Re-run all jobs.`;
+  console.log(`::error title=SonarCloud::${escapeCommand(error)}`);
   return 1;
 }
 
