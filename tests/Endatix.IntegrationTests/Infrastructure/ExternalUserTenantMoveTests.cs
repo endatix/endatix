@@ -28,12 +28,12 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
         var tenantId = world.Tenants[0].Id;
-        var subject = Guid.NewGuid().ToString();
-        var existingUserId = await SeedKeycloakUserAsync(world, tenantId: 0, subject, $"{subject}@example.com");
+        var identity = KeycloakIdentity.New();
+        var existingUserId = await SeedKeycloakUserAsync(world, tenantId: 0, identity);
 
         // Act
-        var first = await ProvisionAsync(world, tenantId, subject, $"{subject}@example.com", cancellationToken);
-        var second = await ProvisionAsync(world, tenantId, subject, $"{subject}@example.com", cancellationToken);
+        var first = await ProvisionAsync(world, tenantId, identity);
+        var second = await ProvisionAsync(world, tenantId, identity);
 
         // Assert
         first.IsSuccess.Should().BeTrue();
@@ -41,7 +41,7 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         first.Value.TenantId.Should().Be(tenantId);
         second.IsSuccess.Should().BeTrue();
         second.Value.Id.Should().Be(existingUserId);
-        (await TenantsOfAsync(world, subject, cancellationToken)).Should().Equal(tenantId);
+        (await TenantsOfAsync(world, identity.Subject, cancellationToken)).Should().Equal(tenantId);
     }
 
     [Fact]
@@ -52,15 +52,15 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
         var tenantId = world.Tenants[0].Id;
         var otherTenantId = await IntegrationTenants.InsertAsync(fixture.Database, cancellationToken);
-        var subject = Guid.NewGuid().ToString();
-        await SeedKeycloakUserAsync(world, otherTenantId, subject, $"{subject}@example.com");
+        var identity = KeycloakIdentity.New();
+        await SeedKeycloakUserAsync(world, otherTenantId, identity);
 
         // Act
-        var result = await ProvisionAsync(world, tenantId, subject, $"{subject}@example.com", cancellationToken);
+        var result = await ProvisionAsync(world, tenantId, identity);
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        (await TenantsOfAsync(world, subject, cancellationToken)).Should().Equal(otherTenantId);
+        (await TenantsOfAsync(world, identity.Subject, cancellationToken)).Should().Equal(otherTenantId);
     }
 
     [Fact]
@@ -70,18 +70,18 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
         var tenant = world.Tenants[0];
-        var subject = Guid.NewGuid().ToString();
-        await SeedKeycloakUserAsync(world, tenantId: 0, subject, tenant.Admin.Email);
+        var identity = KeycloakIdentity.New() with { Email = tenant.Admin.Email };
+        await SeedKeycloakUserAsync(world, tenantId: 0, identity);
 
         // Act
-        var result = await ProvisionAsync(world, tenant.Id, subject, tenant.Admin.Email, cancellationToken);
+        var result = await ProvisionAsync(world, tenant.Id, identity);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
-        (await TenantsOfAsync(world, subject, cancellationToken)).Should().Equal(0L);
+        (await TenantsOfAsync(world, identity.Subject, cancellationToken)).Should().Equal(0L);
     }
 
-    private static async Task<long> SeedKeycloakUserAsync(IntegrationTestWorld world, long tenantId, string subject, string email)
+    private static async Task<long> SeedKeycloakUserAsync(IntegrationTestWorld world, long tenantId, KeycloakIdentity identity)
     {
         using var scope = world.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -89,9 +89,9 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         {
             TenantId = tenantId,
             AuthProvider = AuthProviders.Keycloak,
-            ExternalSubjectId = subject,
-            UserName = ExternalAppUserProvisioner.BuildExternalUserName(AuthProviders.Keycloak, subject),
-            Email = email,
+            ExternalSubjectId = identity.Subject,
+            UserName = ExternalAppUserProvisioner.BuildExternalUserName(AuthProviders.Keycloak, identity.Subject),
+            Email = identity.Email,
             EmailConfirmed = true,
             LockoutEnabled = true
         };
@@ -100,12 +100,7 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         return user.Id;
     }
 
-    private static async Task<Result<AppUser>> ProvisionAsync(
-        IntegrationTestWorld world,
-        long tenantId,
-        string subject,
-        string email,
-        CancellationToken cancellationToken)
+    private static async Task<Result<AppUser>> ProvisionAsync(IntegrationTestWorld world, long tenantId, KeycloakIdentity identity)
     {
         using var scope = world.Services.CreateScope();
         ExternalAppUserProvisioner provisioner = new(
@@ -116,10 +111,10 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         return await provisioner.ProvisionAsync(
             tenantId,
             AuthProviders.Keycloak,
-            subject,
+            identity.Subject,
             _mappedRoles,
-            new ExternalIdentityProfile(email, "Keycloak user"),
-            cancellationToken);
+            new ExternalIdentityProfile(identity.Email, "Keycloak user"),
+            TestContext.Current.CancellationToken);
     }
 
     private static async Task<List<long>> TenantsOfAsync(IntegrationTestWorld world, string subject, CancellationToken cancellationToken)
@@ -130,5 +125,14 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
             .Where(user => user.AuthProvider == AuthProviders.Keycloak && user.ExternalSubjectId == subject)
             .Select(user => user.TenantId)
             .ToListAsync(cancellationToken);
+    }
+
+    private sealed record KeycloakIdentity(string Subject, string Email)
+    {
+        public static KeycloakIdentity New()
+        {
+            var subject = Guid.NewGuid().ToString();
+            return new(subject, $"{subject}@example.com");
+        }
     }
 }
