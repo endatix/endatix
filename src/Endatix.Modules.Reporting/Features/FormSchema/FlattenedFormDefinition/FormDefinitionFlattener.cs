@@ -7,11 +7,14 @@ using Endatix.Modules.Reporting.Shared.SurveyJs;
 namespace Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 
 /// <summary>
-/// Walks a SurveyJS form definition into BI-ready columns. Mirrors <c>getPlainData</c> without a SurveyJS runtime.
+/// Walks a SurveyJS form definition and produces BI-ready form schema column definitions.
+/// Mirrors semantics of <c>getPlainData</c> / nested-loop SQL export without a SurveyJS runtime.
 /// </summary>
 internal static class FormDefinitionFlattener
 {
-    private const string STRING_COLUMN_TYPE = "string"; private const string NUMBER_COLUMN_TYPE = "number";
+    private const string STRING_COLUMN_TYPE = "string";
+    private const string NUMBER_COLUMN_TYPE = "number";
+
     private sealed record CollectedElement(
         JsonElement Element,
         int Depth,
