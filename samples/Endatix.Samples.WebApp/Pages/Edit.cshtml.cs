@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Endatix.Core.Entities;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Endatix.Samples.WebApp.Pages;
 

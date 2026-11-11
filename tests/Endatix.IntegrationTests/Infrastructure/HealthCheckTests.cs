@@ -1,11 +1,11 @@
 using System.Net;
+using Endatix.Hosting.HealthChecks;
+using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Endatix.Hosting.HealthChecks;
-using Endatix.IntegrationTests.Shared;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.IntegrationTests;
 

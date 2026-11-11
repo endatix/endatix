@@ -1,15 +1,15 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using NSubstitute;
-using FluentAssertions;
-using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Services;
-using Endatix.Infrastructure.Identity.Repositories;
-using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Repositories;
+using Endatix.Infrastructure.Identity.Services;
+using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NSubstitute;
 
 namespace Endatix.Infrastructure.Tests.Identity.Services;
 

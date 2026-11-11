@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 using Endatix.Samples.WebApp.ApiClient;
-using Models = Endatix.Samples.WebApp.ApiClient.Model;
 using Endatix.Samples.WebApp.ApiClient.Common;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Models = Endatix.Samples.WebApp.ApiClient.Model;
 
 namespace Endatix.Samples.WebApp.Pages;
+
 public class IndexModel : PageModel
 {
     private readonly IEndatixClient _client;

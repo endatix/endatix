@@ -1,17 +1,17 @@
+using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions.Export;
+using Endatix.Modules.Reporting.Contracts.Export;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Entities;
-using Endatix.Api.Endpoints.Submissions;
-using Endatix.Core.UseCases.Submissions.Export;
-using Endatix.Core.Abstractions.Exporting;
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Specifications;
-using Endatix.Modules.Reporting.Contracts.Export;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
@@ -59,7 +59,7 @@ public class ExportTests
 
     private static IExportCapabilityRegistry CreateCapabilityRegistry()
     {
-        IExportCapabilityRegistry registry = Substitute.For<IExportCapabilityRegistry>();
+        var registry = Substitute.For<IExportCapabilityRegistry>();
 
         ExportCapability csv = new(
             ExportTarget.Submissions,

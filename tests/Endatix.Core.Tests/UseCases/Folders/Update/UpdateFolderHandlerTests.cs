@@ -4,8 +4,8 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases.Folders.Update;
 using Endatix.Core.UseCases.Folders;
+using Endatix.Core.UseCases.Folders.Update;
 using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.Folders.Update;

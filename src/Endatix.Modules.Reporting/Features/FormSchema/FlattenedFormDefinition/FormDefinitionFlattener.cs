@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 /// </summary>
 internal static class FormDefinitionFlattener
 {
-    private const string StringColumnType = "string"; private const string NumberColumnType = "number";
+    private const string STRING_COLUMN_TYPE = "string"; private const string NUMBER_COLUMN_TYPE = "number";
     private sealed record CollectedElement(
         JsonElement Element,
         int Depth,
@@ -431,7 +431,7 @@ internal static class FormDefinitionFlattener
                 name,
                 FormSchemaColumnKind.Calculated,
                 name,
-                StringColumnType));
+                STRING_COLUMN_TYPE));
         }
     }
 
@@ -528,7 +528,7 @@ internal static class FormDefinitionFlattener
             name,
             FormSchemaColumnKind.Simple,
             collected.Element.GetSurveyJsTitle(name),
-            StringColumnType,
+            STRING_COLUMN_TYPE,
             SourceQuestion: name));
 
         if (ChoiceSet.Read(collected.Element)?.HasOther == true)
@@ -547,7 +547,7 @@ internal static class FormDefinitionFlattener
             ExportPathBuilder.ChoiceOtherTextKey(name),
             FormSchemaColumnKind.CheckboxOtherText,
             $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
-            StringColumnType,
+            STRING_COLUMN_TYPE,
             SourceQuestion: name));
 
     // Other never counted toward the limit (it was added after the counted choices); special items do.
@@ -588,7 +588,7 @@ internal static class FormDefinitionFlattener
                 name,
                 FormSchemaColumnKind.Simple,
                 collected.Element.GetSurveyJsTitle(name),
-                StringColumnType,
+                STRING_COLUMN_TYPE,
                 SourceQuestion: name));
 
             if (choices.HasOther)
@@ -624,7 +624,7 @@ internal static class FormDefinitionFlattener
             key,
             FormSchemaColumnKind.ChoiceIndicator,
             $"{collected.Element.GetSurveyJsTitle(name)} — {choiceLabel}",
-            NumberColumnType,
+            NUMBER_COLUMN_TYPE,
             SourceQuestion: name,
             ChoiceValue: choiceValue));
     }
@@ -654,7 +654,7 @@ internal static class FormDefinitionFlattener
                 key,
                 FormSchemaColumnKind.RankingChoice,
                 $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
-                NumberColumnType,
+                NUMBER_COLUMN_TYPE,
                 SourceQuestion: name,
                 ChoiceValue: value));
         }
@@ -707,7 +707,7 @@ internal static class FormDefinitionFlattener
                 key,
                 FormSchemaColumnKind.MatrixRow,
                 $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
-                NumberColumnType,
+                NUMBER_COLUMN_TYPE,
                 SourceQuestion: name,
                 MatrixRowValue: value,
                 MatrixColumnChoices: columnChoices));
@@ -826,18 +826,18 @@ internal static class FormDefinitionFlattener
     {
         if (columnElement.ValueKind != JsonValueKind.Object)
         {
-            return StringColumnType;
+            return STRING_COLUMN_TYPE;
         }
 
         if (string.Equals(
                 columnElement.GetStringProperty(SurveyJsPropertyNames.InputType),
-                NumberColumnType,
+                NUMBER_COLUMN_TYPE,
                 StringComparison.OrdinalIgnoreCase))
         {
-            return NumberColumnType;
+            return NUMBER_COLUMN_TYPE;
         }
 
-        return StringColumnType;
+        return STRING_COLUMN_TYPE;
     }
 
     private static void EmitMultipleTextColumns(
@@ -865,7 +865,7 @@ internal static class FormDefinitionFlattener
                 key,
                 FormSchemaColumnKind.MultipleTextItem,
                 $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
-                StringColumnType,
+                STRING_COLUMN_TYPE,
                 SourceQuestion: name,
                 MatrixRowValue: value));
         }
@@ -1341,7 +1341,7 @@ internal static class FormDefinitionFlattener
             ExportPathBuilder.Join([.. keyPrefix, childName]),
             FormSchemaColumnKind.LoopSource,
             template.GetSurveyJsTitle(childName),
-            StringColumnType,
+            STRING_COLUMN_TYPE,
             SourceQuestion: childName,
             LoopPath: loopPath));
 
@@ -1363,7 +1363,7 @@ internal static class FormDefinitionFlattener
             ExportPathBuilder.Join([.. keyPrefix, childName, "other_text"]),
             FormSchemaColumnKind.CheckboxOtherText,
             $"{template.GetSurveyJsTitle(childName)} — Other text",
-            StringColumnType,
+            STRING_COLUMN_TYPE,
             SourceQuestion: childName,
             LoopPath: loopPath));
 
@@ -1411,7 +1411,7 @@ internal static class FormDefinitionFlattener
             ExportPathBuilder.Join([.. keyPrefix, childName, choiceValue]),
             FormSchemaColumnKind.ChoiceIndicator,
             $"{template.GetSurveyJsTitle(childName)} — {choiceLabel}",
-            NumberColumnType,
+            NUMBER_COLUMN_TYPE,
             SourceQuestion: childName,
             ChoiceValue: choiceValue,
             LoopPath: loopPath));
@@ -1442,7 +1442,7 @@ internal static class FormDefinitionFlattener
                 ExportPathBuilder.Join([.. keyPrefix, childName, value]),
                 FormSchemaColumnKind.RankingChoice,
                 $"{template.GetSurveyJsTitle(childName)} — {text}",
-                NumberColumnType,
+                NUMBER_COLUMN_TYPE,
                 SourceQuestion: childName,
                 ChoiceValue: value,
                 LoopPath: loopPath));
@@ -1521,7 +1521,7 @@ internal static class FormDefinitionFlattener
                 ExportPathBuilder.Join([.. keyPrefix, childName, rowValue]),
                 FormSchemaColumnKind.MatrixRow,
                 $"{template.GetSurveyJsTitle(childName)} — {rowText}",
-                NumberColumnType,
+                NUMBER_COLUMN_TYPE,
                 SourceQuestion: childName,
                 MatrixRowValue: rowValue,
                 MatrixColumnChoices: CollectMatrixColumnChoices(template),
@@ -1544,7 +1544,7 @@ internal static class FormDefinitionFlattener
                 ExportPathBuilder.Join([.. keyPrefix, childName, value]),
                 FormSchemaColumnKind.MultipleTextItem,
                 $"{template.GetSurveyJsTitle(childName)} — {text}",
-                StringColumnType,
+                STRING_COLUMN_TYPE,
                 SourceQuestion: childName,
                 MatrixRowValue: value,
                 LoopPath: loopPath));
@@ -1705,17 +1705,17 @@ internal static class FormDefinitionFlattener
         if (SurveyJsElementType.Text.Matches(type) &&
             string.Equals(
                 element.GetStringProperty(SurveyJsPropertyNames.InputType),
-                NumberColumnType,
+                NUMBER_COLUMN_TYPE,
                 StringComparison.OrdinalIgnoreCase))
         {
-            return NumberColumnType;
+            return NUMBER_COLUMN_TYPE;
         }
 
         return type?.ToLowerInvariant() switch
         {
             "boolean" => "boolean",
-            "rating" or "slider" => NumberColumnType,
-            _ => StringColumnType,
+            "rating" or "slider" => NUMBER_COLUMN_TYPE,
+            _ => STRING_COLUMN_TYPE,
         };
     }
 }

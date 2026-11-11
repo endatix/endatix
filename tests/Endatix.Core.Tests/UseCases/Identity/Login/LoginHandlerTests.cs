@@ -1,11 +1,11 @@
-using MediatR;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity;
 using Endatix.Core.UseCases.Identity.Login;
-using Endatix.Core.Abstractions.Authorization;
+using MediatR;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.Tests.UseCases.Identity.Login;

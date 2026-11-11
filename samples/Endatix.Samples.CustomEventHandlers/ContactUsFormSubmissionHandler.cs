@@ -1,9 +1,9 @@
-﻿using MediatR;
+using Endatix.Core;
+using Endatix.Core.Events;
+using Endatix.Core.Features.Email;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Endatix.Core.Features.Email;
-using Endatix.Core.Events;
-using Endatix.Core;
 
 namespace Endatix.Samples.CustomEventHandlers;
 

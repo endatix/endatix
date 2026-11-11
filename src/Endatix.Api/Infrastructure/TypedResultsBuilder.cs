@@ -1,8 +1,8 @@
-using Microsoft.AspNetCore.Http.HttpResults;
-using HttpResults = Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http;
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using HttpResults = Microsoft.AspNetCore.Http;
 
 namespace Endatix.Api.Infrastructure;
 

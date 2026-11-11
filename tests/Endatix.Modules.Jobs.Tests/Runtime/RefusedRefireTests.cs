@@ -87,7 +87,8 @@ public sealed class RefusedRefireTests
         // Arrange — the carried completion's write breaks a rule of the table while the row still reads, and the
         // outcome has one rejection left before this firing's.
         var carried = new UnsavedOutcome(2, AttemptRowWrite.Completed, null, DateTime.UtcNow, DateTime.UtcNow)
-            with { Rejections = UnsavedOutcome.MaxRejections - 2 };
+            with
+        { Rejections = UnsavedOutcome.MaxRejections - 2 };
         var repository = Substitute.For<IBackgroundJobStateRepository>();
         repository.TryCompleteAsync(Arg.Any<AttemptRef>(), Arg.Any<JobFinish>(), Arg.Any<CancellationToken>())
             .Returns<Task<bool>>(_ => throw new InvalidOperationException("The row breaks a constraint."));

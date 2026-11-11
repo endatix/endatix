@@ -1,8 +1,8 @@
+using Endatix.Samples.WebApp.ApiClient;
+using Endatix.Samples.WebApp.ApiClient.Common;
+using Endatix.Samples.WebApp.ApiClient.Model.Responses;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
-using Endatix.Samples.WebApp.ApiClient;
-using Endatix.Samples.WebApp.ApiClient.Model.Responses;
-using Endatix.Samples.WebApp.ApiClient.Common;
 
 namespace Endatix.Samples.WebApp.Pages;
 
@@ -16,7 +16,7 @@ public class FormPage : PageModel
 
     public ApiError? ErrorState { get; private set; }
 
-    public readonly string BaseUrl;
+    public string BaseUrl { get; }
 
     public FormPage(ILogger<FormPage> logger, IEndatixClient client, IOptions<HttpClientOptions> options)
     {

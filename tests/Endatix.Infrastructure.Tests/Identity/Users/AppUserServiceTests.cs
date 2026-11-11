@@ -1,12 +1,12 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Infrastructure.Data.Querying;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
-using System.Security.Claims;
-using Endatix.Infrastructure.Data.Querying;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Identity.Users;

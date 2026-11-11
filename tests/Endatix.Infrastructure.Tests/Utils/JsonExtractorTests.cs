@@ -232,7 +232,7 @@ public sealed class JsonExtractorTests
         // Act
         var result = extractor.ExtractArrayOfStrings("roles");
 
-       
+
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().HaveCount(4);

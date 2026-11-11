@@ -1,8 +1,8 @@
+using Endatix.Framework.Modules;
 using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Modules.Jobs.Runtime;
 using Endatix.Modules.Jobs.Tests.Shared;
 using Microsoft.Extensions.Configuration;
-using Endatix.Framework.Modules;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 

@@ -5,10 +5,10 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Core.UseCases.Identity.ListUsers;
-using Microsoft.AspNetCore.Identity;
 using Endatix.Infrastructure.Data.Querying;
+using Endatix.Infrastructure.Identity.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -26,7 +26,7 @@ public sealed class AppUserService(
     IRelationalSubstringLikeFilter substringLikeFilter,
     AppUserAudit audit) : IUserService
 {
-    private IAuthorizationCache authorizationCache => audit.AuthorizationCache; private ILogger<AppUserAudit> logger => audit.Logger;
+    private IAuthorizationCache AuthorizationCache => audit.AuthorizationCache; private ILogger<AppUserAudit> Logger => audit.Logger;
     private const string SelfRemovalForbiddenMessage = "You cannot remove your own tenant access.";
     private const string LastTenantAdminRemovalForbiddenMessage = "Cannot remove the last active tenant admin.";
     private const string SelfLockoutForbiddenMessage = "You cannot lock out your own account.";
@@ -395,7 +395,7 @@ public sealed class AppUserService(
             return ToErrorResult(lockoutResult);
         }
 
-        await authorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
+        await AuthorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
         return Result.Success();
     }
 
@@ -420,7 +420,7 @@ public sealed class AppUserService(
             return ToErrorResult(unlockResult);
         }
 
-        await authorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
+        await AuthorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
         return Result.Success();
     }
 
@@ -563,7 +563,7 @@ public sealed class AppUserService(
         }
         catch (JsonException ex)
         {
-            logger.LogWarning(
+            Logger.LogWarning(
                 ex,
                 "Failed to deserialize external roles for user {UserId}. ExternalRolesJson: {ExternalRolesJson}",
                 userId,
