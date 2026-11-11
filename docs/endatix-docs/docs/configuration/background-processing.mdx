@@ -323,64 +323,66 @@ For example, a host whose `appsettings.json` has
   "BackgroundJobs": {
     "RetentionDays": 30,
     "JobTypes": {
-      "WebHookDelivery": { "MaxAttempts": 10 }
+      "WebHookDelivery": { "MaxAttempts": 6 }
     }
   }
 }
 ```
 
-keeps every finished job's row for 30 days, webhook deliveries included, and tries a webhook delivery 10 times; the other webhook settings keep their built-in defaults. The same with environment variables:
+keeps every finished job's row for 30 days, webhook deliveries included, and tries a webhook delivery 6 times; the other webhook settings keep their built-in defaults. The same with environment variables:
 
 ```bash
 Endatix__BackgroundJobs__RetentionDays=30
-Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10
+Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=6
 ```
+
+The host checks each range given below when it starts. A value outside its range fails startup with a message that names the key, such as `Endatix:BackgroundJobs:MaxAttempts must be at most 10, but is 12.` A job type's own key has the same range as the general key it replaces.
 
 <Settings>
 <Setting name="Endatix:BackgroundJobs:RunInProcess" default="true">
 Whether this host executes jobs. `false` makes it enqueue only: its scheduler has no threads and never starts.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:IdleWaitTimeSeconds" default="2">
-How long an idle node waits before looking for jobs another node enqueued.
+How long an idle node waits before looking for jobs another node enqueued. Range: 1 to 300.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:CancellationPollSeconds" default="10">
-How often a running job re-reads its row to notice it was cancelled.
+How often a running job re-reads its row to notice it was cancelled. Range: 1 to 3600.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MisfireThresholdSeconds" default="60">
-How long a due job may wait for a free slot before `endatix.jobs.misfired` counts it, again at every threshold while it waits. The backlog warning `Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of this type misfired since the last warning.` is logged at most once per job type per threshold.
+How long a due job may wait for a free slot before `endatix.jobs.misfired` counts it, again at every threshold while it waits. The backlog warning `Background job {JobId} of type {JobType} waited past the misfire threshold; {Misfires} triggers of this type misfired since the last warning.` is logged at most once per job type per threshold. Range: 1 to 3600.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:ShutdownWaitSeconds" default="30">
-How long a stopping host waits for running jobs. Jobs still running then are told to stop, record nothing, and run again on the next node or, if that was their last attempt, are dead-lettered there. The host's own shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by default) also bounds this wait, so a longer value needs a longer host timeout.
+How long a stopping host waits for running jobs. Jobs still running then are told to stop, record nothing, and run again on the next node or, if that was their last attempt, are dead-lettered there. The host's own shutdown timeout (`HostOptions.ShutdownTimeout`, 30 seconds by default) also bounds this wait, so a longer value needs a longer host timeout. Range: 1 to 3600.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:LockOnInsert" default="false on PostgreSQL, true on SQL Server">
 Whether enqueueing holds the scheduler's cluster-wide trigger lock until its transaction commits. On SQL Server, `false` needs `READ_COMMITTED_SNAPSHOT` on for the database, or the node refuses to start, naming both settings. Read from configuration once, at startup. Read [Persistence settings](/docs/configuration/settings/persistence-settings) before you change it.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MaxRuntimeMinutes" default="60">
-Ceiling on one attempt; the handler's token is cancelled when it passes. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `60`; a job type's own key still wins.
+Ceiling on one attempt; the handler's token is cancelled when it passes. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `60`; a job type's own key still wins. Range: 1 to 1440.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:MaxAttempts" default="3">
-Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again. Each attempt runs with the value the node running it was started with, not one fixed at enqueue, so once the nodes restart with a new value it also applies to jobs already waiting to retry. A host that sets this key replaces every job type's built-in default, even when it sets it to `3`; a job type's own key still wins.
+Attempts before a job that keeps failing is dead-lettered. Per job type. A job whose node stops during its last attempt is dead-lettered when another node recovers it, rather than run again. Each attempt runs with the value the node running it was started with, not one fixed at enqueue, so once the nodes restart with a new value it also applies to jobs already waiting to retry. A host that sets this key replaces every job type's built-in default, even when it sets it to `3`; a job type's own key still wins. Range: 1 to 10.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:BackoffBaseSeconds" default="30">
-Wait before the first retry; each later retry waits twice as long. Per job type. The wait is worked out when an attempt fails, from the value the node running it was started with, so once the nodes restart a change reaches the later retries of jobs already waiting; a retry already scheduled keeps its time. A host that sets this key replaces every job type's built-in default, even when it sets it to `30`; a job type's own key still wins.
+Wait before the first retry; each later retry waits twice as long. Per job type. The wait is worked out when an attempt fails, from the value the node running it was started with, so once the nodes restart a change reaches the later retries of jobs already waiting; a retry already scheduled keeps its time. A host that sets this key replaces every job type's built-in default, even when it sets it to `30`; a job type's own key still wins. Range: 1 to 86400.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:BackoffCapSeconds" default="900">
-Longest wait between retries. Per job type. It takes effect as `BackoffBaseSeconds` does. A host that sets this key replaces every job type's built-in default, even when it sets it to `900`; a job type's own key still wins.
+Longest wait between retries. Per job type. It takes effect as `BackoffBaseSeconds` does. A host that sets this key replaces every job type's built-in default, even when it sets it to `900`; a job type's own key still wins. Range: 1 to 86400, and not below `BackoffBaseSeconds`.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:RetentionDays" default="7">
-Days a finished job's row is kept before the retention job deletes it. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `7`; a job type's own key still wins.
+Days a finished job's row is kept before the retention job deletes it. Per job type. A host that sets this key replaces every job type's built-in default, even when it sets it to `7`; a job type's own key still wins. Range: 1 to 3650.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:JobTypes:{JobType}:MaxConcurrency" default="by job type">
-Jobs of this type one node runs at once. `0` keeps the node from running the type. Unset, it is the job type's built-in default: 4 for `WebHookDelivery`, 2 for each Reporting and Audience type, 1 for any other. The node's thread pool is the sum of these caps (at least 1), plus one thread for the retention job.
+Jobs of this type one node runs at once. `0` keeps the node from running the type. Unset, it is the job type's built-in default: 4 for `WebHookDelivery`, 2 for each Reporting and Audience type, 1 for any other. The node's thread pool is the sum of these caps (at least 1), plus one thread for the retention job. Range: 0 to 1000.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Retention:Cron" default="0 0/15 * * * ?">
-When the retention job runs, as a Quartz cron expression. It runs on one node at a time.
+When the retention job runs, as a Quartz cron expression. It runs on one node at a time. An expression Quartz cannot parse fails startup.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Retention:BatchSize" default="1000">
-Rows the retention job deletes per statement.
+Rows the retention job deletes per statement. Range: 1 to 100000.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Retention:MaxBatchesPerRun" default="50">
-Batches one retention run deletes at most.
+Batches one retention run deletes at most. Range: 1 to 10000.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Dashboard:Enabled" default="false">
 Serves the Quartz dashboard at `/quartz` and its HTTP API at `/quartz-api`, to platform admins only. It shows every tenant's jobs.
@@ -389,10 +391,10 @@ Serves the Quartz dashboard at `/quartz` and its HTTP API at `/quartz-api`, to p
 Lets platform admins change schedules through the dashboard. Read-only otherwise. A caller who may write can trigger, pause, reschedule, unschedule or delete any tenant's jobs. Unscheduling a job's trigger, or deleting a job type's job, leaves those jobs' rows unfinished with nothing to run them.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Clustering:CheckinIntervalSeconds" default="7.5">
-How often a node records that it is alive.
+How often a node records that it is alive. Range: above 0, up to 300.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Clustering:CheckinMisfireThresholdSeconds" default="7.5">
-How late a check-in may be before the node is presumed dead; its running jobs then run again on another node.
+How late a check-in may be before the node is presumed dead; its running jobs then run again on another node. Range: above 0, up to 300.
 </Setting>
 <Setting name="Endatix:BackgroundJobs:Clustering:InstanceId" default="generated">
 This node's identity. Unset, it is generated from the host name and start time. Set it only to a value no other running node uses.

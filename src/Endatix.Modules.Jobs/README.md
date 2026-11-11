@@ -522,17 +522,17 @@ For example, a host whose `appsettings.json` has
 "Endatix": {
   "BackgroundJobs": {
     "RetentionDays": 30,
-    "JobTypes": { "WebHookDelivery": { "MaxAttempts": 10 } }
+    "JobTypes": { "WebHookDelivery": { "MaxAttempts": 6 } }
   }
 }
 ```
 
 keeps every finished job's row for 30 days, webhook deliveries included, and tries a webhook delivery
-10 times; the other webhook settings stay as declared in code. The same with environment variables:
+6 times; the other webhook settings stay as declared in code. The same with environment variables:
 
 ```bash
 Endatix__BackgroundJobs__RetentionDays=30
-Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=10
+Endatix__BackgroundJobs__JobTypes__WebHookDelivery__MaxAttempts=6
 ```
 
 The options validator checks the values each job type runs with, and names the key each one came
