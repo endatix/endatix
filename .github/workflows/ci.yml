@@ -2,7 +2,7 @@ name: Build, Test & Release
 
 # Thin consumer of endatix/release-workflows (see its README):
 #   • a PR that touches the product paths below → tests + SonarCloud + build
-#     validation in the shared pipeline
+#     validation in the shared pipeline, which runs alongside the tests
 #     (scripts/release-prepare.sh @ 0.0.0-ci — builds + packs, publishes nothing).
 #     A docs-only PR skips those jobs; the checks still pass.
 #   • push main, same paths → tests, then canary vX.Y.Z-canary.N: semantic-release builds
@@ -51,6 +51,11 @@ on:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # sonar-build runs `begin` and sonar runs `end`: one version for both, or `end` breaks.
+  SONAR_SCANNER_VERSION: 12.1.0
+  # Where `begin` unpacks the .NET analyzer plugins (sonar.plugin.cache.directory; the default is a
+  # temp dir). A fixed path, cached with ~/.sonar/cache (the JRE and the scanner engine) per version.
+  SONAR_PLUGIN_CACHE: /home/runner/.sonar/plugin-cache
 
 # Serialize runs per ref so two quick merges to main can't run overlapping
 # releases. Cancel in-flight runs only for pull requests to save CI minutes.
@@ -58,8 +63,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Elevated permissions live on the pipeline job, plus `actions: write` on coverage-cleanup to
-# delete this run's coverage — test jobs run read-only.
+# Elevated permissions live on the pipeline job (pipeline-pr runs read-only), plus `actions: write`
+# on coverage-cleanup to delete this run's coverage and scanner state, and `actions: read` on sonar to
+# list them. Test jobs run read-only.
 permissions:
   contents: read
 
@@ -372,15 +378,182 @@ jobs:
   # `dev` everywhere else, so PR code never reaches release secrets. Production is
   # the environment the shared Infisical identity is bound to.
   # Fork and Dependabot PRs get no OIDC secrets: they skip the scan, with a notice.
-  sonar:
-    name: "Endatix API: SonarCloud"
-    needs: [changes, unit-tests, integration-tests]
+  #
+  # Two jobs, so the scanner's build runs alongside the tests (#1665): sonar-build runs `begin` and
+  # the analyzed build and uploads the scanner state; sonar runs `end` once the coverage exists.
+  # `end` finds that state only at the paths `begin` recorded, so both jobs use the same runner
+  # image, the same checkout path and the same scanner version (SONAR_SCANNER_VERSION).
+  # The JRE, engine and plugins `begin` downloads reach `end` through the Actions cache instead of the
+  # artifact: sonar-build saves them under a key named after their file list, and sonar restores that
+  # exact key. A new engine or JRE from SonarCloud gets a new key, so `end` never misses a path.
+  # On PRs the save lands in the PR's scope only when main's entry does not match.
+  sonar-build:
+    name: "Endatix API: SonarCloud build"
+    needs: [changes]
     if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # the same image as sonar: the scanner state holds absolute paths
+    outputs:
+      scanner-cache-key: ${{ steps.scanner-cache-key.outputs.key }}
     environment:
       name: Production
     permissions:
       contents: read
+      id-token: write # OIDC for Infisical, not repo write
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0 # git describe below reads the tags
+          persist-credentials: false
+      - name: 🔐 Fetch secrets (Infisical, OIDC)
+        id: infisical
+        if: >-
+          github.actor != 'dependabot[bot]' &&
+          (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          method: "oidc"
+          env-slug: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+          project-slug: "github-actions-for-endatix"
+          identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
+          # Only the one secret this job uses: the root folder also holds other repos' tokens,
+          # and none of them may reach a job that builds PR code or the public scanner state.
+          secret-name: ENDATIX_API_REPO_SONAR_TOKEN
+      - name: ℹ️ No SonarCloud analysis on fork and Dependabot PRs
+        if: steps.infisical.outcome == 'skipped'
+        run: echo "::notice::SonarCloud analysis skipped - fork and Dependabot PRs get no Infisical secrets."
+      - name: ❌ Require the SonarCloud token
+        if: steps.infisical.outcome == 'success' && env.ENDATIX_API_REPO_SONAR_TOKEN == ''
+        env:
+          ENV_SLUG: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+        run: |
+          echo "::error::ENDATIX_API_REPO_SONAR_TOKEN is missing from the Infisical '$ENV_SLUG' environment (root folder)."
+          exit 1
+      - name: 📦 Setup .NET
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+      - name: 🔧 Install SonarScanner
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: dotnet tool install --global dotnet-sonarscanner --version "$SONAR_SCANNER_VERSION"
+      - name: ♻️ Restore the scanner cache
+        id: scanner-cache
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.sonar/cache
+            ${{ env.SONAR_PLUGIN_CACHE }}
+          key: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}-latest # never saved: restore-keys picks the newest
+          restore-keys: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}-
+      - name: 🔎 Begin
+        # The coverage paths are read by `end` in the sonar job, which downloads the reports there.
+        # These exclusions replace the ones set in the SonarCloud project; the cpd list
+        # is the UI's plus Endpoints, which repeat FastEndpoints Configure() boilerplate
+        # by the one-file-per-operation rule.
+        # plsql:S1192 (repeated literals) is off for Scripts: each versioned SQL script is a
+        # frozen copy of the last one, and its repeats are SurveyJS JSON keys, not magic values.
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: |
+          # New code on main runs from the last stable release ("Previous version" in
+          # SonarCloud); without /v: every analysis is "not provided" and it never resets.
+          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' 2>/dev/null || echo v0.0.0)
+          mkdir -p "$SONAR_PLUGIN_CACHE" "$HOME/.sonar/cache"
+          dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" /v:"${tag#v}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.*.xml" \
+            /d:sonar.exclusions="tests/**,**/Migrations/**" \
+            /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,scripts/**,docs/**,samples/**" \
+            /d:sonar.cpd.exclusions="tests/**,**/*Tests.cs,**/*Test.cs,**/Endatix.Persistence.*/**,**/Migrations/**,**/Endpoints/**" \
+            /d:sonar.issue.ignore.multicriteria="sqlliterals" \
+            /d:sonar.issue.ignore.multicriteria.sqlliterals.ruleKey="plsql:S1192" \
+            /d:sonar.issue.ignore.multicriteria.sqlliterals.resourceKey="**/Scripts/**/*.sql" \
+            /d:sonar.plugin.cache.directory="$SONAR_PLUGIN_CACHE"
+      # A full build, as the scanner docs ask, so every project is compiled under the analyzers. Not
+      # --disable-build-servers, which the docs also suggest: without the compiler server every project
+      # starts a cold csc, and the build took 3:53 instead of 1:52 (#1667). No sonar.dotnet.excludeTestProjects: it removes every analyzer from the test
+      # projects, source generators included, and their [GeneratedRegex] methods then fail (CS8795).
+      - name: 🏗️ Build under the scanner
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: dotnet build --no-incremental
+      # Named after the cache's file list (paths and sizes): the same downloads give the same key.
+      - name: 🔑 Key the scanner cache
+        id: scanner-cache-key
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: |
+          list=$(find "$HOME/.sonar/cache" "$SONAR_PLUGIN_CACHE" -type f -not -path '*/_tmp/*' -printf '%p %s\n' | sort)
+          echo "key=sonar-${RUNNER_OS}-${SONAR_SCANNER_VERSION}-$(printf '%s' "$list" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          du -sh "$HOME/.sonar/cache" "$SONAR_PLUGIN_CACHE"
+      # begin and the build record absolute paths outside .sonarqube too: the sources the build
+      # generated under obj/ (the JRE, engine and plugins come from the cache above). A tar keeps
+      # them at those paths.
+      - name: 📦 Pack the scanner state
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: |
+          find "$PWD" -path '*/obj/*' -name '*.cs' > "$RUNNER_TEMP/obj-sources.txt"
+          tar -cPzf sonar-scanner-state.tgz "$PWD/.sonarqube" -T "$RUNNER_TEMP/obj-sources.txt"
+          ls -lh sonar-scanner-state.tgz
+      # The repo is public, so its artifacts are too: the scanner keeps the token out of its state
+      # (end takes it again), and this check holds it to that over exactly what is uploaded. The token
+      # is the only secret in this job (secret-name above).
+      # Fails closed: only grep's "no match" (1) lets the upload run, a read error (2) stops it.
+      - name: 🔒 Check the scanner state and cache hold no token
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: |
+          set +e +o pipefail
+          tar -xOzf sonar-scanner-state.tgz | grep -qaF "$ENDATIX_API_REPO_SONAR_TOKEN"
+          status=("${PIPESTATUS[@]}") # tar, grep
+          if [ "${status[1]}" -eq 0 ]; then
+            echo "::error::The SonarCloud token is in the scanner state; not uploading it."
+            exit 1
+          fi
+          if [ "${status[0]}" -ne 0 ] || [ "${status[1]}" -ne 1 ]; then
+            echo "::error::Could not check the scanner state for the token (tar ${status[0]}, grep ${status[1]}); not uploading it."
+            exit 1
+          fi
+          # The cache is not public, but it is saved from a job that builds PR code: hold it to the same rule.
+          grep -rqaF "$ENDATIX_API_REPO_SONAR_TOKEN" "$HOME/.sonar/cache" "$SONAR_PLUGIN_CACHE"
+          found=$?
+          if [ "$found" -ne 1 ]; then
+            echo "::error::The SonarCloud token is in the scanner cache, or it could not be read (grep $found); not saving it."
+            exit 1
+          fi
+          echo "No SonarCloud token in the scanner state or the scanner cache."
+      - name: 💾 Save the scanner cache
+        if: >-
+          env.ENDATIX_API_REPO_SONAR_TOKEN != '' &&
+          steps.scanner-cache.outputs.cache-matched-key != steps.scanner-cache-key.outputs.key
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.sonar/cache
+            ${{ env.SONAR_PLUGIN_CACHE }}
+          key: ${{ steps.scanner-cache-key.outputs.key }}
+      - name: 📤 Upload the scanner state
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sonar-scanner-state
+          path: sonar-scanner-state.tgz
+          compression-level: 0 # already gzipped
+          if-no-files-found: error
+          # Internal: only the sonar job of this run reads it, and coverage-cleanup deletes
+          # it once sonar succeeds. After a red gate, a failed lane or a cancelled run it is kept for
+          # this one day, so re-running the failed jobs still finds it, as the coverage is.
+          retention-days: 1
+
+  sonar:
+    name: "Endatix API: SonarCloud" # also SONAR_JOB below, which finds an earlier attempt's result
+    needs: [changes, unit-tests, integration-tests, sonar-build]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04 # the same image as sonar-build
+    environment:
+      name: Production
+    permissions:
+      contents: read
+      actions: read # list this run's artifacts and earlier attempts' jobs
       id-token: write # OIDC for Infisical, not repo write
     steps:
       - name: 🔍 Checkout code
@@ -399,8 +572,9 @@ jobs:
           env-slug: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
           project-slug: "github-actions-for-endatix"
           identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
-          # Root folder only (no recursive): keeps folders such as the GitHub App
-          # credentials out of a job that builds PR code.
+          # Only the one secret this job uses: the root folder also holds other repos' tokens,
+          # and none of them may reach a job that builds PR code or the public scanner state.
+          secret-name: ENDATIX_API_REPO_SONAR_TOKEN
       - name: ℹ️ No SonarCloud analysis on fork and Dependabot PRs
         if: steps.infisical.outcome == 'skipped'
         run: echo "::notice::SonarCloud analysis skipped - fork and Dependabot PRs get no Infisical secrets."
@@ -411,65 +585,72 @@ jobs:
         run: |
           echo "::error::ENDATIX_API_REPO_SONAR_TOKEN is missing from the Infisical '$ENV_SLUG' environment (root folder)."
           exit 1
-      - name: 📦 Setup .NET
+      # Reads the run's artifact list, not the downloaded folders: every lane's coverage and the
+      # scanner state must be there, or nothing is analyzed. When an earlier attempt already passed
+      # for this commit and its cleanup deleted them (a one-job re-run), the analysis is skipped.
+      - name: 📋 Check the analysis inputs
+        id: inputs
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SONAR_JOB: "Endatix API: SonarCloud" # this job's `name:`; keep the two in step
+        # Every coverage upload above, unit and the four integration lanes (matrix `artifact`): a new
+        # lane goes here too, or its coverage could be missing from an analysis.
+        run: >-
+          node scripts/check-sonar-inputs.mjs coverage-unit coverage-integration-jobs coverage-integration-rest
+          coverage-integration-sqlserver-jobs coverage-integration-sqlserver-rest sonar-scanner-state
+      - name: 📦 Setup .NET
+        if: steps.inputs.outputs.analyze == 'true'
         uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
       - name: 📊 Download coverage
-        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        if: steps.inputs.outputs.analyze == 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: coverage-*
           path: .sonar-coverage
+      - name: 📥 Download the scanner state
+        if: steps.inputs.outputs.analyze == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sonar-scanner-state
+          path: ${{ runner.temp }}
+      - name: 📦 Unpack the scanner state
+        if: steps.inputs.outputs.analyze == 'true'
+        run: tar -xPzf "$RUNNER_TEMP/sonar-scanner-state.tgz"
+      # The exact entry sonar-build saved or matched: the JRE and engine paths `begin` recorded.
+      - name: ♻️ Restore the scanner cache
+        if: steps.inputs.outputs.analyze == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.sonar/cache
+            ${{ env.SONAR_PLUGIN_CACHE }}
+          key: ${{ needs.sonar-build.outputs.scanner-cache-key }}
+          fail-on-cache-miss: true
       - name: 🔧 Install SonarScanner
-        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
-        run: dotnet tool install --global dotnet-sonarscanner --version 11.3.0
-      - name: 🔎 Build & analyze
+        if: steps.inputs.outputs.analyze == 'true'
+        run: dotnet tool install --global dotnet-sonarscanner --version "$SONAR_SCANNER_VERSION"
+      - name: 🔎 Analyze
         # The gate is read in the next step, not here (no sonar.qualitygate.wait).
-        # These exclusions replace the ones set in the SonarCloud project; the cpd list
-        # is the UI's plus Endpoints, which repeat FastEndpoints Configure() boilerplate
-        # by the one-file-per-operation rule.
-        # plsql:S1192 (repeated literals) is off for Scripts: each versioned SQL script is a
-        # frozen copy of the last one, and its repeats are SurveyJS JSON keys, not magic values.
-        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
-        run: |
-          for a in unit integration-jobs integration-rest integration-sqlserver-jobs integration-sqlserver-rest; do
-            if ! find ".sonar-coverage/coverage-$a" -name "coverage.opencover.*.xml" 2>/dev/null | grep -q .; then
-              echo "::error::No coverage-$a report (deleted after a successful analysis, or expired after 2 days): re-run all jobs."
-              exit 1
-            fi
-          done
-          # New code on main runs from the last stable release ("Previous version" in
-          # SonarCloud); without /v: every analysis is "not provided" and it never resets.
-          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' 2>/dev/null || echo v0.0.0)
-          dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" /v:"${tag#v}" \
-            /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
-            /d:sonar.cs.opencover.reportsPaths=".sonar-coverage/**/coverage.opencover.*.xml" \
-            /d:sonar.exclusions="tests/**,**/Migrations/**" \
-            /d:sonar.coverage.exclusions="**/Migrations/**,**/Scripts/**,scripts/**,docs/**,samples/**" \
-            /d:sonar.cpd.exclusions="tests/**,**/*Tests.cs,**/*Test.cs,**/Endatix.Persistence.*/**,**/Migrations/**,**/Endpoints/**" \
-            /d:sonar.issue.ignore.multicriteria="sqlliterals" \
-            /d:sonar.issue.ignore.multicriteria.sqlliterals.ruleKey="plsql:S1192" \
-            /d:sonar.issue.ignore.multicriteria.sqlliterals.resourceKey="**/Scripts/**/*.sql"
-          dotnet build
-          dotnet-sonarscanner end /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN"
+        if: steps.inputs.outputs.analyze == 'true'
+        run: dotnet-sonarscanner end /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN"
       - name: 🚦 Quality gate
         # SonarCloud Free can't edit "Sonar way", so we read its verdict ourselves.
         # PRs: every red condition fails the job except the metrics in
         # SONAR_ADVISORY_METRICS (duplication), which only warn. Pushes (main, hotfix):
         # report only (`*`); the code is already merged. See AGENTS.md → Sonar gate.
-        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        if: steps.inputs.outputs.analyze == 'true'
         env:
           SONAR_TOKEN: ${{ env.ENDATIX_API_REPO_SONAR_TOKEN }}
           SONAR_ADVISORY_METRICS: ${{ github.event_name == 'pull_request' && 'new_duplicated_lines_density' || '*' }}
         run: node scripts/sonar-gate.mjs
 
-  # Coverage is internal to this run: delete it once SonarCloud has read it. Never after a failed
-  # sonar job, so re-running it still finds the reports. A separate job, so the token that can
-  # delete artifacts never reaches a job that builds PR code. Fork and Dependabot PRs get a
-  # read-only token whatever `permissions` says; their coverage just expires.
+  # Coverage and the scanner state are internal to this run: delete them once SonarCloud has read
+  # them. Never after a failed sonar job, so re-running it still finds them. A separate job, so the
+  # token that can delete artifacts never reaches a job that builds PR code. Fork and Dependabot PRs
+  # get a read-only token whatever `permissions` says; their coverage just expires.
   coverage-cleanup:
     name: "Endatix API: Delete consumed coverage"
     needs: [sonar]
@@ -481,29 +662,29 @@ jobs:
     permissions:
       actions: write # delete this run's artifacts
     steps:
-      - name: 🧹 Delete this run's coverage artifacts
+      - name: 🧹 Delete this run's coverage and scanner state
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
         run: |
           ids=$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/artifacts?per_page=100" \
-            -q '.artifacts[] | select(.name | startswith("coverage-")) | .id') \
-            || { echo "::warning::Could not list this run's artifacts; coverage expires in 2 days."; exit 0; }
+            -q '.artifacts[] | select((.name | startswith("coverage-")) or .name == "sonar-scanner-state") | .id') \
+            || { echo "::warning::Could not list this run's artifacts; they expire in 1-2 days."; exit 0; }
           if [ -z "$ids" ]; then
-            echo "::warning::No coverage artifacts found on this run; nothing deleted."
+            echo "::warning::No coverage or scanner state found on this run; nothing deleted."
             exit 0
           fi
-          # Housekeeping only: a failed delete warns, and the 2-day retention removes it anyway.
+          # Housekeeping only: a failed delete warns, and the 1-2 day retention removes it anyway.
           deleted=0
           for id in $ids; do
             if gh api -X DELETE "repos/$REPO/actions/artifacts/$id"; then
               deleted=$((deleted + 1))
             else
-              echo "::warning::Could not delete artifact $id; it expires in 2 days."
+              echo "::warning::Could not delete artifact $id; it expires in 1-2 days."
             fi
           done
-          echo "Deleted $deleted of $(printf '%s\n' "$ids" | wc -l) coverage artifacts." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Deleted $deleted of $(printf '%s\n' "$ids" | wc -l) coverage and scanner-state artifacts." | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Build validation on PRs; canary release on main — publishes only after ALL
   # tests above pass. docker-image makes the shared workflow log into GHCR and
@@ -513,10 +694,28 @@ jobs:
   # tag, so a maintenance release never drags it backwards (release-publish.sh).
   # No secrets are passed: the shared workflow uses the implicit GITHUB_TOKEN
   # and fetches everything else via Infisical (OIDC, hence id-token).
+  #
+  # Two callers, because `needs:` cannot depend on the event. On a pull request the shared
+  # workflow only runs release-prepare.sh @ 0.0.0-ci: it publishes nothing, so it runs alongside
+  # the tests (pipeline-pr). Every other event, pushes to main and hotfix/** included, waits for
+  # every test job (pipeline). Both are named Pipeline, so the check reads the same.
+  pipeline-pr:
+    name: Pipeline
+    needs: [changes]
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
+    permissions:
+      # Build validation only: at the pinned SHA canary.yml logs in, fetches secrets and publishes on
+      # main and hotfix/* only. A bump that needs more on PRs fails this job at startup; grant it then.
+      contents: read
+    uses: endatix/release-workflows/.github/workflows/canary.yml@d0f1bfc9325d6ad5588e91f49885b02eadaae6d7 # v1
+    with:
+      docker-image: ghcr.io/endatix/endatix-api
+      dotnet-version: "10.x" # global.json rolls forward within 10.0.x
+
   pipeline:
     name: Pipeline
     needs: [changes, unit-tests, integration-tests]
-    if: needs.changes.outputs.code == 'true'
+    if: github.event_name != 'pull_request' && needs.changes.outputs.code == 'true'
     permissions:
       contents: read # release writes use the App token inside the shared workflow
       packages: write # GitHub Packages push + GHCR image push
