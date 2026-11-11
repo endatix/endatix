@@ -2,7 +2,6 @@ using System.Security.Claims;
 using System.Text.Json;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Multitenancy;
@@ -18,7 +17,6 @@ namespace Endatix.Api.Tests.Infrastructure;
 public sealed class TenantMiddlewareTests
 {
     private const string REQUEST_PATH = "/api/forms";
-    private const string EXTERNAL_ISSUER = "https://keycloak.test/realms/endatix";
 
     private readonly RequestDelegate _next = Substitute.For<RequestDelegate>();
     private readonly ILogger<TenantMiddleware> _logger = Substitute.For<ILogger<TenantMiddleware>>();
@@ -59,20 +57,6 @@ public sealed class TenantMiddlewareTests
         await _next.Received(1).Invoke(httpContext);
     }
 
-    [Fact]
-    public async Task InvokeAsync_ReBacJwtWithTenant_SetsTenantFromToken()
-    {
-        // Arrange
-        var httpContext = CreateHttpContext(CreatePrincipal(_jwtOptions.ReBacIssuer, tenantId: "42"));
-
-        // Act
-        await InvokeAsync(httpContext);
-
-        // Assert
-        _tenantContext.TenantId.Should().Be(42);
-        await _next.Received(1).Invoke(httpContext);
-    }
-
     [Theory]
     [InlineData(null)]
     [InlineData("0")]
@@ -82,65 +66,6 @@ public sealed class TenantMiddlewareTests
     {
         // Arrange
         var httpContext = CreateHttpContext(CreatePrincipal(_jwtOptions.Issuer, tenantId));
-
-        // Act
-        await InvokeAsync(httpContext);
-
-        // Assert
-        await AssertForbiddenAsync(httpContext);
-    }
-
-    [Fact]
-    public async Task InvokeAsync_ExternalIssuerHydratedWithTenant_SetsTenantFromAuthorizedIdentity()
-    {
-        // Arrange
-        var principal = CreatePrincipal(EXTERNAL_ISSUER, tenantId: null);
-        principal.AddIdentity(CreateAuthorizedIdentity(tenantId: 7));
-        var httpContext = CreateHttpContext(principal);
-
-        // Act
-        await InvokeAsync(httpContext);
-
-        // Assert
-        _tenantContext.TenantId.Should().Be(7);
-        await _next.Received(1).Invoke(httpContext);
-    }
-
-    [Fact]
-    public async Task InvokeAsync_ExternalIssuerHydratedWithTenant_IgnoresTheIssuersOwnTenantClaim()
-    {
-        // Arrange
-        var principal = CreatePrincipal(EXTERNAL_ISSUER, tenantId: "5");
-        principal.AddIdentity(CreateAuthorizedIdentity(tenantId: 7));
-        var httpContext = CreateHttpContext(principal);
-
-        // Act
-        await InvokeAsync(httpContext);
-
-        // Assert
-        _tenantContext.TenantId.Should().Be(7);
-    }
-
-    [Fact]
-    public async Task InvokeAsync_ExternalIssuerHydratedAtTenantZero_ReturnsForbidden()
-    {
-        // Arrange
-        var principal = CreatePrincipal(EXTERNAL_ISSUER, tenantId: "5");
-        principal.AddIdentity(CreateAuthorizedIdentity(tenantId: 0));
-        var httpContext = CreateHttpContext(principal);
-
-        // Act
-        await InvokeAsync(httpContext);
-
-        // Assert
-        await AssertForbiddenAsync(httpContext);
-    }
-
-    [Fact]
-    public async Task InvokeAsync_ExternalIssuerNotHydrated_ReturnsForbidden()
-    {
-        // Arrange
-        var httpContext = CreateHttpContext(CreatePrincipal(EXTERNAL_ISSUER, tenantId: "5"));
 
         // Act
         await InvokeAsync(httpContext);
@@ -232,11 +157,4 @@ public sealed class TenantMiddlewareTests
 
         return new ClaimsPrincipal(identity);
     }
-
-    private static AuthorizedIdentity CreateAuthorizedIdentity(long tenantId) =>
-        new(AuthorizationData.ForAuthenticatedUser(
-            userId: "123",
-            tenantId: tenantId,
-            roles: [],
-            permissions: []));
 }

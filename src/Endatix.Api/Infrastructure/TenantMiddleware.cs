@@ -13,9 +13,8 @@ namespace Endatix.Api.Infrastructure;
 /// Middleware that handles tenant context initialization based on user claims.
 /// </summary>
 /// <remarks>
-/// Anonymous requests pass through without a tenant. A signed-in request must resolve a tenant greater than zero,
-/// or it ends with 403. The tenant comes from the token's own <c>tid</c> claim when Endatix issued the token (user JWT
-/// or ReBAC form-access JWT), and from the hydrated <see cref="AuthorizedIdentity"/> for every other issuer.
+/// Anonymous requests pass through without a tenant. A signed-in request must resolve a tenant greater than zero
+/// through <see cref="TenantContextInitializer"/>, or it ends with 403.
 /// </remarks>
 public class TenantMiddleware
 {
@@ -50,35 +49,20 @@ public class TenantMiddleware
             return;
         }
 
-        if (tenantContext is not TenantContext writableTenantContext)
+        switch (TenantContextInitializer.TryInitialize(tenantContext, context.User, jwtOptions.Value))
         {
-            _logger.LogError("Expected TenantContext but got {ActualType}", tenantContext.GetType().Name);
-            await WriteServerErrorAsync(context);
-            return;
+            case TenantInitializationResult.Set:
+                await _next(context);
+                return;
+            case TenantInitializationResult.NoTenant:
+                LogMissingTenant(context.User);
+                await WriteTenantRequiredAsync(context);
+                return;
+            default:
+                _logger.LogError("Expected TenantContext but got {ActualType}", tenantContext.GetType().Name);
+                await WriteServerErrorAsync(context);
+                return;
         }
-
-        var tenantId = ResolveTenantId(context.User, jwtOptions.Value);
-        if (tenantId <= 0)
-        {
-            LogMissingTenant(context.User);
-            await WriteTenantRequiredAsync(context);
-            return;
-        }
-
-        writableTenantContext.SetTenant(tenantId);
-        await _next(context);
-    }
-
-    private static long ResolveTenantId(ClaimsPrincipal user, EndatixJwtOptions jwtOptions)
-    {
-        var issuer = user.GetIssuer();
-        if (issuer is not null && (issuer == jwtOptions.Issuer || issuer == jwtOptions.ReBacIssuer))
-        {
-            var tenantClaim = (user.Identity as ClaimsIdentity)?.FindFirst(ClaimNames.TenantId);
-            return long.TryParse(tenantClaim?.Value, out var tokenTenantId) ? tokenTenantId : 0;
-        }
-
-        return user.Identities.OfType<AuthorizedIdentity>().FirstOrDefault()?.TenantId ?? 0;
     }
 
     private void LogMissingTenant(ClaimsPrincipal user) =>

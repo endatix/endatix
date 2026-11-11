@@ -52,7 +52,6 @@
 		<EmbeddedResource Include="Data\SeedData\Forms\**\*.json" />
 	</ItemGroup>
 	<ItemGroup>
-		<InternalsVisibleTo Include="Endatix.Api" />
 		<InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
 		<InternalsVisibleTo Include="Endatix.IntegrationTests" />
 		<InternalsVisibleTo Include="DynamicProxyGenAssembly2" PublicKey="$(NSubstitutePublicKey)" />
