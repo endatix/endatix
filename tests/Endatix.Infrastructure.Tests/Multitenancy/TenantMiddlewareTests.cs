@@ -158,8 +158,13 @@ public sealed class TenantMiddlewareTests
         await _middleware.InvokeAsync(httpContext, unexpectedTenantContext, Options.Create(_jwtOptions));
 
         // Assert
-        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
         await _next.DidNotReceiveWithAnyArgs().Invoke(default!);
+        await AssertProblemAsync(
+            httpContext,
+            StatusCodes.Status500InternalServerError,
+            "https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error",
+            "An unexpected error occurred",
+            "An unexpected error occurred");
     }
 
     private Task InvokeAsync(HttpContext httpContext) =>
@@ -167,19 +172,32 @@ public sealed class TenantMiddlewareTests
 
     private async Task AssertForbiddenAsync(HttpContext httpContext)
     {
-        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        httpContext.Response.ContentType.Should().StartWith("application/problem+json");
         _tenantContext.TenantId.Should().Be(0);
         await _next.DidNotReceiveWithAnyArgs().Invoke(default!);
+        await AssertProblemAsync(
+            httpContext,
+            StatusCodes.Status403Forbidden,
+            "https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden",
+            "Forbidden access",
+            "The tenant for this request could not be resolved.");
+    }
+
+    private static async Task AssertProblemAsync(HttpContext httpContext, int status, string type, string title, string detail)
+    {
+        httpContext.Response.StatusCode.Should().Be(status);
+        httpContext.Response.ContentType.Should().Be("application/problem+json");
 
         httpContext.Response.Body.Position = 0;
         using var problem = await JsonDocument.ParseAsync(httpContext.Response.Body);
-        problem.RootElement.GetProperty("status").GetInt32().Should().Be(StatusCodes.Status403Forbidden);
-        problem.RootElement.GetProperty("detail").GetString().Should().NotBeNullOrWhiteSpace();
-        problem.RootElement.GetProperty("type").GetString().Should().Be("https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden");
-        problem.RootElement.GetProperty("title").GetString().Should().Be("Forbidden access");
-        problem.RootElement.GetProperty("instance").GetString().Should().Be(REQUEST_PATH);
-        problem.RootElement.GetProperty("traceId").GetString().Should().NotBeNullOrWhiteSpace();
+        var root = problem.RootElement;
+        root.EnumerateObject().Select(property => property.Name).Should()
+            .BeEquivalentTo("type", "title", "status", "detail", "instance", "traceId");
+        root.GetProperty("type").GetString().Should().Be(type);
+        root.GetProperty("title").GetString().Should().Be(title);
+        root.GetProperty("status").GetInt32().Should().Be(status);
+        root.GetProperty("detail").GetString().Should().Be(detail);
+        root.GetProperty("instance").GetString().Should().Be(REQUEST_PATH);
+        root.GetProperty("traceId").GetString().Should().Be(httpContext.TraceIdentifier);
     }
 
     private static DefaultHttpContext CreateHttpContext(ClaimsPrincipal user)
