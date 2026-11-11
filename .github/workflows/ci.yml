@@ -52,7 +52,10 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   # sonar-build runs `begin` and sonar runs `end`: one version for both, or `end` breaks.
-  SONAR_SCANNER_VERSION: 11.3.0
+  SONAR_SCANNER_VERSION: 12.1.0
+  # Where `begin` unpacks the .NET analyzer plugins (sonar.plugin.cache.directory; the default is a
+  # temp dir). A fixed path, cached with ~/.sonar/cache (the JRE and the scanner engine) per version.
+  SONAR_PLUGIN_CACHE: /home/runner/.sonar/plugin-cache
 
 # Serialize runs per ref so two quick merges to main can't run overlapping
 # releases. Cancel in-flight runs only for pull requests to save CI minutes.
@@ -380,11 +383,17 @@ jobs:
   # the analyzed build and uploads the scanner state; sonar runs `end` once the coverage exists.
   # `end` finds that state only at the paths `begin` recorded, so both jobs use the same runner
   # image, the same checkout path and the same scanner version (SONAR_SCANNER_VERSION).
+  # The JRE, engine and plugins `begin` downloads reach `end` through the Actions cache instead of the
+  # artifact: sonar-build saves them under a key named after their file list, and sonar restores that
+  # exact key. A new engine or JRE from SonarCloud gets a new key, so `end` never misses a path.
+  # On PRs the save lands in the PR's scope only when main's entry does not match.
   sonar-build:
     name: "Endatix API: SonarCloud build"
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-24.04 # the same image as sonar: the scanner state holds absolute paths
+    outputs:
+      scanner-cache-key: ${{ steps.scanner-cache-key.outputs.key }}
     environment:
       name: Production
     permissions:
@@ -428,7 +437,17 @@ jobs:
       - name: 🔧 Install SonarScanner
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: dotnet tool install --global dotnet-sonarscanner --version "$SONAR_SCANNER_VERSION"
-      - name: 🔎 Begin & build
+      - name: ♻️ Restore the scanner cache
+        id: scanner-cache
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.sonar/cache
+            ${{ env.SONAR_PLUGIN_CACHE }}
+          key: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}-latest # never saved: restore-keys picks the newest
+          restore-keys: sonar-${{ runner.os }}-${{ env.SONAR_SCANNER_VERSION }}-
+      - name: 🔎 Begin
         # The coverage paths are read by `end` in the sonar job, which downloads the reports there.
         # These exclusions replace the ones set in the SonarCloud project; the cpd list
         # is the UI's plus Endpoints, which repeat FastEndpoints Configure() boilerplate
@@ -440,6 +459,7 @@ jobs:
           # New code on main runs from the last stable release ("Previous version" in
           # SonarCloud); without /v: every analysis is "not provided" and it never resets.
           tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' 2>/dev/null || echo v0.0.0)
+          mkdir -p "$SONAR_PLUGIN_CACHE" "$HOME/.sonar/cache"
           dotnet-sonarscanner begin /k:"endatix_endatix" /o:"endatix" /v:"${tag#v}" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$ENDATIX_API_REPO_SONAR_TOKEN" \
@@ -449,22 +469,37 @@ jobs:
             /d:sonar.cpd.exclusions="tests/**,**/*Tests.cs,**/*Test.cs,**/Endatix.Persistence.*/**,**/Migrations/**,**/Endpoints/**" \
             /d:sonar.issue.ignore.multicriteria="sqlliterals" \
             /d:sonar.issue.ignore.multicriteria.sqlliterals.ruleKey="plsql:S1192" \
-            /d:sonar.issue.ignore.multicriteria.sqlliterals.resourceKey="**/Scripts/**/*.sql"
-          dotnet build
-      # begin records absolute paths outside .sonarqube too: the JRE and scanner engine it
-      # downloaded to ~/.sonar/cache, and the sources the build generated under obj/. A tar
-      # keeps them at those paths and keeps the JRE's execute bits, which artifacts drop.
+            /d:sonar.issue.ignore.multicriteria.sqlliterals.resourceKey="**/Scripts/**/*.sql" \
+            /d:sonar.plugin.cache.directory="$SONAR_PLUGIN_CACHE" \
+            /d:sonar.dotnet.excludeTestProjects=true
+      # tests/** is already out of the analysis (sonar.exclusions); excludeTestProjects also skips the
+      # analyzers in the test projects' build. A full, server-less build, as the scanner docs ask, so
+      # every project is compiled under the analyzers.
+      - name: 🏗️ Build under the scanner
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: dotnet build --no-incremental --disable-build-servers
+      # Named after the cache's file list (paths and sizes): the same downloads give the same key.
+      - name: 🔑 Key the scanner cache
+        id: scanner-cache-key
+        if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
+        run: |
+          list=$(find "$HOME/.sonar/cache" "$SONAR_PLUGIN_CACHE" -type f -not -path '*/_tmp/*' -printf '%p %s\n' | sort)
+          echo "key=sonar-${RUNNER_OS}-${SONAR_SCANNER_VERSION}-$(printf '%s' "$list" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          du -sh "$HOME/.sonar/cache" "$SONAR_PLUGIN_CACHE"
+      # begin and the build record absolute paths outside .sonarqube too: the sources the build
+      # generated under obj/ (the JRE, engine and plugins come from the cache above). A tar keeps
+      # them at those paths.
       - name: 📦 Pack the scanner state
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
           find "$PWD" -path '*/obj/*' -name '*.cs' > "$RUNNER_TEMP/obj-sources.txt"
-          tar -cPzf sonar-scanner-state.tgz "$PWD/.sonarqube" "$HOME/.sonar/cache" -T "$RUNNER_TEMP/obj-sources.txt"
+          tar -cPzf sonar-scanner-state.tgz "$PWD/.sonarqube" -T "$RUNNER_TEMP/obj-sources.txt"
           ls -lh sonar-scanner-state.tgz
       # The repo is public, so its artifacts are too: the scanner keeps the token out of its state
       # (end takes it again), and this check holds it to that over exactly what is uploaded. The token
       # is the only secret in this job (secret-name above).
       # Fails closed: only grep's "no match" (1) lets the upload run, a read error (2) stops it.
-      - name: 🔒 Check the scanner state holds no token
+      - name: 🔒 Check the scanner state and cache hold no token
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         run: |
           set +e +o pipefail
@@ -478,7 +513,24 @@ jobs:
             echo "::error::Could not check the scanner state for the token (tar ${status[0]}, grep ${status[1]}); not uploading it."
             exit 1
           fi
-          echo "No SonarCloud token in the scanner state."
+          # The cache is not public, but it is saved from a job that builds PR code: hold it to the same rule.
+          grep -rqaF "$ENDATIX_API_REPO_SONAR_TOKEN" "$HOME/.sonar/cache" "$SONAR_PLUGIN_CACHE"
+          found=$?
+          if [ "$found" -ne 1 ]; then
+            echo "::error::The SonarCloud token is in the scanner cache, or it could not be read (grep $found); not saving it."
+            exit 1
+          fi
+          echo "No SonarCloud token in the scanner state or the scanner cache."
+      - name: 💾 Save the scanner cache
+        if: >-
+          env.ENDATIX_API_REPO_SONAR_TOKEN != '' &&
+          steps.scanner-cache.outputs.cache-matched-key != steps.scanner-cache-key.outputs.key
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.sonar/cache
+            ${{ env.SONAR_PLUGIN_CACHE }}
+          key: ${{ steps.scanner-cache-key.outputs.key }}
       - name: 📤 Upload the scanner state
         if: env.ENDATIX_API_REPO_SONAR_TOKEN != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -487,7 +539,7 @@ jobs:
           path: sonar-scanner-state.tgz
           compression-level: 0 # already gzipped
           if-no-files-found: error
-          # Internal: only the sonar job of this run reads it (~160 MB), and coverage-cleanup deletes
+          # Internal: only the sonar job of this run reads it, and coverage-cleanup deletes
           # it once sonar succeeds. After a red gate, a failed lane or a cancelled run it is kept for
           # this one day, so re-running the failed jobs still finds it, as the coverage is.
           retention-days: 1
@@ -567,6 +619,16 @@ jobs:
       - name: 📦 Unpack the scanner state
         if: steps.inputs.outputs.analyze == 'true'
         run: tar -xPzf "$RUNNER_TEMP/sonar-scanner-state.tgz"
+      # The exact entry sonar-build saved or matched: the JRE and engine paths `begin` recorded.
+      - name: ♻️ Restore the scanner cache
+        if: steps.inputs.outputs.analyze == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.sonar/cache
+            ${{ env.SONAR_PLUGIN_CACHE }}
+          key: ${{ needs.sonar-build.outputs.scanner-cache-key }}
+          fail-on-cache-miss: true
       - name: 🔧 Install SonarScanner
         if: steps.inputs.outputs.analyze == 'true'
         run: dotnet tool install --global dotnet-sonarscanner --version "$SONAR_SCANNER_VERSION"
