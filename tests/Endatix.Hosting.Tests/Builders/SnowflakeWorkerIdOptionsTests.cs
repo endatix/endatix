@@ -156,6 +156,17 @@ public class SnowflakeWorkerIdOptionsTests
         provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(5);
     }
 
+    [Fact]
+    public void FinalizeConfiguration_WithoutBuilderValueOrKey_KeepsHostConfiguredWorkerId()
+    {
+        using var provider = Finalize(
+            configuration: null,
+            builderWorkerId: null,
+            builder => builder.Infrastructure.Data.Configure(options => options.SnowflakeWorkerId = 8));
+
+        provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(8);
+    }
+
     private static ServiceProvider Build(Dictionary<string, string?> settings)
     {
         var (services, _) = Compose(settings, builderWorkerId: null);

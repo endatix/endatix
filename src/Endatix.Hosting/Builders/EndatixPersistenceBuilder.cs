@@ -211,6 +211,7 @@ public class EndatixPersistenceBuilder
 
     /// <summary>
     /// Sets the Snowflake worker id used when <c>Endatix:Data:SnowflakeWorkerId</c> is not set.
+    /// When neither is set, the worker id keeps any value from <c>Infrastructure.Data.Configure</c>, else 0.
     /// </summary>
     /// <param name="workerId">The worker id, from 0 to 1023.</param>
     /// <returns>The builder for chaining.</returns>
@@ -294,9 +295,12 @@ public class EndatixPersistenceBuilder
         var configuredText = dataSection.GetSection(settingName).Value;
         if (configuredText is null)
         {
-            var workerId = _snowflakeWorkerIdSetting ?? 0;
-            opts.SnowflakeWorkerId = workerId;
-            LogWorkerIdFromDefault(settingName, workerId);
+            if (_snowflakeWorkerIdSetting is int workerId)
+            {
+                opts.SnowflakeWorkerId = workerId;
+                LogWorkerIdFromDefault(settingName, workerId);
+            }
+
             return;
         }
 
