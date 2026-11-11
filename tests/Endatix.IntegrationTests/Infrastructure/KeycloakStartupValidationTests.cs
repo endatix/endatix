@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
@@ -210,7 +211,7 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
     private static async Task<long> ResponseTenantIdAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        return body.RootElement.GetProperty("tenantId").GetInt64();
+        return long.Parse(body.RootElement.GetProperty("tenantId").ToString(), CultureInfo.InvariantCulture);
     }
 
     private static SymmetricSecurityKey SigningKey() => new(Encoding.UTF8.GetBytes(KEYCLOAK_SIGNING_KEY));
