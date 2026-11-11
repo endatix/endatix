@@ -28,7 +28,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppIdentity
                 schema: "identity",
                 table: "AccessVersions",
                 columns: new[] { "TenantId", "Value" },
-                values: new object[] { 0L, new Guid("00000000-0000-0000-0000-000000000000") });
+                values: new object[] { 0L, Guid.Empty });
         }
 
         /// <inheritdoc />

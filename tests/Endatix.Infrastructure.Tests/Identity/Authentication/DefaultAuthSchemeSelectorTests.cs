@@ -85,10 +85,10 @@ public class DefaultAuthSchemeSelectorTests
     [InlineData("   ")]
     [InlineData(null)]
     [InlineData("invalid.token")]
-    public void SelectScheme_ShouldReturnDefaultScheme_ForInvalidTokens(string token)
+    public void SelectScheme_ShouldReturnDefaultScheme_ForInvalidTokens(string? token)
     {
         // Act
-        var scheme = _selector.SelectScheme(token);
+        var scheme = _selector.SelectScheme(token!);
 
         // Assert
         Assert.Equal(_selector.DefaultScheme, scheme);
