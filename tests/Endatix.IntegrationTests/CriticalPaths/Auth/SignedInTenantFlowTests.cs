@@ -4,10 +4,14 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
+using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Endatix.IntegrationTests;
@@ -44,6 +48,10 @@ public sealed class SignedInTenantFlowTests(EndatixIntegrationWebHostFixture fix
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken);
         problem!.Status.Should().Be(StatusCodes.Status403Forbidden);
         problem.Detail.Should().NotBeNullOrWhiteSpace();
+        problem.Type.Should().Be("https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden");
+        problem.Title.Should().Be("Forbidden access");
+        problem.Instance.Should().Be("/api/auth/me");
+        problem.Extensions.Should().ContainKey("traceId");
     }
 
     [Fact]
@@ -63,6 +71,35 @@ public sealed class SignedInTenantFlowTests(EndatixIntegrationWebHostFixture fix
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Form_access_token_still_reaches_the_public_endpoint()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
+        var tenantId = world.Tenants[0].Id;
+        await world.Seed.SeedFormAsync(tenantId, "Form access token form", cancellationToken);
+        using var scope = world.Services.CreateScope();
+        var formId = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Forms
+            .IgnoreQueryFilters()
+            .Where(form => form.TenantId == tenantId && form.Name == "Form access token form")
+            .Select(form => form.Id)
+            .SingleAsync(cancellationToken);
+        var formAccessToken = scope.ServiceProvider.GetRequiredService<IFormAccessTokenService>()
+            .CreateToken(formId, tenantId).Value.Token;
+        using var client = world.AnonymousClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", formAccessToken);
+
+        // Act
+        using var response = await client.GetAsync(
+            new Uri($"/api/forms/{formId}/data-lists/999999/search", UriKind.Relative),
+            cancellationToken);
+
+        // Assert
+        response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+        response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]

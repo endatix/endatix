@@ -113,7 +113,7 @@ Resource name this access token is for. Must match the token `aud` claim. The de
 `false` for this HTTP dev server. `true` in production.
 </Setting>
 <Setting name="DefaultTenantId" required>
-Id of the tenant that users who sign in through Keycloak belong to. Must be an existing tenant id greater than 0: the API refuses to start without it.
+Id of the tenant that users who sign in through Keycloak belong to. Use an existing tenant id. When `Enabled` is `true`, the API refuses to start unless it is greater than 0.
 </Setting>
 <Setting name="ClientId" required>
 Keycloak client id. This realm uses `endatix-hub`. The API sends it when calling token introspection. See [Keycloak RBAC](/docs/building-your-solution/authorization/keycloak-rbac).

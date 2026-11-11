@@ -15,6 +15,7 @@ namespace Endatix.Infrastructure.Tests.Multitenancy;
 
 public sealed class TenantMiddlewareTests
 {
+    private const string REQUEST_PATH = "/api/forms";
     private const string EXTERNAL_ISSUER = "https://keycloak.test/realms/endatix";
 
     private readonly RequestDelegate _next = Substitute.For<RequestDelegate>();
@@ -88,7 +89,7 @@ public sealed class TenantMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_EXTERNAL_ISSUERHydratedWithTenant_SetsTenantFromAuthorizedIdentity()
+    public async Task InvokeAsync_ExternalIssuerHydratedWithTenant_SetsTenantFromAuthorizedIdentity()
     {
         // Arrange
         var principal = CreatePrincipal(EXTERNAL_ISSUER, tenantId: null);
@@ -104,7 +105,7 @@ public sealed class TenantMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_EXTERNAL_ISSUERHydratedWithTenant_IgnoresTheIssuersOwnTenantClaim()
+    public async Task InvokeAsync_ExternalIssuerHydratedWithTenant_IgnoresTheIssuersOwnTenantClaim()
     {
         // Arrange
         var principal = CreatePrincipal(EXTERNAL_ISSUER, tenantId: "5");
@@ -119,7 +120,7 @@ public sealed class TenantMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_EXTERNAL_ISSUERHydratedAtTenantZero_ReturnsForbidden()
+    public async Task InvokeAsync_ExternalIssuerHydratedAtTenantZero_ReturnsForbidden()
     {
         // Arrange
         var principal = CreatePrincipal(EXTERNAL_ISSUER, tenantId: "5");
@@ -134,7 +135,7 @@ public sealed class TenantMiddlewareTests
     }
 
     [Fact]
-    public async Task InvokeAsync_EXTERNAL_ISSUERNotHydrated_ReturnsForbidden()
+    public async Task InvokeAsync_ExternalIssuerNotHydrated_ReturnsForbidden()
     {
         // Arrange
         var httpContext = CreateHttpContext(CreatePrincipal(EXTERNAL_ISSUER, tenantId: "5"));
@@ -175,6 +176,10 @@ public sealed class TenantMiddlewareTests
         using var problem = await JsonDocument.ParseAsync(httpContext.Response.Body);
         problem.RootElement.GetProperty("status").GetInt32().Should().Be(StatusCodes.Status403Forbidden);
         problem.RootElement.GetProperty("detail").GetString().Should().NotBeNullOrWhiteSpace();
+        problem.RootElement.GetProperty("type").GetString().Should().Be("https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden");
+        problem.RootElement.GetProperty("title").GetString().Should().Be("Forbidden access");
+        problem.RootElement.GetProperty("instance").GetString().Should().Be(REQUEST_PATH);
+        problem.RootElement.GetProperty("traceId").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     private static DefaultHttpContext CreateHttpContext(ClaimsPrincipal user)
@@ -188,6 +193,7 @@ public sealed class TenantMiddlewareTests
         {
             User = user,
             RequestServices = services,
+            Request = { Path = REQUEST_PATH },
             Response = { Body = new MemoryStream() }
         };
     }
