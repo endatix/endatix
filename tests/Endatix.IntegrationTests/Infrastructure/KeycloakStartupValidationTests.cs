@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -18,6 +19,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -33,7 +35,7 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// A host that adds the Keycloak provider refuses to start until <c>DefaultTenantId</c> names a tenant, a Keycloak
 /// sign-in that still resolves no tenant is rejected with 403, and a mapped Keycloak sign-in runs at
-/// <c>DefaultTenantId</c> whatever <c>tid</c> its token carries, moving an existing user at tenant 0 there.
+/// <c>DefaultTenantId</c> whatever <c>tid</c> its token carries. An existing user at tenant 0 is refused, not moved.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -132,7 +134,7 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
     }
 
     [Fact]
-    public async Task Keycloak_sign_in_of_an_existing_user_at_tenant_0_moves_it_to_the_default_tenant()
+    public async Task Keycloak_sign_in_of_an_existing_user_at_tenant_0_is_refused_and_not_moved()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -152,15 +154,18 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
         using var response = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), cancellationToken);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await ResponseTenantIdAsync(response, cancellationToken)).Should().Be(tenantId);
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken);
+        problem!.Detail.Should().Be("Your account is not approved for this tenant. Contact your administrator to be approved.");
+        problem.Extensions.Should().ContainKey("traceId");
         using var scope = app.Services.CreateScope();
         var users = await scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>().Users
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(user => user.AuthProvider == AuthProviders.Keycloak && user.ExternalSubjectId == subject)
             .Select(user => new { user.Id, user.TenantId })
             .ToListAsync(cancellationToken);
-        users.Should().ContainSingle().Which.Should().Be(new { Id = existingUserId, TenantId = tenantId });
+        users.Should().ContainSingle().Which.Should().Be(new { Id = existingUserId, TenantId = 0L });
         await app.StopAsync(cancellationToken);
     }
 

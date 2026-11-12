@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -23,7 +24,9 @@ internal sealed class ExternalAppUserProvisioner(
     private const string DUPLICATE_EMAIL_MESSAGE = "Email already in use.";
     private const string APP_USER_EMAIL_REQUIRED_MESSAGE = "App user email is required.";
     private const string TENANT_REQUIRED_MESSAGE = "Tenant ID is required.";
-    private const long NO_TENANT_ID = 0;
+    private const string TENANT_MISMATCH_MESSAGE = "External user is not approved for this tenant.";
+    private const string TENANT_MISMATCH_DOCS =
+        "https://docs.endatix.com/docs/building-your-solution/authentication/keycloak#users-stored-at-another-tenant";
     private static readonly string[] _duplicateEmailIndexNames =
     [
         AppUser.UniqueConstraints.EmailPerTenant,
@@ -61,11 +64,16 @@ internal sealed class ExternalAppUserProvisioner(
             return await ProcessExistingUserAsync(existingUser, externalSubjectId, identityProfile, mappedAppRoles);
         }
 
+        if (await RejectUserAtAnotherTenantAsync(tenantId, authProvider, externalSubjectId, cancellationToken) is { } mismatch)
+        {
+            return mismatch;
+        }
+
         var semaphore = ExternalProvisioningLock.Get(tenantId, authProvider, externalSubjectId);
         await semaphore.WaitAsync(cancellationToken);
         try
         {
-            var user = await FindOrMoveUserWithoutTenantAsync(new(tenantId, authProvider, externalSubjectId), cancellationToken);
+            var user = await FindByExternalKeyAsync(tenantId, authProvider, externalSubjectId, cancellationToken);
             if (user is not null)
             {
                 return await ProcessExistingUserAsync(user, externalSubjectId, identityProfile, mappedAppRoles);
@@ -120,6 +128,7 @@ internal sealed class ExternalAppUserProvisioner(
 
         return null;
     }
+
     private Task<AppUser?> FindByExternalKeyAsync(
         long tenantId,
         string authProvider,
@@ -135,37 +144,37 @@ internal sealed class ExternalAppUserProvisioner(
     }
 
     /// <summary>
-    /// Finds the user at the tenant. A user provisioned while Keycloak sign-ins ran without a tenant (tenant 0) is moved
-    /// to the tenant on this sign-in instead of being created again; a user at another tenant is never moved.
+    /// Rejects a sign-in whose external identity is stored at another tenant, tenant 0 included. Sign-in never changes
+    /// a user's tenant: tenant 0 is also where removing a user's access puts them.
     /// </summary>
-    private async Task<AppUser?> FindOrMoveUserWithoutTenantAsync(ExternalKey key, CancellationToken cancellationToken)
+    private async Task<Result<AppUser>?> RejectUserAtAnotherTenantAsync(
+        long tenantId,
+        string authProvider,
+        string externalSubjectId,
+        CancellationToken cancellationToken)
     {
-        return await FindByExternalKeyAsync(key.TenantId, key.AuthProvider, key.SubjectId, cancellationToken)
-            ?? await MoveUserWithoutTenantAsync(key, cancellationToken);
-    }
-
-    /// <summary>
-    /// Moves the user at tenant 0 through a tracked update, so the user's concurrency stamp guards it: when another
-    /// sign-in moved the user first, the update fails and the user is read again at the tenant.
-    /// </summary>
-    private async Task<AppUser?> MoveUserWithoutTenantAsync(ExternalKey key, CancellationToken cancellationToken)
-    {
-        var user = await FindByExternalKeyAsync(NO_TENANT_ID, key.AuthProvider, key.SubjectId, cancellationToken);
+        var user = await identityDbContext.Users
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .AsNoTracking()
+            .FirstOrDefaultAsync(candidate =>
+                candidate.TenantId != tenantId &&
+                candidate.AuthProvider == authProvider &&
+                candidate.ExternalSubjectId == externalSubjectId,
+                cancellationToken);
         if (user is null)
         {
             return null;
         }
 
-        user.TenantId = key.TenantId;
-        var updateResult = await userManager.UpdateAsync(user);
-        if (updateResult.Succeeded)
-        {
-            logger.LogInformation("Moved external Hub AppUser {UserId} to tenant {TenantId}.", user.Id, key.TenantId);
-            return user;
-        }
+        logger.LogWarning(
+            "Rejected {AuthProvider} sign-in for user {UserId}: the user belongs to tenant {UserTenantId}, but the configured DefaultTenantId is {DefaultTenantId}. Approve the user at that tenant, see {DocsUrl}.",
+            authProvider,
+            user.Id,
+            user.TenantId,
+            tenantId,
+            TENANT_MISMATCH_DOCS);
 
-        identityDbContext.Entry(user).State = EntityState.Detached;
-        return await FindByExternalKeyAsync(key.TenantId, key.AuthProvider, key.SubjectId, cancellationToken);
+        return Result<AppUser>.Forbidden(TENANT_MISMATCH_MESSAGE);
     }
 
     private async Task<Result<AppUser>> ProcessExistingUserAsync(
@@ -411,8 +420,6 @@ internal sealed class ExternalAppUserProvisioner(
         string alphaNumeric = new(value.Where(char.IsLetterOrDigit).ToArray());
         return string.IsNullOrWhiteSpace(alphaNumeric) ? "External" : alphaNumeric;
     }
-
-    private readonly record struct ExternalKey(long TenantId, string AuthProvider, string SubjectId);
 
     private static string? RequireEmail(ExternalIdentityProfile identityProfile)
     {

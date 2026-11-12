@@ -76,6 +76,27 @@ public sealed class TenantMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_SignInRefusedAccessToTheTenant_SaysToAskForApproval()
+    {
+        // Arrange
+        var httpContext = CreateHttpContext(CreatePrincipal("https://keycloak.test/realms/endatix", tenantId: null));
+        TenantAccessDenial.Mark(httpContext);
+
+        // Act
+        await InvokeAsync(httpContext);
+
+        // Assert
+        await _next.DidNotReceiveWithAnyArgs().Invoke(default!);
+        await AssertProblemAsync(httpContext, new ProblemDetails
+        {
+            Status = StatusCodes.Status403Forbidden,
+            Type = "https://www.rfc-editor.org/rfc/rfc9110.html#name-403-forbidden",
+            Title = "Forbidden access",
+            Detail = "Your account is not approved for this tenant. Contact your administrator to be approved.",
+        });
+    }
+
+    [Fact]
     public async Task InvokeAsync_SignedInWithUnexpectedTenantContext_EndsTheRequestWithServerError()
     {
         // Arrange

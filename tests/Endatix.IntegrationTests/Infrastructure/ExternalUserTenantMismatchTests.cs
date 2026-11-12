@@ -11,77 +11,79 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Existing users that Keycloak sign-ins provisioned at tenant 0 move to the configured tenant on their next sign-in;
-/// a user at another tenant stays where it is.
+/// Keycloak sign-in never changes a user's tenant. A user stored at another tenant, tenant 0 included, is refused and
+/// nothing is written.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture fixture)
+public sealed class ExternalUserTenantMismatchTests(EndatixIntegrationWebHostFixture fixture)
 {
     private static readonly string[] _mappedRoles = ["Admin"];
 
     [Fact]
-    public async Task User_at_tenant_0_moves_to_the_configured_tenant_once()
+    public async Task User_at_tenant_0_is_refused_and_not_moved()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
-        var tenantId = world.Tenants[0].Id;
         var identity = KeycloakIdentity.New();
-        var existingUserId = await SeedKeycloakUserAsync(world, tenantId: 0, identity);
+        await SeedKeycloakUserAsync(world, tenantId: 0, identity);
+        var before = await StoredUsersAsync(world, identity.Subject, cancellationToken);
 
         // Act
-        var first = await ProvisionAsync(world, tenantId, identity);
-        var second = await ProvisionAsync(world, tenantId, identity);
+        var result = await ProvisionAsync(world, world.Tenants[0].Id, identity);
 
         // Assert
-        first.IsSuccess.Should().BeTrue();
-        first.Value.Id.Should().Be(existingUserId);
-        first.Value.TenantId.Should().Be(tenantId);
-        second.IsSuccess.Should().BeTrue();
-        second.Value.Id.Should().Be(existingUserId);
-        (await TenantsOfAsync(world, identity.Subject, cancellationToken)).Should().Equal(tenantId);
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        (await StoredUsersAsync(world, identity.Subject, cancellationToken)).Should().BeEquivalentTo(before);
     }
 
     [Fact]
-    public async Task User_at_another_tenant_is_not_moved()
+    public async Task User_at_another_tenant_is_refused_and_not_moved()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
-        var tenantId = world.Tenants[0].Id;
         var otherTenantId = await IntegrationTenants.InsertAsync(fixture.Database, cancellationToken);
         var identity = KeycloakIdentity.New();
         await SeedKeycloakUserAsync(world, otherTenantId, identity);
+        var before = await StoredUsersAsync(world, identity.Subject, cancellationToken);
+
+        // Act
+        var result = await ProvisionAsync(world, world.Tenants[0].Id, identity);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        (await StoredUsersAsync(world, identity.Subject, cancellationToken)).Should().BeEquivalentTo(before);
+    }
+
+    [Fact]
+    public async Task User_whose_access_was_removed_stays_removed_on_the_next_sign_in()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" },
+            cancellationToken);
+        var tenantId = world.Tenants[0].Id;
+        var identity = KeycloakIdentity.New();
+        var signedIn = await ProvisionAsync(world, tenantId, identity);
+        signedIn.IsSuccess.Should().BeTrue();
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+        using var removed = await admin.DeleteAsync(new Uri($"/api/users/{signedIn.Value.Id}", UriKind.Relative), cancellationToken);
+        removed.IsSuccessStatusCode.Should().BeTrue(await removed.Content.ReadAsStringAsync(cancellationToken));
 
         // Act
         var result = await ProvisionAsync(world, tenantId, identity);
 
         // Assert
-        result.IsSuccess.Should().BeFalse();
-        (await TenantsOfAsync(world, identity.Subject, cancellationToken)).Should().Equal(otherTenantId);
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        (await StoredUsersAsync(world, identity.Subject, cancellationToken))
+            .Should().ContainSingle().Which.TenantId.Should().Be(0);
     }
 
-    [Fact]
-    public async Task Move_into_a_tenant_where_the_email_is_taken_is_a_conflict()
-    {
-        // Arrange
-        var cancellationToken = TestContext.Current.CancellationToken;
-        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
-        var tenant = world.Tenants[0];
-        var identity = KeycloakIdentity.New() with { Email = tenant.Admin.Email };
-        await SeedKeycloakUserAsync(world, tenantId: 0, identity);
-
-        // Act
-        var result = await ProvisionAsync(world, tenant.Id, identity);
-
-        // Assert
-        result.Status.Should().Be(ResultStatus.Conflict);
-        (await TenantsOfAsync(world, identity.Subject, cancellationToken)).Should().Equal(0L);
-    }
-
-    private static async Task<long> SeedKeycloakUserAsync(IntegrationTestWorld world, long tenantId, KeycloakIdentity identity)
+    private static async Task SeedKeycloakUserAsync(IntegrationTestWorld world, long tenantId, KeycloakIdentity identity)
     {
         using var scope = world.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
@@ -97,7 +99,6 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
         };
         var created = await userManager.CreateAsync(user);
         created.Succeeded.Should().BeTrue(string.Join("; ", created.Errors.Select(error => error.Description)));
-        return user.Id;
     }
 
     private static async Task<Result<AppUser>> ProvisionAsync(IntegrationTestWorld world, long tenantId, KeycloakIdentity identity)
@@ -117,15 +118,18 @@ public sealed class ExternalUserTenantMoveTests(EndatixIntegrationWebHostFixture
             TestContext.Current.CancellationToken);
     }
 
-    private static async Task<List<long>> TenantsOfAsync(IntegrationTestWorld world, string subject, CancellationToken cancellationToken)
+    private static async Task<List<StoredUser>> StoredUsersAsync(IntegrationTestWorld world, string subject, CancellationToken cancellationToken)
     {
         using var scope = world.Services.CreateScope();
         return await scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>().Users
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(user => user.AuthProvider == AuthProviders.Keycloak && user.ExternalSubjectId == subject)
-            .Select(user => user.TenantId)
+            .Select(user => new StoredUser(user.Id, user.TenantId, user.ConcurrencyStamp, user.LastLoginAt))
             .ToListAsync(cancellationToken);
     }
+
+    private sealed record StoredUser(long Id, long TenantId, string? ConcurrencyStamp, DateTimeOffset? LastLoginAt);
 
     private sealed record KeycloakIdentity(string Subject, string Email)
     {

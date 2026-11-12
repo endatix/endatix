@@ -11,6 +11,7 @@ using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Provisioning;
+using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -220,6 +221,41 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
                 Arg.Any<IReadOnlyCollection<string>>(),
                 Arg.Is<ExternalIdentityProfile>(profile => profile.Email == null),
                 Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData(ResultStatus.Forbidden, true)]
+    [InlineData(ResultStatus.Conflict, false)]
+    public async Task GetAuthorizationDataAsync_MarksTheRequest_OnlyWhenProvisioningRefusesTheTenant(
+        ResultStatus provisioningStatus,
+        bool expectMarked)
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TEST_ISSUER, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
+        context.ExternalAppUserProvisioner
+            .ProvisionAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<ExternalIdentityProfile>(),
+                Arg.Any<CancellationToken>())
+            .Returns(provisioningStatus == ResultStatus.Forbidden
+                ? Result<AppUser>.Forbidden("External user is not approved for this tenant.")
+                : Result<AppUser>.Conflict("Email already in use."));
+        var principal = CreatePrincipal("123", TEST_ISSUER);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        TenantAccessDenial.IsMarked(context.HttpContextAccessor.HttpContext!).Should().Be(expectMarked);
     }
 
     [Fact]

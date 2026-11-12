@@ -19,6 +19,8 @@ namespace Endatix.Api.Infrastructure;
 public class TenantMiddleware
 {
     private const string TENANT_REQUIRED_DETAIL = "The tenant for this request could not be resolved.";
+    private const string NOT_APPROVED_DETAIL =
+        "Your account is not approved for this tenant. Contact your administrator to be approved.";
 
     private readonly RequestDelegate _next;
     private readonly ILogger<TenantMiddleware> _logger;
@@ -75,7 +77,7 @@ public class TenantMiddleware
         context.WriteEndatixProblemAsync(
             StatusCodes.Status403Forbidden,
             title: null,
-            detail: TENANT_REQUIRED_DETAIL,
+            detail: TenantAccessDenial.IsMarked(context) ? NOT_APPROVED_DETAIL : TENANT_REQUIRED_DETAIL,
             cancellationToken: context.RequestAborted);
 
     private static Task WriteServerErrorAsync(HttpContext context) =>

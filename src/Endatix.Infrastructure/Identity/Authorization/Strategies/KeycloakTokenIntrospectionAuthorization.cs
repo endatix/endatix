@@ -2,6 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Multitenancy;
+using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -126,7 +128,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 cancellationToken);
             if (!provisionResult.IsSuccess)
             {
-                return provisionResult.ToErrorResult<AuthorizationData>();
+                return RejectProvisioning(provisionResult);
             }
 
             return await BuildAuthorizationDataAsync(
@@ -147,6 +149,16 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
         }
     }
 
+    private Result<AuthorizationData> RejectProvisioning(Result<AppUser> provisionResult)
+    {
+        if (provisionResult.IsForbidden())
+        {
+            TenantAccessDenial.Mark(httpContextAccessor.HttpContext);
+        }
+
+        return provisionResult.ToErrorResult<AuthorizationData>();
+    }
+
     private Result<AuthorizationData>? RejectRequest(ClaimsPrincipal principal, KeycloakOptions keycloakSettings)
     {
         if (!CanHandle(principal))
@@ -161,6 +173,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
 
         return null;
     }
+
     private async Task<Result<AuthorizationData>> BuildAuthorizationDataAsync(
         MappedAuthorization mapped,
         CancellationToken cancellationToken)
