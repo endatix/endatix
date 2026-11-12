@@ -64,7 +64,10 @@ internal sealed class JobsTestNode : IAsyncDisposable
 
         var services = builder.Services;
         services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Warning));
-        services.AddOptions<DataOptions>();
+        services.AddOptions<DataOptions>()
+            .BindConfiguration("Endatix:Data")
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddSingleton<IIdGenerator<long>, SnowflakeIdGenerator>();
         services.AddScoped<ITenantContext>(_ => IntegrationTenantContext.Bypass);

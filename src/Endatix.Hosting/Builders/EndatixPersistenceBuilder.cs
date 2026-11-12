@@ -273,7 +273,21 @@ public class EndatixPersistenceBuilder
             ApplySnowflakeWorkerId(section, opts);
         });
 
+        // Runs after every ordinary Configure<DataOptions> callback, so a host callback registered later
+        // (Infrastructure.Data.Configure) cannot override the worker id the configuration sets.
+        _parentBuilder.Services.PostConfigure<DataOptions>(opts => ReapplyConfiguredWorkerId(section, opts));
+
         _configurationsApplied = true;
+    }
+
+    private static void ReapplyConfiguredWorkerId(IConfigurationSection dataSection, DataOptions opts)
+    {
+        var configuredText = dataSection.GetSection(nameof(DataOptions.SnowflakeWorkerId)).Value;
+        if (configuredText is not null &&
+            int.TryParse(configuredText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var configuredValue))
+        {
+            opts.SnowflakeWorkerId = configuredValue;
+        }
     }
 
     private bool MissingFromConfiguration(IConfigurationSection dataSection, string settingName, string trackedValue)

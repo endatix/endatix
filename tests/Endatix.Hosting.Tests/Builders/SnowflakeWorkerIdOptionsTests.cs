@@ -167,6 +167,21 @@ public class SnowflakeWorkerIdOptionsTests
         provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(8);
     }
 
+    [Fact]
+    public void FinalizeConfiguration_WhenHostConfigureRunsAfterBinding_ConfigurationStillWins()
+    {
+        using var provider = Finalize(
+            new Dictionary<string, string?> { ["Endatix:Data:SnowflakeWorkerId"] = "5" },
+            builderWorkerId: null,
+            builder =>
+            {
+                builder.Persistence.Build();
+                builder.Infrastructure.Data.Configure(options => options.SnowflakeWorkerId = 8);
+            });
+
+        provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(5);
+    }
+
     private static ServiceProvider Build(Dictionary<string, string?> settings)
     {
         var (services, _) = Compose(settings, builderWorkerId: null);
