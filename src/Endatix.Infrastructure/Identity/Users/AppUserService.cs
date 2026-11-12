@@ -29,9 +29,9 @@ public sealed class AppUserService(
     IAuthorizationCache authorizationCache,
     ILogger<AppUserService> logger) : IUserService
 {
-    private const string SelfRemovalForbiddenMessage = "You cannot remove your own tenant access.";
-    private const string LastTenantAdminRemovalForbiddenMessage = "Cannot remove the last active tenant admin.";
-    private const string SelfLockoutForbiddenMessage = "You cannot lock out your own account.";
+    private const string SELF_REMOVAL_FORBIDDEN_MESSAGE = "You cannot remove your own tenant access.";
+    private const string LAST_TENANT_ADMIN_REMOVAL_FORBIDDEN_MESSAGE = "Cannot remove the last active tenant admin.";
+    private const string SELF_LOCKOUT_FORBIDDEN_MESSAGE = "You cannot lock out your own account.";
 
     /// <inheritdoc />
     public async Task<Result<Paged<UserWithRoles>>> ListUsersAsync(
@@ -375,7 +375,7 @@ public sealed class AppUserService(
 
         if (IsCurrentUser(userId))
         {
-            return Result.Forbidden(SelfLockoutForbiddenMessage);
+            return Result.Forbidden(SELF_LOCKOUT_FORBIDDEN_MESSAGE);
         }
 
         var tenantId = tenantContext.TenantId;
@@ -436,12 +436,12 @@ public sealed class AppUserService(
     {
         if (IsCurrentUser(user.Id))
         {
-            return Result.Forbidden(SelfRemovalForbiddenMessage);
+            return Result.Forbidden(SELF_REMOVAL_FORBIDDEN_MESSAGE);
         }
 
         if (await RemovingUserWouldLeaveTenantWithoutActiveAdminAsync(user, tenantId, cancellationToken))
         {
-            return Result.Conflict(LastTenantAdminRemovalForbiddenMessage);
+            return Result.Conflict(LAST_TENANT_ADMIN_REMOVAL_FORBIDDEN_MESSAGE);
         }
 
         return Result.Success();
