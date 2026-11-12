@@ -24,8 +24,8 @@ internal sealed class ExternalAppUserProvisioner(
     private const string APP_USER_EMAIL_REQUIRED_MESSAGE = "App user email is required.";
     private const string TENANT_REQUIRED_MESSAGE = "Tenant ID is required.";
     private const string TENANT_MISMATCH_MESSAGE = "External user is not approved for this tenant.";
-    private const string TENANT_MISMATCH_DOCS =
-        "https://docs.endatix.com/docs/building-your-solution/authentication/keycloak#users-stored-at-another-tenant";
+    internal const string TENANT_MISMATCH_DOCS =
+        "https://docs.endatix.com/docs/guides/upgrading/v0-9-2#keycloak-users-at-another-tenant";
     private static readonly string[] _duplicateEmailIndexNames =
     [
         AppUser.UniqueConstraints.EmailPerTenant,

@@ -88,4 +88,20 @@ public sealed class ExternalAppUserProvisionerTests
         result.ValidationErrors.Should().ContainSingle(error => error.ErrorMessage == "Tenant ID is required.");
         await userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
     }
+
+    [Fact]
+    public void TenantMismatchDocsLink_PointsAtAPageAndAnchorInTheDocs()
+    {
+        var link = new Uri(ExternalAppUserProvisioner.TENANT_MISMATCH_DOCS);
+        var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repoRoot is not null && !File.Exists(Path.Combine(repoRoot.FullName, "Endatix.slnx")))
+        {
+            repoRoot = repoRoot.Parent;
+        }
+
+        var page = Path.Combine(repoRoot!.FullName, "docs", "endatix-docs", link.AbsolutePath.TrimStart('/') + ".mdx");
+
+        File.Exists(page).Should().BeTrue(page);
+        File.ReadAllText(page).Should().Contain($"{{/* {link.Fragment} */}}");
+    }
 }

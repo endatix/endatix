@@ -178,83 +178,13 @@ API startup should log `Configured Keycloak auth provider`. Hub startup should l
 
 **Invalid redirect URI.** The redirect URI and the post-logout URI must match the client, including `http://` and with no trailing slash.
 
-**API stops at startup naming `DefaultTenantId`.** Keycloak is enabled and `Endatix:Auth:Providers:Keycloak:DefaultTenantId` is missing or 0. Set it to the id of the tenant your Keycloak users belong to.
+**API stops at startup naming `DefaultTenantId`.** Keycloak is enabled and `Endatix:Auth:Providers:Keycloak:DefaultTenantId` is missing or 0. Set it to the id of the tenant your Keycloak users belong to. See [Upgrade to 0.9.2](/docs/guides/upgrading/v0-9-2#keycloak-default-tenant-id).
 
-**Sign-in returns 403 "Your account is not approved for this tenant".** The user is stored at a tenant other than `DefaultTenantId`, tenant 0 included, or the user is locked out. For a tenant mismatch, the API log names the user, the user's tenant and the configured `DefaultTenantId`; for a locked-out user it says the user is locked out. Unlock the user, or approve them at the tenant. Sign-in never moves a user to another tenant. See [Users stored at another tenant](#users-stored-at-another-tenant).
+**Sign-in returns 403 "Your account is not approved for this tenant".** The user is stored at a tenant other than `DefaultTenantId`, tenant 0 included, or is locked out. The API log names the cause. See [Keycloak users stored at another tenant](/docs/guides/upgrading/v0-9-2#keycloak-users-at-another-tenant).
 
 **Audience validation failed.** Set `Audience` to the `aud` claim in the access token. Decode the token to read it.
 
 **Import error `Couldn't find policy provider with type [js]`.** The file enables authorization services and includes a JavaScript policy. Use `docker/keycloak/endatix-realm.json`, which leaves authorization off. Delete a half-created `endatix` realm before importing again.
-
-## Users stored at another tenant
-
-`DefaultTenantId` is required. A Keycloak sign-in runs at that tenant only. A user already stored at another tenant gets 403 with "Your account is not approved for this tenant. Contact your administrator to be approved." Nothing about the user changes.
-
-Two kinds of users sit at tenant 0:
-
-- Users that Keycloak sign-ins created before `DefaultTenantId` was required. Most hosts have none.
-- Users whose access an administrator removed. Removing access moves a user to tenant 0, and they must stay there.
-
-An administrator approves a user at tenant 0 by inviting them to the tenant again. A user stored at another tenant cannot be invited while they belong there, since their email is already registered: remove their access at that tenant first, then invite them. For legacy tenant-0 users only, run the one-time step below.
-
-<details>
-<summary>One-time step: move legacy tenant-0 Keycloak users to your tenant</summary>
-
-Run step 1 first. It lists the Keycloak users at tenant 0 and changes nothing. Check every row: a user whose access was removed is in the same list. The email and the last sign-in help you recognise each user before you choose. Copy only the ids of legacy users into step 2. Step 2 moves only those ids, only while they are still Keycloak users at tenant 0, and only to a tenant that exists. It prints each user it moved and the tenant it moved to. A user whose email is already used at that tenant stops the move, and nothing is changed; resolve that user first.
-
-PostgreSQL (`psql`):
-
-```sql
--- Step 1, dry run: lists Keycloak users at tenant 0 and moves nothing.
-SELECT "Id", "AuthProvider", "ExternalSubjectId", "TenantId", "Email", "LastLoginAt"
-FROM identity."Users"
-WHERE "TenantId" = 0 AND "AuthProvider" = 'Keycloak'
-ORDER BY "Id";
-
--- Step 2: moves the listed users. Save these lines as move-keycloak-users.sql and run it with
---   psql -v tenant_id=<DefaultTenantId> -v user_ids='<id>,<id>' -f move-keycloak-users.sql
-BEGIN;
-UPDATE identity."Users" AS u
-SET "TenantId" = :tenant_id, "ConcurrencyStamp" = gen_random_uuid()::text
-WHERE u."Id" IN (:user_ids)
-  AND u."TenantId" = 0
-  AND u."AuthProvider" = 'Keycloak'
-  AND EXISTS (SELECT 1 FROM public."Tenants" t WHERE t."Id" = :tenant_id AND NOT t."IsDeleted")
-RETURNING u."Id", u."AuthProvider", u."ExternalSubjectId", u."TenantId";
-COMMIT;
-```
-
-SQL Server:
-
-```sql
--- Step 1, dry run: lists Keycloak users at tenant 0 and moves nothing.
-SET QUOTED_IDENTIFIER ON;
-
-SELECT [Id], [AuthProvider], [ExternalSubjectId], [TenantId], [Email], [LastLoginAt]
-FROM [identity].[Users]
-WHERE [TenantId] = 0 AND [AuthProvider] = N'Keycloak'
-ORDER BY [Id];
-
--- Step 2: set the tenant and the ids from step 1, then run.
-DECLARE @TenantId bigint = <DefaultTenantId>;
-DECLARE @UserIds TABLE ([Id] bigint PRIMARY KEY);
-INSERT INTO @UserIds ([Id]) VALUES (<id>), (<id>);
-
-BEGIN TRANSACTION;
-UPDATE u
-SET u.[TenantId] = @TenantId, u.[ConcurrencyStamp] = CONVERT(nvarchar(36), NEWID())
-OUTPUT inserted.[Id], inserted.[AuthProvider], inserted.[ExternalSubjectId], inserted.[TenantId]
-FROM [identity].[Users] AS u
-JOIN @UserIds AS ids ON ids.[Id] = u.[Id]
-WHERE u.[TenantId] = 0
-  AND u.[AuthProvider] = N'Keycloak'
-  AND EXISTS (SELECT 1 FROM [dbo].[Tenants] AS t WHERE t.[Id] = @TenantId AND t.[IsDeleted] = 0);
-COMMIT TRANSACTION;
-```
-
-A moved user signs in with the roles the Keycloak role mappings give them at the tenant. Roles they held at tenant 0 no longer apply, unless they are system roles.
-
-</details>
 
 ## Production
 
