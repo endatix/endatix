@@ -182,6 +182,30 @@ public class SnowflakeWorkerIdOptionsTests
         provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(5);
     }
 
+    [Fact]
+    public void FinalizeConfiguration_WhenHostConfigureRunsAfterBinding_BuilderValueStillFillsAbsentKey()
+    {
+        using var provider = Finalize(
+            configuration: null,
+            builderWorkerId: 3,
+            builder => builder.Persistence.Build());
+
+        provider.GetRequiredService<IOptions<DataOptions>>().Value.SnowflakeWorkerId.Should().Be(3);
+    }
+
+    [Fact]
+    public void FinalizeConfiguration_WhenHostConfigureRunsAfterBinding_NonIntegerConfigurationStillFailsAtStartup()
+    {
+        using var provider = Finalize(
+            new Dictionary<string, string?> { ["Endatix:Data:SnowflakeWorkerId"] = "abc" },
+            builderWorkerId: null,
+            builder => builder.Infrastructure.Data.Configure(options => options.SnowflakeWorkerId = 8));
+
+        var act = () => ValidateOnStart(provider);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
     private static ServiceProvider Build(Dictionary<string, string?> settings)
     {
         var (services, _) = Compose(settings, builderWorkerId: null);

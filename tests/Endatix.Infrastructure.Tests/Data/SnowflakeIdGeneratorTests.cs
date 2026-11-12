@@ -46,5 +46,29 @@ public class SnowflakeIdGeneratorTests
         WorkerId(workerTwo.CreateId()).Should().Be(2);
     }
 
+    [Fact]
+    public void CreateId_WithinOneWorker_IncreasesStrictly()
+    {
+        var generator = new SnowflakeIdGenerator(Options.Create(new DataOptions { SnowflakeWorkerId = 11 }));
+        var previous = generator.CreateId();
+
+        for (var i = 0; i < 1000; i++)
+        {
+            var next = generator.CreateId();
+            next.Should().BeGreaterThan(previous);
+            previous = next;
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1023)]
+    public void CreateId_WorkerAtTheEdges_SetsWorkerBits(int workerId)
+    {
+        var generator = new SnowflakeIdGenerator(Options.Create(new DataOptions { SnowflakeWorkerId = workerId }));
+
+        WorkerId(generator.CreateId()).Should().Be(workerId);
+    }
+
     private static long WorkerId(long id) => (id >> SEQUENCE_BITS) & WORKER_MASK;
 }
