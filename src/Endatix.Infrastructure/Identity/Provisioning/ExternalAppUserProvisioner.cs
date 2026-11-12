@@ -2,7 +2,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -144,7 +143,6 @@ internal sealed class ExternalAppUserProvisioner(
     /// </summary>
     private Task<AppUser?> FindAtAnotherTenantAsync(ExternalKey key, CancellationToken cancellationToken) =>
         identityDbContext.Users
-            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
             .AsNoTracking()
             .FirstOrDefaultAsync(user =>
                 user.TenantId != key.TenantId &&

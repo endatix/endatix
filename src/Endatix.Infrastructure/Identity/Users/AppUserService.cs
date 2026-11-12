@@ -520,6 +520,7 @@ public sealed class AppUserService(
         identityDbContext.UserRoles.RemoveRange(userRoles);
 
         user.TenantId = 0;
+        user.ConcurrencyStamp = Guid.NewGuid().ToString();
         await identityDbContext.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

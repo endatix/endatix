@@ -83,6 +83,35 @@ public sealed class ExternalUserTenantMismatchTests(EndatixIntegrationWebHostFix
             .Should().ContainSingle().Which.TenantId.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Sign_in_that_loaded_the_user_before_a_removal_cannot_write_the_tenant_back()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" },
+            cancellationToken);
+        var tenantId = world.Tenants[0].Id;
+        var identity = KeycloakIdentity.New();
+        var signedIn = await ProvisionAsync(world, tenantId, identity);
+        signedIn.IsSuccess.Should().BeTrue();
+        using var signInScope = world.Services.CreateScope();
+        var signInUserManager = signInScope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var loadedBySignIn = await signInUserManager.FindByIdAsync(signedIn.Value.Id.ToString());
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+        using var removed = await admin.DeleteAsync(new Uri($"/api/users/{signedIn.Value.Id}", UriKind.Relative), cancellationToken);
+        removed.IsSuccessStatusCode.Should().BeTrue(await removed.Content.ReadAsStringAsync(cancellationToken));
+
+        // Act
+        loadedBySignIn!.LastLoginAt = DateTimeOffset.UtcNow;
+        var update = await signInUserManager.UpdateAsync(loadedBySignIn);
+
+        // Assert
+        update.Succeeded.Should().BeFalse();
+        (await StoredUsersAsync(world, identity.Subject, cancellationToken))
+            .Should().ContainSingle().Which.TenantId.Should().Be(0);
+    }
+
     private static async Task SeedKeycloakUserAsync(IntegrationTestWorld world, long tenantId, KeycloakIdentity identity)
     {
         using var scope = world.Services.CreateScope();
@@ -122,7 +151,6 @@ public sealed class ExternalUserTenantMismatchTests(EndatixIntegrationWebHostFix
     {
         using var scope = world.Services.CreateScope();
         return await scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>().Users
-            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(user => user.AuthProvider == AuthProviders.Keycloak && user.ExternalSubjectId == subject)
             .Select(user => new StoredUser(user.Id, user.TenantId, user.ConcurrencyStamp, user.LastLoginAt))

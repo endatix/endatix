@@ -160,7 +160,6 @@ public sealed class KeycloakStartupValidationTests(EndatixIntegrationWebHostFixt
         problem.Extensions.Should().ContainKey("traceId");
         using var scope = app.Services.CreateScope();
         var users = await scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>().Users
-            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(user => user.AuthProvider == AuthProviders.Keycloak && user.ExternalSubjectId == subject)
             .Select(user => new { user.Id, user.TenantId })
