@@ -48,6 +48,7 @@ public class KeycloakOptions : JwtAuthProviderOptions, IValidatableObject
     /// </summary>
     public KeycloakProvisioningOptions Provisioning { get; set; } = new();
 
+    /// <inheritdoc />
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext) =>
         ValidateDefaultTenant().Concat(ValidateRoleMappings());
 
