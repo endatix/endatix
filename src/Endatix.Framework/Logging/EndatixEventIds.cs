@@ -176,6 +176,8 @@ public static class EndatixEventIds
         public const int SwaggerMiddlewareAdded = 1223;
         /// <summary>Health checks middleware was added to the pipeline.</summary>
         public const int HealthChecksMiddlewareAdded = 1224;
+        /// <summary>Configuration set a Snowflake worker id that differs from <c>UseSnowflakeWorkerId</c>, so configuration wins.</summary>
+        public const int SnowflakeWorkerIdConfigurationWins = 1225;
 
         public const int RangeStart = Ranges.HostingStart;
         public const int RangeEnd = Ranges.HostingEnd;
@@ -206,7 +208,8 @@ public static class EndatixEventIds
             LoggingConfigured,
             LegacySerilogSectionDetected,
             SwaggerMiddlewareAdded,
-            HealthChecksMiddlewareAdded
+            HealthChecksMiddlewareAdded,
+            SnowflakeWorkerIdConfigurationWins
         ];
     }
 

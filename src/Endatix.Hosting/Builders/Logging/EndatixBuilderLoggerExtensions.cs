@@ -132,6 +132,15 @@ internal static partial class EndatixBuilderLoggerExtensions
     public static partial void LogPersistenceSetup(this ILogger logger, string message);
 
     [LoggerMessage(
+        EventId = EndatixEventIds.Hosting.SnowflakeWorkerIdConfigurationWins,
+        Level = LogLevel.Warning,
+        Message = "Endatix:Data:SnowflakeWorkerId is {ConfiguredValue} in configuration and {BuilderValue} on the builder; configuration wins")]
+    public static partial void LogSnowflakeWorkerIdConfigurationWins(
+        this ILogger logger,
+        string configuredValue,
+        int builderValue);
+
+    [LoggerMessage(
         EventId = EndatixEventIds.Hosting.SwaggerMiddlewareAdded,
         Level = LogLevel.Information,
         Message = "Adding Swagger middleware with path: {Path}")]

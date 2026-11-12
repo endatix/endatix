@@ -1,5 +1,3 @@
-using Endatix.Core.Configuration;
-
 namespace Endatix.Infrastructure.Data
 {
     public static class TableNamePrefix
@@ -13,24 +11,20 @@ namespace Endatix.Infrastructure.Data
         public static string GetTableName(string entityName, string? configuredTableName = null)
         {
             var entityTypeName = GetEntityName(entityName);
-            var tableName = configuredTableName;
 
             // Respect explicit ToTable(...) names and only apply conventions to default names.
-            if (!string.IsNullOrWhiteSpace(tableName) &&
-                !string.Equals(tableName, entityTypeName, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(configuredTableName) &&
+                !string.Equals(configuredTableName, entityTypeName, StringComparison.Ordinal))
             {
-                return tableName;
+                return configuredTableName;
             }
 
-            tableName = entityTypeName;
-            if (!tableName.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+            if (entityTypeName.EndsWith("s", StringComparison.OrdinalIgnoreCase))
             {
-                tableName += "s";
+                return entityTypeName;
             }
 
-            return string.IsNullOrEmpty(EndatixConfig.Configuration.TablePrefix)
-                ? tableName
-                : $"{EndatixConfig.Configuration.TablePrefix}.{tableName}";
+            return entityTypeName + "s";
         }
     }
 }

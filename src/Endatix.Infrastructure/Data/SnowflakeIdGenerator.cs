@@ -1,10 +1,8 @@
-﻿
 using Endatix.Core.Abstractions;
-using Endatix.Core.Configuration;
+using Microsoft.Extensions.Options;
 using Snowflake = IdGen;
 
 namespace Endatix.Infrastructure.Data;
-
 
 /// <summary>
 /// This class implements the IIdGenerator interface to generate unique identifiers.
@@ -12,14 +10,25 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public class SnowflakeIdGenerator : IIdGenerator<long>
 {
-    private static readonly Snowflake.IdGenerator _idGenerator = new Snowflake.IdGenerator(EndatixConfig.Configuration.SnowflakeGeneratorId);
+    private readonly Snowflake.IdGenerator _generator;
+
+    /// <summary>
+    /// Creates a generator for <see cref="DataOptions.SnowflakeWorkerId"/>.
+    /// </summary>
+    /// <param name="options">Data options for this API instance.</param>
+    public SnowflakeIdGenerator(IOptions<DataOptions> options)
+        : this(options.Value.SnowflakeWorkerId)
+    {
+    }
+
+    internal SnowflakeIdGenerator(int workerId)
+    {
+        _generator = SnowflakeIdGenerators.For(workerId);
+    }
 
     /// <summary>
     /// Generates a unique identifier using the Snowflake IdGenerator.
     /// </summary>
     /// <returns>A unique identifier as long.</returns>
-    public long CreateId()
-    {
-        return _idGenerator.CreateId();
-    }
+    public long CreateId() => _generator.CreateId();
 }

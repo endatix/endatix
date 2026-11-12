@@ -297,7 +297,7 @@ You can control migrations and data seeding through configuration:
 }
 ```
 
-> **Note**: Configuration values in `appsettings.json` take precedence over code defaults. If you explicitly set `EnableAutoMigrations` or `SeedSampleData` in your configuration file, those values will be used regardless of what you specify in code.
+> **Note**: Configuration values in `appsettings.json` take precedence over code defaults. If you explicitly set `EnableAutoMigrations`, `SeedSampleData` or `SnowflakeWorkerId` in your configuration file, those values will be used regardless of what you specify in code.
 
 ## Configuration Architecture
 
@@ -305,7 +305,7 @@ You can control migrations and data seeding through configuration:
 
 In Endatix, each builder is the sole owner of its domain-specific options:
 
-- **EndatixPersistenceBuilder**: Owns and configures `DataOptions` (database migrations, data seeding)
+- **EndatixPersistenceBuilder**: Owns and configures `DataOptions` (database migrations, data seeding, Snowflake worker id), applied by `FinalizeConfiguration()` on every setup path
 - **EndatixSecurityBuilder**: Owns and configures `SecurityOptions`
 - **EndatixApiBuilder**: Owns and configures API-specific options
 
