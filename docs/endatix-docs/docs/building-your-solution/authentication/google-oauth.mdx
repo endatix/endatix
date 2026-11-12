@@ -9,6 +9,10 @@ import TabItem from "@theme/TabItem";
 
 # Google OAuth Setup
 
+:::warning[Google sign-in to the API is not supported]
+The API resolves a tenant for every signed-in request and has no authorization strategy for Google tokens. A request that sends a Google token to the API gets 403 on every route. Use the Endatix JWT that the API issues, or [Keycloak](/docs/building-your-solution/authentication/keycloak) with `DefaultTenantId` set.
+:::
+
 This guide walks you through setting up Google OAuth authentication for your Endatix application, from creating a Google Cloud project to testing the complete authentication flow between the Endatix API and Endatix Hub.
 
 ## Prerequisites
