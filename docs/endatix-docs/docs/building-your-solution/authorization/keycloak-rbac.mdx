@@ -159,7 +159,7 @@ Update your `appsettings.json` to include the Authorization section:
   - Example: `"resource_access.endatix-hub.roles"` (if ClientId is `endatix-hub`)
 
 **Other Properties:**
-- **DefaultTenantId**: Default tenant ID for authenticated users (defaults to 0)
+- **DefaultTenantId**: The tenant ID for users who sign in through Keycloak (required, greater than 0; the API refuses to start without it)
 - **ClientId**: Your Keycloak client ID (required)
 - **ClientSecret**: Your Keycloak client secret (required)
 

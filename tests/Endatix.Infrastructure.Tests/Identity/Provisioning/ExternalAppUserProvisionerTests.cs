@@ -56,4 +56,52 @@ public sealed class ExternalAppUserProvisionerTests
         await userManager.DidNotReceiveWithAnyArgs().UpdateAsync(default!);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task ProvisionAsync_WithoutTenant_ReturnsInvalidBeforePersistence(long tenantId)
+    {
+        var userManager = Substitute.For<UserManager<AppUser>>(
+            Substitute.For<IUserStore<AppUser>>(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null);
+        ExternalAppUserProvisioner provisioner = new(
+            identityDbContext: null!,
+            userManager,
+            Substitute.For<ILogger<ExternalAppUserProvisioner>>());
+
+        var result = await provisioner.ProvisionAsync(
+            tenantId,
+            authProvider: "Keycloak",
+            externalSubjectId: "subject-123",
+            mappedAppRoles: ["Admin"],
+            identityProfile: new ExternalIdentityProfile("user@example.com", "AppUser"),
+            cancellationToken: CancellationToken.None);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ValidationErrors.Should().ContainSingle(error => error.ErrorMessage == "Tenant ID is required.");
+        await userManager.DidNotReceiveWithAnyArgs().CreateAsync(default!);
+    }
+
+    [Fact]
+    public void TenantMismatchDocsLink_PointsAtAPageAndAnchorInTheDocs()
+    {
+        var link = new Uri(ExternalAppUserProvisioner.TENANT_MISMATCH_DOCS);
+        var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repoRoot is not null && !File.Exists(Path.Combine(repoRoot.FullName, "Endatix.slnx")))
+        {
+            repoRoot = repoRoot.Parent;
+        }
+
+        var page = Path.Combine(repoRoot!.FullName, "docs", "endatix-docs", link.AbsolutePath.TrimStart('/') + ".mdx");
+
+        File.Exists(page).Should().BeTrue(page);
+        File.ReadAllText(page).Should().Contain($"{{/* {link.Fragment} */}}");
+    }
 }

@@ -1,0 +1,131 @@
+---
+title: Upgrade to Endatix 0.9.2
+sidebar_label: v0.9.2
+description: Upgrade the Endatix API from 0.9.1 to 0.9.2 - set DefaultTenantId when Keycloak is enabled, expect 403 for signed-in requests without a tenant, and move legacy tenant-0 Keycloak users once.
+---
+
+# Upgrade to Endatix 0.9.2
+
+Release notes: [Endatix API v0.9.2](https://github.com/endatix/endatix/releases/tag/v0.9.2) and [Endatix Hub v0.9.2](https://github.com/endatix/endatix-hub/releases/tag/v0.9.2).
+
+This page covers an upgrade from 0.9.1. Most installations need no action: the sections below apply to hosts that enable Keycloak sign-in, send Google or custom-provider tokens to the API, or reference `TenantMiddleware` in code.
+
+## Before you start
+
+- **Read the release notes of every version you skip.** An upgrade that skips 0.9.1 also needs the [0.9.1 guide](/docs/guides/upgrading/v0-9-1).
+- **Back up the database** before you run the one-time step for [Keycloak users stored at another tenant](#keycloak-users-at-another-tenant).
+
+## Keycloak needs `DefaultTenantId` {/* #keycloak-default-tenant-id */}
+
+**What changed:** `Endatix:Auth:Providers:Keycloak:DefaultTenantId` is required. When Keycloak is enabled and the setting is missing or 0, the API refuses to start, and the startup error names the setting.
+
+**Who is affected:** hosts that call `AddKeycloakAuthProvider()` with `Enabled` set to `true`.
+
+**What to do:** set `DefaultTenantId` to the id of the tenant your Keycloak users belong to, before you start API 0.9.2. See [Keycloak Setup](/docs/building-your-solution/authentication/keycloak#api-properties).
+
+## Signed-in requests need a tenant {/* #signed-in-requests-need-a-tenant */}
+
+**What changed:** a signed-in request that resolves no tenant gets 403 before it reaches an endpoint, on every route, public routes included. Anonymous requests work as before. A token the API issued always carries its tenant, so local sign-ins and form access tokens are unaffected. A Keycloak sign-in runs at `DefaultTenantId`.
+
+**Who is affected:**
+
+- Clients that send a Google or custom-provider token to the API. The API has no authorization strategy for those tokens, so every such request gets 403. See [Google OAuth Setup](/docs/building-your-solution/authentication/google-oauth).
+- Keycloak sign-ins whose authorization data could not be loaded, for example while token introspection is down.
+
+**What to do:** send the Endatix JWT the API issues, or sign in through Keycloak with `DefaultTenantId` set.
+
+## Keycloak users stored at another tenant {/* #keycloak-users-at-another-tenant */}
+
+Most installations need no action.
+
+**What changed:** a Keycloak sign-in finds or creates the user at `DefaultTenantId` only. A user already stored at another tenant, tenant 0 included, gets 403 with "Your account is not approved for this tenant. Contact your administrator to be approved." A locked-out user gets the same message. Sign-in never moves a user to another tenant, and nothing about the user changes. The API log names the user, the user's tenant and the configured `DefaultTenantId`, or says the user is locked out.
+
+**Who is affected:** hosts that ran Keycloak sign-in without `DefaultTenantId`. Two kinds of users sit at tenant 0:
+
+- Users that Keycloak sign-ins created before `DefaultTenantId` was required. Most hosts have none.
+- Users whose access an administrator removed. Removing access moves a user to tenant 0, and they must stay there.
+
+**What to do:**
+
+- Unlock a locked-out user.
+- An administrator approves a user at tenant 0 by inviting them to the tenant again. A user stored at another tenant cannot be invited while they belong there, since their email is already registered: remove their access at that tenant first, then invite them.
+- For legacy tenant-0 users only, run the one-time step below.
+
+<details>
+<summary>One-time step: move legacy tenant-0 Keycloak users to your tenant</summary>
+
+Run step 1 first. It lists the Keycloak users at tenant 0 and changes nothing. Check every row: a user whose access was removed is in the same list. The email and the last sign-in help you recognise each user before you choose. Copy only the ids of legacy users into step 2. Step 2 moves only those ids, only while they are still Keycloak users at tenant 0, and only to a tenant that exists. It prints each user it moved and the tenant it moved to. A user whose email is already used at that tenant stops the move, and nothing is changed; resolve that user first.
+
+PostgreSQL (`psql`):
+
+```sql
+-- Step 1, dry run: lists Keycloak users at tenant 0 and moves nothing.
+SELECT "Id", "AuthProvider", "ExternalSubjectId", "TenantId", "Email", "LastLoginAt"
+FROM identity."Users"
+WHERE "TenantId" = 0 AND "AuthProvider" = 'Keycloak'
+ORDER BY "Id";
+
+-- Step 2: moves the listed users. Save these lines as move-keycloak-users.sql and run it with
+--   psql -v tenant_id=<DefaultTenantId> -v user_ids='<id>,<id>' -f move-keycloak-users.sql
+BEGIN;
+UPDATE identity."Users" AS u
+SET "TenantId" = :tenant_id, "ConcurrencyStamp" = gen_random_uuid()::text
+WHERE u."Id" IN (:user_ids)
+  AND u."TenantId" = 0
+  AND u."AuthProvider" = 'Keycloak'
+  AND EXISTS (SELECT 1 FROM public."Tenants" t WHERE t."Id" = :tenant_id AND NOT t."IsDeleted")
+RETURNING u."Id", u."AuthProvider", u."ExternalSubjectId", u."TenantId";
+COMMIT;
+```
+
+SQL Server:
+
+```sql
+-- Step 1, dry run: lists Keycloak users at tenant 0 and moves nothing.
+SET QUOTED_IDENTIFIER ON;
+
+SELECT [Id], [AuthProvider], [ExternalSubjectId], [TenantId], [Email], [LastLoginAt]
+FROM [identity].[Users]
+WHERE [TenantId] = 0 AND [AuthProvider] = N'Keycloak'
+ORDER BY [Id];
+
+-- Step 2: set the tenant and the ids from step 1, then run.
+DECLARE @TenantId bigint = <DefaultTenantId>;
+DECLARE @UserIds TABLE ([Id] bigint PRIMARY KEY);
+INSERT INTO @UserIds ([Id]) VALUES (<id>), (<id>);
+
+BEGIN TRANSACTION;
+UPDATE u
+SET u.[TenantId] = @TenantId, u.[ConcurrencyStamp] = CONVERT(nvarchar(36), NEWID())
+OUTPUT inserted.[Id], inserted.[AuthProvider], inserted.[ExternalSubjectId], inserted.[TenantId]
+FROM [identity].[Users] AS u
+JOIN @UserIds AS ids ON ids.[Id] = u.[Id]
+WHERE u.[TenantId] = 0
+  AND u.[AuthProvider] = N'Keycloak'
+  AND EXISTS (SELECT 1 FROM [dbo].[Tenants] AS t WHERE t.[Id] = @TenantId AND t.[IsDeleted] = 0);
+COMMIT TRANSACTION;
+```
+
+A moved user signs in with the roles the Keycloak role mappings give them at the tenant. Roles they held at tenant 0 no longer apply, unless they are system roles.
+
+</details>
+
+## `TenantMiddleware` moved {/* #tenant-middleware-moved */}
+
+**What changed:** `TenantMiddleware` moved from `Endatix.Infrastructure.Multitenancy` to `Endatix.Api.Infrastructure`, and its `InvokeAsync` now takes `IOptions<EndatixJwtOptions>` as a third parameter. Its log category is now `Endatix.Api.Infrastructure.TenantMiddleware`.
+
+**Who is affected:** hosts that register the middleware by type, or filter logs by its category. Hosts that call `UseMultitenancy()` or `UseEndatix()` are unaffected.
+
+**What to do:** change the `using` to `Endatix.Api.Infrastructure` and update any log filter. To resolve a tenant outside the middleware, call `Endatix.Infrastructure.Multitenancy.TenantContextInitializer.TryInitialize`.
+
+## Limitations
+
+- An upgrade that skips 0.9.1 is not covered here. Read the upgrade guide and release notes of every version in between (see [Upgrading Endatix](/docs/guides/upgrading)).
+
+## See also
+
+<CardGrid compact>
+  <LinkCard title="Keycloak Setup" to="/docs/building-your-solution/authentication/keycloak" description="Configure Keycloak sign-in for the API and the Hub." />
+  <LinkCard title="Keycloak RBAC" to="/docs/building-your-solution/authorization/keycloak-rbac" description="Map Keycloak roles onto Endatix roles." />
+  <LinkCard title="Google OAuth Setup" to="/docs/building-your-solution/authentication/google-oauth" description="Why Google tokens get 403 on the API." />
+</CardGrid>

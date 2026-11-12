@@ -1,13 +1,13 @@
 using Endatix.Api.Builders;
+using Endatix.Api.Infrastructure;
 using Endatix.Api.Setup;
+using Endatix.Hosting.Builders.Logging;
 using Endatix.Hosting.DevTools;
 using Endatix.Hosting.Options;
-using Endatix.Infrastructure.Multitenancy;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Endatix.Hosting.Builders.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSwag.AspNetCore;

@@ -46,7 +46,7 @@ const sidebars: SidebarsConfig = {
           label: "Upgrading",
           collapsed: true,
           link: { type: "doc", id: "guides/upgrading/index" },
-          items: ["guides/upgrading/v0-9-1"],
+          items: ["guides/upgrading/v0-9-2", "guides/upgrading/v0-9-1"],
         },
       ],
     },

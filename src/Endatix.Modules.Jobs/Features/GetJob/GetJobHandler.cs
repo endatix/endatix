@@ -41,10 +41,10 @@ internal sealed class GetJobHandler(IJobsDbContext dbContext)
     public async Task<Result<JobDto>> Handle(GetJobQuery request, CancellationToken cancellationToken)
     {
         // The ambient tenant filter cannot carry this on its own. It reads a tenant id of zero as
-        // "no tenant, show everything" so that background services can sweep across tenants — and a
-        // request whose principal has no usable `tid` claim also leaves the tenant context at zero,
-        // because TenantMiddleware returns early rather than failing. Scoping such a request by the
-        // filter alone would serve it every tenant's jobs.
+        // "no tenant, show everything" so that background services can sweep across tenants.
+        // TenantMiddleware rejects a signed-in HTTP request that resolves no tenant with 403, but this
+        // handler can also be reached outside that pipeline, and scoping such a call by the filter
+        // alone would serve it every tenant's jobs.
         if (request.TenantId <= 0)
         {
             return Result.Unauthorized("Tenant context is required.");

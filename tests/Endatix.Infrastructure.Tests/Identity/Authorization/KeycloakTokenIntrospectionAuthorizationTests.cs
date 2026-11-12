@@ -11,6 +11,7 @@ using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Provisioning;
+using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,14 +23,14 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
 public sealed class KeycloakTokenIntrospectionAuthorizationTests
 {
-    private const string TestIssuer = "https://keycloak.test";
+    private const string TEST_ISSUER = "https://keycloak.test";
 
     [Fact]
     public void CanHandle_ReturnsFalse_WhenIssuerMissing()
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         var principal = new ClaimsPrincipal(new ClaimsIdentity());
 
         // Act
@@ -44,8 +45,8 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
-        var principal = CreatePrincipal("42", TestIssuer);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
+        var principal = CreatePrincipal("42", TEST_ISSUER);
 
         // Act
         var result = context.Strategy.CanHandle(principal);
@@ -69,14 +70,38 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         result.Errors.Should().Contain("Provider cannot handle the given issuer");
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetAuthorizationDataAsync_ReturnsError_WhenDefaultTenantIdMissing(bool hasRoleMappings)
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TEST_ISSUER, activate: true);
+        context.Options.DefaultTenantId = 0;
+        if (!hasRoleMappings)
+        {
+            context.Options.Authorization = null;
+        }
+
+        var principal = CreatePrincipal("123", TEST_ISSUER);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("Tenant ID is required");
+    }
+
     [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsSuccessWithEmptyRoles_WhenAuthorizationSectionMissing()
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.Options.Authorization = null;
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -93,9 +118,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.ClearHeader();
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -110,9 +135,9 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetHttpResponse(new HttpResponseMessage(HttpStatusCode.InternalServerError));
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -127,12 +152,12 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetHttpResponse(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent("""{"active":true,"resource_access":{}}""", Encoding.UTF8, "application/json")
         });
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -147,10 +172,10 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
         context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Failure("mapping-error");
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -165,7 +190,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
         context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
             [SystemRole.Admin.Name],
@@ -179,7 +204,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
                 Arg.Is<ExternalIdentityProfile>(profile => profile.Email == null),
                 Arg.Any<CancellationToken>())
             .Returns(Result<AppUser>.Invalid(new ValidationError("App user email is required.")));
-        var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
+        var principal = CreatePrincipal("123", TEST_ISSUER, includeEmail: false);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -198,12 +223,47 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
                 Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(ResultStatus.Forbidden, true)]
+    [InlineData(ResultStatus.Conflict, false)]
+    public async Task GetAuthorizationDataAsync_MarksTheRequest_OnlyWhenProvisioningRefusesTheTenant(
+        ResultStatus provisioningStatus,
+        bool expectMarked)
+    {
+        // Arrange
+        var context = CreateTestContext();
+        context.RegisterProvider(TEST_ISSUER, activate: true);
+        context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
+        context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
+            [SystemRole.Admin.Name],
+            ["perm.read"]);
+        context.ExternalAppUserProvisioner
+            .ProvisionAsync(
+                Arg.Any<long>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<ExternalIdentityProfile>(),
+                Arg.Any<CancellationToken>())
+            .Returns(provisioningStatus == ResultStatus.Forbidden
+                ? Result<AppUser>.Forbidden("External user is not approved for this tenant.")
+                : Result<AppUser>.Conflict("Email already in use."));
+        var principal = CreatePrincipal("123", TEST_ISSUER);
+
+        // Act
+        var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        TenantAccessDenial.IsMarked(context.HttpContextAccessor.HttpContext!).Should().Be(expectMarked);
+    }
+
     [Fact]
     public async Task GetAuthorizationDataAsync_UsesIntrospectionProfile_WhenPrincipalEmailMissing()
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(
             ["kc-admin"],
             email: "operator@example.com",
@@ -211,7 +271,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
             [SystemRole.Admin.Name],
             ["perm.read"]);
-        var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
+        var principal = CreatePrincipal("123", TEST_ISSUER, includeEmail: false);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -237,10 +297,10 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(["panelist"]);
         context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Empty();
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -266,10 +326,10 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
         context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(["Admin"], ["perm.read"]);
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -285,13 +345,13 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-platform-admin"]);
         context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
             [SystemRole.PlatformAdmin.Name],
             []);
         context.PlatformAdminLocalApprovalGate.StripPlatformAdmin = true;
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -307,14 +367,14 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
         context.Mapper.Result = IExternalAuthorizationMapper.MappingResult.Success(
             [SystemRole.Admin.Name],
             ["perm.read"]);
         context.UserInfoProfileService.ProfileResult =
             Result.Success(new ExternalIdentityProfile("userinfo@example.com", "userinfo-user"));
-        var principal = CreatePrincipal("123", TestIssuer, includeEmail: false);
+        var principal = CreatePrincipal("123", TEST_ISSUER, includeEmail: false);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -341,10 +401,10 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
     {
         // Arrange
         var context = CreateTestContext();
-        context.RegisterProvider(TestIssuer, activate: true);
+        context.RegisterProvider(TEST_ISSUER, activate: true);
         context.SetSuccessfulIntrospectionResponse(["kc-admin"]);
         context.ExternalAppUserProfileReader.DisplayName = "existing-user";
-        var principal = CreatePrincipal("123", TestIssuer);
+        var principal = CreatePrincipal("123", TEST_ISSUER);
 
         // Act
         var result = await context.Strategy.GetAuthorizationDataAsync(principal, CancellationToken.None);
@@ -377,7 +437,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         var registry = new AuthProviderRegistry();
         var optionsInstance = new KeycloakOptions
         {
-            Issuer = TestIssuer,
+            Issuer = TEST_ISSUER,
             ClientId = "endatix-hub",
             ClientSecret = "client-secret",
             DefaultTenantId = 77,

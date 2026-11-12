@@ -22,6 +22,10 @@ internal sealed class ExternalAppUserProvisioner(
     private const int MAX_USER_NAME_LENGTH = 256;
     private const string DUPLICATE_EMAIL_MESSAGE = "Email already in use.";
     private const string APP_USER_EMAIL_REQUIRED_MESSAGE = "App user email is required.";
+    private const string TENANT_REQUIRED_MESSAGE = "Tenant ID is required.";
+    private const string TENANT_MISMATCH_MESSAGE = "External user is not approved for this tenant.";
+    internal const string TENANT_MISMATCH_DOCS =
+        "https://docs.endatix.com/docs/guides/upgrading/v0-9-2#keycloak-users-at-another-tenant";
     private static readonly string[] _duplicateEmailIndexNames =
     [
         AppUser.UniqueConstraints.EmailPerTenant,
@@ -43,9 +47,9 @@ internal sealed class ExternalAppUserProvisioner(
         ExternalIdentityProfile identityProfile,
         CancellationToken cancellationToken)
     {
-        if (mappedAppRoles.Count == 0)
+        if (RejectRequest(tenantId, mappedAppRoles) is { } rejection)
         {
-            return Result<AppUser>.NotFound("No mapped Hub AppUser roles.");
+            return rejection;
         }
 
         if (RequireEmail(identityProfile) is null)
@@ -104,6 +108,21 @@ internal sealed class ExternalAppUserProvisioner(
         }
     }
 
+    private static Result<AppUser>? RejectRequest(long tenantId, IReadOnlyCollection<string> mappedAppRoles)
+    {
+        if (tenantId <= 0)
+        {
+            return Result<AppUser>.Invalid(new ValidationError(TENANT_REQUIRED_MESSAGE));
+        }
+
+        if (mappedAppRoles.Count == 0)
+        {
+            return Result<AppUser>.NotFound("No mapped Hub AppUser roles.");
+        }
+
+        return null;
+    }
+
     private Task<AppUser?> FindByExternalKeyAsync(
         long tenantId,
         string authProvider,
@@ -116,6 +135,36 @@ internal sealed class ExternalAppUserProvisioner(
                 user.AuthProvider == authProvider &&
                 user.ExternalSubjectId == externalSubjectId,
                 cancellationToken);
+    }
+
+    /// <summary>
+    /// Finds the user with this external identity at any tenant other than <see cref="ExternalKey.TenantId"/>, tenant 0
+    /// included.
+    /// </summary>
+    private Task<AppUser?> FindAtAnotherTenantAsync(ExternalKey key, CancellationToken cancellationToken) =>
+        identityDbContext.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(user =>
+                user.TenantId != key.TenantId &&
+                user.AuthProvider == key.AuthProvider &&
+                user.ExternalSubjectId == key.SubjectId,
+                cancellationToken);
+
+    /// <summary>
+    /// Refuses a sign-in for a user stored at another tenant. Sign-in never changes a user's tenant: tenant 0 is also
+    /// where removing a user's access puts them.
+    /// </summary>
+    private Result<AppUser> RefuseUserAtAnotherTenant(AppUser user, long tenantId)
+    {
+        logger.LogWarning(
+            "Rejected {AuthProvider} sign-in for user {UserId}: the user belongs to tenant {UserTenantId}, but the configured DefaultTenantId is {DefaultTenantId}. Approve the user at that tenant, see {DocsUrl}.",
+            user.AuthProvider,
+            user.Id,
+            user.TenantId,
+            tenantId,
+            TENANT_MISMATCH_DOCS);
+
+        return Result<AppUser>.Forbidden(TENANT_MISMATCH_MESSAGE);
     }
 
     private async Task<Result<AppUser>> ProcessExistingUserAsync(
@@ -179,10 +228,9 @@ internal sealed class ExternalAppUserProvisioner(
         IReadOnlyCollection<string> mappedAppRoles,
         CancellationToken cancellationToken)
     {
-        var email = RequireEmail(identityProfile);
-        if (email is null)
+        if (await FindAtAnotherTenantAsync(new(tenantId, authProvider, externalSubjectId), cancellationToken) is { } storedElsewhere)
         {
-            return Result<AppUser>.Invalid(new ValidationError(APP_USER_EMAIL_REQUIRED_MESSAGE));
+            return RefuseUserAtAnotherTenant(storedElsewhere, tenantId);
         }
 
         AppUser user = new()
@@ -191,7 +239,7 @@ internal sealed class ExternalAppUserProvisioner(
             AuthProvider = authProvider,
             ExternalSubjectId = externalSubjectId,
             UserName = BuildExternalUserName(authProvider, externalSubjectId),
-            Email = email,
+            Email = RequireEmail(identityProfile),
             EmailConfirmed = true,
             DisplayName = identityProfile.DisplayName,
             LastLoginAt = DateTimeOffset.UtcNow,
@@ -361,6 +409,8 @@ internal sealed class ExternalAppUserProvisioner(
         string alphaNumeric = new(value.Where(char.IsLetterOrDigit).ToArray());
         return string.IsNullOrWhiteSpace(alphaNumeric) ? "External" : alphaNumeric;
     }
+
+    private readonly record struct ExternalKey(long TenantId, string AuthProvider, string SubjectId);
 
     private static string? RequireEmail(ExternalIdentityProfile identityProfile)
     {

@@ -2,10 +2,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Provisioning;
+using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -44,12 +46,12 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
     /// <inheritdoc />
     public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
-        if (!CanHandle(principal))
+        var keycloakSettings = keycloakOptions.Value;
+        if (RejectRequest(principal, keycloakSettings) is { } rejection)
         {
-            return Result.Error("Provider cannot handle the given issuer");
+            return rejection;
         }
 
-        var keycloakSettings = keycloakOptions.Value;
         if (keycloakSettings.Authorization is null || keycloakSettings.Authorization.RoleMappings is not { Count: > 0 })
         {
             return Result.Success(AuthorizationData.ForAuthenticatedUser(
@@ -126,7 +128,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                 cancellationToken);
             if (!provisionResult.IsSuccess)
             {
-                return provisionResult.ToErrorResult<AuthorizationData>();
+                return RejectProvisioning(provisionResult);
             }
 
             return await BuildAuthorizationDataAsync(
@@ -145,6 +147,31 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             logger.LogError(ex, "Error getting authorization data from Keycloak");
             return Result.Error("Failed to get authorization data from Keycloak");
         }
+    }
+
+    private Result<AuthorizationData> RejectProvisioning(Result<AppUser> provisionResult)
+    {
+        if (provisionResult.IsForbidden())
+        {
+            TenantAccessDenial.Mark(httpContextAccessor.HttpContext);
+        }
+
+        return provisionResult.ToErrorResult<AuthorizationData>();
+    }
+
+    private Result<AuthorizationData>? RejectRequest(ClaimsPrincipal principal, KeycloakOptions keycloakSettings)
+    {
+        if (!CanHandle(principal))
+        {
+            return Result.Error("Provider cannot handle the given issuer");
+        }
+
+        if (keycloakSettings.DefaultTenantId <= 0)
+        {
+            return Result.Error("Tenant ID is required");
+        }
+
+        return null;
     }
 
     private async Task<Result<AuthorizationData>> BuildAuthorizationDataAsync(

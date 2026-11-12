@@ -112,8 +112,8 @@ Resource name this access token is for. Must match the token `aud` claim. The de
 <Setting name="RequireHttpsMetadata">
 `false` for this HTTP dev server. `true` in production.
 </Setting>
-<Setting name="DefaultTenantId" default="0">
-Tenant id stored for users who sign in through Keycloak.
+<Setting name="DefaultTenantId" required>
+Id of the tenant that users who sign in through Keycloak belong to. Use an existing tenant id. When `Enabled` is `true`, the API refuses to start unless it is greater than 0.
 </Setting>
 <Setting name="ClientId" required>
 Keycloak client id. This realm uses `endatix-hub`. The API sends it when calling token introspection. See [Keycloak RBAC](/docs/building-your-solution/authorization/keycloak-rbac).
@@ -177,6 +177,10 @@ API startup should log `Configured Keycloak auth provider`. Hub startup should l
 **`IDX10205` and the issuer is a Keycloak URL.** `Endatix:Auth:Providers:Keycloak:Issuer` does not equal the token `iss`. Align Hub `AUTH_KEYCLOAK_ISSUER`, the API issuer, and the host you use in the browser. Do not mix `localhost` and `127.0.0.1`.
 
 **Invalid redirect URI.** The redirect URI and the post-logout URI must match the client, including `http://` and with no trailing slash.
+
+**API stops at startup naming `DefaultTenantId`.** Keycloak is enabled and `Endatix:Auth:Providers:Keycloak:DefaultTenantId` is missing or 0. Set it to the id of the tenant your Keycloak users belong to. See [Upgrade to 0.9.2](/docs/guides/upgrading/v0-9-2#keycloak-default-tenant-id).
+
+**Sign-in returns 403 "Your account is not approved for this tenant".** The user is stored at a tenant other than `DefaultTenantId`, tenant 0 included, or is locked out. The API log names the cause. See [Keycloak users stored at another tenant](/docs/guides/upgrading/v0-9-2#keycloak-users-at-another-tenant).
 
 **Audience validation failed.** Set `Audience` to the `aud` claim in the access token. Decode the token to read it.
 
