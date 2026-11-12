@@ -64,11 +64,6 @@ internal sealed class ExternalAppUserProvisioner(
             return await ProcessExistingUserAsync(existingUser, externalSubjectId, identityProfile, mappedAppRoles);
         }
 
-        if (await RejectUserAtAnotherTenantAsync(tenantId, authProvider, externalSubjectId, cancellationToken) is { } mismatch)
-        {
-            return mismatch;
-        }
-
         var semaphore = ExternalProvisioningLock.Get(tenantId, authProvider, externalSubjectId);
         await semaphore.WaitAsync(cancellationToken);
         try
@@ -144,31 +139,28 @@ internal sealed class ExternalAppUserProvisioner(
     }
 
     /// <summary>
-    /// Rejects a sign-in whose external identity is stored at another tenant, tenant 0 included. Sign-in never changes
-    /// a user's tenant: tenant 0 is also where removing a user's access puts them.
+    /// Finds the user with this external identity at any tenant other than <see cref="ExternalKey.TenantId"/>, tenant 0
+    /// included.
     /// </summary>
-    private async Task<Result<AppUser>?> RejectUserAtAnotherTenantAsync(
-        long tenantId,
-        string authProvider,
-        string externalSubjectId,
-        CancellationToken cancellationToken)
-    {
-        var user = await identityDbContext.Users
+    private Task<AppUser?> FindAtAnotherTenantAsync(ExternalKey key, CancellationToken cancellationToken) =>
+        identityDbContext.Users
             .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
             .AsNoTracking()
-            .FirstOrDefaultAsync(candidate =>
-                candidate.TenantId != tenantId &&
-                candidate.AuthProvider == authProvider &&
-                candidate.ExternalSubjectId == externalSubjectId,
+            .FirstOrDefaultAsync(user =>
+                user.TenantId != key.TenantId &&
+                user.AuthProvider == key.AuthProvider &&
+                user.ExternalSubjectId == key.SubjectId,
                 cancellationToken);
-        if (user is null)
-        {
-            return null;
-        }
 
+    /// <summary>
+    /// Refuses a sign-in for a user stored at another tenant. Sign-in never changes a user's tenant: tenant 0 is also
+    /// where removing a user's access puts them.
+    /// </summary>
+    private Result<AppUser> RefuseUserAtAnotherTenant(AppUser user, long tenantId)
+    {
         logger.LogWarning(
             "Rejected {AuthProvider} sign-in for user {UserId}: the user belongs to tenant {UserTenantId}, but the configured DefaultTenantId is {DefaultTenantId}. Approve the user at that tenant, see {DocsUrl}.",
-            authProvider,
+            user.AuthProvider,
             user.Id,
             user.TenantId,
             tenantId,
@@ -238,10 +230,9 @@ internal sealed class ExternalAppUserProvisioner(
         IReadOnlyCollection<string> mappedAppRoles,
         CancellationToken cancellationToken)
     {
-        var email = RequireEmail(identityProfile);
-        if (email is null)
+        if (await FindAtAnotherTenantAsync(new(tenantId, authProvider, externalSubjectId), cancellationToken) is { } storedElsewhere)
         {
-            return Result<AppUser>.Invalid(new ValidationError(APP_USER_EMAIL_REQUIRED_MESSAGE));
+            return RefuseUserAtAnotherTenant(storedElsewhere, tenantId);
         }
 
         AppUser user = new()
@@ -250,7 +241,7 @@ internal sealed class ExternalAppUserProvisioner(
             AuthProvider = authProvider,
             ExternalSubjectId = externalSubjectId,
             UserName = BuildExternalUserName(authProvider, externalSubjectId),
-            Email = email,
+            Email = RequireEmail(identityProfile),
             EmailConfirmed = true,
             DisplayName = identityProfile.DisplayName,
             LastLoginAt = DateTimeOffset.UtcNow,
@@ -420,6 +411,8 @@ internal sealed class ExternalAppUserProvisioner(
         string alphaNumeric = new(value.Where(char.IsLetterOrDigit).ToArray());
         return string.IsNullOrWhiteSpace(alphaNumeric) ? "External" : alphaNumeric;
     }
+
+    private readonly record struct ExternalKey(long TenantId, string AuthProvider, string SubjectId);
 
     private static string? RequireEmail(ExternalIdentityProfile identityProfile)
     {

@@ -14,10 +14,7 @@ public static class TenantAccessDenial
     /// <param name="context">The current request, or null outside a request.</param>
     public static void Mark(HttpContext? context)
     {
-        if (context is not null)
-        {
-            context.Items[_itemKey] = true;
-        }
+        context?.Items[_itemKey] = true;
     }
 
     /// <summary>Whether <paramref name="context"/> was refused access to the tenant during sign-in.</summary>
