@@ -1,4 +1,5 @@
-﻿using Endatix.Framework.Configuration;
+using System.ComponentModel.DataAnnotations;
+using Endatix.Framework.Configuration;
 using Endatix.Infrastructure.Identity;
 
 namespace Endatix.Infrastructure.Data;
@@ -17,6 +18,12 @@ public class DataOptions : EndatixOptionsBase
     /// Gets or sets whether database migrations should be automatically applied at application startup.
     /// </summary>
     public bool EnableAutoMigrations { get; set; } = false;
+
+    /// <summary>
+    /// Snowflake worker id for this API instance (0–1023). Give each instance that writes to the same database its own id.
+    /// </summary>
+    [Range(0, 1023)]
+    public int SnowflakeWorkerId { get; set; } = 0;
 
     /// <summary>
     /// Gets or sets whether sample data seeding is enabled. Acts as the master switch for all data seeding, including the initial user.

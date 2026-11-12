@@ -8,7 +8,8 @@ namespace Endatix.Infrastructure.Data;
 
 public sealed class SnowflakeValueGenerator : ValueGenerator<long>
 {
-    private static readonly IIdGenerator<long> Fallback = new SnowflakeIdGenerator();
+    // Design-time only (EF tooling builds a context with no application services). Runtime resolves the DI singleton.
+    private static readonly IIdGenerator<long> _designTimeFallback = new SnowflakeIdGenerator(workerId: 0);
 
     public override bool GeneratesTemporaryValues => false;
 
@@ -19,7 +20,7 @@ public sealed class SnowflakeValueGenerator : ValueGenerator<long>
             .FindExtension<CoreOptionsExtension>()
             ?.ApplicationServiceProvider;
 
-        var idGenerator = appServices?.GetService<IIdGenerator<long>>() ?? Fallback;
+        var idGenerator = appServices?.GetService<IIdGenerator<long>>() ?? _designTimeFallback;
         return idGenerator.CreateId();
     }
 }

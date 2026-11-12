@@ -1,5 +1,4 @@
 using Ardalis.GuardClauses;
-using Endatix.Core.Configuration;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -13,7 +12,7 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     public FormDefinition(long tenantId, bool isDraft = false, string? jsonData = null)
         : base(tenantId)
     {
-        jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;
+        jsonData ??= FormDefinitionDefaults.Json;
         IsDraft = isDraft;
         JsonData = jsonData;
     }
@@ -32,7 +31,11 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     public IReadOnlyList<Submission> Submissions => _submissions.AsReadOnly();
 
     public bool IsDraft { get; private set; }
-    public string JsonData { get; private set; } = EndatixConfig.Configuration.DefaultFormDefinitionJson;
+
+    /// <summary>
+    /// Survey JSON for this definition. Callers that omit it get <see cref="FormDefinitionDefaults.Json"/>.
+    /// </summary>
+    public string JsonData { get; private set; } = FormDefinitionDefaults.Json;
 
 #pragma warning disable S1144 // EF Core sets it when it loads the definition, and FormDefinitionFactory in the tests.
     public long FormId { get; private set; }

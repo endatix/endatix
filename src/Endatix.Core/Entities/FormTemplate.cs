@@ -1,6 +1,5 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Configuration;
 using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.Entities;
@@ -16,7 +15,7 @@ public partial class FormTemplate : TenantEntity, IAggregateRoot, IHasFolder
         : base(tenantId)
     {
         Guard.Against.NullOrEmpty(name, message: "Form Template name cannot be null.");
-        jsonData ??= EndatixConfig.Configuration.DefaultFormDefinitionJson;
+        jsonData ??= FormDefinitionDefaults.Json;
 
         Name = name;
         Description = description;
@@ -26,7 +25,11 @@ public partial class FormTemplate : TenantEntity, IAggregateRoot, IHasFolder
 
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
-    public string JsonData { get; set; } = EndatixConfig.Configuration.DefaultFormDefinitionJson;
+
+    /// <summary>
+    /// Survey JSON for this template. Callers that omit it get <see cref="FormDefinitionDefaults.Json"/>.
+    /// </summary>
+    public string JsonData { get; set; } = FormDefinitionDefaults.Json;
 
     public long? FolderId { get; private set; }
     public Folder? Folder { get; set; }

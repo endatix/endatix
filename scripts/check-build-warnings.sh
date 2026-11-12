@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Check build warnings against the allowed set (EndatixConfig obsolete usage + NU1901-NU1904).
+# Check build warnings against the allowed set (NU1901-NU1904).
 # Exit 0: only allowed warnings. Exit 1: in-scope warnings found. Exit 2: usage or input error.
 #
 # Handles every MSBuild warning shape:
@@ -27,18 +27,11 @@ normalize_path() {
 # Prints "bucket" for one normalized warning line.
 classify_warning() {
     local line="$1"
-    local location="${line%%: warning *}"
     local rest="${line#*: warning }"
     local code="${rest%%:*}"
-    local message="${rest#*: }"
-    local file="${location%%(*}"
 
     if [[ "$code" =~ ^NU190[1-4]$ ]]; then
         echo "nu190x"
-    elif [[ "$code" == "CS0618" && "$message" == "'EndatixConfig' is obsolete:"* ]]; then
-        echo "excluded_endatixconfig"
-    elif [[ "$file" =~ (^|/)(EndatixConfig|IEndatixConfig)\.cs$ ]]; then
-        echo "excluded_endatixconfig"
     else
         echo "in_scope"
     fi
@@ -64,7 +57,7 @@ main() {
         exit 2
     fi
 
-    local in_scope=() excluded=() nu190x=()
+    local in_scope=() nu190x=()
     local line bucket
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
@@ -72,7 +65,6 @@ main() {
         bucket=$(classify_warning "$line")
         case "$bucket" in
             in_scope) in_scope+=("$line") ;;
-            excluded_endatixconfig) excluded+=("$line") ;;
             nu190x) nu190x+=("$line") ;;
             *) echo "Unknown bucket: $bucket" >&2; exit 2 ;;
         esac
@@ -88,7 +80,6 @@ main() {
 
     echo "Build warning summary:"
     echo "  in_scope: ${#in_scope[@]}"
-    echo "  excluded_endatixconfig: ${#excluded[@]}"
     echo "  nu190x: ${#nu190x[@]}"
 
     if [[ ${#in_scope[@]} -gt 0 ]]; then
@@ -100,7 +91,7 @@ main() {
     fi
 
     echo ""
-    echo "✓ All warnings are in allowed categories (EndatixConfig or NU190x)."
+    echo "✓ All warnings are in allowed categories (NU190x)."
 }
 
 main "$@"
