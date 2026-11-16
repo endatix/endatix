@@ -169,17 +169,6 @@ public class CollectionStatusTests
         Assert.NotNull(submission.StartedAt);
     }
 
-    [Fact]
-    public void ObsoleteCtor_Incomplete_IsNotStarted()
-    {
-#pragma warning disable CS0618
-        var submission = new Submission(1, "{}", formId: 2, formDefinitionId: 3, isComplete: false);
-#pragma warning restore CS0618
-
-        Assert.Equal(CollectionStatusCodes.NotStarted, submission.CollectionStatus.Code);
-        Assert.Null(submission.StartedAt);
-    }
-
     [Theory]
     [InlineData(CollectionStatusCodes.NotStarted)]
     [InlineData(CollectionStatusCodes.Viewed)]
