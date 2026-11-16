@@ -25,31 +25,31 @@ public sealed class BrandSeededEmailTemplatesMigrationTests(DbIntegrationFixture
     public async Task Up_brands_unedited_rows_and_keeps_an_edited_row()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        await using JobsTestDatabase database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
-        await using ServiceProvider provider = (ServiceProvider)IntegrationCoreMigrationTestHelper.BuildServiceProvider(
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
+        await using var provider = (ServiceProvider)IntegrationCoreMigrationTestHelper.BuildServiceProvider(
             database.ConnectionString,
             database.Provider);
-        using IServiceScope scope = provider.CreateScope();
-        AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        IMigrator migrator = appDb.GetService<IMigrator>();
+        using var scope = provider.CreateScope();
+        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var migrator = appDb.GetService<IMigrator>();
         await migrator.MigrateAsync(MigrationBefore(appDb), cancellationToken: cancellationToken);
         await EditForgotPasswordSubjectAsync(appDb, cancellationToken);
-        string editedHtml = (await TemplateAsync(appDb, "forgot-password", cancellationToken)).HtmlContent;
+        var editedHtml = (await TemplateAsync(appDb, "forgot-password", cancellationToken)).HtmlContent;
 
         // Act
         await migrator.MigrateAsync(cancellationToken: cancellationToken);
 
         // Assert
-        EmailTemplate edited = await TemplateAsync(appDb, "forgot-password", cancellationToken);
+        var edited = await TemplateAsync(appDb, "forgot-password", cancellationToken);
         edited.Subject.Should().Be(EditedSubject);
         edited.HtmlContent.Should().Be(editedHtml, "an edited row keeps all of its text");
 
-        EmailTemplate verification = await TemplateAsync(appDb, "email-verification", cancellationToken);
+        var verification = await TemplateAsync(appDb, "email-verification", cancellationToken);
         verification.Subject.Should().Be("Verify your email to activate your {{productName}} account");
         verification.HtmlContent.Should().NotContain("Endatix");
 
-        EmailTemplate passwordChanged = await TemplateAsync(appDb, "password-changed", cancellationToken);
+        var passwordChanged = await TemplateAsync(appDb, "password-changed", cancellationToken);
         passwordChanged.PlainTextContent.Should().Contain("{{supportAddress}}").And.NotContain("support@endatix.com");
         passwordChanged.FromAddress.Should().Be("noreply@endatix.com", "the migration does not touch the sender");
     }
@@ -58,31 +58,31 @@ public sealed class BrandSeededEmailTemplatesMigrationTests(DbIntegrationFixture
     public async Task Down_restores_the_seeded_text()
     {
         // Arrange
-        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
-        await using JobsTestDatabase database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
-        await using ServiceProvider provider = (ServiceProvider)IntegrationCoreMigrationTestHelper.BuildServiceProvider(
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
+        await using var provider = (ServiceProvider)IntegrationCoreMigrationTestHelper.BuildServiceProvider(
             database.ConnectionString,
             database.Provider);
-        using IServiceScope scope = provider.CreateScope();
-        AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        IMigrator migrator = appDb.GetService<IMigrator>();
-        string previous = MigrationBefore(appDb);
+        using var scope = provider.CreateScope();
+        var appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var migrator = appDb.GetService<IMigrator>();
+        var previous = MigrationBefore(appDb);
         await migrator.MigrateAsync(previous, cancellationToken: cancellationToken);
-        List<EmailTemplate> seeded = await TemplatesAsync(appDb, cancellationToken);
+        var seeded = await TemplatesAsync(appDb, cancellationToken);
         await migrator.MigrateAsync(cancellationToken: cancellationToken);
 
         // Act
         await migrator.MigrateAsync(previous, cancellationToken: cancellationToken);
 
         // Assert
-        List<EmailTemplate> restored = await TemplatesAsync(appDb, cancellationToken);
+        var restored = await TemplatesAsync(appDb, cancellationToken);
         restored.Select(Text).Should().Equal(seeded.Select(Text));
     }
 
     private static string MigrationBefore(AppDbContext appDb)
     {
-        List<string> migrations = appDb.Database.GetMigrations().ToList();
-        int index = migrations.FindIndex(id => id.EndsWith($"_{MigrationName}", StringComparison.Ordinal));
+        var migrations = appDb.Database.GetMigrations().ToList();
+        var index = migrations.FindIndex(id => id.EndsWith($"_{MigrationName}", StringComparison.Ordinal));
         index.Should().BePositive($"the {MigrationName} migration exists");
         return migrations[index - 1];
     }

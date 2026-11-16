@@ -10,8 +10,9 @@ namespace Endatix.Core.Features.Email;
 /// </summary>
 /// <remarks>
 /// Precedence: explicit <c>Endatix:EmailTemplates:*:FromAddress</c> (customer
-/// override without a DB edit) → the brand pack's <c>email.fromAddress</c> → database FromAddress
-/// → <see cref="DefaultFromAddress"/>.
+/// override without a DB edit) → database FromAddress → <see cref="DefaultFromAddress"/>.
+/// A brand pack's <c>email.fromAddress</c> is passed in place of the database value,
+/// so it sits between the two.
 /// </remarks>
 public static class EmailTemplateFromAddress
 {
@@ -26,32 +27,12 @@ public static class EmailTemplateFromAddress
     public static string Resolve(
         EmailTemplateSettings settings,
         string templateName,
-        string databaseFromAddress) =>
-        Resolve(settings, templateName, databaseFromAddress, brandFromAddress: null);
-
-    /// <summary>
-    /// Resolves the sender with a brand pack's address between the operator's per-template config and the
-    /// database row: config → <paramref name="brandFromAddress"/> → database → <see cref="DefaultFromAddress"/>.
-    /// </summary>
-    /// <param name="settings">The bound email template settings.</param>
-    /// <param name="templateName">The template row's name.</param>
-    /// <param name="databaseFromAddress">The template row's sender.</param>
-    /// <param name="brandFromAddress">The brand pack's <c>email.fromAddress</c>; null for the built-in brand.</param>
-    public static string Resolve(
-        EmailTemplateSettings settings,
-        string templateName,
-        string databaseFromAddress,
-        string? brandFromAddress)
+        string databaseFromAddress)
     {
         var configuredFromAddress = GetConfiguredFromAddress(settings, templateName);
         if (!string.IsNullOrWhiteSpace(configuredFromAddress))
         {
             return configuredFromAddress;
-        }
-
-        if (!string.IsNullOrWhiteSpace(brandFromAddress))
-        {
-            return brandFromAddress;
         }
 
         if (!string.IsNullOrWhiteSpace(databaseFromAddress))

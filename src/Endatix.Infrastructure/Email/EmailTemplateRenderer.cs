@@ -42,24 +42,29 @@ public sealed class EmailTemplateRenderer(
             throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
         }
 
+        // The pack's address replaces the row's, so the operator's per-template config still wins over both.
+        var fromAddress = EmailTemplateFromAddress.Resolve(
+            emailTemplateSettings.Value,
+            template.Name,
+            brand.Email.FromAddress ?? template.FromAddress);
+
+        var rendered = template.Render(
+            email.To,
+            Variables(email),
+            subject: email.Subject,
+            from: fromAddress);
+        rendered.FromName = brand.Email.SenderName;
+        return rendered;
+    }
+
+    private Dictionary<string, string> Variables(EmailWithTemplate email)
+    {
         var variables = new Dictionary<string, string>(brand.TemplateVariables);
         foreach (var (key, value) in email.Metadata ?? [])
         {
             variables[key] = value?.ToString() ?? string.Empty;
         }
 
-        var fromAddress = EmailTemplateFromAddress.Resolve(
-            emailTemplateSettings.Value,
-            template.Name,
-            template.FromAddress,
-            brand.Email.FromAddress);
-
-        var rendered = template.Render(
-            email.To,
-            variables,
-            subject: email.Subject,
-            from: fromAddress);
-        rendered.FromName = brand.Email.SenderName;
-        return rendered;
+        return variables;
     }
 }

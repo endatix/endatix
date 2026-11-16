@@ -29,13 +29,13 @@ public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixtu
     {
         // Arrange
         await File.WriteAllTextAsync(Path.Combine(_packDirectory, "brand.json"), InvalidPack, TestContext.Current.CancellationToken);
-        await using WebApplicationFactory<EndatixWebHost::Program> factory = HostWithPack(whiteLabeling: true);
+        await using var factory = HostWithPack(whiteLabeling: true);
 
         // Act
-        Exception? error = Record.Exception(() => factory.Services);
+        var error = Record.Exception(() => factory.Services);
 
         // Assert
-        BrandPackException? brandPackError = FindBrandPackError(error);
+        var brandPackError = FindBrandPackError(error);
         brandPackError.Should().NotBeNull("an invalid pack stops startup");
         brandPackError!.Message.Should().Contain("/fonts");
     }
@@ -45,10 +45,10 @@ public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixtu
     {
         // Arrange
         await File.WriteAllTextAsync(Path.Combine(_packDirectory, "brand.json"), InvalidPack, TestContext.Current.CancellationToken);
-        await using WebApplicationFactory<EndatixWebHost::Program> factory = HostWithPack(whiteLabeling: false);
+        await using var factory = HostWithPack(whiteLabeling: false);
 
         // Act
-        DeploymentBrand brand = factory.Services.GetRequiredService<DeploymentBrand>();
+        var brand = factory.Services.GetRequiredService<DeploymentBrand>();
 
         // Assert
         brand.Should().BeSameAs(DeploymentBrand.BuiltIn);
@@ -59,10 +59,10 @@ public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixtu
     {
         // Arrange
         await File.WriteAllTextAsync(Path.Combine(_packDirectory, "brand.json"), ValidPack, TestContext.Current.CancellationToken);
-        await using WebApplicationFactory<EndatixWebHost::Program> factory = HostWithPack(whiteLabeling: true);
+        await using var factory = HostWithPack(whiteLabeling: true);
 
         // Act
-        DeploymentBrand brand = factory.Services.GetRequiredService<DeploymentBrand>();
+        var brand = factory.Services.GetRequiredService<DeploymentBrand>();
 
         // Assert
         brand.ProductName.Should().Be("Example Forms");

@@ -1,5 +1,5 @@
-using Endatix.Core.Configuration;
 using Endatix.Core.Branding;
+using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Email;
