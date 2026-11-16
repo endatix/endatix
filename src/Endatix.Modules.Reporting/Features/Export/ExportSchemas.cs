@@ -26,6 +26,7 @@ internal sealed partial class ExportSchemas(
     /// <summary>One catalog read per call, and none for a form without audience columns.</summary>
     public async Task<string> CodebookAsync(FormSchemaEntity schema, CancellationToken cancellationToken)
     {
+        WarnQuestionsExportedAsText(schema);
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         if (!flatteningMap.Columns.Any(column => column.Kind is FormSchemaColumnKind.Personalization))
         {
@@ -43,7 +44,6 @@ internal sealed partial class ExportSchemas(
     public async Task PrepareCodebookAsync(FormSchemaEntity schema, ExportOptions options, CancellationToken cancellationToken)
     {
         var codebook = await CodebookAsync(schema, cancellationToken);
-        WarnQuestionsExportedAsText(schema.FormId, codebook);
         options.Metadata ??= new Dictionary<string, object>();
         options.Metadata[CodebookMetadataKey] = codebook;
     }
@@ -61,17 +61,18 @@ internal sealed partial class ExportSchemas(
     public static FormSchemaEntity WithCodebook(FormSchemaEntity schema, string codebook) =>
         new(schema.TenantId, schema.FormId, schema.FormDefinitionRevision, schema.FlatteningMap, codebook, schema.Locales);
 
-    private void WarnQuestionsExportedAsText(long formId, string codebook)
+    // Every export reads the codebook once through here, so a form whose copies cannot be read warns once per export.
+    private void WarnQuestionsExportedAsText(FormSchemaEntity schema)
     {
-        var questions = CodebookQuestions.DegradedToText(codebook);
+        var questions = CodebookQuestions.DegradedToText(schema.Codebook);
         if (questions.Count > 0)
         {
-            LogQuestionsExportedAsText(formId, string.Join(", ", questions));
+            LogQuestionsExportedAsText(schema.FormId, string.Join(", ", questions));
         }
     }
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Export of form {FormId} writes these single-select questions as text, because their choices come from a data list or a source the codebook cannot read: {Questions}")]
+        Message = "Export of form {FormId}: these single-select questions have no codebook categories, so Shoji exports write them as text, because they copy choices from a source the codebook cannot read (a data list, a URL, answers or a cycle) or from none: {Questions}")]
     private partial void LogQuestionsExportedAsText(long formId, string questions);
 }

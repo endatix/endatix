@@ -36,12 +36,15 @@ public sealed class CopiedChoicesCrunchExportTests
         Categories(shoji, "Q2").Should().Equal((1, "Item 1"), (2, "Item 2"), (3, "Item 3"));
     }
 
-    [Fact]
-    public async Task CsvShoji_ChoicesFromQuestion_WritesTheAnswersCategoryId()
+    [Theory]
+    [InlineData("all")]
+    [InlineData("selected")]
+    [InlineData("unselected")]
+    public async Task CsvShoji_ChoicesFromQuestion_WritesTheAnswersCategoryIdInEveryMode(string mode)
     {
         // Arrange: the repro form, answered on its second page with a copied choice.
-        var definition = Definition("""
-            {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
+        var definition = Definition($$"""
+            {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"{{mode}}"}
             """);
         IReadOnlyList<FixtureResponse> responses = [new("r1", """{"Q1":["1","2"],"Q2":"2"}""", null)];
         var pipeline = PersonalizationPipeline.Compile(definition);
@@ -125,7 +128,7 @@ public sealed class CopiedChoicesCrunchExportTests
     }
 
     // Data lists are resolved by #1160. Until then a question copying from one exports its answers as text, so the
-    // value still reaches the CSV instead of an empty cell.
+    // value still reaches the CSV instead of an empty cell. The data-list question itself keeps today's output.
     [Fact]
     public async Task Export_CarryForwardFromADataList_ExportsTheAnswerAsText()
     {
@@ -146,10 +149,10 @@ public sealed class CopiedChoicesCrunchExportTests
 
         // Assert
         VariableType(shoji, "favourite").Should().Be("text");
-        VariableType(shoji, "brand").Should().Be("text");
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
         Column(csv, "favourite").Should().Equal("acme");
-        Column(csv, "brand").Should().Equal("acme");
+        VariableType(shoji, "brand").Should().Be("categorical");
+        Categories(shoji, "brand").Should().BeEmpty();
     }
 
     // Pins today's output for a multi-select destination: one text column holding the stored value, no indicator

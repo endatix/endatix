@@ -123,11 +123,19 @@ An entry with only `parentPanelTitle` (a codebook saved before `parentPanels` ex
 
 ### Copied choices
 
-A single select (dropdown, radiogroup and the other single base selects) can copy its choices from other questions: SurveyJS `choicesFromQuestion`, or Hub carry forward (`edxCarryForwardEnabled` with `edxCarryForwardSources`). The compiler reads where a question's choices come from once (`ChoiceSource`, with Hub's precedence: data list, then `choicesFromQuestion`, then `choicesByUrl`, then carry forward) and publishes every choice the question can offer: the union of its sources' own choices in source order, the first occurrence of a value winning, label included. A source that copies its own choices is followed. Modes (`all`, `selected`, `unselected`), `edxCarryForwardMaxChoices` and priority items only shape a respondent's list, so they change nothing here. The sources' Other, None and other special items are not copied; the question's own still are.
+A single select (dropdown, radiogroup and the other single base selects) can copy its choices from other questions: SurveyJS `choicesFromQuestion`, or Hub carry forward (`edxCarryForwardEnabled: true` with `edxCarryForwardSources`). The compiler reads where a question's choices come from once (`ChoiceSource`, with Hub's precedence: data list, then `choicesFromQuestion`, then `choicesByUrl`, then carry forward). A copy publishes every choice it can offer: the union of its sources' own choices in source order, the first occurrence of a value winning, label included. A source that copies its own choices is followed. Modes (`all`, `selected`, `unselected`), `edxCarryForwardMaxChoices` and priority items only shape a respondent's list, so they change nothing here. The sources' Other, None and other special items are not copied; the question's own still are.
 
-The question entry records the source as `choiceSource` (`kind` `carryForward` with `sources`, `dataList` with `listId`, or `unresolvable` with `reason`), left out for inline choices. When the choices cannot be read (a data list until #1160, a missing source, a cycle, or values copied from another question's answers with `choiceValuesFromQuestion`), the entry stays `categorical` with no choices and is marked `degraded: "text"`. The Shoji codebook then writes a text variable and `csv-shoji` the stored value, and an export logs one warning naming those questions. A multi-select keeps its inline choices until #1441.
+A single select's entry records the source as `choiceSource`, left out for inline choices:
 
-**Existing forms:** a schema compiled before this keeps empty categories for a copied question until its next compile. `POST forms/{formId}/reporting/compile-schema` (merge mode once the form has real submissions) adds them; choice ids already exported never move.
+| `kind` | Field | When |
+| --- | --- | --- |
+| `carryForward` | `sources`: question names, in order | `choicesFromQuestion` (one source) or carry forward |
+| `dataList` | `listId` | `edxDataListId` |
+| `unresolvable` | `reason`: `choiceValuesFromQuestion` or `choicesByUrl` | values copied from answers, or choices loaded from a URL |
+
+A reader treats an unknown `kind` as inline. Only a copy changes what is published: a data-list, URL or values question keeps its own choices, as before, until #1160. A missing source, or one that is not a select, is skipped, as Hub skips it. When a copy has a source the codebook cannot read (a data list, a URL list, values from answers, or a cycle), or has no choices at all, its entry stays `categorical` with only its own special items and is marked `degraded: "text"`, the one value `degraded` has. The Shoji codebook then writes a text variable and `csv-shoji` the stored value, and each export logs one warning naming those questions. A multi-select keeps its inline choices until #1441.
+
+**Existing forms:** a schema compiled before this keeps empty categories for a copied question until its next compile. `POST forms/{formId}/reporting/compile-schema` (merge mode once the form has real submissions) adds them; a merge keeps the ids of choices already in the catalog.
 
 ### Submitter profile fields
 

@@ -86,7 +86,7 @@ internal sealed class ChoiceSet
         var choices = resolved is null
             ? SurveyJsChoiceHelper.EnumerateChoiceElements(question)
                 .Select(choice => new SourceChoice(choice.Value, choice.Text, choice.Element))
-            : resolved.Choices ?? [];
+            : resolved.Choices;
         var copied = resolved?.IsCopied == true;
         return
         [

@@ -44,7 +44,24 @@ public sealed class DegradedQuestionWarningTests
         var entry = _entries.Should().ContainSingle().Subject;
         entry.Level.Should().Be(LogLevel.Warning);
         entry.Values["FormId"].Should().Be(FormId);
-        entry.Values["Questions"].Should().Be("brand, favourite");
+        entry.Values["Questions"].Should().Be("favourite");
+    }
+
+    // csv-shoji reads the codebook without preparing it, and still warns.
+    [Fact]
+    public async Task CodebookAsync_QuestionCopyingFromAUrlList_LogsOneWarning()
+    {
+        // Arrange
+        var schema = Schema("""
+            {"type":"dropdown","name":"country","choicesByUrl":{"url":"https://example.com/countries"}},
+            {"type":"radiogroup","name":"home","choicesFromQuestion":"country"}
+            """);
+
+        // Act
+        await ExportSchemas().CodebookAsync(schema, TestContext.Current.CancellationToken);
+
+        // Assert
+        _entries.Should().ContainSingle().Which.Values["Questions"].Should().Be("home");
     }
 
     [Fact]
