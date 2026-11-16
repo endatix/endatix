@@ -86,8 +86,7 @@ public static class ServiceCollectionExtensions
             initializer?.Invoke(services);
         }
 
-        AddDeploymentBrandFallback(services);
-        services.TryAddScoped<EmailTemplateRenderer>();
+        AddEmailTemplateRenderer(services);
         services.AddScoped<IEmailSender, TEmailSender>();
 
         return services;
@@ -118,6 +117,12 @@ public static class ServiceCollectionExtensions
     // the renderer and the composer need a brand. Here the pack is read on first use, not at startup.
     private static void AddDeploymentBrandFallback(IServiceCollection services) =>
         services.TryAddSingleton(provider => BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>()));
+
+    private static void AddEmailTemplateRenderer(IServiceCollection services)
+    {
+        AddDeploymentBrandFallback(services);
+        services.TryAddScoped<EmailTemplateRenderer>();
+    }
 
     /// <summary>
     /// Adds email template settings configuration to the service collection.
