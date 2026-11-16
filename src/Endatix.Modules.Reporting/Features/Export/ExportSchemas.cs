@@ -73,6 +73,6 @@ internal sealed partial class ExportSchemas(
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Export of form {FormId}: these single-select questions have no codebook categories, so Shoji exports write them as text, because they copy choices from a source the codebook cannot read (a data list, a URL, answers or a cycle) or from none: {Questions}")]
+        Message = "Export of form {FormId}: these single-select questions have no codebook categories, so exports write them as text, because they copy choices from a source the codebook cannot read (a data list, a URL, answers or a cycle) or from none: {Questions}")]
     private partial void LogQuestionsExportedAsText(long formId, string questions);
 }
