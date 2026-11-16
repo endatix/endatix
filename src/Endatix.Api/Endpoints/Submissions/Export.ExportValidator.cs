@@ -9,10 +9,9 @@ namespace Endatix.Api.Endpoints.Submissions;
 
 public class ExportValidator : Validator<ExportRequest>
 {
-     public ExportValidator(IExporterFactory exporterFactory)
+     /// <summary>Declares the rules. It takes no services: FastEndpoints builds it once, from the root provider.</summary>
+     public ExportValidator()
      {
-          var supportedFormats = GetSupportedExportFormats(exporterFactory);
-
           Include(new CreatedRangeValidator());
           Include(new ModifiedRangeValidator());
           Include(new StartedRangeValidator());
@@ -30,8 +29,8 @@ public class ExportValidator : Validator<ExportRequest>
                .When(x => x.ExportFormatId.HasValue);
 
           RuleFor(x => x.ExportFormat)
-               .Must(format => supportedFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
-               .WithMessage($"Export format not supported. Supported formats: {string.Join(", ", supportedFormats)}")
+               .Must(format => SupportedExportFormats().Contains(format, StringComparer.OrdinalIgnoreCase))
+               .WithMessage(_ => $"Export format not supported. Supported formats: {string.Join(", ", SupportedExportFormats())}")
                .When(x => x.ExportFormat is not null);
 
           RuleFor(x => x.Locale)
@@ -71,6 +70,10 @@ public class ExportValidator : Validator<ExportRequest>
                .GreaterThan(0)
                .When(x => x.MaxSubmissionId.HasValue);
      }
+
+     // FastEndpoints builds a validator once, from the root provider, and IExporterFactory is scoped: resolve it in
+     // the request's scope when a rule runs, never in the constructor (#1712).
+     private IReadOnlyList<string> SupportedExportFormats() => GetSupportedExportFormats(Resolve<IExporterFactory>());
 
      private static IReadOnlyList<string> GetSupportedExportFormats(IExporterFactory exporterFactory)
      {

@@ -2,6 +2,7 @@ using Endatix.Api.Endpoints.Submissions;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
+using FastEndpoints;
 using FluentValidation.TestHelper;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,7 +17,7 @@ public sealed class ExportValidatorTests
         IExporterFactory exporterFactory = Substitute.For<IExporterFactory>();
         exporterFactory.GetSupportedFormats<SubmissionExportRow>().Returns(["csv", "json"]);
         exporterFactory.GetSupportedFormats<DynamicExportRow>().Returns(["codebook", "codebook-shoji"]);
-        _validator = new ExportValidator(exporterFactory);
+        _validator = Factory.CreateValidator<ExportValidator>(services => services.AddScoped(_ => exporterFactory));
     }
 
     // FastEndpoints builds a validator once, from the root provider, and a Development host validates scopes (#1712).
@@ -261,7 +262,24 @@ public sealed class ExportValidatorTests
 
         TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
 
-        result.ShouldHaveValidationErrorFor(x => x.ExportFormat);
+        result.ShouldHaveValidationErrorFor(x => x.ExportFormat)
+            .WithErrorMessage("Export format not supported. Supported formats: csv, json, codebook, codebook-shoji");
+    }
+
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("CODEBOOK-SHOJI")]
+    public async Task Validate_WhenExportFormatSupported_Passes(string format)
+    {
+        ExportRequest request = new()
+        {
+            FormId = 1,
+            ExportFormat = format,
+        };
+
+        TestValidationResult<ExportRequest> result = await _validator.TestValidateAsync(request, cancellationToken: TestContext.Current.CancellationToken);
+
+        result.ShouldNotHaveValidationErrorFor(x => x.ExportFormat);
     }
 
     [Fact]
