@@ -10,8 +10,8 @@ internal static partial class FormSchemaCodebookBuilder
     private static JsonElement BuildChoiceCatalog(
         JsonElement element,
         SurveyChoiceDefaults surveyDefaults,
-        ResolvedChoices choices) =>
-        ChoiceSet.Read(element, surveyDefaults, choices) is { } choiceSet
+        ChoiceSources choiceSources) =>
+        ChoiceSet.Read(element, surveyDefaults, choiceSources.Resolve(element)) is { } choiceSet
             ? WriteQuestionEntry(writer =>
                 choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id)))
             : WriteQuestionEntry(writer =>
@@ -21,6 +21,21 @@ internal static partial class FormSchemaCodebookBuilder
                 WriteCatalogChoices(writer, element);
                 writer.WriteEndArray();
             });
+
+    // A single select whose choices cannot be read stays categorical, marked degraded: exports read it as text.
+    private static JsonElement BuildSingleSelectEntry(CollectedQuestion question, ResolvedChoices choices) =>
+        WriteQuestionEntry(writer =>
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, question.Element.GetSurveyJsType()!);
+            WriteTitle(writer, question.Element);
+            WriteDescription(writer, question.Element);
+            question.Placement.WriteTo(writer);
+            writer.WriteString(
+                FormSchemaCodebookPropertyNames.ExportShape,
+                FormSchemaCodebookExportShape.Categorical.Name);
+            choices.WriteTo(writer);
+            WriteChoices(writer, question.Element, choices);
+        });
 
     // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
     // the value, so a later comment-storage definition must not make the flatten forget it.

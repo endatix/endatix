@@ -61,10 +61,7 @@ internal sealed class ChoiceSet
     /// <param name="question">The question's definition element.</param>
     /// <param name="survey">The survey-level defaults; <see cref="SurveyChoiceDefaults.Default"/> when null.</param>
     /// <param name="choices">Its resolved choices (<see cref="ChoiceSources"/>); its inline choices when null.</param>
-    public static ChoiceSet? Read(
-        JsonElement question,
-        SurveyChoiceDefaults? survey = null,
-        ResolvedChoices? choices = null)
+    public static ChoiceSet? Read(JsonElement question, SurveyChoiceDefaults? survey = null, ResolvedChoices? choices = null)
     {
         var multiple = question.IsMultiSelectBaseSelect();
         if (!multiple && !question.IsSingleSelectBaseSelect())

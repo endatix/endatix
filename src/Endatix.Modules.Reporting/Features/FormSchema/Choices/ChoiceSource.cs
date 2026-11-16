@@ -20,19 +20,54 @@ internal abstract record ChoiceSource
     public sealed record Inline : ChoiceSource
     {
         public static Inline Instance { get; } = new();
+
+        protected override string? Kind => null;
+
+        protected override void WriteFields(Utf8JsonWriter writer)
+        {
+        }
     }
 
     /// <summary>A Hub data list (<c>edxDataListId</c>).</summary>
-    public sealed record DataList(string ListId) : ChoiceSource;
+    public sealed record DataList(string ListId) : ChoiceSource
+    {
+        protected override string Kind => "dataList";
+
+        protected override void WriteFields(Utf8JsonWriter writer) =>
+            writer.WriteString(FormSchemaCodebookPropertyNames.ListId, ListId);
+    }
 
     /// <summary>
     /// The choices of other questions in this definition, in source order: SurveyJS <c>choicesFromQuestion</c> (one
     /// source) or Hub <c>edxCarryForwardSources</c>. Modes, caps and priority items only shape a respondent's list.
     /// </summary>
-    public sealed record CarryForward(IReadOnlyList<string> Sources) : ChoiceSource;
+    public sealed record CarryForward(IReadOnlyList<string> Sources) : ChoiceSource
+    {
+        protected override string Kind => "carryForward";
+
+        protected override void WriteFields(Utf8JsonWriter writer)
+        {
+            writer.WriteStartArray(FormSchemaCodebookPropertyNames.Sources);
+            foreach (var source in Sources)
+            {
+                writer.WriteStringValue(source);
+            }
+
+            writer.WriteEndArray();
+        }
+    }
 
     /// <summary>Choices the definition cannot tell, such as values copied from another question's answers.</summary>
-    public sealed record Unresolvable(string Reason) : ChoiceSource;
+    public sealed record Unresolvable(string Reason) : ChoiceSource
+    {
+        protected override string Kind => "unresolvable";
+
+        protected override void WriteFields(Utf8JsonWriter writer) =>
+            writer.WriteString(FormSchemaCodebookPropertyNames.Reason, Reason);
+    }
+
+    /// <summary>The codebook <c>kind</c>; null for <see cref="Inline"/>, which the codebook leaves out.</summary>
+    protected abstract string? Kind { get; }
 
     public static ChoiceSource Parse(JsonElement question)
     {
@@ -58,32 +93,18 @@ internal abstract record ChoiceSource
     /// <summary>Writes <c>choiceSource</c>: <c>kind</c>, then what it names. Nothing for <see cref="Inline"/>.</summary>
     public void WriteTo(Utf8JsonWriter writer)
     {
-        if (this is Inline)
+        if (Kind is not { } kind)
         {
             return;
         }
 
         writer.WriteStartObject(FormSchemaCodebookPropertyNames.ChoiceSource);
-        switch (this)
-        {
-            case DataList list:
-                writer.WriteString(FormSchemaCodebookPropertyNames.Kind, "dataList");
-                writer.WriteString(FormSchemaCodebookPropertyNames.ListId, list.ListId);
-                break;
-            case CarryForward copy:
-                writer.WriteString(FormSchemaCodebookPropertyNames.Kind, "carryForward");
-                writer.WriteStartArray(FormSchemaCodebookPropertyNames.Sources);
-                copy.Sources.ToList().ForEach(writer.WriteStringValue);
-                writer.WriteEndArray();
-                break;
-            case Unresolvable unresolvable:
-                writer.WriteString(FormSchemaCodebookPropertyNames.Kind, "unresolvable");
-                writer.WriteString(FormSchemaCodebookPropertyNames.Reason, unresolvable.Reason);
-                break;
-        }
-
+        writer.WriteString(FormSchemaCodebookPropertyNames.Kind, kind);
+        WriteFields(writer);
         writer.WriteEndObject();
     }
+
+    protected abstract void WriteFields(Utf8JsonWriter writer);
 
     private static bool LoadsChoicesFromUrl(JsonElement question) =>
         question.TryGetProperty(SurveyJsPropertyNames.ChoicesByUrl, out var choicesByUrl) &&

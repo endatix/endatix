@@ -228,7 +228,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var seed = await SeedFormAsync(seedRealSubmission: true, seedTestSubmission: false, cancellationToken);
-        await SeedSchemaAsync(seed, DefinitionWithCopiedChoices, WithoutChoicesOf("Q2"), cancellationToken);
+        await SeedSchemaWithoutCopiedChoicesAsync(seed, cancellationToken);
 
         FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithCopiedChoices) { Id = seed.FormDefinitionId };
         var formsRepository = FormsRepositoryReading(currentDefinition);
@@ -378,13 +378,10 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             cancellationToken);
     }
 
-    private async Task SeedSchemaAsync(
-        SeededForm seed,
-        string definitionJson,
-        Func<string, string> storedCodebook,
-        CancellationToken cancellationToken)
+    // The schema as the code before copied choices compiled it: Q2 and its catalog with no choices.
+    private async Task SeedSchemaWithoutCopiedChoicesAsync(SeededForm seed, CancellationToken cancellationToken)
     {
-        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+        var compiled = new FormSchemaCompiler().CompilePersisted(DefinitionWithCopiedChoices);
 
         await using var reportingDb = CreateReportingDbContext();
         reportingDb.FormSchemas.Add(new FormSchema(
@@ -392,7 +389,7 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             seed.FormId,
             seed.FormDefinitionId,
             compiled.FlatteningMapJson,
-            storedCodebook(compiled.CodebookJson),
+            WithoutChoicesOf("Q2", compiled.CodebookJson),
             compiled.LocalesJson));
         await reportingDb.SaveChangesAsync(cancellationToken);
 
@@ -403,15 +400,13 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             cancellationToken);
     }
 
-    // The codebook as the code before copied choices compiled it: the question and its catalog with no choices.
-    private static Func<string, string> WithoutChoicesOf(string questionName) =>
-        codebookJson =>
-        {
-            var codebook = JsonNode.Parse(codebookJson)!;
-            codebook["questions"]![questionName]!["choices"] = new JsonArray();
-            codebook["choiceCatalogs"]![questionName]!["choices"] = new JsonArray();
-            return codebook.ToJsonString();
-        };
+    private static string WithoutChoicesOf(string questionName, string codebookJson)
+    {
+        var codebook = JsonNode.Parse(codebookJson)!;
+        codebook["questions"]![questionName]!["choices"] = new JsonArray();
+        codebook["choiceCatalogs"]![questionName]!["choices"] = new JsonArray();
+        return codebook.ToJsonString();
+    }
 
     private static IEnumerable<string> ChoiceValues(JsonNode entry) =>
         entry["choices"]!.AsArray().Select(choice => choice!["value"]!.GetValue<string>());
