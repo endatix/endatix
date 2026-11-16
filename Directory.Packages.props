@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <AspNetVersion>10.0.15</AspNetVersion>
-    <EFCoreVersion>10.0.14</EFCoreVersion>
+    <EFCoreVersion>10.0.15</EFCoreVersion>
     <OpenTelemetryVersion>1.17.0</OpenTelemetryVersion>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
@@ -17,8 +17,8 @@
     <PackageVersion Include="Endatix.Outbox.Engine" Version="1.2.0" />
     <PackageVersion Include="FastEndpoints" Version="9.0.0" />
     <PackageVersion Include="FastEndpoints.Security" Version="9.0.0" />
-    <PackageVersion Include="FastEndpoints.Swagger" Version="8.3.0" />
-    <PackageVersion Include="FastEndpoints.Testing" Version="8.3.0" />
+    <PackageVersion Include="FastEndpoints.Swagger" Version="9.0.0" />
+    <PackageVersion Include="FastEndpoints.Testing" Version="9.0.0" />
     <PackageVersion Include="FluentAssertions" Version="7.2.2" />
     <PackageVersion Include="FluentValidation" Version="12.0.0" />
     <PackageVersion Include="IdGen" Version="3.0.7" />
