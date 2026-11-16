@@ -1,3 +1,4 @@
+using System.Reflection;
 using Endatix.Core.Entities;
 
 namespace Endatix.Core.Tests.Entities;
@@ -7,6 +8,14 @@ namespace Endatix.Core.Tests.Entities;
 /// </summary>
 public class EntityCreateIdTests
 {
+    [Theory]
+    [InlineData(typeof(Form))]
+    [InlineData(typeof(Submission))]
+    public void Entity_HasNoPublicConstructor_SoCreateIsTheOnlyWayToBuildIt(Type entity)
+    {
+        entity.GetConstructors(BindingFlags.Public | BindingFlags.Instance).Should().BeEmpty();
+    }
+
     [Fact]
     public void Create_WithArgsOnly_LeavesIdUnset()
     {
