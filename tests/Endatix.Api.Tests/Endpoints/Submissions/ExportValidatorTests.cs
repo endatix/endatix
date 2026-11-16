@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using FluentValidation.TestHelper;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
@@ -16,6 +17,22 @@ public sealed class ExportValidatorTests
         exporterFactory.GetSupportedFormats<SubmissionExportRow>().Returns(["csv", "json"]);
         exporterFactory.GetSupportedFormats<DynamicExportRow>().Returns(["codebook", "codebook-shoji"]);
         _validator = new ExportValidator(exporterFactory);
+    }
+
+    // FastEndpoints builds a validator once, from the root provider, and a Development host validates scopes (#1712).
+    [Fact]
+    public void Constructor_FromARootProviderThatValidatesScopes_ResolvesNoScopedService()
+    {
+        // Arrange
+        ServiceCollection services = new();
+        services.AddScoped(_ => Substitute.For<IExporterFactory>());
+        using ServiceProvider root = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
+        // Act
+        Func<ExportValidator> build = () => ActivatorUtilities.CreateInstance<ExportValidator>(root);
+
+        // Assert
+        build.Should().NotThrow();
     }
 
     [Fact]
