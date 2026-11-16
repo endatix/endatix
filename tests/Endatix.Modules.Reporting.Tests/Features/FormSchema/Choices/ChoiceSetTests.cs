@@ -163,6 +163,8 @@ public sealed class ChoiceSetTests
     [InlineData("""{"type":"checkbox","name":"q","choiceValuesFromQuestion":"src","showOtherItem":true,"storeOthersAsComment":false}""")]
     [InlineData("""{"type":"tagbox","name":"q","showOtherItem":true,"storeOthersAsComment":false}""")]
     [InlineData("""{"type":"dropdown","name":"q","choices":["a"],"allowCustomChoices":true,"showOtherItem":true,"storeOthersAsComment":false}""")]
+    [InlineData("""{"type":"radiogroup","name":"q","choices":["a"],"edxCarryForwardEnabled":true,"edxCarryForwardSources":["src"],"showOtherItem":true,"storeOthersAsComment":false}""")]
+    [InlineData("""{"type":"dropdown","name":"q","choices":["a"],"edxDataListId":"7","showOtherItem":true,"storeOthersAsComment":false}""")]
     public void Read_ChoicesNotOnTheForm_NeverReadsTheValueAsOtherText(string question)
     {
         Read(question).OtherStorage.Should().Be(OtherStorage.Comment);

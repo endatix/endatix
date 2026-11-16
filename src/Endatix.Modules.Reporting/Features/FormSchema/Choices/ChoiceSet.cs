@@ -189,10 +189,10 @@ internal sealed class ChoiceSet
         return storesComment ? Storage.Comment : Storage.Value;
     }
 
+    // Leftover inline choices on a copy or a data list are not what the respondent sees, so only an inline source counts.
     private static bool HasOwnChoices(JsonElement question) =>
         SurveyJsChoiceHelper.EnumerateChoiceElements(question).Any() &&
-        string.IsNullOrWhiteSpace(question.GetStringProperty(SurveyJsPropertyNames.ChoicesFromQuestion)) &&
-        string.IsNullOrWhiteSpace(question.GetStringProperty(SurveyJsPropertyNames.ChoiceValuesFromQuestion)) &&
+        ChoiceSource.Parse(question) is ChoiceSource.Inline &&
         !question.GetBooleanProperty(SurveyJsPropertyNames.AllowCustomChoices);
 
     private static bool HasChoiceComments(JsonElement question) =>
