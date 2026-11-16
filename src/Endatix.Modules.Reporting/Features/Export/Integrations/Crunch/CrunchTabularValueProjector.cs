@@ -165,7 +165,7 @@ internal static class CrunchTabularValueProjector
 
     private static bool TryGetExportShape(JsonElement question, out string? exportShape)
     {
-        exportShape = question.GetStringProperty(FormSchemaCodebookPropertyNames.ExportShape);
+        exportShape = FormSchemaCodebookExportShape.OfQuestionEntry(question);
         return !string.IsNullOrWhiteSpace(exportShape);
     }
 

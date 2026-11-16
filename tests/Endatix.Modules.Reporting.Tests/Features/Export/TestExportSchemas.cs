@@ -1,6 +1,7 @@
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
@@ -9,7 +10,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export;
 internal static class TestExportSchemas
 {
     public static ExportSchemas Of(IFormSchemaRepository schemas, params AudiencePropertyName[] variables) =>
-        new(schemas, Catalog(variables));
+        new(schemas, Catalog(variables), NullLogger<ExportSchemas>.Instance);
 
     public static IAudiencePropertyCatalog Catalog(params AudiencePropertyName[] variables)
     {

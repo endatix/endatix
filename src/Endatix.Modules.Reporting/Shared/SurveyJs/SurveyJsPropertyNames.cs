@@ -47,6 +47,16 @@ internal static class SurveyJsPropertyNames
     public const string ChoicesFromQuestion = "choicesFromQuestion";
     public const string ChoiceValuesFromQuestion = "choiceValuesFromQuestion";
     public const string AllowCustomChoices = "allowCustomChoices";
+
+    /// <summary>Hub: the data list a select question loads its choices from.</summary>
+    public const string DataListId = "edxDataListId";
+
+    /// <summary>Hub carry forward: on when <c>true</c>, copying the choices of <see cref="CarryForwardSources"/>.</summary>
+    public const string CarryForwardEnabled = "edxCarryForwardEnabled";
+
+    /// <summary>Hub carry forward: the names of the questions whose choices are copied, in order.</summary>
+    public const string CarryForwardSources = "edxCarryForwardSources";
+    public const string Url = "url";
     public const string Comment = "comment";
 
     /// <summary>SurveyJS <c>settings.commentSuffix</c>: the key of a question's Other text or comment.</summary>

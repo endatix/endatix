@@ -32,6 +32,20 @@ internal static class CodebookQuestions
         return questions;
     }
 
+    /// <summary>The questions whose choices the codebook cannot read (<c>degraded: text</c>), in name order.</summary>
+    public static IReadOnlyList<string> DegradedToText(string codebookJson)
+    {
+        using var codebook = JsonDocument.Parse(codebookJson);
+        return
+        [
+            .. Read(codebook.RootElement)
+                .Where(question => question.Value.GetStringProperty(FormSchemaCodebookPropertyNames.Degraded) ==
+                                   FormSchemaCodebookPropertyNames.DegradedToText)
+                .Select(question => question.Key)
+                .Order(StringComparer.Ordinal),
+        ];
+    }
+
     private static JsonElement? CatalogChoices(JsonProperty question, JsonElement? catalogs) =>
         question.Value.GetStringProperty(FormSchemaCodebookPropertyNames.ExportShape) ==
         FormSchemaCodebookExportShape.Categorical.Name &&

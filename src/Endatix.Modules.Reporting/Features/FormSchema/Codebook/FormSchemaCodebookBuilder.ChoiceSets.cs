@@ -7,8 +7,11 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 /// <summary>The choice catalog of a base select: its select fields and kind-tagged choices (<see cref="ChoiceSet"/>).</summary>
 internal static partial class FormSchemaCodebookBuilder
 {
-    private static JsonElement BuildChoiceCatalog(JsonElement element, SurveyChoiceDefaults surveyDefaults) =>
-        ChoiceSet.Read(element, surveyDefaults) is { } choiceSet
+    private static JsonElement BuildChoiceCatalog(
+        JsonElement element,
+        SurveyChoiceDefaults surveyDefaults,
+        ResolvedChoices choices) =>
+        ChoiceSet.Read(element, surveyDefaults, choices) is { } choiceSet
             ? WriteQuestionEntry(writer =>
                 choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id)))
             : WriteQuestionEntry(writer =>
@@ -68,8 +71,8 @@ internal static partial class FormSchemaCodebookBuilder
             }
         });
 
-    // An inline choice keeps reading its label by value, as before choice kinds; a special item reads the question's
-    // text property (otherText, noneText, refuseText, dontKnowText).
+    // An inline choice keeps reading its label by value, as before choice kinds; a copied choice reads it on its source
+    // question's choice; a special item reads the question's text property (otherText, noneText, refuseText, dontKnowText).
     private static void WriteChoice(Utf8JsonWriter writer, JsonElement question, ChoiceSetItem item, int id)
     {
         writer.WriteStartObject();
@@ -77,7 +80,7 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
         WriteChoiceKind(writer, item);
         writer.WritePropertyName(SurveyJsPropertyNames.Text);
-        var label = item.Kind == ChoiceKind.Choice
+        var label = item is { Kind: ChoiceKind.Choice, Copied: false }
             ? FindChoiceElement(question, item.Value)
             : item.LabelSource;
         WriteLocalizedStringsWithFallback(

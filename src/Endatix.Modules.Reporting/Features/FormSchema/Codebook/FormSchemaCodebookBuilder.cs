@@ -21,10 +21,14 @@ internal static partial class FormSchemaCodebookBuilder
     {
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition);
         var questionElements = CollectQuestionElements(definition);
-        var questions = BuildQuestions(questionElements);
+        ChoiceSources choiceSources = new(questionElements.ToDictionary(
+            entry => entry.Key,
+            entry => entry.Value.Element,
+            StringComparer.Ordinal));
+        var questions = BuildQuestions(questionElements, choiceSources);
         var existingColumns = TryParseExistingColumns(existingCodebookJson);
         var columns = BuildColumns(merged, questionElements, existingColumns);
-        var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition));
+        var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition), choiceSources);
 
         if (!string.IsNullOrWhiteSpace(existingCodebookJson))
         {
@@ -135,7 +139,8 @@ internal static partial class FormSchemaCodebookBuilder
     }
 
     private static Dictionary<string, JsonElement> BuildQuestions(
-        IReadOnlyDictionary<string, CollectedQuestion> questionElements)
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        ChoiceSources choiceSources)
     {
         Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
 
@@ -150,7 +155,11 @@ internal static partial class FormSchemaCodebookBuilder
                 continue;
             }
 
-            if (TryBuildQuestionEntry(element, type, entry.Value.Placement, out var questionEntry))
+            if (element.IsSingleSelectBaseSelect())
+            {
+                questions[name] = BuildSingleSelectEntry(element, type, entry.Value.Placement, choiceSources.Resolve(element));
+            }
+            else if (TryBuildQuestionEntry(element, type, entry.Value.Placement, out var questionEntry))
             {
                 questions[name] = questionEntry;
             }
@@ -379,7 +388,8 @@ internal static partial class FormSchemaCodebookBuilder
 
     private static Dictionary<string, JsonElement> BuildChoiceCatalogs(
         IReadOnlyDictionary<string, CollectedQuestion> questionElements,
-        SurveyChoiceDefaults surveyDefaults)
+        SurveyChoiceDefaults surveyDefaults,
+        ChoiceSources choiceSources)
     {
         Dictionary<string, JsonElement> catalogs = new(StringComparer.Ordinal);
 
@@ -390,7 +400,10 @@ internal static partial class FormSchemaCodebookBuilder
                 continue;
             }
 
-            catalogs[entry.Key] = BuildChoiceCatalog(entry.Value.Element, surveyDefaults);
+            catalogs[entry.Key] = BuildChoiceCatalog(
+                entry.Value.Element,
+                surveyDefaults,
+                choiceSources.Resolve(entry.Value.Element));
         }
 
         return catalogs;
@@ -544,22 +557,6 @@ internal static partial class FormSchemaCodebookBuilder
             return true;
         }
 
-        if (element.IsSingleSelectBaseSelect())
-        {
-            questionEntry = WriteQuestionEntry(writer =>
-            {
-                writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
-                WriteTitle(writer, element);
-                WriteDescription(writer, element);
-                placement.WriteTo(writer);
-                writer.WriteString(
-                    FormSchemaCodebookPropertyNames.ExportShape,
-                    FormSchemaCodebookExportShape.Categorical.Name);
-                WriteChoices(writer, element);
-            });
-            return true;
-        }
-
         if (SurveyJsElementType.Ranking.Matches(type))
         {
             questionEntry = WriteQuestionEntry(writer =>
@@ -626,6 +623,25 @@ internal static partial class FormSchemaCodebookBuilder
             placement);
         return true;
     }
+
+    // A single select whose choices cannot be read stays categorical, marked degraded: exports read it as text.
+    private static JsonElement BuildSingleSelectEntry(
+        JsonElement element,
+        string type,
+        QuestionPlacement placement,
+        ResolvedChoices choices) =>
+        WriteQuestionEntry(writer =>
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type);
+            WriteTitle(writer, element);
+            WriteDescription(writer, element);
+            placement.WriteTo(writer);
+            writer.WriteString(
+                FormSchemaCodebookPropertyNames.ExportShape,
+                FormSchemaCodebookExportShape.Categorical.Name);
+            choices.WriteTo(writer);
+            WriteChoices(writer, element, choices);
+        });
 
     private static JsonElement WriteScalarQuestionEntry(
         JsonElement element,
@@ -966,11 +982,11 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteEndArray();
     }
 
-    private static void WriteChoices(Utf8JsonWriter writer, JsonElement element)
+    private static void WriteChoices(Utf8JsonWriter writer, JsonElement element, ResolvedChoices? choices = null)
     {
         writer.WritePropertyName(SurveyJsPropertyNames.Choices);
         writer.WriteStartArray();
-        if (ChoiceSet.Read(element) is { } choiceSet)
+        if (ChoiceSet.Read(element, choices: choices) is { } choiceSet)
         {
             choiceSet.WriteChoices((item, id) => WriteChoice(writer, element, item, id));
         }

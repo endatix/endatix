@@ -1,8 +1,10 @@
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Modules.Audience.Contracts;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Microsoft.Extensions.Logging;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export;
@@ -11,7 +13,10 @@ namespace Endatix.Modules.Reporting.Features.Export;
 /// The form schema an export runs with: as stored, except that its codebook names and orders the audience block as
 /// the Audience tab is now. A rename or reorder never touches the stored schema.
 /// </summary>
-internal sealed class ExportSchemas(IFormSchemaRepository schemas, IAudiencePropertyCatalog catalog)
+internal sealed partial class ExportSchemas(
+    IFormSchemaRepository schemas,
+    IAudiencePropertyCatalog catalog,
+    ILogger<ExportSchemas> logger)
 {
     private const string CodebookMetadataKey = "ReportingExportCodebook";
 
@@ -38,6 +43,7 @@ internal sealed class ExportSchemas(IFormSchemaRepository schemas, IAudienceProp
     public async Task PrepareCodebookAsync(FormSchemaEntity schema, ExportOptions options, CancellationToken cancellationToken)
     {
         var codebook = await CodebookAsync(schema, cancellationToken);
+        WarnQuestionsExportedAsText(schema.FormId, codebook);
         options.Metadata ??= new Dictionary<string, object>();
         options.Metadata[CodebookMetadataKey] = codebook;
     }
@@ -54,4 +60,18 @@ internal sealed class ExportSchemas(IFormSchemaRepository schemas, IAudienceProp
     /// <summary>A detached copy of <paramref name="schema"/> with <paramref name="codebook"/>; never saved.</summary>
     public static FormSchemaEntity WithCodebook(FormSchemaEntity schema, string codebook) =>
         new(schema.TenantId, schema.FormId, schema.FormDefinitionRevision, schema.FlatteningMap, codebook, schema.Locales);
+
+    private void WarnQuestionsExportedAsText(long formId, string codebook)
+    {
+        var questions = CodebookQuestions.DegradedToText(codebook);
+        if (questions.Count > 0)
+        {
+            LogQuestionsExportedAsText(formId, string.Join(", ", questions));
+        }
+    }
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Export of form {FormId} writes these single-select questions as text, because their choices come from a data list or a source the codebook cannot read: {Questions}")]
+    private partial void LogQuestionsExportedAsText(long formId, string questions);
 }

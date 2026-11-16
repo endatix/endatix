@@ -54,6 +54,20 @@ internal sealed record FormSchemaCodebookExportShape
         [FormSchemaColumnKind.Calculated] = Calculated,
     };
 
+    /// <summary>
+    /// The shape an export writes a codebook question entry as: its <c>exportShape</c>, except that a categorical
+    /// question marked <c>degraded: text</c> (choices the codebook cannot read) exports as <see cref="Scalar"/> text.
+    /// </summary>
+    public static string? OfQuestionEntry(JsonElement question)
+    {
+        var name = question.GetStringProperty(FormSchemaCodebookPropertyNames.ExportShape);
+        return name == Categorical.Name &&
+               question.GetStringProperty(FormSchemaCodebookPropertyNames.Degraded) ==
+               FormSchemaCodebookPropertyNames.DegradedToText
+            ? Scalar.Name
+            : name;
+    }
+
     public static FormSchemaCodebookExportShape FromColumnKind(FormSchemaColumnKind kind) =>
         _byColumnKind.GetValueOrDefault(kind, Scalar);
 

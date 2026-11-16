@@ -13,13 +13,15 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// <param name="FallbackLabel">The label when <paramref name="LabelSource"/> has none.</param>
 /// <param name="LabelSource">The choice element, or the question for a special item.</param>
 /// <param name="LabelProperty">The localized label property on <paramref name="LabelSource"/>.</param>
+/// <param name="Copied">A choice copied from another question, whose element is its label source.</param>
 internal sealed record ChoiceSetItem(
     string Value,
     ChoiceKind Kind,
     bool Exclusive,
     string FallbackLabel,
     JsonElement LabelSource,
-    string LabelProperty);
+    string LabelProperty,
+    bool Copied = false);
 
 /// <summary>
 /// COMPILE TIME. The values a checkbox, tagbox, radiogroup or dropdown (and the other base selects) can store, read
@@ -27,7 +29,8 @@ internal sealed record ChoiceSetItem(
 /// <c>showCommentArea</c> and <c>isExclusive</c>.
 /// </summary>
 /// <remarks>
-/// <see cref="Items"/> are the inline choices in definition order, then Other, None, Refused and Don't know
+/// <see cref="Items"/> are the inline choices in definition order (or, given <see cref="ResolvedChoices"/>, the choices
+/// they resolve to), then Other, None, Refused and Don't know
 /// (<see cref="SpecialChoices.All"/>), so positional ids never shift for existing items. Select All is never an item,
 /// because it is never stored.
 /// </remarks>
@@ -55,7 +58,13 @@ internal sealed class ChoiceSet
         Items.Where(item => item.Kind is ChoiceKind.Choice or ChoiceKind.Other).Select(item => item.Value);
 
     /// <summary>Null for a question that is not a base select (ranking included).</summary>
-    public static ChoiceSet? Read(JsonElement question, SurveyChoiceDefaults? survey = null)
+    /// <param name="question">The question's definition element.</param>
+    /// <param name="survey">The survey-level defaults; <see cref="SurveyChoiceDefaults.Default"/> when null.</param>
+    /// <param name="choices">Its resolved choices (<see cref="ChoiceSources"/>); its inline choices when null.</param>
+    public static ChoiceSet? Read(
+        JsonElement question,
+        SurveyChoiceDefaults? survey = null,
+        ResolvedChoices? choices = null)
     {
         var multiple = question.IsMultiSelectBaseSelect();
         if (!multiple && !question.IsSingleSelectBaseSelect())
@@ -63,7 +72,7 @@ internal sealed class ChoiceSet
             return null;
         }
 
-        var items = InlineItems(question);
+        var items = ChoiceItems(question, choices);
         items.AddRange(SpecialItems(question, items));
         return new ChoiceSet
         {
@@ -75,17 +84,26 @@ internal sealed class ChoiceSet
         };
     }
 
-    private static List<ChoiceSetItem> InlineItems(JsonElement question) =>
-    [
-        .. SurveyJsChoiceHelper.EnumerateChoiceElements(question).Select(choice => new ChoiceSetItem(
-            choice.Value,
-            ChoiceKind.Choice,
-            choice.Element.ValueKind == JsonValueKind.Object &&
-            choice.Element.GetBooleanProperty(SurveyJsPropertyNames.IsExclusive),
-            choice.Text,
-            choice.Element,
-            SurveyJsPropertyNames.Text)),
-    ];
+    private static List<ChoiceSetItem> ChoiceItems(JsonElement question, ResolvedChoices? resolved)
+    {
+        var choices = resolved is null
+            ? SurveyJsChoiceHelper.EnumerateChoiceElements(question)
+                .Select(choice => new SourceChoice(choice.Value, choice.Text, choice.Element))
+            : resolved.Choices ?? [];
+        var copied = resolved?.IsCopied == true;
+        return
+        [
+            .. choices.Select(choice => new ChoiceSetItem(
+                choice.Value,
+                ChoiceKind.Choice,
+                choice.Element.ValueKind == JsonValueKind.Object &&
+                choice.Element.GetBooleanProperty(SurveyJsPropertyNames.IsExclusive),
+                choice.Text,
+                choice.Element,
+                SurveyJsPropertyNames.Text,
+                copied)),
+        ];
+    }
 
     // An inline choice that already stores a special value keeps it; the special item is not added twice.
     private static List<ChoiceSetItem> SpecialItems(JsonElement question, List<ChoiceSetItem> inline)
