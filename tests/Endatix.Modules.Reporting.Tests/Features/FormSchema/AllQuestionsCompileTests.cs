@@ -19,6 +19,8 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema;
 [Trait("Priority", "P0")]
 public sealed class AllQuestionsCompileTests
 {
+    private static readonly JsonSerializerOptions _indented = new() { WriteIndented = true };
+
     [Fact]
     public void FormSchemaCompiler_Compile_WithAllQuestionsDefinition_ProducesExpectedColumnKeys()
     {
@@ -128,7 +130,7 @@ public sealed class AllQuestionsCompileTests
         return codebook.ToJsonString();
     }
 
-    // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/.
+    // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/ and Fixtures/Scenarios/.
     // Uses SourceAllQuestionsFixturesRoot (repo tree) so regenerated files land in source control; runtime tests read copied fixtures from AppContext.BaseDirectory.
     [Fact(Skip = "Manual fixture regeneration only")]
     public void AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()
@@ -156,21 +158,13 @@ public sealed class AllQuestionsCompileTests
                 JsonDocument.Parse(FlattenedSubmissionFlattener.ToJson(compiled.FlatteningMap, flattened)).RootElement,
                 new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
 
-        File.WriteAllText(
-            Path.Combine(fixturesRoot, "all-questions-expected-codebook.json"),
-            JsonSerializer.Serialize(
-                JsonDocument.Parse(compiled.CodebookJson).RootElement,
-                new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
-
-        string shojiCodebook = ShojiCodebookGenerator.Generate(
-            compiled.FlatteningMapJson,
-            compiled.CodebookJson,
-            ExportFormatSettings.InterimCrunchKeySeparator);
-        File.WriteAllText(
+        WriteIndentedJson(Path.Combine(fixturesRoot, "all-questions-expected-codebook.json"), compiled.CodebookJson);
+        WriteIndentedJson(
             Path.Combine(fixturesRoot, "all-questions-expected-shoji-codebook.json"),
-            JsonSerializer.Serialize(
-                JsonDocument.Parse(shojiCodebook).RootElement,
-                new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
 
         FormSchemaEntity schema = new(1, 1, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
         IExportColumnPlan crunchPlan = ExportColumnPlanBuilder.Build(schema, aliasProfile: ColumnAliasProfile.Crunch);
@@ -179,5 +173,10 @@ public sealed class AllQuestionsCompileTests
         File.WriteAllText(
             Path.Combine(fixturesRoot, "all-questions-expected-crunch-export-keys.json"),
             JsonSerializer.Serialize(crunchExportKeys, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
+
+        ScenarioGoldens.RegenerateAll();
     }
+
+    private static void WriteIndentedJson(string path, string json) =>
+        File.WriteAllText(path, JsonSerializer.Serialize(JsonDocument.Parse(json).RootElement, _indented) + Environment.NewLine);
 }

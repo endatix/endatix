@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "Q1": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Question 1"
+      },
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Item 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Item 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Item 3"
+          }
+        }
+      ]
+    },
+    "Q2": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Question 2"
+      },
+      "pageName": "page2",
+      "exportShape": "categorical",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "Q1"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Item 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Item 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Item 3"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "Q1__1": {
+      "parentKey": "Q1",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 1"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Item 1"
+      }
+    },
+    "Q1__2": {
+      "parentKey": "Q1",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 1"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Item 2"
+      }
+    },
+    "Q1__3": {
+      "parentKey": "Q1",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 1"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Item 3"
+      }
+    },
+    "Q2": {
+      "parentKey": "Q2",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Question 2"
+      }
+    },
+    "calc1": {
+      "parentKey": "calc1",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "calc1"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "Q1": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Item 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Item 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Item 3"
+          }
+        }
+      ]
+    },
+    "Q2": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Item 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Item 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Item 3"
+          }
+        }
+      ]
+    }
+  }
+}

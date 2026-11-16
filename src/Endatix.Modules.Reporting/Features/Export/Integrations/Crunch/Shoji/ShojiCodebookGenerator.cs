@@ -1070,16 +1070,8 @@ internal static partial class ShojiCodebookGenerator
 
     private static bool TryGetExportShape(JsonElement question, out string exportShape)
     {
-        exportShape = string.Empty;
-
-        if (!question.TryGetProperty(FormSchemaCodebookPropertyNames.ExportShape, out var exportShapeElement) ||
-            exportShapeElement.ValueKind != JsonValueKind.String)
-        {
-            return false;
-        }
-
-        exportShape = exportShapeElement.GetString()!;
-        return true;
+        exportShape = FormSchemaCodebookExportShape.OfQuestionEntry(question) ?? string.Empty;
+        return exportShape.Length > 0;
     }
 
     private static bool IsCategoricalQuestion(

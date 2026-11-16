@@ -7,8 +7,11 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 /// <summary>The choice catalog of a base select: its select fields and kind-tagged choices (<see cref="ChoiceSet"/>).</summary>
 internal static partial class FormSchemaCodebookBuilder
 {
-    private static JsonElement BuildChoiceCatalog(JsonElement element, SurveyChoiceDefaults surveyDefaults) =>
-        ChoiceSet.Read(element, surveyDefaults) is { } choiceSet
+    private static JsonElement BuildChoiceCatalog(
+        JsonElement element,
+        SurveyChoiceDefaults surveyDefaults,
+        ChoiceSources choiceSources) =>
+        ChoiceSet.Read(element, surveyDefaults, choiceSources.Resolve(element)) is { } choiceSet
             ? WriteQuestionEntry(writer =>
                 choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id)))
             : WriteQuestionEntry(writer =>
@@ -18,6 +21,21 @@ internal static partial class FormSchemaCodebookBuilder
                 WriteCatalogChoices(writer, element);
                 writer.WriteEndArray();
             });
+
+    // A single select whose choices cannot be read stays categorical, marked degraded: exports read it as text.
+    private static JsonElement BuildSingleSelectEntry(CollectedQuestion question, ResolvedChoices choices) =>
+        WriteQuestionEntry(writer =>
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, question.Element.GetSurveyJsType()!);
+            WriteTitle(writer, question.Element);
+            WriteDescription(writer, question.Element);
+            question.Placement.WriteTo(writer);
+            writer.WriteString(
+                FormSchemaCodebookPropertyNames.ExportShape,
+                FormSchemaCodebookExportShape.Categorical.Name);
+            choices.WriteTo(writer);
+            WriteChoices(writer, question.Element, choices);
+        });
 
     // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
     // the value, so a later comment-storage definition must not make the flatten forget it.
@@ -68,8 +86,8 @@ internal static partial class FormSchemaCodebookBuilder
             }
         });
 
-    // An inline choice keeps reading its label by value, as before choice kinds; a special item reads the question's
-    // text property (otherText, noneText, refuseText, dontKnowText).
+    // An inline choice keeps reading its label by value, as before choice kinds; a copied choice reads it on its source
+    // question's choice; a special item reads the question's text property (otherText, noneText, refuseText, dontKnowText).
     private static void WriteChoice(Utf8JsonWriter writer, JsonElement question, ChoiceSetItem item, int id)
     {
         writer.WriteStartObject();
@@ -77,7 +95,7 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, id);
         WriteChoiceKind(writer, item);
         writer.WritePropertyName(SurveyJsPropertyNames.Text);
-        var label = item.Kind == ChoiceKind.Choice
+        var label = item is { Kind: ChoiceKind.Choice, Copied: false }
             ? FindChoiceElement(question, item.Value)
             : item.LabelSource;
         WriteLocalizedStringsWithFallback(

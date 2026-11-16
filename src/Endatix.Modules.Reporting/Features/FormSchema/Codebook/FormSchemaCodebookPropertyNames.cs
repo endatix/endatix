@@ -40,6 +40,19 @@ internal static class FormSchemaCodebookPropertyNames
     /// <summary>Choice catalog: where the Other text is stored, "comment" or "value"; only with an Other item.</summary>
     public const string OtherStorage = "otherStorage";
 
+    /// <summary>
+    /// Question: where a single select's choices come from, when not its own <c>choices</c>: <c>kind</c> ("dataList",
+    /// "carryForward", "unresolvable") and <c>listId</c>, <c>sources</c> or <c>reason</c>. Absent means inline.
+    /// </summary>
+    public const string ChoiceSource = "choiceSource";
+    public const string ListId = "listId";
+    public const string Sources = "sources";
+    public const string Reason = "reason";
+
+    /// <summary>Question: "text" when a single select's choices cannot be read, so its answers export as text.</summary>
+    public const string Degraded = "degraded";
+    public const string DegradedToText = "text";
+
     /// <summary>The participants block an export adds: its title, identifier column and variable columns.</summary>
     public const string Participants = "participants";
     public const string Identifier = "identifier";
