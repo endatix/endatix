@@ -26,6 +26,7 @@
 		<PackageReference Include="Ardalis.Specification.EntityFrameworkCore" />
 		<PackageReference Include="FastEndpoints.Security" />
 		<PackageReference Include="IdGen" />
+		<PackageReference Include="JsonSchema.Net" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
@@ -50,6 +51,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<EmbeddedResource Include="Data\SeedData\Forms\**\*.json" />
+		<EmbeddedResource Include="Branding\brand.schema.json" LogicalName="Endatix.Infrastructure.Branding.brand.schema.json" />
 	</ItemGroup>
 	<ItemGroup>
 		<InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />

@@ -25,4 +25,10 @@ public class EmailWithBody : BaseEmailModel
     /// Html version of the body
     /// </summary>
     public string HtmlBody { get; set; }
+
+    /// <summary>
+    /// The display name on the From header, from the brand pack. Null leaves each provider's own behaviour:
+    /// SMTP sends its configured default name, Mailgun and SendGrid send the bare address.
+    /// </summary>
+    public string? FromName { get; set; }
 }

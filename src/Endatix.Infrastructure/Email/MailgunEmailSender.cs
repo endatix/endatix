@@ -8,6 +8,7 @@ using Endatix.Core.Features.Email;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -69,7 +70,7 @@ public class MailgunEmailSender(
 
         var contentValues = new List<KeyValuePair<string, string>>
         {
-            new("from", email.From),
+            new("from", FromHeader(email)),
             new("subject", email.Subject),
             new("text", email.PlainTextBody),
             new("html", email.HtmlBody)
@@ -143,6 +144,14 @@ public class MailgunEmailSender(
 
         return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
     }
+
+    // MimeKit quotes a display name that holds a comma or other special character, which a hand-built
+    // "Name <address>" would not.
+    // Called after the From guard, so the address is set.
+    private static string FromHeader(EmailWithBody email) =>
+        string.IsNullOrWhiteSpace(email.FromName)
+            ? email.From!
+            : new MailboxAddress(email.FromName, email.From!).ToString();
 
     private HttpClient CreateAuthorizedClient()
     {

@@ -1,4 +1,5 @@
 using Endatix.Core.Configuration;
+using Endatix.Core.Branding;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Email;
@@ -28,7 +29,7 @@ public class EmailTemplateServiceTests
         var hubOptions = CreateHubOptions();
 
         // Act
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, DeploymentBrand.BuiltIn);
 
         // Assert
         service.Should().NotBeNull();
@@ -38,7 +39,7 @@ public class EmailTemplateServiceTests
     public void Constructor_WithNullOptions_CreatesInstance()
     {
         // Act
-        var service = new EmailTemplateService(null!, CreateHubOptions());
+        var service = new EmailTemplateService(null!, CreateHubOptions(), DeploymentBrand.BuiltIn);
 
         // Assert
         service.Should().NotBeNull();
@@ -58,7 +59,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions("https://app.example.com");
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, DeploymentBrand.BuiltIn);
 
         var userEmail = "test@example.com";
         var token = "abc123-token";
@@ -95,7 +96,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions("https://app.example.com");
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, DeploymentBrand.BuiltIn);
 
         var userEmail = "test@example.com";
         var token = "abc123-token";
@@ -124,7 +125,7 @@ public class EmailTemplateServiceTests
                 FromAddress = "noreply@example.com"
             }
         };
-        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"));
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"), DeploymentBrand.BuiltIn);
 
         // Act
         var result = service.CreateVerificationEmail("test@example.com", "abc+123/==");
@@ -145,7 +146,7 @@ public class EmailTemplateServiceTests
                 FromAddress = "noreply@example.com"
             }
         };
-        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"));
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"), DeploymentBrand.BuiltIn);
 
         // Act
         var result = service.CreateForgotPasswordEmail("user+invite@example.com", "reset token");
@@ -165,7 +166,7 @@ public class EmailTemplateServiceTests
                 FromAddress = "custom@example.com"
             }
         };
-        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions());
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions(), DeploymentBrand.BuiltIn);
 
         var result = service.CreateForgotPasswordEmail("user@example.com", "reset-token");
 
@@ -187,7 +188,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions(string.Empty);
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, DeploymentBrand.BuiltIn);
 
         var userEmail = "test@example.com";
         var token = "abc123-token";
@@ -218,7 +219,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions(string.Empty);
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, DeploymentBrand.BuiltIn);
 
         var userEmail = "user@test.com";
         var token = "xyz789-token";
@@ -253,7 +254,7 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options, CreateHubOptions());
+        var service = new EmailTemplateService(options, CreateHubOptions(), DeploymentBrand.BuiltIn);
 
         var token = "abc123-token";
 
@@ -285,7 +286,7 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options, CreateHubOptions());
+        var service = new EmailTemplateService(options, CreateHubOptions(), DeploymentBrand.BuiltIn);
 
         var userEmail = "test@example.com";
 
@@ -296,5 +297,22 @@ public class EmailTemplateServiceTests
         result.Should().NotBeNull();
         result.To.Should().Be("test@example.com");
         result.Metadata["verificationToken"].Should().Be(token);
+    }
+
+    [Fact]
+    public void CreateVerificationAndInvitationEmails_PackBrand_NameThePacksProduct()
+    {
+        // Arrange
+        var brand = DeploymentBrand.BuiltIn with { ProductName = "Example Forms", AppName = "Example Forms" };
+        var service = new EmailTemplateService(Options.Create(new EmailTemplateSettings()), CreateHubOptions(), brand);
+
+        // Act
+        var verification = service.CreateVerificationEmail("user@example.com", "token");
+        var invitation = service.CreateInvitationEmail("user@example.com", "token");
+
+        // Assert
+        verification.Metadata["bodyText"].Should().Be("Verify your email address to activate your Example Forms account.");
+        invitation.Metadata["headline"].Should().Be("Accept your Example Forms invitation");
+        invitation.Metadata["bodyText"].Should().Be("Set your password to activate your account and sign in to Example Forms.");
     }
 }

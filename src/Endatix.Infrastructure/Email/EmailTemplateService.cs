@@ -2,6 +2,7 @@ using System.Text;
 using Ardalis.GuardClauses;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
@@ -17,14 +18,22 @@ public class EmailTemplateService : IEmailTemplateService
 {
     private readonly IOptions<EmailTemplateSettings> _emailTemplateSettings;
     private readonly IOptions<HubSettings> _hubSettings;
+    private readonly DeploymentBrand _brand;
 
     /// <summary>
     /// Initializes a new instance of the EmailTemplateService class.
     /// </summary>
-    public EmailTemplateService(IOptions<EmailTemplateSettings> emailTemplateSettings, IOptions<HubSettings> hubSettings)
+    /// <param name="emailTemplateSettings">The template ids and sender overrides.</param>
+    /// <param name="hubSettings">The Hub base URL for links.</param>
+    /// <param name="brand">The deployment brand; it names the product in the composed copy.</param>
+    public EmailTemplateService(
+        IOptions<EmailTemplateSettings> emailTemplateSettings,
+        IOptions<HubSettings> hubSettings,
+        DeploymentBrand brand)
     {
         _emailTemplateSettings = emailTemplateSettings;
         _hubSettings = hubSettings;
+        _brand = brand;
     }
 
     private string HubUrl => !string.IsNullOrWhiteSpace(_hubSettings.Value.HubBaseUrl)
@@ -49,7 +58,7 @@ public class EmailTemplateService : IEmailTemplateService
                     ? BuildHubUrl("verify-email", new Dictionary<string, string?> { ["token"] = token })
                     : string.Empty,
                 ["headline"] = "Verify your email address",
-                ["bodyText"] = "Verify your email address to activate your Endatix account.",
+                ["bodyText"] = $"Verify your email address to activate your {_brand.ProductName} account.",
                 ["actionText"] = "Verify email address"
             }
         };
@@ -70,8 +79,8 @@ public class EmailTemplateService : IEmailTemplateService
                 ["activationUrl"] = token is not null
                     ? BuildHubUrl("activate-invite", new Dictionary<string, string?> { ["token"] = token })
                     : string.Empty,
-                ["headline"] = "Accept your Endatix invitation",
-                ["bodyText"] = "Set your password to activate your account and sign in to Endatix Hub.",
+                ["headline"] = $"Accept your {_brand.ProductName} invitation",
+                ["bodyText"] = $"Set your password to activate your account and sign in to {_brand.AppName}.",
                 ["actionText"] = "Accept invitation"
             }
         };

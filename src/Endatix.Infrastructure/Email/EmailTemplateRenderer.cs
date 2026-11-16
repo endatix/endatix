@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core;
+using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
@@ -12,9 +13,13 @@ namespace Endatix.Infrastructure.Email;
 /// <summary>
 /// Renders database-backed email templates into provider-ready email bodies.
 /// </summary>
+/// <remarks>
+/// Every template gets the <see cref="DeploymentBrand.TemplateVariables"/>; the caller's metadata wins on a clash.
+/// </remarks>
 public sealed class EmailTemplateRenderer(
     IRepository<EmailTemplate> templateRepository,
-    IOptions<EmailTemplateSettings> emailTemplateSettings)
+    IOptions<EmailTemplateSettings> emailTemplateSettings,
+    DeploymentBrand brand)
 {
     /// <summary>
     /// Renders a database-backed email template into a provider-ready email body.
@@ -37,18 +42,24 @@ public sealed class EmailTemplateRenderer(
             throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
         }
 
-        var variables = (email.Metadata ?? [])
-            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString() ?? string.Empty);
+        var variables = new Dictionary<string, string>(brand.TemplateVariables);
+        foreach (var (key, value) in email.Metadata ?? [])
+        {
+            variables[key] = value?.ToString() ?? string.Empty;
+        }
 
         var fromAddress = EmailTemplateFromAddress.Resolve(
             emailTemplateSettings.Value,
             template.Name,
-            template.FromAddress);
+            template.FromAddress,
+            brand.Email.FromAddress);
 
-        return template.Render(
+        var rendered = template.Render(
             email.To,
             variables,
             subject: email.Subject,
             from: fromAddress);
+        rendered.FromName = brand.Email.SenderName;
+        return rendered;
     }
 }

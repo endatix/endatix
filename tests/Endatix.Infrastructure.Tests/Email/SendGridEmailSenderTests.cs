@@ -1,4 +1,5 @@
 using System.Net;
+using Endatix.Core.Branding;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endatix.Core;
@@ -36,7 +37,7 @@ public class SendGridEmailSenderTests
             _options,
             new EmailTemplateRenderer(
                 _templateRepository,
-                Options.Create(new EmailTemplateSettings())));
+                Options.Create(new EmailTemplateSettings()), DeploymentBrand.BuiltIn));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -309,4 +310,38 @@ public class SendGridEmailSenderTests
                 cts.Cancel();
                 return new Response(HttpStatusCode.Accepted, new CancellationAwareContent("{}", resetOnRead), null!);
             });
+
+    [Fact]
+    public async Task SendEmailWithBody_FromName_SetsTheSenderName()
+    {
+        // Arrange
+        _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
+            .Returns(CreateSuccessResponse());
+        var email = CreateValidEmailWithBody();
+        email.FromName = "Example Forms";
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        await _sendGridClient.Received(1).SendEmailAsync(
+            Arg.Is<SendGridMessage>(msg => msg.From.Email == "sender@example.com" && msg.From.Name == "Example Forms"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_NoFromName_SendsTheBareAddress()
+    {
+        // Arrange
+        _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
+            .Returns(CreateSuccessResponse());
+
+        // Act
+        await _sut.SendEmailAsync(CreateValidEmailWithBody(), CancellationToken.None);
+
+        // Assert
+        await _sendGridClient.Received(1).SendEmailAsync(
+            Arg.Is<SendGridMessage>(msg => msg.From.Name == null),
+            Arg.Any<CancellationToken>());
+    }
 }

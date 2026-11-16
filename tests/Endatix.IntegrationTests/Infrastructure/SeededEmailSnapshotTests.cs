@@ -1,5 +1,6 @@
 using System.Text;
 using Endatix.Core;
+using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
@@ -15,10 +16,10 @@ using Microsoft.Extensions.Options;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Pins every seeded email, rendered with the shipped configuration and no brand pack, to a committed
-/// snapshot. The snapshot was recorded before brand variables existed, so a change to the
-/// seed rows, the renderer or the composed metadata that alters a byte for the built-in brand fails here.
-/// Set <c>ENDATIX_UPDATE_EMAIL_SNAPSHOTS=1</c> to re-record it after an intended change.
+/// Renders every seeded email from a freshly migrated database. Without a brand pack the result is pinned to a
+/// snapshot recorded before brand variables existed, so a change to the seed rows, the renderer or the composed
+/// metadata that alters a byte for the built-in brand fails here. Set <c>ENDATIX_UPDATE_EMAIL_SNAPSHOTS=1</c> to
+/// re-record it after an intended change.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
@@ -28,11 +29,64 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
     private const string Recipient = "user@example.com";
     private const string HubBaseUrl = "https://hub.example.com";
 
+    private static readonly DeploymentBrand ExampleBrand = new(
+        ProductName: "Example Forms",
+        AppName: "Example Forms",
+        AssistantName: "Example Assistant",
+        WebsiteUrl: "https://example.com",
+        Email: new BrandEmail("Example Forms Team", "noreply@example.com", "help@example.com"));
+
     [Fact]
     public async Task Seeded_emails_without_a_brand_pack_match_the_recorded_snapshot()
     {
         // Arrange
         CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        List<(string TemplateId, EmailWithBody Email)> emails = await RenderEveryEmailAsync(DeploymentBrand.BuiltIn, cancellationToken);
+
+        // Assert
+        string actual = Snapshot(emails);
+        string path = SnapshotPath();
+        if (Environment.GetEnvironmentVariable("ENDATIX_UPDATE_EMAIL_SNAPSHOTS") == "1")
+        {
+            await File.WriteAllTextAsync(path, actual, cancellationToken);
+        }
+
+        File.Exists(path).Should().BeTrue($"the snapshot {path} is committed with this test");
+        string expected = await File.ReadAllTextAsync(path, cancellationToken);
+        actual.Should().Be(expected.ReplaceLineEndings("\n"));
+        emails.Should().OnlyContain(rendered => rendered.Email.FromName == null, "providers keep the sender name they sent before");
+    }
+
+    [Fact]
+    public async Task Seeded_emails_with_a_brand_pack_show_its_product_sender_and_support_address()
+    {
+        // Arrange
+        CancellationToken cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        List<(string TemplateId, EmailWithBody Email)> emails = await RenderEveryEmailAsync(ExampleBrand, cancellationToken);
+
+        // Assert
+        emails.Should().HaveCount(6);
+        foreach ((string templateId, EmailWithBody email) in emails)
+        {
+            string text = $"{email.Subject}\n{email.HtmlBody}\n{email.PlainTextBody}";
+            text.Should().NotContain("Endatix", $"{templateId} names the pack's product only");
+            text.Should().Contain("Example Forms", $"{templateId} names the pack's product");
+            email.From.Should().Be("noreply@example.com", $"{templateId} sends from the pack's address");
+            email.FromName.Should().Be("Example Forms Team", $"{templateId} carries the pack's sender name");
+        }
+
+        emails.Single(rendered => rendered.TemplateId == "password-changed").Email.PlainTextBody
+            .Should().Contain("help@example.com", "the password-changed email points people to the pack's support address");
+    }
+
+    private async Task<List<(string TemplateId, EmailWithBody Email)>> RenderEveryEmailAsync(
+        DeploymentBrand brand,
+        CancellationToken cancellationToken)
+    {
         // A database of its own: the shared fixture's reset empties the seeded EmailTemplates rows.
         await using JobsTestDatabase database = await JobsTestDatabase.CreateAsync(fixture, cancellationToken);
         await using ServiceProvider provider = (ServiceProvider)IntegrationCoreMigrationTestHelper.BuildServiceProvider(
@@ -44,28 +98,16 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
         AppDbContext appDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         EfRepository<EmailTemplate> repository = new(appDb, new EndatixSpecificationEvaluator([]));
         IOptions<EmailTemplateSettings> settings = Options.Create(ShippedEmailTemplateSettings());
-        EmailTemplateService composer = new(settings, Options.Create(new HubSettings { HubBaseUrl = HubBaseUrl }));
-        EmailTemplateRenderer renderer = new(repository, settings);
+        EmailTemplateService composer = new(settings, Options.Create(new HubSettings { HubBaseUrl = HubBaseUrl }), brand);
+        EmailTemplateRenderer renderer = new(repository, settings, brand);
 
-        // Act
-        StringBuilder snapshot = new();
+        List<(string TemplateId, EmailWithBody Email)> emails = [];
         foreach (EmailWithTemplate email in ComposeEveryEmail(composer))
         {
-            EmailWithBody rendered = await renderer.RenderAsync(email, cancellationToken);
-            AppendEmail(snapshot, email.TemplateId, rendered);
+            emails.Add((email.TemplateId, await renderer.RenderAsync(email, cancellationToken)));
         }
 
-        // Assert
-        string actual = snapshot.ToString();
-        string path = SnapshotPath();
-        if (Environment.GetEnvironmentVariable("ENDATIX_UPDATE_EMAIL_SNAPSHOTS") == "1")
-        {
-            await File.WriteAllTextAsync(path, actual, cancellationToken);
-        }
-
-        File.Exists(path).Should().BeTrue($"the snapshot {path} is committed with this test");
-        string expected = await File.ReadAllTextAsync(path, cancellationToken);
-        actual.Should().Be(expected.ReplaceLineEndings("\n"));
+        return emails;
     }
 
     private static IEnumerable<EmailWithTemplate> ComposeEveryEmail(EmailTemplateService composer)
@@ -105,14 +147,20 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
         return settings;
     }
 
-    private static void AppendEmail(StringBuilder snapshot, string templateId, EmailWithBody email)
+    private static string Snapshot(IEnumerable<(string TemplateId, EmailWithBody Email)> emails)
     {
-        snapshot.Append("=== ").Append(templateId).Append('\n');
-        snapshot.Append("From: ").Append(email.From).Append('\n');
-        snapshot.Append("To: ").Append(email.To).Append('\n');
-        snapshot.Append("Subject: ").Append(email.Subject).Append('\n');
-        snapshot.Append("--- html\n").Append(ShowCarriageReturns(email.HtmlBody)).Append('\n');
-        snapshot.Append("--- text\n").Append(ShowCarriageReturns(email.PlainTextBody)).Append('\n');
+        StringBuilder snapshot = new();
+        foreach ((string templateId, EmailWithBody email) in emails)
+        {
+            snapshot.Append("=== ").Append(templateId).Append('\n');
+            snapshot.Append("From: ").Append(email.From).Append('\n');
+            snapshot.Append("To: ").Append(email.To).Append('\n');
+            snapshot.Append("Subject: ").Append(email.Subject).Append('\n');
+            snapshot.Append("--- html\n").Append(ShowCarriageReturns(email.HtmlBody)).Append('\n');
+            snapshot.Append("--- text\n").Append(ShowCarriageReturns(email.PlainTextBody)).Append('\n');
+        }
+
+        return snapshot.ToString();
     }
 
     // A carriage return in a row is part of the bytes sent, so it is kept visible instead of normalized away.

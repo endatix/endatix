@@ -65,7 +65,7 @@ public class SendGridEmailSender(
         Guard.Against.NullOrWhiteSpace(email.From);
         Guard.Against.NullOrWhiteSpace(email.Subject);
 
-        var fromEmail = new EmailAddress(email.From);
+        var fromEmail = new EmailAddress(email.From, email.FromName);
         var toEmail = new EmailAddress(email.To);
         var msg = MailHelper.CreateSingleEmail(
             fromEmail,

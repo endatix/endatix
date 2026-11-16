@@ -1,4 +1,5 @@
 using System.Net;
+using Endatix.Core.Branding;
 using System.Text.Json;
 using System.Web;
 using Microsoft.Extensions.Logging;
@@ -42,7 +43,7 @@ public class MailgunEmailSenderTests
             _options,
             new EmailTemplateRenderer(
                 _templateRepository,
-                Options.Create(new EmailTemplateSettings())));
+                Options.Create(new EmailTemplateSettings()), DeploymentBrand.BuiltIn));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -397,5 +398,29 @@ public class MailgunEmailSenderTests
             RequestContent = request.Content is not null ? await request.Content.ReadAsStringAsync(cancellationToken) : null;
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
+    }
+
+    [Theory]
+    [InlineData("Example Forms", "\"Example Forms\" <sender@example.com>")]
+    [InlineData("Example, Inc.", "\"Example, Inc.\" <sender@example.com>")]
+    public async Task SendEmailWithBody_FromName_SendsANamedFromHeader(string fromName, string expectedFrom)
+    {
+        // Arrange
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "sender@example.com",
+            FromName = fromName,
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        form["from"].Should().Be(expectedFrom);
     }
 }

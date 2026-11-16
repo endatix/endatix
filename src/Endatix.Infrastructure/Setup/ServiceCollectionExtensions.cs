@@ -5,10 +5,12 @@ using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure;
+using Endatix.Infrastructure.Branding;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Features.BackgroundJobs;
@@ -18,6 +20,7 @@ using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Infrastructure.Integrations.Slack;
 using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Storage;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
@@ -86,6 +89,23 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<EmailTemplateRenderer>();
         services.AddScoped<IEmailSender, TEmailSender>();
 
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the <see cref="DeploymentBrand"/>: the mounted brand pack when the white-labeling flag is on,
+    /// otherwise the built-in brand.
+    /// </summary>
+    /// <remarks>
+    /// The pack is read here, while the host is built, and not in a factory: a factory would first run on the
+    /// first email, and an invalid pack must stop startup instead (<see cref="BrandPackException"/>).
+    /// </remarks>
+    /// <param name="services">The service collection to configure.</param>
+    /// <param name="configuration">The host configuration holding the flag and <c>ENDATIX_BRAND_DIR</c>.</param>
+    /// <returns>The configured service collection.</returns>
+    public static IServiceCollection AddDeploymentBrand(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.TryAddSingleton(BrandPackLoader.Load(configuration));
         return services;
     }
 
