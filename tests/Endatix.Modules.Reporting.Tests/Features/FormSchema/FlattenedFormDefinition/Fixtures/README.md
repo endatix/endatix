@@ -25,6 +25,11 @@ Each folder under `Scenarios/` is one edge case:
 | --- | --- |
 | `copied-choices-selected-mode` | A radiogroup copies its choices from a checkbox with `choicesFromQuestion` in selected mode (#1163). |
 
+Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.
+The codebook publishes only the sources' own choices, so that answer has no category and its csv-shoji cell is empty.
+`CopiedChoicesCrunchExportTests.CsvShoji_CopiedOtherInSelectedMode_HasNoCategoryUntil1544` pins this until #1544
+publishes the source's Other as a special item.
+
 ### Adding a scenario
 
 1. Write the definition: create `Scenarios/<name>/definition.json`. Use a kebab-case name for the case, not for a

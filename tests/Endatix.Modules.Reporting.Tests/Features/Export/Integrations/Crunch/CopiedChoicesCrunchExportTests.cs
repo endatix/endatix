@@ -155,6 +155,35 @@ public sealed class CopiedChoicesCrunchExportTests
         Categories(shoji, "brand").Should().BeEmpty();
     }
 
+    // Pins today's output: in selected mode Hub and SurveyJS also copy the source's Other when it is picked, so the copy
+    // stores "other", but the codebook publishes only the sources' own choices. The cell stays empty until #1544
+    // publishes the source's Other as a special item.
+    [Fact]
+    public async Task CsvShoji_CopiedOtherInSelectedMode_HasNoCategoryUntil1544()
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"name":"p1","elements":[
+              {"type":"checkbox","name":"Q1","choices":["1","2"],"showOtherItem":true},
+              {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}]}]}
+            """;
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("r1", """{"Q1":["1","other"],"Q1-Comment":"typed","Q2":"other","Q2-Comment":"typed"}""", null),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        pipeline.FlattenAll(definition, responses);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+
+        // Assert
+        Categories(shoji, "Q2").Should().Equal((1, "1"), (2, "2"));
+        Column(csv, "Q2").Should().Equal("");
+    }
+
     // Pins today's output for a multi-select destination: one text column holding the stored value, no indicator
     // columns. #1441 changes this to one indicator column per copied choice.
     [Fact]
