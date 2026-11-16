@@ -1,0 +1,51 @@
+{
+  "title": "Copied choices (selected mode)",
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "Q1",
+          "title": "Question 1",
+          "isRequired": true,
+          "choices": [
+            {
+              "value": "1",
+              "text": "Item 1"
+            },
+            {
+              "value": "2",
+              "text": "Item 2"
+            },
+            {
+              "value": "3",
+              "text": "Item 3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "page2",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "Q2",
+          "title": "Question 2",
+          "isRequired": true,
+          "choicesFromQuestion": "Q1",
+          "choicesFromQuestionMode": "selected"
+        }
+      ]
+    }
+  ],
+  "calculatedValues": [
+    {
+      "name": "calc1",
+      "expression": "Test",
+      "includeIntoResult": true
+    }
+  ],
+  "showTitle": false
+}

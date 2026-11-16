@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Specifications;
+using System.Text.Json.Nodes;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Repositories;
@@ -49,6 +50,20 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
               "name": "p1",
               "elements": [
                 { "type": "text", "name": "keep", "title": "Keep" }
+              ]
+            }
+          ]
+        }
+        """;
+
+    private static readonly string DefinitionWithCopiedChoices = """
+        {
+          "pages": [
+            {
+              "name": "p1",
+              "elements": [
+                { "type": "checkbox", "name": "Q1", "choices": ["1", "2", "3"] },
+                { "type": "radiogroup", "name": "Q2", "choicesFromQuestion": "Q1", "choicesFromQuestionMode": "selected" }
               ]
             }
           ]
@@ -205,6 +220,40 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
         otherFormRows.Should().Be(1);
     }
 
+    // A schema compiled before copied choices were read has none for Q2. The compile the release note names
+    // (POST forms/{formId}/reporting/compile-schema, merge mode once a real submission exists) adds them.
+    [Fact]
+    public async Task ProcessAsync_SchemaCompiledWithoutCopiedChoices_MergeAddsThem()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var seed = await SeedFormAsync(seedRealSubmission: true, seedTestSubmission: false, cancellationToken);
+        await SeedSchemaAsync(seed, DefinitionWithCopiedChoices, WithoutChoicesOf("Q2"), cancellationToken);
+
+        FormDefinition currentDefinition = new(TenantId, jsonData: DefinitionWithCopiedChoices) { Id = seed.FormDefinitionId };
+        var formsRepository = FormsRepositoryReading(currentDefinition);
+
+        await using var reportingDb = CreateReportingDbContext();
+        await using var appDb = CreateAppDbContext();
+        var processor = CreateProcessor(formsRepository, reportingDb, appDb);
+
+        // Act
+        await processor.ProcessAsync(TenantId, seed.FormId, seed.FormDefinitionId, cancellationToken: cancellationToken);
+
+        // Assert
+        reportingDb.ChangeTracker.Clear();
+        var schema = await reportingDb.FormSchemas
+            .SingleAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
+        var codebook = JsonNode.Parse(schema.Codebook)!;
+        ChoiceValues(codebook["questions"]!["Q2"]!).Should().Equal("1", "2", "3");
+        ChoiceValues(codebook["choiceCatalogs"]!["Q2"]!).Should().Equal("1", "2", "3");
+
+        var flattenedForForm = await reportingDb.FlattenedSubmissions
+            .IgnoreQueryFilters()
+            .CountAsync(row => row.TenantId == TenantId && row.FormId == seed.FormId, cancellationToken);
+        flattenedForForm.Should().Be(1, "a merge keeps the flattened rows");
+    }
+
     [Fact]
     public async Task Compile_removes_its_schema_when_the_form_is_deleted_while_it_compiles()
     {
@@ -328,6 +377,44 @@ public sealed class FormSchemaProcessorReplaceMergeIntegrationTests
             """{"other":true}""",
             cancellationToken);
     }
+
+    private async Task SeedSchemaAsync(
+        SeededForm seed,
+        string definitionJson,
+        Func<string, string> storedCodebook,
+        CancellationToken cancellationToken)
+    {
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        await using var reportingDb = CreateReportingDbContext();
+        reportingDb.FormSchemas.Add(new FormSchema(
+            TenantId,
+            seed.FormId,
+            seed.FormDefinitionId,
+            compiled.FlatteningMapJson,
+            storedCodebook(compiled.CodebookJson),
+            compiled.LocalesJson));
+        await reportingDb.SaveChangesAsync(cancellationToken);
+
+        FlattenedRowSeed rows = new(reportingDb);
+        await rows.ProcessedAsync(
+            new FlattenedSubmissionKey(TenantId, seed.FormId, SubmissionId: seed.FormId + 1000),
+            """{"Q1":["1","2"],"Q2":"2"}""",
+            cancellationToken);
+    }
+
+    // The codebook as the code before copied choices compiled it: the question and its catalog with no choices.
+    private static Func<string, string> WithoutChoicesOf(string questionName) =>
+        codebookJson =>
+        {
+            var codebook = JsonNode.Parse(codebookJson)!;
+            codebook["questions"]![questionName]!["choices"] = new JsonArray();
+            codebook["choiceCatalogs"]![questionName]!["choices"] = new JsonArray();
+            return codebook.ToJsonString();
+        };
+
+    private static IEnumerable<string> ChoiceValues(JsonNode entry) =>
+        entry["choices"]!.AsArray().Select(choice => choice!["value"]!.GetValue<string>());
 
     private static async Task SeedSubmissionAsync(
         AppDbContext appDb,
