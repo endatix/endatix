@@ -101,6 +101,34 @@ public sealed class BrandPackLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_InvalidNestedField_NamesOnlyThatField()
+    {
+        // Arrange
+        UsePackFixture("invalid-path-traversal.json");
+
+        // Act
+        var load = () => BrandPackLoader.Load(Configuration(flag: "true"));
+
+        // Assert
+        var message = load.Should().Throw<BrandPackException>().Which.Message;
+        message.Should().Contain("/assets/icon:").And.NotContain("/assets:").And.NotContain(" /:");
+    }
+
+    [Fact]
+    public void Load_RootAndFieldFailures_NamesBoth()
+    {
+        // Arrange
+        File.WriteAllText(Path.Combine(_packDirectory, "brand.json"), """{ "version": 2 }""");
+
+        // Act
+        var load = () => BrandPackLoader.Load(Configuration(flag: "true"));
+
+        // Assert
+        load.Should().Throw<BrandPackException>().Which.Message
+            .Should().Contain("/:").And.Contain("name").And.Contain("/version:");
+    }
+
+    [Fact]
     public void Load_FullPack_MapsEveryFieldTheApiReads()
     {
         // Arrange

@@ -18,6 +18,9 @@ internal static class BrandPackLoader
 
     private const string PackFileName = "brand.json";
 
+    // These keywords only report that a nested schema failed; the nested failure names the field itself.
+    private static readonly HashSet<string> SummaryKeywords = new(StringComparer.Ordinal) { "properties", "$ref", "allOf" };
+
     private static readonly EvaluationOptions SchemaEvaluation = new()
     {
         OutputFormat = OutputFormat.List,
@@ -65,12 +68,14 @@ internal static class BrandPackLoader
             return;
         }
 
-        var failures = (results.Details ?? [])
+        var fieldFailures = (results.Details ?? [])
             .Where(detail => detail.Errors is { Count: > 0 })
-            .SelectMany(detail => detail.Errors!.Select(error => $"{FieldPath(detail)}: {error.Value}"))
+            .SelectMany(detail => detail.Errors!
+                .Where(error => !SummaryKeywords.Contains(error.Key))
+                .Select(error => $"{FieldPath(detail)}: {error.Value}"))
             .Distinct(StringComparer.Ordinal);
 
-        throw new BrandPackException($"Brand pack file '{path}' does not match the brand pack schema: {string.Join("; ", failures)}");
+        throw new BrandPackException($"Brand pack file '{path}' does not match the brand pack schema: {string.Join("; ", fieldFailures)}");
     }
 
     private static string FieldPath(EvaluationResults detail)

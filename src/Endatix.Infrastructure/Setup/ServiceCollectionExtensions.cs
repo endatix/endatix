@@ -86,6 +86,7 @@ public static class ServiceCollectionExtensions
             initializer?.Invoke(services);
         }
 
+        AddDeploymentBrandFallback(services);
         services.TryAddScoped<EmailTemplateRenderer>();
         services.AddScoped<IEmailSender, TEmailSender>();
 
@@ -105,9 +106,18 @@ public static class ServiceCollectionExtensions
     /// <returns>The configured service collection.</returns>
     public static IServiceCollection AddDeploymentBrand(this IServiceCollection services, IConfiguration configuration)
     {
-        services.TryAddSingleton(BrandPackLoader.Load(configuration));
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(DeploymentBrand)))
+        {
+            services.AddSingleton(BrandPackLoader.Load(configuration));
+        }
+
         return services;
     }
+
+    // For a host that adds an email sender or the template settings without Integrations.UseDefaults():
+    // the renderer and the composer need a brand. Here the pack is read on first use, not at startup.
+    private static void AddDeploymentBrandFallback(IServiceCollection services) =>
+        services.TryAddSingleton(provider => BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>()));
 
     /// <summary>
     /// Adds email template settings configuration to the service collection.
@@ -126,6 +136,7 @@ public static class ServiceCollectionExtensions
         // Exposes the POCO to Core handlers without pulling IOptions into Core.Remove once settings are persisted in the database.
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<EmailTemplateSettings>>().Value);
 
+        AddDeploymentBrandFallback(services);
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
         return services;
