@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 using FluentAssertions;
 
@@ -153,6 +154,39 @@ public sealed class CopiedChoicesCrunchExportTests
         Column(csv, "favourite").Should().Equal("acme");
         VariableType(shoji, "brand").Should().Be("categorical");
         Categories(shoji, "brand").Should().BeEmpty();
+    }
+
+    // A copy exported as categorical whose source later becomes a data list compiles to text under a merge: its Crunch
+    // variable changes type, and the categories the merged catalog keeps are not published.
+    [Fact]
+    public async Task Export_CopyWhoseSourceBecomesADataList_FlipsToTextUnderMerge()
+    {
+        // Arrange
+        const string before = """
+            {"pages":[{"name":"p1","elements":[{"type":"dropdown","name":"Q1","choices":["1","2","3"]},
+              {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1"}]}]}
+            """;
+        const string after = """
+            {"pages":[{"name":"p1","elements":[{"type":"dropdown","name":"Q1","edxDataListId":"1234"},
+              {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1"}]}]}
+            """;
+        IReadOnlyList<FixtureResponse> responses = [new("r1", """{"Q1":"2","Q2":"2"}""", null)];
+        var pipeline = PersonalizationPipeline.Compile(before);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var exportedBefore = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+
+        // Act
+        pipeline.Recompile(after, FormSchemaCompileMode.Merge);
+        pipeline.FlattenAll(after, responses);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+
+        // Assert
+        VariableType(exportedBefore, "Q2").Should().Be("categorical");
+        VariableType(shoji, "Q2").Should().Be("text");
+        Metadata(shoji)["Q2"].TryGetProperty("categories", out _).Should().BeFalse();
+        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+        Column(csv, "Q2").Should().Equal("2");
     }
 
     // Pins today's output: in selected mode Hub and SurveyJS also copy the source's Other when it is picked, so the copy
