@@ -28,7 +28,7 @@ public sealed class LoopSourceDriverTests
     }
 
     [Fact]
-    public void Flatten_LoopOverAChainedCopy_RepeatsOncePerChoiceOfTheFirstSource()
+    public void Flatten_LoopOverAChainedCopy_RepeatsOncePerChoiceOfTheQuestionAtTheRootOfTheChain()
     {
         // Arrange
         var definition = Definition("""
@@ -60,6 +60,95 @@ public sealed class LoopSourceDriverTests
 
         // Assert
         LoopKeys(columns).Should().Equal("loop__pear__q", "loop__plum__q", "loop__apple__q");
+    }
+
+    // A copy publishes its sources' choices, so choices the Creator left on it (item1..3) no longer drive panels: the
+    // stored panels carry the copied values. Under a merge the old leftover columns stay, empty.
+    [Fact]
+    public void Flatten_LoopOverACopyWithLeftoverChoices_RepeatsOverTheCopiedChoicesOnly()
+    {
+        // Arrange
+        var definition = Definition("""
+            {"type":"checkbox","name":"brands","choices":["a","b"]},
+            {"type":"checkbox","name":"source","choicesFromQuestion":"brands","choices":["item1","item2"]}
+            """);
+
+        // Act
+        var columns = Flatten(definition);
+
+        // Assert
+        LoopKeys(columns).Should().Equal("loop__a__q", "loop__b__q");
+    }
+
+    // The copy's own Other is an item the respondent can pick, so it gets a panel, as an inline source's Other does.
+    [Fact]
+    public void Flatten_LoopOverACopyThatShowsOther_RepeatsOverTheCopiedChoicesThenOther()
+    {
+        // Arrange
+        var definition = Definition("""
+            {"type":"checkbox","name":"brands","choices":["a","b"]},
+            {"type":"checkbox","name":"source","choicesFromQuestion":"brands","showOtherItem":true,"showNoneItem":true}
+            """);
+
+        // Act
+        var columns = Flatten(definition);
+
+        // Assert
+        LoopKeys(columns).Should().Equal("loop__a__q", "loop__b__q", "loop__other__q");
+    }
+
+    [Fact]
+    public void Flatten_LoopOverACopyOnACycle_HasNoIterations()
+    {
+        // Arrange
+        var definition = Definition("""
+            {"type":"checkbox","name":"other","choicesFromQuestion":"source"},
+            {"type":"checkbox","name":"source","choicesFromQuestion":"other"}
+            """);
+
+        // Act
+        var columns = Flatten(definition);
+
+        // Assert
+        LoopKeys(columns).Should().BeEmpty();
+    }
+
+    // A question that is neither a select nor a ranking drives no panels, even with a choices property.
+    [Fact]
+    public void Flatten_LoopOverAMatrixWithChoices_HasNoIterations()
+    {
+        // Arrange
+        var definition = Definition("""
+            {"type":"matrixdropdown","name":"source","choices":["a","b"],"rows":["r"],"columns":[{"name":"c"}]}
+            """);
+
+        // Act
+        var columns = Flatten(definition);
+
+        // Assert
+        LoopKeys(columns).Should().BeEmpty();
+    }
+
+    // The limit counts every value the copy offers, chained sources included, and names the loop's source.
+    [Fact]
+    public void Flatten_LoopOverACopyOfferingMoreThanTheChoiceLimit_Throws()
+    {
+        // Arrange
+        var definition = Definition("""
+            {"type":"checkbox","name":"fruit","choices":["apple","pear"]},
+            {"type":"ranking","name":"orchard","choices":["plum"]},
+            {"type":"checkbox","name":"source","edxCarryForwardEnabled":true,"edxCarryForwardSources":["orchard","fruit"]}
+            """);
+        using var document = JsonDocument.Parse(definition);
+        SchemaCompilationLimits limits = new() { MaxChoicesPerQuestion = 2 };
+
+        // Act
+        Action act = () => FormDefinitionFlattener.Flatten(document.RootElement, limits);
+
+        // Assert
+        var exception = act.Should().Throw<SchemaCompilationLimitExceededException>().Which;
+        exception.LimitKind.Should().Be(SchemaCompilationLimitKind.MaxChoicesPerQuestion);
+        exception.Context.Should().Be("source");
     }
 
     private static string Definition(string sourceQuestions) =>
