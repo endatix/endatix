@@ -34,6 +34,11 @@ ENDATIX_HUB_IMAGE="endatix/endatix-hub:latest"
 if [ -z "$AUTH_SECRET" ] && [ -f .env ]; then
   AUTH_SECRET=$(grep -E '^AUTH_SECRET=' .env | head -n 1 | cut -d '=' -f 2- | tr -d '\r')
 fi
+# The Hub refuses a secret shorter than 32 bytes, so replace one instead of keeping it
+if [ -n "$AUTH_SECRET" ] && [ "$(printf '%s' "$AUTH_SECRET" | wc -c)" -lt 32 ]; then
+  echo "The existing AUTH_SECRET is shorter than 32 bytes, so a new one is generated."
+  AUTH_SECRET=""
+fi
 if [ -z "$AUTH_SECRET" ]; then
   if ! [ -x "$(command -v openssl)" ]; then
     echo "openssl is not installed. Install it, or set AUTH_SECRET to a random value of 32+ bytes and run again."

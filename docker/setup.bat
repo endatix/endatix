@@ -35,9 +35,20 @@ set "ASPNETCORE_ENVIRONMENT=Development"
 set "ENDATIX_HUB_IMAGE=endatix/endatix-hub:latest"
 
 REM Keep the Hub's AUTH_SECRET from an earlier run, so a rerun does not sign everyone out
-IF DEFINED AUTH_SECRET goto auth_secret_ready
+IF DEFINED AUTH_SECRET goto auth_secret_check
 IF EXIST ".env" for /f "tokens=1,* delims==" %%a in ('findstr /b /c:"AUTH_SECRET=" .env') do set "AUTH_SECRET=%%b"
-IF DEFINED AUTH_SECRET goto auth_secret_ready
+IF DEFINED AUTH_SECRET goto auth_secret_check
+goto auth_secret_generate
+
+REM The Hub refuses a secret shorter than 32 bytes, so replace one instead of keeping it
+:auth_secret_check
+set "AUTH_SECRET_CHAR_32="
+call set "AUTH_SECRET_CHAR_32=%%AUTH_SECRET:~31,1%%"
+IF DEFINED AUTH_SECRET_CHAR_32 goto auth_secret_ready
+echo The existing AUTH_SECRET is shorter than 32 bytes, so a new one is generated.
+set "AUTH_SECRET="
+
+:auth_secret_generate
 for /f "delims=" %%s in ('powershell -NoProfile -Command "$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)"') do set "AUTH_SECRET=%%s"
 IF NOT DEFINED AUTH_SECRET (
     echo Could not generate AUTH_SECRET. Set AUTH_SECRET to a random value of 32+ bytes and run again.

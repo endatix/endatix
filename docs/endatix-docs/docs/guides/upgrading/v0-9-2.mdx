@@ -26,7 +26,7 @@ This page covers an upgrade from 0.9.1. Every Hub needs a strong `AUTH_SECRET` b
 - Generate a new secret with `openssl rand -base64 32` and set it as `AUTH_SECRET` before you start Hub 0.9.2. A new value signs every user out once.
 - If you set `NEXTAUTH_SECRET`, rename it to `AUTH_SECRET`.
 - Delete `SESSION_SECRET` from your env and secret store. The Helm chart still accepts its `session-secret` key for this release.
-- Compose users: the Endatix `docker-compose.yaml` now requires `AUTH_SECRET` from `.env` or the shell, and `docker/setup.sh` and `docker/setup.bat` generate one, or keep the one already in `.env`.
+- Compose users: the Endatix `docker-compose.yaml` now requires `AUTH_SECRET` from `.env` or the shell, and `docker/setup.sh` and `docker/setup.bat` generate one, or keep the one already in `.env` when it is 32 bytes or more.
 
 See [Sessions and sign-in](/docs/developers/hub/environment#sessions-and-sign-in) for the rule and the startup errors.
 
