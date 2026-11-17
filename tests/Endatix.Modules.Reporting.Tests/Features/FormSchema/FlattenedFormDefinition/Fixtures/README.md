@@ -94,6 +94,10 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
   None, because its answers are the copied values.
 - **Iteration labels:** a loop over a checkbox that copies its choices labels its iterations with their values (`1`,
   not `Brand A`) until #1724 publishes the copied choices. A loop over a ranking copy takes the source's labels.
+- **#1280, rank names in Crunch:** a rank variable is named by its choice value at top level (`Rank the brands you know
+  -- 1`), and inside a loop not by its choice at all: `cfqLoopRank`'s three variables per iteration share one name, made
+  unique with the alias (`... -- cfqAllLoop--1--cfqLoopRank--2`). An inline ranking gets the same; #1280 regroups each
+  ranking into one array.
 - **#1441, a choice the respondent was not shown:** a copy's cells are 1 or 0 for every choice once #1724 lands; the
   empty cell for a choice never shown stays in #1441.
 - **#1725, JSON keys:** the JSON export camel-cases question names (`aidedBrands`).

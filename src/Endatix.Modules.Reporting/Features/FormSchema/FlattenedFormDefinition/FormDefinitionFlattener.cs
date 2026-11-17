@@ -36,7 +36,7 @@ internal static class FormDefinitionFlattener
         List<FormSchemaColumn> Columns,
         HashSet<string> SeenKeys,
         SchemaCompilationLimits Limits,
-        ChoiceSources Choices);
+        ChoiceSources Sources);
 
     private sealed record PanelPath(
         IReadOnlyList<string> LoopPath,
@@ -673,7 +673,7 @@ internal static class FormDefinitionFlattener
         IReadOnlyList<LoopSegment>? loopPath,
         FlattenContext context)
     {
-        var choices = context.Choices.Offered(ranking).Choices;
+        var choices = context.Sources.Offered(ranking).Choices;
         EnsureWithinChoiceLimit(name, choices.Count, context.Limits);
         foreach (var choice in choices)
         {
