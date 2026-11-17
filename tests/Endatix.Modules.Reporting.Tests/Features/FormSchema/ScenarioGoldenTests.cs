@@ -36,7 +36,7 @@ public sealed class ScenarioGoldenTests
         committed.Should().BeSubsetOf(exported.Keys, because: $"scenario '{scenario}' should commit only files it exports");
         foreach (var file in committed)
         {
-            AssertMatches(file, exported[file], File.ReadAllText(Path.Combine(folder, file)), $"scenario '{scenario}' should export its committed {file}");
+            AssertMatchesCommitted(folder, file, exported[file]);
         }
     }
 
@@ -59,8 +59,10 @@ public sealed class ScenarioGoldenTests
         problems.Should().BeEmpty();
     }
 
-    private static void AssertMatches(string file, string actual, string expected, string because)
+    private static void AssertMatchesCommitted(string folder, string file, string actual)
     {
+        var expected = File.ReadAllText(Path.Combine(folder, file));
+        var because = $"scenario '{Path.GetFileName(folder)}' should export its committed {file}";
         if (ScenarioGoldens.IsJson(file))
         {
             FormSchemaFixtureAssertions.AssertJsonMatchesExpected(Parse(actual), Parse(expected), because);
