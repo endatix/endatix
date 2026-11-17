@@ -66,10 +66,7 @@ internal sealed class JobHandlerRunner(
         }
         catch (JobScopeMismatchException mismatch)
         {
-            // Deterministic: no retry changes a job's scope, so it is a returned failure, not a transient throw.
-            activity?.SetStatus(ActivityStatusCode.Error, nameof(JobScopeMismatchException));
-            logger.LogWarning(mismatch, "Background job {JobId} ({JobType}) ran in the wrong scope", job.Id, job.JobType);
-            return new HandlerInvocation(Result.Invalid(new ValidationError(mismatch.EndUserMessage)), null);
+            return WrongScope(job, activity, mismatch);
         }
         catch (Exception exception)
         {
@@ -77,6 +74,14 @@ internal sealed class JobHandlerRunner(
             activity?.SetStatus(ActivityStatusCode.Error, exception.GetType().Name);
             return new HandlerInvocation(null, exception);
         }
+    }
+
+    // Deterministic: no retry changes a job's scope, so it is a returned failure, not a transient throw.
+    private HandlerInvocation WrongScope(ClaimedJob job, Activity? activity, JobScopeMismatchException mismatch)
+    {
+        activity?.SetStatus(ActivityStatusCode.Error, nameof(JobScopeMismatchException));
+        logger.LogWarning(mismatch, "Background job {JobId} ({JobType}) ran in the wrong scope", job.Id, job.JobType);
+        return new HandlerInvocation(Result.Invalid(new ValidationError(mismatch.EndUserMessage)), null);
     }
 
     private async Task<Result> ExecuteHandlerAsync(
