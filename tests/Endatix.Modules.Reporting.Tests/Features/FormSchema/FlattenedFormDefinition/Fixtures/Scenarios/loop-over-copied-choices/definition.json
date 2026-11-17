@@ -1,0 +1,79 @@
+{
+  "pages": [
+    {
+      "name": "awareness",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "brands",
+          "title": "Which brands do you know?",
+          "choices": [
+            { "value": "1", "text": "Brand 1" },
+            { "value": "2", "text": "Brand 2" },
+            { "value": "3", "text": "Brand 3" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "aware",
+          "title": "Which of these have you bought?",
+          "choicesFromQuestion": "brands",
+          "choicesFromQuestionMode": "selected",
+          "showNoneItem": true
+        },
+        {
+          "type": "paneldynamic",
+          "name": "considerLoop",
+          "loopSource": ["aware"],
+          "templateElements": [
+            {
+              "type": "radiogroup",
+              "name": "consider",
+              "title": "Would you buy {panel.itemText} again?",
+              "choices": [
+                { "value": "1", "text": "Yes" },
+                { "value": "2", "text": "No" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "occasions",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "occasions",
+          "title": "When do you buy?",
+          "choices": [
+            { "value": "10", "text": "Morning" },
+            { "value": "20", "text": "Evening" }
+          ]
+        },
+        {
+          "type": "ranking",
+          "name": "occasionRank",
+          "title": "Rank the occasions",
+          "choicesFromQuestion": "occasions",
+          "choicesFromQuestionMode": "selected",
+          "selectToRankEnabled": true
+        },
+        {
+          "type": "paneldynamic",
+          "name": "occasionLoop",
+          "loopSource": ["occasionRank"],
+          "templateElements": [
+            {
+              "type": "radiogroup",
+              "name": "occasionBrand",
+              "title": "Which brand for {panel.itemText}?",
+              "choicesFromQuestion": "aware",
+              "choicesFromQuestionMode": "selected"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

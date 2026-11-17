@@ -24,6 +24,7 @@ Each folder under `Scenarios/` is one edge case:
 | Scenario | Case |
 | --- | --- |
 | `copied-choices-selected-mode` | A radiogroup copies its choices from a checkbox with `choicesFromQuestion` in selected mode (#1163). |
+| `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice of the first source. Until #1724 and #1723 publish the copied choices, `aware` stays one text column, `occasionRank` has no column, and iterations are labelled with their values. |
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.
 The codebook publishes only the sources' own choices, so that answer has no category and its csv-shoji cell is empty.

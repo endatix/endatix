@@ -978,7 +978,7 @@ internal static class FormDefinitionFlattener
 
         EmitLoopSourceColumnsFromLoopPanels(
             loopPanels,
-            elementsByName,
+            new LoopSources(elementsByName, ChoiceSourcesIn(elementsByName)),
             columns,
             seenKeys,
             limits);
@@ -996,6 +996,13 @@ internal static class FormDefinitionFlattener
 
         return elementsByName;
     }
+
+    private sealed record LoopSources(
+        IReadOnlyDictionary<string, CollectedElement> ElementsByName,
+        ChoiceSources Choices);
+
+    private static ChoiceSources ChoiceSourcesIn(IReadOnlyDictionary<string, CollectedElement> elementsByName) =>
+        new(elementsByName.ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal));
 
     private sealed record LoopPanelDiscovery(
         Dictionary<string, CollectedElement> LoopPanelsByName,
@@ -1040,7 +1047,7 @@ internal static class FormDefinitionFlattener
 
     private static void EmitLoopSourceColumnsFromLoopPanels(
         LoopPanelDiscovery loopPanels,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        LoopSources sources,
         List<FormSchemaColumn> columns,
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
@@ -1059,7 +1066,7 @@ internal static class FormDefinitionFlattener
                 panelNames: [],
                 driverChoicesByLevel: [],
                 loopPanels.LoopPanelsByName,
-                elementsByName,
+                sources,
                 leafPaths,
                 limits);
         }
@@ -1079,7 +1086,7 @@ internal static class FormDefinitionFlattener
         IReadOnlyList<string> panelNames,
         IReadOnlyList<IReadOnlyList<string>> driverChoicesByLevel,
         IReadOnlyDictionary<string, CollectedElement> loopPanelsByName,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        LoopSources sources,
         List<LoopSourceLeafPath> leafPaths,
         SchemaCompilationLimits limits)
     {
@@ -1088,7 +1095,7 @@ internal static class FormDefinitionFlattener
         List<string> nextLoopPath = [.. loopPath, loopPathSegment];
         List<string> nextPanelNames = [.. panelNames, panelName];
         List<IReadOnlyList<string>> nextDriverChoicesByLevel =
-            [.. driverChoicesByLevel, CollectLoopSourceDriverChoices(panel.Element, elementsByName, limits)];
+            [.. driverChoicesByLevel, CollectLoopSourceDriverChoices(panel.Element, sources, limits)];
 
         if (!panel.Element.TryGetTemplateElements(out var templateElements))
         {
@@ -1133,15 +1140,16 @@ internal static class FormDefinitionFlattener
                 nextPanelNames,
                 nextDriverChoicesByLevel,
                 loopPanelsByName,
-                elementsByName,
+                sources,
                 leafPaths,
                 limits);
         }
     }
 
+    // A driver repeats once per choice its source can offer: its own or copied ones, for any select or a ranking.
     private static IReadOnlyList<string> CollectLoopSourceDriverChoices(
         JsonElement panelElement,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        LoopSources sources,
         SchemaCompilationLimits limits)
     {
         if (!panelElement.TryGetLoopSource(out var loopSource))
@@ -1161,13 +1169,13 @@ internal static class FormDefinitionFlattener
 
             var sourceName = sourceNameElement.GetString();
             if (string.IsNullOrWhiteSpace(sourceName) ||
-                !elementsByName.TryGetValue(sourceName, out var sourceElement))
+                !sources.ElementsByName.TryGetValue(sourceName, out var sourceElement))
             {
                 continue;
             }
 
             var choiceCount = 0;
-            foreach (var choiceValue in ChoiceSet.Read(sourceElement.Element)?.LoopDriverValues ?? [])
+            foreach (var choiceValue in sources.Choices.OfferedValues(sourceElement.Element))
             {
                 if (++choiceCount > limits.MaxChoicesPerQuestion)
                 {
