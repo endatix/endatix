@@ -191,25 +191,17 @@ internal static class FlattenedSubmissionFlattener
     // An unanswered ranking is empty; an answered one ranks each choice, 0 for a choice left unranked.
     private static RankCell RankOf(JsonElement context, string questionName, string choiceValue)
     {
-        var normalizedChoice = choiceValue.Trim();
         if (context.TryGetPropertyValue(questionName) is not { ValueKind: JsonValueKind.Array } answer ||
             answer.GetArrayLength() == 0)
         {
             return RankCell.Empty;
         }
 
-        var rank = 1;
-        foreach (var item in answer.EnumerateArray())
-        {
-            if (string.Equals(item.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal))
-            {
-                return RankCell.Ranked(rank);
-            }
-
-            rank++;
-        }
-
-        return RankCell.Unranked;
+        var normalizedChoice = choiceValue.Trim();
+        var ahead = answer.EnumerateArray()
+            .TakeWhile(item => !string.Equals(item.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal))
+            .Count();
+        return ahead < answer.GetArrayLength() ? RankCell.Ranked(ahead + 1) : RankCell.Unranked;
     }
 
     private static JsonElement? TryGetMatrixRadioRowValue(JsonElement context, FormSchemaColumn column)

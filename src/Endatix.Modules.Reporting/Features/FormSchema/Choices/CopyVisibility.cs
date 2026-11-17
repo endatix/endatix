@@ -108,39 +108,37 @@ internal sealed class CopyVisibility
     /// </summary>
     public bool? Shows(string value, AnswerScope scope, ChoiceCatalogs catalogs)
     {
-        var unknown = false;
-        foreach (var source in Sources)
-        {
-            switch (ShownBy(source, value, scope, catalogs))
-            {
-                case true:
-                    return true;
-                case null:
-                    unknown = true;
-                    break;
-            }
-        }
-
-        return unknown ? null : false;
+        List<bool?> verdicts =
+        [
+            .. Sources.Select(source =>
+                new SourceAnswer(source, scope.ContextAnswering(source), catalogs.SelectOrNull(source)).Shows(Mode, value)),
+        ];
+        return verdicts.Contains(true) ? true : verdicts.Contains(null) ? null : false;
     }
 
-    private bool? ShownBy(string source, string value, AnswerScope scope, ChoiceCatalogs catalogs)
+    // One source as the cell's scope sees it: the context that answers it, and its select catalog.
+    private readonly record struct SourceAnswer(string Name, JsonElement? Context, SelectChoices? Select)
     {
-        if (scope.ContextAnswering(source) is not { } context || catalogs.SelectOrNull(source) is not { } select)
+        public bool? Shows(CopyMode mode, string value)
         {
-            return null;
-        }
+            if (Context is not { } context || Select is not { } select)
+            {
+                return null;
+            }
 
-        var picked = select.Read(context, source).Has(value);
-        return Mode switch
-        {
-            CopyMode.Selected => picked,
-            CopyMode.All => select.Offers(value),
-            _ => select.Offers(value) && !picked,
-        };
+            var picked = select.Read(context, Name).Has(value);
+            return mode switch
+            {
+                CopyMode.Selected => picked,
+                CopyMode.All => select.Offers(value),
+                _ => select.Offers(value) && !picked,
+            };
+        }
     }
 
-    private static (CopyVisibility? Rule, UnknownBecause? Reason) Compile(JsonElement question, IReadOnlyDictionary<string, JsonElement> questionsByName)
+    private static (CopyVisibility? Rule, UnknownBecause? Reason) Compile(
+        JsonElement question,
+        IReadOnlyDictionary<string, JsonElement> questionsByName)
     {
         if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward copy)
         {
@@ -148,45 +146,42 @@ internal sealed class CopyVisibility
         }
 
         var fromQuestion = question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ChoicesFromQuestion) is not null;
-        if (ModeOf(question, fromQuestion) is not { } mode)
+        var mode = ModeOf(question, fromQuestion);
+        var problem = mode is null ? UnknownBecause.UnrecognizedMode : ListProblem(question, fromQuestion);
+        return problem is null
+            ? FromSources(mode!.Value, [.. copy.Sources.Distinct(StringComparer.Ordinal).Where(questionsByName.ContainsKey).Select(name => (name, questionsByName[name]))])
+            : Unknown(problem.Value);
+    }
+
+    // Hub and SurveyJS skip a missing source and one that offers no choices, so it adds nothing to the list.
+    private static (CopyVisibility? Rule, UnknownBecause? Reason) FromSources(
+        CopyMode mode,
+        IReadOnlyList<(string Name, JsonElement Element)> sources)
+    {
+        if (sources.Select(source => SourceProblem(source.Element)).FirstOrDefault(problem => problem is not null) is { } problem)
         {
-            return Unknown(UnknownBecause.UnrecognizedMode);
+            return Unknown(problem);
         }
 
-        if (!fromQuestion && HasMaxChoices(question))
-        {
-            return Unknown(UnknownBecause.MaxChoices);
-        }
-
-        if (question.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is not null)
-        {
-            return Unknown(UnknownBecause.ChoicesVisibleIf);
-        }
-
-        // Hub and SurveyJS skip a missing source and one that offers no choices, so it adds nothing to the list.
-        List<string> sources = [];
-        foreach (var name in copy.Sources)
-        {
-            if (!questionsByName.TryGetValue(name, out var source))
-            {
-                continue;
-            }
-
-            if (SourceProblem(source) is { } problem)
-            {
-                return Unknown(problem);
-            }
-
-            if (source.IsSingleSelectBaseSelect() || source.IsMultiSelectBaseSelect())
-            {
-                sources.Add(name);
-            }
-        }
-
-        return sources.Count > 0 ? (new CopyVisibility(mode, sources), null) : Unknown(UnknownBecause.NoSelectSource);
+        List<string> selects = [.. sources.Where(source => IsSelect(source.Element)).Select(source => source.Name)];
+        return selects.Count > 0 ? (new CopyVisibility(mode, selects), null) : Unknown(UnknownBecause.NoSelectSource);
     }
 
     private static (CopyVisibility? Rule, UnknownBecause? Reason) Unknown(UnknownBecause reason) => (null, reason);
+
+    // A cap or a visibility rule on the copy shows fewer choices than its sources' answers give.
+    private static UnknownBecause? ListProblem(JsonElement question, bool fromQuestion)
+    {
+        if (!fromQuestion && HasMaxChoices(question))
+        {
+            return UnknownBecause.MaxChoices;
+        }
+
+        return question.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is null ? null : UnknownBecause.ChoicesVisibleIf;
+    }
+
+    private static bool IsSelect(JsonElement question) =>
+        question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect();
 
     // A ranking source has no select catalog to read; a copied, data-list or loaded source's list is not its own; a
     // visibility rule makes the source's visible choices depend on more than its answer.
@@ -212,26 +207,27 @@ internal sealed class CopyVisibility
 
     // SurveyJS knows the three exact values and defaults to all. Hub also accepts its loop labels, trimmed and in any
     // case, and defaults to all; an unknown string Hub would read as all stays unknown here rather than a guess.
-    private static CopyMode? ModeOf(JsonElement question, bool fromQuestion)
-    {
-        var property = fromQuestion ? SurveyJsPropertyNames.ChoicesFromQuestionMode : SurveyJsPropertyNames.CarryForwardMode;
-        var mode = question.TryGetPropertyValue(property);
-        if (fromQuestion)
-        {
-            return mode switch
-            {
-                null or { ValueKind: JsonValueKind.Null } => CopyMode.All,
-                { ValueKind: JsonValueKind.String } surveyJsMode => ParseExactMode(surveyJsMode.GetString()),
-                _ => null,
-            };
-        }
+    private static CopyMode? ModeOf(JsonElement question, bool fromQuestion) =>
+        fromQuestion
+            ? SurveyJsMode(question.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesFromQuestionMode))
+            : HubMode(question.TryGetPropertyValue(SurveyJsPropertyNames.CarryForwardMode));
 
-        if (mode is not { ValueKind: JsonValueKind.String } hubMode || string.IsNullOrWhiteSpace(hubMode.GetString()))
+    private static CopyMode? SurveyJsMode(JsonElement? mode) =>
+        mode switch
+        {
+            null or { ValueKind: JsonValueKind.Null } => CopyMode.All,
+            { ValueKind: JsonValueKind.String } text => ParseExactMode(text.GetString()),
+            _ => null,
+        };
+
+    private static CopyMode? HubMode(JsonElement? mode)
+    {
+        if (mode is not { ValueKind: JsonValueKind.String } text || string.IsNullOrWhiteSpace(text.GetString()))
         {
             return CopyMode.All;
         }
 
-        return hubMode.GetString()!.Trim().ToLowerInvariant() switch
+        return text.GetString()!.Trim().ToLowerInvariant() switch
         {
             "selected only" => CopyMode.Selected,
             "unselected only" => CopyMode.Unselected,
@@ -262,9 +258,8 @@ internal sealed class CopyVisibility
         {
             null or { ValueKind: JsonValueKind.Null } => false,
             { ValueKind: JsonValueKind.Number } number => number.GetDouble() >= 1,
-            { ValueKind: JsonValueKind.String } text => string.IsNullOrWhiteSpace(text.GetString())
-                ? false
-                : !double.TryParse(text.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var cap) || cap >= 1,
+            { ValueKind: JsonValueKind.String } text => !string.IsNullOrWhiteSpace(text.GetString()) &&
+                (!double.TryParse(text.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var cap) || cap >= 1),
             _ => true,
         };
 

@@ -60,7 +60,8 @@ internal static partial class FormSchemaCodebookBuilder
         });
 
     // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
-    // the value, so a later comment-storage definition must not make the flatten forget it.
+    // the value, so a later comment-storage definition must not make the flatten forget it. A copy's shown rule is kept
+    // only while every definition agrees on it (CopyVisibility.Merge).
     private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
     {
         if (currentCatalog.TryGetProperty(FormSchemaCodebookPropertyNames.Multiple, out var multiple))
@@ -75,6 +76,8 @@ internal static partial class FormSchemaCodebookBuilder
         {
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ChoiceSet.ToJsonName(stored));
         }
+
+        CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
     }
 
     private static OtherStorage? OtherStorageOf(JsonElement catalog) =>

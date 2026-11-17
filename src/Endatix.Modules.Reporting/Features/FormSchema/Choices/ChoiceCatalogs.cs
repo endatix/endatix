@@ -71,23 +71,19 @@ internal sealed class ChoiceCatalogs
             return Empty;
         }
 
-        Dictionary<string, SelectChoices> selects = new(StringComparer.Ordinal);
-        Dictionary<string, CopyVisibility> visibility = new(StringComparer.Ordinal);
-        foreach (var catalog in catalogs.EnumerateObject())
-        {
-            if (SelectChoices.FromCatalog(catalog.Value) is { } select)
-            {
-                selects[catalog.Name] = select;
-            }
-
-            if (CopyVisibility.Read(catalog.Value) is { } rule)
-            {
-                visibility[catalog.Name] = rule;
-            }
-        }
-
-        return new ChoiceCatalogs(selects, CopiesIn(document.RootElement), visibility);
+        return new ChoiceCatalogs(
+            ReadEach(catalogs, SelectChoices.FromCatalog),
+            CopiesIn(document.RootElement),
+            ReadEach(catalogs, CopyVisibility.Read));
     }
+
+    // Every catalog that reads as a T, by question name.
+    private static Dictionary<string, T> ReadEach<T>(JsonElement catalogs, Func<JsonElement, T?> read)
+        where T : class =>
+        catalogs.EnumerateObject()
+            .Select(catalog => (catalog.Name, Value: read(catalog.Value)))
+            .Where(entry => entry.Value is not null)
+            .ToDictionary(entry => entry.Name, entry => entry.Value!, StringComparer.Ordinal);
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
     public bool IsSelect(string question) => _selects.ContainsKey(question);
@@ -110,8 +106,7 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public IndicatorCell Indicator(AnswerScope scope, string question, string choiceValue)
     {
-        var select = For(question);
-        if (select.Read(scope.Own, question).Has(choiceValue))
+        if (For(question).Read(scope.Own, question).Has(choiceValue))
         {
             return IndicatorCell.Picked;
         }
@@ -121,43 +116,27 @@ internal sealed class ChoiceCatalogs
             return IndicatorCell.ShownNotPicked;
         }
 
-        if (!scope.OwnAnswers(question))
-        {
-            return IndicatorCell.Empty;
-        }
-
-        if (select.KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice)
-        {
-            return IndicatorCell.ShownNotPicked;
-        }
-
-        return _visibility.TryGetValue(question, out var rule) && rule.Shows(choiceValue, scope, this) == true
+        return scope.OwnAnswers(question) && AnsweredCopyShows(scope, question, choiceValue)
             ? IndicatorCell.ShownNotPicked
             : IndicatorCell.Empty;
     }
 
+    private bool AnsweredCopyShows(AnswerScope scope, string question, string choiceValue) =>
+        (For(question).KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice) ||
+        (_visibility.TryGetValue(question, out var rule) && rule.Shows(choiceValue, scope, this) == true);
+
     // Every codebook since copied choices records carryForward on the copy's question entry.
-    private static HashSet<string> CopiesIn(JsonElement codebook)
-    {
-        HashSet<string> copies = new(StringComparer.Ordinal);
-        if (codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is not
-            { ValueKind: JsonValueKind.Object } questions)
-        {
-            return copies;
-        }
+    private static HashSet<string> CopiesIn(JsonElement codebook) =>
+        codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is { ValueKind: JsonValueKind.Object } questions
+            ? new HashSet<string>(
+                questions.EnumerateObject().Where(question => IsCopy(question.Value)).Select(question => question.Name),
+                StringComparer.Ordinal)
+            : new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var question in questions.EnumerateObject())
-        {
-            if (question.Value.ValueKind == JsonValueKind.Object &&
-                question.Value.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceSource) is { ValueKind: JsonValueKind.Object } source &&
-                source.GetStringProperty(FormSchemaCodebookPropertyNames.Kind) == ChoiceSource.CarryForwardKind)
-            {
-                copies.Add(question.Name);
-            }
-        }
-
-        return copies;
-    }
+    private static bool IsCopy(JsonElement question) =>
+        question.ValueKind == JsonValueKind.Object &&
+        question.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceSource) is { ValueKind: JsonValueKind.Object } source &&
+        source.GetStringProperty(FormSchemaCodebookPropertyNames.Kind) == ChoiceSource.CarryForwardKind;
 }
 
 /// <summary>The stored choices of one select question and where its Other text goes.</summary>

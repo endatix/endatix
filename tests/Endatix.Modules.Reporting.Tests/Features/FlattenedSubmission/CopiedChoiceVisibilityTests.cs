@@ -59,17 +59,13 @@ public sealed class CopiedChoiceVisibilityTests
         cells.Should().Equal(Cells(("1", "0"), ("2", "0"), ("3", "1")));
     }
 
+    // The source picked 1 and left 2; the copy picked 3.
     [Theory]
-    [InlineData("selected", "1", "0", "2", null)]
-    [InlineData("Selected Only", "1", "0", "2", null)]
-    [InlineData("unselected", "1", null, "2", "0")]
-    [InlineData("all", "1", "0", "2", "0")]
-    public void Flatten_HubCarryForwardMode_FollowsTheSameRule(
-        string mode,
-        string picked,
-        string? pickedCell,
-        string other,
-        string? otherCell)
+    [InlineData("selected", "0", null)]
+    [InlineData("Selected Only", "0", null)]
+    [InlineData("unselected", null, "0")]
+    [InlineData("all", "0", "0")]
+    public void Flatten_HubCarryForwardMode_FollowsTheSameRule(string mode, string? sourcePicked, string? sourceLeft)
     {
         // Arrange
         var definition = Survey(
@@ -80,9 +76,7 @@ public sealed class CopiedChoiceVisibilityTests
         var cells = FlattenCopy(definition, """{"stores":["1"],"pick":["3"]}""");
 
         // Assert
-        cells[picked].Should().Be(pickedCell);
-        cells[other].Should().Be(otherCell);
-        cells["3"].Should().Be("1");
+        cells.Should().Equal(Cells(("1", sourcePicked), ("2", sourceLeft), ("3", "1")));
     }
 
     [Fact]
