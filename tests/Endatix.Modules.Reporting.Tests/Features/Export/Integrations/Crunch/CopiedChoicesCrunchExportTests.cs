@@ -277,6 +277,37 @@ public sealed class CopiedChoicesCrunchExportTests
         Column(csv, "L--1--Q3--none").Should().Equal("1");
     }
 
+    // A copy whose source cannot be read (here, missing) stays one text column of the stored values, its Other text
+    // in a text variable of its own.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Export_CheckboxCopyOfAMissingQuestion_ExportsTheAnswerAsText(bool showOther)
+    {
+        // Arrange
+        var definition = Definition($$"""
+            {"type":"checkbox","name":"Q2","choicesFromQuestion":"Q0","choices":["item1"],"showOtherItem":{{(showOther ? "true" : "false")}}}
+            """);
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("r1", """{"Q1":["1"],"Q2":["2","other"],"Q2-Comment":"typed"}""", null),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        pipeline.FlattenAll(definition, responses);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+
+        // Assert
+        VariableType(shoji, "Q2").Should().Be("text");
+        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+        var (headers, _) = CrunchImportCheck.Read(csv);
+        headers.Should().NotContain(header => header.Contains("item1", StringComparison.Ordinal));
+        Column(csv, "Q2").Should().ContainSingle().Which.Should().Contain("2");
+    }
+
     // Stored before #1724, a copy was one text column. A Merge compile keeps that column next to the new indicators, and
     // the Shoji codebook has no variable for it, as for any question turned from text into a checkbox under Merge. So
     // existing forms are recompiled with replace=true.

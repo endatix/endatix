@@ -6,7 +6,8 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 
 /// <summary>
 /// The choices of a ranking: its own, or the ones it copies (<see cref="ChoiceSources.Offered"/>), whatever the copy's
-/// mode, each copied choice labelled on its source question.
+/// mode, each copied choice labelled on its source question. A column's choice label reads a copied choice the same way,
+/// for a ranking or a select.
 /// </summary>
 internal static partial class FormSchemaCodebookBuilder
 {
@@ -68,7 +69,8 @@ internal static partial class FormSchemaCodebookBuilder
     // items are its own, so they are not found here.
     private static SourceChoice? CopiedChoice(JsonElement question, string value, ChoiceSources choiceSources)
     {
-        if (choiceSources.Offered(question) is not { IsCopied: true } offered)
+        if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward ||
+            choiceSources.Offered(question) is not { IsCopied: true } offered)
         {
             return null;
         }

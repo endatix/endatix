@@ -36,32 +36,19 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteEndArray();
     }
 
-    // A single select whose choices cannot be read stays categorical, marked degraded: exports read it as text.
-    private static JsonElement BuildSingleSelectEntry(CollectedQuestion question, ResolvedChoices choices) =>
+    // A select whose choices cannot be read is marked degraded: a single select stays categorical and a multi-select
+    // has no indicator columns, and exports read either as text.
+    private static JsonElement BuildSelectEntry(CollectedQuestion question, ResolvedChoices choices) =>
         WriteQuestionEntry(writer =>
         {
             writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, question.Element.GetSurveyJsType()!);
             WriteTitle(writer, question.Element);
             WriteDescription(writer, question.Element);
             question.Placement.WriteTo(writer);
-            writer.WriteString(
-                FormSchemaCodebookPropertyNames.ExportShape,
-                FormSchemaCodebookExportShape.Categorical.Name);
-            choices.WriteTo(writer);
-            WriteChoices(writer, question.Element, choices);
-        });
-
-    // A multi-select whose choices cannot be read is marked degraded: its answers export as one text column.
-    private static JsonElement BuildMultipleSelectEntry(CollectedQuestion question, ResolvedChoices choices) =>
-        WriteQuestionEntry(writer =>
-        {
-            writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, question.Element.GetSurveyJsType()!);
-            WriteTitle(writer, question.Element);
-            WriteDescription(writer, question.Element);
-            question.Placement.WriteTo(writer);
-            writer.WriteString(
-                FormSchemaCodebookPropertyNames.ExportShape,
-                FormSchemaCodebookExportShape.MultipleResponse.Name);
+            var shape = question.Element.IsMultiSelectBaseSelect()
+                ? FormSchemaCodebookExportShape.MultipleResponse
+                : FormSchemaCodebookExportShape.Categorical;
+            writer.WriteString(FormSchemaCodebookPropertyNames.ExportShape, shape.Name);
             choices.WriteTo(writer);
             WriteChoices(writer, question.Element, choices);
         });

@@ -529,15 +529,9 @@ internal static partial class FormSchemaCodebookBuilder
             return true;
         }
 
-        if (element.IsSingleSelectBaseSelect())
+        if (element.IsSingleSelectBaseSelect() || element.IsMultiSelectBaseSelect())
         {
-            questionEntry = BuildSingleSelectEntry(question, choiceSources.Resolve(element));
-            return true;
-        }
-
-        if (element.IsMultiSelectBaseSelect())
-        {
-            questionEntry = BuildMultipleSelectEntry(question, choiceSources.Resolve(element));
+            questionEntry = BuildSelectEntry(question, choiceSources.Resolve(element));
             return true;
         }
 
