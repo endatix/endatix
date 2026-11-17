@@ -460,6 +460,12 @@
           "name": "Pick stores (cfq, selected)",
           "description": ""
         },
+        "cfqTagPick": {
+          "type": "text",
+          "alias": "cfqTagPick",
+          "name": "Tag stores (cfq, all, tagbox)",
+          "description": ""
+        },
         "cfqUnselectedPick": {
           "type": "text",
           "alias": "cfqUnselectedPick",
@@ -1104,6 +1110,12 @@
           "name": "cfqAllLoop -- Rank stores after 3 (cfq, all) -- cfqAllLoop--3--cfqLoopRank--3",
           "description": ""
         },
+        "edxAllLoop--1--edxLoopPick--other_text": {
+          "type": "text",
+          "alias": "edxAllLoop--1--edxLoopPick--other_text",
+          "name": "edxAllLoop -- Stores you would revisit after 1 (edx, unselected) -- Other",
+          "description": ""
+        },
         "edxAllLoop--1--edxLoopRank--1": {
           "type": "numeric",
           "alias": "edxAllLoop--1--edxLoopRank--1",
@@ -1122,6 +1134,12 @@
           "name": "edxAllLoop -- Rank stores after 1 (edx, selected) -- edxAllLoop--1--edxLoopRank--3",
           "description": ""
         },
+        "edxAllLoop--2--edxLoopPick--other_text": {
+          "type": "text",
+          "alias": "edxAllLoop--2--edxLoopPick--other_text",
+          "name": "edxAllLoop -- Stores you would revisit after 2 (edx, unselected) -- Other",
+          "description": ""
+        },
         "edxAllLoop--2--edxLoopRank--1": {
           "type": "numeric",
           "alias": "edxAllLoop--2--edxLoopRank--1",
@@ -1138,6 +1156,12 @@
           "type": "numeric",
           "alias": "edxAllLoop--2--edxLoopRank--3",
           "name": "edxAllLoop -- Rank stores after 2 (edx, selected) -- edxAllLoop--2--edxLoopRank--3",
+          "description": ""
+        },
+        "edxAllLoop--3--edxLoopPick--other_text": {
+          "type": "text",
+          "alias": "edxAllLoop--3--edxLoopPick--other_text",
+          "name": "edxAllLoop -- Stores you would revisit after 3 (edx, unselected) -- Other",
           "description": ""
         },
         "edxAllLoop--3--edxLoopRank--1": {
@@ -1332,6 +1356,126 @@
             }
           ]
         },
+        "edxAllLoop--1--edxLoopPick": {
+          "type": "multiple_response",
+          "alias": "edxAllLoop--1--edxLoopPick",
+          "name": "Stores you would revisit after 1 (edx, unselected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxAllLoop--1--edxLoopPick--item1",
+              "name": "item1"
+            },
+            {
+              "alias": "edxAllLoop--1--edxLoopPick--item2",
+              "name": "item2"
+            },
+            {
+              "alias": "edxAllLoop--1--edxLoopPick--item3",
+              "name": "item3"
+            },
+            {
+              "alias": "edxAllLoop--1--edxLoopPick--other",
+              "name": "Other"
+            }
+          ]
+        },
+        "edxAllLoop--2--edxLoopPick": {
+          "type": "multiple_response",
+          "alias": "edxAllLoop--2--edxLoopPick",
+          "name": "Stores you would revisit after 2 (edx, unselected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxAllLoop--2--edxLoopPick--item1",
+              "name": "item1"
+            },
+            {
+              "alias": "edxAllLoop--2--edxLoopPick--item2",
+              "name": "item2"
+            },
+            {
+              "alias": "edxAllLoop--2--edxLoopPick--item3",
+              "name": "item3"
+            },
+            {
+              "alias": "edxAllLoop--2--edxLoopPick--other",
+              "name": "Other"
+            }
+          ]
+        },
+        "edxAllLoop--3--edxLoopPick": {
+          "type": "multiple_response",
+          "alias": "edxAllLoop--3--edxLoopPick",
+          "name": "Stores you would revisit after 3 (edx, unselected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxAllLoop--3--edxLoopPick--item1",
+              "name": "item1"
+            },
+            {
+              "alias": "edxAllLoop--3--edxLoopPick--item2",
+              "name": "item2"
+            },
+            {
+              "alias": "edxAllLoop--3--edxLoopPick--item3",
+              "name": "item3"
+            },
+            {
+              "alias": "edxAllLoop--3--edxLoopPick--other",
+              "name": "Other"
+            }
+          ]
+        },
         "brandPool": {
           "type": "text",
           "alias": "brandPool",
@@ -1385,6 +1529,7 @@
             "cfqAllRank--1",
             "cfqAllRank--2",
             "cfqAllRank--3",
+            "cfqTagPick",
             "cfqSelectedPick",
             "cfqSelectedOne",
             "cfqSelectedRank--1",
@@ -1516,12 +1661,18 @@
                 "edxAllLoop--1--edxLoopRank--1",
                 "edxAllLoop--1--edxLoopRank--2",
                 "edxAllLoop--1--edxLoopRank--3",
+                "edxAllLoop--1--edxLoopPick",
+                "edxAllLoop--1--edxLoopPick--other_text",
                 "edxAllLoop--2--edxLoopRank--1",
                 "edxAllLoop--2--edxLoopRank--2",
                 "edxAllLoop--2--edxLoopRank--3",
+                "edxAllLoop--2--edxLoopPick",
+                "edxAllLoop--2--edxLoopPick--other_text",
                 "edxAllLoop--3--edxLoopRank--1",
                 "edxAllLoop--3--edxLoopRank--2",
-                "edxAllLoop--3--edxLoopRank--3"
+                "edxAllLoop--3--edxLoopRank--3",
+                "edxAllLoop--3--edxLoopPick",
+                "edxAllLoop--3--edxLoopPick--other_text"
               ]
             },
             {

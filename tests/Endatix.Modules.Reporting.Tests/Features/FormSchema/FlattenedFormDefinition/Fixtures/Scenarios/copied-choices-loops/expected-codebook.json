@@ -406,6 +406,25 @@
         }
       ]
     },
+    "cfqTagPick": {
+      "surveyJsType": "tagbox",
+      "title": {
+        "default": "Tag stores (cfq, all, tagbox)"
+      },
+      "pageName": "copies",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "none",
+          "id": 1,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
     "cfqUnselectedLoop": {
       "surveyJsType": "paneldynamic",
       "title": {},
@@ -716,6 +735,52 @@
           "id": 3,
           "text": {
             "default": "Store C"
+          }
+        }
+      ]
+    },
+    "edxLoopPick": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "parentPanelTitle": "edxAllLoop",
+      "parentPanels": [
+        {
+          "key": "edxAllLoop",
+          "title": "edxAllLoop"
+        }
+      ],
+      "pageName": "copies",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "item1",
+          "id": 1,
+          "text": {
+            "default": "item1"
+          }
+        },
+        {
+          "value": "item2",
+          "id": 2,
+          "text": {
+            "default": "item2"
+          }
+        },
+        {
+          "value": "item3",
+          "id": 3,
+          "text": {
+            "default": "item3"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Other"
           }
         }
       ]
@@ -2113,6 +2178,14 @@
         "default": "Store C"
       }
     },
+    "cfqTagPick": {
+      "parentKey": "cfqTagPick",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Tag stores (cfq, all, tagbox)"
+      }
+    },
     "cfqUnselectedLoop__1__cfqUnselectedOk": {
       "parentKey": "cfqUnselectedOk",
       "surveyJsType": "radiogroup",
@@ -2298,6 +2371,97 @@
         }
       ]
     },
+    "edxAllLoop__1__edxLoopPick__item1": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item1",
+      "choiceLabel": {
+        "default": "item1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "edxAllLoop__1__edxLoopPick__item2": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item2",
+      "choiceLabel": {
+        "default": "item2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "edxAllLoop__1__edxLoopPick__item3": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item3",
+      "choiceLabel": {
+        "default": "item3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "edxAllLoop__1__edxLoopPick__other": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "edxAllLoop__1__edxLoopPick__other_text": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
     "edxAllLoop__1__edxLoopRank__1": {
       "parentKey": "edxLoopRank",
       "surveyJsType": "ranking",
@@ -2370,6 +2534,97 @@
         }
       ]
     },
+    "edxAllLoop__2__edxLoopPick__item1": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item1",
+      "choiceLabel": {
+        "default": "item1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "edxAllLoop__2__edxLoopPick__item2": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item2",
+      "choiceLabel": {
+        "default": "item2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "edxAllLoop__2__edxLoopPick__item3": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item3",
+      "choiceLabel": {
+        "default": "item3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "edxAllLoop__2__edxLoopPick__other": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "edxAllLoop__2__edxLoopPick__other_text": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
     "edxAllLoop__2__edxLoopRank__1": {
       "parentKey": "edxLoopRank",
       "surveyJsType": "ranking",
@@ -2433,6 +2688,97 @@
       "exportShape": "categorical",
       "title": {
         "default": "Is {panel.itemText} open late?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "edxAllLoop__3__edxLoopPick__item1": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item1",
+      "choiceLabel": {
+        "default": "item1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "edxAllLoop__3__edxLoopPick__item2": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item2",
+      "choiceLabel": {
+        "default": "item2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "edxAllLoop__3__edxLoopPick__item3": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "item3",
+      "choiceLabel": {
+        "default": "item3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "edxAllLoop__3__edxLoopPick__other": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "edxAllLoop__3__edxLoopPick__other_text": {
+      "parentKey": "edxLoopPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
       "loopPath": [
         {
@@ -3502,6 +3848,20 @@
         }
       ]
     },
+    "cfqTagPick": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "none",
+          "id": 1,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
     "cfqUnselectedOk": {
       "multiple": false,
       "choices": [
@@ -3665,6 +4025,41 @@
           "id": 3,
           "text": {
             "default": "Store C"
+          }
+        }
+      ]
+    },
+    "edxLoopPick": {
+      "multiple": true,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "item1",
+          "id": 1,
+          "text": {
+            "default": "item1"
+          }
+        },
+        {
+          "value": "item2",
+          "id": 2,
+          "text": {
+            "default": "item2"
+          }
+        },
+        {
+          "value": "item3",
+          "id": 3,
+          "text": {
+            "default": "item3"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Other"
           }
         }
       ]

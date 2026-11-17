@@ -178,7 +178,12 @@
     {
       "itemValue": "3",
       "loopIndex": 1,
-      "edxAllOk": "2"
+      "edxAllOk": "2",
+      "edxLoopPick": [
+        "1",
+        "other"
+      ],
+      "edxLoopPick-Comment": "Corner shop"
     },
     {
       "itemValue": "2",
@@ -187,6 +192,9 @@
       "edxLoopRank": [
         "3",
         "1"
+      ],
+      "edxLoopPick": [
+        "2"
       ]
     }
   ],
@@ -261,5 +269,9 @@
     1,
     2,
     3
+  ],
+  "cfqTagPick": [
+    "1",
+    "3"
   ]
 }

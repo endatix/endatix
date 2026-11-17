@@ -282,6 +282,20 @@
       "loopPath": null
     },
     {
+      "key": "cfqTagPick",
+      "kind": "Simple",
+      "label": "Tag stores (cfq, all, tagbox)",
+      "dataType": "string",
+      "sourceQuestion": "cfqTagPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
       "key": "cfqSelectedPick",
       "kind": "Simple",
       "label": "Pick stores (cfq, selected)",
@@ -2026,6 +2040,106 @@
       ]
     },
     {
+      "key": "edxAllLoop__1__edxLoopPick__item1",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item1",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__item2",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item2",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__item3",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item3",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__other",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other text",
+      "dataType": "string",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
       "key": "edxAllLoop__2__edxAllOk",
       "kind": "LoopSource",
       "label": "Is {panel.itemText} open late?",
@@ -2106,6 +2220,106 @@
       ]
     },
     {
+      "key": "edxAllLoop__2__edxLoopPick__item1",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item1",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__item2",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item2",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__item3",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item3",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__other",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other text",
+      "dataType": "string",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
       "key": "edxAllLoop__3__edxAllOk",
       "kind": "LoopSource",
       "label": "Is {panel.itemText} open late?",
@@ -2172,6 +2386,106 @@
       "dataType": "number",
       "sourceQuestion": "edxLoopRank",
       "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__item1",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item1",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__item2",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item2",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__item3",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — item3",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "item3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__other",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other text",
+      "dataType": "string",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": null,
       "panelName": null,
       "panelIndex": null,
       "matrixRowValue": null,

@@ -288,6 +288,14 @@
           "choicesFromQuestionMode": "all"
         },
         {
+          "type": "tagbox",
+          "name": "cfqTagPick",
+          "title": "Tag stores (cfq, all, tagbox)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "all",
+          "showNoneItem": true
+        },
+        {
           "type": "paneldynamic",
           "name": "cfqAllLoop",
           "loopSource": [
@@ -489,6 +497,22 @@
                 "stores"
               ],
               "edxCarryForwardMode": "selected"
+            },
+            {
+              "type": "checkbox",
+              "name": "edxLoopPick",
+              "title": "Stores you would revisit after {panel.itemText} (edx, unselected)",
+              "edxCarryForwardEnabled": true,
+              "edxCarryForwardSources": [
+                "stores"
+              ],
+              "edxCarryForwardMode": "unselected",
+              "choices": [
+                "item1",
+                "item2",
+                "item3"
+              ],
+              "showOtherItem": true
             }
           ]
         },

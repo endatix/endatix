@@ -62,7 +62,9 @@ About 50 questions on five pages, three choices each, and one response that answ
   - `rankLoop` over `brandRank`, with a radiogroup copying `AidedBrands`;
   - `reasonLoop` over `AidedBrands` with `randomizeLoop`, with a text question;
   - `cfqAllLoop` and `edxAllLoop` (copy matrix, below) each also hold a ranking copying `stores`: `cfqLoopRank`
-    (`choicesFromQuestion`, all) and `edxLoopRank` (`edxCarryForwardSources`, selected).
+    (`choicesFromQuestion`, all) and `edxLoopRank` (`edxCarryForwardSources`, selected). `edxAllLoop` also holds
+    `edxLoopPick`, a checkbox copying `stores` (`edxCarryForwardSources`, unselected, Other) that keeps the Creator's
+    `item1..3`.
 - **Copy matrix,** all copying `stores`:
 
   | Syntax | Mode | Checkbox | Radiogroup | Ranking | Loop (source) |
@@ -73,6 +75,8 @@ About 50 questions on five pages, three choices each, and one response that answ
   | `edxCarryForwardSources` | all | `edxAllPick` | `edxAllOne` | `edxAllRank` | `edxAllLoop` (checkbox) |
   | `edxCarryForwardSources` | selected | `edxSelectedPick` | `edxSelectedOne` | `edxSelectedRank` | `edxSelectedLoop` (ranking) |
   | `edxCarryForwardSources` | unselected | `edxUnselectedPick` | `edxUnselectedOne` | `edxUnselectedRank` | `edxUnselectedLoop` (radiogroup) |
+
+  `cfqTagPick` is a tagbox copying `stores` (`choicesFromQuestion`, all, None).
 
   The mode does not change the export: a copy publishes every choice its sources offer, whichever the respondent was
   shown, so the three rows of each syntax compile alike.
@@ -89,9 +93,10 @@ been captured from a Hub submission yet.
 
 The goldens hold today's output, wrong parts included, so each fix shows up as a golden diff:
 
-- **#1724, a checkbox that copies its choices:** `AidedBrands`, every `*Pick` and each loop's `traits` (and `aware` in
-  `loop-over-copied-choices`) export as one text column of the picked values (Shoji `text`). `attribute` gets the leftover `item1..3` and `none` columns, all 0 except
-  None, because its answers are the copied values.
+- **#1724, a checkbox that copies its choices:** `AidedBrands`, every `*Pick`, `cfqTagPick` and each loop's `traits`
+  (and `aware` in `loop-over-copied-choices`) export as one text column of the picked values (Shoji `text`).
+  `attribute` and `edxLoopPick` get the leftover `item1..3` columns (and `none` or `other`), all 0 except the special
+  items, because their answers are the copied values.
 - **Iteration labels:** a loop over a checkbox that copies its choices labels its iterations with their values (`1`,
   not `Brand A`) until #1724 publishes the copied choices. A loop over a ranking copy takes the source's labels.
 - **#1280, rank names in Crunch:** a rank variable is named by its choice value at top level (`Rank the brands you know
