@@ -467,7 +467,7 @@ internal static class FormDefinitionFlattener
                 case SurveyJsFlattening.None:
                     break;
                 case SurveyJsFlattening.ChoiceIndicators:
-                    EmitChoiceIndicatorColumns(collected, drivingCheckboxNames, columns, seenKeys, limits);
+                    EmitChoiceIndicatorColumns(collected, drivingCheckboxNames, context);
                     break;
                 case SurveyJsFlattening.Ranking:
                     EmitRankingColumns(collected, context);
@@ -576,12 +576,11 @@ internal static class FormDefinitionFlattener
         }
     }
 
+    // One indicator per choice the question offers: its own, or every choice its sources offer whatever the mode.
     private static void EmitChoiceIndicatorColumns(
         CollectedElement collected,
         HashSet<string> drivingCheckboxNames,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
         var name = collected.Name!;
 
@@ -590,10 +589,11 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        var choices = ChoiceSet.Read(collected.Element)!;
+        var (columns, seenKeys, limits, sources) = context;
+        var choices = ChoiceSet.Read(collected.Element, choices: sources.Resolve(collected.Element))!;
 
-        // Data-list and other lazy multi-selects have no choices on the form.
-        // One column keeps the selected values (including "other" and special items) instead of dropping them.
+        // A data list, a lazy multi-select or a copy whose source cannot be read has no choices on the form. One
+        // column keeps the selected values (including "other" and special items) instead of dropping them.
         if (!choices.HasInlineChoices)
         {
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
@@ -1287,14 +1287,7 @@ internal static class FormDefinitionFlattener
         switch (flattening)
         {
             case SurveyJsFlattening.ChoiceIndicators:
-                EmitLoopSourceChoiceIndicatorColumns(
-                    template,
-                    childName,
-                    keyPrefix,
-                    loopPath,
-                    columns,
-                    seenKeys,
-                    limits);
+                EmitLoopSourceChoiceIndicatorColumns(template, childName, keyPrefix, loopPath, context);
                 break;
             case SurveyJsFlattening.Simple when template.IsSingleSelectBaseSelect():
                 EmitLoopSourceSingleSelectColumn(
@@ -1380,11 +1373,10 @@ internal static class FormDefinitionFlattener
         string childName,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
-        var choices = ChoiceSet.Read(template)!;
+        var (columns, seenKeys, limits, sources) = context;
+        var choices = ChoiceSet.Read(template, choices: sources.Resolve(template))!;
         if (!choices.HasInlineChoices)
         {
             EmitLoopSourceSingleSelectColumn(

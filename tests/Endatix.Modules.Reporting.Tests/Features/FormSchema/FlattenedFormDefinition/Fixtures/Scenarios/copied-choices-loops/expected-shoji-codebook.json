@@ -90,6 +90,302 @@
           "name": "Submitter Display ID",
           "description": ""
         },
+        "AidedBrands": {
+          "type": "multiple_response",
+          "alias": "AidedBrands",
+          "name": "Which of these brands have you heard of?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "AidedBrands--1",
+              "name": "<p><b>Brand A</b></p>"
+            },
+            {
+              "alias": "AidedBrands--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "AidedBrands--3",
+              "name": "Brand C"
+            },
+            {
+              "alias": "AidedBrands--none",
+              "name": "None"
+            }
+          ]
+        },
+        "cfqAllPick": {
+          "type": "multiple_response",
+          "alias": "cfqAllPick",
+          "name": "Pick stores (cfq, all)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "cfqAllPick--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqAllPick--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqAllPick--3",
+              "name": "Store C"
+            }
+          ]
+        },
+        "cfqSelectedPick": {
+          "type": "multiple_response",
+          "alias": "cfqSelectedPick",
+          "name": "Pick stores (cfq, selected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "cfqSelectedPick--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqSelectedPick--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqSelectedPick--3",
+              "name": "Store C"
+            }
+          ]
+        },
+        "cfqTagPick": {
+          "type": "multiple_response",
+          "alias": "cfqTagPick",
+          "name": "Tag stores (cfq, all, tagbox)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "cfqTagPick--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqTagPick--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqTagPick--3",
+              "name": "Store C"
+            },
+            {
+              "alias": "cfqTagPick--none",
+              "name": "None"
+            }
+          ]
+        },
+        "cfqUnselectedPick": {
+          "type": "multiple_response",
+          "alias": "cfqUnselectedPick",
+          "name": "Pick stores (cfq, unselected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "cfqUnselectedPick--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqUnselectedPick--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqUnselectedPick--3",
+              "name": "Store C"
+            }
+          ]
+        },
+        "edxAllPick": {
+          "type": "multiple_response",
+          "alias": "edxAllPick",
+          "name": "Pick stores (edx, all)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxAllPick--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxAllPick--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxAllPick--3",
+              "name": "Store C"
+            }
+          ]
+        },
+        "edxSelectedPick": {
+          "type": "multiple_response",
+          "alias": "edxSelectedPick",
+          "name": "Pick stores (edx, selected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxSelectedPick--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxSelectedPick--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxSelectedPick--3",
+              "name": "Store C"
+            }
+          ]
+        },
+        "edxUnselectedPick": {
+          "type": "multiple_response",
+          "alias": "edxUnselectedPick",
+          "name": "Pick stores (edx, unselected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxUnselectedPick--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxUnselectedPick--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxUnselectedPick--3",
+              "name": "Store C"
+            }
+          ]
+        },
         "hiddenBrands": {
           "type": "multiple_response",
           "alias": "hiddenBrands",
@@ -442,58 +738,10 @@
             }
           ]
         },
-        "AidedBrands": {
-          "type": "text",
-          "alias": "AidedBrands",
-          "name": "Which of these brands have you heard of?",
-          "description": ""
-        },
-        "cfqAllPick": {
-          "type": "text",
-          "alias": "cfqAllPick",
-          "name": "Pick stores (cfq, all)",
-          "description": ""
-        },
-        "cfqSelectedPick": {
-          "type": "text",
-          "alias": "cfqSelectedPick",
-          "name": "Pick stores (cfq, selected)",
-          "description": ""
-        },
-        "cfqTagPick": {
-          "type": "text",
-          "alias": "cfqTagPick",
-          "name": "Tag stores (cfq, all, tagbox)",
-          "description": ""
-        },
-        "cfqUnselectedPick": {
-          "type": "text",
-          "alias": "cfqUnselectedPick",
-          "name": "Pick stores (cfq, unselected)",
-          "description": ""
-        },
         "comments": {
           "type": "text",
           "alias": "comments",
           "name": "Anything else?",
-          "description": ""
-        },
-        "edxAllPick": {
-          "type": "text",
-          "alias": "edxAllPick",
-          "name": "Pick stores (edx, all)",
-          "description": ""
-        },
-        "edxSelectedPick": {
-          "type": "text",
-          "alias": "edxSelectedPick",
-          "name": "Pick stores (edx, selected)",
-          "description": ""
-        },
-        "edxUnselectedPick": {
-          "type": "text",
-          "alias": "edxUnselectedPick",
-          "name": "Pick stores (edx, unselected)",
           "description": ""
         },
         "brandRank--1": {
@@ -800,15 +1048,15 @@
           "subvariables": [
             {
               "alias": "cfqAllLoop--1--cfqAllOk",
-              "name": "1"
+              "name": "Store A"
             },
             {
               "alias": "cfqAllLoop--2--cfqAllOk",
-              "name": "2"
+              "name": "Store B"
             },
             {
               "alias": "cfqAllLoop--3--cfqAllOk",
-              "name": "3"
+              "name": "Store C"
             }
           ]
         },
@@ -902,15 +1150,15 @@
           "subvariables": [
             {
               "alias": "considerLoop--1--consider",
-              "name": "1"
+              "name": "<p><b>Brand A</b></p>"
             },
             {
               "alias": "considerLoop--2--consider",
-              "name": "2"
+              "name": "Brand B"
             },
             {
               "alias": "considerLoop--3--consider",
-              "name": "3"
+              "name": "Brand C"
             }
           ]
         },
@@ -936,15 +1184,15 @@
           "subvariables": [
             {
               "alias": "edxAllLoop--1--edxAllOk",
-              "name": "1"
+              "name": "Store A"
             },
             {
               "alias": "edxAllLoop--2--edxAllOk",
-              "name": "2"
+              "name": "Store B"
             },
             {
               "alias": "edxAllLoop--3--edxAllOk",
-              "name": "3"
+              "name": "Store C"
             }
           ]
         },
@@ -1059,181 +1307,163 @@
         "cfqAllLoop--1--cfqLoopRank--1": {
           "type": "numeric",
           "alias": "cfqAllLoop--1--cfqLoopRank--1",
-          "name": "cfqAllLoop -- Rank stores after 1 (cfq, all)",
+          "name": "cfqAllLoop -- Rank stores after Store A (cfq, all)",
           "description": ""
         },
         "cfqAllLoop--1--cfqLoopRank--2": {
           "type": "numeric",
           "alias": "cfqAllLoop--1--cfqLoopRank--2",
-          "name": "cfqAllLoop -- Rank stores after 1 (cfq, all) -- cfqAllLoop--1--cfqLoopRank--2",
+          "name": "cfqAllLoop -- Rank stores after Store A (cfq, all) -- cfqAllLoop--1--cfqLoopRank--2",
           "description": ""
         },
         "cfqAllLoop--1--cfqLoopRank--3": {
           "type": "numeric",
           "alias": "cfqAllLoop--1--cfqLoopRank--3",
-          "name": "cfqAllLoop -- Rank stores after 1 (cfq, all) -- cfqAllLoop--1--cfqLoopRank--3",
+          "name": "cfqAllLoop -- Rank stores after Store A (cfq, all) -- cfqAllLoop--1--cfqLoopRank--3",
           "description": ""
         },
         "cfqAllLoop--2--cfqLoopRank--1": {
           "type": "numeric",
           "alias": "cfqAllLoop--2--cfqLoopRank--1",
-          "name": "cfqAllLoop -- Rank stores after 2 (cfq, all)",
+          "name": "cfqAllLoop -- Rank stores after Store B (cfq, all)",
           "description": ""
         },
         "cfqAllLoop--2--cfqLoopRank--2": {
           "type": "numeric",
           "alias": "cfqAllLoop--2--cfqLoopRank--2",
-          "name": "cfqAllLoop -- Rank stores after 2 (cfq, all) -- cfqAllLoop--2--cfqLoopRank--2",
+          "name": "cfqAllLoop -- Rank stores after Store B (cfq, all) -- cfqAllLoop--2--cfqLoopRank--2",
           "description": ""
         },
         "cfqAllLoop--2--cfqLoopRank--3": {
           "type": "numeric",
           "alias": "cfqAllLoop--2--cfqLoopRank--3",
-          "name": "cfqAllLoop -- Rank stores after 2 (cfq, all) -- cfqAllLoop--2--cfqLoopRank--3",
+          "name": "cfqAllLoop -- Rank stores after Store B (cfq, all) -- cfqAllLoop--2--cfqLoopRank--3",
           "description": ""
         },
         "cfqAllLoop--3--cfqLoopRank--1": {
           "type": "numeric",
           "alias": "cfqAllLoop--3--cfqLoopRank--1",
-          "name": "cfqAllLoop -- Rank stores after 3 (cfq, all)",
+          "name": "cfqAllLoop -- Rank stores after Store C (cfq, all)",
           "description": ""
         },
         "cfqAllLoop--3--cfqLoopRank--2": {
           "type": "numeric",
           "alias": "cfqAllLoop--3--cfqLoopRank--2",
-          "name": "cfqAllLoop -- Rank stores after 3 (cfq, all) -- cfqAllLoop--3--cfqLoopRank--2",
+          "name": "cfqAllLoop -- Rank stores after Store C (cfq, all) -- cfqAllLoop--3--cfqLoopRank--2",
           "description": ""
         },
         "cfqAllLoop--3--cfqLoopRank--3": {
           "type": "numeric",
           "alias": "cfqAllLoop--3--cfqLoopRank--3",
-          "name": "cfqAllLoop -- Rank stores after 3 (cfq, all) -- cfqAllLoop--3--cfqLoopRank--3",
+          "name": "cfqAllLoop -- Rank stores after Store C (cfq, all) -- cfqAllLoop--3--cfqLoopRank--3",
           "description": ""
         },
         "edxAllLoop--1--edxLoopPick--other_text": {
           "type": "text",
           "alias": "edxAllLoop--1--edxLoopPick--other_text",
-          "name": "edxAllLoop -- Stores you would revisit after 1 (edx, unselected) -- Other",
+          "name": "edxAllLoop -- Stores you would revisit after Store A (edx, unselected) -- Other",
           "description": ""
         },
         "edxAllLoop--1--edxLoopRank--1": {
           "type": "numeric",
           "alias": "edxAllLoop--1--edxLoopRank--1",
-          "name": "edxAllLoop -- Rank stores after 1 (edx, selected)",
+          "name": "edxAllLoop -- Rank stores after Store A (edx, selected)",
           "description": ""
         },
         "edxAllLoop--1--edxLoopRank--2": {
           "type": "numeric",
           "alias": "edxAllLoop--1--edxLoopRank--2",
-          "name": "edxAllLoop -- Rank stores after 1 (edx, selected) -- edxAllLoop--1--edxLoopRank--2",
+          "name": "edxAllLoop -- Rank stores after Store A (edx, selected) -- edxAllLoop--1--edxLoopRank--2",
           "description": ""
         },
         "edxAllLoop--1--edxLoopRank--3": {
           "type": "numeric",
           "alias": "edxAllLoop--1--edxLoopRank--3",
-          "name": "edxAllLoop -- Rank stores after 1 (edx, selected) -- edxAllLoop--1--edxLoopRank--3",
+          "name": "edxAllLoop -- Rank stores after Store A (edx, selected) -- edxAllLoop--1--edxLoopRank--3",
           "description": ""
         },
         "edxAllLoop--2--edxLoopPick--other_text": {
           "type": "text",
           "alias": "edxAllLoop--2--edxLoopPick--other_text",
-          "name": "edxAllLoop -- Stores you would revisit after 2 (edx, unselected) -- Other",
+          "name": "edxAllLoop -- Stores you would revisit after Store B (edx, unselected) -- Other",
           "description": ""
         },
         "edxAllLoop--2--edxLoopRank--1": {
           "type": "numeric",
           "alias": "edxAllLoop--2--edxLoopRank--1",
-          "name": "edxAllLoop -- Rank stores after 2 (edx, selected)",
+          "name": "edxAllLoop -- Rank stores after Store B (edx, selected)",
           "description": ""
         },
         "edxAllLoop--2--edxLoopRank--2": {
           "type": "numeric",
           "alias": "edxAllLoop--2--edxLoopRank--2",
-          "name": "edxAllLoop -- Rank stores after 2 (edx, selected) -- edxAllLoop--2--edxLoopRank--2",
+          "name": "edxAllLoop -- Rank stores after Store B (edx, selected) -- edxAllLoop--2--edxLoopRank--2",
           "description": ""
         },
         "edxAllLoop--2--edxLoopRank--3": {
           "type": "numeric",
           "alias": "edxAllLoop--2--edxLoopRank--3",
-          "name": "edxAllLoop -- Rank stores after 2 (edx, selected) -- edxAllLoop--2--edxLoopRank--3",
+          "name": "edxAllLoop -- Rank stores after Store B (edx, selected) -- edxAllLoop--2--edxLoopRank--3",
           "description": ""
         },
         "edxAllLoop--3--edxLoopPick--other_text": {
           "type": "text",
           "alias": "edxAllLoop--3--edxLoopPick--other_text",
-          "name": "edxAllLoop -- Stores you would revisit after 3 (edx, unselected) -- Other",
+          "name": "edxAllLoop -- Stores you would revisit after Store C (edx, unselected) -- Other",
           "description": ""
         },
         "edxAllLoop--3--edxLoopRank--1": {
           "type": "numeric",
           "alias": "edxAllLoop--3--edxLoopRank--1",
-          "name": "edxAllLoop -- Rank stores after 3 (edx, selected)",
+          "name": "edxAllLoop -- Rank stores after Store C (edx, selected)",
           "description": ""
         },
         "edxAllLoop--3--edxLoopRank--2": {
           "type": "numeric",
           "alias": "edxAllLoop--3--edxLoopRank--2",
-          "name": "edxAllLoop -- Rank stores after 3 (edx, selected) -- edxAllLoop--3--edxLoopRank--2",
+          "name": "edxAllLoop -- Rank stores after Store C (edx, selected) -- edxAllLoop--3--edxLoopRank--2",
           "description": ""
         },
         "edxAllLoop--3--edxLoopRank--3": {
           "type": "numeric",
           "alias": "edxAllLoop--3--edxLoopRank--3",
-          "name": "edxAllLoop -- Rank stores after 3 (edx, selected) -- edxAllLoop--3--edxLoopRank--3",
+          "name": "edxAllLoop -- Rank stores after Store C (edx, selected) -- edxAllLoop--3--edxLoopRank--3",
           "description": ""
         },
         "reasonLoop--1--reason": {
           "type": "text",
           "alias": "reasonLoop--1--reason",
-          "name": "reasonLoop -- Why 1?",
+          "name": "reasonLoop -- Why <p><b>Brand A</b></p>?",
           "description": ""
         },
         "reasonLoop--2--reason": {
           "type": "text",
           "alias": "reasonLoop--2--reason",
-          "name": "reasonLoop -- Why 2?",
+          "name": "reasonLoop -- Why Brand B?",
           "description": ""
         },
         "reasonLoop--3--reason": {
           "type": "text",
           "alias": "reasonLoop--3--reason",
-          "name": "reasonLoop -- Why 3?",
-          "description": ""
-        },
-        "traitsLoop--1--traits": {
-          "type": "text",
-          "alias": "traitsLoop--1--traits",
-          "name": "traitsLoop -- What describes 1?",
+          "name": "reasonLoop -- Why Brand C?",
           "description": ""
         },
         "traitsLoop--1--traits--other_text": {
           "type": "text",
           "alias": "traitsLoop--1--traits--other_text",
-          "name": "traitsLoop -- What describes 1? -- Other",
-          "description": ""
-        },
-        "traitsLoop--2--traits": {
-          "type": "text",
-          "alias": "traitsLoop--2--traits",
-          "name": "traitsLoop -- What describes 2?",
+          "name": "traitsLoop -- What describes <p><b>Brand A</b></p>? -- Other",
           "description": ""
         },
         "traitsLoop--2--traits--other_text": {
           "type": "text",
           "alias": "traitsLoop--2--traits--other_text",
-          "name": "traitsLoop -- What describes 2? -- Other",
-          "description": ""
-        },
-        "traitsLoop--3--traits": {
-          "type": "text",
-          "alias": "traitsLoop--3--traits",
-          "name": "traitsLoop -- What describes 3?",
+          "name": "traitsLoop -- What describes Brand B? -- Other",
           "description": ""
         },
         "traitsLoop--3--traits--other_text": {
           "type": "text",
           "alias": "traitsLoop--3--traits--other_text",
-          "name": "traitsLoop -- What describes 3? -- Other",
+          "name": "traitsLoop -- What describes Brand C? -- Other",
           "description": ""
         },
         "attributeLoop--1--attribute": {
@@ -1259,16 +1489,16 @@
           ],
           "subvariables": [
             {
-              "alias": "attributeLoop--1--attribute--item1",
-              "name": "item1"
+              "alias": "attributeLoop--1--attribute--1",
+              "name": "<p><b>Brand A</b></p>"
             },
             {
-              "alias": "attributeLoop--1--attribute--item2",
-              "name": "item2"
+              "alias": "attributeLoop--1--attribute--2",
+              "name": "Brand B"
             },
             {
-              "alias": "attributeLoop--1--attribute--item3",
-              "name": "item3"
+              "alias": "attributeLoop--1--attribute--3",
+              "name": "Brand C"
             },
             {
               "alias": "attributeLoop--1--attribute--none",
@@ -1299,16 +1529,16 @@
           ],
           "subvariables": [
             {
-              "alias": "attributeLoop--2--attribute--item1",
-              "name": "item1"
+              "alias": "attributeLoop--2--attribute--1",
+              "name": "<p><b>Brand A</b></p>"
             },
             {
-              "alias": "attributeLoop--2--attribute--item2",
-              "name": "item2"
+              "alias": "attributeLoop--2--attribute--2",
+              "name": "Brand B"
             },
             {
-              "alias": "attributeLoop--2--attribute--item3",
-              "name": "item3"
+              "alias": "attributeLoop--2--attribute--3",
+              "name": "Brand C"
             },
             {
               "alias": "attributeLoop--2--attribute--none",
@@ -1339,16 +1569,16 @@
           ],
           "subvariables": [
             {
-              "alias": "attributeLoop--3--attribute--item1",
-              "name": "item1"
+              "alias": "attributeLoop--3--attribute--1",
+              "name": "<p><b>Brand A</b></p>"
             },
             {
-              "alias": "attributeLoop--3--attribute--item2",
-              "name": "item2"
+              "alias": "attributeLoop--3--attribute--2",
+              "name": "Brand B"
             },
             {
-              "alias": "attributeLoop--3--attribute--item3",
-              "name": "item3"
+              "alias": "attributeLoop--3--attribute--3",
+              "name": "Brand C"
             },
             {
               "alias": "attributeLoop--3--attribute--none",
@@ -1359,7 +1589,7 @@
         "edxAllLoop--1--edxLoopPick": {
           "type": "multiple_response",
           "alias": "edxAllLoop--1--edxLoopPick",
-          "name": "Stores you would revisit after 1 (edx, unselected)",
+          "name": "Stores you would revisit after Store A (edx, unselected)",
           "description": "",
           "categories": [
             {
@@ -1379,16 +1609,16 @@
           ],
           "subvariables": [
             {
-              "alias": "edxAllLoop--1--edxLoopPick--item1",
-              "name": "item1"
+              "alias": "edxAllLoop--1--edxLoopPick--1",
+              "name": "Store A"
             },
             {
-              "alias": "edxAllLoop--1--edxLoopPick--item2",
-              "name": "item2"
+              "alias": "edxAllLoop--1--edxLoopPick--2",
+              "name": "Store B"
             },
             {
-              "alias": "edxAllLoop--1--edxLoopPick--item3",
-              "name": "item3"
+              "alias": "edxAllLoop--1--edxLoopPick--3",
+              "name": "Store C"
             },
             {
               "alias": "edxAllLoop--1--edxLoopPick--other",
@@ -1399,7 +1629,7 @@
         "edxAllLoop--2--edxLoopPick": {
           "type": "multiple_response",
           "alias": "edxAllLoop--2--edxLoopPick",
-          "name": "Stores you would revisit after 2 (edx, unselected)",
+          "name": "Stores you would revisit after Store B (edx, unselected)",
           "description": "",
           "categories": [
             {
@@ -1419,16 +1649,16 @@
           ],
           "subvariables": [
             {
-              "alias": "edxAllLoop--2--edxLoopPick--item1",
-              "name": "item1"
+              "alias": "edxAllLoop--2--edxLoopPick--1",
+              "name": "Store A"
             },
             {
-              "alias": "edxAllLoop--2--edxLoopPick--item2",
-              "name": "item2"
+              "alias": "edxAllLoop--2--edxLoopPick--2",
+              "name": "Store B"
             },
             {
-              "alias": "edxAllLoop--2--edxLoopPick--item3",
-              "name": "item3"
+              "alias": "edxAllLoop--2--edxLoopPick--3",
+              "name": "Store C"
             },
             {
               "alias": "edxAllLoop--2--edxLoopPick--other",
@@ -1439,7 +1669,7 @@
         "edxAllLoop--3--edxLoopPick": {
           "type": "multiple_response",
           "alias": "edxAllLoop--3--edxLoopPick",
-          "name": "Stores you would revisit after 3 (edx, unselected)",
+          "name": "Stores you would revisit after Store C (edx, unselected)",
           "description": "",
           "categories": [
             {
@@ -1459,19 +1689,151 @@
           ],
           "subvariables": [
             {
-              "alias": "edxAllLoop--3--edxLoopPick--item1",
-              "name": "item1"
+              "alias": "edxAllLoop--3--edxLoopPick--1",
+              "name": "Store A"
             },
             {
-              "alias": "edxAllLoop--3--edxLoopPick--item2",
-              "name": "item2"
+              "alias": "edxAllLoop--3--edxLoopPick--2",
+              "name": "Store B"
             },
             {
-              "alias": "edxAllLoop--3--edxLoopPick--item3",
-              "name": "item3"
+              "alias": "edxAllLoop--3--edxLoopPick--3",
+              "name": "Store C"
             },
             {
               "alias": "edxAllLoop--3--edxLoopPick--other",
+              "name": "Other"
+            }
+          ]
+        },
+        "traitsLoop--1--traits": {
+          "type": "multiple_response",
+          "alias": "traitsLoop--1--traits",
+          "name": "What describes <p><b>Brand A</b></p>?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "traitsLoop--1--traits--1",
+              "name": "Fresh"
+            },
+            {
+              "alias": "traitsLoop--1--traits--2",
+              "name": "Cheap"
+            },
+            {
+              "alias": "traitsLoop--1--traits--3",
+              "name": "Local"
+            },
+            {
+              "alias": "traitsLoop--1--traits--none",
+              "name": "None"
+            },
+            {
+              "alias": "traitsLoop--1--traits--other",
+              "name": "Other"
+            }
+          ]
+        },
+        "traitsLoop--2--traits": {
+          "type": "multiple_response",
+          "alias": "traitsLoop--2--traits",
+          "name": "What describes Brand B?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "traitsLoop--2--traits--1",
+              "name": "Fresh"
+            },
+            {
+              "alias": "traitsLoop--2--traits--2",
+              "name": "Cheap"
+            },
+            {
+              "alias": "traitsLoop--2--traits--3",
+              "name": "Local"
+            },
+            {
+              "alias": "traitsLoop--2--traits--none",
+              "name": "None"
+            },
+            {
+              "alias": "traitsLoop--2--traits--other",
+              "name": "Other"
+            }
+          ]
+        },
+        "traitsLoop--3--traits": {
+          "type": "multiple_response",
+          "alias": "traitsLoop--3--traits",
+          "name": "What describes Brand C?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "traitsLoop--3--traits--1",
+              "name": "Fresh"
+            },
+            {
+              "alias": "traitsLoop--3--traits--2",
+              "name": "Cheap"
+            },
+            {
+              "alias": "traitsLoop--3--traits--3",
+              "name": "Local"
+            },
+            {
+              "alias": "traitsLoop--3--traits--none",
+              "name": "None"
+            },
+            {
+              "alias": "traitsLoop--3--traits--other",
               "name": "Other"
             }
           ]

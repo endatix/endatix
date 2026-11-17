@@ -11,10 +11,37 @@
       },
       "pageName": "awareness",
       "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "hiddenBrands"
+        ]
+      },
       "choices": [
         {
-          "value": "none",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "<p><b>Brand A</b></p>"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -37,26 +64,32 @@
       ],
       "pageName": "loops",
       "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "AidedBrands"
+        ]
+      },
       "choices": [
         {
-          "value": "item1",
+          "value": "1",
           "id": 1,
           "text": {
-            "default": "item1"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {
-          "value": "item2",
+          "value": "2",
           "id": 2,
           "text": {
-            "default": "item2"
+            "default": "Brand B"
           }
         },
         {
-          "value": "item3",
+          "value": "3",
           "id": 3,
           "text": {
-            "default": "item3"
+            "default": "Brand C"
           }
         },
         {
@@ -200,7 +233,35 @@
       },
       "pageName": "copies",
       "exportShape": "multiple_response",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqAllRank": {
       "surveyJsType": "ranking",
@@ -367,7 +428,35 @@
       },
       "pageName": "copies",
       "exportShape": "multiple_response",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqSelectedRank": {
       "surveyJsType": "ranking",
@@ -413,10 +502,37 @@
       },
       "pageName": "copies",
       "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
       "choices": [
         {
-          "value": "none",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -509,7 +625,35 @@
       },
       "pageName": "copies",
       "exportShape": "multiple_response",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqUnselectedRank": {
       "surveyJsType": "ranking",
@@ -700,7 +844,35 @@
       },
       "pageName": "copies",
       "exportShape": "multiple_response",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxAllRank": {
       "surveyJsType": "ranking",
@@ -753,26 +925,32 @@
       ],
       "pageName": "copies",
       "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
       "choices": [
         {
-          "value": "item1",
+          "value": "1",
           "id": 1,
           "text": {
-            "default": "item1"
+            "default": "Store A"
           }
         },
         {
-          "value": "item2",
+          "value": "2",
           "id": 2,
           "text": {
-            "default": "item2"
+            "default": "Store B"
           }
         },
         {
-          "value": "item3",
+          "value": "3",
           "id": 3,
           "text": {
-            "default": "item3"
+            "default": "Store C"
           }
         },
         {
@@ -913,7 +1091,35 @@
       },
       "pageName": "copies",
       "exportShape": "multiple_response",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxSelectedRank": {
       "surveyJsType": "ranking",
@@ -1036,7 +1242,35 @@
       },
       "pageName": "copies",
       "exportShape": "multiple_response",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxUnselectedRank": {
       "surveyJsType": "ranking",
@@ -1443,10 +1677,37 @@
       ],
       "pageName": "loops",
       "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "hiddenTraits"
+        ]
+      },
       "choices": [
         {
-          "value": "other",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "Fresh"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Cheap"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Local"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
           "kind": "other",
           "text": {
             "default": "Other"
@@ -1454,7 +1715,7 @@
         },
         {
           "value": "none",
-          "id": 2,
+          "id": 5,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -1533,24 +1794,64 @@
     }
   },
   "columns": {
-    "AidedBrands": {
+    "AidedBrands__1": {
       "parentKey": "AidedBrands",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which of these brands have you heard of?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "<p><b>Brand A</b></p>"
       }
     },
-    "attributeLoop__1__attribute__item1": {
+    "AidedBrands__2": {
+      "parentKey": "AidedBrands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands have you heard of?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      }
+    },
+    "AidedBrands__3": {
+      "parentKey": "AidedBrands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands have you heard of?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      }
+    },
+    "AidedBrands__none": {
+      "parentKey": "AidedBrands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands have you heard of?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "attributeLoop__1__attribute__1": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item1",
+      "choiceValue": "1",
       "choiceLabel": {
-        "default": "item1"
+        "default": "<p><b>Brand A</b></p>"
       },
       "loopPath": [
         {
@@ -1560,16 +1861,16 @@
         }
       ]
     },
-    "attributeLoop__1__attribute__item2": {
+    "attributeLoop__1__attribute__2": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item2",
+      "choiceValue": "2",
       "choiceLabel": {
-        "default": "item2"
+        "default": "Brand B"
       },
       "loopPath": [
         {
@@ -1579,16 +1880,16 @@
         }
       ]
     },
-    "attributeLoop__1__attribute__item3": {
+    "attributeLoop__1__attribute__3": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item3",
+      "choiceValue": "3",
       "choiceLabel": {
-        "default": "item3"
+        "default": "Brand C"
       },
       "loopPath": [
         {
@@ -1617,16 +1918,16 @@
         }
       ]
     },
-    "attributeLoop__2__attribute__item1": {
+    "attributeLoop__2__attribute__1": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item1",
+      "choiceValue": "1",
       "choiceLabel": {
-        "default": "item1"
+        "default": "<p><b>Brand A</b></p>"
       },
       "loopPath": [
         {
@@ -1636,16 +1937,16 @@
         }
       ]
     },
-    "attributeLoop__2__attribute__item2": {
+    "attributeLoop__2__attribute__2": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item2",
+      "choiceValue": "2",
       "choiceLabel": {
-        "default": "item2"
+        "default": "Brand B"
       },
       "loopPath": [
         {
@@ -1655,16 +1956,16 @@
         }
       ]
     },
-    "attributeLoop__2__attribute__item3": {
+    "attributeLoop__2__attribute__3": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item3",
+      "choiceValue": "3",
       "choiceLabel": {
-        "default": "item3"
+        "default": "Brand C"
       },
       "loopPath": [
         {
@@ -1693,16 +1994,16 @@
         }
       ]
     },
-    "attributeLoop__3__attribute__item1": {
+    "attributeLoop__3__attribute__1": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item1",
+      "choiceValue": "1",
       "choiceLabel": {
-        "default": "item1"
+        "default": "<p><b>Brand A</b></p>"
       },
       "loopPath": [
         {
@@ -1712,16 +2013,16 @@
         }
       ]
     },
-    "attributeLoop__3__attribute__item2": {
+    "attributeLoop__3__attribute__2": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item2",
+      "choiceValue": "2",
       "choiceLabel": {
-        "default": "item2"
+        "default": "Brand B"
       },
       "loopPath": [
         {
@@ -1731,16 +2032,16 @@
         }
       ]
     },
-    "attributeLoop__3__attribute__item3": {
+    "attributeLoop__3__attribute__3": {
       "parentKey": "attribute",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which brands share this with {panel.itemText}?"
       },
-      "choiceValue": "item3",
+      "choiceValue": "3",
       "choiceLabel": {
-        "default": "item3"
+        "default": "Brand C"
       },
       "loopPath": [
         {
@@ -2037,12 +2338,40 @@
         "default": "Pick one store (cfq, all)"
       }
     },
-    "cfqAllPick": {
+    "cfqAllPick__1": {
       "parentKey": "cfqAllPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (cfq, all)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "cfqAllPick__2": {
+      "parentKey": "cfqAllPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (cfq, all)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "cfqAllPick__3": {
+      "parentKey": "cfqAllPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (cfq, all)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "cfqAllRank__1": {
@@ -2134,12 +2463,40 @@
         "default": "Pick one store (cfq, selected)"
       }
     },
-    "cfqSelectedPick": {
+    "cfqSelectedPick__1": {
       "parentKey": "cfqSelectedPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (cfq, selected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "cfqSelectedPick__2": {
+      "parentKey": "cfqSelectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (cfq, selected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "cfqSelectedPick__3": {
+      "parentKey": "cfqSelectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (cfq, selected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "cfqSelectedRank__1": {
@@ -2178,12 +2535,52 @@
         "default": "Store C"
       }
     },
-    "cfqTagPick": {
+    "cfqTagPick__1": {
       "parentKey": "cfqTagPick",
       "surveyJsType": "tagbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Tag stores (cfq, all, tagbox)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "cfqTagPick__2": {
+      "parentKey": "cfqTagPick",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Tag stores (cfq, all, tagbox)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "cfqTagPick__3": {
+      "parentKey": "cfqTagPick",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Tag stores (cfq, all, tagbox)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
+      }
+    },
+    "cfqTagPick__none": {
+      "parentKey": "cfqTagPick",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Tag stores (cfq, all, tagbox)"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
       }
     },
     "cfqUnselectedLoop__1__cfqUnselectedOk": {
@@ -2239,12 +2636,40 @@
         "default": "Pick one store (cfq, unselected)"
       }
     },
-    "cfqUnselectedPick": {
+    "cfqUnselectedPick__1": {
       "parentKey": "cfqUnselectedPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (cfq, unselected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "cfqUnselectedPick__2": {
+      "parentKey": "cfqUnselectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (cfq, unselected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "cfqUnselectedPick__3": {
+      "parentKey": "cfqUnselectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (cfq, unselected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "cfqUnselectedRank__1": {
@@ -2371,16 +2796,16 @@
         }
       ]
     },
-    "edxAllLoop__1__edxLoopPick__item1": {
+    "edxAllLoop__1__edxLoopPick__1": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item1",
+      "choiceValue": "1",
       "choiceLabel": {
-        "default": "item1"
+        "default": "Store A"
       },
       "loopPath": [
         {
@@ -2390,16 +2815,16 @@
         }
       ]
     },
-    "edxAllLoop__1__edxLoopPick__item2": {
+    "edxAllLoop__1__edxLoopPick__2": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item2",
+      "choiceValue": "2",
       "choiceLabel": {
-        "default": "item2"
+        "default": "Store B"
       },
       "loopPath": [
         {
@@ -2409,16 +2834,16 @@
         }
       ]
     },
-    "edxAllLoop__1__edxLoopPick__item3": {
+    "edxAllLoop__1__edxLoopPick__3": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item3",
+      "choiceValue": "3",
       "choiceLabel": {
-        "default": "item3"
+        "default": "Store C"
       },
       "loopPath": [
         {
@@ -2534,16 +2959,16 @@
         }
       ]
     },
-    "edxAllLoop__2__edxLoopPick__item1": {
+    "edxAllLoop__2__edxLoopPick__1": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item1",
+      "choiceValue": "1",
       "choiceLabel": {
-        "default": "item1"
+        "default": "Store A"
       },
       "loopPath": [
         {
@@ -2553,16 +2978,16 @@
         }
       ]
     },
-    "edxAllLoop__2__edxLoopPick__item2": {
+    "edxAllLoop__2__edxLoopPick__2": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item2",
+      "choiceValue": "2",
       "choiceLabel": {
-        "default": "item2"
+        "default": "Store B"
       },
       "loopPath": [
         {
@@ -2572,16 +2997,16 @@
         }
       ]
     },
-    "edxAllLoop__2__edxLoopPick__item3": {
+    "edxAllLoop__2__edxLoopPick__3": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item3",
+      "choiceValue": "3",
       "choiceLabel": {
-        "default": "item3"
+        "default": "Store C"
       },
       "loopPath": [
         {
@@ -2697,16 +3122,16 @@
         }
       ]
     },
-    "edxAllLoop__3__edxLoopPick__item1": {
+    "edxAllLoop__3__edxLoopPick__1": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item1",
+      "choiceValue": "1",
       "choiceLabel": {
-        "default": "item1"
+        "default": "Store A"
       },
       "loopPath": [
         {
@@ -2716,16 +3141,16 @@
         }
       ]
     },
-    "edxAllLoop__3__edxLoopPick__item2": {
+    "edxAllLoop__3__edxLoopPick__2": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item2",
+      "choiceValue": "2",
       "choiceLabel": {
-        "default": "item2"
+        "default": "Store B"
       },
       "loopPath": [
         {
@@ -2735,16 +3160,16 @@
         }
       ]
     },
-    "edxAllLoop__3__edxLoopPick__item3": {
+    "edxAllLoop__3__edxLoopPick__3": {
       "parentKey": "edxLoopPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Stores you would revisit after {panel.itemText} (edx, unselected)"
       },
-      "choiceValue": "item3",
+      "choiceValue": "3",
       "choiceLabel": {
-        "default": "item3"
+        "default": "Store C"
       },
       "loopPath": [
         {
@@ -2853,12 +3278,40 @@
         "default": "Pick one store (edx, all)"
       }
     },
-    "edxAllPick": {
+    "edxAllPick__1": {
       "parentKey": "edxAllPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (edx, all)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "edxAllPick__2": {
+      "parentKey": "edxAllPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (edx, all)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "edxAllPick__3": {
+      "parentKey": "edxAllPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (edx, all)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "edxAllRank__1": {
@@ -2950,12 +3403,40 @@
         "default": "Pick one store (edx, selected)"
       }
     },
-    "edxSelectedPick": {
+    "edxSelectedPick__1": {
       "parentKey": "edxSelectedPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (edx, selected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "edxSelectedPick__2": {
+      "parentKey": "edxSelectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (edx, selected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "edxSelectedPick__3": {
+      "parentKey": "edxSelectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (edx, selected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "edxSelectedRank__1": {
@@ -3047,12 +3528,40 @@
         "default": "Pick one store (edx, unselected)"
       }
     },
-    "edxUnselectedPick": {
+    "edxUnselectedPick__1": {
       "parentKey": "edxUnselectedPick",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (edx, unselected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "edxUnselectedPick__2": {
+      "parentKey": "edxUnselectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (edx, unselected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "edxUnselectedPick__3": {
+      "parentKey": "edxUnselectedPick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick stores (edx, unselected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "edxUnselectedRank__1": {
@@ -3453,12 +3962,92 @@
         "default": "traitPool"
       }
     },
-    "traitsLoop__1__traits": {
+    "traitsLoop__1__traits__1": {
       "parentKey": "traits",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Fresh"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "traitsLoop__1__traits__2": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Cheap"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "traitsLoop__1__traits__3": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Local"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "traitsLoop__1__traits__none": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "traitsLoop__1__traits__other": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
       },
       "loopPath": [
         {
@@ -3483,12 +4072,92 @@
         }
       ]
     },
-    "traitsLoop__2__traits": {
+    "traitsLoop__2__traits__1": {
       "parentKey": "traits",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Fresh"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "traitsLoop__2__traits__2": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Cheap"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "traitsLoop__2__traits__3": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Local"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "traitsLoop__2__traits__none": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "traitsLoop__2__traits__other": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
       },
       "loopPath": [
         {
@@ -3513,12 +4182,92 @@
         }
       ]
     },
-    "traitsLoop__3__traits": {
+    "traitsLoop__3__traits__1": {
       "parentKey": "traits",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Fresh"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "traitsLoop__3__traits__2": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Cheap"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "traitsLoop__3__traits__3": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Local"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "traitsLoop__3__traits__none": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "traitsLoop__3__traits__other": {
+      "parentKey": "traits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What describes {panel.itemText}?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
       },
       "loopPath": [
         {
@@ -3605,8 +4354,29 @@
       "multiple": true,
       "choices": [
         {
-          "value": "none",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "<p><b>Brand A</b></p>"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -3619,24 +4389,24 @@
       "multiple": true,
       "choices": [
         {
-          "value": "item1",
+          "value": "1",
           "id": 1,
           "text": {
-            "default": "item1"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {
-          "value": "item2",
+          "value": "2",
           "id": 2,
           "text": {
-            "default": "item2"
+            "default": "Brand B"
           }
         },
         {
-          "value": "item3",
+          "value": "3",
           "id": 3,
           "text": {
-            "default": "item3"
+            "default": "Brand C"
           }
         },
         {
@@ -3722,7 +4492,29 @@
     },
     "cfqAllPick": {
       "multiple": true,
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqAllRank": {
       "choices": [
@@ -3821,7 +4613,29 @@
     },
     "cfqSelectedPick": {
       "multiple": true,
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqSelectedRank": {
       "choices": [
@@ -3852,8 +4666,29 @@
       "multiple": true,
       "choices": [
         {
-          "value": "none",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -3909,7 +4744,29 @@
     },
     "cfqUnselectedPick": {
       "multiple": true,
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqUnselectedRank": {
       "choices": [
@@ -4002,7 +4859,29 @@
     },
     "edxAllPick": {
       "multiple": true,
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxAllRank": {
       "choices": [
@@ -4034,24 +4913,24 @@
       "otherStorage": "comment",
       "choices": [
         {
-          "value": "item1",
+          "value": "1",
           "id": 1,
           "text": {
-            "default": "item1"
+            "default": "Store A"
           }
         },
         {
-          "value": "item2",
+          "value": "2",
           "id": 2,
           "text": {
-            "default": "item2"
+            "default": "Store B"
           }
         },
         {
-          "value": "item3",
+          "value": "3",
           "id": 3,
           "text": {
-            "default": "item3"
+            "default": "Store C"
           }
         },
         {
@@ -4136,7 +5015,29 @@
     },
     "edxSelectedPick": {
       "multiple": true,
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxSelectedRank": {
       "choices": [
@@ -4210,7 +5111,29 @@
     },
     "edxUnselectedPick": {
       "multiple": true,
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxUnselectedRank": {
       "choices": [
@@ -4446,8 +5369,29 @@
       "otherStorage": "comment",
       "choices": [
         {
-          "value": "other",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "Fresh"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Cheap"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Local"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
           "kind": "other",
           "text": {
             "default": "Other"
@@ -4455,7 +5399,7 @@
         },
         {
           "value": "none",
-          "id": 2,
+          "id": 5,
           "kind": "none",
           "exclusive": true,
           "text": {

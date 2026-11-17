@@ -55,16 +55,16 @@ internal sealed class ResolvedChoices
 /// first occurrence of a value winning; a source that copies its own is followed. A missing source or one that is not
 /// a select or a ranking is skipped, as Hub skips it. A source that is a data list (until #1160), loads its choices
 /// from a URL or from answers, or closes a cycle leaves the copy degraded, and so does a copy with no choices at all.
-/// <see cref="Resolve"/> applies this to a single select only, so every other question keeps its own choices in its
-/// columns, a multi-select's copies included until #1441; <see cref="Offered"/> applies it to any select or ranking.
+/// <see cref="Resolve"/> applies this to a base select, single or multiple; <see cref="Offered"/> to any select or
+/// ranking.
 /// </summary>
 internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> questionsByName)
 {
     private readonly Dictionary<string, List<SourceChoice>?> _resolvedSources = new(StringComparer.Ordinal);
 
-    /// <summary>The choices a single select's columns and categories use; any other question's own choices.</summary>
+    /// <summary>The choices a base select's columns and categories use; any other question's own choices.</summary>
     public ResolvedChoices Resolve(JsonElement question) =>
-        question.IsSingleSelectBaseSelect()
+        question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect()
             ? Offered(question)
             : ResolvedChoices.Own(ChoiceSource.Parse(question), OwnChoices(question));
 

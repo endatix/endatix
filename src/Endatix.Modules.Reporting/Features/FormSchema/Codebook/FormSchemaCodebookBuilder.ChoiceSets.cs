@@ -51,6 +51,21 @@ internal static partial class FormSchemaCodebookBuilder
             WriteChoices(writer, question.Element, choices);
         });
 
+    // A multi-select whose choices cannot be read is marked degraded: its answers export as one text column.
+    private static JsonElement BuildMultipleSelectEntry(CollectedQuestion question, ResolvedChoices choices) =>
+        WriteQuestionEntry(writer =>
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, question.Element.GetSurveyJsType()!);
+            WriteTitle(writer, question.Element);
+            WriteDescription(writer, question.Element);
+            question.Placement.WriteTo(writer);
+            writer.WriteString(
+                FormSchemaCodebookPropertyNames.ExportShape,
+                FormSchemaCodebookExportShape.MultipleResponse.Name);
+            choices.WriteTo(writer);
+            WriteChoices(writer, question.Element, choices);
+        });
+
     // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
     // the value, so a later comment-storage definition must not make the flatten forget it.
     private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)

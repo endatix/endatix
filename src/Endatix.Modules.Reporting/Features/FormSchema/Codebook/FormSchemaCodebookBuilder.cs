@@ -537,17 +537,7 @@ internal static partial class FormSchemaCodebookBuilder
 
         if (element.IsMultiSelectBaseSelect())
         {
-            questionEntry = WriteQuestionEntry(writer =>
-            {
-                writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
-                WriteTitle(writer, element);
-                WriteDescription(writer, element);
-                placement.WriteTo(writer);
-                writer.WriteString(
-                    FormSchemaCodebookPropertyNames.ExportShape,
-                    FormSchemaCodebookExportShape.MultipleResponse.Name);
-                WriteChoices(writer, element);
-            });
+            questionEntry = BuildMultipleSelectEntry(question, choiceSources.Resolve(element));
             return true;
         }
 
