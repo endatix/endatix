@@ -50,21 +50,29 @@ internal sealed class ResolvedChoices
 }
 
 /// <summary>
-/// COMPILE TIME. Resolves a single select's choices within one definition. Only a single select that copies choices
-/// (<see cref="ChoiceSource.CarryForward"/>) changes: it publishes the union of every source's own choices, in source
-/// order, the first occurrence of a value winning; a source that copies its own is followed. A missing source or one
-/// that is not a select is skipped, as Hub skips it. A source that is a data list (until #1160), loads its choices
+/// COMPILE TIME. Resolves a question's choices within one definition. A question that copies choices
+/// (<see cref="ChoiceSource.CarryForward"/>) offers the union of every source's own choices, in source order, the
+/// first occurrence of a value winning; a source that copies its own is followed. A missing source or one that is not
+/// a select or a ranking is skipped, as Hub skips it. A source that is a data list (until #1160), loads its choices
 /// from a URL or from answers, or closes a cycle leaves the copy degraded, and so does a copy with no choices at all.
-/// Every other question keeps its own choices, a multi-select's copies included until #1441.
+/// <see cref="Resolve"/> applies this to a single select only, so every other question keeps its own choices in its
+/// columns, a multi-select's copies included until #1441; <see cref="Offered"/> applies it to any select or ranking.
 /// </summary>
 internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> questionsByName)
 {
     private readonly Dictionary<string, List<SourceChoice>?> _resolvedSources = new(StringComparer.Ordinal);
 
-    public ResolvedChoices Resolve(JsonElement question)
+    /// <summary>The choices a single select's columns and categories use; any other question's own choices.</summary>
+    public ResolvedChoices Resolve(JsonElement question) =>
+        question.IsSingleSelectBaseSelect()
+            ? Offered(question)
+            : ResolvedChoices.Own(ChoiceSource.Parse(question), OwnChoices(question));
+
+    /// <summary>Every choice a select or a ranking can offer: its own, or the ones it copies.</summary>
+    public ResolvedChoices Offered(JsonElement question)
     {
         var source = ChoiceSource.Parse(question);
-        if (source is not ChoiceSource.CarryForward copy || !question.IsSingleSelectBaseSelect())
+        if (source is not ChoiceSource.CarryForward copy || !OffersChoices(question))
         {
             return ResolvedChoices.Own(source, OwnChoices(question));
         }
@@ -77,6 +85,27 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
 
         return ResolvedChoices.Copied(source, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
     }
+
+    /// <summary>
+    /// The values a <c>loopSource</c> driver turns into panels: the <see cref="Offered"/> choices, then Other when the
+    /// question shows it. Empty for a question that is neither a select nor a ranking.
+    /// </summary>
+    public IReadOnlyList<string> OfferedValues(JsonElement question)
+    {
+        if (!OffersChoices(question))
+        {
+            return [];
+        }
+
+        var offered = Offered(question);
+        return ChoiceSet.Read(question, choices: offered) is { } choiceSet
+            ? [.. choiceSet.LoopDriverValues]
+            : [.. offered.Choices.Select(choice => choice.Value)];
+    }
+
+    /// <summary><see cref="OfferedValues(JsonElement)"/> of the question with this name; empty when there is none.</summary>
+    public IReadOnlyList<string> OfferedValues(string questionName) =>
+        questionsByName.TryGetValue(questionName, out var question) ? OfferedValues(question) : [];
 
     private List<SourceChoice>? Union(IReadOnlyList<string> sourceNames, HashSet<string> visiting)
     {

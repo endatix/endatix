@@ -978,7 +978,7 @@ internal static class FormDefinitionFlattener
 
         EmitLoopSourceColumnsFromLoopPanels(
             loopPanels,
-            elementsByName,
+            new ChoiceSources(elementsByName.ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal)),
             columns,
             seenKeys,
             limits);
@@ -1040,7 +1040,7 @@ internal static class FormDefinitionFlattener
 
     private static void EmitLoopSourceColumnsFromLoopPanels(
         LoopPanelDiscovery loopPanels,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        ChoiceSources sources,
         List<FormSchemaColumn> columns,
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
@@ -1059,7 +1059,7 @@ internal static class FormDefinitionFlattener
                 panelNames: [],
                 driverChoicesByLevel: [],
                 loopPanels.LoopPanelsByName,
-                elementsByName,
+                sources,
                 leafPaths,
                 limits);
         }
@@ -1079,7 +1079,7 @@ internal static class FormDefinitionFlattener
         IReadOnlyList<string> panelNames,
         IReadOnlyList<IReadOnlyList<string>> driverChoicesByLevel,
         IReadOnlyDictionary<string, CollectedElement> loopPanelsByName,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        ChoiceSources sources,
         List<LoopSourceLeafPath> leafPaths,
         SchemaCompilationLimits limits)
     {
@@ -1088,7 +1088,7 @@ internal static class FormDefinitionFlattener
         List<string> nextLoopPath = [.. loopPath, loopPathSegment];
         List<string> nextPanelNames = [.. panelNames, panelName];
         List<IReadOnlyList<string>> nextDriverChoicesByLevel =
-            [.. driverChoicesByLevel, CollectLoopSourceDriverChoices(panel.Element, elementsByName, limits)];
+            [.. driverChoicesByLevel, CollectLoopSourceDriverChoices(panel.Element, sources, limits)];
 
         if (!panel.Element.TryGetTemplateElements(out var templateElements))
         {
@@ -1133,15 +1133,16 @@ internal static class FormDefinitionFlattener
                 nextPanelNames,
                 nextDriverChoicesByLevel,
                 loopPanelsByName,
-                elementsByName,
+                sources,
                 leafPaths,
                 limits);
         }
     }
 
+    // A driver repeats once per choice its source can offer: its own or copied ones, for any select or a ranking.
     private static IReadOnlyList<string> CollectLoopSourceDriverChoices(
         JsonElement panelElement,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        ChoiceSources sources,
         SchemaCompilationLimits limits)
     {
         if (!panelElement.TryGetLoopSource(out var loopSource))
@@ -1160,14 +1161,13 @@ internal static class FormDefinitionFlattener
             }
 
             var sourceName = sourceNameElement.GetString();
-            if (string.IsNullOrWhiteSpace(sourceName) ||
-                !elementsByName.TryGetValue(sourceName, out var sourceElement))
+            if (string.IsNullOrWhiteSpace(sourceName))
             {
                 continue;
             }
 
             var choiceCount = 0;
-            foreach (var choiceValue in ChoiceSet.Read(sourceElement.Element)?.LoopDriverValues ?? [])
+            foreach (var choiceValue in sources.OfferedValues(sourceName))
             {
                 if (++choiceCount > limits.MaxChoicesPerQuestion)
                 {
