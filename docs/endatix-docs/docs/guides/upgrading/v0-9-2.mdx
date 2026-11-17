@@ -40,6 +40,7 @@ See [Sessions and sign-in](/docs/developers/hub/environment#sessions-and-sign-in
 
 - Exports read the rows stored when each submission was saved, so existing rows keep their `0`s until they are loaded again. A backfill with `force=true` (`POST forms/{formId}/submissions/backfill`) rewrites them. Without a recompile first, copied choices then export `1` or an empty cell, never a wrong `0`.
 - To get exact `0`s for the choices a respondent saw, compile the form's schema with `replace=true` (`POST forms/{formId}/reporting/compile-schema`; Hub: **Rebuild reporting data…**, **Full recompile**), then backfill its submissions with `force=true` (`POST forms/{formId}/submissions/backfill`).
+- A question that stopped copying its choices keeps exporting 1 or an empty cell after a merge compile, also for new submissions, until a compile with `replace=true`. A question that started copying turns the `0`s of its earlier submissions into empty cells on the next backfill.
 - A form whose copied questions changed their mode, their source questions' choices, or whether they copy at all across form versions: a full recompile judges old submissions by the current form. Compile it without `replace` (merge mode once the form has real submissions), which leaves those cells empty, then backfill with `force=true`.
 
 ## Keycloak needs `DefaultTenantId` {/* #keycloak-default-tenant-id */}

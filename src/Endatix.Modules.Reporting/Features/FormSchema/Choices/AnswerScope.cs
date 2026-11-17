@@ -20,11 +20,22 @@ internal sealed class AnswerScope
     /// <summary>The context the column's own answers are in: the root, or the innermost loop item.</summary>
     public JsonElement Own => _contexts[^1];
 
-    /// <summary>The scope of a column; null when the submission has no item for a segment of its loop path.</summary>
-    public static AnswerScope? Resolve(JsonElement submission, IReadOnlyList<LoopSegment>? loopPath)
+    /// <summary>The scope of a row's root columns: the submission alone. A row resolves it once.</summary>
+    public static AnswerScope Root(JsonElement submission) => new([submission]);
+
+    /// <summary>
+    /// This scope narrowed to a column's loop path: itself when the column is not in a loop, null when the submission
+    /// has no item for a segment of the path.
+    /// </summary>
+    public AnswerScope? Within(IReadOnlyList<LoopSegment>? loopPath)
     {
-        List<JsonElement> contexts = [submission];
-        foreach (var segment in loopPath ?? [])
+        if (loopPath is null || loopPath.Count == 0)
+        {
+            return this;
+        }
+
+        List<JsonElement> contexts = [.. _contexts];
+        foreach (var segment in loopPath)
         {
             if (FindLoopItem(contexts[^1], segment) is not { } item)
             {

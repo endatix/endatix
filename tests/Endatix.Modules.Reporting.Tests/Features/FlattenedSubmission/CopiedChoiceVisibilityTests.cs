@@ -366,6 +366,59 @@ public sealed class CopiedChoiceVisibilityTests
         Cells(flattened).Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
     }
 
+    [Fact]
+    public void Flatten_NewRowOfACopyMadeInlineByAMergeCompile_StaysEmptyUntilAReplace()
+    {
+        // Arrange
+        var first = new FormSchemaCompiler().CompilePersisted(
+            Survey(STORES, Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""")));
+        var inline = Survey(STORES, """{"type":"checkbox","name":"pick","choices":["1","2","3"]}""");
+        var merged = Recompile(first, inline, FormSchemaCompileMode.Merge);
+        var replaced = Recompile(merged, inline, FormSchemaCompileMode.Replace);
+        const string newRow = """{"stores":["1"],"pick":["3"]}""";
+
+        // Act
+        var afterMerge = FlattenWith(merged, newRow);
+        var afterReplace = FlattenWith(replaced, newRow);
+
+        // Assert
+        afterMerge.Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
+        afterReplace.Should().Equal(Cells(("1", "0"), ("2", "0"), ("3", "1")));
+    }
+
+    [Fact]
+    public void Flatten_OldRowOfAnInlineSelectMadeACopyByAMergeCompile_TurnsItsZerosEmpty()
+    {
+        // Arrange
+        var first = new FormSchemaCompiler().CompilePersisted(
+            Survey(STORES, """{"type":"checkbox","name":"pick","choices":["1","2","3"]}"""));
+        var merged = Recompile(
+            first,
+            Survey(STORES, Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""")),
+            FormSchemaCompileMode.Merge);
+
+        // Act
+        var oldRow = FlattenWith(merged, """{"stores":["1","2"],"pick":["3"]}""");
+
+        // Assert
+        oldRow.Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
+    }
+
+    [Fact]
+    public void Flatten_ExactCopyWithAnUnansweredSource_ShowsItsOwnNone()
+    {
+        // Arrange
+        var definition = Survey(
+            STORES,
+            Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected","showNoneItem":true}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, """{"pick":["2"]}""");
+
+        // Assert
+        cells.Should().Equal(Cells(("1", null), ("2", "1"), ("3", null), ("none", "0")));
+    }
+
     [Theory]
     [MemberData(nameof(UnknownReasons))]
     public void WhyUnknown_ListTheAnswersCannotRebuild_NamesTheReason(string source, string copy, string reason)
@@ -401,6 +454,12 @@ public sealed class CopiedChoiceVisibilityTests
             previous.FlatteningMapJson,
             previous.CodebookJson,
             mode);
+
+    private static Dictionary<string, string?> FlattenWith(FormSchemaCompileResult compiled, string submission) =>
+        Cells(FlattenedSubmissionFlattener.Flatten(
+            Json(submission),
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson)));
 
     private static string? Shown(string codebookJson) =>
         JsonNode.Parse(codebookJson)!["choiceCatalogs"]!["pick"]![FormSchemaCodebookPropertyNames.Shown]?.ToJsonString();
