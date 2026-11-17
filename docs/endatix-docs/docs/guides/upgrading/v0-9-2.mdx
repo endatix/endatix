@@ -32,7 +32,7 @@ See [Sessions and sign-in](/docs/developers/hub/environment#sessions-and-sign-in
 
 ## Copied choices export empty cells {/* #copied-choices-export-empty-cells */}
 
-**What changed:** an export no longer writes `0` for a choice the respondent may not have seen. A checkbox or tag box that copies its choices from another question writes `1` for a picked choice, `0` for a choice the respondent was shown and did not pick, and an empty cell otherwise. A checkbox or tag box in a loop item the respondent did not have, and an unanswered ranking, are empty instead of `0`. The Crunch codebook is unchanged; Crunch imports an empty cell as No Data. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
+**What changed:** an export no longer writes `0` for a choice the respondent may not have seen. A checkbox or tag box that copies its choices from another question writes `1` for a picked choice, `0` for a choice the respondent was shown and did not pick, and an empty cell otherwise. A checkbox or tag box in a loop item the respondent did not have, an unanswered ranking, and a choice left unranked in a ranking that copies its choices, are empty instead of `0`. The Crunch codebook is unchanged; Crunch imports an empty cell as No Data. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
 
 **Who is affected:** forms with copied choices (`choicesFromQuestion` or carry forward), loops, or rankings, and any analysis that reads those `0`s.
 

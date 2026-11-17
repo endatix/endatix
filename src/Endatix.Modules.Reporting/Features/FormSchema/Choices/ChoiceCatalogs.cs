@@ -95,6 +95,9 @@ internal sealed class ChoiceCatalogs
     public SelectChoices For(string question) =>
         _selects.TryGetValue(question, out var select) ? select : SelectChoices.Unknown;
 
+    /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
+    public bool Copies(string question) => _copies.Contains(question);
+
     /// <summary>The question's select choices; null when it is not a base select.</summary>
     public SelectChoices? SelectOrNull(string question) => _selects.GetValueOrDefault(question);
 

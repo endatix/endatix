@@ -84,7 +84,7 @@ internal static class FlattenedSubmissionFlattener
                 return ExtractSimpleValue(root.Own, column);
 
             case FormSchemaColumnKind.RankingChoice:
-                return ExtractRankingChoiceValue(root, column);
+                return ExtractRankingChoiceValue(root, column, choices);
 
             case FormSchemaColumnKind.MatrixRow:
                 return ExtractMatrixRowValue(root, column);
@@ -144,11 +144,18 @@ internal static class FlattenedSubmissionFlattener
         return answer;
     }
 
-    private static JsonElement? ExtractRankingChoiceValue(AnswerScope root, FormSchemaColumn column) =>
+    // A copied ranking's list depends on its sources, so an unranked choice may never have been on it: empty, not 0.
+    private static JsonElement? ExtractRankingChoiceValue(AnswerScope root, FormSchemaColumn column, ChoiceCatalogs choices) =>
         ExtractFromLoopAwareContext(
             root,
             column.LoopPath,
-            context => RankOf(context, column.SourceQuestion!, column.ChoiceValue!).ToJson());
+            context => RankCellOf(context, column, choices).ToJson());
+
+    private static RankCell RankCellOf(JsonElement context, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        var cell = RankOf(context, column.SourceQuestion!, column.ChoiceValue!);
+        return cell.IsUnranked && choices.Copies(column.SourceQuestion!) ? RankCell.Empty : cell;
+    }
 
     private static JsonElement? ExtractMatrixRowValue(AnswerScope root, FormSchemaColumn column) =>
         ExtractFromLoopAwareContext(

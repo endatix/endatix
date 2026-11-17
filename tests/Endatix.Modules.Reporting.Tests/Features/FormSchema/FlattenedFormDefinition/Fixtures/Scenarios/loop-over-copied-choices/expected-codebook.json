@@ -569,7 +569,8 @@
             "default": "Evening"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "occasions": {
       "multiple": true,

@@ -4451,7 +4451,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqAllOk": {
       "multiple": false,
@@ -4555,7 +4556,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqLoopRank": {
       "choices": [
@@ -4580,7 +4582,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqSelectedOk": {
       "multiple": false,
@@ -4684,7 +4687,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqTagPick": {
       "multiple": true,
@@ -4830,7 +4834,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "consider": {
       "multiple": false,
@@ -4953,7 +4958,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxLoopPick": {
       "multiple": true,
@@ -5020,7 +5026,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxSelectedOk": {
       "multiple": false,
@@ -5124,7 +5131,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxUnselectedOk": {
       "multiple": false,
@@ -5228,7 +5236,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "favorite": {
       "multiple": false,

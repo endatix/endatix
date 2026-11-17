@@ -19,6 +19,9 @@ internal readonly struct RankCell
 
     public static RankCell Unranked { get; } = new(0);
 
+    /// <summary>The ranking was answered and this choice left out.</summary>
+    public bool IsUnranked => _rank == 0;
+
     public static RankCell Ranked(int position)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(position, 1);

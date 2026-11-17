@@ -30,6 +30,7 @@ internal static partial class FormSchemaCodebookBuilder
         if (SurveyJsElementType.Ranking.Matches(element.GetSurveyJsType()))
         {
             WriteRankingChoices(writer, element, choiceSources.Offered(element));
+            choiceSources.WriteCopyFields(writer, element);
             return;
         }
 

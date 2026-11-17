@@ -1,3 +1,7 @@
+using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using static Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission.CopiedChoiceVisibilityTests;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
@@ -102,5 +106,49 @@ public sealed class LoopAndRankingEmptyCellTests
         Cell(flattened, "rank__x").Should().Be("2");
         Cell(flattened, "rank__y").Should().Be("0");
         Cell(flattened, "rank__z").Should().Be("1");
+    }
+
+    [Fact]
+    public void Flatten_AnsweredRankingThatCopiesItsChoices_LeavesAnUnrankedChoiceEmpty()
+    {
+        // Arrange
+        var definition = Survey(
+            """{"type":"checkbox","name":"stores","choices":["x","y","z"]}""",
+            """{"type":"ranking","name":"rank","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""");
+
+        // Act
+        var flattened = Flatten(definition, """{"stores":["x","z"],"rank":["z"]}""");
+
+        // Assert
+        Cell(flattened, "rank__x").Should().BeNull();
+        Cell(flattened, "rank__y").Should().BeNull();
+        Cell(flattened, "rank__z").Should().Be("1");
+    }
+
+    [Fact]
+    public void Flatten_RankingMadeInlineByAMergeCompile_KeepsAnUnrankedChoiceEmpty()
+    {
+        // Arrange
+        var compiler = new FormSchemaCompiler();
+        var first = compiler.CompilePersisted(Survey(
+            """{"type":"checkbox","name":"stores","choices":["x","y"]}""",
+            """{"type":"ranking","name":"rank","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}"""));
+        var merged = compiler.CompilePersisted(
+            Survey(
+                """{"type":"checkbox","name":"stores","choices":["x","y"]}""",
+                """{"type":"ranking","name":"rank","choices":["x","y"]}"""),
+            first.FlatteningMapJson,
+            first.CodebookJson,
+            FormSchemaCompileMode.Merge);
+
+        // Act
+        var flattened = FlattenedSubmissionFlattener.Flatten(
+            JsonDocument.Parse("""{"stores":["x"],"rank":["x"]}""").RootElement,
+            merged.FlatteningMap,
+            ChoiceCatalogs.Read(merged.CodebookJson));
+
+        // Assert
+        Cell(flattened, "rank__x").Should().Be("1");
+        Cell(flattened, "rank__y").Should().BeNull();
     }
 }
