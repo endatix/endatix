@@ -140,7 +140,7 @@ public sealed class LoopOverCopiedChoicesExportTests
             {"type":"dropdown","name":"brand","edxDataListId":"1234"},
             {"type":"checkbox","name":"liked","choicesFromQuestion":"brand"}
             """, "liked");
-        IReadOnlyList<FixtureResponse> responses = [new("r1", """{"liked":["acme"]}""", null)];
+        IReadOnlyList<FixtureResponse> responses = [new("r1", """{"liked":["x"]}""", null)];
 
         // Act
         var (shoji, csv) = await ExportAsync(definition, responses);
