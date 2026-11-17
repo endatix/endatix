@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
@@ -21,61 +23,47 @@ public sealed class ScenarioGoldenTests
 {
     public static TheoryData<string> Scenarios() => new(ScenarioGoldens.Names(ScenarioGoldens.OutputRoot));
 
+    public static TheoryData<string> ScenariosWithASubmission() =>
+        new(ScenarioGoldens.Names(ScenarioGoldens.OutputRoot).Where(scenario =>
+            File.Exists(Path.Combine(ScenarioGoldens.OutputRoot, scenario, ScenarioGoldens.SUBMISSION_FILE))));
+
     [Theory]
     [MemberData(nameof(Scenarios))]
     public async Task Scenario_ExportsItsGoldenFiles(string scenario)
     {
         // Arrange
         var folder = Path.Combine(ScenarioGoldens.OutputRoot, scenario);
-        var committed = ScenarioGoldens.ExpectedFiles(folder);
 
         // Act
         var exported = await ScenarioGoldens.ExportAsync(folder, TestContext.Current.CancellationToken);
 
         // Assert
-        committed.Should().BeSubsetOf(exported.Keys, because: $"scenario '{scenario}' should commit only files it exports");
-        foreach (var file in committed)
+        ScenarioGoldens.ExpectedFiles(folder).Should().BeEquivalentTo(
+            exported.Keys,
+            because: $"scenario '{scenario}' should commit a golden for every file it exports, and only those");
+        foreach (var (file, content) in exported)
         {
-            AssertMatchesCommitted(folder, file, exported[file]);
+            ScenarioGoldens.Normalize(file, content).Should().Be(
+                File.ReadAllText(Path.Combine(folder, file)),
+                because: $"scenario '{scenario}' should export its committed {file}");
         }
     }
 
     [Theory]
-    [MemberData(nameof(Scenarios))]
+    [MemberData(nameof(ScenariosWithASubmission))]
     public async Task Scenario_WithASubmission_ImportsIntoCrunch(string scenario)
     {
         // Arrange
         var folder = Path.Combine(ScenarioGoldens.OutputRoot, scenario);
         var exported = await ScenarioGoldens.ExportAsync(folder, TestContext.Current.CancellationToken);
-        if (!exported.TryGetValue(ScenarioGoldens.CSV_SHOJI_FILE, out var csv))
-        {
-            return;
-        }
 
         // Act
-        var problems = CrunchImportCheck.Problems(exported[ScenarioGoldens.SHOJI_CODEBOOK_FILE], csv);
+        var problems = CrunchImportCheck.Problems(
+            exported[ScenarioGoldens.SHOJI_CODEBOOK_FILE],
+            exported[ScenarioGoldens.CSV_SHOJI_FILE]);
 
         // Assert
         problems.Should().BeEmpty();
-    }
-
-    private static void AssertMatchesCommitted(string folder, string file, string actual)
-    {
-        var expected = File.ReadAllText(Path.Combine(folder, file));
-        var because = $"scenario '{Path.GetFileName(folder)}' should export its committed {file}";
-        if (ScenarioGoldens.IsJson(file))
-        {
-            FormSchemaFixtureAssertions.AssertJsonMatchesExpected(Parse(actual), Parse(expected), because);
-            return;
-        }
-
-        ScenarioGoldens.NormalizeLineEndings(actual).Should().Be(ScenarioGoldens.NormalizeLineEndings(expected), because);
-    }
-
-    private static JsonElement Parse(string json)
-    {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.Clone();
     }
 }
 
@@ -99,7 +87,11 @@ internal static class ScenarioGoldens
     private const string EXPECTED_PREFIX = "expected-";
     private const string RESPONSE_ID = "r1";
 
-    private static readonly JsonSerializerOptions _indented = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _indented = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     internal static string OutputRoot => Path.Combine(
         AppContext.BaseDirectory, "Features", "FormSchema", "FlattenedFormDefinition", "Fixtures", "Scenarios");
@@ -120,9 +112,20 @@ internal static class ScenarioGoldens
             .Order(StringComparer.Ordinal)
             .ToList();
 
-    internal static bool IsJson(string fileName) => fileName.Contains(".json", StringComparison.Ordinal);
+    /// <summary>
+    /// A file as its golden is committed: JSON indented, in the order it was written, with markup left readable;
+    /// anything else byte for byte, so the csv record terminator is pinned too.
+    /// </summary>
+    internal static string Normalize(string file, string content)
+    {
+        if (!file.EndsWith(".json", StringComparison.Ordinal))
+        {
+            return content;
+        }
 
-    internal static string NormalizeLineEndings(string text) => text.ReplaceLineEndings("\n");
+        using var document = JsonDocument.Parse(content);
+        return JsonSerializer.Serialize(document.RootElement, _indented) + "\n";
+    }
 
     /// <summary>Every file the scenario exports, by its golden file name.</summary>
     internal static async Task<IReadOnlyDictionary<string, string>> ExportAsync(string folder, CancellationToken cancellationToken)
@@ -178,27 +181,38 @@ internal static class ScenarioGoldens
     {
         using var document = SpreadsheetDocument.Open(new MemoryStream(workbook), isEditable: false);
         var workbookPart = document.WorkbookPart!;
+        var sharedStrings = workbookPart.SharedStringTablePart?.SharedStringTable?.Elements<SharedStringItem>()
+            .Select(item => item.InnerText).ToList() ?? [];
         Dictionary<string, List<List<string>>> sheets = new(StringComparer.Ordinal);
         foreach (var sheet in workbookPart.Workbook!.Sheets!.Elements<Sheet>())
         {
             var worksheet = (WorksheetPart)workbookPart.GetPartById(sheet.Id!.Value!);
             sheets[sheet.Name!.Value!] = worksheet.Worksheet!.Descendants<Row>()
-                .Select(row => row.Elements<Cell>().Select(cell => cell.InlineString?.InnerText ?? cell.CellValue?.Text ?? string.Empty).ToList())
+                .Select(row => row.Elements<Cell>().Select(cell => CellText(cell, sharedStrings)).ToList())
                 .ToList();
         }
 
         return JsonSerializer.Serialize(sheets);
     }
 
-    private static void Write(string path, string content)
+    // "<type>:<text>", plus "@<style>" when the cell has one: the exporter decides text, number, boolean and date, and
+    // a change there must show in the golden even when the text stays the same.
+    private static string CellText(Cell cell, IReadOnlyList<string> sharedStrings)
     {
-        if (!IsJson(path))
-        {
-            File.WriteAllText(path, content);
-            return;
-        }
-
-        using var document = JsonDocument.Parse(content);
-        File.WriteAllText(path, JsonSerializer.Serialize(document.RootElement, _indented) + Environment.NewLine);
+        var type = cell.DataType?.Value;
+        var text = type == CellValues.SharedString
+            ? sharedStrings[int.Parse(cell.CellValue!.Text, CultureInfo.InvariantCulture)]
+            : cell.InlineString?.InnerText ?? cell.CellValue?.Text ?? string.Empty;
+        var style = cell.StyleIndex is { } index ? $"@{index.Value}" : string.Empty;
+        return $"{CellType(type)}{style}:{text}";
     }
+
+    private static string CellType(CellValues? type) =>
+        type is null || type == CellValues.Number ? "n"
+        : type == CellValues.Boolean ? "b"
+        : type == CellValues.InlineString || type == CellValues.SharedString || type == CellValues.String ? "s"
+        : type.ToString()!;
+
+    private static void Write(string path, string content) =>
+        File.WriteAllText(path, Normalize(Path.GetFileName(path), content));
 }

@@ -18,7 +18,7 @@
     {
       "key": "hiddenBrands__1",
       "kind": "ChoiceIndicator",
-      "label": "Brands shown to this respondent \u2014 \u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E",
+      "label": "Brands shown to this respondent — <p><b>Brand A</b></p>",
       "dataType": "number",
       "sourceQuestion": "hiddenBrands",
       "choiceValue": "1",
@@ -32,7 +32,7 @@
     {
       "key": "hiddenBrands__2",
       "kind": "ChoiceIndicator",
-      "label": "Brands shown to this respondent \u2014 Brand B",
+      "label": "Brands shown to this respondent — Brand B",
       "dataType": "number",
       "sourceQuestion": "hiddenBrands",
       "choiceValue": "2",
@@ -46,7 +46,7 @@
     {
       "key": "hiddenBrands__3",
       "kind": "ChoiceIndicator",
-      "label": "Brands shown to this respondent \u2014 Brand C",
+      "label": "Brands shown to this respondent — Brand C",
       "dataType": "number",
       "sourceQuestion": "hiddenBrands",
       "choiceValue": "3",
@@ -60,7 +60,7 @@
     {
       "key": "hiddenTraits__1",
       "kind": "ChoiceIndicator",
-      "label": "Traits shown to this respondent \u2014 Fresh",
+      "label": "Traits shown to this respondent — Fresh",
       "dataType": "number",
       "sourceQuestion": "hiddenTraits",
       "choiceValue": "1",
@@ -74,7 +74,7 @@
     {
       "key": "hiddenTraits__2",
       "kind": "ChoiceIndicator",
-      "label": "Traits shown to this respondent \u2014 Cheap",
+      "label": "Traits shown to this respondent — Cheap",
       "dataType": "number",
       "sourceQuestion": "hiddenTraits",
       "choiceValue": "2",
@@ -88,7 +88,7 @@
     {
       "key": "hiddenTraits__3",
       "kind": "ChoiceIndicator",
-      "label": "Traits shown to this respondent \u2014 Local",
+      "label": "Traits shown to this respondent — Local",
       "dataType": "number",
       "sourceQuestion": "hiddenTraits",
       "choiceValue": "3",
@@ -130,7 +130,7 @@
     {
       "key": "stores__1",
       "kind": "ChoiceIndicator",
-      "label": "Where do you shop? \u2014 Store A",
+      "label": "Where do you shop? — Store A",
       "dataType": "number",
       "sourceQuestion": "stores",
       "choiceValue": "1",
@@ -144,7 +144,7 @@
     {
       "key": "stores__2",
       "kind": "ChoiceIndicator",
-      "label": "Where do you shop? \u2014 Store B",
+      "label": "Where do you shop? — Store B",
       "dataType": "number",
       "sourceQuestion": "stores",
       "choiceValue": "2",
@@ -158,7 +158,7 @@
     {
       "key": "stores__3",
       "kind": "ChoiceIndicator",
-      "label": "Where do you shop? \u2014 Store C",
+      "label": "Where do you shop? — Store C",
       "dataType": "number",
       "sourceQuestion": "stores",
       "choiceValue": "3",
@@ -620,7 +620,7 @@
     {
       "key": "satisfaction__price",
       "kind": "MatrixRow",
-      "label": "satisfaction \u2014 Price",
+      "label": "satisfaction — Price",
       "dataType": "number",
       "sourceQuestion": "satisfaction",
       "choiceValue": null,
@@ -638,7 +638,7 @@
     {
       "key": "satisfaction__taste",
       "kind": "MatrixRow",
-      "label": "satisfaction \u2014 Taste",
+      "label": "satisfaction — Taste",
       "dataType": "number",
       "sourceQuestion": "satisfaction",
       "choiceValue": null,
@@ -656,7 +656,7 @@
     {
       "key": "usage__home__frequency",
       "kind": "MatrixCell",
-      "label": "usage \u2014 At home \u2014 frequency",
+      "label": "usage — At home — frequency",
       "dataType": "string",
       "sourceQuestion": "usage",
       "choiceValue": null,
@@ -670,7 +670,7 @@
     {
       "key": "usage__home__note",
       "kind": "MatrixCell",
-      "label": "usage \u2014 At home \u2014 note",
+      "label": "usage — At home — note",
       "dataType": "string",
       "sourceQuestion": "usage",
       "choiceValue": null,
@@ -684,7 +684,7 @@
     {
       "key": "usage__work__frequency",
       "kind": "MatrixCell",
-      "label": "usage \u2014 At work \u2014 frequency",
+      "label": "usage — At work — frequency",
       "dataType": "string",
       "sourceQuestion": "usage",
       "choiceValue": null,
@@ -698,7 +698,7 @@
     {
       "key": "usage__work__note",
       "kind": "MatrixCell",
-      "label": "usage \u2014 At work \u2014 note",
+      "label": "usage — At work — note",
       "dataType": "string",
       "sourceQuestion": "usage",
       "choiceValue": null,
@@ -712,7 +712,7 @@
     {
       "key": "contact__city",
       "kind": "MultipleTextItem",
-      "label": "contact \u2014 City",
+      "label": "contact — City",
       "dataType": "string",
       "sourceQuestion": "contact",
       "choiceValue": null,
@@ -726,7 +726,7 @@
     {
       "key": "contact__zip",
       "kind": "MultipleTextItem",
-      "label": "contact \u2014 Postal code",
+      "label": "contact — Postal code",
       "dataType": "string",
       "sourceQuestion": "contact",
       "choiceValue": null,
@@ -834,7 +834,7 @@
     {
       "key": "traitsLoop__1__traits__other_text",
       "kind": "CheckboxOtherText",
-      "label": "What describes {panel.itemText}? \u2014 Other text",
+      "label": "What describes {panel.itemText}? — Other text",
       "dataType": "string",
       "sourceQuestion": "traits",
       "choiceValue": null,
@@ -874,7 +874,7 @@
     {
       "key": "traitsLoop__2__traits__other_text",
       "kind": "CheckboxOtherText",
-      "label": "What describes {panel.itemText}? \u2014 Other text",
+      "label": "What describes {panel.itemText}? — Other text",
       "dataType": "string",
       "sourceQuestion": "traits",
       "choiceValue": null,
@@ -914,7 +914,7 @@
     {
       "key": "traitsLoop__3__traits__other_text",
       "kind": "CheckboxOtherText",
-      "label": "What describes {panel.itemText}? \u2014 Other text",
+      "label": "What describes {panel.itemText}? — Other text",
       "dataType": "string",
       "sourceQuestion": "traits",
       "choiceValue": null,
@@ -934,7 +934,7 @@
     {
       "key": "attributeLoop__1__attribute__item1",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item1",
+      "label": "Which brands share this with {panel.itemText}? — item1",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item1",
@@ -954,7 +954,7 @@
     {
       "key": "attributeLoop__1__attribute__item2",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item2",
+      "label": "Which brands share this with {panel.itemText}? — item2",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item2",
@@ -974,7 +974,7 @@
     {
       "key": "attributeLoop__1__attribute__item3",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item3",
+      "label": "Which brands share this with {panel.itemText}? — item3",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item3",
@@ -994,7 +994,7 @@
     {
       "key": "attributeLoop__1__attribute__none",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 None",
+      "label": "Which brands share this with {panel.itemText}? — None",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "none",
@@ -1014,7 +1014,7 @@
     {
       "key": "attributeLoop__2__attribute__item1",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item1",
+      "label": "Which brands share this with {panel.itemText}? — item1",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item1",
@@ -1034,7 +1034,7 @@
     {
       "key": "attributeLoop__2__attribute__item2",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item2",
+      "label": "Which brands share this with {panel.itemText}? — item2",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item2",
@@ -1054,7 +1054,7 @@
     {
       "key": "attributeLoop__2__attribute__item3",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item3",
+      "label": "Which brands share this with {panel.itemText}? — item3",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item3",
@@ -1074,7 +1074,7 @@
     {
       "key": "attributeLoop__2__attribute__none",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 None",
+      "label": "Which brands share this with {panel.itemText}? — None",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "none",
@@ -1094,7 +1094,7 @@
     {
       "key": "attributeLoop__3__attribute__item1",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item1",
+      "label": "Which brands share this with {panel.itemText}? — item1",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item1",
@@ -1114,7 +1114,7 @@
     {
       "key": "attributeLoop__3__attribute__item2",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item2",
+      "label": "Which brands share this with {panel.itemText}? — item2",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item2",
@@ -1134,7 +1134,7 @@
     {
       "key": "attributeLoop__3__attribute__item3",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 item3",
+      "label": "Which brands share this with {panel.itemText}? — item3",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "item3",
@@ -1154,7 +1154,7 @@
     {
       "key": "attributeLoop__3__attribute__none",
       "kind": "ChoiceIndicator",
-      "label": "Which brands share this with {panel.itemText}? \u2014 None",
+      "label": "Which brands share this with {panel.itemText}? — None",
       "dataType": "number",
       "sourceQuestion": "attribute",
       "choiceValue": "none",
@@ -1655,6 +1655,20 @@
       "key": "brandPool",
       "kind": "Calculated",
       "label": "brandPool",
+      "dataType": "string",
+      "sourceQuestion": null,
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "traitPool",
+      "kind": "Calculated",
+      "label": "traitPool",
       "dataType": "string",
       "sourceQuestion": null,
       "choiceValue": null,

@@ -130,7 +130,7 @@ public sealed class AllQuestionsCompileTests
         return codebook.ToJsonString();
     }
 
-    // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/ and Fixtures/Scenarios/.
+    // Manual only: remove Skip, run `dotnet test tests/Endatix.Modules.Reporting.Tests --filter-method "*AllQuestionsGoldenFixtures_Regenerate*"`, then commit updated JSON under Fixtures/AllQuestions/ and Fixtures/Scenarios/.
     // Uses SourceAllQuestionsFixturesRoot (repo tree) so regenerated files land in source control; runtime tests read copied fixtures from AppContext.BaseDirectory.
     [Fact(Skip = "Manual fixture regeneration only")]
     public async Task AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()

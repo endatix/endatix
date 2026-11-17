@@ -25,16 +25,18 @@ A scenario with a `submission.json` also has:
 - `expected-flattening-map.json`: the compiled form schema, i.e. its columns and keys;
 - `expected-flat.json`: the flattened submission row;
 - `expected-csv.csv`, `expected-csv-shoji.csv` and `expected-json.json`: the submission exports;
-- `expected-xlsx.json`: the xlsx export as the text of each cell, sheet by sheet and row by row, never the binary.
+- `expected-xlsx.json`: the xlsx export cell by cell, sheet by sheet and row by row, never the binary. A cell reads
+  `<type>[@<style>]:<text>`: `s` text, `n` number, `b` boolean; a date is a number with the date style.
 
 The submission exports run through the tabular data source and the Infrastructure exporters with the settings of the
 default export formats (`DefaultExportFormats`), and csv-shoji with the Shoji format's. The row's system values are
 pinned (`PersonalizationPipeline.ExportRows`). Global value transformers do not run: they rewrite file URLs and large
 values only.
 
-`ScenarioGoldenTests` runs every folder that has a `definition.json`, so a new scenario needs no new test. It
-compares each `expected-*` file the folder has, fails on one it does not export, and checks that the csv-shoji file
-imports against the Shoji codebook (`CrunchImportCheck`).
+`ScenarioGoldenTests` runs every folder that has a `definition.json`, so a new scenario needs no new test. The folder
+must hold exactly the goldens the scenario exports. JSON is compared as it is committed (indented, in written order),
+and csv byte for byte, CRLF included (`Scenarios/.gitattributes` keeps git from converting them). A scenario with a
+submission also checks that the csv-shoji file imports against the Shoji codebook (`CrunchImportCheck`).
 
 | Scenario | Case |
 | --- | --- |
@@ -47,7 +49,8 @@ imports against the Shoji codebook (`CrunchImportCheck`).
 About 50 questions on five pages, three choices each, and one response that answers them all.
 
 - **Hidden inputs:** `region`, a hidden radiogroup with a default; `hiddenBrands` and `hiddenTraits`, hidden checkboxes
-  filled by `defaultValueExpression` (a calculated value, numbers where the choices are strings).
+  filled by `defaultValueExpression` from the calculated values `brandPool` and `traitPool` (numbers where the choices
+  are strings).
 - **Copies:** `AidedBrands`, a checkbox copying `hiddenBrands` (selected, None); `favorite`, a radiogroup copying
   `AidedBrands` (a chain); `brandRank`, a ranking copying `AidedBrands` (selected, select-to-rank).
 - **Loops,** each with an html element and one question:
@@ -71,8 +74,8 @@ About 50 questions on five pages, three choices each, and one response that answ
   The mode does not change the export: a copy publishes every choice its sources offer, whichever the respondent was
   shown, so the three rows of each syntax compile alike.
 - **Other questions:** `household`, a dynamic panel without `loopSource`; `satisfaction` (matrix); `usage`
-  (matrixdropdown); `contact` (multipletext); `comments` (text); `brandPool`, a calculated value in the result, and
-  `regionLabel`, one left out.
+  (matrixdropdown); `contact` (multipletext); `comments` (text); `brandPool` and `traitPool`, calculated values in the
+  result, and `regionLabel`, one left out.
 - **The response:** loop panels in a different order from their iterations, keyed by `itemValue`; a None pick; an
   Other with its comment; an iteration left unanswered (`traitsLoop`, brand 1).
 
@@ -83,17 +86,18 @@ been captured from a Hub submission yet.
 
 The goldens hold today's output, wrong parts included, so each fix shows up as a golden diff:
 
-- **#1723, a ranking that copies its choices:** `brandRank`, `occasionRank` and every `*Rank` have no column, and
-  their codebook entries have no choices.
-- **#1724, a checkbox that copies its choices:** `AidedBrands`, `aware`, every `*Pick` and `traits` export as one text
-  column of the picked values (Shoji `text`). `attribute` gets the leftover `item1..3` and `none` columns, all 0 except
+- **#1723, a ranking that copies its choices:** `brandRank` and every `*Rank` (and `occasionRank` in
+  `loop-over-copied-choices`) have no column, and their codebook entries have no choices.
+- **#1724, a checkbox that copies its choices:** `AidedBrands`, every `*Pick` and each loop's `traits` (and `aware` in
+  `loop-over-copied-choices`) export as one text column of the picked values (Shoji `text`). `attribute` gets the leftover `item1..3` and `none` columns, all 0 except
   None, because its answers are the copied values.
 - **Iteration labels:** a loop over a checkbox or a ranking that copies its choices labels its iterations with their
   values (`1`, not `Brand A`) until #1724 and #1723 publish the copied choices.
 - **#1441, a choice the respondent was not shown:** a copy's cells are 1 or 0 for every choice once #1724 lands; the
   empty cell for a choice never shown stays in #1441.
 - **#1725, JSON keys:** the JSON export camel-cases question names (`aidedBrands`).
-- **#1726, plain-text labels:** HTML in a label reaches the Shoji codebook as written (`hiddenBrands--1`).
+- **#1726, plain-text labels:** HTML in a label reaches the Shoji codebook as written (`hiddenBrands--1`), and loop
+  titles keep `{panel.itemText}`.
 - **#1544, a copied Other:** see below.
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
 

@@ -4,7 +4,7 @@
     {
       "key": "brands__1",
       "kind": "ChoiceIndicator",
-      "label": "Which brands do you know? \u2014 Brand 1",
+      "label": "Which brands do you know? — Brand 1",
       "dataType": "number",
       "sourceQuestion": "brands",
       "choiceValue": "1",
@@ -18,7 +18,7 @@
     {
       "key": "brands__2",
       "kind": "ChoiceIndicator",
-      "label": "Which brands do you know? \u2014 Brand 2",
+      "label": "Which brands do you know? — Brand 2",
       "dataType": "number",
       "sourceQuestion": "brands",
       "choiceValue": "2",
@@ -32,7 +32,7 @@
     {
       "key": "brands__3",
       "kind": "ChoiceIndicator",
-      "label": "Which brands do you know? \u2014 Brand 3",
+      "label": "Which brands do you know? — Brand 3",
       "dataType": "number",
       "sourceQuestion": "brands",
       "choiceValue": "3",
@@ -60,7 +60,7 @@
     {
       "key": "occasions__10",
       "kind": "ChoiceIndicator",
-      "label": "When do you buy? \u2014 Morning",
+      "label": "When do you buy? — Morning",
       "dataType": "number",
       "sourceQuestion": "occasions",
       "choiceValue": "10",
@@ -74,7 +74,7 @@
     {
       "key": "occasions__20",
       "kind": "ChoiceIndicator",
-      "label": "When do you buy? \u2014 Evening",
+      "label": "When do you buy? — Evening",
       "dataType": "number",
       "sourceQuestion": "occasions",
       "choiceValue": "20",

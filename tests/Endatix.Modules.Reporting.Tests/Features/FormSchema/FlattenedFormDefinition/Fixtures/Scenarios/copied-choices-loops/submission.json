@@ -247,5 +247,10 @@
     "city": "Springfield",
     "zip": "12345"
   },
-  "comments": "Synthetic response for the export goldens."
+  "comments": "Synthetic response for the export goldens.",
+  "traitPool": [
+    1,
+    2,
+    3
+  ]
 }

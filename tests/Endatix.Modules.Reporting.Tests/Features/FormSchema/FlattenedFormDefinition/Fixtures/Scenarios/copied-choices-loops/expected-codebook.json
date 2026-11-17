@@ -744,7 +744,7 @@
           "value": "1",
           "id": 1,
           "text": {
-            "default": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {
@@ -775,7 +775,7 @@
           "value": "1",
           "id": 1,
           "text": {
-            "default": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {
@@ -932,7 +932,7 @@
           "value": "1",
           "id": 1,
           "text": {
-            "default": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {
@@ -1884,7 +1884,7 @@
       },
       "choiceValue": "1",
       "choiceLabel": {
-        "default": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+        "default": "<p><b>Brand A</b></p>"
       }
     },
     "hiddenBrands__2": {
@@ -2219,6 +2219,14 @@
       "choiceValue": "3",
       "choiceLabel": {
         "default": "Store C"
+      }
+    },
+    "traitPool": {
+      "parentKey": "traitPool",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "traitPool"
       }
     },
     "traitsLoop__1__traits": {
@@ -2759,7 +2767,7 @@
           "value": "1",
           "id": 1,
           "text": {
-            "default": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {
@@ -2785,7 +2793,7 @@
           "value": "1",
           "id": 1,
           "text": {
-            "default": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {
@@ -2882,7 +2890,7 @@
           "value": "1",
           "id": 1,
           "text": {
-            "default": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+            "default": "<p><b>Brand A</b></p>"
           }
         },
         {

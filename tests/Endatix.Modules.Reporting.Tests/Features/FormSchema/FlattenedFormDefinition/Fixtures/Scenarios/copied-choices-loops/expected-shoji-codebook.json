@@ -114,7 +114,7 @@
           "subvariables": [
             {
               "alias": "hiddenBrands--1",
-              "name": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+              "name": "<p><b>Brand A</b></p>"
             },
             {
               "alias": "hiddenBrands--2",
@@ -397,7 +397,7 @@
           "description": "",
           "categories": [
             {
-              "name": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E",
+              "name": "<p><b>Brand A</b></p>",
               "id": 1,
               "numeric_value": 1,
               "missing": false
@@ -649,7 +649,7 @@
         "cfqAllLoop--cfqAllOk": {
           "type": "categorical_array",
           "alias": "cfqAllLoop--cfqAllOk",
-          "name": "Is \u2026 open late?",
+          "name": "Is … open late?",
           "description": "",
           "categories": [
             {
@@ -683,7 +683,7 @@
         "cfqSelectedLoop--cfqSelectedOk": {
           "type": "categorical_array",
           "alias": "cfqSelectedLoop--cfqSelectedOk",
-          "name": "Is \u2026 open late? -- cfqSelectedLoop--cfqSelectedOk",
+          "name": "Is … open late? -- cfqSelectedLoop--cfqSelectedOk",
           "description": "",
           "categories": [
             {
@@ -717,7 +717,7 @@
         "cfqUnselectedLoop--cfqUnselectedOk": {
           "type": "categorical_array",
           "alias": "cfqUnselectedLoop--cfqUnselectedOk",
-          "name": "Is \u2026 open late? -- cfqUnselectedLoop--cfqUnselectedOk",
+          "name": "Is … open late? -- cfqUnselectedLoop--cfqUnselectedOk",
           "description": "",
           "categories": [
             {
@@ -751,7 +751,7 @@
         "considerLoop--consider": {
           "type": "categorical_array",
           "alias": "considerLoop--consider",
-          "name": "Would you consider \u2026?",
+          "name": "Would you consider …?",
           "description": "",
           "categories": [
             {
@@ -785,7 +785,7 @@
         "edxAllLoop--edxAllOk": {
           "type": "categorical_array",
           "alias": "edxAllLoop--edxAllOk",
-          "name": "Is \u2026 open late? -- edxAllLoop--edxAllOk",
+          "name": "Is … open late? -- edxAllLoop--edxAllOk",
           "description": "",
           "categories": [
             {
@@ -819,7 +819,7 @@
         "edxSelectedLoop--edxSelectedOk": {
           "type": "categorical_array",
           "alias": "edxSelectedLoop--edxSelectedOk",
-          "name": "Is \u2026 open late? -- edxSelectedLoop--edxSelectedOk",
+          "name": "Is … open late? -- edxSelectedLoop--edxSelectedOk",
           "description": "",
           "categories": [
             {
@@ -853,7 +853,7 @@
         "edxUnselectedLoop--edxUnselectedOk": {
           "type": "categorical_array",
           "alias": "edxUnselectedLoop--edxUnselectedOk",
-          "name": "Is \u2026 open late? -- edxUnselectedLoop--edxUnselectedOk",
+          "name": "Is … open late? -- edxUnselectedLoop--edxUnselectedOk",
           "description": "",
           "categories": [
             {
@@ -887,11 +887,11 @@
         "rankLoop--rankPick": {
           "type": "categorical_array",
           "alias": "rankLoop--rankPick",
-          "name": "Which brand comes closest to \u2026?",
+          "name": "Which brand comes closest to …?",
           "description": "",
           "categories": [
             {
-              "name": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E",
+              "name": "<p><b>Brand A</b></p>",
               "id": 1,
               "numeric_value": 1,
               "missing": false
@@ -981,7 +981,7 @@
         "attributeLoop--1--attribute": {
           "type": "multiple_response",
           "alias": "attributeLoop--1--attribute",
-          "name": "Which brands share this with \u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E?",
+          "name": "Which brands share this with <p><b>Brand A</b></p>?",
           "description": "",
           "categories": [
             {
@@ -1103,6 +1103,12 @@
           "alias": "brandPool",
           "name": "brandPool",
           "description": ""
+        },
+        "traitPool": {
+          "type": "text",
+          "alias": "traitPool",
+          "name": "traitPool",
+          "description": ""
         }
       },
       "order": [
@@ -1124,7 +1130,8 @@
         {
           "group": "Calculated values",
           "entities": [
-            "brandPool"
+            "brandPool",
+            "traitPool"
           ]
         },
         {
