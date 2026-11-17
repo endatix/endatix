@@ -313,6 +313,13 @@
                   "text": "No"
                 }
               ]
+            },
+            {
+              "type": "ranking",
+              "name": "cfqLoopRank",
+              "title": "Rank stores after {panel.itemText} (cfq, all)",
+              "choicesFromQuestion": "stores",
+              "choicesFromQuestionMode": "all"
             }
           ]
         },
@@ -472,6 +479,16 @@
                   "text": "No"
                 }
               ]
+            },
+            {
+              "type": "ranking",
+              "name": "edxLoopRank",
+              "title": "Rank stores after {panel.itemText} (edx, selected)",
+              "edxCarryForwardEnabled": true,
+              "edxCarryForwardSources": [
+                "stores"
+              ],
+              "edxCarryForwardMode": "selected"
             }
           ]
         },

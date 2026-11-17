@@ -154,7 +154,28 @@
       },
       "pageName": "occasions",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "occasions"
+        ]
+      },
+      "choices": [
+        {
+          "value": "10",
+          "id": 1,
+          "text": {
+            "default": "Morning"
+          }
+        },
+        {
+          "value": "20",
+          "id": 2,
+          "text": {
+            "default": "Evening"
+          }
+        }
+      ]
     },
     "occasions": {
       "surveyJsType": "checkbox",
@@ -301,6 +322,30 @@
         }
       ]
     },
+    "occasionRank__10": {
+      "parentKey": "occasionRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the occasions"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Morning"
+      }
+    },
+    "occasionRank__20": {
+      "parentKey": "occasionRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the occasions"
+      },
+      "choiceValue": "20",
+      "choiceLabel": {
+        "default": "Evening"
+      }
+    },
     "occasions__10": {
       "parentKey": "occasions",
       "surveyJsType": "checkbox",
@@ -413,7 +458,22 @@
       ]
     },
     "occasionRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "10",
+          "id": 1,
+          "text": {
+            "default": "Morning"
+          }
+        },
+        {
+          "value": "20",
+          "id": 2,
+          "text": {
+            "default": "Evening"
+          }
+        }
+      ]
     },
     "occasions": {
       "multiple": true,

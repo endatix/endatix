@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -10,17 +11,30 @@ internal static partial class FormSchemaCodebookBuilder
     private static JsonElement BuildChoiceCatalog(
         JsonElement element,
         SurveyChoiceDefaults surveyDefaults,
-        ChoiceSources choiceSources) =>
-        ChoiceSet.Read(element, surveyDefaults, choiceSources.Resolve(element)) is { } choiceSet
-            ? WriteQuestionEntry(writer =>
-                choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id)))
-            : WriteQuestionEntry(writer =>
-            {
-                writer.WritePropertyName(SurveyJsPropertyNames.Choices);
-                writer.WriteStartArray();
-                WriteCatalogChoices(writer, element);
-                writer.WriteEndArray();
-            });
+        ChoiceSources choiceSources)
+    {
+        if (ChoiceSet.Read(element, surveyDefaults, choiceSources.Resolve(element)) is { } choiceSet)
+        {
+            return WriteQuestionEntry(writer =>
+                choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id)));
+        }
+
+        return WriteQuestionEntry(writer => WriteNonSelectCatalogChoices(writer, element, choiceSources));
+    }
+
+    private static void WriteNonSelectCatalogChoices(Utf8JsonWriter writer, JsonElement element, ChoiceSources choiceSources)
+    {
+        if (SurveyJsElementType.Ranking.Matches(element.GetSurveyJsType()))
+        {
+            WriteRankingChoices(writer, element, choiceSources.Offered(element));
+            return;
+        }
+
+        writer.WritePropertyName(SurveyJsPropertyNames.Choices);
+        writer.WriteStartArray();
+        WriteCatalogChoices(writer, element);
+        writer.WriteEndArray();
+    }
 
     // A single select whose choices cannot be read stays categorical, marked degraded: exports read it as text.
     private static JsonElement BuildSingleSelectEntry(CollectedQuestion question, ResolvedChoices choices) =>

@@ -86,6 +86,34 @@
       "loopPath": null
     },
     {
+      "key": "occasionRank__10",
+      "kind": "RankingChoice",
+      "label": "Rank the occasions — Morning",
+      "dataType": "number",
+      "sourceQuestion": "occasionRank",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "occasionRank__20",
+      "kind": "RankingChoice",
+      "label": "Rank the occasions — Evening",
+      "dataType": "number",
+      "sourceQuestion": "occasionRank",
+      "choiceValue": "20",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
       "key": "considerLoop__1__consider",
       "kind": "LoopSource",
       "label": "Would you buy {panel.itemText} again?",

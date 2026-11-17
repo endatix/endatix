@@ -86,7 +86,35 @@
       },
       "pageName": "awareness",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "AidedBrands"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "<p><b>Brand A</b></p>"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ]
     },
     "cfqAllLoop": {
       "surveyJsType": "paneldynamic",
@@ -181,7 +209,79 @@
       },
       "pageName": "copies",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
+    },
+    "cfqLoopRank": {
+      "surveyJsType": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "parentPanelTitle": "cfqAllLoop",
+      "parentPanels": [
+        {
+          "key": "cfqAllLoop",
+          "title": "cfqAllLoop"
+        }
+      ],
+      "pageName": "copies",
+      "exportShape": "ranking",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqSelectedLoop": {
       "surveyJsType": "paneldynamic",
@@ -276,7 +376,35 @@
       },
       "pageName": "copies",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqUnselectedLoop": {
       "surveyJsType": "paneldynamic",
@@ -371,7 +499,35 @@
       },
       "pageName": "copies",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "comments": {
       "surveyJsType": "text",
@@ -534,7 +690,79 @@
       },
       "pageName": "copies",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
+    },
+    "edxLoopRank": {
+      "surveyJsType": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "parentPanelTitle": "edxAllLoop",
+      "parentPanels": [
+        {
+          "key": "edxAllLoop",
+          "title": "edxAllLoop"
+        }
+      ],
+      "pageName": "copies",
+      "exportShape": "ranking",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxSelectedLoop": {
       "surveyJsType": "paneldynamic",
@@ -629,7 +857,35 @@
       },
       "pageName": "copies",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxUnselectedLoop": {
       "surveyJsType": "paneldynamic",
@@ -724,7 +980,35 @@
       },
       "pageName": "copies",
       "exportShape": "ranking",
-      "choices": []
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "stores"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "favorite": {
       "surveyJsType": "radiogroup",
@@ -1428,12 +1712,105 @@
         "default": "brandPool"
       }
     },
+    "brandRank__1": {
+      "parentKey": "brandRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the brands you know"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "<p><b>Brand A</b></p>"
+      }
+    },
+    "brandRank__2": {
+      "parentKey": "brandRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the brands you know"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      }
+    },
+    "brandRank__3": {
+      "parentKey": "brandRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the brands you know"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      }
+    },
     "cfqAllLoop__1__cfqAllOk": {
       "parentKey": "cfqAllOk",
       "surveyJsType": "radiogroup",
       "exportShape": "categorical",
       "title": {
         "default": "Is {panel.itemText} open late?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "cfqAllLoop__1__cfqLoopRank__1": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "cfqAllLoop__1__cfqLoopRank__2": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "cfqAllLoop__1__cfqLoopRank__3": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       },
       "loopPath": [
         {
@@ -1458,12 +1835,126 @@
         }
       ]
     },
+    "cfqAllLoop__2__cfqLoopRank__1": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "cfqAllLoop__2__cfqLoopRank__2": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "cfqAllLoop__2__cfqLoopRank__3": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
     "cfqAllLoop__3__cfqAllOk": {
       "parentKey": "cfqAllOk",
       "surveyJsType": "radiogroup",
       "exportShape": "categorical",
       "title": {
         "default": "Is {panel.itemText} open late?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "cfqAllLoop__3__cfqLoopRank__1": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "cfqAllLoop__3__cfqLoopRank__2": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "cfqAllLoop__3__cfqLoopRank__3": {
+      "parentKey": "cfqLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       },
       "loopPath": [
         {
@@ -1487,6 +1978,42 @@
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (cfq, all)"
+      }
+    },
+    "cfqAllRank__1": {
+      "parentKey": "cfqAllRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, all)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "cfqAllRank__2": {
+      "parentKey": "cfqAllRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, all)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "cfqAllRank__3": {
+      "parentKey": "cfqAllRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, all)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "cfqSelectedLoop__1__cfqSelectedOk": {
@@ -1550,6 +2077,42 @@
         "default": "Pick stores (cfq, selected)"
       }
     },
+    "cfqSelectedRank__1": {
+      "parentKey": "cfqSelectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, selected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "cfqSelectedRank__2": {
+      "parentKey": "cfqSelectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, selected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "cfqSelectedRank__3": {
+      "parentKey": "cfqSelectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, selected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
+      }
+    },
     "cfqUnselectedLoop__1__cfqUnselectedOk": {
       "parentKey": "cfqUnselectedOk",
       "surveyJsType": "radiogroup",
@@ -1609,6 +2172,42 @@
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (cfq, unselected)"
+      }
+    },
+    "cfqUnselectedRank__1": {
+      "parentKey": "cfqUnselectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, unselected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "cfqUnselectedRank__2": {
+      "parentKey": "cfqUnselectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, unselected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "cfqUnselectedRank__3": {
+      "parentKey": "cfqUnselectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (cfq, unselected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "comments": {
@@ -1699,12 +2298,126 @@
         }
       ]
     },
+    "edxAllLoop__1__edxLoopRank__1": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "edxAllLoop__1__edxLoopRank__2": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "edxAllLoop__1__edxLoopRank__3": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
     "edxAllLoop__2__edxAllOk": {
       "parentKey": "edxAllOk",
       "surveyJsType": "radiogroup",
       "exportShape": "categorical",
       "title": {
         "default": "Is {panel.itemText} open late?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "edxAllLoop__2__edxLoopRank__1": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "edxAllLoop__2__edxLoopRank__2": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "edxAllLoop__2__edxLoopRank__3": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       },
       "loopPath": [
         {
@@ -1729,6 +2442,63 @@
         }
       ]
     },
+    "edxAllLoop__3__edxLoopRank__1": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "edxAllLoop__3__edxLoopRank__2": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "edxAllLoop__3__edxLoopRank__3": {
+      "parentKey": "edxLoopRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
     "edxAllOne": {
       "parentKey": "edxAllOne",
       "surveyJsType": "radiogroup",
@@ -1743,6 +2513,42 @@
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (edx, all)"
+      }
+    },
+    "edxAllRank__1": {
+      "parentKey": "edxAllRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, all)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "edxAllRank__2": {
+      "parentKey": "edxAllRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, all)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "edxAllRank__3": {
+      "parentKey": "edxAllRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, all)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "edxSelectedLoop__1__edxSelectedOk": {
@@ -1806,6 +2612,42 @@
         "default": "Pick stores (edx, selected)"
       }
     },
+    "edxSelectedRank__1": {
+      "parentKey": "edxSelectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, selected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "edxSelectedRank__2": {
+      "parentKey": "edxSelectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, selected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "edxSelectedRank__3": {
+      "parentKey": "edxSelectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, selected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
+      }
+    },
     "edxUnselectedLoop__1__edxUnselectedOk": {
       "parentKey": "edxUnselectedOk",
       "surveyJsType": "radiogroup",
@@ -1865,6 +2707,42 @@
       "exportShape": "multiple_response",
       "title": {
         "default": "Pick stores (edx, unselected)"
+      }
+    },
+    "edxUnselectedRank__1": {
+      "parentKey": "edxUnselectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, unselected)"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Store A"
+      }
+    },
+    "edxUnselectedRank__2": {
+      "parentKey": "edxUnselectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, unselected)"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Store B"
+      }
+    },
+    "edxUnselectedRank__3": {
+      "parentKey": "edxUnselectedRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank stores (edx, unselected)"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Store C"
       }
     },
     "favorite": {
@@ -2427,7 +3305,29 @@
       ]
     },
     "brandRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "<p><b>Brand A</b></p>"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ]
     },
     "cfqAllOk": {
       "multiple": false,
@@ -2479,7 +3379,54 @@
       "choices": []
     },
     "cfqAllRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
+    },
+    "cfqLoopRank": {
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqSelectedOk": {
       "multiple": false,
@@ -2531,7 +3478,29 @@
       "choices": []
     },
     "cfqSelectedRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "cfqUnselectedOk": {
       "multiple": false,
@@ -2583,7 +3552,29 @@
       "choices": []
     },
     "cfqUnselectedRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "consider": {
       "multiple": false,
@@ -2654,7 +3645,54 @@
       "choices": []
     },
     "edxAllRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
+    },
+    "edxLoopRank": {
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxSelectedOk": {
       "multiple": false,
@@ -2706,7 +3744,29 @@
       "choices": []
     },
     "edxSelectedRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "edxUnselectedOk": {
       "multiple": false,
@@ -2758,7 +3818,29 @@
       "choices": []
     },
     "edxUnselectedRank": {
-      "choices": []
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Store C"
+          }
+        }
+      ]
     },
     "favorite": {
       "multiple": false,
