@@ -1,0 +1,1267 @@
+{
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Shoji codebook metadata",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "hiddenBrands": {
+          "type": "multiple_response",
+          "alias": "hiddenBrands",
+          "name": "Brands shown to this respondent",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "hiddenBrands--1",
+              "name": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E"
+            },
+            {
+              "alias": "hiddenBrands--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "hiddenBrands--3",
+              "name": "Brand C"
+            }
+          ]
+        },
+        "hiddenTraits": {
+          "type": "multiple_response",
+          "alias": "hiddenTraits",
+          "name": "Traits shown to this respondent",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "hiddenTraits--1",
+              "name": "Fresh"
+            },
+            {
+              "alias": "hiddenTraits--2",
+              "name": "Cheap"
+            },
+            {
+              "alias": "hiddenTraits--3",
+              "name": "Local"
+            }
+          ]
+        },
+        "satisfaction": {
+          "type": "categorical_array",
+          "alias": "satisfaction",
+          "name": "satisfaction",
+          "description": "",
+          "categories": [
+            {
+              "name": "Low",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Medium",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "High",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "satisfaction--price",
+              "name": "Price"
+            },
+            {
+              "alias": "satisfaction--taste",
+              "name": "Taste"
+            }
+          ]
+        },
+        "stores": {
+          "type": "multiple_response",
+          "alias": "stores",
+          "name": "Where do you shop?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "stores--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "stores--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "stores--3",
+              "name": "Store C"
+            }
+          ]
+        },
+        "cfqAllOne": {
+          "type": "categorical",
+          "alias": "cfqAllOne",
+          "name": "Pick one store (cfq, all)",
+          "description": "",
+          "categories": [
+            {
+              "name": "Store A",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Store B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Store C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "cfqSelectedOne": {
+          "type": "categorical",
+          "alias": "cfqSelectedOne",
+          "name": "Pick one store (cfq, selected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "Store A",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Store B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Store C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "cfqUnselectedOne": {
+          "type": "categorical",
+          "alias": "cfqUnselectedOne",
+          "name": "Pick one store (cfq, unselected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "Store A",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Store B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Store C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "edxAllOne": {
+          "type": "categorical",
+          "alias": "edxAllOne",
+          "name": "Pick one store (edx, all)",
+          "description": "",
+          "categories": [
+            {
+              "name": "Store A",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Store B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Store C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "edxSelectedOne": {
+          "type": "categorical",
+          "alias": "edxSelectedOne",
+          "name": "Pick one store (edx, selected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "Store A",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Store B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Store C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "edxUnselectedOne": {
+          "type": "categorical",
+          "alias": "edxUnselectedOne",
+          "name": "Pick one store (edx, unselected)",
+          "description": "",
+          "categories": [
+            {
+              "name": "Store A",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Store B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Store C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "favorite": {
+          "type": "categorical",
+          "alias": "favorite",
+          "name": "Which one is your favorite?",
+          "description": "",
+          "categories": [
+            {
+              "name": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Brand B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Brand C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "region": {
+          "type": "categorical",
+          "alias": "region",
+          "name": "Region",
+          "description": "",
+          "categories": [
+            {
+              "name": "North",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "South",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "East",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ]
+        },
+        "AidedBrands": {
+          "type": "text",
+          "alias": "AidedBrands",
+          "name": "Which of these brands have you heard of?",
+          "description": ""
+        },
+        "cfqAllPick": {
+          "type": "text",
+          "alias": "cfqAllPick",
+          "name": "Pick stores (cfq, all)",
+          "description": ""
+        },
+        "cfqSelectedPick": {
+          "type": "text",
+          "alias": "cfqSelectedPick",
+          "name": "Pick stores (cfq, selected)",
+          "description": ""
+        },
+        "cfqUnselectedPick": {
+          "type": "text",
+          "alias": "cfqUnselectedPick",
+          "name": "Pick stores (cfq, unselected)",
+          "description": ""
+        },
+        "comments": {
+          "type": "text",
+          "alias": "comments",
+          "name": "Anything else?",
+          "description": ""
+        },
+        "edxAllPick": {
+          "type": "text",
+          "alias": "edxAllPick",
+          "name": "Pick stores (edx, all)",
+          "description": ""
+        },
+        "edxSelectedPick": {
+          "type": "text",
+          "alias": "edxSelectedPick",
+          "name": "Pick stores (edx, selected)",
+          "description": ""
+        },
+        "edxUnselectedPick": {
+          "type": "text",
+          "alias": "edxUnselectedPick",
+          "name": "Pick stores (edx, unselected)",
+          "description": ""
+        },
+        "contact--city": {
+          "type": "text",
+          "alias": "contact--city",
+          "name": "contact--city",
+          "description": ""
+        },
+        "contact--zip": {
+          "type": "text",
+          "alias": "contact--zip",
+          "name": "contact--zip",
+          "description": ""
+        },
+        "household--0--member": {
+          "type": "text",
+          "alias": "household--0--member",
+          "name": "household--0--member",
+          "description": ""
+        },
+        "household--0--pets": {
+          "type": "text",
+          "alias": "household--0--pets",
+          "name": "household--0--pets",
+          "description": ""
+        },
+        "household--1--member": {
+          "type": "text",
+          "alias": "household--1--member",
+          "name": "household--1--member",
+          "description": ""
+        },
+        "household--1--pets": {
+          "type": "text",
+          "alias": "household--1--pets",
+          "name": "household--1--pets",
+          "description": ""
+        },
+        "household--2--member": {
+          "type": "text",
+          "alias": "household--2--member",
+          "name": "household--2--member",
+          "description": ""
+        },
+        "household--2--pets": {
+          "type": "text",
+          "alias": "household--2--pets",
+          "name": "household--2--pets",
+          "description": ""
+        },
+        "household--3--member": {
+          "type": "text",
+          "alias": "household--3--member",
+          "name": "household--3--member",
+          "description": ""
+        },
+        "household--3--pets": {
+          "type": "text",
+          "alias": "household--3--pets",
+          "name": "household--3--pets",
+          "description": ""
+        },
+        "household--4--member": {
+          "type": "text",
+          "alias": "household--4--member",
+          "name": "household--4--member",
+          "description": ""
+        },
+        "household--4--pets": {
+          "type": "text",
+          "alias": "household--4--pets",
+          "name": "household--4--pets",
+          "description": ""
+        },
+        "household--5--member": {
+          "type": "text",
+          "alias": "household--5--member",
+          "name": "household--5--member",
+          "description": ""
+        },
+        "household--5--pets": {
+          "type": "text",
+          "alias": "household--5--pets",
+          "name": "household--5--pets",
+          "description": ""
+        },
+        "household--6--member": {
+          "type": "text",
+          "alias": "household--6--member",
+          "name": "household--6--member",
+          "description": ""
+        },
+        "household--6--pets": {
+          "type": "text",
+          "alias": "household--6--pets",
+          "name": "household--6--pets",
+          "description": ""
+        },
+        "household--7--member": {
+          "type": "text",
+          "alias": "household--7--member",
+          "name": "household--7--member",
+          "description": ""
+        },
+        "household--7--pets": {
+          "type": "text",
+          "alias": "household--7--pets",
+          "name": "household--7--pets",
+          "description": ""
+        },
+        "household--8--member": {
+          "type": "text",
+          "alias": "household--8--member",
+          "name": "household--8--member",
+          "description": ""
+        },
+        "household--8--pets": {
+          "type": "text",
+          "alias": "household--8--pets",
+          "name": "household--8--pets",
+          "description": ""
+        },
+        "household--9--member": {
+          "type": "text",
+          "alias": "household--9--member",
+          "name": "household--9--member",
+          "description": ""
+        },
+        "household--9--pets": {
+          "type": "text",
+          "alias": "household--9--pets",
+          "name": "household--9--pets",
+          "description": ""
+        },
+        "usage--home--frequency": {
+          "type": "text",
+          "alias": "usage--home--frequency",
+          "name": "usage--home--frequency",
+          "description": ""
+        },
+        "usage--home--note": {
+          "type": "text",
+          "alias": "usage--home--note",
+          "name": "usage--home--note",
+          "description": ""
+        },
+        "usage--work--frequency": {
+          "type": "text",
+          "alias": "usage--work--frequency",
+          "name": "usage--work--frequency",
+          "description": ""
+        },
+        "usage--work--note": {
+          "type": "text",
+          "alias": "usage--work--note",
+          "name": "usage--work--note",
+          "description": ""
+        },
+        "cfqAllLoop--cfqAllOk": {
+          "type": "categorical_array",
+          "alias": "cfqAllLoop--cfqAllOk",
+          "name": "Is \u2026 open late?",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "cfqAllLoop--1--cfqAllOk",
+              "name": "1"
+            },
+            {
+              "alias": "cfqAllLoop--2--cfqAllOk",
+              "name": "2"
+            },
+            {
+              "alias": "cfqAllLoop--3--cfqAllOk",
+              "name": "3"
+            }
+          ]
+        },
+        "cfqSelectedLoop--cfqSelectedOk": {
+          "type": "categorical_array",
+          "alias": "cfqSelectedLoop--cfqSelectedOk",
+          "name": "Is \u2026 open late? -- cfqSelectedLoop--cfqSelectedOk",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "cfqSelectedLoop--1--cfqSelectedOk",
+              "name": "1"
+            },
+            {
+              "alias": "cfqSelectedLoop--2--cfqSelectedOk",
+              "name": "2"
+            },
+            {
+              "alias": "cfqSelectedLoop--3--cfqSelectedOk",
+              "name": "3"
+            }
+          ]
+        },
+        "cfqUnselectedLoop--cfqUnselectedOk": {
+          "type": "categorical_array",
+          "alias": "cfqUnselectedLoop--cfqUnselectedOk",
+          "name": "Is \u2026 open late? -- cfqUnselectedLoop--cfqUnselectedOk",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "cfqUnselectedLoop--1--cfqUnselectedOk",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqUnselectedLoop--2--cfqUnselectedOk",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqUnselectedLoop--3--cfqUnselectedOk",
+              "name": "Store C"
+            }
+          ]
+        },
+        "considerLoop--consider": {
+          "type": "categorical_array",
+          "alias": "considerLoop--consider",
+          "name": "Would you consider \u2026?",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--1--consider",
+              "name": "1"
+            },
+            {
+              "alias": "considerLoop--2--consider",
+              "name": "2"
+            },
+            {
+              "alias": "considerLoop--3--consider",
+              "name": "3"
+            }
+          ]
+        },
+        "edxAllLoop--edxAllOk": {
+          "type": "categorical_array",
+          "alias": "edxAllLoop--edxAllOk",
+          "name": "Is \u2026 open late? -- edxAllLoop--edxAllOk",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxAllLoop--1--edxAllOk",
+              "name": "1"
+            },
+            {
+              "alias": "edxAllLoop--2--edxAllOk",
+              "name": "2"
+            },
+            {
+              "alias": "edxAllLoop--3--edxAllOk",
+              "name": "3"
+            }
+          ]
+        },
+        "edxSelectedLoop--edxSelectedOk": {
+          "type": "categorical_array",
+          "alias": "edxSelectedLoop--edxSelectedOk",
+          "name": "Is \u2026 open late? -- edxSelectedLoop--edxSelectedOk",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxSelectedLoop--1--edxSelectedOk",
+              "name": "1"
+            },
+            {
+              "alias": "edxSelectedLoop--2--edxSelectedOk",
+              "name": "2"
+            },
+            {
+              "alias": "edxSelectedLoop--3--edxSelectedOk",
+              "name": "3"
+            }
+          ]
+        },
+        "edxUnselectedLoop--edxUnselectedOk": {
+          "type": "categorical_array",
+          "alias": "edxUnselectedLoop--edxUnselectedOk",
+          "name": "Is \u2026 open late? -- edxUnselectedLoop--edxUnselectedOk",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "edxUnselectedLoop--1--edxUnselectedOk",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxUnselectedLoop--2--edxUnselectedOk",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxUnselectedLoop--3--edxUnselectedOk",
+              "name": "Store C"
+            }
+          ]
+        },
+        "rankLoop--rankPick": {
+          "type": "categorical_array",
+          "alias": "rankLoop--rankPick",
+          "name": "Which brand comes closest to \u2026?",
+          "description": "",
+          "categories": [
+            {
+              "name": "\u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Brand B",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            },
+            {
+              "name": "Brand C",
+              "id": 3,
+              "numeric_value": 3,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "rankLoop--1--rankPick",
+              "name": "1"
+            },
+            {
+              "alias": "rankLoop--2--rankPick",
+              "name": "2"
+            },
+            {
+              "alias": "rankLoop--3--rankPick",
+              "name": "3"
+            }
+          ]
+        },
+        "reasonLoop--1--reason": {
+          "type": "text",
+          "alias": "reasonLoop--1--reason",
+          "name": "reasonLoop -- Why 1?",
+          "description": ""
+        },
+        "reasonLoop--2--reason": {
+          "type": "text",
+          "alias": "reasonLoop--2--reason",
+          "name": "reasonLoop -- Why 2?",
+          "description": ""
+        },
+        "reasonLoop--3--reason": {
+          "type": "text",
+          "alias": "reasonLoop--3--reason",
+          "name": "reasonLoop -- Why 3?",
+          "description": ""
+        },
+        "traitsLoop--1--traits": {
+          "type": "text",
+          "alias": "traitsLoop--1--traits",
+          "name": "traitsLoop -- What describes 1?",
+          "description": ""
+        },
+        "traitsLoop--1--traits--other_text": {
+          "type": "text",
+          "alias": "traitsLoop--1--traits--other_text",
+          "name": "traitsLoop -- What describes 1? -- Other",
+          "description": ""
+        },
+        "traitsLoop--2--traits": {
+          "type": "text",
+          "alias": "traitsLoop--2--traits",
+          "name": "traitsLoop -- What describes 2?",
+          "description": ""
+        },
+        "traitsLoop--2--traits--other_text": {
+          "type": "text",
+          "alias": "traitsLoop--2--traits--other_text",
+          "name": "traitsLoop -- What describes 2? -- Other",
+          "description": ""
+        },
+        "traitsLoop--3--traits": {
+          "type": "text",
+          "alias": "traitsLoop--3--traits",
+          "name": "traitsLoop -- What describes 3?",
+          "description": ""
+        },
+        "traitsLoop--3--traits--other_text": {
+          "type": "text",
+          "alias": "traitsLoop--3--traits--other_text",
+          "name": "traitsLoop -- What describes 3? -- Other",
+          "description": ""
+        },
+        "attributeLoop--1--attribute": {
+          "type": "multiple_response",
+          "alias": "attributeLoop--1--attribute",
+          "name": "Which brands share this with \u003Cp\u003E\u003Cb\u003EBrand A\u003C/b\u003E\u003C/p\u003E?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "attributeLoop--1--attribute--item1",
+              "name": "item1"
+            },
+            {
+              "alias": "attributeLoop--1--attribute--item2",
+              "name": "item2"
+            },
+            {
+              "alias": "attributeLoop--1--attribute--item3",
+              "name": "item3"
+            },
+            {
+              "alias": "attributeLoop--1--attribute--none",
+              "name": "None"
+            }
+          ]
+        },
+        "attributeLoop--2--attribute": {
+          "type": "multiple_response",
+          "alias": "attributeLoop--2--attribute",
+          "name": "Which brands share this with Brand B?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "attributeLoop--2--attribute--item1",
+              "name": "item1"
+            },
+            {
+              "alias": "attributeLoop--2--attribute--item2",
+              "name": "item2"
+            },
+            {
+              "alias": "attributeLoop--2--attribute--item3",
+              "name": "item3"
+            },
+            {
+              "alias": "attributeLoop--2--attribute--none",
+              "name": "None"
+            }
+          ]
+        },
+        "attributeLoop--3--attribute": {
+          "type": "multiple_response",
+          "alias": "attributeLoop--3--attribute",
+          "name": "Which brands share this with Brand C?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "attributeLoop--3--attribute--item1",
+              "name": "item1"
+            },
+            {
+              "alias": "attributeLoop--3--attribute--item2",
+              "name": "item2"
+            },
+            {
+              "alias": "attributeLoop--3--attribute--item3",
+              "name": "item3"
+            },
+            {
+              "alias": "attributeLoop--3--attribute--none",
+              "name": "None"
+            }
+          ]
+        },
+        "brandPool": {
+          "type": "text",
+          "alias": "brandPool",
+          "name": "brandPool",
+          "description": ""
+        }
+      },
+      "order": [
+        {
+          "group": "Meta-data",
+          "entities": [
+            "Id",
+            "IsComplete",
+            "CollectionStatus",
+            "CreatedAt",
+            "ModifiedAt",
+            "StartedAt",
+            "CompletedAt",
+            "DurationSeconds",
+            "SubmitterId",
+            "SubmitterDisplayId"
+          ]
+        },
+        {
+          "group": "Calculated values",
+          "entities": [
+            "brandPool"
+          ]
+        },
+        {
+          "group": "Questions",
+          "entities": [
+            "region",
+            "hiddenBrands",
+            "hiddenTraits",
+            "AidedBrands",
+            "favorite",
+            "stores",
+            "cfqAllPick",
+            "cfqAllOne",
+            "cfqSelectedPick",
+            "cfqSelectedOne",
+            "cfqUnselectedPick",
+            "cfqUnselectedOne",
+            "edxAllPick",
+            "edxAllOne",
+            "edxSelectedPick",
+            "edxSelectedOne",
+            "edxUnselectedPick",
+            "edxUnselectedOne",
+            {
+              "group": "Household members",
+              "entities": [
+                "household--0--member",
+                "household--0--pets",
+                "household--1--member",
+                "household--1--pets",
+                "household--2--member",
+                "household--2--pets",
+                "household--3--member",
+                "household--3--pets",
+                "household--4--member",
+                "household--4--pets",
+                "household--5--member",
+                "household--5--pets",
+                "household--6--member",
+                "household--6--pets",
+                "household--7--member",
+                "household--7--pets",
+                "household--8--member",
+                "household--8--pets",
+                "household--9--member",
+                "household--9--pets"
+              ]
+            },
+            "satisfaction",
+            "usage--home--frequency",
+            "usage--home--note",
+            "usage--work--frequency",
+            "usage--work--note",
+            "contact--city",
+            "contact--zip",
+            "comments",
+            {
+              "group": "considerLoop",
+              "entities": [
+                "considerLoop--consider"
+              ]
+            },
+            {
+              "group": "traitsLoop",
+              "entities": [
+                "traitsLoop--1--traits",
+                "traitsLoop--1--traits--other_text",
+                "traitsLoop--2--traits",
+                "traitsLoop--2--traits--other_text",
+                "traitsLoop--3--traits",
+                "traitsLoop--3--traits--other_text"
+              ]
+            },
+            {
+              "group": "attributeLoop",
+              "entities": [
+                "attributeLoop--1--attribute",
+                "attributeLoop--2--attribute",
+                "attributeLoop--3--attribute"
+              ]
+            },
+            {
+              "group": "rankLoop",
+              "entities": [
+                "rankLoop--rankPick"
+              ]
+            },
+            {
+              "group": "reasonLoop",
+              "entities": [
+                "reasonLoop--1--reason",
+                "reasonLoop--2--reason",
+                "reasonLoop--3--reason"
+              ]
+            },
+            {
+              "group": "cfqAllLoop",
+              "entities": [
+                "cfqAllLoop--cfqAllOk"
+              ]
+            },
+            {
+              "group": "cfqSelectedLoop",
+              "entities": [
+                "cfqSelectedLoop--cfqSelectedOk"
+              ]
+            },
+            {
+              "group": "cfqUnselectedLoop",
+              "entities": [
+                "cfqUnselectedLoop--cfqUnselectedOk"
+              ]
+            },
+            {
+              "group": "edxAllLoop",
+              "entities": [
+                "edxAllLoop--edxAllOk"
+              ]
+            },
+            {
+              "group": "edxSelectedLoop",
+              "entities": [
+                "edxSelectedLoop--edxSelectedOk"
+              ]
+            },
+            {
+              "group": "edxUnselectedLoop",
+              "entities": [
+                "edxUnselectedLoop--edxUnselectedOk"
+              ]
+            }
+          ]
+        }
+      ],
+      "hidden": [
+        "FormId"
+      ]
+    }
+  }
+}

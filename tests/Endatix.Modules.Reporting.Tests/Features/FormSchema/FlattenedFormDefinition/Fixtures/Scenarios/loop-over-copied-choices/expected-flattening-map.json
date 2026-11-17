@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "key": "brands__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? \u2014 Brand 1",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? \u2014 Brand 2",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? \u2014 Brand 3",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware",
+      "kind": "Simple",
+      "label": "Which of these have you bought?",
+      "dataType": "string",
+      "sourceQuestion": "aware",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "occasions__10",
+      "kind": "ChoiceIndicator",
+      "label": "When do you buy? \u2014 Morning",
+      "dataType": "number",
+      "sourceQuestion": "occasions",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "occasions__20",
+      "kind": "ChoiceIndicator",
+      "label": "When do you buy? \u2014 Evening",
+      "dataType": "number",
+      "sourceQuestion": "occasions",
+      "choiceValue": "20",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "considerLoop__1__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "occasionLoop__10__occasionBrand",
+      "kind": "LoopSource",
+      "label": "Which brand for {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "occasionBrand",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "occasionLoop__20__occasionBrand",
+      "kind": "LoopSource",
+      "label": "Which brand for {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "occasionBrand",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "20"
+        }
+      ]
+    }
+  ]
+}

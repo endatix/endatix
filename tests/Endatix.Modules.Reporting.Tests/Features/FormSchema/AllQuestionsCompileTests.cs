@@ -133,7 +133,7 @@ public sealed class AllQuestionsCompileTests
     // Manual only: remove Skip, run `dotnet test --filter AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles`, then commit updated JSON under Fixtures/AllQuestions/ and Fixtures/Scenarios/.
     // Uses SourceAllQuestionsFixturesRoot (repo tree) so regenerated files land in source control; runtime tests read copied fixtures from AppContext.BaseDirectory.
     [Fact(Skip = "Manual fixture regeneration only")]
-    public void AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()
+    public async Task AllQuestionsGoldenFixtures_Regenerate_WithCurrentPipeline_WritesExpectedFixtureFiles()
     {
         string fixturesRoot = FormSchemaFixtureLoader.SourceAllQuestionsFixturesRoot;
 
@@ -174,7 +174,7 @@ public sealed class AllQuestionsCompileTests
             Path.Combine(fixturesRoot, "all-questions-expected-crunch-export-keys.json"),
             JsonSerializer.Serialize(crunchExportKeys, new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine);
 
-        ScenarioGoldens.RegenerateAll();
+        await ScenarioGoldens.RegenerateAllAsync(TestContext.Current.CancellationToken);
     }
 
     private static void WriteIndentedJson(string path, string json) =>
