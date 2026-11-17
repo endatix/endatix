@@ -31,7 +31,7 @@ public interface IBackgroundJobQueue
     /// </summary>
     /// <returns>
     /// The job id, which clients poll for status. When the request's <see cref="BackgroundJobRequest.DedupKey"/>
-    /// is already taken for its tenant and job type, the id of that existing job, whatever its status, and
+    /// is already taken for its scope and job type, the id of that existing job, whatever its status, and
     /// nothing new is scheduled.
     /// </returns>
     Task<long> EnqueueAsync(BackgroundJobRequest request, CancellationToken cancellationToken = default);

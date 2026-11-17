@@ -26,7 +26,7 @@ internal static class OutboxJobFailures
     /// <summary>
     /// A system job for tenant work, or a tenant job for system work: the job's scope is not the one the work runs in.
     /// </summary>
-    public const string WrongScope = "The job's scope does not match its outbox work.";
+    public const string WrongScope = JobScopeMismatchException.WrongScope;
 
     /// <summary>The work threw <see cref="OutboxPermanentFailureException"/>: the message can never be processed.</summary>
     public const string PermanentFailure = "The outbox message can never be processed.";

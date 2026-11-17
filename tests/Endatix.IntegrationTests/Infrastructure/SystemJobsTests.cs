@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// Outbox work registered with <c>appLevel: true</c>, delivered to the job queue: an app-level row becomes a system
+/// Outbox work registered with <c>AddAppLevelOutboxWork</c>, delivered to the job queue: an app-level row becomes a system
 /// job, which runs the work with no tenant. Each test runs a web host on a database of its own.
 /// </summary>
 [Collection(nameof(JobsDbTestCollection))]
@@ -33,7 +33,7 @@ public sealed class SystemJobsTests(DbIntegrationFixture fixture)
             fixture,
             new FanOutHostSetup(DeliverToJobQueue: true, services => services
                 .AddSingleton(recorder)
-                .AddOutboxWork<AppLevelProbeWork>(appLevel: true)),
+                .AddAppLevelOutboxWork<AppLevelProbeWork>()),
             ct);
 
         // Act
@@ -62,7 +62,7 @@ public sealed class SystemJobsTests(DbIntegrationFixture fixture)
             fixture,
             new FanOutHostSetup(DeliverToJobQueue: true, services => services
                 .AddSingleton(recorder)
-                .AddOutboxWork<AppLevelProbeWork>(appLevel: true)),
+                .AddAppLevelOutboxWork<AppLevelProbeWork>()),
             ct);
 
         // Act — the relay refuses the row, so it retries it rather than marking it sent.

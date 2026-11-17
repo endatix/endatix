@@ -64,6 +64,13 @@ internal sealed class JobHandlerRunner(
         {
             return new HandlerInvocation(await ExecuteHandlerAsync(job, activity, cancellationToken), null);
         }
+        catch (JobScopeMismatchException mismatch)
+        {
+            // Deterministic: no retry changes a job's scope, so it is a returned failure, not a transient throw.
+            activity?.SetStatus(ActivityStatusCode.Error, nameof(JobScopeMismatchException));
+            logger.LogWarning(mismatch, "Background job {JobId} ({JobType}) ran in the wrong scope", job.Id, job.JobType);
+            return new HandlerInvocation(Result.Invalid(new ValidationError(mismatch.EndUserMessage)), null);
+        }
         catch (Exception exception)
         {
             // The type name only, because a message can carry secrets, which is why none reaches the row either.

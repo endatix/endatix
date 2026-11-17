@@ -36,12 +36,9 @@ public static class OutboxWorkServiceCollectionExtensions
     /// <param name="appLevelTenant">
     /// Reads the job's tenant from an app-level row, whose stored tenant is none. Omitted, the row carries the tenant.
     /// An <see cref="OutboxPermanentFailureException"/> thrown here fails the job at once, and when the relay enqueues
-    /// it fails the outbox row at once, for every subscriber, since no job can be enqueued for this one.
-    /// </param>
-    /// <param name="appLevel">
-    /// Runs the work as a system job, one that belongs to no tenant, for app-level rows. Use it for work that has no
-    /// tenant, such as work that comes before its tenant exists. A row that names a tenant fails the publish. Cannot
-    /// be combined with <paramref name="appLevelTenant"/>, which is for app-level work that belongs to a tenant.
+    /// it fails the outbox row at once, for every subscriber, since no job can be enqueued for this one. Use it when the
+    /// work belongs to the tenant the row's payload names; work that belongs to no tenant registers with
+    /// <see cref="AddAppLevelOutboxWork{TWork}"/> instead.
     /// </param>
     /// <param name="onlyWhen">
     /// Enqueues no job when this returns false, so a frequent event that rarely needs the work adds no empty jobs.
@@ -52,13 +49,38 @@ public static class OutboxWorkServiceCollectionExtensions
         this IServiceCollection services,
         BackgroundJobTypeDefaults? defaults = null,
         Func<IOutboxMessage, long>? appLevelTenant = null,
-        Func<IOutboxMessage, bool>? onlyWhen = null,
-        bool appLevel = false)
+        Func<IOutboxMessage, bool>? onlyWhen = null)
+        where TWork : class, IOutboxWork<TWork> =>
+        services.AddWork<TWork>(defaults, new OutboxWorkRegistration<TWork>(appLevelTenant, onlyWhen));
+
+    /// <summary>
+    /// Registers <typeparamref name="TWork"/> like <see cref="AddOutboxWork{TWork}"/>, as work that belongs to no
+    /// tenant: each app-level row (one whose stored tenant is none) becomes a system job, and a row that names a
+    /// tenant fails the publish.
+    /// </summary>
+    /// <remarks>
+    /// Use it for work that has no tenant, such as work that comes before its tenant exists. Work on an app-level row
+    /// that belongs to the tenant the row's payload names uses <see cref="AddOutboxWork{TWork}"/> with
+    /// <c>appLevelTenant</c> instead. Before switching existing work here, let its outbox rows and in-flight jobs
+    /// drain: a tenant job of work registered here fails at once.
+    /// </remarks>
+    /// <param name="services">The service collection.</param>
+    /// <param name="defaults">The job's retry policy. Omitted uses <see cref="DefaultJob"/>.</param>
+    /// <param name="onlyWhen">As on <see cref="AddOutboxWork{TWork}"/>.</param>
+    public static IServiceCollection AddAppLevelOutboxWork<TWork>(
+        this IServiceCollection services,
+        BackgroundJobTypeDefaults? defaults = null,
+        Func<IOutboxMessage, bool>? onlyWhen = null)
+        where TWork : class, IOutboxWork<TWork> =>
+        services.AddWork<TWork>(defaults, new OutboxWorkRegistration<TWork>(readTenant: null, onlyWhen, appLevel: true));
+
+    private static IServiceCollection AddWork<TWork>(
+        this IServiceCollection services,
+        BackgroundJobTypeDefaults? defaults,
+        OutboxWorkRegistration<TWork> registration)
         where TWork : class, IOutboxWork<TWork>
     {
         ArgumentNullException.ThrowIfNull(services);
-        ThrowIfBothScopes<TWork>(appLevel, appLevelTenant);
-
         if (services.Any(RegistersInline<TWork>))
         {
             throw new InvalidOperationException(
@@ -70,16 +92,16 @@ public static class OutboxWorkServiceCollectionExtensions
         services.AddScoped<IOutboxIntegrationEventHandler>(provider => provider.GetRequiredService<TWork>());
         services.AddBackgroundJobHandler<OutboxJobHandler<TWork>, OutboxMessageJob<TWork>>(defaults ?? DefaultJob);
         services.TryAddScoped<OutboxJobMessages>();
-        services.AddSingleton(new OutboxWorkRegistration<TWork>(appLevelTenant, onlyWhen, appLevel));
+        services.AddSingleton(registration);
 
         foreach (var eventType in TWork.HandledEventTypes)
         {
             var source = new OutboxSubscriptionServiceCollectionExtensions.SubscriptionSource(
                 eventType,
-                appLevelTenant is { } readTenant ? TenantOrNone(readTenant) : null,
+                registration.ReadTenant is { } readTenant ? TenantOrNone(readTenant) : null,
                 typeof(TWork),
-                appLevel);
-            if (onlyWhen is null)
+                registration.AppLevel);
+            if (registration.OnlyWhen is null)
             {
                 services.AddJobSubscription(source, message => new OutboxMessageJob<TWork>(message.Id));
             }
@@ -90,17 +112,6 @@ public static class OutboxWorkServiceCollectionExtensions
         }
 
         return services;
-    }
-
-    private static void ThrowIfBothScopes<TWork>(bool appLevel, Func<IOutboxMessage, long>? appLevelTenant)
-    {
-        if (appLevel && appLevelTenant is not null)
-        {
-            throw new ArgumentException(
-                $"The outbox work {typeof(TWork).FullName} cannot be both a system job (appLevel) and a tenant's job " +
-                $"(appLevelTenant); choose the one its work belongs to.",
-                nameof(appLevel));
-        }
     }
 
     private static bool RegistersInline<TWork>(ServiceDescriptor descriptor) =>

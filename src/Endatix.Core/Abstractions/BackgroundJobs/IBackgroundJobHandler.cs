@@ -10,7 +10,7 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// <param name="Scope">
 /// Whose work the job is. For a tenant job, <b>every query the handler issues must be scoped to
 /// <see cref="TenantId"/> explicitly</b> — see the handler contract on <see cref="IBackgroundJobHandler"/>.
-/// A system job has no tenant and reads only app-level data.
+/// A system job has no tenant; it runs as the outbox relay's inline work does, so it scopes its own queries too.
 /// </param>
 /// <param name="PayloadJson">The input supplied at enqueue time.</param>
 /// <param name="AttemptCount">
@@ -31,11 +31,19 @@ public sealed record BackgroundJobContext(
     }
 
     /// <summary>The owning tenant of a tenant job.</summary>
-    /// <exception cref="InvalidOperationException">
-    /// The job is a system job. A handler written for tenant work fails here rather than run with no tenant.
+    /// <exception cref="JobScopeMismatchException">
+    /// The job is a system job. A handler written for tenant work fails here, and the runner fails the job at once
+    /// rather than run it with no tenant or retry it.
     /// </exception>
     public long TenantId => Scope.TenantId
-        ?? throw new InvalidOperationException($"Job {JobId} ({JobType}) is a system job and has no tenant.");
+        ?? throw new JobScopeMismatchException($"Job {JobId} ({JobType}) is a system job and has no tenant.");
+
+    // Printing (ToString, debugger views) must never throw, so TenantId is left out: Scope says it.
+    private bool PrintMembers(System.Text.StringBuilder builder)
+    {
+        builder.Append($"JobId = {JobId}, JobType = {JobType}, Scope = {Scope}, AttemptCount = {AttemptCount}");
+        return true;
+    }
 }
 
 /// <summary>

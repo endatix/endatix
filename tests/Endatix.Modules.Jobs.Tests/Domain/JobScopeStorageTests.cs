@@ -3,7 +3,7 @@ using Endatix.Modules.Jobs.Domain;
 
 namespace Endatix.Modules.Jobs.Tests.Domain;
 
-public class JobScopeStorageTests
+public sealed partial class JobScopeStorageTests
 {
     [Fact]
     public void ToStorage_ThenFromStorage_RoundTripsEachScope()

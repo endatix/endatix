@@ -20,7 +20,7 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// explicitly — the ambient tenant filter is disabled in a background service, not enforced.
 /// </param>
 /// <param name="CreatedByUserId">
-/// Requesting user, or <c>null</c> for system-enqueued work such as webhook fan-out.
+/// Requesting user, or <c>null</c> for work the application enqueues itself, such as webhook fan-out.
 /// </param>
 /// <param name="ExpiresAt">
 /// When the job row and any artifact it produced become collectable. <c>null</c> lets the retention

@@ -403,7 +403,7 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 | Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP, or with `DeliverToJobQueue` a job per endpoint                 | `form.updated`, `submission.completed`                                                                |
 | Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler, or with `DeliverToJobQueue` a job per subscriber | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
 
-A module registers each subscriber with `services.AddOutboxWork<TWork>()` (`Endatix.Infrastructure.Features.Outbox`): the handler implements `IOutboxWork<TWork>` (`JobType`, `HandledEventTypes`, `Read`), and the one call registers it inline, as a background job (`OutboxJobHandler`) and as the job's subscription to every event in `HandledEventTypes`, so `Endatix:Outbox:DeliverToJobQueue` can move it to the job queue. The job's stored input is `{"outboxMessageId":N}` under the work's `JobType` literal. The job fails for good, without retry, when the outbox row is gone or unreadable, when an app-level row's payload names another tenant, when the job's scope does not match the work (a system job for tenant work, or a tenant job for `appLevel` work), or when the tenant reader, `Read` or the work throws `OutboxPermanentFailureException`; anything else the work throws is retried. Inline, `CompositeIntegrationEventPublisher` lets that exception through unwrapped, so the relay fails the outbox row on that attempt (endatix#1566). With the switch on, startup fails when an outbox work has no job of its own or lists fewer `EventTypes` than its job subscribes, when any other inline handler's events have no subscription from its assembly that no work owns, or when an inline handler is registered twice; `OutboxWorkCoverageTests` boots every module that way.
+A module registers each subscriber with `services.AddOutboxWork<TWork>()` (`Endatix.Infrastructure.Features.Outbox`): the handler implements `IOutboxWork<TWork>` (`JobType`, `HandledEventTypes`, `Read`), and the one call registers it inline, as a background job (`OutboxJobHandler`) and as the job's subscription to every event in `HandledEventTypes`, so `Endatix:Outbox:DeliverToJobQueue` can move it to the job queue. The job's stored input is `{"outboxMessageId":N}` under the work's `JobType` literal. The job fails for good, without retry, when the outbox row is gone or unreadable, when an app-level row's payload names another tenant, when the job's scope does not match the work (a system job for tenant work, or a tenant job for app-level work), or when the tenant reader, `Read` or the work throws `OutboxPermanentFailureException`; anything else the work throws is retried. Inline, `CompositeIntegrationEventPublisher` lets that exception through unwrapped, so the relay fails the outbox row on that attempt (endatix#1566). With the switch on, startup fails when an outbox work has no job of its own or lists fewer `EventTypes` than its job subscribes, when any other inline handler's events have no subscription from its assembly that no work owns, or when an inline handler is registered twice; `OutboxWorkCoverageTests` boots every module that way.
 
 Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored by the outbox dispatcher and stay in-process.
 
@@ -584,16 +584,18 @@ can.
 
 A job has a **scope** (`JobScope`): a tenant's, or the system's. A tenant job carries a real tenant;
 `JobScope.ForTenant` refuses zero or less. A system job does work that belongs to no tenant, such as a
-signup processed before its tenant exists, and is made only by `JobScope.System` (`BackgroundJob.ForSystem`),
-never from a tenant id. `JobScopeStorage` is the one place a scope meets the `TenantId` column: a system job
+signup processed before its tenant exists, and is made only from `JobScope.System` (`BackgroundJob.ForSystem`,
+or a request with that scope), never from a tenant id. `JobScopeStorage` is the one place a scope meets the `TenantId` column: a system job
 stores the value an app-level outbox row stores for "no tenant", which the tenant filter shows to no tenant,
 so `GET jobs/{jobId}` never returns one to a tenant. Platform admins see system jobs' triggers in the Quartz
 dashboard.
 
-A system job runs as the relay runs its work inline: with no ambient tenant, so app-level repositories work
-and a handler reads no tenant's data unless it names the tenant. `BackgroundJobContext.TenantId` throws for a
-system job, so a handler written for tenant work fails rather than run without one. Making tenant-filtered
-queries match nothing in a system job belongs to the wider tenant-scope change, not to jobs.
+A system job runs as the relay runs its work inline: with no ambient tenant, so app-level repositories work.
+The tenant filter is permissive there, so an unscoped query in a system job reads every tenant's rows; the
+handler scopes its own queries, as inline work does. Making tenant-filtered queries match nothing in a system
+job is part of the wider tenant-scope change, not yet built. `BackgroundJobContext.TenantId` throws
+`JobScopeMismatchException` for a system job, and the runner fails that job at once, without a retry, so a
+handler written for tenant work never runs one with no tenant.
 
 ### The handler contract
 
@@ -611,7 +613,7 @@ re-send or dead-letter another. Reporting and Audience register each handler thr
 that guard the switch are listed with it under [Domain and integration events](#domain-and-integration-events);
 webhooks expand to one job per distinct enabled endpoint URL. The relay pauses rather than claim when
 the switch is on and no job queue is registered. A row's jobs take its tenant, the tenant an
-`appLevelTenant` reader names in an app-level row, or, for work registered with `appLevel: true`, the
+`appLevelTenant` reader names in an app-level row, or, for work registered with `AddAppLevelOutboxWork`, the
 system scope, which takes only app-level rows: a row that names a tenant fails the publish and is retried,
 then failed, where an operator sees it.
 

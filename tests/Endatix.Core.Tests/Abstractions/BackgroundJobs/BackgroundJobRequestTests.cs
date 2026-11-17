@@ -47,4 +47,15 @@ public sealed class BackgroundJobRequestTests
         // Assert
         request.DedupKey.Should().BeNull();
     }
+
+    [Fact]
+    public void Create_TenantZero_Throws()
+    {
+        // Arrange
+        // Act
+        var create = () => BackgroundJobRequest.Create(new TestPayload(1), tenantId: 0);
+
+        // Assert
+        create.Should().Throw<ArgumentOutOfRangeException>();
+    }
 }

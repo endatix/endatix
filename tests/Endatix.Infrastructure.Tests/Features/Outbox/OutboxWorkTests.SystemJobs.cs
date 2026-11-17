@@ -4,27 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
-/// <summary>Outbox work registered with <c>appLevel: true</c>, which runs as system jobs.</summary>
+/// <summary>Outbox work registered with <c>AddAppLevelOutboxWork</c>, which runs as system jobs.</summary>
 public sealed partial class OutboxWorkTests
 {
     private const long NoTenant = 0;
 
     private ServiceProvider BuildAppLevel() =>
-        BuildWith(services => services.AddOutboxWork<WorkStub>(Defaults, appLevel: true));
-
-    [Fact]
-    public void AddOutboxWork_AppLevelAndAppLevelTenant_Throws()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-
-        // Act
-        var register = () => services.AddOutboxWork<WorkStub>(
-            Defaults, appLevelTenant: WorkStub.ReadNewTenant, appLevel: true);
-
-        // Assert
-        register.Should().Throw<ArgumentException>().WithParameterName("appLevel");
-    }
+        BuildWith(services => services.AddAppLevelOutboxWork<WorkStub>(Defaults));
 
     [Fact]
     public async Task PublishAsync_AppLevelWorkAndAppLevelRow_EnqueuesASystemJob()

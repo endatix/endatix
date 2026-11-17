@@ -26,7 +26,7 @@ namespace Endatix.Modules.Jobs.Features;
 /// or the reverse, so nothing has to repair a gap between the two.
 /// </para>
 /// <para>
-/// A request with a <see cref="BackgroundJobRequest.DedupKey"/> already in the table for its tenant and job
+/// A request with a <see cref="BackgroundJobRequest.DedupKey"/> already in the table for its scope and job
 /// type gets the existing job's id and no second row or trigger; a unique index makes that hold however two
 /// enqueues of the same key interleave. Ids come back in request order.
 /// </para>
@@ -194,10 +194,10 @@ internal sealed partial class BackgroundJobQueue(
 
     /// <summary>The rows that already hold one of <paramref name="identities"/>' dedup keys.</summary>
     /// <remarks>
-    /// The key is unique per tenant, and a caller serving one tenant may enqueue for another, so the ambient tenant
-    /// must not narrow this lookup. Nor may soft deletion: the unique index covers deleted rows too, so a deleted
-    /// row with the key would block the insert while staying invisible here. Tenant and job type are matched as
-    /// well, so the lookup can use that index, which leads with them.
+    /// The key is unique per scope, and a caller serving one tenant may enqueue for another or for the system, so the
+    /// ambient tenant must not narrow this lookup. Nor may soft deletion: the unique index covers deleted rows too, so a deleted
+    /// row with the key would block the insert while staying invisible here. Stored scope and job type are matched
+    /// as well, so the lookup can use that index, which leads with them.
     /// </remarks>
     private Task<List<DedupRow>> ReadDedupRowsAsync(
         List<DedupIdentity> identities,

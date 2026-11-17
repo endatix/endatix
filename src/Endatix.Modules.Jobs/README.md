@@ -25,7 +25,7 @@ The module is registered automatically by `EndatixBuilder.UseDefaults()` — no 
 
 Two stores in one `jobs` schema, with one job each:
 
-- The `BackgroundJobs` table is the **record** of every job: tenant, status, progress, attempts,
+- The `BackgroundJobs` table is the **record** of every job: scope, status, progress, attempts,
   error, trace and retention. It is what `GET jobs/{jobId}` reads, and the only place a job's
   state lives.
 - [Quartz.NET](https://www.quartz-scheduler.net/) 4.7.2, clustered through the same database
@@ -58,7 +58,7 @@ Database schema: `jobs`
 
 | Table | Purpose |
 |-------|---------|
-| `BackgroundJobs` | One row per unit of work: type, payload, tenant, status, progress, retry state |
+| `BackgroundJobs` | One row per unit of work: type, payload, scope, status, progress, retry state |
 | `qrtz_*` | Quartz.NET's clustered job store: durable jobs, triggers, fired triggers, node check-ins, locks |
 
 The schema carries its own `__EFMigrationsHistory`, so job migrations advance independently
@@ -177,8 +177,10 @@ Four obligations, each invisible until it hurts in production:
    work until the attempt budget is gone.
 2. **Scope every query of a tenant job to the job's `TenantId` explicitly.** Outside a request the
    ambient tenant filter is permissive, not restrictive — a handler that queries as if it were in a
-   request reads every tenant's data. A system job (`job.Scope.IsSystem`) has no tenant: it reads
-   app-level data, as the relay's inline work does, and `job.TenantId` throws for it.
+   request reads every tenant's data. A system job (`job.Scope.IsSystem`) has no tenant and the same
+   permissive filter, as the relay's inline work does, so it scopes its own queries too; filters that
+   match nothing for a system job are not built yet. `job.TenantId` throws `JobScopeMismatchException`
+   for a system job, and the runner fails the job at once without a retry.
 3. **Honour the `CancellationToken`**, or the job cannot be cancelled or time-limited.
 4. **Do not hold one `DbContext` for the length of the job.** Open a scope per chunk via
    `IServiceScopeFactory`; a change tracker held for minutes accumulates every row streamed
@@ -514,11 +516,16 @@ job and as that job's subscriptions in one call; see
   events, with the same module feature flags.
 - With the switch on and this module off, the relay pauses rather than lose messages.
 - With the switch on, startup fails while an inline outbox handler has no job for one of its events.
-- Work with no tenant registers with `AddOutboxWork<TWork>(appLevel: true)`: each app-level row
-  (stored tenant none) becomes a system job, and a row that names a tenant fails the publish. Work
-  whose app-level row names the tenant it belongs to keeps `appLevelTenant:` instead (Reporting's
-  export-format seeding); the two cannot be combined. A system job reads only an app-level row and only
-  for `appLevel` work, and a tenant job only its own tenant's rows, so neither reaches the other's.
+- Work with no tenant registers with `AddAppLevelOutboxWork<TWork>()`: each app-level row (stored
+  tenant none) becomes a system job, and a row that names a tenant fails the publish. Work whose
+  app-level row names the tenant it belongs to uses `AddOutboxWork<TWork>(appLevelTenant: …)` instead
+  (Reporting's export-format seeding). A system job reads only an app-level row and only for app-level
+  work, and a tenant job only its own tenant's rows, so neither reaches the other's outbox rows.
+
+**Switching existing work to app-level.** A tenant job of work registered with `AddAppLevelOutboxWork`
+fails at once, so before moving existing work there, let its outbox rows and in-flight jobs drain: no
+pending outbox message for its events and no `Pending` or `Retrying` job of its type. Then deploy the
+switch.
 
 Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
 

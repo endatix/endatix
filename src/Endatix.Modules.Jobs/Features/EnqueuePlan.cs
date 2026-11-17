@@ -119,7 +119,7 @@ internal sealed class InsertionOrder : IComparer<BackgroundJob>
     }
 }
 
-/// <summary>What a dedup key is unique within.</summary>
+/// <summary>What a dedup key is unique within: the stored scope, as <see cref="JobScopeStorage"/> maps it, and the job type.</summary>
 internal readonly record struct DedupIdentity(long TenantId, string JobType, string DedupKey)
 {
     public static DedupIdentity? Of(BackgroundJobRequest request) =>

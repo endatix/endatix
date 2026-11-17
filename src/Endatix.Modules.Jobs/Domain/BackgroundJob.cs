@@ -169,7 +169,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// </remarks>
     public string? ErrorMessage { get; private set; }
 
-    /// <summary>Requesting user; null for system-enqueued work such as webhook fan-out.</summary>
+    /// <summary>Requesting user; null for work the application enqueues itself, such as webhook fan-out.</summary>
     public long? CreatedByUserId { get; private set; }
 
     /// <summary>When the first attempt was claimed.</summary>

@@ -38,31 +38,16 @@ public class JobScopeTests
 
         // Assert
         scope.Should().Be(JobScope.ForTenant(7));
-        scope.Should().NotBe(JobScope.System);
-        scope.IsSystem.Should().BeFalse();
     }
 
     [Fact]
-    public void BackgroundJobRequestCreate_TenantZero_Throws()
+    public void ForTenant_AnyTenant_IsNotSystem()
     {
         // Arrange
         // Act
-        var create = () => BackgroundJobRequest.Create(new TestPayload(1), tenantId: 0);
+        var scope = JobScope.ForTenant(7);
 
         // Assert
-        create.Should().Throw<ArgumentOutOfRangeException>();
-    }
-
-    [Fact]
-    public void BackgroundJobContextTenantId_SystemJob_Throws()
-    {
-        // Arrange — a handler written for tenant work fails rather than run with no tenant.
-        var job = new BackgroundJobContext(1, "SignupWork", JobScope.System, "{}", 1);
-
-        // Act
-        var read = () => job.TenantId;
-
-        // Assert
-        read.Should().Throw<InvalidOperationException>();
+        scope.IsSystem.Should().BeFalse();
     }
 }
