@@ -2,10 +2,10 @@
   "brands__1": 1,
   "brands__2": 1,
   "brands__3": 1,
-  "aware": [
-    "3",
-    "1"
-  ],
+  "aware__1": 1,
+  "aware__2": 0,
+  "aware__3": 1,
+  "aware__none": 0,
   "occasions__10": 1,
   "occasions__20": 1,
   "occasionRank__10": 2,

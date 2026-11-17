@@ -529,25 +529,9 @@ internal static partial class FormSchemaCodebookBuilder
             return true;
         }
 
-        if (element.IsSingleSelectBaseSelect())
+        if (element.IsSingleSelectBaseSelect() || element.IsMultiSelectBaseSelect())
         {
-            questionEntry = BuildSingleSelectEntry(question, choiceSources.Resolve(element));
-            return true;
-        }
-
-        if (element.IsMultiSelectBaseSelect())
-        {
-            questionEntry = WriteQuestionEntry(writer =>
-            {
-                writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
-                WriteTitle(writer, element);
-                WriteDescription(writer, element);
-                placement.WriteTo(writer);
-                writer.WriteString(
-                    FormSchemaCodebookPropertyNames.ExportShape,
-                    FormSchemaCodebookExportShape.MultipleResponse.Name);
-                WriteChoices(writer, element);
-            });
+            questionEntry = BuildSelectEntry(question, choiceSources.Resolve(element));
             return true;
         }
 

@@ -90,6 +90,46 @@
           "name": "Submitter Display ID",
           "description": ""
         },
+        "aware": {
+          "type": "multiple_response",
+          "alias": "aware",
+          "name": "Which of these have you bought?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "aware--1",
+              "name": "Brand 1"
+            },
+            {
+              "alias": "aware--2",
+              "name": "Brand 2"
+            },
+            {
+              "alias": "aware--3",
+              "name": "Brand 3"
+            },
+            {
+              "alias": "aware--none",
+              "name": "None"
+            }
+          ]
+        },
         "brands": {
           "type": "multiple_response",
           "alias": "brands",
@@ -158,12 +198,6 @@
             }
           ]
         },
-        "aware": {
-          "type": "text",
-          "alias": "aware",
-          "name": "Which of these have you bought?",
-          "description": ""
-        },
         "occasionRank--10": {
           "type": "numeric",
           "alias": "occasionRank--10",
@@ -198,15 +232,15 @@
           "subvariables": [
             {
               "alias": "considerLoop--1--consider",
-              "name": "1"
+              "name": "Brand 1"
             },
             {
               "alias": "considerLoop--2--consider",
-              "name": "2"
+              "name": "Brand 2"
             },
             {
               "alias": "considerLoop--3--consider",
-              "name": "3"
+              "name": "Brand 3"
             }
           ]
         },

@@ -7,7 +7,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// <summary>
 /// COMPILE TIME. Where a select question's choices come from, read once from its definition with Hub's precedence: a
 /// data list, then SurveyJS <c>choicesFromQuestion</c>, then <c>choicesByUrl</c>, then Hub carry forward when it is on.
-/// The codebook records it on a single select's or a ranking's entry (<see cref="FormSchemaCodebookPropertyNames.ChoiceSource"/>) for
+/// The codebook records it on a base select's or a ranking's entry (<see cref="FormSchemaCodebookPropertyNames.ChoiceSource"/>) for
 /// every source but <see cref="Inline"/>, so an export never reads the definition again. Its <c>kind</c> and
 /// <c>reason</c> values are the constants below; a reader treats an unknown kind as inline.
 /// </summary>

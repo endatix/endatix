@@ -42,7 +42,7 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | Scenario | Case |
 | --- | --- |
 | `copied-choices-selected-mode` | A radiogroup copies its choices from a checkbox with `choicesFromQuestion` in selected mode (#1163). |
-| `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. `occasionRank` has one rank column per copied choice, and `occasionLoop` labels its iterations with the source's labels (#1723). Until #1724 publishes the copied choices, `aware` stays one text column and `considerLoop` labels its iterations with their values. |
+| `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. `occasionRank` has one rank column per copied choice, and `occasionLoop` labels its iterations with the source's labels (#1723). `aware` has one indicator column per copied choice and `considerLoop` labels its iterations with the source's labels (#1724). |
 | `copied-choices-loops` | A synthetic survey with copied choices throughout (#1722), below. |
 
 ### `copied-choices-loops`
@@ -62,7 +62,9 @@ About 50 questions on five pages, three choices each, and one response that answ
   - `rankLoop` over `brandRank`, with a radiogroup copying `AidedBrands`;
   - `reasonLoop` over `AidedBrands` with `randomizeLoop`, with a text question;
   - `cfqAllLoop` and `edxAllLoop` (copy matrix, below) each also hold a ranking copying `stores`: `cfqLoopRank`
-    (`choicesFromQuestion`, all) and `edxLoopRank` (`edxCarryForwardSources`, selected).
+    (`choicesFromQuestion`, all) and `edxLoopRank` (`edxCarryForwardSources`, selected). `edxAllLoop` also holds
+    `edxLoopPick`, a checkbox copying `stores` (`edxCarryForwardSources`, unselected, Other) that keeps the Creator's
+    `item1..3`.
 - **Copy matrix,** all copying `stores`:
 
   | Syntax | Mode | Checkbox | Radiogroup | Ranking | Loop (source) |
@@ -73,6 +75,8 @@ About 50 questions on five pages, three choices each, and one response that answ
   | `edxCarryForwardSources` | all | `edxAllPick` | `edxAllOne` | `edxAllRank` | `edxAllLoop` (checkbox) |
   | `edxCarryForwardSources` | selected | `edxSelectedPick` | `edxSelectedOne` | `edxSelectedRank` | `edxSelectedLoop` (ranking) |
   | `edxCarryForwardSources` | unselected | `edxUnselectedPick` | `edxUnselectedOne` | `edxUnselectedRank` | `edxUnselectedLoop` (radiogroup) |
+
+  `cfqTagPick` is a tagbox copying `stores` (`choicesFromQuestion`, all, None).
 
   The mode does not change the export: a copy publishes every choice its sources offer, whichever the respondent was
   shown, so the three rows of each syntax compile alike.
@@ -89,17 +93,12 @@ been captured from a Hub submission yet.
 
 The goldens hold today's output, wrong parts included, so each fix shows up as a golden diff:
 
-- **#1724, a checkbox that copies its choices:** `AidedBrands`, every `*Pick` and each loop's `traits` (and `aware` in
-  `loop-over-copied-choices`) export as one text column of the picked values (Shoji `text`). `attribute` gets the leftover `item1..3` and `none` columns, all 0 except
-  None, because its answers are the copied values.
-- **Iteration labels:** a loop over a checkbox that copies its choices labels its iterations with their values (`1`,
-  not `Brand A`) until #1724 publishes the copied choices. A loop over a ranking copy takes the source's labels.
 - **#1280, rank names in Crunch:** a rank variable is named by its choice value at top level (`Rank the brands you know
   -- 1`), and inside a loop not by its choice at all: `cfqLoopRank`'s three variables per iteration share one name, made
   unique with the alias (`... -- cfqAllLoop--1--cfqLoopRank--2`). An inline ranking gets the same; #1280 regroups each
   ranking into one array.
-- **#1441, a choice the respondent was not shown:** a copy's cells are 1 or 0 for every choice once #1724 lands; the
-  empty cell for a choice never shown stays in #1441.
+- **#1441, a choice the respondent was not shown:** a copy's cells are 1 or 0 for every choice (#1724); the empty cell
+  for a choice never shown stays in #1441.
 - **#1725, JSON keys:** the JSON export camel-cases question names (`aidedBrands`).
 - **#1726, plain-text labels:** HTML in a label reaches the Shoji codebook as written (`hiddenBrands--1`), and loop
   titles keep `{panel.itemText}`.

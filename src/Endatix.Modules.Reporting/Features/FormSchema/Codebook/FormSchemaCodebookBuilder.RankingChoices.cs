@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -7,7 +6,8 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 
 /// <summary>
 /// The choices of a ranking: its own, or the ones it copies (<see cref="ChoiceSources.Offered"/>), whatever the copy's
-/// mode, each copied choice labelled on its source question.
+/// mode, each copied choice labelled on its source question. A column's choice label reads a copied choice the same way,
+/// for a ranking or a select.
 /// </summary>
 internal static partial class FormSchemaCodebookBuilder
 {
@@ -55,7 +55,7 @@ internal static partial class FormSchemaCodebookBuilder
         string choiceValue,
         ChoiceSources choiceSources)
     {
-        if (CopiedRankingChoice(question, choiceValue, choiceSources) is not { } copied)
+        if (CopiedChoice(question, choiceValue, choiceSources) is not { } copied)
         {
             WriteChoiceLabel(writer, question, choiceValue);
             return;
@@ -65,24 +65,17 @@ internal static partial class FormSchemaCodebookBuilder
         WriteCopiedChoiceText(writer, copied);
     }
 
-    // A ranking that copies its choices reads each label on the source question's choice.
-    private static SourceChoice? CopiedRankingChoice(JsonElement question, string value, ChoiceSources choiceSources)
+    // A select or a ranking that copies its choices reads each label on the source question's choice; its special
+    // items are its own, so they are not found here.
+    private static SourceChoice? CopiedChoice(JsonElement question, string value, ChoiceSources choiceSources)
     {
-        if (!SurveyJsElementType.Ranking.Matches(question.GetSurveyJsType()) ||
+        if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward ||
             choiceSources.Offered(question) is not { IsCopied: true } offered)
         {
             return null;
         }
 
-        foreach (var choice in offered.Choices)
-        {
-            if (string.Equals(choice.Value, value, StringComparison.Ordinal))
-            {
-                return choice;
-            }
-        }
-
-        return null;
+        return offered.TryGetChoice(value, out var choice) ? choice : null;
     }
 
     private static void WriteCopiedChoiceText(Utf8JsonWriter writer, SourceChoice choice) =>

@@ -11,10 +11,37 @@
       },
       "pageName": "awareness",
       "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "brands"
+        ]
+      },
       "choices": [
         {
-          "value": "none",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -203,12 +230,52 @@
     }
   },
   "columns": {
-    "aware": {
+    "aware__1": {
       "parentKey": "aware",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
       "title": {
         "default": "Which of these have you bought?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand 1"
+      }
+    },
+    "aware__2": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand 2"
+      }
+    },
+    "aware__3": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand 3"
+      }
+    },
+    "aware__none": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
       }
     },
     "brands__1": {
@@ -376,8 +443,29 @@
       "multiple": true,
       "choices": [
         {
-          "value": "none",
+          "value": "1",
           "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
           "kind": "none",
           "exclusive": true,
           "text": {
