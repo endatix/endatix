@@ -214,8 +214,7 @@ Configuration is passed via `.env` or container environment variables. See [Hub 
 | Variable | Description |
 |----------|-------------|
 | `ENDATIX_BASE_URL` | The public or internal URL where the API is hosted (e.g., `http://endatix-api:5001`) |
-| `SESSION_SECRET` | Secret key to encrypt session cookies (e.g., generate with `openssl rand -hex 32`) |
-| `AUTH_SECRET` | Secret key used by Auth.js to encrypt/decrypt sessions |
+| `AUTH_SECRET` | Encrypts the Hub session. At least 32 bytes, generate with `openssl rand -base64 32`. The Hub refuses to start without a strong one - see [`AUTH_SECRET`](/docs/developers/hub/environment#auth-secret) |
 | `AUTH_URL` | Canonical URL of the frontend (helpful behind proxies) |
 | `NEXT_PUBLIC_IS_DEBUG_MODE` | Application level debug mode flag ('true'/'false') |
 
@@ -244,8 +243,7 @@ services:
     image: endatix/endatix-hub:latest
     environment:
       ENDATIX_BASE_URL: http://endatix-api:8080
-      AUTH_SECRET: ${AUTH_SECRET}
-      SESSION_SECRET: ${SESSION_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET, e.g. openssl rand -base64 32}
     ports:
       - "3000:3000"
     networks:

@@ -30,6 +30,18 @@ ENDATIX_API_IMAGE="endatix/endatix-api:latest"
 ASPNETCORE_ENVIRONMENT="Development"
 ENDATIX_HUB_IMAGE="endatix/endatix-hub:latest"
 
+# Keep the Hub's AUTH_SECRET from an earlier run, so a rerun does not sign everyone out
+if [ -z "$AUTH_SECRET" ] && [ -f .env ]; then
+  AUTH_SECRET=$(grep -E '^AUTH_SECRET=' .env | head -n 1 | cut -d '=' -f 2-)
+fi
+if [ -z "$AUTH_SECRET" ]; then
+  if ! [ -x "$(command -v openssl)" ]; then
+    echo "openssl is not installed. Install it, or set AUTH_SECRET to a random value of 32+ bytes and run again."
+    exit 1
+  fi
+  AUTH_SECRET=$(openssl rand -base64 32)
+fi
+
 # Prompt for environment variables with default values if nothing is entered
 read -p "Enter USER_EMAIL - Initial admin user email (skip to use the default value 'admin@endatix.com'): " USER_EMAIL
 USER_EMAIL=${USER_EMAIL:-admin@endatix.com}
@@ -73,6 +85,9 @@ SEED_SAMPLE_FORMS=$SEED_SAMPLE_FORMS
 
 # Container image name for endatix-hub
 ENDATIX_HUB_IMAGE=$ENDATIX_HUB_IMAGE
+
+# Secret the Hub signs sessions with, at least 32 bytes (openssl rand -base64 32)
+AUTH_SECRET=$AUTH_SECRET
 
 EOF
 

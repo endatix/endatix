@@ -1,19 +1,34 @@
 ---
 title: Upgrade to Endatix 0.9.2
 sidebar_label: v0.9.2
-description: Upgrade the Endatix API from 0.9.1 to 0.9.2 - set DefaultTenantId when Keycloak is enabled, expect 403 for signed-in requests without a tenant, and move legacy tenant-0 Keycloak users once.
+description: Upgrade Endatix from 0.9.1 to 0.9.2 - give the Hub a strong AUTH_SECRET and drop SESSION_SECRET, set DefaultTenantId when Keycloak is enabled, expect 403 for signed-in requests without a tenant, and move legacy tenant-0 Keycloak users once.
 ---
 
 # Upgrade to Endatix 0.9.2
 
 Release notes: [Endatix API v0.9.2](https://github.com/endatix/endatix/releases/tag/v0.9.2) and [Endatix Hub v0.9.2](https://github.com/endatix/endatix-hub/releases/tag/v0.9.2).
 
-This page covers an upgrade from 0.9.1. Most installations need no action: the sections below apply to hosts that enable Keycloak sign-in, send Google or custom-provider tokens to the API, or reference `TenantMiddleware` in code.
+This page covers an upgrade from 0.9.1. Every Hub needs a strong `AUTH_SECRET` before it starts. The other sections apply only to hosts that enable Keycloak sign-in, send Google or custom-provider tokens to the API, or reference `TenantMiddleware` in code.
 
 ## Before you start
 
 - **Read the release notes of every version you skip.** An upgrade that skips 0.9.1 also needs the [0.9.1 guide](/docs/guides/upgrading/v0-9-1).
 - **Back up the database** before you run the one-time step for [Keycloak users stored at another tenant](#keycloak-users-at-another-tenant).
+
+## The Hub needs a strong `AUTH_SECRET` {/* #hub-auth-secret */}
+
+**What changed:** Hub 0.9.2 refuses to start, in every environment, when `AUTH_SECRET` is missing, shorter than 32 bytes, or a value copied from an example file. That includes the value the Endatix `docker-compose.yaml` shipped before 0.9.2. `SESSION_SECRET` is no longer read. The startup error names the rule that failed, for example `AUTH_SECRET must be at least 32 bytes.`
+
+**Who is affected:** every Hub deployment. Hosts that started from the Endatix Compose file, `.env.example`, or a docs snippet run on a published value until they replace it.
+
+**What to do:**
+
+- Generate a new secret with `openssl rand -base64 32` and set it as `AUTH_SECRET` before you start Hub 0.9.2. A new value signs every user out once.
+- If you set `NEXTAUTH_SECRET`, rename it to `AUTH_SECRET`.
+- Delete `SESSION_SECRET` from your env and secret store. The Helm chart still accepts its `session-secret` key for this release.
+- Compose users: the Endatix `docker-compose.yaml` now requires `AUTH_SECRET` from `.env` or the shell, and `docker/setup.sh` and `docker/setup.bat` generate one.
+
+See [`AUTH_SECRET`](/docs/developers/hub/environment#auth-secret).
 
 ## Keycloak needs `DefaultTenantId` {/* #keycloak-default-tenant-id */}
 

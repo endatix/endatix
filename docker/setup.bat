@@ -34,6 +34,18 @@ set "ENDATIX_API_IMAGE=endatix/endatix-api:latest"
 set "ASPNETCORE_ENVIRONMENT=Development"
 set "ENDATIX_HUB_IMAGE=endatix/endatix-hub:latest"
 
+REM Keep the Hub's AUTH_SECRET from an earlier run, so a rerun does not sign everyone out
+IF NOT "%AUTH_SECRET%"=="" goto auth_secret_ready
+IF EXIST ".env" for /f "tokens=1,* delims==" %%a in ('findstr /b /c:"AUTH_SECRET=" .env') do set "AUTH_SECRET=%%b"
+IF NOT "%AUTH_SECRET%"=="" goto auth_secret_ready
+for /f "delims=" %%s in ('powershell -NoProfile -Command "$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)"') do set "AUTH_SECRET=%%s"
+IF "%AUTH_SECRET%"=="" (
+    echo Could not generate AUTH_SECRET. Set AUTH_SECRET to a random value of 32+ bytes and run again.
+    pause
+    exit /b 1
+)
+:auth_secret_ready
+
 REM Enable delayed expansion for data collection
 setlocal enabledelayedexpansion
 
@@ -73,6 +85,9 @@ REM Create the .env file with the exact structure and values
     echo.
     echo # Container image name for endatix-hub
     echo ENDATIX_HUB_IMAGE=%ENDATIX_HUB_IMAGE%
+    echo.
+    echo # Secret the Hub signs sessions with, at least 32 bytes
+    echo AUTH_SECRET=%AUTH_SECRET%
     echo.
 ) > .env
 
