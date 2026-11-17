@@ -54,6 +54,12 @@ internal static class FormSchemaCodebookPropertyNames
     /// respondent was shown follow from the sources' answers alone. Absent means unknown.
     /// </summary>
     public const string Shown = "shown";
+
+    /// <summary>
+    /// Choice catalog: true once any compiled definition made the select a copy. Kept by every merge, so rows saved
+    /// while it copied never read as a select with its own choices.
+    /// </summary>
+    public const string Copied = "copied";
     public const string Mode = "mode";
 
     /// <summary>Question: "text" when a single select's choices cannot be read, so its answers export as text.</summary>

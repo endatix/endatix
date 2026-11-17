@@ -111,6 +111,35 @@ public sealed class CopiedChoiceVisibilityTests
     }
 
     [Fact]
+    public void Flatten_AnsweredCopyTheAnswersCannotRebuild_LeavesItsOwnNoneEmpty()
+    {
+        // Arrange
+        var definition = Survey(
+            STORES,
+            Copy("checkbox", """{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["stores"],"edxCarryForwardMaxChoices":2,"showNoneItem":true}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, """{"stores":["1"],"pick":["1"]}""");
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", null), ("3", null), ("none", null)));
+    }
+
+    [Fact]
+    public void CompilePersisted_MergeWhereTheCopyIsNoLongerASelect_DropsTheRule()
+    {
+        // Arrange
+        var first = new FormSchemaCompiler().CompilePersisted(
+            Survey(STORES, Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""")));
+
+        // Act
+        var merged = Recompile(first, Survey(STORES, """{"type":"text","name":"pick"}"""), FormSchemaCompileMode.Merge);
+
+        // Assert
+        Shown(merged.CodebookJson).Should().BeNull();
+    }
+
+    [Fact]
     public void Flatten_UnansweredCopy_LeavesEveryCellEmpty()
     {
         // Arrange
@@ -262,6 +291,7 @@ public sealed class CopiedChoiceVisibilityTests
         Survey("""{"type":"checkbox","name":"stores","choices":["1","2","3","4"]}""", Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""")),
         Survey("""{"type":"checkbox","name":"stores","choices":["1","2"]}""", Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""")),
         Survey(STORES, Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"all"}""")),
+        Survey(STORES, Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected","showNoneItem":true}""")),
     };
 
     [Theory]
@@ -302,6 +332,65 @@ public sealed class CopiedChoiceVisibilityTests
         // Assert
         Shown(merged.CodebookJson).Should().BeNull();
     }
+
+    public static TheoryData<bool> LegacyFirstCompile => new(false, true);
+
+    [Theory]
+    [MemberData(nameof(LegacyFirstCompile))]
+    public void Flatten_CopyMadeInlineAfterAMergeCompile_KeepsTheOldRowsUnpickedCellsEmpty(bool firstCompileWithoutTheMarker)
+    {
+        // Arrange
+        var first = new FormSchemaCompiler().CompilePersisted(
+            Survey(STORES, Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""")));
+        var firstCodebook = JsonNode.Parse(first.CodebookJson)!;
+        if (firstCompileWithoutTheMarker)
+        {
+            firstCodebook["choiceCatalogs"]!["pick"]!.AsObject().Remove(FormSchemaCodebookPropertyNames.Copied);
+            firstCodebook["choiceCatalogs"]!["pick"]!.AsObject().Remove(FormSchemaCodebookPropertyNames.Shown);
+        }
+
+        var inline = Survey(STORES, """{"type":"checkbox","name":"pick","choices":["1","2","3"]}""");
+        var merged = new FormSchemaCompiler().CompilePersisted(
+            inline,
+            first.FlatteningMapJson,
+            firstCodebook.ToJsonString(),
+            FormSchemaCompileMode.Merge);
+
+        // Act
+        var flattened = FlattenedSubmissionFlattener.Flatten(
+            Json("""{"stores":["1","3"],"pick":["3"]}"""),
+            merged.FlatteningMap,
+            ChoiceCatalogs.Read(merged.CodebookJson));
+
+        // Assert
+        Cells(flattened).Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
+    }
+
+    [Theory]
+    [MemberData(nameof(UnknownReasons))]
+    public void WhyUnknown_ListTheAnswersCannotRebuild_NamesTheReason(string source, string copy, string reason)
+    {
+        // Arrange
+        var questions = new[] { Json(source), Json(Copy("checkbox", copy)) }
+            .ToDictionary(question => question.GetProperty("name").GetString()!, StringComparer.Ordinal);
+
+        // Act
+        var why = CopyVisibility.WhyUnknown(questions["pick"], questions);
+
+        // Assert
+        why.ToString().Should().Be(reason);
+    }
+
+    public static TheoryData<string, string, string> UnknownReasons => new()
+    {
+        { STORES, """{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["stores"],"edxCarryForwardMaxChoices":2}""", nameof(UnknownBecause.MaxChoices) },
+        { STORES, """{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["stores"],"edxCarryForwardMode":"most"}""", nameof(UnknownBecause.UnrecognizedMode) },
+        { STORES, """{"choicesFromQuestion":"stores","choicesVisibleIf":"{item} != '1'"}""", nameof(UnknownBecause.ChoicesVisibleIf) },
+        { """{"type":"checkbox","name":"stores","choices":["1",{"value":"2","visibleIf":"{x} = 1"}]}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceChoicesVisibleIf) },
+        { """{"type":"ranking","name":"stores","choices":["1","2"]}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsARanking) },
+        { """{"type":"checkbox","name":"stores","choicesFromQuestion":"other"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsNotOwnChoices) },
+        { """{"type":"text","name":"stores"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.NoSelectSource) },
+    };
 
     private static FormSchemaCompileResult Recompile(
         FormSchemaCompileResult previous,

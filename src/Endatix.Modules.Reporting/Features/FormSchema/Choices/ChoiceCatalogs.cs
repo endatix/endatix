@@ -73,7 +73,7 @@ internal sealed class ChoiceCatalogs
 
         return new ChoiceCatalogs(
             ReadEach(catalogs, SelectChoices.FromCatalog),
-            CopiesIn(document.RootElement),
+            CopiesIn(document.RootElement, catalogs),
             ReadEach(catalogs, CopyVisibility.Read));
     }
 
@@ -101,8 +101,8 @@ internal sealed class ChoiceCatalogs
     /// <summary>
     /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
     /// with its own choices shows every one, so the rest are 0. A copy that has no answer shows nothing provably, so the
-    /// rest are empty; an answered copy shows its own special items (Other, None, ...), and a copied choice only when
-    /// the copy's <see cref="CopyVisibility"/> rebuilds it from the sources' answers. Every other cell is empty.
+    /// rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
+    /// None, ...) and the copied choices the rule rebuilds from the sources' answers. Every other cell is empty.
     /// </summary>
     public IndicatorCell Indicator(AnswerScope scope, string question, string choiceValue)
     {
@@ -121,19 +121,29 @@ internal sealed class ChoiceCatalogs
             : IndicatorCell.Empty;
     }
 
+    // The copy's own special items are always on its list, but only an exact rule proves which definition's list.
     private bool AnsweredCopyShows(AnswerScope scope, string question, string choiceValue) =>
-        (For(question).KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice) ||
-        (_visibility.TryGetValue(question, out var rule) && rule.Shows(choiceValue, scope, this) == true);
+        _visibility.TryGetValue(question, out var rule) &&
+        ((For(question).KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice) ||
+         rule.Shows(choiceValue, scope, this) == true);
 
-    // Every codebook since copied choices records carryForward on the copy's question entry.
-    private static HashSet<string> CopiesIn(JsonElement codebook) =>
-        codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is { ValueKind: JsonValueKind.Object } questions
-            ? new HashSet<string>(
-                questions.EnumerateObject().Where(question => IsCopy(question.Value)).Select(question => question.Name),
-                StringComparer.Ordinal)
-            : new HashSet<string>(StringComparer.Ordinal);
+    // A copy in the current definition (its question entry, which every codebook since copied choices records), or in
+    // any earlier one (the catalog's sticky copied marker).
+    private static HashSet<string> CopiesIn(JsonElement codebook, JsonElement catalogs)
+    {
+        var copies = new HashSet<string>(
+            catalogs.EnumerateObject().Where(catalog => CopyVisibility.IsCopied(catalog.Value)).Select(catalog => catalog.Name),
+            StringComparer.Ordinal);
+        if (codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is { ValueKind: JsonValueKind.Object } questions)
+        {
+            copies.UnionWith(questions.EnumerateObject().Where(question => IsCopy(question.Value)).Select(question => question.Name));
+        }
 
-    private static bool IsCopy(JsonElement question) =>
+        return copies;
+    }
+
+    /// <summary>Whether a codebook question entry records that the question copies its choices.</summary>
+    internal static bool IsCopy(JsonElement question) =>
         question.ValueKind == JsonValueKind.Object &&
         question.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceSource) is { ValueKind: JsonValueKind.Object } source &&
         source.GetStringProperty(FormSchemaCodebookPropertyNames.Kind) == ChoiceSource.CarryForwardKind;

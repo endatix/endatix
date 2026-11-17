@@ -178,7 +178,8 @@
             "default": "Item 3"
           }
         }
-      ]
+      ],
+      "copied": true
     }
   }
 }

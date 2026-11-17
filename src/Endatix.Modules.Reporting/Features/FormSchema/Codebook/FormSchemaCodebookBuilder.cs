@@ -691,7 +691,7 @@ internal static partial class FormSchemaCodebookBuilder
                     continue;
                 }
 
-                choiceCatalogs[property.Name] = MergeChoiceCatalog(property.Value, currentCatalog);
+                choiceCatalogs[property.Name] = MergeChoiceCatalog(MarkedIfCopied(property.Value, existingQuestions, property.Name), currentCatalog);
             }
         }
     }

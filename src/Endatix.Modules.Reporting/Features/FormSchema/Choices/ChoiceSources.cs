@@ -134,8 +134,9 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
     public IReadOnlyList<string> OfferedValues(string questionName) =>
         questionsByName.TryGetValue(questionName, out var question) ? OfferedValues(question) : [];
 
-    /// <summary>The rule that rebuilds which copied choices a respondent was shown; null when it is unknown.</summary>
-    public CopyVisibility? Visibility(JsonElement question) => CopyVisibility.Of(question, questionsByName);
+    /// <summary>Writes a copy's catalog fields (<see cref="CopyVisibility.WriteFor"/>).</summary>
+    public void WriteCopyFields(Utf8JsonWriter writer, JsonElement question) =>
+        CopyVisibility.WriteFor(writer, question, questionsByName);
 
     private List<SourceChoice>? Union(IReadOnlyList<string> sourceNames, HashSet<string> visiting)
     {

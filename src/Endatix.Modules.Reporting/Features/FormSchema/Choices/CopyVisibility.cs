@@ -55,6 +55,41 @@ internal sealed class CopyVisibility
     internal static UnknownBecause? WhyUnknown(JsonElement question, IReadOnlyDictionary<string, JsonElement> questionsByName) =>
         Compile(question, questionsByName).Reason;
 
+    /// <summary>
+    /// Writes a copy's catalog fields: <c>copied</c> on any copy, and <c>shown</c> on a checkbox or tagbox whose shown
+    /// choices follow from the answers (only those have indicator columns).
+    /// </summary>
+    public static void WriteFor(Utf8JsonWriter writer, JsonElement question, IReadOnlyDictionary<string, JsonElement> questionsByName)
+    {
+        if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward)
+        {
+            return;
+        }
+
+        writer.WriteBoolean(FormSchemaCodebookPropertyNames.Copied, true);
+        if (question.IsMultiSelectBaseSelect())
+        {
+            Of(question, questionsByName)?.WriteTo(writer);
+        }
+    }
+
+    /// <summary>Whether a choice catalog is marked as a copy's.</summary>
+    public static bool IsCopied(JsonElement catalog) =>
+        catalog.ValueKind == JsonValueKind.Object && catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.Copied);
+
+    /// <summary>The catalog with <c>copied</c> set, for a codebook compiled before the marker existed.</summary>
+    public static JsonElement MarkCopied(JsonElement catalog)
+    {
+        if (IsCopied(catalog) || catalog.ValueKind != JsonValueKind.Object)
+        {
+            return catalog;
+        }
+
+        var marked = System.Text.Json.Nodes.JsonNode.Parse(catalog.GetRawText())!.AsObject();
+        marked[FormSchemaCodebookPropertyNames.Copied] = true;
+        return JsonSerializer.SerializeToElement(marked);
+    }
+
     /// <summary>Writes <c>"shown": {mode, sources}</c>.</summary>
     public void WriteTo(Utf8JsonWriter writer)
     {
@@ -87,16 +122,22 @@ internal sealed class CopyVisibility
 
     /// <summary>
     /// MERGE (a compile over an earlier definition's codebook): the rule is kept only when the stored and the new rule
-    /// are the same and the copy offers the same choices. Otherwise it is dropped, and stays dropped until a replace
-    /// compile, so a row saved under an earlier definition is never judged by a rule it was not shown under.
+    /// are the same and the copy offers the same choices and special items. Otherwise it is dropped, and stays dropped
+    /// until a replace compile, so a row saved under an earlier definition is never judged by a rule it was not shown
+    /// under. The <c>copied</c> marker is kept whenever either catalog has it.
     /// </summary>
     public static void Merge(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
     {
+        if (IsCopied(existingCatalog) || IsCopied(currentCatalog))
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.Copied, true);
+        }
+
         if (Read(existingCatalog) is { } stored &&
             Read(currentCatalog) is { } current &&
             stored.Mode == current.Mode &&
             stored.Sources.SequenceEqual(current.Sources, StringComparer.Ordinal) &&
-            CopiedValues(existingCatalog).SetEquals(CopiedValues(currentCatalog)))
+            CatalogValues(existingCatalog).SetEquals(CatalogValues(currentCatalog)))
         {
             current.WriteTo(writer);
         }
@@ -134,7 +175,7 @@ internal sealed class CopyVisibility
             var picked = select.Read(context, Name).Has(value);
             return mode switch
             {
-                CopyMode.Selected => picked,
+                CopyMode.Selected => picked && select.Offers(value),
                 CopyMode.All => select.Offers(value),
                 _ => select.Offers(value) && !picked,
             };
@@ -268,12 +309,12 @@ internal sealed class CopyVisibility
             _ => true,
         };
 
-    private static HashSet<string> CopiedValues(JsonElement catalog) =>
+    // Every value with its kind: the copied choices and the copy's own special items.
+    private static HashSet<(string, ChoiceKind)> CatalogValues(JsonElement catalog) =>
         catalog.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out var entries)
             ? [.. entries.EnumerateArray()
                 .Select(CatalogChoice.Read)
                 .OfType<CatalogChoice>()
-                .Where(choice => choice.Kind == ChoiceKind.Choice)
-                .Select(choice => choice.Value)]
+                .Select(choice => (choice.Value, choice.Kind))]
             : [];
 }

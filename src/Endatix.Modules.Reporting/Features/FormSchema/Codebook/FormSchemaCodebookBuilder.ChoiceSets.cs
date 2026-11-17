@@ -18,10 +18,7 @@ internal static partial class FormSchemaCodebookBuilder
             return WriteQuestionEntry(writer =>
             {
                 choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id));
-                if (element.IsMultiSelectBaseSelect())
-                {
-                    choiceSources.Visibility(element)?.WriteTo(writer);
-                }
+                choiceSources.WriteCopyFields(writer, element);
             });
         }
 
@@ -80,6 +77,15 @@ internal static partial class FormSchemaCodebookBuilder
         CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
     }
 
+    // A codebook compiled before the copied marker still names the copy on its stored question entry, which the merge
+    // replaces with the current one: carry it onto the catalog first.
+    private static JsonElement MarkedIfCopied(JsonElement existingCatalog, JsonElement existingQuestions, string name) =>
+        existingQuestions.ValueKind == JsonValueKind.Object &&
+        existingQuestions.TryGetPropertyValue(name) is { } question &&
+        ChoiceCatalogs.IsCopy(question)
+            ? CopyVisibility.MarkCopied(existingCatalog)
+            : existingCatalog;
+
     private static OtherStorage? OtherStorageOf(JsonElement catalog) =>
         ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage));
 
@@ -105,7 +111,8 @@ internal static partial class FormSchemaCodebookBuilder
         {
             foreach (var property in catalog.EnumerateObject().Where(property =>
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
-                         !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage)))
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {
                 property.WriteTo(writer);
             }

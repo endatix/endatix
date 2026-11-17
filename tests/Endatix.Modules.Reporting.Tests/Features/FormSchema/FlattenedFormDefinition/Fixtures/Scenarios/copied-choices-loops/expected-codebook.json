@@ -4384,6 +4384,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "selected",
         "sources": [
@@ -4424,7 +4425,8 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "brandRank": {
       "choices": [
@@ -4494,7 +4496,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqAllPick": {
       "multiple": true,
@@ -4521,6 +4524,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "all",
         "sources": [
@@ -4621,7 +4625,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqSelectedPick": {
       "multiple": true,
@@ -4648,6 +4653,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "selected",
         "sources": [
@@ -4714,6 +4720,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "all",
         "sources": [
@@ -4764,7 +4771,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqUnselectedPick": {
       "multiple": true,
@@ -4791,6 +4799,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "unselected",
         "sources": [
@@ -4885,7 +4894,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxAllPick": {
       "multiple": true,
@@ -4912,6 +4922,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "all",
         "sources": [
@@ -4978,6 +4989,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "unselected",
         "sources": [
@@ -5053,7 +5065,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxSelectedPick": {
       "multiple": true,
@@ -5080,6 +5093,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "selected",
         "sources": [
@@ -5155,7 +5169,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxUnselectedPick": {
       "multiple": true,
@@ -5182,6 +5197,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "unselected",
         "sources": [
@@ -5238,7 +5254,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "hiddenBrands": {
       "multiple": true,
@@ -5361,7 +5378,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "region": {
       "multiple": false,
@@ -5461,6 +5479,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "selected",
         "sources": [

@@ -473,6 +473,7 @@
           }
         }
       ],
+      "copied": true,
       "shown": {
         "mode": "selected",
         "sources": [
@@ -549,7 +550,8 @@
             "default": "Brand 3"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "occasionRank": {
       "choices": [
