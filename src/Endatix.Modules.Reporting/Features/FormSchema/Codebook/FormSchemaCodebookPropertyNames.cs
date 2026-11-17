@@ -62,6 +62,13 @@ internal static class FormSchemaCodebookPropertyNames
     public const string Copied = "copied";
     public const string Mode = "mode";
 
+    /// <summary><see cref="Shown"/>: a source's name and the regular choice values it offered when compiled.</summary>
+    public const string SourceName = "name";
+    public const string Values = "values";
+
+    /// <summary><see cref="Shown"/>: the rule holds only for a completed submission (a hidden answer is cleared then).</summary>
+    public const string WhenComplete = "whenComplete";
+
     /// <summary>Question: "text" when a single select's choices cannot be read, so its answers export as text.</summary>
     public const string Degraded = "degraded";
     public const string DegradedToText = "text";

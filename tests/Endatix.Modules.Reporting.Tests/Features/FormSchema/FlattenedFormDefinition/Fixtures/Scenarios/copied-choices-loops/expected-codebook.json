@@ -4388,7 +4388,14 @@
       "shown": {
         "mode": "selected",
         "sources": [
-          "hiddenBrands"
+          {
+            "name": "hiddenBrands",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -4529,7 +4536,14 @@
       "shown": {
         "mode": "all",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -4660,7 +4674,14 @@
       "shown": {
         "mode": "selected",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -4728,7 +4749,14 @@
       "shown": {
         "mode": "all",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -4807,7 +4835,14 @@
       "shown": {
         "mode": "unselected",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -4931,7 +4966,14 @@
       "shown": {
         "mode": "all",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -4999,7 +5041,14 @@
       "shown": {
         "mode": "unselected",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -5104,7 +5153,14 @@
       "shown": {
         "mode": "selected",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -5209,7 +5265,14 @@
       "shown": {
         "mode": "unselected",
         "sources": [
-          "stores"
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },
@@ -5492,7 +5555,14 @@
       "shown": {
         "mode": "selected",
         "sources": [
-          "hiddenTraits"
+          {
+            "name": "hiddenTraits",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     }

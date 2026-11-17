@@ -477,7 +477,14 @@
       "shown": {
         "mode": "selected",
         "sources": [
-          "brands"
+          {
+            "name": "brands",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
         ]
       }
     },

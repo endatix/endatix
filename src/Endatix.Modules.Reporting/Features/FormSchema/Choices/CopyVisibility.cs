@@ -25,41 +25,78 @@ internal enum UnknownBecause
     SourceIsARanking,
     SourceIsNotOwnChoices,
     SourceChoicesVisibleIf,
+    NameShared,
+    HiddenAnswersKept,
+}
+
+/// <summary>One source of an exact copy: its name and the regular choice values it offered.</summary>
+internal sealed record SourceChoices(string Name, IReadOnlyList<string> Values)
+{
+    public bool Offers(string value) => Values.Contains(value, StringComparer.Ordinal);
+
+    public void WriteTo(Utf8JsonWriter writer)
+    {
+        writer.WriteStartObject();
+        writer.WriteString(FormSchemaCodebookPropertyNames.SourceName, Name);
+        writer.WriteStartArray(FormSchemaCodebookPropertyNames.Values);
+        foreach (var value in Values)
+        {
+            writer.WriteStringValue(value);
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
+    public bool SameAs(SourceChoices other) =>
+        Name == other.Name && Values.ToHashSet(StringComparer.Ordinal).SetEquals(other.Values);
 }
 
 /// <summary>
 /// The one owner of "was this copied choice shown". COMPILE: <see cref="Of"/> decides whether the list a respondent
 /// saw follows from the sources' answers alone, as Hub and SurveyJS build it from the sources' visible choices: only
-/// under <c>all</c>, <c>selected</c> or <c>unselected</c>, with no cap, no <c>choicesVisibleIf</c>, and sources that
-/// show their own choices with no visibility rule. STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
+/// under <c>all</c>, <c>selected</c> or <c>unselected</c>, with no cap, no <c>choicesVisibleIf</c>, sources that show
+/// their own choices with no choice visibility rule, and no question name the definition uses twice. A copy or source
+/// with its own <c>visibleIf</c> is exact only for a completed submission of a survey that clears hidden answers on
+/// complete (<see cref="WhenComplete"/>). STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
 /// <see cref="Merge"/> keep the rule on the copy's choice catalog (<see cref="FormSchemaCodebookPropertyNames.Shown"/>).
 /// RUN: <see cref="Shows"/> rebuilds one respondent's list. Absent or null means unknown, never a guess.
 /// </summary>
 internal sealed class CopyVisibility
 {
-    private CopyVisibility(CopyMode mode, IReadOnlyList<string> sources)
+    private CopyVisibility(CopyMode mode, IReadOnlyList<SourceChoices> sources, bool whenComplete)
     {
         Mode = mode;
         Sources = sources;
+        WhenComplete = whenComplete;
     }
 
     public CopyMode Mode { get; }
 
-    public IReadOnlyList<string> Sources { get; }
+    public IReadOnlyList<SourceChoices> Sources { get; }
+
+    /// <summary>A copy or source shows only under its own <c>visibleIf</c>: the rule holds for a completed submission.</summary>
+    public bool WhenComplete { get; }
 
     /// <summary>The rule of a copy whose shown list follows from the answers; null otherwise.</summary>
-    public static CopyVisibility? Of(JsonElement question, IReadOnlyDictionary<string, JsonElement> questionsByName) =>
-        Compile(question, questionsByName).Rule;
+    public static CopyVisibility? Of(
+        JsonElement question,
+        IReadOnlyDictionary<string, JsonElement> questionsByName,
+        CopyDefinition definition) =>
+        Compile(question, questionsByName, definition).Rule;
 
     /// <summary>Why <see cref="Of"/> returns null; null when it returns a rule.</summary>
-    internal static UnknownBecause? WhyUnknown(JsonElement question, IReadOnlyDictionary<string, JsonElement> questionsByName) =>
-        Compile(question, questionsByName).Reason;
+    internal static UnknownBecause? WhyUnknown(
+        JsonElement question,
+        IReadOnlyDictionary<string, JsonElement> questionsByName,
+        CopyDefinition definition) =>
+        Compile(question, questionsByName, definition).Reason;
 
     /// <summary>
     /// Writes a copy's catalog fields: <c>copied</c> on any copy, and <c>shown</c> on a checkbox or tagbox whose shown
     /// choices follow from the answers (only those have indicator columns).
     /// </summary>
-    public static void WriteFor(Utf8JsonWriter writer, JsonElement question, IReadOnlyDictionary<string, JsonElement> questionsByName)
+    public static void WriteFor(Utf8JsonWriter writer, JsonElement question, Func<CopyVisibility?> rule)
     {
         if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward)
         {
@@ -69,7 +106,7 @@ internal sealed class CopyVisibility
         writer.WriteBoolean(FormSchemaCodebookPropertyNames.Copied, true);
         if (question.IsMultiSelectBaseSelect())
         {
-            Of(question, questionsByName)?.WriteTo(writer);
+            rule()?.WriteTo(writer);
         }
     }
 
@@ -90,7 +127,7 @@ internal sealed class CopyVisibility
         return JsonSerializer.SerializeToElement(marked);
     }
 
-    /// <summary>Writes <c>"shown": {mode, sources}</c>.</summary>
+    /// <summary>Writes <c>"shown": {mode, sources: [{name, values}], whenComplete}</c>.</summary>
     public void WriteTo(Utf8JsonWriter writer)
     {
         writer.WriteStartObject(FormSchemaCodebookPropertyNames.Shown);
@@ -98,14 +135,19 @@ internal sealed class CopyVisibility
         writer.WriteStartArray(FormSchemaCodebookPropertyNames.Sources);
         foreach (var source in Sources)
         {
-            writer.WriteStringValue(source);
+            source.WriteTo(writer);
         }
 
         writer.WriteEndArray();
+        if (WhenComplete)
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.WhenComplete, true);
+        }
+
         writer.WriteEndObject();
     }
 
-    /// <summary>The rule on a choice catalog; null when it has none or it is malformed.</summary>
+    /// <summary>The rule on a choice catalog; null when it has none or it is malformed (sources without values too).</summary>
     public static CopyVisibility? Read(JsonElement catalog)
     {
         if (catalog.ValueKind != JsonValueKind.Object ||
@@ -116,13 +158,28 @@ internal sealed class CopyVisibility
             return null;
         }
 
-        List<string> sources = [.. sourcesArray.EnumerateArray().Select(source => source.GetNonEmptyStringValue()).OfType<string>()];
-        return sources.Count == sourcesArray.GetArrayLength() && sources.Count > 0 ? new CopyVisibility(mode, sources) : null;
+        List<SourceChoices> sources = [.. sourcesArray.EnumerateArray().Select(ReadSource).OfType<SourceChoices>()];
+        return sources.Count == sourcesArray.GetArrayLength() && sources.Count > 0
+            ? new CopyVisibility(mode, sources, shown.GetBooleanProperty(FormSchemaCodebookPropertyNames.WhenComplete))
+            : null;
+    }
+
+    private static SourceChoices? ReadSource(JsonElement source)
+    {
+        if (source.ValueKind != JsonValueKind.Object ||
+            source.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.SourceName) is not { } name ||
+            !source.TryGetArrayProperty(FormSchemaCodebookPropertyNames.Values, out var values))
+        {
+            return null;
+        }
+
+        List<string> offered = [.. values.EnumerateArray().Select(value => value.ValueKind == JsonValueKind.String ? value.GetString() : null).OfType<string>()];
+        return offered.Count == values.GetArrayLength() ? new SourceChoices(name, offered) : null;
     }
 
     /// <summary>
     /// MERGE (a compile over an earlier definition's codebook): the rule is kept only when the stored and the new rule
-    /// are the same and the copy offers the same choices and special items. Otherwise it is dropped, and stays dropped
+    /// are the same, each source offers the same values, and the copy offers the same choices and special items. Otherwise it is dropped, and stays dropped
     /// until a replace compile, so a row saved under an earlier definition is never judged by a rule it was not shown
     /// under. The <c>copied</c> marker is kept whenever either catalog has it.
     /// </summary>
@@ -135,8 +192,7 @@ internal sealed class CopyVisibility
 
         if (Read(existingCatalog) is { } stored &&
             Read(currentCatalog) is { } current &&
-            stored.Mode == current.Mode &&
-            stored.Sources.SequenceEqual(current.Sources, StringComparer.Ordinal) &&
+            stored.SameAs(current) &&
             CatalogValues(existingCatalog).SetEquals(CatalogValues(currentCatalog)))
         {
             current.WriteTo(writer);
@@ -149,10 +205,15 @@ internal sealed class CopyVisibility
     /// </summary>
     public bool? Shows(string value, AnswerScope scope, ChoiceCatalogs catalogs)
     {
+        if (WhenComplete && !catalogs.SubmissionComplete)
+        {
+            return null;
+        }
+
         List<bool?> verdicts =
         [
             .. Sources.Select(source =>
-                new SourceAnswer(source, scope.ContextAnswering(source), catalogs.SelectOrNull(source)).Shows(Mode, value)),
+                new SourceAnswer(source, scope.ContextAnswering(source.Name), catalogs.For(source.Name)).Shows(Mode, value)),
         ];
         if (verdicts.Contains(true))
         {
@@ -162,29 +223,37 @@ internal sealed class CopyVisibility
         return verdicts.Contains(null) ? null : false;
     }
 
-    // One source as the cell's scope sees it: the context that answers it, and its select catalog.
-    private readonly record struct SourceAnswer(string Name, JsonElement? Context, SelectChoices? Select)
+    private bool SameAs(CopyVisibility other) =>
+        Mode == other.Mode &&
+        WhenComplete == other.WhenComplete &&
+        Sources.Count == other.Sources.Count &&
+        Sources.Zip(other.Sources).All(pair => pair.First.SameAs(pair.Second));
+
+    // One source as the cell's scope sees it: the context that answers it, and the select that reads its answer. What
+    // it offered comes from the rule, not from the catalog, which is the union of every definition.
+    private readonly record struct SourceAnswer(SourceChoices Source, JsonElement? Context, SelectChoices Select)
     {
         public bool? Shows(CopyMode mode, string value)
         {
-            if (Context is not { } context || Select is not { } select)
+            if (Context is not { } context)
             {
                 return null;
             }
 
-            var picked = select.Read(context, Name).Has(value);
+            var picked = Select.Read(context, Source.Name).Has(value);
             return mode switch
             {
-                CopyMode.Selected => picked && select.Offers(value),
-                CopyMode.All => select.Offers(value),
-                _ => select.Offers(value) && !picked,
+                CopyMode.Selected => picked && Source.Offers(value),
+                CopyMode.All => Source.Offers(value),
+                _ => Source.Offers(value) && !picked,
             };
         }
     }
 
     private static (CopyVisibility? Rule, UnknownBecause? Reason) Compile(
         JsonElement question,
-        IReadOnlyDictionary<string, JsonElement> questionsByName)
+        IReadOnlyDictionary<string, JsonElement> questionsByName,
+        CopyDefinition definition)
     {
         if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward copy)
         {
@@ -193,25 +262,60 @@ internal sealed class CopyVisibility
 
         var fromQuestion = question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ChoicesFromQuestion) is not null;
         var mode = ModeOf(question, fromQuestion);
-        var problem = mode is null ? UnknownBecause.UnrecognizedMode : ListProblem(question, fromQuestion);
+        var sources = SourcesIn(copy, questionsByName);
+        var problem = mode is null
+            ? UnknownBecause.UnrecognizedMode
+            : ListProblem(question, fromQuestion) ?? ScopeProblem(question, sources, definition);
         return problem is null
-            ? FromSources(mode!.Value, [.. copy.Sources.Distinct(StringComparer.Ordinal).Where(questionsByName.ContainsKey).Select(name => (name, questionsByName[name]))])
+            ? FromSources(mode!.Value, sources, HasOwnVisibleIf(question) || sources.Exists(source => HasOwnVisibleIf(source.Element)))
             : Unknown(problem.Value);
     }
+
+    private static List<(string Name, JsonElement Element)> SourcesIn(
+        ChoiceSource.CarryForward copy,
+        IReadOnlyDictionary<string, JsonElement> questionsByName) =>
+        [.. copy.Sources.Distinct(StringComparer.Ordinal).Where(questionsByName.ContainsKey).Select(name => (name, questionsByName[name]))];
 
     // Hub and SurveyJS skip a missing source and one that offers no choices, so it adds nothing to the list.
     private static (CopyVisibility? Rule, UnknownBecause? Reason) FromSources(
         CopyMode mode,
-        IReadOnlyList<(string Name, JsonElement Element)> sources)
+        IReadOnlyList<(string Name, JsonElement Element)> sources,
+        bool whenComplete)
     {
         if (sources.Select(source => SourceProblem(source.Element)).FirstOrDefault(problem => problem is not null) is { } problem)
         {
             return Unknown(problem);
         }
 
-        List<string> selects = [.. sources.Where(source => IsSelect(source.Element)).Select(source => source.Name)];
-        return selects.Count > 0 ? (new CopyVisibility(mode, selects), null) : Unknown(UnknownBecause.NoSelectSource);
+        List<SourceChoices> selects =
+        [
+            .. sources.Where(source => IsSelect(source.Element)).Select(source => new SourceChoices(source.Name, OwnValues(source.Element))),
+        ];
+        return selects.Count > 0 ? (new CopyVisibility(mode, selects, whenComplete), null) : Unknown(UnknownBecause.NoSelectSource);
     }
+
+    // A name the definition uses twice has one catalog for two questions; a hidden copy or source keeps its answer
+    // unless the survey clears hidden answers on complete.
+    private static UnknownBecause? ScopeProblem(
+        JsonElement question,
+        IReadOnlyList<(string Name, JsonElement Element)> sources,
+        CopyDefinition definition)
+    {
+        if (question.GetSurveyJsName() is { } name && definition.SharedNames.Contains(name) ||
+            sources.Any(source => definition.SharedNames.Contains(source.Name)))
+        {
+            return UnknownBecause.NameShared;
+        }
+
+        var hidden = HasOwnVisibleIf(question) || sources.Any(source => HasOwnVisibleIf(source.Element));
+        return hidden && !definition.ClearsHiddenAnswersOnComplete ? UnknownBecause.HiddenAnswersKept : null;
+    }
+
+    private static bool HasOwnVisibleIf(JsonElement question) =>
+        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null;
+
+    private static List<string> OwnValues(JsonElement source) =>
+        [.. SurveyJsChoiceHelper.EnumerateChoiceElements(source).Select(choice => choice.Value)];
 
     private static (CopyVisibility? Rule, UnknownBecause? Reason) Unknown(UnknownBecause reason) => (null, reason);
 

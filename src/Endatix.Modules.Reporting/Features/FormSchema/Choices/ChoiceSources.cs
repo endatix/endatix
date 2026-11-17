@@ -74,7 +74,7 @@ internal sealed class ResolvedChoices
 /// <see cref="Resolve"/> applies this to a base select, single or multiple; <see cref="Offered"/> to any select or
 /// ranking.
 /// </summary>
-internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> questionsByName)
+internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> questionsByName, CopyDefinition? definition = null)
 {
     private readonly Dictionary<string, List<SourceChoice>?> _resolvedSources = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResolvedChoices> _resolvedCopies = new(StringComparer.Ordinal);
@@ -136,7 +136,7 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
 
     /// <summary>Writes a copy's catalog fields (<see cref="CopyVisibility.WriteFor"/>).</summary>
     public void WriteCopyFields(Utf8JsonWriter writer, JsonElement question) =>
-        CopyVisibility.WriteFor(writer, question, questionsByName);
+        CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, questionsByName, definition ?? CopyDefinition.None));
 
     private List<SourceChoice>? Union(IReadOnlyList<string> sourceNames, HashSet<string> visiting)
     {

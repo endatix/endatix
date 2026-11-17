@@ -57,7 +57,11 @@ internal sealed class ChoiceCatalogs
         new HashSet<string>(StringComparer.Ordinal),
         new Dictionary<string, CopyVisibility>(StringComparer.Ordinal));
 
-    public static ChoiceCatalogs Read(string? codebookJson)
+    /// <summary>
+    /// The codebook's catalogs for flattening one submission. <paramref name="submissionComplete"/> lets a rule that
+    /// holds only for a completed submission (<see cref="CopyVisibility.WhenComplete"/>) apply.
+    /// </summary>
+    public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false)
     {
         if (string.IsNullOrWhiteSpace(codebookJson))
         {
@@ -74,7 +78,7 @@ internal sealed class ChoiceCatalogs
         return new ChoiceCatalogs(
             ReadEach(catalogs, SelectChoices.FromCatalog),
             CopiesIn(document.RootElement, catalogs),
-            ReadEach(catalogs, CopyVisibility.Read));
+            ReadEach(catalogs, CopyVisibility.Read)) { SubmissionComplete = submissionComplete };
     }
 
     // Every catalog that reads as a T, by question name.
@@ -84,6 +88,9 @@ internal sealed class ChoiceCatalogs
             .Select(catalog => (catalog.Name, Value: read(catalog.Value)))
             .Where(entry => entry.Value is not null)
             .ToDictionary(entry => entry.Name, entry => entry.Value!, StringComparer.Ordinal);
+
+    /// <summary>Whether the submission being flattened is completed.</summary>
+    public bool SubmissionComplete { get; private init; }
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
     public bool IsSelect(string question) => _selects.ContainsKey(question);

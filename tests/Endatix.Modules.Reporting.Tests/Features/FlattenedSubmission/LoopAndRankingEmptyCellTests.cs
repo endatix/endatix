@@ -33,12 +33,11 @@ public sealed class LoopAndRankingEmptyCellTests
     }
 
     [Fact]
-    public void Flatten_CopyInALoop_ReadsItsSourceInTheSameLoopItemFirst()
+    public void Flatten_CopyInALoop_ReadsItsSourceInTheSameLoopItem()
     {
         // Arrange
         var definition = Survey(
             BRANDS,
-            """{"type":"checkbox","name":"traitPool","choices":["a","b","c"]}""",
             Loop("""
                  {"type":"checkbox","name":"traitPool","choices":["a","b","c"]},
                  {"type":"checkbox","name":"traits","choicesFromQuestion":"traitPool","choicesFromQuestionMode":"selected"}
@@ -47,13 +46,36 @@ public sealed class LoopAndRankingEmptyCellTests
         // Act
         var flattened = Flatten(
             definition,
-            """{"brands":["1","2"],"traitPool":["a","b","c"],"brandLoop":[{"itemValue":"1","traitPool":["a","b"],"traits":["a"]},{"itemValue":"2","traits":["c"]}]}""");
+            """{"brands":["1","2"],"brandLoop":[{"itemValue":"1","traitPool":["a","b"],"traits":["a"]},{"itemValue":"2","traits":["c"]}]}""");
 
         // Assert
         Cell(flattened, "brandLoop__1__traits__b").Should().Be("0");
         Cell(flattened, "brandLoop__1__traits__c").Should().BeNull();
-        Cell(flattened, "brandLoop__2__traits__a").Should().Be("0");
+        Cell(flattened, "brandLoop__2__traits__a").Should().BeNull();
         Cell(flattened, "brandLoop__2__traits__c").Should().Be("1");
+    }
+
+    [Fact]
+    public void Flatten_CopyWhoseSourceNameIsUsedAtTheRootAndInTheLoop_WritesOnlyThePickedChoice()
+    {
+        // Arrange
+        var definition = Survey(
+            BRANDS,
+            """{"type":"checkbox","name":"stores","choices":["1","2","3"]}""",
+            Loop("""
+                 {"type":"checkbox","name":"stores","choices":["1"]},
+                 {"type":"checkbox","name":"pick","choicesFromQuestion":"stores"}
+                 """));
+
+        // Act
+        var flattened = Flatten(
+            definition,
+            """{"brands":["1"],"stores":["1","2","3"],"brandLoop":[{"itemValue":"1","stores":["1"],"pick":["1"]}]}""");
+
+        // Assert
+        Cell(flattened, "brandLoop__1__pick__1").Should().Be("1");
+        Cell(flattened, "brandLoop__1__pick__2").Should().BeNull();
+        Cell(flattened, "brandLoop__1__pick__3").Should().BeNull();
     }
 
     [Fact]

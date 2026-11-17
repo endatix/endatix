@@ -8,6 +8,14 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 /// <summary>The choice catalog of a base select: its select fields and kind-tagged choices (<see cref="ChoiceSet"/>).</summary>
 internal static partial class FormSchemaCodebookBuilder
 {
+    // With the definition, a copy's catalog can record its shown rule (CopyDefinition); column labels do not need it.
+    private static ChoiceSources ChoiceSourcesIn(
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        JsonElement? definition = null) =>
+        new(
+            questionElements.ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal),
+            definition is { } whole ? CopyDefinition.Of(whole) : null);
+
     private static JsonElement BuildChoiceCatalog(
         JsonElement element,
         SurveyChoiceDefaults surveyDefaults,
