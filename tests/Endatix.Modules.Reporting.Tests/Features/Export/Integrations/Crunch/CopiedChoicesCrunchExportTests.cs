@@ -277,6 +277,42 @@ public sealed class CopiedChoicesCrunchExportTests
         Column(csv, "L--1--Q3--none").Should().Equal("1");
     }
 
+    // Pins today's behaviour (the owner decides whether to keep it): a stored value the copy's sources no longer offer
+    // (a choice removed or renamed after the answer, or typed text stored as a value) has no column. Every indicator
+    // is 0 for it, where the text column used to keep the value.
+    [Fact]
+    public async Task Export_CheckboxCopyWithAValueOutsideTheCopiedChoices_WritesZeroInEveryColumn()
+    {
+        // Arrange
+        var definition = Definition("""
+            {"type":"checkbox","name":"Q2","choicesFromQuestion":"Q1"},
+            {"type":"paneldynamic","name":"L","loopSource":["Q1"],"templateElements":[
+              {"type":"checkbox","name":"Q3","choicesFromQuestion":"Q1"}]}
+            """);
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("r1", """{"Q1":["1"],"Q2":["9","typed"],"L":[{"itemValue":"1","Q3":["9"]}]}""", null),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        pipeline.FlattenAll(definition, responses);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+
+        // Assert
+        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+        var (headers, rows) = CrunchImportCheck.Read(csv);
+        var copyColumns = headers.Select((header, index) => (header, index))
+            .Where(column => column.header.StartsWith("Q2--", StringComparison.Ordinal) ||
+                             column.header.StartsWith("L--1--Q3--", StringComparison.Ordinal))
+            .ToList();
+        copyColumns.Select(column => column.header).Should().Equal(
+            "Q2--1", "Q2--2", "Q2--3", "L--1--Q3--1", "L--1--Q3--2", "L--1--Q3--3");
+        copyColumns.Select(column => rows[0][column.index]).Should().AllBe("0");
+    }
+
     // A copy whose source cannot be read (here, missing) stays one text column of the stored values, its Other text
     // in a text variable of its own.
     [Theory]
