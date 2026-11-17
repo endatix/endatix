@@ -19,16 +19,16 @@ This page covers an upgrade from 0.9.1. Every Hub needs a strong `AUTH_SECRET` b
 
 **What changed:** Hub 0.9.2 refuses to start, in every environment, when `AUTH_SECRET` is missing, shorter than 32 bytes, or a value copied from an example file. That includes the value the Endatix `docker-compose.yaml` shipped before 0.9.2. `SESSION_SECRET` is no longer read. The startup error names the rule that failed, for example `AUTH_SECRET must be at least 32 bytes.`
 
-**Who is affected:** every Hub deployment. Hosts that started from the Endatix Compose file, `.env.example`, or a docs snippet run on a published value until they replace it.
+**Who is affected:** every Hub deployment. Hosts that started from the Endatix Compose file, `.env.example`, or a docs snippet must replace that value.
 
 **What to do:**
 
 - Generate a new secret with `openssl rand -base64 32` and set it as `AUTH_SECRET` before you start Hub 0.9.2. A new value signs every user out once.
 - If you set `NEXTAUTH_SECRET`, rename it to `AUTH_SECRET`.
 - Delete `SESSION_SECRET` from your env and secret store. The Helm chart still accepts its `session-secret` key for this release.
-- Compose users: the Endatix `docker-compose.yaml` now requires `AUTH_SECRET` from `.env` or the shell, and `docker/setup.sh` and `docker/setup.bat` generate one.
+- Compose users: the Endatix `docker-compose.yaml` now requires `AUTH_SECRET` from `.env` or the shell, and `docker/setup.sh` and `docker/setup.bat` generate one, or keep the one already in `.env`.
 
-See [`AUTH_SECRET`](/docs/developers/hub/environment#auth-secret).
+See [Sessions and sign-in](/docs/developers/hub/environment#sessions-and-sign-in) for the rule and the startup errors.
 
 ## Keycloak needs `DefaultTenantId` {/* #keycloak-default-tenant-id */}
 

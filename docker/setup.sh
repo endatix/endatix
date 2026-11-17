@@ -32,7 +32,7 @@ ENDATIX_HUB_IMAGE="endatix/endatix-hub:latest"
 
 # Keep the Hub's AUTH_SECRET from an earlier run, so a rerun does not sign everyone out
 if [ -z "$AUTH_SECRET" ] && [ -f .env ]; then
-  AUTH_SECRET=$(grep -E '^AUTH_SECRET=' .env | head -n 1 | cut -d '=' -f 2-)
+  AUTH_SECRET=$(grep -E '^AUTH_SECRET=' .env | head -n 1 | cut -d '=' -f 2- | tr -d '\r')
 fi
 if [ -z "$AUTH_SECRET" ]; then
   if ! [ -x "$(command -v openssl)" ]; then
@@ -40,6 +40,10 @@ if [ -z "$AUTH_SECRET" ]; then
     exit 1
   fi
   AUTH_SECRET=$(openssl rand -base64 32)
+fi
+if [ -z "$AUTH_SECRET" ]; then
+  echo "Could not generate AUTH_SECRET. Set AUTH_SECRET to a random value of 32+ bytes and run again."
+  exit 1
 fi
 
 # Prompt for environment variables with default values if nothing is entered

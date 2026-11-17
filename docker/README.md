@@ -89,7 +89,7 @@ The script will automatically:
 3. Create and start all containers
 4. Set up the database and initial admin user
 
-> 🔑 **Running Compose yourself?** `docker compose up` stops with `required variable AUTH_SECRET is missing a value` until you set `AUTH_SECRET` in `.env` or the shell. Generate one with `openssl rand -base64 32`; the Hub refuses a value shorter than 32 bytes or one copied from an example file.
+> 🔑 **Running Compose yourself?** Every `docker compose` command stops with `required variable AUTH_SECRET is missing a value` until you set `AUTH_SECRET` in `.env` or the shell. Generate one with `openssl rand -base64 32`; the Hub refuses a value shorter than 32 bytes or one copied from an example file.
 
 ---
 
