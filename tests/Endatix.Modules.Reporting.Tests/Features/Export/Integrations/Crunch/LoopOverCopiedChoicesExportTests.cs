@@ -10,9 +10,9 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 /// is matched to its iteration by its <c>itemValue</c>, whatever its position in the array.
 /// </summary>
 /// <remarks>
-/// An iteration is labelled with its choice's text from the source's codebook entry. A checkbox or a ranking that copies
-/// its choices publishes none yet, so its iterations are labelled with their values until #1724 (checkbox) and #1723
-/// (ranking) publish the copied choices.
+/// An iteration is labelled with its choice's text from the source's codebook entry. A ranking that copies its choices
+/// publishes them with the source's labels (#1723). A checkbox that copies its choices publishes none yet, so its
+/// iterations are labelled with their values until #1724 publishes the copied choices.
 /// </remarks>
 public sealed class LoopOverCopiedChoicesExportTests
 {
@@ -76,7 +76,7 @@ public sealed class LoopOverCopiedChoicesExportTests
         Column(csv, "loop--3--q").Should().Equal("2");
     }
 
-    // Select-to-rank: only the ranked choices get a panel item.
+    // Select-to-rank: only the ranked choices get a panel item. Iterations take the source's labels (#1723).
     [Fact]
     public async Task Export_LoopOverARankingThatCopiesItsChoices_ExportsOneIterationPerCopiedChoice()
     {
@@ -98,7 +98,7 @@ public sealed class LoopOverCopiedChoicesExportTests
 
         // Assert
         Subvariables(shoji, "loop--q").Should().Equal(
-            ("loop--10--q", "10"), ("loop--20--q", "20"), ("loop--30--q", "30"));
+            ("loop--10--q", "Morning"), ("loop--20--q", "Evening"), ("loop--30--q", "Night"));
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
         Column(csv, "loop--10--q").Should().Equal("1");
         Column(csv, "loop--20--q").Should().Equal("");

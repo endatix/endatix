@@ -167,16 +167,13 @@ internal static partial class FormSchemaCodebookBuilder
         IReadOnlyDictionary<string, JsonElement>? existingColumns = null)
     {
         Dictionary<string, JsonElement> columns = new(StringComparer.Ordinal);
+        var choiceSources = ChoiceSourcesIn(questionElements);
 
         foreach (var column in merged.Columns)
         {
-            if (TryReuseExistingColumn(column, questionElements, existingColumns, out var existingColumn))
-            {
-                columns[column.Key] = existingColumn;
-                continue;
-            }
-
-            columns[column.Key] = CreateColumnEntry(column, questionElements);
+            columns[column.Key] = TryReuseExistingColumn(column, questionElements, existingColumns, out var existingColumn)
+                ? existingColumn
+                : CreateColumnEntry(column, questionElements, choiceSources);
         }
 
         return columns;
@@ -212,18 +209,18 @@ internal static partial class FormSchemaCodebookBuilder
 
     private static JsonElement CreateColumnEntry(
         FormSchemaColumn column,
-        IReadOnlyDictionary<string, CollectedQuestion> questionElements)
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        ChoiceSources choiceSources)
     {
         if (IsDescribedByColumnAlone(column))
         {
             return CreateNonQuestionColumnEntry(column);
         }
 
-        var parentKey = column.SourceQuestion ?? column.Key;
         var hasQuestion = TryGetQuestionElement(column, questionElements, out var questionElement);
 
         return WriteColumnEntry(writer =>
-            WriteColumnMetadata(writer, column, parentKey, hasQuestion, questionElement));
+            WriteColumnMetadata(writer, column, hasQuestion ? questionElement : null, choiceSources));
     }
 
     private static bool TryGetQuestionElement(
@@ -246,11 +243,11 @@ internal static partial class FormSchemaCodebookBuilder
     private static void WriteColumnMetadata(
         Utf8JsonWriter writer,
         FormSchemaColumn column,
-        string parentKey,
-        bool hasQuestion,
-        JsonElement questionElement)
+        JsonElement? question,
+        ChoiceSources choiceSources)
     {
-        writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, parentKey);
+        var (hasQuestion, questionElement) = (question.HasValue, question.GetValueOrDefault());
+        writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, column.SourceQuestion ?? column.Key);
         writer.WriteString(
             FormSchemaCodebookPropertyNames.SurveyJsType,
             ResolveColumnSurveyJsType(hasQuestion, questionElement));
@@ -264,7 +261,7 @@ internal static partial class FormSchemaCodebookBuilder
             WriteDescription(writer, questionElement);
         }
 
-        WriteColumnChoiceMetadata(writer, column, hasQuestion, questionElement);
+        WriteColumnChoiceMetadata(writer, column, question, choiceSources);
         WriteColumnMatrixMetadata(writer, column, hasQuestion, questionElement);
         WriteColumnLoopPathMetadata(writer, column);
         WriteColumnLeafInputType(writer, column, hasQuestion, questionElement);
@@ -329,8 +326,8 @@ internal static partial class FormSchemaCodebookBuilder
     private static void WriteColumnChoiceMetadata(
         Utf8JsonWriter writer,
         FormSchemaColumn column,
-        bool hasQuestion,
-        JsonElement questionElement)
+        JsonElement? question,
+        ChoiceSources choiceSources)
     {
         if (string.IsNullOrWhiteSpace(column.ChoiceValue))
         {
@@ -338,9 +335,9 @@ internal static partial class FormSchemaCodebookBuilder
         }
 
         writer.WriteString(FormSchemaPropertyNames.ChoiceValue, column.ChoiceValue);
-        if (hasQuestion)
+        if (question is { } questionElement)
         {
-            WriteChoiceLabel(writer, questionElement, column.ChoiceValue);
+            WriteColumnChoiceLabel(writer, questionElement, column.ChoiceValue, choiceSources);
         }
     }
 
@@ -565,7 +562,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.Ranking.Name);
-                WriteChoices(writer, element);
+                WriteRankingSourceAndChoices(writer, element, choiceSources.Offered(element));
             });
             return true;
         }
@@ -1011,6 +1008,11 @@ internal static partial class FormSchemaCodebookBuilder
                 fallback: text);
         }
 
+        WriteOtherChoice(writer, element, choiceId);
+    }
+
+    private static void WriteOtherChoice(Utf8JsonWriter writer, JsonElement element, int choiceId)
+    {
         if (element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
             var otherText = SurveyJsLocalizationHelper.ReadLocalizedStrings(

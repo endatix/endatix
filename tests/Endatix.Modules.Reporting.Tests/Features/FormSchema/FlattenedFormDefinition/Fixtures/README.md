@@ -42,7 +42,7 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | Scenario | Case |
 | --- | --- |
 | `copied-choices-selected-mode` | A radiogroup copies its choices from a checkbox with `choicesFromQuestion` in selected mode (#1163). |
-| `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. Until #1724 and #1723 publish the copied choices, `aware` stays one text column, `occasionRank` has no column, and iterations are labelled with their values. |
+| `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. `occasionRank` has one rank column per copied choice, and `occasionLoop` labels its iterations with the source's labels (#1723). Until #1724 publishes the copied choices, `aware` stays one text column and `considerLoop` labels its iterations with their values. |
 | `copied-choices-loops` | A synthetic survey with copied choices throughout (#1722), below. |
 
 ### `copied-choices-loops`
@@ -60,7 +60,9 @@ About 50 questions on five pages, three choices each, and one response that answ
   - `attributeLoop` over the hidden `hiddenBrands`, with a checkbox copying `AidedBrands` that keeps the Creator's
     `item1..3`;
   - `rankLoop` over `brandRank`, with a radiogroup copying `AidedBrands`;
-  - `reasonLoop` over `AidedBrands` with `randomizeLoop`, with a text question.
+  - `reasonLoop` over `AidedBrands` with `randomizeLoop`, with a text question;
+  - `cfqAllLoop` and `edxAllLoop` (copy matrix, below) each also hold a ranking copying `stores`: `cfqLoopRank`
+    (`choicesFromQuestion`, all) and `edxLoopRank` (`edxCarryForwardSources`, selected).
 - **Copy matrix,** all copying `stores`:
 
   | Syntax | Mode | Checkbox | Radiogroup | Ranking | Loop (source) |
@@ -87,13 +89,11 @@ been captured from a Hub submission yet.
 
 The goldens hold today's output, wrong parts included, so each fix shows up as a golden diff:
 
-- **#1723, a ranking that copies its choices:** `brandRank` and every `*Rank` (and `occasionRank` in
-  `loop-over-copied-choices`) have no column, and their codebook entries have no choices.
 - **#1724, a checkbox that copies its choices:** `AidedBrands`, every `*Pick` and each loop's `traits` (and `aware` in
   `loop-over-copied-choices`) export as one text column of the picked values (Shoji `text`). `attribute` gets the leftover `item1..3` and `none` columns, all 0 except
   None, because its answers are the copied values.
-- **Iteration labels:** a loop over a checkbox or a ranking that copies its choices labels its iterations with their
-  values (`1`, not `Brand A`) until #1724 and #1723 publish the copied choices.
+- **Iteration labels:** a loop over a checkbox that copies its choices labels its iterations with their values (`1`,
+  not `Brand A`) until #1724 publishes the copied choices. A loop over a ranking copy takes the source's labels.
 - **#1441, a choice the respondent was not shown:** a copy's cells are 1 or 0 for every choice once #1724 lands; the
   empty cell for a choice never shown stays in #1441.
 - **#1725, JSON keys:** the JSON export camel-cases question names (`aidedBrands`).

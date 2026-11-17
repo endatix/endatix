@@ -164,6 +164,18 @@
           "name": "Which of these have you bought?",
           "description": ""
         },
+        "occasionRank--10": {
+          "type": "numeric",
+          "alias": "occasionRank--10",
+          "name": "Rank the occasions -- 10",
+          "description": ""
+        },
+        "occasionRank--20": {
+          "type": "numeric",
+          "alias": "occasionRank--20",
+          "name": "Rank the occasions -- 20",
+          "description": ""
+        },
         "considerLoop--consider": {
           "type": "categorical_array",
           "alias": "considerLoop--consider",
@@ -226,11 +238,11 @@
           "subvariables": [
             {
               "alias": "occasionLoop--10--occasionBrand",
-              "name": "10"
+              "name": "Morning"
             },
             {
               "alias": "occasionLoop--20--occasionBrand",
-              "name": "20"
+              "name": "Evening"
             }
           ]
         }
@@ -257,6 +269,8 @@
             "brands",
             "aware",
             "occasions",
+            "occasionRank--10",
+            "occasionRank--20",
             {
               "group": "considerLoop",
               "entities": [
