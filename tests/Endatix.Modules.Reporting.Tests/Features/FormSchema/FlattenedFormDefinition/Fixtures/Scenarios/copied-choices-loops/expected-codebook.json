@@ -183,6 +183,22 @@
       "exportShape": "ranking",
       "choices": []
     },
+    "cfqLoopRank": {
+      "surveyJsType": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (cfq, all)"
+      },
+      "parentPanelTitle": "cfqAllLoop",
+      "parentPanels": [
+        {
+          "key": "cfqAllLoop",
+          "title": "cfqAllLoop"
+        }
+      ],
+      "pageName": "copies",
+      "exportShape": "ranking",
+      "choices": []
+    },
     "cfqSelectedLoop": {
       "surveyJsType": "paneldynamic",
       "title": {},
@@ -532,6 +548,22 @@
       "title": {
         "default": "Rank stores (edx, all)"
       },
+      "pageName": "copies",
+      "exportShape": "ranking",
+      "choices": []
+    },
+    "edxLoopRank": {
+      "surveyJsType": "ranking",
+      "title": {
+        "default": "Rank stores after {panel.itemText} (edx, selected)"
+      },
+      "parentPanelTitle": "edxAllLoop",
+      "parentPanels": [
+        {
+          "key": "edxAllLoop",
+          "title": "edxAllLoop"
+        }
+      ],
       "pageName": "copies",
       "exportShape": "ranking",
       "choices": []
@@ -2481,6 +2513,9 @@
     "cfqAllRank": {
       "choices": []
     },
+    "cfqLoopRank": {
+      "choices": []
+    },
     "cfqSelectedOk": {
       "multiple": false,
       "choices": [
@@ -2654,6 +2689,9 @@
       "choices": []
     },
     "edxAllRank": {
+      "choices": []
+    },
+    "edxLoopRank": {
       "choices": []
     },
     "edxSelectedOk": {
