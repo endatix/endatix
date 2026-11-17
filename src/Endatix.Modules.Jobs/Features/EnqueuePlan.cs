@@ -125,5 +125,5 @@ internal readonly record struct DedupIdentity(long TenantId, string JobType, str
     public static DedupIdentity? Of(BackgroundJobRequest request) =>
         string.IsNullOrWhiteSpace(request.DedupKey)
             ? null
-            : new DedupIdentity(request.TenantId, request.JobType, request.DedupKey);
+            : new DedupIdentity(JobScopeStorage.ToStorage(request.Scope), request.JobType, request.DedupKey);
 }

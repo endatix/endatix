@@ -28,6 +28,9 @@ internal sealed class BackgroundJobConfiguration : IEntityTypeConfiguration<Back
         builder.Property(job => job.TenantId)
             .IsRequired();
 
+        // Read from TenantId through JobScopeStorage, never a column of its own.
+        builder.Ignore(job => job.Scope);
+
         builder.Property(job => job.Status)
             .HasConversion<int>()
             .IsRequired();

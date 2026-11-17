@@ -16,7 +16,7 @@ public sealed class BackgroundJobRequestTests
 
         // Assert
         request.JobType.Should().Be("Test");
-        request.TenantId.Should().Be(5);
+        request.Scope.TenantId.Should().Be(5);
         request.PayloadJson.Should().Be("{\"id\":9007199254740993}");
     }
 

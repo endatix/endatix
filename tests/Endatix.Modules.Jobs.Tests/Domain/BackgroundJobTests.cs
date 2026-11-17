@@ -179,9 +179,49 @@ public class BackgroundJobTests
         // Act
         var act = () => new BackgroundJob("SubmissionExport", "{}", tenantId: 0, nextAttemptAt: Now);
 
-        // Assert — zero is what the tenant context reports when no tenant is ambient, so a job
-        // carrying it would be hidden from every tenant and visible to every background service.
+        // Assert — zero is what the tenant context reports when no tenant is ambient. Work that belongs to
+        // no tenant is a system job, made by ForSystem, never a tenant job of tenant zero.
         act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void ForSystem_CreatesAPendingSystemJob()
+    {
+        // Arrange
+        // Act
+        var job = BackgroundJob.ForSystem("SignupWork", "{}", Now);
+
+        // Assert
+        job.Scope.Should().Be(JobScope.System);
+        job.Status.Should().Be(JobStatus.Pending);
+    }
+
+    [Fact]
+    public void FromRequest_SystemScope_CreatesASystemJob()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SignupWork", "{}", JobScope.System, DedupKey: "9:SignupWork");
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.Scope.Should().Be(JobScope.System);
+        job.DedupKey.Should().Be("9:SignupWork");
+    }
+
+    [Fact]
+    public void FromRequest_TenantScope_KeepsTheTenant()
+    {
+        // Arrange
+        var request = new BackgroundJobRequest("SubmissionExport", "{}", JobScope.ForTenant(7));
+
+        // Act
+        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
+
+        // Assert
+        job.Scope.Should().Be(JobScope.ForTenant(7));
+        job.TenantId.Should().Be(7);
     }
 
     [Fact]

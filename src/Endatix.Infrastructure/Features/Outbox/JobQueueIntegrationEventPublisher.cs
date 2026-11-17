@@ -90,7 +90,7 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
         List<BackgroundJobRequest> requests = [];
         foreach (var subscription in subscriptions)
         {
-            var delivery = new OutboxDelivery(message, TenantOf(subscription, message));
+            var delivery = new OutboxDelivery(message, subscription.ResolveScope(message));
             requests.AddRange(await subscription.BuildRequestsAsync(_services, delivery, cancellationToken));
         }
 
@@ -102,20 +102,6 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
             "Outbox message {MessageId} has no subscriber for event type '{EventType}'.",
             message.Id,
             message.EventType);
-
-    // A job without a tenant would be visible to no tenant and run as all of them. Failing the publish retries the
-    // message and then fails it, where an operator sees it, instead of writing such a row.
-    private static long TenantOf(OutboxJobSubscription subscription, IOutboxMessage message)
-    {
-        var tenantId = subscription.ResolveTenantId(message);
-        if (tenantId <= 0)
-        {
-            throw new InvalidOperationException(
-                $"Outbox message {message.Id} ({message.EventType}) resolved no tenant for subscriber {subscription.JobType}.");
-        }
-
-        return tenantId;
-    }
 
     // The outbox stores the bare trace id, so the parent is that trace with a span of its own.
     private static ActivityContext ParentOf(IOutboxMessage message)

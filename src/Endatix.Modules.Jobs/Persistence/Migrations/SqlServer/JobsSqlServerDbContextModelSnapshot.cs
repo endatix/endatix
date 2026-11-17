@@ -18,7 +18,7 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("jobs")
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -111,7 +111,7 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
 
                     b.ToTable("BackgroundJobs", "jobs", t =>
                         {
-                            t.HasCheckConstraint("CK_BackgroundJobs_TenantId", "[TenantId] > 0");
+                            t.HasCheckConstraint("CK_BackgroundJobs_TenantId", "[TenantId] > 0 OR [TenantId] = 0");
                         });
                 });
 #pragma warning restore 612, 618
