@@ -12,6 +12,7 @@ internal readonly record struct SourceChoice(string Value, string Text, JsonElem
 internal sealed class ResolvedChoices
 {
     private readonly IReadOnlyList<SourceChoice>? _choices;
+    private Dictionary<string, SourceChoice>? _choicesByValue;
 
     private ResolvedChoices(ChoiceSource source, IReadOnlyList<SourceChoice>? choices, bool isCopied)
     {
@@ -38,6 +39,21 @@ internal sealed class ResolvedChoices
     public static ResolvedChoices Copied(ChoiceSource source, IReadOnlyList<SourceChoice>? choices) =>
         new(source, choices, choices is not null);
 
+    /// <summary>The first offered choice with this value; each column's label reads one, so the lookup is built once.</summary>
+    public bool TryGetChoice(string value, out SourceChoice choice)
+    {
+        if (_choicesByValue is null)
+        {
+            _choicesByValue = new(StringComparer.Ordinal);
+            foreach (var offered in Choices)
+            {
+                _choicesByValue.TryAdd(offered.Value, offered);
+            }
+        }
+
+        return _choicesByValue.TryGetValue(value, out choice);
+    }
+
     /// <summary>Writes <c>choiceSource</c> for a source that is not inline, and <c>degraded</c> when it is set.</summary>
     public void WriteTo(Utf8JsonWriter writer)
     {
@@ -61,6 +77,7 @@ internal sealed class ResolvedChoices
 internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> questionsByName)
 {
     private readonly Dictionary<string, List<SourceChoice>?> _resolvedSources = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ResolvedChoices> _resolvedCopies = new(StringComparer.Ordinal);
 
     /// <summary>The choices a base select's columns and categories use; any other question's own choices.</summary>
     public ResolvedChoices Resolve(JsonElement question) =>
@@ -77,13 +94,23 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
             return ResolvedChoices.Own(source, OwnChoices(question));
         }
 
-        HashSet<string> visiting = new(StringComparer.Ordinal);
-        if (question.GetSurveyJsName() is { } name)
+        // A copy's union depends only on its own name (a cycle back to it) and its sources, and every column of the
+        // copy asks for it, so it is resolved once per compile.
+        var name = question.GetSurveyJsName();
+        var key = string.Join('\0', [name ?? string.Empty, .. copy.Sources]);
+        if (!_resolvedCopies.TryGetValue(key, out var resolved))
         {
-            visiting.Add(name);
+            HashSet<string> visiting = new(StringComparer.Ordinal);
+            if (name is not null)
+            {
+                visiting.Add(name);
+            }
+
+            resolved = ResolvedChoices.Copied(source, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
+            _resolvedCopies[key] = resolved;
         }
 
-        return ResolvedChoices.Copied(source, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
+        return resolved;
     }
 
     /// <summary>

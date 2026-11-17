@@ -75,15 +75,7 @@ internal static partial class FormSchemaCodebookBuilder
             return null;
         }
 
-        foreach (var choice in offered.Choices)
-        {
-            if (string.Equals(choice.Value, value, StringComparison.Ordinal))
-            {
-                return choice;
-            }
-        }
-
-        return null;
+        return offered.TryGetChoice(value, out var choice) ? choice : null;
     }
 
     private static void WriteCopiedChoiceText(Utf8JsonWriter writer, SourceChoice choice) =>
