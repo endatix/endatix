@@ -26,7 +26,8 @@ A scenario with a `submission.json` also has:
 - `expected-flat.json`: the flattened submission row;
 - `expected-csv.csv`, `expected-csv-shoji.csv` and `expected-json.json`: the submission exports;
 - `expected-xlsx.json`: the xlsx export cell by cell, sheet by sheet and row by row, never the binary. A cell reads
-  `<type>[@<style>]:<text>`: `s` text, `n` number, `b` boolean; a date is a number with the date style.
+  `<type>[@<style>]:<text>`: `s` text, `n` number, `b` boolean; a date is a number with the date style. `styles` gives
+  each style a cell uses its `numFmtId` and format code.
 
 The submission exports run through the tabular data source and the Infrastructure exporters with the settings of the
 default export formats (`DefaultExportFormats`), and csv-shoji with the Shoji format's. The row's system values are

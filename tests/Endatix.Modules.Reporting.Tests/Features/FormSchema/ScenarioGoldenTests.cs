@@ -85,6 +85,7 @@ internal static class ScenarioGoldens
     internal const string XLSX_FILE = "expected-xlsx.json";
 
     private const string EXPECTED_PREFIX = "expected-";
+    private const string XLSX_STYLES = "styles";
     private const string RESPONSE_ID = "r1";
 
     private static readonly JsonSerializerOptions _indented = new()
@@ -176,23 +177,47 @@ internal static class ScenarioGoldens
         }
     }
 
-    // The workbook's cells as text, sheet by sheet and row by row, so a golden diff reads like the sheet.
+    // The workbook's cells as text, sheet by sheet and row by row, so a golden diff reads like the sheet, then the number
+    // format of each style a cell uses, so a change to what a style means shows too.
     private static string XlsxCells(byte[] workbook)
     {
         using var document = SpreadsheetDocument.Open(new MemoryStream(workbook), isEditable: false);
         var workbookPart = document.WorkbookPart!;
         var sharedStrings = workbookPart.SharedStringTablePart?.SharedStringTable?.Elements<SharedStringItem>()
             .Select(item => item.InnerText).ToList() ?? [];
-        Dictionary<string, List<List<string>>> sheets = new(StringComparer.Ordinal);
+        Dictionary<string, object> content = new(StringComparer.Ordinal);
+        SortedSet<uint> styles = [];
         foreach (var sheet in workbookPart.Workbook!.Sheets!.Elements<Sheet>())
         {
-            var worksheet = (WorksheetPart)workbookPart.GetPartById(sheet.Id!.Value!);
-            sheets[sheet.Name!.Value!] = worksheet.Worksheet!.Descendants<Row>()
-                .Select(row => row.Elements<Cell>().Select(cell => CellText(cell, sharedStrings)).ToList())
+            var cells = ((WorksheetPart)workbookPart.GetPartById(sheet.Id!.Value!)).Worksheet!.Descendants<Row>()
+                .Select(row => row.Elements<Cell>().ToList())
                 .ToList();
+            styles.UnionWith(cells.SelectMany(row => row).Select(cell => cell.StyleIndex?.Value).OfType<uint>());
+            content[sheet.Name!.Value!] = cells.Select(row => row.Select(cell => CellText(cell, sharedStrings)).ToList()).ToList();
         }
 
-        return JsonSerializer.Serialize(sheets);
+        content[XLSX_STYLES] = NumberFormats(workbookPart.WorkbookStylesPart?.Stylesheet, styles);
+        return JsonSerializer.Serialize(content);
+    }
+
+    // Each style index's numFmtId and format code; a built-in id has no code in the workbook, so only General is named.
+    private static SortedDictionary<string, object?> NumberFormats(Stylesheet? stylesheet, IEnumerable<uint> styles)
+    {
+        var cellFormats = stylesheet?.CellFormats?.Elements<CellFormat>().ToList() ?? [];
+        var codes = stylesheet?.NumberingFormats?.Elements<NumberingFormat>()
+            .ToDictionary(format => format.NumberFormatId!.Value, format => format.FormatCode?.Value) ?? [];
+        SortedDictionary<string, object?> formats = new(StringComparer.Ordinal);
+        foreach (var style in styles)
+        {
+            var id = style < cellFormats.Count ? cellFormats[(int)style].NumberFormatId?.Value ?? 0 : 0;
+            formats[style.ToString(CultureInfo.InvariantCulture)] = new
+            {
+                numFmtId = id,
+                formatCode = codes.GetValueOrDefault(id) ?? (id == 0 ? "General" : null),
+            };
+        }
+
+        return formats;
     }
 
     // "<type>:<text>", plus "@<style>" when the cell has one: the exporter decides text, number, boolean and date, and
