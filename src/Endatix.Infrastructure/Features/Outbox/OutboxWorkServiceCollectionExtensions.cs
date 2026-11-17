@@ -57,13 +57,7 @@ public static class OutboxWorkServiceCollectionExtensions
         where TWork : class, IOutboxWork<TWork>
     {
         ArgumentNullException.ThrowIfNull(services);
-        if (appLevel && appLevelTenant is not null)
-        {
-            throw new ArgumentException(
-                $"The outbox work {typeof(TWork).FullName} cannot be both a system job (appLevel) and a tenant's job " +
-                $"(appLevelTenant); choose the one its work belongs to.",
-                nameof(appLevel));
-        }
+        ThrowIfBothScopes<TWork>(appLevel, appLevelTenant);
 
         if (services.Any(RegistersInline<TWork>))
         {
@@ -96,6 +90,17 @@ public static class OutboxWorkServiceCollectionExtensions
         }
 
         return services;
+    }
+
+    private static void ThrowIfBothScopes<TWork>(bool appLevel, Func<IOutboxMessage, long>? appLevelTenant)
+    {
+        if (appLevel && appLevelTenant is not null)
+        {
+            throw new ArgumentException(
+                $"The outbox work {typeof(TWork).FullName} cannot be both a system job (appLevel) and a tenant's job " +
+                $"(appLevelTenant); choose the one its work belongs to.",
+                nameof(appLevel));
+        }
     }
 
     private static bool RegistersInline<TWork>(ServiceDescriptor descriptor) =>

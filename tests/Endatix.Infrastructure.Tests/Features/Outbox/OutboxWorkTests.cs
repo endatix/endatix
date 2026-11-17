@@ -364,8 +364,10 @@ public sealed partial class OutboxWorkTests
     private ServiceProvider Build(
         Action<IServiceCollection>? addMore = null,
         Func<IOutboxMessage, long>? appLevelTenant = null,
-        Func<IOutboxMessage, bool>? onlyWhen = null,
-        bool appLevel = false)
+        Func<IOutboxMessage, bool>? onlyWhen = null) =>
+        BuildWith(services => services.AddOutboxWork<WorkStub>(Defaults, appLevelTenant, onlyWhen), addMore);
+
+    private ServiceProvider BuildWith(Action<IServiceCollection> addWork, Action<IServiceCollection>? addMore = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -373,7 +375,7 @@ public sealed partial class OutboxWorkTests
         services.AddSingleton(_outbox);
         services.AddSingleton(_queue);
         services.AddScoped<JobQueueIntegrationEventPublisher>();
-        services.AddOutboxWork<WorkStub>(Defaults, appLevelTenant, onlyWhen, appLevel);
+        addWork(services);
         addMore?.Invoke(services);
         return services.BuildServiceProvider();
     }

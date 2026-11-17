@@ -108,24 +108,24 @@ internal sealed class OutboxJobMessages(IRepository<OutboxMessage> outboxMessage
     /// A system job reads only an app-level row, and only for app-level work; a tenant job reads only its own tenant's
     /// row, or an app-level row whose payload names its tenant. Neither can read the other's rows.
     /// </remarks>
-    public async Task<OutboxJobLookup> FindAsync<TWork>(
+    public Task<OutboxJobLookup> FindAsync<TWork>(
         BackgroundJobContext job,
         long outboxMessageId,
         OutboxWorkRegistration<TWork> registration,
         CancellationToken cancellationToken)
-        where TWork : class, IOutboxWork<TWork>
-    {
-        if (job.Scope.IsSystem != registration.AppLevel)
-        {
-            return OutboxJobLookup.Refused(OutboxJobFailures.WrongScope);
-        }
+        where TWork : class, IOutboxWork<TWork> =>
+        job.Scope.IsSystem == registration.AppLevel
+            ? LoadAsync(job, outboxMessageId, registration.ReadTenant, cancellationToken)
+            : Task.FromResult(OutboxJobLookup.Refused(OutboxJobFailures.WrongScope));
 
-        var readTenant = registration.ReadTenant;
-        // Scoped explicitly: outside a request nothing else scopes this read. An app-level row carries no tenant;
-        // a tenant job of app-level work belongs to the tenant the payload names.
-        var rowTenant = job.Scope.IsSystem || readTenant is not null ? OutboxAppLevel.NoTenant : job.TenantId;
+    private async Task<OutboxJobLookup> LoadAsync(
+        BackgroundJobContext job,
+        long outboxMessageId,
+        Func<IOutboxMessage, long>? readTenant,
+        CancellationToken cancellationToken)
+    {
         var row = await outboxMessages.FirstOrDefaultAsync(
-            new OutboxMessageByIdForTenantSpec(outboxMessageId, rowTenant),
+            new OutboxMessageByIdForTenantSpec(outboxMessageId, RowTenant(job, readTenant)),
             cancellationToken);
         if (row is null)
         {
@@ -136,6 +136,11 @@ internal sealed class OutboxJobMessages(IRepository<OutboxMessage> outboxMessage
         var message = LegacyOutboxEvents.Translate(new OutboxMessageView(row));
         return readTenant is null ? OutboxJobLookup.Found(message) : ForTenant(readTenant, message, job.TenantId);
     }
+
+    // Scoped explicitly: outside a request nothing else scopes this read. An app-level row carries no tenant; a
+    // system job reads only such rows, and a tenant job of app-level work belongs to the tenant the payload names.
+    private static long RowTenant(BackgroundJobContext job, Func<IOutboxMessage, long>? readTenant) =>
+        job.Scope.IsSystem || readTenant is not null ? OutboxAppLevel.NoTenant : job.TenantId;
 
     private static OutboxJobLookup ForTenant(Func<IOutboxMessage, long> readTenant, IOutboxMessage message, long tenantId)
     {

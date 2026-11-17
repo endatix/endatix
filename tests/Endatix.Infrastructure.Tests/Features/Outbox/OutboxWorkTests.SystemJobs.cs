@@ -9,6 +9,9 @@ public sealed partial class OutboxWorkTests
 {
     private const long NoTenant = 0;
 
+    private ServiceProvider BuildAppLevel() =>
+        BuildWith(services => services.AddOutboxWork<WorkStub>(Defaults, appLevel: true));
+
     [Fact]
     public void AddOutboxWork_AppLevelAndAppLevelTenant_Throws()
     {
@@ -27,7 +30,7 @@ public sealed partial class OutboxWorkTests
     public async Task PublishAsync_AppLevelWorkAndAppLevelRow_EnqueuesASystemJob()
     {
         // Arrange
-        using var provider = Build(appLevel: true);
+        using var provider = BuildAppLevel();
 
         // Act
         await PublishAsync(provider, new OutboxMessageStub(MessageId, "x.happened", """{"work":"run"}""", NoTenant));
@@ -42,7 +45,7 @@ public sealed partial class OutboxWorkTests
     public async Task PublishAsync_AppLevelWorkAndTenantRow_ThrowsAndEnqueuesNothing()
     {
         // Arrange — a row that names a tenant is that tenant's work, never a system job's.
-        using var provider = Build(appLevel: true);
+        using var provider = BuildAppLevel();
 
         // Act
         var publish = () => PublishAsync(
@@ -58,7 +61,7 @@ public sealed partial class OutboxWorkTests
     {
         // Arrange
         Seed("""{"work":"run"}""", NoTenant);
-        using var provider = Build(appLevel: true);
+        using var provider = BuildAppLevel();
 
         // Act
         var (result, work) = await RunJobAsync(provider, JobScope.System);
@@ -89,7 +92,7 @@ public sealed partial class OutboxWorkTests
     {
         // Arrange — a tenant job must not run work that belongs to no tenant.
         Seed("""{"work":"run"}""", NoTenant);
-        using var provider = Build(appLevel: true);
+        using var provider = BuildAppLevel();
 
         // Act
         var (result, work) = await RunJobAsync(provider, TenantA);
@@ -105,7 +108,7 @@ public sealed partial class OutboxWorkTests
     {
         // Arrange — the system job reads app-level rows only.
         Seed($$"""{"tenantId":"{{TenantA}}","work":"run"}""", TenantA);
-        using var provider = Build(appLevel: true);
+        using var provider = BuildAppLevel();
 
         // Act
         var (result, work) = await RunJobAsync(provider, JobScope.System);

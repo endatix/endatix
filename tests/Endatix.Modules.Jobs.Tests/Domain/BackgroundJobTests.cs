@@ -9,7 +9,7 @@ namespace Endatix.Modules.Jobs.Tests.Domain;
 /// <c>ExecuteUpdateAsync</c> rather than through these methods, so these tests are where the rules
 /// themselves are pinned — if a rule changes here, the runner's SQL has to change with it.
 /// </summary>
-public class BackgroundJobTests
+public partial class BackgroundJobTests
 {
     private static readonly DateTime Now = new(2026, 8, 14, 12, 0, 0, DateTimeKind.Utc);
 
@@ -182,46 +182,6 @@ public class BackgroundJobTests
         // Assert — zero is what the tenant context reports when no tenant is ambient. Work that belongs to
         // no tenant is a system job, made by ForSystem, never a tenant job of tenant zero.
         act.Should().Throw<ArgumentException>();
-    }
-
-    [Fact]
-    public void ForSystem_CreatesAPendingSystemJob()
-    {
-        // Arrange
-        // Act
-        var job = BackgroundJob.ForSystem("SignupWork", "{}", Now);
-
-        // Assert
-        job.Scope.Should().Be(JobScope.System);
-        job.Status.Should().Be(JobStatus.Pending);
-    }
-
-    [Fact]
-    public void FromRequest_SystemScope_CreatesASystemJob()
-    {
-        // Arrange
-        var request = new BackgroundJobRequest("SignupWork", "{}", JobScope.System, DedupKey: "9:SignupWork");
-
-        // Act
-        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
-
-        // Assert
-        job.Scope.Should().Be(JobScope.System);
-        job.DedupKey.Should().Be("9:SignupWork");
-    }
-
-    [Fact]
-    public void FromRequest_TenantScope_KeepsTheTenant()
-    {
-        // Arrange
-        var request = new BackgroundJobRequest("SubmissionExport", "{}", JobScope.ForTenant(7));
-
-        // Act
-        var job = BackgroundJob.FromRequest(request, Now, traceId: null);
-
-        // Assert
-        job.Scope.Should().Be(JobScope.ForTenant(7));
-        job.TenantId.Should().Be(7);
     }
 
     [Fact]
