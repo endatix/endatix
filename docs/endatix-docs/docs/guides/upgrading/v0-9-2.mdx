@@ -30,6 +30,18 @@ This page covers an upgrade from 0.9.1. Every Hub needs a strong `AUTH_SECRET` b
 
 See [Sessions and sign-in](/docs/developers/hub/environment#sessions-and-sign-in) for the rule and the startup errors.
 
+## Copied choices export empty cells {/* #copied-choices-export-empty-cells */}
+
+**What changed:** an export no longer writes `0` for a choice the respondent may not have seen. A checkbox or tag box that copies its choices from another question writes `1` for a picked choice, `0` for a choice the respondent was shown and did not pick, and an empty cell otherwise. A checkbox or tag box in a loop item the respondent did not have, and an unanswered ranking, are empty instead of `0`. The Crunch codebook is unchanged; Crunch imports an empty cell as No Data. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
+
+**Who is affected:** forms with copied choices (`choicesFromQuestion` or carry forward), loops, or rankings, and any analysis that reads those `0`s.
+
+**What to do:**
+
+- Nothing for safety: a form compiled before 0.9.2 writes `1` or an empty cell for copied choices, never a wrong `0`.
+- To get exact `0`s for the choices a respondent saw, compile the form's schema with `replace=true` (`POST forms/{formId}/reporting/compile-schema`; Hub: **Rebuild reporting data…**, **Full recompile**), then backfill its submissions with `force=true` (`POST forms/{formId}/submissions/backfill`).
+- A form whose copied questions changed their mode, their source questions' choices, or whether they copy at all across form versions: a full recompile judges old submissions by the current form. Compile it without `replace` (merge mode once the form has real submissions), which leaves those cells empty, then backfill with `force=true`.
+
 ## Keycloak needs `DefaultTenantId` {/* #keycloak-default-tenant-id */}
 
 **What changed:** `Endatix:Auth:Providers:Keycloak:DefaultTenantId` is required. When Keycloak is enabled and the setting is missing or 0, the API refuses to start, and the startup error names the setting.
