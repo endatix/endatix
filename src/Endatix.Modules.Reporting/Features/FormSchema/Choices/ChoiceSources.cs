@@ -103,6 +103,10 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
             : [.. offered.Choices.Select(choice => choice.Value)];
     }
 
+    /// <summary><see cref="OfferedValues(JsonElement)"/> of the question with this name; empty when there is none.</summary>
+    public IReadOnlyList<string> OfferedValues(string questionName) =>
+        questionsByName.TryGetValue(questionName, out var question) ? OfferedValues(question) : [];
+
     private List<SourceChoice>? Union(IReadOnlyList<string> sourceNames, HashSet<string> visiting)
     {
         List<SourceChoice> union = [];

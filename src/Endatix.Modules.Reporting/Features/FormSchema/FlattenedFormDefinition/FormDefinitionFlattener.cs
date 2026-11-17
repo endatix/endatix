@@ -978,7 +978,7 @@ internal static class FormDefinitionFlattener
 
         EmitLoopSourceColumnsFromLoopPanels(
             loopPanels,
-            new LoopSources(elementsByName, ChoiceSourcesIn(elementsByName)),
+            new ChoiceSources(elementsByName.ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal)),
             columns,
             seenKeys,
             limits);
@@ -996,13 +996,6 @@ internal static class FormDefinitionFlattener
 
         return elementsByName;
     }
-
-    private sealed record LoopSources(
-        IReadOnlyDictionary<string, CollectedElement> ElementsByName,
-        ChoiceSources Choices);
-
-    private static ChoiceSources ChoiceSourcesIn(IReadOnlyDictionary<string, CollectedElement> elementsByName) =>
-        new(elementsByName.ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal));
 
     private sealed record LoopPanelDiscovery(
         Dictionary<string, CollectedElement> LoopPanelsByName,
@@ -1047,7 +1040,7 @@ internal static class FormDefinitionFlattener
 
     private static void EmitLoopSourceColumnsFromLoopPanels(
         LoopPanelDiscovery loopPanels,
-        LoopSources sources,
+        ChoiceSources sources,
         List<FormSchemaColumn> columns,
         HashSet<string> seenKeys,
         SchemaCompilationLimits limits)
@@ -1086,7 +1079,7 @@ internal static class FormDefinitionFlattener
         IReadOnlyList<string> panelNames,
         IReadOnlyList<IReadOnlyList<string>> driverChoicesByLevel,
         IReadOnlyDictionary<string, CollectedElement> loopPanelsByName,
-        LoopSources sources,
+        ChoiceSources sources,
         List<LoopSourceLeafPath> leafPaths,
         SchemaCompilationLimits limits)
     {
@@ -1149,7 +1142,7 @@ internal static class FormDefinitionFlattener
     // A driver repeats once per choice its source can offer: its own or copied ones, for any select or a ranking.
     private static IReadOnlyList<string> CollectLoopSourceDriverChoices(
         JsonElement panelElement,
-        LoopSources sources,
+        ChoiceSources sources,
         SchemaCompilationLimits limits)
     {
         if (!panelElement.TryGetLoopSource(out var loopSource))
@@ -1168,14 +1161,13 @@ internal static class FormDefinitionFlattener
             }
 
             var sourceName = sourceNameElement.GetString();
-            if (string.IsNullOrWhiteSpace(sourceName) ||
-                !sources.ElementsByName.TryGetValue(sourceName, out var sourceElement))
+            if (string.IsNullOrWhiteSpace(sourceName))
             {
                 continue;
             }
 
             var choiceCount = 0;
-            foreach (var choiceValue in sources.Choices.OfferedValues(sourceElement.Element))
+            foreach (var choiceValue in sources.OfferedValues(sourceName))
             {
                 if (++choiceCount > limits.MaxChoicesPerQuestion)
                 {
