@@ -49,6 +49,13 @@ internal static class FormSchemaCodebookPropertyNames
     public const string Sources = "sources";
     public const string Reason = "reason";
 
+    /// <summary>
+    /// Choice catalog of a copied checkbox or tagbox: <c>mode</c> and <c>sources</c>, present only when the choices a
+    /// respondent was shown follow from the sources' answers alone. Absent means unknown.
+    /// </summary>
+    public const string Shown = "shown";
+    public const string Mode = "mode";
+
     /// <summary>Question: "text" when a single select's choices cannot be read, so its answers export as text.</summary>
     public const string Degraded = "degraded";
     public const string DegradedToText = "text";

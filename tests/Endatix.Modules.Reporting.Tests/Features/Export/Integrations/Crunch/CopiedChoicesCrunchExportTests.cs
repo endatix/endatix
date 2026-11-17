@@ -244,7 +244,7 @@ public sealed class CopiedChoicesCrunchExportTests
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
         Column(csv, "Q2--1").Should().Equal("0");
         Column(csv, "Q2--2").Should().Equal("1");
-        Column(csv, "Q2--3").Should().Equal("0");
+        Column(csv, "Q2--3").Should().Equal([string.Empty], "Q1 did not pick 3, so the respondent was not shown it");
     }
 
     // Inside a question loop the copy drops the Creator's leftover items and writes each iteration's picks.

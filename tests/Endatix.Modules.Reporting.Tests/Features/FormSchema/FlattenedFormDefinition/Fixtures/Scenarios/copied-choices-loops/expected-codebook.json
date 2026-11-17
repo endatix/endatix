@@ -4383,7 +4383,13 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          "hiddenBrands"
+        ]
+      }
     },
     "attribute": {
       "multiple": true,
@@ -4514,7 +4520,13 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "all",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "cfqAllRank": {
       "choices": [
@@ -4635,7 +4647,13 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "cfqSelectedRank": {
       "choices": [
@@ -4695,7 +4713,13 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "all",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "cfqUnselectedOk": {
       "multiple": false,
@@ -4766,7 +4790,13 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "unselected",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "cfqUnselectedRank": {
       "choices": [
@@ -4881,7 +4911,13 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "all",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "edxAllRank": {
       "choices": [
@@ -4941,7 +4977,13 @@
             "default": "Other"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "unselected",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "edxLoopRank": {
       "choices": [
@@ -5037,7 +5079,13 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "edxSelectedRank": {
       "choices": [
@@ -5133,7 +5181,13 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "unselected",
+        "sources": [
+          "stores"
+        ]
+      }
     },
     "edxUnselectedRank": {
       "choices": [
@@ -5406,7 +5460,13 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          "hiddenTraits"
+        ]
+      }
     }
   }
 }

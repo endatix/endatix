@@ -16,7 +16,13 @@ internal static partial class FormSchemaCodebookBuilder
         if (ChoiceSet.Read(element, surveyDefaults, choiceSources.Resolve(element)) is { } choiceSet)
         {
             return WriteQuestionEntry(writer =>
-                choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id)));
+            {
+                choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id));
+                if (element.IsMultiSelectBaseSelect())
+                {
+                    choiceSources.Visibility(element)?.WriteTo(writer);
+                }
+            });
         }
 
         return WriteQuestionEntry(writer => WriteNonSelectCatalogChoices(writer, element, choiceSources));

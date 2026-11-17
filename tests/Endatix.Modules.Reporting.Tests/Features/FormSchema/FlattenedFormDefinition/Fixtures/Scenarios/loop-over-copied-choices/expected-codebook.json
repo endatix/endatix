@@ -472,7 +472,13 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          "brands"
+        ]
+      }
     },
     "brands": {
       "multiple": true,

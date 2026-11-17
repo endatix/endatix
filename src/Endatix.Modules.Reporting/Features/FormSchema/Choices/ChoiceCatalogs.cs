@@ -33,19 +33,29 @@ internal readonly record struct CatalogChoice(string Value, int Id, ChoiceKind K
 
 /// <summary>
 /// RUN TIME read model of the codebook's <c>choiceCatalogs</c>: the merged union of every compiled definition. Built
-/// once per flatten. The only reader of the catalog fields <c>kind</c>, <c>exclusive</c>, <c>multiple</c> and
-/// <c>otherStorage</c>.
+/// once per flatten. The only reader of the catalog fields <c>kind</c>, <c>exclusive</c>, <c>multiple</c>,
+/// <c>otherStorage</c> and <c>shown</c>, and of which questions copy their choices.
 /// </summary>
 internal sealed class ChoiceCatalogs
 {
     private readonly Dictionary<string, SelectChoices> _selects;
+    private readonly HashSet<string> _copies;
+    private readonly Dictionary<string, CopyVisibility> _visibility;
 
-    private ChoiceCatalogs(Dictionary<string, SelectChoices> selects)
+    private ChoiceCatalogs(
+        Dictionary<string, SelectChoices> selects,
+        HashSet<string> copies,
+        Dictionary<string, CopyVisibility> visibility)
     {
         _selects = selects;
+        _copies = copies;
+        _visibility = visibility;
     }
 
-    public static ChoiceCatalogs Empty { get; } = new(new Dictionary<string, SelectChoices>(StringComparer.Ordinal));
+    public static ChoiceCatalogs Empty { get; } = new(
+        new Dictionary<string, SelectChoices>(StringComparer.Ordinal),
+        new HashSet<string>(StringComparer.Ordinal),
+        new Dictionary<string, CopyVisibility>(StringComparer.Ordinal));
 
     public static ChoiceCatalogs Read(string? codebookJson)
     {
@@ -61,10 +71,22 @@ internal sealed class ChoiceCatalogs
             return Empty;
         }
 
-        return new ChoiceCatalogs(catalogs.EnumerateObject()
-            .Select(catalog => (catalog.Name, Select: SelectChoices.FromCatalog(catalog.Value)))
-            .Where(entry => entry.Select is not null)
-            .ToDictionary(entry => entry.Name, entry => entry.Select!, StringComparer.Ordinal));
+        Dictionary<string, SelectChoices> selects = new(StringComparer.Ordinal);
+        Dictionary<string, CopyVisibility> visibility = new(StringComparer.Ordinal);
+        foreach (var catalog in catalogs.EnumerateObject())
+        {
+            if (SelectChoices.FromCatalog(catalog.Value) is { } select)
+            {
+                selects[catalog.Name] = select;
+            }
+
+            if (CopyVisibility.Read(catalog.Value) is { } rule)
+            {
+                visibility[catalog.Name] = rule;
+            }
+        }
+
+        return new ChoiceCatalogs(selects, CopiesIn(document.RootElement), visibility);
     }
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
@@ -76,6 +98,66 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public SelectChoices For(string question) =>
         _selects.TryGetValue(question, out var select) ? select : SelectChoices.Unknown;
+
+    /// <summary>The question's select choices; null when it is not a base select.</summary>
+    public SelectChoices? SelectOrNull(string question) => _selects.GetValueOrDefault(question);
+
+    /// <summary>
+    /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
+    /// with its own choices shows every one, so the rest are 0. A copy that has no answer shows nothing provably, so the
+    /// rest are empty; an answered copy shows its own special items (Other, None, ...), and a copied choice only when
+    /// the copy's <see cref="CopyVisibility"/> rebuilds it from the sources' answers. Every other cell is empty.
+    /// </summary>
+    public IndicatorCell Indicator(AnswerScope scope, string question, string choiceValue)
+    {
+        var select = For(question);
+        if (select.Read(scope.Own, question).Has(choiceValue))
+        {
+            return IndicatorCell.Picked;
+        }
+
+        if (!_copies.Contains(question))
+        {
+            return IndicatorCell.ShownNotPicked;
+        }
+
+        if (!scope.OwnAnswers(question))
+        {
+            return IndicatorCell.Empty;
+        }
+
+        if (select.KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice)
+        {
+            return IndicatorCell.ShownNotPicked;
+        }
+
+        return _visibility.TryGetValue(question, out var rule) && rule.Shows(choiceValue, scope, this) == true
+            ? IndicatorCell.ShownNotPicked
+            : IndicatorCell.Empty;
+    }
+
+    // Every codebook since copied choices records carryForward on the copy's question entry.
+    private static HashSet<string> CopiesIn(JsonElement codebook)
+    {
+        HashSet<string> copies = new(StringComparer.Ordinal);
+        if (codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is not
+            { ValueKind: JsonValueKind.Object } questions)
+        {
+            return copies;
+        }
+
+        foreach (var question in questions.EnumerateObject())
+        {
+            if (question.Value.ValueKind == JsonValueKind.Object &&
+                question.Value.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceSource) is { ValueKind: JsonValueKind.Object } source &&
+                source.GetStringProperty(FormSchemaCodebookPropertyNames.Kind) == ChoiceSource.CarryForwardKind)
+            {
+                copies.Add(question.Name);
+            }
+        }
+
+        return copies;
+    }
 }
 
 /// <summary>The stored choices of one select question and where its Other text goes.</summary>
@@ -88,6 +170,13 @@ internal sealed class SelectChoices
     public IReadOnlyList<CatalogChoice> Choices { get; private init; } = [];
 
     public OtherStorage? OtherStorage { get; private init; }
+
+    /// <summary>The kind of the catalog choice with this value; null when the catalog has none.</summary>
+    public ChoiceKind? KindOf(string value) =>
+        Choices.FirstOrDefault(choice => choice.Value == value) is { Value: not null } found ? found.Kind : null;
+
+    /// <summary>Whether the select offers this value as one of its own choices (not a special item).</summary>
+    public bool Offers(string value) => KindOf(value) == ChoiceKind.Choice;
 
     internal static SelectChoices? FromCatalog(JsonElement catalog)
     {

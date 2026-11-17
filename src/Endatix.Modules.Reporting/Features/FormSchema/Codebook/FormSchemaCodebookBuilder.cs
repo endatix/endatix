@@ -758,7 +758,8 @@ internal static partial class FormSchemaCodebookBuilder
         }
     }
 
-    // The choices are the union of every definition; the select fields describe the current one (see WriteSelectFields).
+    // The choices are the union of every definition; the select fields describe the current one (see WriteSelectFields),
+    // and a copy keeps its shown rule only while every definition agrees on it (see CopyVisibility.Merge).
     private static JsonElement WriteMergedChoiceCatalog(
         JsonElement existingCatalog,
         JsonElement currentCatalog,
@@ -774,6 +775,7 @@ internal static partial class FormSchemaCodebookBuilder
             }
 
             writer.WriteEndArray();
+            CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
         });
 
     private static bool TryGetCatalogChoicesArray(JsonElement catalog, out JsonElement choices) =>
