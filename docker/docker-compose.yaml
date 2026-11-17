@@ -75,9 +75,10 @@ services:
       PORT: "8000"
       ENDATIX_API_URL: "http://endatix-api:${ENDATIX_API_PORT}/api"
       ENDATIX_BASE_URL: "http://endatix-api:${ENDATIX_API_PORT}"
-      SESSION_SECRET: "Tr9YJeqVsIicqvNgpcn+iJVGq6l4qU95b+GuP/xziMs="
       NEXT_OTEL_VERBOSE: "0"
-      AUTH_SECRET: "edukEVrf9XA1GRDN44/BnB+6xeO1xLUWeKRWS7RWoYo="
+      # Your own secret, at least 32 bytes. setup.sh and setup.bat write one to .env;
+      # otherwise generate one with `openssl rand -base64 32`.
+      AUTH_SECRET: "${AUTH_SECRET:?set AUTH_SECRET to a strong secret of 32+ bytes, e.g. openssl rand -base64 32}"
       AUTH_TRUST_HOST: "true"
       services__endatix-api__http__0: "http://endatix-api:${ENDATIX_API_PORT}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://docker-env-dashboard:18889"
