@@ -277,11 +277,10 @@ public sealed class CopiedChoicesCrunchExportTests
         Column(csv, "L--1--Q3--none").Should().Equal("1");
     }
 
-    // Pins today's behaviour (the owner decides whether to keep it): a stored value the copy's sources no longer offer
-    // (a choice removed or renamed after the answer, or typed text stored as a value) has no column. Every indicator
+    // A stored value the copy's sources never offered (typed text stored as a value) has no column, so every indicator
     // is 0 for it, where the text column used to keep the value.
     [Fact]
-    public async Task Export_CheckboxCopyWithAValueOutsideTheCopiedChoices_WritesZeroInEveryColumn()
+    public async Task Export_CheckboxCopyWithAValueItsSourcesNeverOffered_WritesZeroInEveryColumn()
     {
         // Arrange
         var definition = Definition("""
@@ -311,6 +310,36 @@ public sealed class CopiedChoicesCrunchExportTests
         copyColumns.Select(column => column.header).Should().Equal(
             "Q2--1", "Q2--2", "Q2--3", "L--1--Q3--1", "L--1--Q3--2", "L--1--Q3--3");
         copyColumns.Select(column => rows[0][column.index]).Should().AllBe("0");
+    }
+
+    // Columns are append-only under Merge: a source choice removed after answers keeps its column, so those answers still
+    // export as 1. A replace compile rebuilds the columns from the current form, and the value then has no column.
+    [Fact]
+    public async Task Export_CheckboxCopyAfterItsSourceDropsAChoice_KeepsTheColumnUnderMergeAndDropsItOnReplace()
+    {
+        // Arrange
+        var before = Definition("""{"type":"checkbox","name":"Q2","choicesFromQuestion":"Q1"}""");
+        var after = before.Replace(""",{"value":"3","text":"Item 3"}""", "", StringComparison.Ordinal);
+        IReadOnlyList<FixtureResponse> responses = [new("r1", """{"Q1":["1","3"],"Q2":["3"]}""", null)];
+        var pipeline = PersonalizationPipeline.Compile(before);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        pipeline.Recompile(after, FormSchemaCompileMode.Merge);
+        pipeline.FlattenAll(after, responses);
+        var merged = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var mergedCsv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+        pipeline.Recompile(after, FormSchemaCompileMode.Replace);
+        pipeline.FlattenAll(after, responses);
+        var replaced = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
+        var replacedCsv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+
+        // Assert
+        CrunchImportCheck.Problems(merged, mergedCsv).Should().BeEmpty();
+        Column(mergedCsv, "Q2--3").Should().Equal("1");
+        CrunchImportCheck.Problems(replaced, replacedCsv).Should().BeEmpty();
+        CrunchImportCheck.Read(replacedCsv).Header.Should().NotContain("Q2--3");
+        Column(replacedCsv, "Q2--1").Concat(Column(replacedCsv, "Q2--2")).Should().AllBe("0");
     }
 
     // A copy whose source cannot be read (here, missing) stays one text column of the stored values, its Other text
