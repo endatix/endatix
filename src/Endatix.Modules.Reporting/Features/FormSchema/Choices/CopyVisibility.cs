@@ -113,7 +113,12 @@ internal sealed class CopyVisibility
             .. Sources.Select(source =>
                 new SourceAnswer(source, scope.ContextAnswering(source), catalogs.SelectOrNull(source)).Shows(Mode, value)),
         ];
-        return verdicts.Contains(true) ? true : verdicts.Contains(null) ? null : false;
+        if (verdicts.Contains(true))
+        {
+            return true;
+        }
+
+        return verdicts.Contains(null) ? null : false;
     }
 
     // One source as the cell's scope sees it: the context that answers it, and its select catalog.

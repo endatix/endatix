@@ -130,12 +130,12 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
             : [.. offered.Choices.Select(choice => choice.Value)];
     }
 
-    /// <summary>The rule that rebuilds which copied choices a respondent was shown; null when it is unknown.</summary>
-    public CopyVisibility? Visibility(JsonElement question) => CopyVisibility.Of(question, questionsByName);
-
     /// <summary><see cref="OfferedValues(JsonElement)"/> of the question with this name; empty when there is none.</summary>
     public IReadOnlyList<string> OfferedValues(string questionName) =>
         questionsByName.TryGetValue(questionName, out var question) ? OfferedValues(question) : [];
+
+    /// <summary>The rule that rebuilds which copied choices a respondent was shown; null when it is unknown.</summary>
+    public CopyVisibility? Visibility(JsonElement question) => CopyVisibility.Of(question, questionsByName);
 
     private List<SourceChoice>? Union(IReadOnlyList<string> sourceNames, HashSet<string> visiting)
     {
