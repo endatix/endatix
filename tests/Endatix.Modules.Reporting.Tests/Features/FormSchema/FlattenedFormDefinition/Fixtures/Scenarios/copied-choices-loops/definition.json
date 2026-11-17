@@ -1,0 +1,728 @@
+{
+  "title": "Copied choices survey (synthetic)",
+  "calculatedValues": [
+    {
+      "name": "brandPool",
+      "expression": "[1, 2, 3]",
+      "includeIntoResult": true
+    },
+    {
+      "name": "traitPool",
+      "expression": "[1, 2, 3]",
+      "includeIntoResult": true
+    },
+    {
+      "name": "regionLabel",
+      "expression": "{region}"
+    }
+  ],
+  "pages": [
+    {
+      "name": "screening",
+      "elements": [
+        {
+          "type": "html",
+          "name": "welcome",
+          "html": "<p>Thank you for taking part.</p>"
+        },
+        {
+          "type": "radiogroup",
+          "name": "region",
+          "title": "Region",
+          "visible": false,
+          "defaultValue": "2",
+          "choices": [
+            {
+              "value": "1",
+              "text": "North"
+            },
+            {
+              "value": "2",
+              "text": "South"
+            },
+            {
+              "value": "3",
+              "text": "East"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "hiddenBrands",
+          "title": "Brands shown to this respondent",
+          "visible": false,
+          "defaultValueExpression": "{brandPool}",
+          "choices": [
+            {
+              "value": "1",
+              "text": "<p><b>Brand A</b></p>"
+            },
+            {
+              "value": "2",
+              "text": "Brand B"
+            },
+            {
+              "value": "3",
+              "text": "Brand C"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "hiddenTraits",
+          "title": "Traits shown to this respondent",
+          "visible": false,
+          "defaultValueExpression": "{traitPool}",
+          "choices": [
+            {
+              "value": "1",
+              "text": "Fresh"
+            },
+            {
+              "value": "2",
+              "text": "Cheap"
+            },
+            {
+              "value": "3",
+              "text": "Local"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "awareness",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "AidedBrands",
+          "title": "Which of these brands have you heard of?",
+          "choicesFromQuestion": "hiddenBrands",
+          "choicesFromQuestionMode": "selected",
+          "showNoneItem": true
+        },
+        {
+          "type": "radiogroup",
+          "name": "favorite",
+          "title": "Which one is your favorite?",
+          "choicesFromQuestion": "AidedBrands",
+          "choicesFromQuestionMode": "selected"
+        },
+        {
+          "type": "ranking",
+          "name": "brandRank",
+          "title": "Rank the brands you know",
+          "choicesFromQuestion": "AidedBrands",
+          "choicesFromQuestionMode": "selected",
+          "selectToRankEnabled": true
+        }
+      ]
+    },
+    {
+      "name": "loops",
+      "elements": [
+        {
+          "type": "paneldynamic",
+          "name": "considerLoop",
+          "loopSource": [
+            "AidedBrands"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "considerLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "consider",
+              "title": "Would you consider {panel.itemText}?",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Yes"
+                },
+                {
+                  "value": "2",
+                  "text": "No"
+                }
+              ]
+            }
+          ],
+          "visibleIf": "{region} = '2'"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "traitsLoop",
+          "loopSource": [
+            "AidedBrands"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "traitsLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "checkbox",
+              "name": "traits",
+              "title": "What describes {panel.itemText}?",
+              "choicesFromQuestion": "hiddenTraits",
+              "choicesFromQuestionMode": "selected",
+              "showNoneItem": true,
+              "showOtherItem": true
+            }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "attributeLoop",
+          "loopSource": [
+            "hiddenBrands"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "attributeLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "checkbox",
+              "name": "attribute",
+              "title": "Which brands share this with {panel.itemText}?",
+              "choicesFromQuestion": "AidedBrands",
+              "choicesFromQuestionMode": "selected",
+              "showNoneItem": true,
+              "choices": [
+                "item1",
+                "item2",
+                "item3"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "rankLoop",
+          "loopSource": [
+            "brandRank"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "rankLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "rankPick",
+              "title": "Which brand comes closest to {panel.itemText}?",
+              "choicesFromQuestion": "AidedBrands",
+              "choicesFromQuestionMode": "selected"
+            }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "reasonLoop",
+          "loopSource": [
+            "AidedBrands"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "reasonLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "text",
+              "name": "reason",
+              "title": "Why {panel.itemText}?"
+            }
+          ],
+          "randomizeLoop": true
+        }
+      ]
+    },
+    {
+      "name": "copies",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "stores",
+          "title": "Where do you shop?",
+          "choices": [
+            {
+              "value": "1",
+              "text": "Store A"
+            },
+            {
+              "value": "2",
+              "text": "Store B"
+            },
+            {
+              "value": "3",
+              "text": "Store C"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "cfqAllPick",
+          "title": "Pick stores (cfq, all)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "all"
+        },
+        {
+          "type": "radiogroup",
+          "name": "cfqAllOne",
+          "title": "Pick one store (cfq, all)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "all"
+        },
+        {
+          "type": "ranking",
+          "name": "cfqAllRank",
+          "title": "Rank stores (cfq, all)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "all"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "cfqAllLoop",
+          "loopSource": [
+            "cfqAllPick"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "cfqAllLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "cfqAllOk",
+              "title": "Is {panel.itemText} open late?",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Yes"
+                },
+                {
+                  "value": "2",
+                  "text": "No"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "cfqSelectedPick",
+          "title": "Pick stores (cfq, selected)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "selected"
+        },
+        {
+          "type": "radiogroup",
+          "name": "cfqSelectedOne",
+          "title": "Pick one store (cfq, selected)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "selected"
+        },
+        {
+          "type": "ranking",
+          "name": "cfqSelectedRank",
+          "title": "Rank stores (cfq, selected)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "selected"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "cfqSelectedLoop",
+          "loopSource": [
+            "cfqSelectedRank"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "cfqSelectedLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "cfqSelectedOk",
+              "title": "Is {panel.itemText} open late?",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Yes"
+                },
+                {
+                  "value": "2",
+                  "text": "No"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "cfqUnselectedPick",
+          "title": "Pick stores (cfq, unselected)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "unselected"
+        },
+        {
+          "type": "radiogroup",
+          "name": "cfqUnselectedOne",
+          "title": "Pick one store (cfq, unselected)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "unselected"
+        },
+        {
+          "type": "ranking",
+          "name": "cfqUnselectedRank",
+          "title": "Rank stores (cfq, unselected)",
+          "choicesFromQuestion": "stores",
+          "choicesFromQuestionMode": "unselected"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "cfqUnselectedLoop",
+          "loopSource": [
+            "cfqUnselectedOne"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "cfqUnselectedLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "cfqUnselectedOk",
+              "title": "Is {panel.itemText} open late?",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Yes"
+                },
+                {
+                  "value": "2",
+                  "text": "No"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "edxAllPick",
+          "title": "Pick stores (edx, all)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "all"
+        },
+        {
+          "type": "radiogroup",
+          "name": "edxAllOne",
+          "title": "Pick one store (edx, all)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "all"
+        },
+        {
+          "type": "ranking",
+          "name": "edxAllRank",
+          "title": "Rank stores (edx, all)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "all"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "edxAllLoop",
+          "loopSource": [
+            "edxAllPick"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "edxAllLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "edxAllOk",
+              "title": "Is {panel.itemText} open late?",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Yes"
+                },
+                {
+                  "value": "2",
+                  "text": "No"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "edxSelectedPick",
+          "title": "Pick stores (edx, selected)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "selected"
+        },
+        {
+          "type": "radiogroup",
+          "name": "edxSelectedOne",
+          "title": "Pick one store (edx, selected)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "selected"
+        },
+        {
+          "type": "ranking",
+          "name": "edxSelectedRank",
+          "title": "Rank stores (edx, selected)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "selected"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "edxSelectedLoop",
+          "loopSource": [
+            "edxSelectedRank"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "edxSelectedLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "edxSelectedOk",
+              "title": "Is {panel.itemText} open late?",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Yes"
+                },
+                {
+                  "value": "2",
+                  "text": "No"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "edxUnselectedPick",
+          "title": "Pick stores (edx, unselected)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "unselected"
+        },
+        {
+          "type": "radiogroup",
+          "name": "edxUnselectedOne",
+          "title": "Pick one store (edx, unselected)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "unselected"
+        },
+        {
+          "type": "ranking",
+          "name": "edxUnselectedRank",
+          "title": "Rank stores (edx, unselected)",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "stores"
+          ],
+          "edxCarryForwardMode": "unselected"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "edxUnselectedLoop",
+          "loopSource": [
+            "edxUnselectedOne"
+          ],
+          "templateElements": [
+            {
+              "type": "html",
+              "name": "edxUnselectedLoopIntro",
+              "html": "<p>About {panel.itemText}</p>"
+            },
+            {
+              "type": "radiogroup",
+              "name": "edxUnselectedOk",
+              "title": "Is {panel.itemText} open late?",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Yes"
+                },
+                {
+                  "value": "2",
+                  "text": "No"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "elements": [
+        {
+          "type": "paneldynamic",
+          "name": "household",
+          "title": "Household members",
+          "templateElements": [
+            {
+              "type": "radiogroup",
+              "name": "member",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Adult"
+                },
+                {
+                  "value": "2",
+                  "text": "Child"
+                }
+              ]
+            },
+            {
+              "type": "checkbox",
+              "name": "pets",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Dog"
+                },
+                {
+                  "value": "2",
+                  "text": "Cat"
+                },
+                {
+                  "value": "3",
+                  "text": "Fish"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "matrix",
+          "name": "satisfaction",
+          "columns": [
+            {
+              "value": "1",
+              "text": "Low"
+            },
+            {
+              "value": "2",
+              "text": "Medium"
+            },
+            {
+              "value": "3",
+              "text": "High"
+            }
+          ],
+          "rows": [
+            {
+              "value": "price",
+              "text": "Price"
+            },
+            {
+              "value": "taste",
+              "text": "Taste"
+            }
+          ]
+        },
+        {
+          "type": "matrixdropdown",
+          "name": "usage",
+          "columns": [
+            {
+              "name": "frequency",
+              "cellType": "dropdown",
+              "choices": [
+                {
+                  "value": "1",
+                  "text": "Rarely"
+                },
+                {
+                  "value": "2",
+                  "text": "Weekly"
+                },
+                {
+                  "value": "3",
+                  "text": "Daily"
+                }
+              ]
+            },
+            {
+              "name": "note",
+              "cellType": "text"
+            }
+          ],
+          "rows": [
+            {
+              "value": "home",
+              "text": "At home"
+            },
+            {
+              "value": "work",
+              "text": "At work"
+            }
+          ]
+        },
+        {
+          "type": "multipletext",
+          "name": "contact",
+          "items": [
+            {
+              "name": "city",
+              "title": "City"
+            },
+            {
+              "name": "zip",
+              "title": "Postal code"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "comments",
+          "title": "Anything else?"
+        }
+      ]
+    }
+  ]
+}

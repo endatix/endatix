@@ -1,0 +1,14 @@
+{
+  "brands": ["1", "2", "3"],
+  "aware": ["3", "1"],
+  "considerLoop": [
+    { "itemValue": "3", "loopIndex": 0, "consider": "2" },
+    { "itemValue": "1", "loopIndex": 1, "consider": "1" }
+  ],
+  "occasions": ["10", "20"],
+  "occasionRank": ["20", "10"],
+  "occasionLoop": [
+    { "itemValue": "20", "loopIndex": 0, "occasionBrand": "3" },
+    { "itemValue": "10", "loopIndex": 1 }
+  ]
+}

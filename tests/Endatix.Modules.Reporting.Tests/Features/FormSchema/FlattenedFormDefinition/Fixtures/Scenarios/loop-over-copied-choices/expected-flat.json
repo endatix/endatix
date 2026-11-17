@@ -1,0 +1,16 @@
+{
+  "brands__1": 1,
+  "brands__2": 1,
+  "brands__3": 1,
+  "aware": [
+    "3",
+    "1"
+  ],
+  "occasions__10": 1,
+  "occasions__20": 1,
+  "considerLoop__1__consider": "1",
+  "considerLoop__2__consider": null,
+  "considerLoop__3__consider": "2",
+  "occasionLoop__10__occasionBrand": null,
+  "occasionLoop__20__occasionBrand": "3"
+}

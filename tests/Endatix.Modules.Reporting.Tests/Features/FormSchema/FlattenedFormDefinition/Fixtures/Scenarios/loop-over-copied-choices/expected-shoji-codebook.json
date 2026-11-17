@@ -167,7 +167,7 @@
         "considerLoop--consider": {
           "type": "categorical_array",
           "alias": "considerLoop--consider",
-          "name": "Would you buy \u2026 again?",
+          "name": "Would you buy … again?",
           "description": "",
           "categories": [
             {
@@ -201,7 +201,7 @@
         "occasionLoop--occasionBrand": {
           "type": "categorical_array",
           "alias": "occasionLoop--occasionBrand",
-          "name": "Which brand for \u2026?",
+          "name": "Which brand for …?",
           "description": "",
           "categories": [
             {

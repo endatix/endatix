@@ -1,0 +1,148 @@
+[
+  {
+    "formId": 100,
+    "id": 1,
+    "isComplete": true,
+    "collectionStatus": "complete",
+    "createdAt": "2026-10-14T10:00:00Z",
+    "modifiedAt": "2026-10-14T10:00:00Z",
+    "startedAt": "N/A",
+    "completedAt": "N/A",
+    "durationSeconds": "N/A",
+    "submitterId": "N/A",
+    "submitterDisplayId": "N/A",
+    "region": "2",
+    "hiddenBrands__1": 1,
+    "hiddenBrands__2": 1,
+    "hiddenBrands__3": 1,
+    "hiddenTraits__1": 1,
+    "hiddenTraits__2": 1,
+    "hiddenTraits__3": 1,
+    "aidedBrands": [
+      "3",
+      "1"
+    ],
+    "favorite": "3",
+    "stores__1": 1,
+    "stores__2": 0,
+    "stores__3": 1,
+    "cfqAllPick": [
+      "2",
+      "3"
+    ],
+    "cfqAllOne": "1",
+    "cfqSelectedPick": [
+      "3"
+    ],
+    "cfqSelectedOne": "1",
+    "cfqUnselectedPick": [
+      "2"
+    ],
+    "cfqUnselectedOne": "2",
+    "edxAllPick": [
+      "2",
+      "3"
+    ],
+    "edxAllOne": "1",
+    "edxSelectedPick": [
+      "3"
+    ],
+    "edxSelectedOne": "1",
+    "edxUnselectedPick": [
+      "2"
+    ],
+    "edxUnselectedOne": "2",
+    "household__0__member": "1",
+    "household__0__pets": [
+      "1",
+      "2"
+    ],
+    "household__1__member": "2",
+    "household__1__pets": [
+      "3"
+    ],
+    "household__2__member": null,
+    "household__2__pets": null,
+    "household__3__member": null,
+    "household__3__pets": null,
+    "household__4__member": null,
+    "household__4__pets": null,
+    "household__5__member": null,
+    "household__5__pets": null,
+    "household__6__member": null,
+    "household__6__pets": null,
+    "household__7__member": null,
+    "household__7__pets": null,
+    "household__8__member": null,
+    "household__8__pets": null,
+    "household__9__member": null,
+    "household__9__pets": null,
+    "satisfaction__price": 2,
+    "satisfaction__taste": 3,
+    "usage__home__frequency": "3",
+    "usage__home__note": "Most days",
+    "usage__work__frequency": "1",
+    "usage__work__note": null,
+    "contact__city": "Springfield",
+    "contact__zip": "12345",
+    "comments": "Synthetic response for the export goldens.",
+    "considerLoop__1__consider": "2",
+    "considerLoop__2__consider": null,
+    "considerLoop__3__consider": "1",
+    "traitsLoop__1__traits": null,
+    "traitsLoop__1__traits__other_text": null,
+    "traitsLoop__2__traits": null,
+    "traitsLoop__2__traits__other_text": null,
+    "traitsLoop__3__traits": [
+      "1",
+      "other"
+    ],
+    "traitsLoop__3__traits__other_text": "Organic",
+    "attributeLoop__1__attribute__item1": 0,
+    "attributeLoop__1__attribute__item2": 0,
+    "attributeLoop__1__attribute__item3": 0,
+    "attributeLoop__1__attribute__none": 0,
+    "attributeLoop__2__attribute__item1": 0,
+    "attributeLoop__2__attribute__item2": 0,
+    "attributeLoop__2__attribute__item3": 0,
+    "attributeLoop__2__attribute__none": 1,
+    "attributeLoop__3__attribute__item1": 0,
+    "attributeLoop__3__attribute__item2": 0,
+    "attributeLoop__3__attribute__item3": 0,
+    "attributeLoop__3__attribute__none": 0,
+    "rankLoop__1__rankPick": "1",
+    "rankLoop__2__rankPick": null,
+    "rankLoop__3__rankPick": "3",
+    "reasonLoop__1__reason": "Good value",
+    "reasonLoop__2__reason": null,
+    "reasonLoop__3__reason": "Close to home",
+    "cfqAllLoop__1__cfqAllOk": null,
+    "cfqAllLoop__2__cfqAllOk": "1",
+    "cfqAllLoop__3__cfqAllOk": "2",
+    "cfqSelectedLoop__1__cfqSelectedOk": "2",
+    "cfqSelectedLoop__2__cfqSelectedOk": null,
+    "cfqSelectedLoop__3__cfqSelectedOk": "1",
+    "cfqUnselectedLoop__1__cfqUnselectedOk": null,
+    "cfqUnselectedLoop__2__cfqUnselectedOk": "1",
+    "cfqUnselectedLoop__3__cfqUnselectedOk": null,
+    "edxAllLoop__1__edxAllOk": null,
+    "edxAllLoop__2__edxAllOk": "1",
+    "edxAllLoop__3__edxAllOk": "2",
+    "edxSelectedLoop__1__edxSelectedOk": "2",
+    "edxSelectedLoop__2__edxSelectedOk": null,
+    "edxSelectedLoop__3__edxSelectedOk": "1",
+    "edxUnselectedLoop__1__edxUnselectedOk": null,
+    "edxUnselectedLoop__2__edxUnselectedOk": "1",
+    "edxUnselectedLoop__3__edxUnselectedOk": null,
+    "brandPool": [
+      1,
+      2,
+      3
+    ],
+    "traitPool": [
+      1,
+      2,
+      3
+    ]
+  }
+]

@@ -1,0 +1,256 @@
+{
+  "region": "2",
+  "brandPool": [
+    1,
+    2,
+    3
+  ],
+  "hiddenBrands": [
+    1,
+    2,
+    3
+  ],
+  "hiddenTraits": [
+    1,
+    2,
+    3
+  ],
+  "AidedBrands": [
+    "3",
+    "1"
+  ],
+  "favorite": "3",
+  "brandRank": [
+    "3",
+    "1"
+  ],
+  "considerLoop": [
+    {
+      "itemValue": "1",
+      "loopIndex": 1,
+      "consider": "2"
+    },
+    {
+      "itemValue": "3",
+      "loopIndex": 0,
+      "consider": "1"
+    }
+  ],
+  "traitsLoop": [
+    {
+      "itemValue": "3",
+      "loopIndex": 0,
+      "traits": [
+        "1",
+        "other"
+      ],
+      "traits-Comment": "Organic"
+    },
+    {
+      "itemValue": "1",
+      "loopIndex": 1
+    }
+  ],
+  "attributeLoop": [
+    {
+      "itemValue": "2",
+      "loopIndex": 1,
+      "attribute": [
+        "none"
+      ]
+    },
+    {
+      "itemValue": "1",
+      "loopIndex": 0,
+      "attribute": [
+        "3"
+      ]
+    },
+    {
+      "itemValue": "3",
+      "loopIndex": 2,
+      "attribute": [
+        "1",
+        "3"
+      ]
+    }
+  ],
+  "rankLoop": [
+    {
+      "itemValue": "1",
+      "loopIndex": 1,
+      "rankPick": "1"
+    },
+    {
+      "itemValue": "3",
+      "loopIndex": 0,
+      "rankPick": "3"
+    }
+  ],
+  "reasonLoop": [
+    {
+      "itemValue": "1",
+      "loopIndex": 0,
+      "reason": "Good value"
+    },
+    {
+      "itemValue": "3",
+      "loopIndex": 1,
+      "reason": "Close to home"
+    }
+  ],
+  "stores": [
+    "1",
+    "3"
+  ],
+  "cfqAllPick": [
+    "2",
+    "3"
+  ],
+  "cfqAllOne": "1",
+  "cfqAllRank": [
+    "3",
+    "1",
+    "2"
+  ],
+  "cfqAllLoop": [
+    {
+      "itemValue": "3",
+      "loopIndex": 1,
+      "cfqAllOk": "2"
+    },
+    {
+      "itemValue": "2",
+      "loopIndex": 0,
+      "cfqAllOk": "1"
+    }
+  ],
+  "cfqSelectedPick": [
+    "3"
+  ],
+  "cfqSelectedOne": "1",
+  "cfqSelectedRank": [
+    "3",
+    "1"
+  ],
+  "cfqSelectedLoop": [
+    {
+      "itemValue": "1",
+      "loopIndex": 1,
+      "cfqSelectedOk": "2"
+    },
+    {
+      "itemValue": "3",
+      "loopIndex": 0,
+      "cfqSelectedOk": "1"
+    }
+  ],
+  "cfqUnselectedPick": [
+    "2"
+  ],
+  "cfqUnselectedOne": "2",
+  "cfqUnselectedRank": [
+    "2"
+  ],
+  "cfqUnselectedLoop": [
+    {
+      "itemValue": "2",
+      "loopIndex": 0,
+      "cfqUnselectedOk": "1"
+    }
+  ],
+  "edxAllPick": [
+    "2",
+    "3"
+  ],
+  "edxAllOne": "1",
+  "edxAllRank": [
+    "3",
+    "1",
+    "2"
+  ],
+  "edxAllLoop": [
+    {
+      "itemValue": "3",
+      "loopIndex": 1,
+      "edxAllOk": "2"
+    },
+    {
+      "itemValue": "2",
+      "loopIndex": 0,
+      "edxAllOk": "1"
+    }
+  ],
+  "edxSelectedPick": [
+    "3"
+  ],
+  "edxSelectedOne": "1",
+  "edxSelectedRank": [
+    "3",
+    "1"
+  ],
+  "edxSelectedLoop": [
+    {
+      "itemValue": "1",
+      "loopIndex": 1,
+      "edxSelectedOk": "2"
+    },
+    {
+      "itemValue": "3",
+      "loopIndex": 0,
+      "edxSelectedOk": "1"
+    }
+  ],
+  "edxUnselectedPick": [
+    "2"
+  ],
+  "edxUnselectedOne": "2",
+  "edxUnselectedRank": [
+    "2"
+  ],
+  "edxUnselectedLoop": [
+    {
+      "itemValue": "2",
+      "loopIndex": 0,
+      "edxUnselectedOk": "1"
+    }
+  ],
+  "household": [
+    {
+      "member": "1",
+      "pets": [
+        "1",
+        "2"
+      ]
+    },
+    {
+      "member": "2",
+      "pets": [
+        "3"
+      ]
+    }
+  ],
+  "satisfaction": {
+    "price": "2",
+    "taste": "3"
+  },
+  "usage": {
+    "home": {
+      "frequency": "3",
+      "note": "Most days"
+    },
+    "work": {
+      "frequency": "1"
+    }
+  },
+  "contact": {
+    "city": "Springfield",
+    "zip": "12345"
+  },
+  "comments": "Synthetic response for the export goldens.",
+  "traitPool": [
+    1,
+    2,
+    3
+  ]
+}
