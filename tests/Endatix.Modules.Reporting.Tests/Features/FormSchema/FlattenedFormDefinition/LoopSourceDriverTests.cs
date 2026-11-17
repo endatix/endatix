@@ -62,6 +62,45 @@ public sealed class LoopSourceDriverTests
         LoopKeys(columns).Should().Equal("loop__pear__q", "loop__plum__q", "loop__apple__q");
     }
 
+    // The mode only shapes what a respondent sees; the loop repeats over every choice the source can offer.
+    [Theory]
+    [InlineData("all")]
+    [InlineData("selected")]
+    [InlineData("unselected")]
+    public void Flatten_LoopOverAChoicesFromQuestionCopy_RepeatsOncePerSourceChoiceInEveryMode(string mode)
+    {
+        // Arrange
+        var definition = Definition($$"""
+            {"type":"checkbox","name":"brands","choices":["a","b","c"]},
+            {"type":"checkbox","name":"source","choicesFromQuestion":"brands","choicesFromQuestionMode":"{{mode}}"}
+            """);
+
+        // Act
+        var columns = Flatten(definition);
+
+        // Assert
+        LoopKeys(columns).Should().Equal("loop__a__q", "loop__b__q", "loop__c__q");
+    }
+
+    [Theory]
+    [InlineData("all")]
+    [InlineData("selected")]
+    [InlineData("unselected")]
+    public void Flatten_LoopOverACarryForwardCopy_RepeatsOncePerSourceChoiceInEveryMode(string mode)
+    {
+        // Arrange
+        var definition = Definition($$"""
+            {"type":"checkbox","name":"brands","choices":["a","b","c"]},
+            {"type":"checkbox","name":"source","edxCarryForwardEnabled":true,"edxCarryForwardSources":["brands"],"edxCarryForwardMode":"{{mode}}"}
+            """);
+
+        // Act
+        var columns = Flatten(definition);
+
+        // Assert
+        LoopKeys(columns).Should().Equal("loop__a__q", "loop__b__q", "loop__c__q");
+    }
+
     // A copy publishes its sources' choices, so choices the Creator left on it (item1..3) no longer drive panels: the
     // stored panels carry the copied values. Under a merge the old leftover columns stay, empty.
     [Fact]
