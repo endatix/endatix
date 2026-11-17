@@ -57,8 +57,8 @@ public sealed class RankingCopiedChoicesTests
         var codebook = Codebook(TopLevel(Ranking(copy)));
 
         // Assert
-        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().Equal(ExpectedChoices);
-        Entries(codebook.GetProperty("choiceCatalogs").GetProperty("rank")).Should().Equal(ExpectedChoices);
+        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().Equal(_expectedChoices);
+        Entries(codebook.GetProperty("choiceCatalogs").GetProperty("rank")).Should().Equal(_expectedChoices);
         ChoiceLabel(codebook, "rank__a").Should().Be("""{"default":"Apple","es":"Manzana"}""");
         ChoiceLabel(codebook, "rank__c").Should().Be("""{"default":"c"}""");
     }
@@ -71,7 +71,7 @@ public sealed class RankingCopiedChoicesTests
         var codebook = Codebook(InLoop(Ranking(copy)));
 
         // Assert
-        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().Equal(ExpectedChoices);
+        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().Equal(_expectedChoices);
         ChoiceLabel(codebook, "loop__y__rank__b").Should().Be("""{"default":"Pear"}""");
     }
 
@@ -91,7 +91,7 @@ public sealed class RankingCopiedChoicesTests
 
         // Assert
         RankingKeys(columns).Should().Equal("rank__a", "rank__b", "rank__c");
-        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().Equal(ExpectedChoices);
+        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().Equal(_expectedChoices);
     }
 
     // Creator leaves its default items on a question that copies its choices; the respondent never sees them.
@@ -120,11 +120,11 @@ public sealed class RankingCopiedChoicesTests
 
         // Assert
         using var codebook = JsonDocument.Parse(second.CodebookJson);
-        Entries(codebook.RootElement.GetProperty("questions").GetProperty("rank")).Should().Equal(ExpectedChoices);
-        Entries(codebook.RootElement.GetProperty("choiceCatalogs").GetProperty("rank")).Should().Equal(ExpectedChoices);
+        Entries(codebook.RootElement.GetProperty("questions").GetProperty("rank")).Should().Equal(_expectedChoices);
+        Entries(codebook.RootElement.GetProperty("choiceCatalogs").GetProperty("rank")).Should().Equal(_expectedChoices);
     }
 
-    private static readonly string[] ExpectedChoices =
+    private static readonly string[] _expectedChoices =
     [
         """{"value":"a","id":1,"text":{"default":"Apple","es":"Manzana"}}""",
         """{"value":"b","id":2,"text":{"default":"Pear"}}""",
