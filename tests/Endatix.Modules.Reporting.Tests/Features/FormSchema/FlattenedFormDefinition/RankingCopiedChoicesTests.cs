@@ -105,6 +105,83 @@ public sealed class RankingCopiedChoicesTests
         RankingKeys(columns).Should().Equal("rank__a", "rank__b", "rank__c");
     }
 
+    // Hub carry forward offers the union of its sources in source order, the first occurrence of a value winning.
+    [Fact]
+    public void CompilePersisted_RankingCopyFromTwoSources_RanksTheUnionInSourceOrder()
+    {
+        // Arrange
+        var definition = TopLevel("""
+            {"type":"ranking","name":"orchard","choices":[{"value":"b","text":"Pear (orchard)"},"z"]},
+            {"type":"ranking","name":"rank","edxCarryForwardEnabled":true,"edxCarryForwardSources":["orchard","brands"]}
+            """);
+
+        // Act
+        var columns = Flatten(definition);
+        var codebook = Codebook(definition);
+
+        // Assert
+        RankingKeys(columns).Where(key => key.StartsWith("rank__", StringComparison.Ordinal))
+            .Should().Equal("rank__b", "rank__z", "rank__a", "rank__c");
+        ChoiceLabel(codebook, "rank__b").Should().Be("""{"default":"Pear (orchard)"}""");
+    }
+
+    // A copy whose source cannot be read (here, missing) has no rank columns, so its codebook lists no choices either:
+    // never its leftover inline ones.
+    [Fact]
+    public void CompilePersisted_RankingCopyOfAMissingQuestion_HasNoColumnsAndNoChoices()
+    {
+        // Arrange
+        var definition = TopLevel(Ranking(""" "choicesFromQuestion":"gone","choices":["item1","item2"] """));
+
+        // Act
+        var columns = Flatten(definition);
+        var codebook = Codebook(definition);
+
+        // Assert
+        RankingKeys(columns).Should().BeEmpty();
+        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().BeEmpty();
+        Entries(codebook.GetProperty("choiceCatalogs").GetProperty("rank")).Should().BeEmpty();
+    }
+
+    // As for a ranking with its own choices, Other is listed in the codebook after the copied choices but gets no column.
+    [Fact]
+    public void CompilePersisted_RankingCopyShowingOther_ListsOtherAfterTheCopiedChoices()
+    {
+        // Arrange
+        var definition = TopLevel(Ranking(""" "choicesFromQuestion":"brands","showOtherItem":true """));
+
+        // Act
+        var columns = Flatten(definition);
+        var codebook = Codebook(definition);
+
+        // Assert
+        RankingKeys(columns).Should().Equal("rank__a", "rank__b", "rank__c");
+        Entries(codebook.GetProperty("questions").GetProperty("rank")).Should().Equal(
+            [.. _expectedChoices, """{"value":"other","id":4,"text":{"default":"Other"}}"""]);
+    }
+
+    // The limit counts every choice the copy offers, its sources together, and names the ranking.
+    [Fact]
+    public void Flatten_RankingCopyOfferingMoreThanTheChoiceLimit_Throws()
+    {
+        // Arrange
+        using var document = JsonDocument.Parse("""
+            {"pages":[{"name":"p1","elements":[
+              {"type":"checkbox","name":"fruit","choices":["apple","pear"]},
+              {"type":"checkbox","name":"nuts","choices":["pear","pecan"]},
+              {"type":"ranking","name":"rank","edxCarryForwardEnabled":true,"edxCarryForwardSources":["fruit","nuts"]}]}]}
+            """);
+        SchemaCompilationLimits limits = new() { MaxChoicesPerQuestion = 2 };
+
+        // Act
+        Action act = () => FormDefinitionFlattener.Flatten(document.RootElement, limits);
+
+        // Assert
+        var exception = act.Should().Throw<SchemaCompilationLimitExceededException>().Which;
+        exception.LimitKind.Should().Be(SchemaCompilationLimitKind.MaxChoicesPerQuestion);
+        exception.Context.Should().Be("rank");
+    }
+
     // Stored before this fix, the ranking's codebook entry had no choices; a merge compile must fill them.
     [Fact]
     public void CompilePersisted_MergeOverACodebookWithoutTheCopiedChoices_ListsThem()

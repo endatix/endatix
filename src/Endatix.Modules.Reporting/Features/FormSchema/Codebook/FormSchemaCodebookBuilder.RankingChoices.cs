@@ -17,7 +17,8 @@ internal static partial class FormSchemaCodebookBuilder
         WriteRankingChoices(writer, ranking, offered);
     }
 
-    // A ranking's own choices are written as before; copied ones with the source's labels, Other last when shown.
+    // A ranking's own choices are written as before; copied ones with the source's labels, Other last when shown. A
+    // copy whose source cannot be read has no columns, so it lists no choices: never its leftover inline ones.
     private static void WriteRankingChoices(Utf8JsonWriter writer, JsonElement ranking, ResolvedChoices offered)
     {
         writer.WritePropertyName(SurveyJsPropertyNames.Choices);
@@ -27,7 +28,7 @@ internal static partial class FormSchemaCodebookBuilder
             WriteCopiedChoices(writer, offered.Choices);
             WriteOtherChoice(writer, ranking, offered.Choices.Count + 1);
         }
-        else
+        else if (!offered.IsDegraded)
         {
             WriteCatalogChoices(writer, ranking);
         }
