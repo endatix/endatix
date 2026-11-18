@@ -196,8 +196,10 @@ public sealed class CopiedChoiceHiddenContainerTests
         return CopyVisibility.WhyUnknown(questions["pick"], questions, CopyDefinition.Of(survey));
     }
 
+    private static readonly string[] _containerProperties = ["pages", "elements", "templateElements"];
+
     private static IEnumerable<JsonElement> Descendants(JsonElement container) =>
-        new[] { "pages", "elements", "templateElements" }
+        _containerProperties
             .SelectMany(property => container.TryGetProperty(property, out var items) ? items.EnumerateArray() : Enumerable.Empty<JsonElement>())
             .SelectMany(item => Descendants(item).Prepend(item));
 
