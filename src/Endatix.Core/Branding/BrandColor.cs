@@ -33,6 +33,9 @@ internal static partial class BrandColor
     [GeneratedRegex(@"^(rgb|hsl|oklch)a?\(\s*" + ARG + @"\s+" + ARG + @"\s+" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SpaceArgs();
 
+    /// <summary>The regex groups of the three arguments; each unit is the next group.</summary>
+    private static readonly int[] _argumentGroups = [2, 4, 6];
+
     private readonly record struct ColorArg(double Value, string Unit);
 
     /// <summary>
@@ -125,7 +128,7 @@ internal static partial class BrandColor
 
     private static Rgb? FromFunction(Match match, bool commas)
     {
-        var args = new[] { 2, 4, 6 }
+        var args = _argumentGroups
             .Select(i => new ColorArg(
                 double.Parse(match.Groups[i].Value, NumberStyles.Float, CultureInfo.InvariantCulture),
                 match.Groups[i + 1].Value.ToLowerInvariant()))

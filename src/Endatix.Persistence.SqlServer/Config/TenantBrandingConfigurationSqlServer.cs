@@ -6,9 +6,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Endatix.Persistence.SqlServer.Config;
 
+/// <summary>Stores <see cref="TenantBranding"/>'s overrides as <c>json</c> on SQL Server.</summary>
 [ApplyConfigurationFor<AppDbContext>]
 public class TenantBrandingConfigurationSqlServer : IEntityTypeConfiguration<TenantBranding>
 {
+    /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<TenantBranding> builder)
     {
         builder.Property(branding => branding.PublishedJson)

@@ -15,6 +15,7 @@ public sealed class RollbackTenantBrandingHandler(
     ITenantEntitlements entitlements)
     : ICommandHandler<RollbackTenantBrandingCommand, Result<TenantBrandingDto>>
 {
+    /// <inheritdoc/>
     public async Task<Result<TenantBrandingDto>> Handle(RollbackTenantBrandingCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;

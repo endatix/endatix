@@ -65,6 +65,7 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
 
+    /// <summary>Each tenant's own branding, one row per tenant.</summary>
     public DbSet<TenantBranding> TenantBranding { get; set; }
 
     public DbSet<DataList> DataLists { get; set; }

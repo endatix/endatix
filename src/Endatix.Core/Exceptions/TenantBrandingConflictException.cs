@@ -6,6 +6,7 @@ namespace Endatix.Core.Exceptions;
 /// </summary>
 public sealed class TenantBrandingConflictException : Exception
 {
+    /// <summary>Creates the exception with the reason and the provider's failure.</summary>
     public TenantBrandingConflictException(string message, Exception? innerException = null)
         : base(message, innerException)
     {

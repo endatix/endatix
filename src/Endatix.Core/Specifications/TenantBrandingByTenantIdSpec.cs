@@ -8,6 +8,7 @@ namespace Endatix.Core.Specifications;
 /// </summary>
 public sealed class TenantBrandingByTenantIdSpec : SingleResultSpecification<TenantBranding>
 {
+    /// <summary>Selects the branding row of <paramref name="tenantId"/>.</summary>
     public TenantBrandingByTenantIdSpec(long tenantId)
     {
         Query.Where(branding => branding.TenantId == tenantId);

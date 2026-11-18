@@ -17,6 +17,7 @@ public sealed class PublishTenantBrandingHandler(
     ITenantEntitlements entitlements)
     : ICommandHandler<PublishTenantBrandingCommand, Result<TenantBrandingDto>>
 {
+    /// <inheritdoc/>
     public async Task<Result<TenantBrandingDto>> Handle(PublishTenantBrandingCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;
