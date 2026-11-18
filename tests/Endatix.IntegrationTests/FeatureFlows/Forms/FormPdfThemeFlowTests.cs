@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.IntegrationTests.Shared;
 
 namespace Endatix.IntegrationTests;
@@ -24,7 +25,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         IntegrationTestWorld world = await fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
         using HttpClient admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
-        string formId = await CreatePrivateFormWithThemeAsync(admin);
+        (string formId, string storedTheme) = await CreatePrivateFormWithThemeAsync(admin);
 
         JsonElement form = await PatchFormAsync(admin, formId, new { pdfUsesFormTheme = true });
         Assert.True(form.GetProperty("pdfUsesFormTheme").GetBoolean());
@@ -39,7 +40,8 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         foreach (JsonElement definition in new[] { byId, byToken })
         {
             Assert.True(definition.GetProperty("pdfUsesFormTheme").GetBoolean());
-            Assert.Equal(ThemeJson, definition.GetProperty("themeModel").GetString());
+            Assert.True(JsonNode.DeepEquals(
+                JsonNode.Parse(storedTheme), JsonNode.Parse(definition.GetProperty("themeModel").GetString()!)));
         }
 
         JsonElement active = await GetJsonAsync(admin, $"/api/forms/{formId}/definition");
@@ -53,7 +55,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         IntegrationTestWorld world = await fixture.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
         using HttpClient admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
-        string formId = await CreatePrivateFormWithThemeAsync(admin);
+        (string formId, _) = await CreatePrivateFormWithThemeAsync(admin);
         string submissionId = await CreateSubmissionAsync(admin, formId);
 
         JsonElement byId = await GetDefinitionAsync(admin, $"/api/forms/{formId}/submissions/{submissionId}");
@@ -69,13 +71,17 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         }
     }
 
-    private static async Task<string> CreatePrivateFormWithThemeAsync(HttpClient admin)
+    /// <returns>The form id, and the theme JSON as the API stored it (it normalizes what it is sent, and PostgreSQL reorders its keys).</returns>
+    private static async Task<(string FormId, string StoredTheme)> CreatePrivateFormWithThemeAsync(HttpClient admin)
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         using HttpResponseMessage themeResponse = await admin.PostAsJsonAsync(
             "/api/themes", new { name = $"pdf-theme-{Guid.NewGuid():N}", jsonData = ThemeJson }, ct);
         themeResponse.EnsureSuccessStatusCode();
-        string themeId = (await ReadJsonAsync(themeResponse)).GetProperty("id").GetString()!;
+        JsonElement theme = await ReadJsonAsync(themeResponse);
+        string themeId = theme.GetProperty("id").GetString()!;
+        string storedTheme = theme.GetProperty("jsonData").GetString()!;
+        Assert.Contains("#123456", storedTheme);
 
         using HttpResponseMessage formResponse = await admin.PostAsJsonAsync(
             "/api/forms",
@@ -87,7 +93,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         JsonElement form = await PatchFormAsync(admin, formId, new { themeId = long.Parse(themeId) });
         Assert.False(form.GetProperty("isPublic").GetBoolean());
         Assert.False(form.GetProperty("pdfUsesFormTheme").GetBoolean());
-        return formId;
+        return (formId, storedTheme);
     }
 
     private static async Task<JsonElement> PatchFormAsync(HttpClient admin, string formId, object changes)
