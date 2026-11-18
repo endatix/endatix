@@ -69,8 +69,7 @@ Configure JWT settings in your `appsettings.json` file:
 ### JWT Settings Explained
 
 - **SigningKey:** The key used to sign the JWT token. This key must remain confidential.
-  - :bulb: **Tip:** Generate a secure key using: `openssl rand -hex 32`
-  - Example: `a28110cc8b94c5f3b3c923aa2c9fae4ed50c86ec61debfe6edb3c29947dbb00c`
+  - Example: generate your own key with `openssl rand -base64 48`. Never copy a key from documentation; a published key is refused at startup.
 
 - **AccessExpiryInMinutes:** Defines the lifetime of the JWT token (default: 60 minutes)
   - :bulb: **Tip:** For production, consider shorter times (15-30 minutes) to reduce security risks

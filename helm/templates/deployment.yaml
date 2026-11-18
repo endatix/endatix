@@ -126,6 +126,11 @@ spec:
             secretKeyRef:
               name: {{ .Values.auth.secretName }}
               key: {{ .Values.auth.secretKey }}
+        - name: Endatix__Submissions__AccessTokenSigningKey
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.auth.secretName }}
+              key: {{ .Values.auth.submissionSecretKey }}
         - name: Endatix__Auth__Providers__EndatixJwt__AccessExpiryInMinutes
           value: {{ .Values.auth.accessExpiryInMinutes | quote }}
         - name: Endatix__Auth__Providers__EndatixJwt__RefreshExpiryInDays

@@ -6,6 +6,8 @@ For a containerized deployment instead, see the [Install Endatix via Docker guid
 
 > [!Note]
 > **`parameters.bicepparam`** is the base template. You normally do not edit it for a one-off deploy. Run **`generate-quickstart-secrets.mjs`** to create **`parameters.production.bicepparam`** (secure secrets + an injected **Resource name overrides** block with `// auto:` hints). Deploy with that generated file.
+>
+> The base file does not compile on its own: its two signing keys are empty, and the template requires at least 32 characters (`@minLength(32)`). Use the generator's output, or set both keys yourself (`openssl rand -base64 48`, one value each) in a copy.
 
 ## Prerequisites
 

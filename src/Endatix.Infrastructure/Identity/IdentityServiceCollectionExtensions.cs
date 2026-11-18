@@ -20,6 +20,7 @@ using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.EmailVerification;
 using Endatix.Infrastructure.Identity.Repositories;
 using Endatix.Infrastructure.Identity.Services;
+using Endatix.Infrastructure.Identity.SigningKeys;
 using Endatix.Infrastructure.Identity.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -100,7 +101,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddKeyedScoped<IUnitOfWork, IdentityUnitOfWork>("identity");
 
         // Register submission access token service
-        services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
+        services.AddSigningKeyOptions(configuration);
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
         services.AddScoped<IFormAccessTokenService, FormAccessTokenService>();
