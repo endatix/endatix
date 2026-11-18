@@ -34,13 +34,17 @@ builder.Services.AddScoped<ITenantEntitlements, PlanTenantEntitlements>();
 
 public sealed class PlanTenantEntitlements(IPlanStore plans) : ITenantEntitlements
 {
-    public async Task<bool> HasAsync(long tenantId, string name, CancellationToken cancellationToken = default) =>
-        (await plans.GetForTenantAsync(tenantId, cancellationToken)).Includes(name);
+    public async Task<bool> HasAsync(long tenantId, string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var plan = await plans.GetForTenantAsync(tenantId, cancellationToken);
+        return plan.Includes(name);
+    }
 }
 ```
 
-`IPlanStore` stands for the host's own plan lookup. Such a host denies a name it does not know, and throws when the
-lookup fails. A new paid capability adds a name to `Entitlements`.
+`IPlanStore` stands for the host's own plan lookup. Like the default, `PlanTenantEntitlements` throws
+`ArgumentException` on a blank name; it also denies a name it does not know and throws when the lookup fails. A new paid capability adds a name to `Entitlements`.
 
 ## More Information:
 For detailed installation instructions, please visit [Endatix Installation Guide](https://docs.endatix.com/docs/getting-started/installation).
