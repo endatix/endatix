@@ -11,10 +11,10 @@ namespace Endatix.Core.Branding;
 /// </summary>
 internal sealed partial class BrandOverrideReader
 {
-    internal const int SupportedVersion = 1;
-    internal const int AssetKeyMaxLength = 256;
+    internal const int SUPPORTED_VERSION = 1;
+    internal const int ASSET_KEY_MAX_LENGTH = 256;
 
-    private static readonly string[] RasterExtensions = [".png", ".webp"];
+    private static readonly string[] _rasterExtensions = [".png", ".webp"];
 
     /// <summary>The brand pack schema's <c>packFile</c> pattern: plain names, none empty or starting with '.', no "..".</summary>
     [GeneratedRegex(@"^(?!.*\.\.)[A-Za-z0-9_-][A-Za-z0-9._-]*(?:/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$", RegexOptions.CultureInvariant)]
@@ -60,9 +60,9 @@ internal sealed partial class BrandOverrideReader
         {
             Add("/version", BrandOverrideProblems.REQUIRED, "Is required.");
         }
-        else if (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var value) || value != SupportedVersion)
+        else if (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var value) || value != SUPPORTED_VERSION)
         {
-            Add("/version", BrandOverrideProblems.UNSUPPORTED_VERSION, $"Must be {SupportedVersion}.");
+            Add("/version", BrandOverrideProblems.UNSUPPORTED_VERSION, $"Must be {SUPPORTED_VERSION}.");
         }
     }
 
@@ -102,11 +102,11 @@ internal sealed partial class BrandOverrideReader
             return;
         }
 
-        OnlyFields("/tokens/color", color, BrandContrast.PrimaryField, BrandContrast.PrimaryOnDarkField);
-        var primaryPath = $"/tokens/color/{BrandContrast.PrimaryField}";
-        var primary = ColorToken(primaryPath, Required(primaryPath, color, BrandContrast.PrimaryField));
-        var hasOnDark = color.TryGetProperty(BrandContrast.PrimaryOnDarkField, out var onDarkToken);
-        var onDark = hasOnDark ? ColorToken($"/tokens/color/{BrandContrast.PrimaryOnDarkField}", onDarkToken) : null;
+        OnlyFields("/tokens/color", color, BrandContrast.PRIMARY_FIELD, BrandContrast.PRIMARY_ON_DARK_FIELD);
+        var primaryPath = $"/tokens/color/{BrandContrast.PRIMARY_FIELD}";
+        var primary = ColorToken(primaryPath, Required(primaryPath, color, BrandContrast.PRIMARY_FIELD));
+        var hasOnDark = color.TryGetProperty(BrandContrast.PRIMARY_ON_DARK_FIELD, out var onDarkToken);
+        var onDark = hasOnDark ? ColorToken($"/tokens/color/{BrandContrast.PRIMARY_ON_DARK_FIELD}", onDarkToken) : null;
         if (primary is { } primaryRgb && (!hasOnDark || onDark is not null))
         {
             CheckContrast(primaryRgb, onDark);
@@ -163,11 +163,11 @@ internal sealed partial class BrandOverrideReader
 
         var value = key.GetString()!;
         var folder = $"t/{_tenantId}/brand/";
-        if (value.Length > AssetKeyMaxLength || !value.StartsWith(folder, StringComparison.Ordinal) || !FilePath().IsMatch(value[folder.Length..]))
+        if (value.Length > ASSET_KEY_MAX_LENGTH || !value.StartsWith(folder, StringComparison.Ordinal) || !FilePath().IsMatch(value[folder.Length..]))
         {
-            Add(path, BrandOverrideProblems.INVALID_ASSET_KEY, $"Must be a file under '{folder}', at most {AssetKeyMaxLength} characters.");
+            Add(path, BrandOverrideProblems.INVALID_ASSET_KEY, $"Must be a file under '{folder}', at most {ASSET_KEY_MAX_LENGTH} characters.");
         }
-        else if (!RasterExtensions.Any(extension => value.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+        else if (!_rasterExtensions.Any(extension => value.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
         {
             Add(path, BrandOverrideProblems.UNSUPPORTED_ASSET_TYPE, "Must be a PNG or WebP file.");
         }

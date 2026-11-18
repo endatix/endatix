@@ -15,21 +15,21 @@ internal readonly record struct Oklch(double L, double C, double H);
 /// </summary>
 internal static partial class BrandColor
 {
-    private const string Number = @"[+-]?(?:\d+(?:\.\d*)?|\.\d+)";
-    private const string Arg = "(" + Number + ")(%|deg)?";
-    private const double OklchChromaPerPercent = 0.4 / 100;
-    private const double GamutEpsilon = 1e-4;
-    private const int GamutSearchSteps = 24;
+    private const string NUMBER = @"[+-]?(?:\d+(?:\.\d*)?|\.\d+)";
+    private const string ARG = "(" + NUMBER + ")(%|deg)?";
+    private const double OKLCH_CHROMA_PER_PERCENT = 0.4 / 100;
+    private const double GAMUT_EPSILON = 1e-4;
+    private const int GAMUT_SEARCH_STEPS = 24;
 
     [GeneratedRegex(@"^#([0-9a-f]{3}|[0-9a-f]{6})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Hex();
 
     /// <summary>All commas: <c>rgb()</c> and <c>hsl()</c> only.</summary>
-    [GeneratedRegex(@"^(rgb|hsl)a?\(\s*" + Arg + @"\s*,\s*" + Arg + @"\s*,\s*" + Arg + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(rgb|hsl)a?\(\s*" + ARG + @"\s*,\s*" + ARG + @"\s*,\s*" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CommaArgs();
 
     /// <summary>All spaces: <c>rgb()</c>, <c>hsl()</c> and <c>oklch()</c>.</summary>
-    [GeneratedRegex(@"^(rgb|hsl|oklch)a?\(\s*" + Arg + @"\s+" + Arg + @"\s+" + Arg + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^(rgb|hsl|oklch)a?\(\s*" + ARG + @"\s+" + ARG + @"\s+" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SpaceArgs();
 
     private readonly record struct ColorArg(double Value, string Unit);
@@ -96,7 +96,7 @@ internal static partial class BrandColor
     {
         var low = 0.0;
         var high = chroma;
-        for (var i = 0; i < GamutSearchSteps; i++)
+        for (var i = 0; i < GAMUT_SEARCH_STEPS; i++)
         {
             var mid = (low + high) / 2;
             if (InGamut(OklchToRgbUnclamped(new Oklch(lightness, mid, hue))))
@@ -175,7 +175,7 @@ internal static partial class BrandColor
         return FromOklch(new Oklch(
             l.Unit == "%" ? l.Value / 100 : l.Value,
             // CSS clamps a negative chroma to 0 (neutral grey).
-            Math.Max(0, c.Unit == "%" ? c.Value * OklchChromaPerPercent : c.Value),
+            Math.Max(0, c.Unit == "%" ? c.Value * OKLCH_CHROMA_PER_PERCENT : c.Value),
             h.Value));
     }
 
@@ -224,7 +224,7 @@ internal static partial class BrandColor
         (0.2126 * ToLinear(color.R)) + (0.7152 * ToLinear(color.G)) + (0.0722 * ToLinear(color.B));
 
     private static bool InGamut(Rgb color) =>
-        new[] { color.R, color.G, color.B }.All(v => v >= -GamutEpsilon && v <= 1 + GamutEpsilon);
+        new[] { color.R, color.G, color.B }.All(v => v >= -GAMUT_EPSILON && v <= 1 + GAMUT_EPSILON);
 
     private static Rgb ClampRgb(Rgb color) => new(Clamp01(color.R), Clamp01(color.G), Clamp01(color.B));
 

@@ -36,7 +36,7 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned
     public string? PreviousJson { get; private set; }
 
     /// <summary>An unpublished override. Reserved for draft and preview editing; nothing writes it yet.</summary>
-    public string? DraftJson { get; private set; }
+    public string? DraftJson { get; }
 
     /// <summary>Goes up by one on every change to the published override. 0 until the first publish.</summary>
     public long Revision { get; private set; }

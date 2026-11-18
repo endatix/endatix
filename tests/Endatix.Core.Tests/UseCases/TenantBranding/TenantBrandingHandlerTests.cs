@@ -12,9 +12,9 @@ namespace Endatix.Core.Tests.UseCases.TenantBranding;
 
 public sealed class TenantBrandingHandlerTests
 {
-    private const long TenantId = 42;
-    private const string Blue = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
-    private const string Green = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
+    private const long TENANT_ID = 42;
+    private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
+    private const string GREEN = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
 
     private readonly IRepository<TenantBrandingEntity> _repository = Substitute.For<IRepository<TenantBrandingEntity>>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
@@ -24,8 +24,8 @@ public sealed class TenantBrandingHandlerTests
 
     public TenantBrandingHandlerTests()
     {
-        _tenantContext.TenantId.Returns(TenantId);
-        _entitlements.HasAsync(TenantId, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
+        _tenantContext.TenantId.Returns(TENANT_ID);
+        _entitlements.HasAsync(TENANT_ID, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
         _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements);
         _rollback = new RollbackTenantBrandingHandler(_repository, _tenantContext, _entitlements);
     }
@@ -34,10 +34,10 @@ public sealed class TenantBrandingHandlerTests
     public async Task Publish_NotEntitled_IsForbiddenAndWritesNothing()
     {
         // Arrange
-        _entitlements.HasAsync(TenantId, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
+        _entitlements.HasAsync(TENANT_ID, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
-        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Forbidden);
@@ -48,7 +48,7 @@ public sealed class TenantBrandingHandlerTests
     public async Task Rollback_NotEntitled_IsForbidden()
     {
         // Arrange
-        _entitlements.HasAsync(TenantId, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
+        _entitlements.HasAsync(TENANT_ID, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _rollback.Handle(new RollbackTenantBrandingCommand(1), TestContext.Current.CancellationToken);
@@ -64,7 +64,7 @@ public sealed class TenantBrandingHandlerTests
         _tenantContext.TenantId.Returns(0);
 
         // Act
-        var publish = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        var publish = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
         var rollback = await _rollback.Handle(new RollbackTenantBrandingCommand(1), TestContext.Current.CancellationToken);
 
         // Assert
@@ -93,14 +93,14 @@ public sealed class TenantBrandingHandlerTests
         NothingStored();
 
         // Act
-        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Revision.Should().Be(1);
         result.Value.PublishedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
         await _repository.Received(1).AddAsync(
-            Arg.Is<TenantBrandingEntity>(branding => branding.TenantId == TenantId && branding.Revision == 1),
+            Arg.Is<TenantBrandingEntity>(branding => branding.TenantId == TENANT_ID && branding.Revision == 1),
             Arg.Any<CancellationToken>());
     }
 
@@ -108,12 +108,12 @@ public sealed class TenantBrandingHandlerTests
     public async Task Publish_SameValueAgain_SavesNothing()
     {
         // Arrange
-        var branding = Stored(new TenantBrandingEntity(TenantId));
-        await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        var branding = Stored(new TenantBrandingEntity(TENANT_ID));
+        await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
         _repository.ClearReceivedCalls();
 
         // Act
-        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -127,11 +127,11 @@ public sealed class TenantBrandingHandlerTests
     public async Task Publish_StaleRevision_IsAConflict()
     {
         // Arrange
-        Stored(new TenantBrandingEntity(TenantId));
-        await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        Stored(new TenantBrandingEntity(TENANT_ID));
+        await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _publish.Handle(new PublishTenantBrandingCommand(Green, 0), TestContext.Current.CancellationToken);
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(GREEN, 0), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -141,12 +141,12 @@ public sealed class TenantBrandingHandlerTests
     public async Task Publish_LosesTheRaceAtSave_IsAConflict()
     {
         // Arrange
-        Stored(new TenantBrandingEntity(TenantId));
+        Stored(new TenantBrandingEntity(TENANT_ID));
         _repository.UpdateAsync(Arg.Any<TenantBrandingEntity>(), Arg.Any<CancellationToken>())
             .Returns<Task>(_ => throw new TenantBrandingConflictException("lost"));
 
         // Act
-        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -156,9 +156,9 @@ public sealed class TenantBrandingHandlerTests
     public async Task Rollback_AtCurrentRevision_SwapsAndSaves()
     {
         // Arrange
-        var branding = Stored(new TenantBrandingEntity(TenantId));
-        await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
-        await _publish.Handle(new PublishTenantBrandingCommand(Green, 1), TestContext.Current.CancellationToken);
+        var branding = Stored(new TenantBrandingEntity(TENANT_ID));
+        await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
+        await _publish.Handle(new PublishTenantBrandingCommand(GREEN, 1), TestContext.Current.CancellationToken);
         _repository.ClearReceivedCalls();
 
         // Act

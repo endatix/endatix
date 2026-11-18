@@ -6,9 +6,9 @@ namespace Endatix.Core.Tests.Branding;
 
 public sealed class BrandOverrideTests
 {
-    private const long TenantId = 42;
+    private const long TENANT_ID = 42;
 
-    private const string Full = """
+    private const string FULL = """
         {
           "version": 1,
           "assets": {
@@ -28,18 +28,18 @@ public sealed class BrandOverrideTests
     public void Parse_EveryFieldATenantMaySet_IsValid()
     {
         // Act
-        var result = BrandOverride.Parse(Full, TenantId);
+        var result = BrandOverride.Parse(FULL, TENANT_ID);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value.TenantId.Should().Be(TenantId);
+        result.Value.TenantId.Should().Be(TENANT_ID);
     }
 
     [Fact]
     public void Parse_VersionOnly_IsValidAndShowsTheDeploymentBrand()
     {
         // Act
-        var result = BrandOverride.Parse("""{"version":1}""", TenantId);
+        var result = BrandOverride.Parse("""{"version":1}""", TENANT_ID);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -56,8 +56,8 @@ public sealed class BrandOverrideTests
         const string ordered = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
 
         // Act
-        var first = BrandOverride.Parse(reordered, TenantId).Value;
-        var second = BrandOverride.Parse(ordered, TenantId).Value;
+        var first = BrandOverride.Parse(reordered, TENANT_ID).Value;
+        var second = BrandOverride.Parse(ordered, TENANT_ID).Value;
 
         // Assert
         first.CanonicalJson.Should().Be(second.CanonicalJson);
@@ -68,7 +68,7 @@ public sealed class BrandOverrideTests
     public void IsSameAs_StoredWithKeysReordered_IsTrue()
     {
         // Arrange
-        var value = BrandOverride.Parse(Full, TenantId).Value;
+        var value = BrandOverride.Parse(FULL, TENANT_ID).Value;
         const string stored = """
             {"tokens": {"color": {"primary-on-dark": {"$type": "color", "$value": "#7aa2ff"}, "primary": {"$type": "color", "$value": "#0052d1"}}}, "assets": {"icon": "t/42/brand/icon.PNG", "logo": {"dark": "t/42/brand/logo-dark.webp", "light": "t/42/brand/logo-light.png"}}, "version": 1}
             """;
@@ -89,7 +89,7 @@ public sealed class BrandOverrideTests
     public void Parse_DeploymentOnlyField_IsAnUnknownField(string json, string path)
     {
         // Act
-        var result = BrandOverride.Parse(json, TenantId);
+        var result = BrandOverride.Parse(json, TENANT_ID);
 
         // Assert
         ShouldHaveOnly(result, path, BrandOverrideProblems.UNKNOWN_FIELD);
@@ -108,7 +108,7 @@ public sealed class BrandOverrideTests
     public void Parse_MalformedOverride_NamesTheField(string json, string path, string code)
     {
         // Act
-        var result = BrandOverride.Parse(json, TenantId);
+        var result = BrandOverride.Parse(json, TENANT_ID);
 
         // Assert
         ShouldHaveOnly(result, path, code);
@@ -126,7 +126,7 @@ public sealed class BrandOverrideTests
     public void Parse_AssetKeyOutsideTheTenantsBrandFolder_IsRejected(string key)
     {
         // Act
-        var result = BrandOverride.Parse($$$"""{"version":1,"assets":{"icon":"{{{key}}}"}}""", TenantId);
+        var result = BrandOverride.Parse($$$"""{"version":1,"assets":{"icon":"{{{key}}}"}}""", TENANT_ID);
 
         // Assert
         ShouldHaveOnly(result, "/assets/icon", BrandOverrideProblems.INVALID_ASSET_KEY);
@@ -139,7 +139,7 @@ public sealed class BrandOverrideTests
         var key = "t/42/brand/" + new string('a', 250) + ".png";
 
         // Act
-        var result = BrandOverride.Parse($$$"""{"version":1,"assets":{"icon":"{{{key}}}"}}""", TenantId);
+        var result = BrandOverride.Parse($$$"""{"version":1,"assets":{"icon":"{{{key}}}"}}""", TENANT_ID);
 
         // Assert
         ShouldHaveOnly(result, "/assets/icon", BrandOverrideProblems.INVALID_ASSET_KEY);
@@ -152,7 +152,7 @@ public sealed class BrandOverrideTests
     public void Parse_AssetNotPngOrWebp_IsRejected(string key)
     {
         // Act
-        var result = BrandOverride.Parse($$$$"""{"version":1,"assets":{"logo":{"light":"{{{{key}}}}"}}}""", TenantId);
+        var result = BrandOverride.Parse($$$$"""{"version":1,"assets":{"logo":{"light":"{{{{key}}}}"}}}""", TENANT_ID);
 
         // Assert
         ShouldHaveOnly(result, "/assets/logo/light", BrandOverrideProblems.UNSUPPORTED_ASSET_TYPE);
@@ -164,7 +164,7 @@ public sealed class BrandOverrideTests
         // Act
         var result = BrandOverride.Parse(
             """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#ffff00"}}}}""",
-            TenantId);
+            TENANT_ID);
 
         // Assert
         var problem = ShouldHaveOnly(result, "/tokens/color/primary/$value", BrandOverrideProblems.LOW_CONTRAST);
@@ -177,7 +177,7 @@ public sealed class BrandOverrideTests
         // Act
         var result = BrandOverride.Parse(
             """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"},"primary-on-dark":{"$type":"color","$value":"#001a40"}}}}""",
-            TenantId);
+            TENANT_ID);
 
         // Assert
         ShouldHaveOnly(result, "/tokens/color/primary-on-dark/$value", BrandOverrideProblems.LOW_CONTRAST);
@@ -189,7 +189,7 @@ public sealed class BrandOverrideTests
         // Act
         var result = BrandOverride.Parse(
             """{"version":1,"name":"Other","assets":{"icon":"t/7/brand/i.png"},"tokens":{"color":{"primary":{"$type":"color","$value":"nope"}}}}""",
-            TenantId);
+            TENANT_ID);
 
         // Assert
         result.ValidationErrors.Select(error => (error.Identifier, error.ErrorCode)).Should().BeEquivalentTo(new[]

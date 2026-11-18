@@ -13,30 +13,30 @@ internal sealed record ContrastFinding(string Mode, string Field, double Ratio, 
 /// </summary>
 internal static class BrandContrast
 {
-    internal const string PrimaryField = "primary";
-    internal const string PrimaryOnDarkField = "primary-on-dark";
+    internal const string PRIMARY_FIELD = "primary";
+    internal const string PRIMARY_ON_DARK_FIELD = "primary-on-dark";
 
     /// <summary>WCAG 2.x 1.4.11: a control or focus ring against what is next to it.</summary>
-    internal const double UiContrast = 3;
+    internal const double UI_CONTRAST = 3;
 
-    private const double MaxChromaScale = 1.5;
+    private const double MAX_CHROMA_SCALE = 1.5;
 
     /// <summary>The built-in primaries the Hub derives from (<c>app/globals.css</c>).</summary>
-    private static readonly Oklch BuiltInLightPrimary = BrandColor.ToOklch(BrandColor.Parse("hsl(216 100% 41%)")!.Value);
-    private static readonly Oklch BuiltInDarkPrimary = BrandColor.ToOklch(BrandColor.Parse("#b4c5ff")!.Value);
+    private static readonly Oklch _builtInLightPrimary = BrandColor.ToOklch(BrandColor.Parse("hsl(216 100% 41%)")!.Value);
+    private static readonly Oklch _builtInDarkPrimary = BrandColor.ToOklch(BrandColor.Parse("#b4c5ff")!.Value);
 
     /// <summary>Each colour mode and the page its primary sits on (<c>--background</c>).</summary>
-    private static readonly ColorMode Light = new("light", BrandColor.Parse("#ffffff")!.Value);
-    private static readonly ColorMode Dark = new("dark", BrandColor.Parse("#000f21")!.Value);
+    private static readonly ColorMode _light = new("light", BrandColor.Parse("#ffffff")!.Value);
+    private static readonly ColorMode _dark = new("dark", BrandColor.Parse("#000f21")!.Value);
 
     private sealed record ColorMode(string Name, Rgb Background);
 
     internal static IReadOnlyList<ContrastFinding> Check(Rgb primary, Rgb? primaryOnDark)
     {
-        var light = Finding(Light, PrimaryField, primary);
+        var light = Finding(_light, PRIMARY_FIELD, primary);
         var dark = primaryOnDark is { } onDark
-            ? Finding(Dark, PrimaryOnDarkField, onDark)
-            : Finding(Dark, PrimaryField, DeriveDarkPrimary(primary));
+            ? Finding(_dark, PRIMARY_ON_DARK_FIELD, onDark)
+            : Finding(_dark, PRIMARY_FIELD, DeriveDarkPrimary(primary));
         return new[] { light, dark }.OfType<ContrastFinding>().ToList();
     }
 
@@ -47,19 +47,19 @@ internal static class BrandContrast
     internal static Rgb DeriveDarkPrimary(Rgb primary)
     {
         var brand = BrandColor.ToOklch(primary);
-        var shift = brand.H - BuiltInLightPrimary.H;
-        var scale = Math.Min(MaxChromaScale, brand.C / BuiltInLightPrimary.C);
+        var shift = brand.H - _builtInLightPrimary.H;
+        var scale = Math.Min(MAX_CHROMA_SCALE, brand.C / _builtInLightPrimary.C);
         return BrandColor.FromOklch(new Oklch(
-            BuiltInDarkPrimary.L,
-            BuiltInDarkPrimary.C * scale,
-            BrandColor.WrapHue(BuiltInDarkPrimary.H + shift)));
+            _builtInDarkPrimary.L,
+            _builtInDarkPrimary.C * scale,
+            BrandColor.WrapHue(_builtInDarkPrimary.H + shift)));
     }
 
     private static ContrastFinding? Finding(ColorMode mode, string field, Rgb primary)
     {
         var ratio = BrandColor.ContrastRatio(BrandColor.AsWritten(primary), mode.Background);
-        return ratio < UiContrast
-            ? new ContrastFinding(mode.Name, field, Math.Floor(ratio * 100) / 100, UiContrast)
+        return ratio < UI_CONTRAST
+            ? new ContrastFinding(mode.Name, field, Math.Floor(ratio * 100) / 100, UI_CONTRAST)
             : null;
     }
 }

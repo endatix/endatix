@@ -19,9 +19,9 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string Blue = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}},"assets":{"icon":"t/{tenant}/brand/icon.png"}}""";
-    private const string Green = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
-    private const string Purple = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#8a2be2"}}}}""";
+    private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}},"assets":{"icon":"t/{tenant}/brand/icon.png"}}""";
+    private const string GREEN = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
+    private const string PURPLE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#8a2be2"}}}}""";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -30,12 +30,12 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     {
         // Arrange
         var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
-        var blue = Blue.Replace("{tenant}", tenantId.ToString(), StringComparison.Ordinal);
+        var blue = BLUE.Replace("{tenant}", tenantId.ToString(), StringComparison.Ordinal);
         await PublishAsync(tenantId, blue, 0);
-        await PublishAsync(tenantId, Green, 1);
+        await PublishAsync(tenantId, GREEN, 1);
 
         // Act: a retry of the second publish, with the revision read before it
-        var retry = await PublishAsync(tenantId, Green, 1);
+        var retry = await PublishAsync(tenantId, GREEN, 1);
 
         // Assert
         retry.IsSuccess.Should().BeTrue();
@@ -50,8 +50,8 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     {
         // Arrange
         var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
-        await PublishAsync(tenantId, Green, 0);
-        await PublishAsync(tenantId, Purple, 1);
+        await PublishAsync(tenantId, GREEN, 0);
+        await PublishAsync(tenantId, PURPLE, 1);
 
         // Act
         var first = await RollbackAsync(tenantId, 2);
@@ -73,13 +73,13 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     {
         // Arrange: two requests load revision 1, one saves first
         var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
-        await PublishAsync(tenantId, Green, 0);
+        await PublishAsync(tenantId, GREEN, 0);
         await using var slowDb = CreateDb(tenantId);
         _ = await slowDb.Set<TenantBranding>().SingleAsync(Cancellation);
-        await PublishAsync(tenantId, Purple, 1);
+        await PublishAsync(tenantId, PURPLE, 1);
 
         // Act
-        var result = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(Blue.Replace("{tenant}", tenantId.ToString(), StringComparison.Ordinal), 1));
+        var result = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(BLUE.Replace("{tenant}", tenantId.ToString(), StringComparison.Ordinal), 1));
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -95,10 +95,10 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
         var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
         await using var slowDb = CreateDb(tenantId);
         (await slowDb.Set<TenantBranding>().AnyAsync(Cancellation)).Should().BeFalse();
-        await PublishAsync(tenantId, Green, 0);
+        await PublishAsync(tenantId, GREEN, 0);
 
         // Act
-        var result = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(Purple, 0));
+        var result = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(PURPLE, 0));
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);

@@ -15,7 +15,9 @@ public class TenantBrandingConfiguration : IEntityTypeConfiguration<TenantBrandi
         builder.Property(branding => branding.TenantId)
             .ValueGeneratedNever();
 
-        // The JSON columns and PublishedAt are optional by their nullable types.
+        // Get-only until draft editing writes it; mapped through its backing field.
+        builder.Property(branding => branding.DraftJson);
+
         builder.Property(branding => branding.Revision)
             .IsConcurrencyToken();
 
