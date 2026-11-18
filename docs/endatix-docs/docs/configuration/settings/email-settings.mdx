@@ -204,7 +204,7 @@ When Endatix sends or lists a template, the from-address is:
 3. The address stored on the database template (seed today; Hub UI later)
 4. `noreply@endatix.com` only if all are empty
 
-A configured `FromAddress` wins over the brand pack. Remove it to let the pack's address apply. The default `appsettings.json` no longer sets `FromAddress` for `EmailVerification` or `UserInvitation`; those templates now use the address on their database row unless you set one.
+A configured `FromAddress` wins over the brand pack. Remove it to let the pack's address apply. The default `appsettings.json` no longer sets `FromAddress` for `EmailVerification` or `UserInvitation`; those templates now use the brand pack's address, else the address on their database row, unless you set one.
 
 The Hub **Email Settings** page shows the same resolved address that send uses.
 
