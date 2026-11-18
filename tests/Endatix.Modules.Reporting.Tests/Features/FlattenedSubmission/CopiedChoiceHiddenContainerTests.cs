@@ -96,6 +96,40 @@ public sealed class CopiedChoiceHiddenContainerTests
         cells.Should().Equal(Cells(("1", "1"), ("2", null), ("3", null)));
     }
 
+    public static TheoryData<bool, string?> CompleteOrNot => new() { { false, null }, { true, "0" } };
+
+    [Theory]
+    [MemberData(nameof(CompleteOrNot))]
+    public void Flatten_SourceOnAPageWithAVisibleIf_IsExactOnlyForACompleteSubmission(bool complete, string? unpicked)
+    {
+        // Arrange
+        var definition = Pages(Page(STORES) with { VisibleIf = "{x} = 1" }, Page(SELECTED_COPY));
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", unpicked), ("3", null)));
+    }
+
+    [Theory]
+    [MemberData(nameof(CompleteOrNot))]
+    public void Flatten_SourceInAPanelWithAVisibleIfInADynamicPanelTemplate_IsExactOnlyForACompleteSubmission(bool complete, string? unpicked)
+    {
+        // Arrange
+        var definition = Pages(Page(
+            """{"type":"checkbox","name":"brands","choices":["1"]}""",
+            $$"""{"type":"paneldynamic","name":"brandLoop","loopSource":["brands"],"templateElements":[{"type":"panel","name":"storesPanel","visibleIf":"{x} = 1","elements":[{{STORES}}]},{{SELECTED_COPY}}]}"""));
+
+        // Act
+        var flattened = FlattenLoop(definition, complete);
+
+        // Assert
+        Cell(flattened, "brandLoop__1__pick__1").Should().Be("1");
+        Cell(flattened, "brandLoop__1__pick__2").Should().Be(unpicked);
+        Cell(flattened, "brandLoop__1__pick__3").Should().BeNull();
+    }
+
     [Fact]
     public void Flatten_IncompleteSubmissionWithAVisibleIfOutsideTheCopyAndItsSources_StaysExact()
     {
@@ -110,21 +144,16 @@ public sealed class CopiedChoiceHiddenContainerTests
     }
 
     [Theory]
-    [InlineData(false, null)]
-    [InlineData(true, "0")]
+    [MemberData(nameof(CompleteOrNot))]
     public void Flatten_CopyInADynamicPanelWithAVisibleIf_IsExactOnlyForACompleteSubmission(bool complete, string? unpicked)
     {
         // Arrange
         var definition = Pages(Page(
             """{"type":"checkbox","name":"brands","choices":["1"]}""",
             $$"""{"type":"paneldynamic","name":"brandLoop","visibleIf":"{x} = 1","loopSource":["brands"],"templateElements":[{{STORES}},{{SELECTED_COPY}}]}"""));
-        var compiled = new FormSchemaCompiler().CompilePersisted(definition);
 
         // Act
-        var flattened = FlattenedSubmissionFlattener.Flatten(
-            Json("""{"brands":["1"],"brandLoop":[{"itemValue":"1","stores":["1","2"],"pick":["1"]}]}"""),
-            compiled.FlatteningMap,
-            ChoiceCatalogs.Read(compiled.CodebookJson, complete));
+        var flattened = FlattenLoop(definition, complete);
 
         // Assert
         Cell(flattened, "brandLoop__1__pick__1").Should().Be("1");
@@ -241,6 +270,15 @@ public sealed class CopiedChoiceHiddenContainerTests
 
         // Assert
         cells.Should().Equal(Cells(("1", "1"), ("2", "0"), ("3", null)));
+    }
+
+    private static Dictionary<string, JsonElement?> FlattenLoop(string definition, bool complete)
+    {
+        var compiled = new FormSchemaCompiler().CompilePersisted(definition);
+        return FlattenedSubmissionFlattener.Flatten(
+            Json("""{"brands":["1"],"brandLoop":[{"itemValue":"1","stores":["1","2"],"pick":["1"]}]}"""),
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson, complete));
     }
 
     private static UnknownBecause? WhyUnknown(string definition)

@@ -233,4 +233,38 @@ public sealed class CopiedChoiceMergeTests
         Shown(first.CodebookJson).Should().NotBeNull();
         Shown(merged.CodebookJson).Should().BeNull();
     }
+
+    [Fact]
+    public void Flatten_CompleteRowAfterAMergeOverARuleWithoutWhenComplete_LeavesTheUnpickedChoiceEmptyUntilAReplace()
+    {
+        // Arrange
+        var definition = Survey(
+            $$"""{"type":"panel","name":"storesPanel","visibleIf":"{x} = 1","elements":[{{STORES}}]}""",
+            Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}"""));
+        var first = new FormSchemaCompiler().CompilePersisted(definition);
+        var earlierCodebook = JsonNode.Parse(first.CodebookJson)!;
+        earlierCodebook["choiceCatalogs"]!["pick"]![FormSchemaCodebookPropertyNames.Shown]!.AsObject()
+            .Remove(FormSchemaCodebookPropertyNames.WhenComplete);
+        var merged = new FormSchemaCompiler().CompilePersisted(
+            definition,
+            first.FlatteningMapJson,
+            earlierCodebook.ToJsonString(),
+            FormSchemaCompileMode.Merge);
+        var replaced = Recompile(merged, definition, FormSchemaCompileMode.Replace);
+        const string completeRow = """{"stores":["1","2"],"pick":["1"]}""";
+
+        // Act
+        var beforeMerge = FlattenComplete(first.FlatteningMap, earlierCodebook.ToJsonString(), completeRow);
+        var afterMerge = FlattenComplete(merged.FlatteningMap, merged.CodebookJson, completeRow);
+        var afterReplace = FlattenComplete(replaced.FlatteningMap, replaced.CodebookJson, completeRow);
+
+        // Assert
+        beforeMerge.Should().Equal(Cells(("1", "1"), ("2", "0"), ("3", null)));
+        Shown(merged.CodebookJson).Should().BeNull();
+        afterMerge.Should().Equal(Cells(("1", "1"), ("2", null), ("3", null)));
+        afterReplace.Should().Equal(Cells(("1", "1"), ("2", "0"), ("3", null)));
+    }
+
+    private static Dictionary<string, string?> FlattenComplete(MergedFormSchema map, string codebookJson, string submission) =>
+        Cells(FlattenedSubmissionFlattener.Flatten(Json(submission), map, ChoiceCatalogs.Read(codebookJson, submissionComplete: true)));
 }
