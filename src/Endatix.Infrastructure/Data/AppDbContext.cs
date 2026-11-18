@@ -164,7 +164,8 @@ public class AppDbContext : DbContext, ITenantDbContext
     /// matches no row, or inserts a tenant's first row after another request did, lost a race with another write.
     /// </summary>
     private static bool IsTenantBrandingConflict(DbUpdateException updateException) =>
-        updateException.Entries.Any(entry => entry.Entity is TenantBranding)
+        updateException.Entries.Count > 0
+        && updateException.Entries.All(entry => entry.Entity is TenantBranding)
         && (updateException is DbUpdateConcurrencyException || IsUniqueViolation(updateException));
 
     private static bool IsUniqueViolation(DbUpdateException updateException)

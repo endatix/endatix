@@ -1,7 +1,7 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
-using Endatix.Core.UseCases.TenantBranding.Publish;
+using Endatix.Core.UseCases.TenantBranding.Publishing;
 using Endatix.Core.UseCases.TenantBranding.Rollback;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;

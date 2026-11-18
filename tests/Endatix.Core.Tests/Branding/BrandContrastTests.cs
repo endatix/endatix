@@ -4,8 +4,9 @@ using FluentAssertions;
 namespace Endatix.Core.Tests.Branding;
 
 /// <summary>
-/// The expected values come from the Hub's <c>lib/branding</c> (<c>derivePalette</c>, <c>checkBrandContrast</c>,
-/// <c>parseCssColor</c>), run on the same inputs, so the API refuses exactly the accents the Hub would flag.
+/// The expected values were copied from a run of the Hub's <c>lib/branding</c> (<c>derivePalette</c>, <c>checkBrandContrast</c>,
+/// <c>parseCssColor</c>) at endatix-hub f240d563 on the same inputs, so the API refuses exactly the accents the Hub would flag.
+/// They are a snapshot: a change to the Hub's reference palette or backgrounds must be copied here and to <see cref="BrandContrast"/>.
 /// </summary>
 public sealed class BrandContrastTests
 {
@@ -35,6 +36,7 @@ public sealed class BrandContrastTests
     [InlineData("rgb(1,2 3)")]
     [InlineData("hsl(1%,2,3)")]
     [InlineData("rgba(1,2,3,0.5)")]
+    [InlineData("rgb(\u0661\u0662 20 30)")]
     public void Parse_WhatTheHubRejects_IsNull(string input)
     {
         // Act

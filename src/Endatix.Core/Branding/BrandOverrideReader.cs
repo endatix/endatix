@@ -17,7 +17,9 @@ internal sealed partial class BrandOverrideReader
     private static readonly string[] _rasterExtensions = [".png", ".webp"];
 
     /// <summary>The brand pack schema's <c>packFile</c> pattern: plain names, none empty or starting with '.', no "..".</summary>
-    [GeneratedRegex(@"^(?!.*\.\.)[A-Za-z0-9_-][A-Za-z0-9._-]*(?:/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$", RegexOptions.CultureInvariant)]
+    internal const string FILE_PATH_PATTERN = @"^(?!.*\.\.)[A-Za-z0-9_-][A-Za-z0-9._-]*(?:/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$";
+
+    [GeneratedRegex(FILE_PATH_PATTERN, RegexOptions.CultureInvariant)]
     private static partial Regex FilePath();
 
     private readonly long _tenantId;

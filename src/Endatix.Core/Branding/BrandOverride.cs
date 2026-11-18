@@ -43,7 +43,7 @@ public sealed class BrandOverride
         if (TryParseDocument(json) is not { } document)
         {
             return Result<BrandOverride>.Invalid(
-                new ValidationError("", "Must be a JSON object.", BrandOverrideProblems.INVALID_JSON, ValidationSeverity.Error));
+                new ValidationError("", "Is not valid JSON, or repeats a key.", BrandOverrideProblems.INVALID_JSON, ValidationSeverity.Error));
         }
 
         using (document)
@@ -66,7 +66,7 @@ public sealed class BrandOverride
     {
         try
         {
-            return JsonDocument.Parse(json);
+            return JsonDocument.Parse(json, CanonicalBrandJson.Options);
         }
         catch (JsonException)
         {

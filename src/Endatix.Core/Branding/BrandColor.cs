@@ -15,7 +15,8 @@ internal readonly record struct Oklch(double L, double C, double H);
 /// </summary>
 internal static partial class BrandColor
 {
-    private const string NUMBER = @"[+-]?(?:\d+(?:\.\d*)?|\.\d+)";
+    /// <summary>ASCII digits only, as in JavaScript: .NET <c>\d</c> also matches other scripts' digits.</summary>
+    private const string NUMBER = @"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)";
     private const string ARG = "(" + NUMBER + ")(%|deg)?";
     private const double OKLCH_CHROMA_PER_PERCENT = 0.4 / 100;
     private const double GAMUT_EPSILON = 1e-4;

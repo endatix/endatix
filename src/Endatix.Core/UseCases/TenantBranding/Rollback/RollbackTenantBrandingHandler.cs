@@ -18,14 +18,9 @@ public sealed class RollbackTenantBrandingHandler(
     public async Task<Result<TenantBrandingDto>> Handle(RollbackTenantBrandingCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;
-        if (tenantId <= 0)
+        if (await TenantBrandingWriter.RefusalAsync(tenantId, entitlements, cancellationToken) is { } refusal)
         {
-            return Result.Unauthorized();
-        }
-
-        if (!await entitlements.HasAsync(tenantId, Entitlements.BRANDING, cancellationToken))
-        {
-            return Result.Forbidden("The tenant's plan does not include branding.");
+            return refusal;
         }
 
         var now = DateTime.UtcNow;

@@ -100,6 +100,7 @@ public sealed class BrandOverrideTests
     [InlineData("""{"version":2}""", "/version", BrandOverrideProblems.UNSUPPORTED_VERSION)]
     [InlineData("""[]""", "", BrandOverrideProblems.INVALID_TYPE)]
     [InlineData("""{"version":1""", "", BrandOverrideProblems.INVALID_JSON)]
+    [InlineData("""{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#ffff00"},"primary":{"$type":"color","$value":"#0052d1"}}}}""", "", BrandOverrideProblems.INVALID_JSON)]
     [InlineData("""{"version":1,"assets":{"logo":{"dark":"t/42/brand/d.png"}}}""", "/assets/logo/light", BrandOverrideProblems.REQUIRED)]
     [InlineData("""{"version":1,"tokens":{"color":{}}}""", "/tokens/color/primary", BrandOverrideProblems.REQUIRED)]
     [InlineData("""{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"red"}}}}""", "/tokens/color/primary/$value", BrandOverrideProblems.INVALID_COLOR)]

@@ -4,7 +4,7 @@ using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases.TenantBranding.Publish;
+using Endatix.Core.UseCases.TenantBranding.Publishing;
 using Endatix.Core.UseCases.TenantBranding.Rollback;
 using TenantBrandingEntity = Endatix.Core.Entities.TenantBranding;
 

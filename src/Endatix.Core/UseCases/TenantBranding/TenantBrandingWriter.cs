@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -11,6 +12,25 @@ namespace Endatix.Core.UseCases.TenantBranding;
 /// </summary>
 internal sealed class TenantBrandingWriter(IRepository<Entities.TenantBranding> repository, long tenantId)
 {
+    /// <summary>
+    /// Why the tenant may not write its branding: no tenant (Unauthorized), or no <c>branding</c> entitlement
+    /// (Forbidden). Null when it may.
+    /// </summary>
+    internal static async Task<Result?> RefusalAsync(
+        long tenantId,
+        ITenantEntitlements entitlements,
+        CancellationToken cancellationToken)
+    {
+        if (tenantId <= 0)
+        {
+            return Result.Unauthorized();
+        }
+
+        return await entitlements.HasAsync(tenantId, Entitlements.BRANDING, cancellationToken)
+            ? null
+            : Result.Forbidden("The tenant's plan does not include branding.");
+    }
+
     internal async Task<Result<TenantBrandingDto>> WriteAsync(
         Func<Entities.TenantBranding, Result> change,
         CancellationToken cancellationToken)

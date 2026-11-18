@@ -7,9 +7,14 @@ namespace Endatix.Core.Branding;
 /// </summary>
 internal static class CanonicalBrandJson
 {
+    /// <summary>
+    /// Duplicate keys are refused: a reader would check one copy while the database or the Hub keeps another.
+    /// </summary>
+    internal static readonly JsonDocumentOptions Options = new() { AllowDuplicateProperties = false };
+
     internal static string Write(string json)
     {
-        using var document = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(json, Options);
         return Write(document.RootElement);
     }
 

@@ -8,7 +8,7 @@ namespace Endatix.Core.Branding;
 /// <remarks>Clients match on these values, so they must not change.</remarks>
 public static class BrandOverrideProblems
 {
-    /// <summary>The text is not JSON.</summary>
+    /// <summary>The text is not JSON, or an object repeats a key.</summary>
     public const string INVALID_JSON = "invalid_json";
 
     /// <summary>A required field is missing.</summary>
