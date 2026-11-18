@@ -1669,21 +1669,28 @@ internal static partial class ShojiCodebookGenerator
             return exportKey;
         }
 
+        var leaf = ResolveLeafLabel(exportKey, column, columnMetadata, keySeparator);
+        return leaf is null ? title : $"{title} -- {leaf}";
+    }
+
+    private static string? ResolveLeafLabel(
+        string exportKey,
+        FormSchemaColumn column,
+        JsonElement columnMetadata,
+        string keySeparator)
+    {
         if (column.Kind is FormSchemaColumnKind.MultipleTextItem &&
             ReadRowLabel(columnMetadata) is { } itemLabel)
         {
-            return $"{title} -- {itemLabel}";
+            return itemLabel;
         }
 
         var leaf = ExportKeyTransformer.Transform(
             column.Key[(column.SourceQuestion?.Length ?? 0)..].TrimStart('_'),
             keySeparator);
-        if (string.IsNullOrWhiteSpace(leaf) || string.Equals(leaf, exportKey, StringComparison.Ordinal))
-        {
-            return title;
-        }
-
-        return $"{title} -- {leaf.TrimStart('-')}";
+        return string.IsNullOrWhiteSpace(leaf) || string.Equals(leaf, exportKey, StringComparison.Ordinal)
+            ? null
+            : leaf.TrimStart('-');
     }
 
     private static string? ReadRowLabel(JsonElement columnMetadata)

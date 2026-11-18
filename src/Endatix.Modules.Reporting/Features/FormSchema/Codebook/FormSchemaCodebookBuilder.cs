@@ -347,13 +347,9 @@ internal static partial class FormSchemaCodebookBuilder
         if (!string.IsNullOrWhiteSpace(column.MatrixRowValue))
         {
             writer.WriteString(FormSchemaPropertyNames.MatrixRowValue, column.MatrixRowValue);
-            if (hasQuestion && column.Kind is FormSchemaColumnKind.MultipleTextItem)
+            if (hasQuestion)
             {
-                WriteMultipleTextItemRowLabel(writer, questionElement, column.MatrixRowValue);
-            }
-            else if (hasQuestion)
-            {
-                WriteMatrixRowLabel(writer, questionElement, column.MatrixRowValue);
+                WriteMatrixRowLabel(writer, questionElement, column);
             }
         }
 
@@ -1217,27 +1213,20 @@ internal static partial class FormSchemaCodebookBuilder
     private static void WriteMatrixRowLabel(
         Utf8JsonWriter writer,
         JsonElement questionElement,
-        string rowValue)
+        FormSchemaColumn column)
     {
-        var rowElement = FindMatrixRowElement(questionElement, rowValue);
-        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
-            rowElement,
-            SurveyJsPropertyNames.Text);
+        var rowValue = column.MatrixRowValue!;
+        // A multiple-text item keeps its label in title; a matrix row keeps it in text.
+        var localized = column.Kind is FormSchemaColumnKind.MultipleTextItem
+            ? SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMultipleTextItemElement(questionElement, rowValue),
+                SurveyJsPropertyNames.Title)
+            : SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMatrixRowElement(questionElement, rowValue),
+                SurveyJsPropertyNames.Text);
         writer.WritePropertyName(FormSchemaCodebookPropertyNames.RowLabel);
         // SurveyJS allows value-only rows (no text). Mirror WriteChoiceLabel and fall back to value.
         WriteLocalizedStringsWithFallback(writer, localized, fallback: rowValue);
-    }
-
-    private static void WriteMultipleTextItemRowLabel(
-        Utf8JsonWriter writer,
-        JsonElement questionElement,
-        string itemName)
-    {
-        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
-            FindMultipleTextItemElement(questionElement, itemName),
-            SurveyJsPropertyNames.Title);
-        writer.WritePropertyName(FormSchemaCodebookPropertyNames.RowLabel);
-        WriteLocalizedStringsWithFallback(writer, localized, fallback: itemName);
     }
 
     private static void WriteMatrixColumnLabel(
