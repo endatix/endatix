@@ -347,7 +347,11 @@ internal static partial class FormSchemaCodebookBuilder
         if (!string.IsNullOrWhiteSpace(column.MatrixRowValue))
         {
             writer.WriteString(FormSchemaPropertyNames.MatrixRowValue, column.MatrixRowValue);
-            if (hasQuestion)
+            if (hasQuestion && column.Kind is FormSchemaColumnKind.MultipleTextItem)
+            {
+                WriteMultipleTextItemRowLabel(writer, questionElement, column.MatrixRowValue);
+            }
+            else if (hasQuestion)
             {
                 WriteMatrixRowLabel(writer, questionElement, column.MatrixRowValue);
             }
@@ -1222,6 +1226,18 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WritePropertyName(FormSchemaCodebookPropertyNames.RowLabel);
         // SurveyJS allows value-only rows (no text). Mirror WriteChoiceLabel and fall back to value.
         WriteLocalizedStringsWithFallback(writer, localized, fallback: rowValue);
+    }
+
+    private static void WriteMultipleTextItemRowLabel(
+        Utf8JsonWriter writer,
+        JsonElement questionElement,
+        string itemName)
+    {
+        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
+            FindMultipleTextItemElement(questionElement, itemName),
+            SurveyJsPropertyNames.Title);
+        writer.WritePropertyName(FormSchemaCodebookPropertyNames.RowLabel);
+        WriteLocalizedStringsWithFallback(writer, localized, fallback: itemName);
     }
 
     private static void WriteMatrixColumnLabel(

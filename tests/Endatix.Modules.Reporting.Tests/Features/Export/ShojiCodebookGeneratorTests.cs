@@ -234,6 +234,35 @@ public sealed partial class ShojiCodebookGeneratorTests
     }
 
     [Fact]
+    public void Generate_MultipleTextItems_NamesEachVariableByItemTitle()
+    {
+        // Arrange
+        const string definitionJson = """
+            {
+              "pages":[{"name":"page1","elements":[
+                {"type":"multipletext","name":"contact","title":"Your contact details","items":[
+                  {"name":"email","title":"Email"},
+                  {"name":"fax"}
+                ]}
+              ]}]
+            }
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        // Act
+        using var document = JsonDocument.Parse(
+            ShojiCodebookGenerator.Generate(
+                compiled.FlatteningMapJson,
+                compiled.CodebookJson,
+                ExportFormatSettings.InterimCrunchKeySeparator));
+        var metadata = document.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata");
+
+        // Assert
+        metadata.GetProperty("contact--email").GetProperty("name").GetString().Should().Be("Your contact details -- Email");
+        metadata.GetProperty("contact--fax").GetProperty("name").GetString().Should().Be("Your contact details -- fax");
+    }
+
+    [Fact]
     public void Generate_MatrixEmptyRowLabel_FallsBackToMatrixRowValue()
     {
         // Arrange — defense in depth for pre-fix persisted artifacts with blank rowLabel.

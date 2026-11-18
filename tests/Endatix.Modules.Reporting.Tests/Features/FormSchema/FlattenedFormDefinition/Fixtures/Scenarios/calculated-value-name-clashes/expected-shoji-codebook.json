@@ -161,13 +161,13 @@
         "contact--email": {
           "type": "text",
           "alias": "contact--email",
-          "name": "Your contact details -- email",
+          "name": "Your contact details -- Email",
           "description": ""
         },
         "contact--phone": {
           "type": "text",
           "alias": "contact--phone",
-          "name": "Your contact details -- phone",
+          "name": "Your contact details -- Phone",
           "description": ""
         },
         "fruitRank--apple": {

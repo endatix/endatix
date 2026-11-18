@@ -443,13 +443,13 @@
         "qMultipleText--emergency": {
           "type": "text",
           "alias": "qMultipleText--emergency",
-          "name": "Contact Information -- emergency",
+          "name": "Contact Information -- Emergency Contact",
           "description": ""
         },
         "qMultipleText--phone": {
           "type": "text",
           "alias": "qMultipleText--phone",
-          "name": "Contact Information -- phone",
+          "name": "Contact Information -- Phone Number",
           "description": ""
         },
         "qRanking--apple": {

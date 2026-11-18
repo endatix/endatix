@@ -1669,6 +1669,12 @@ internal static partial class ShojiCodebookGenerator
             return exportKey;
         }
 
+        if (column.Kind is FormSchemaColumnKind.MultipleTextItem &&
+            ReadRowLabel(columnMetadata) is { } itemLabel)
+        {
+            return $"{title} -- {itemLabel}";
+        }
+
         var leaf = ExportKeyTransformer.Transform(
             column.Key[(column.SourceQuestion?.Length ?? 0)..].TrimStart('_'),
             keySeparator);
@@ -1678,6 +1684,18 @@ internal static partial class ShojiCodebookGenerator
         }
 
         return $"{title} -- {leaf.TrimStart('-')}";
+    }
+
+    private static string? ReadRowLabel(JsonElement columnMetadata)
+    {
+        if (columnMetadata.ValueKind != JsonValueKind.Object ||
+            !columnMetadata.TryGetProperty(FormSchemaCodebookPropertyNames.RowLabel, out var label))
+        {
+            return null;
+        }
+
+        var text = ReadDefaultLocalizedText(label).Trim();
+        return string.IsNullOrWhiteSpace(text) ? null : text;
     }
 
     private static string BuildLoopDisplayName(

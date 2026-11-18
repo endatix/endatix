@@ -171,7 +171,7 @@
       },
       "matrixRowValue": "email",
       "rowLabel": {
-        "default": "email"
+        "default": "Email"
       }
     },
     "contact__phone": {
@@ -183,7 +183,7 @@
       },
       "matrixRowValue": "phone",
       "rowLabel": {
-        "default": "phone"
+        "default": "Phone"
       }
     },
     "fruitRank": {
