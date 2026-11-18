@@ -21,7 +21,7 @@ internal static partial class FormSchemaCodebookBuilder
     {
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition);
         var questionElements = CollectQuestionElements(definition);
-        var choiceSources = ChoiceSourcesIn(questionElements);
+        var choiceSources = ChoiceSourcesIn(questionElements, definition);
         var questions = BuildQuestions(questionElements, choiceSources);
         var columns = BuildColumns(merged, questionElements, TryParseExistingColumns(existingCodebookJson));
         var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition), choiceSources);
@@ -36,9 +36,6 @@ internal static partial class FormSchemaCodebookBuilder
     }
 
     private sealed record CollectedQuestion(JsonElement Element, QuestionPlacement Placement);
-
-    private static ChoiceSources ChoiceSourcesIn(IReadOnlyDictionary<string, CollectedQuestion> questionElements) =>
-        new(questionElements.ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal));
 
     private static Dictionary<string, CollectedQuestion> CollectQuestionElements(JsonElement definition)
     {
@@ -691,7 +688,7 @@ internal static partial class FormSchemaCodebookBuilder
                     continue;
                 }
 
-                choiceCatalogs[property.Name] = MergeChoiceCatalog(property.Value, currentCatalog);
+                choiceCatalogs[property.Name] = MergeChoiceCatalog(MarkedIfCopied(property.Value, existingQuestions, property.Name), currentCatalog);
             }
         }
     }

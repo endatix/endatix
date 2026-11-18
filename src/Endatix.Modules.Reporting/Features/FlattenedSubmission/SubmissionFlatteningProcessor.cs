@@ -155,7 +155,7 @@ internal sealed class SubmissionFlatteningProcessor(
         ResponseSnapshots snapshots = new(personalization, submitterProfileFields.Read(submission.SubmitterProfileSnapshot));
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
         var flattened = FlattenedSubmissionFlattener.Flatten(
-            submissionDocument.RootElement, mergedSchema, ChoiceCatalogs.Read(schema.Codebook), snapshots);
+            submissionDocument.RootElement, mergedSchema, ChoiceCatalogs.Read(schema.Codebook, submission.IsComplete), snapshots);
         var searchKeys = FormSearchKeys.Of(schema);
         return new FlattenedRowData(
             FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened),

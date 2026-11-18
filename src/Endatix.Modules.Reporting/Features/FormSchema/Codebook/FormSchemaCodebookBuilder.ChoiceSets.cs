@@ -8,6 +8,14 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 /// <summary>The choice catalog of a base select: its select fields and kind-tagged choices (<see cref="ChoiceSet"/>).</summary>
 internal static partial class FormSchemaCodebookBuilder
 {
+    // With the definition, a copy's catalog can record its shown rule (CopyDefinition); column labels do not need it.
+    private static ChoiceSources ChoiceSourcesIn(
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        JsonElement? definition = null) =>
+        new(
+            questionElements.ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal),
+            definition is { } whole ? CopyDefinition.Of(whole) : null);
+
     private static JsonElement BuildChoiceCatalog(
         JsonElement element,
         SurveyChoiceDefaults surveyDefaults,
@@ -16,7 +24,10 @@ internal static partial class FormSchemaCodebookBuilder
         if (ChoiceSet.Read(element, surveyDefaults, choiceSources.Resolve(element)) is { } choiceSet)
         {
             return WriteQuestionEntry(writer =>
-                choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id)));
+            {
+                choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id));
+                choiceSources.WriteCopyFields(writer, element);
+            });
         }
 
         return WriteQuestionEntry(writer => WriteNonSelectCatalogChoices(writer, element, choiceSources));
@@ -27,6 +38,7 @@ internal static partial class FormSchemaCodebookBuilder
         if (SurveyJsElementType.Ranking.Matches(element.GetSurveyJsType()))
         {
             WriteRankingChoices(writer, element, choiceSources.Offered(element));
+            choiceSources.WriteCopyFields(writer, element);
             return;
         }
 
@@ -54,7 +66,8 @@ internal static partial class FormSchemaCodebookBuilder
         });
 
     // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
-    // the value, so a later comment-storage definition must not make the flatten forget it.
+    // the value, so a later comment-storage definition must not make the flatten forget it. A copy's shown rule is kept
+    // only while every definition agrees on it (CopyVisibility.Merge).
     private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
     {
         if (currentCatalog.TryGetProperty(FormSchemaCodebookPropertyNames.Multiple, out var multiple))
@@ -69,7 +82,18 @@ internal static partial class FormSchemaCodebookBuilder
         {
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ChoiceSet.ToJsonName(stored));
         }
+
+        CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
     }
+
+    // A codebook compiled before the copied marker still names the copy on its stored question entry, which the merge
+    // replaces with the current one: carry it onto the catalog first.
+    private static JsonElement MarkedIfCopied(JsonElement existingCatalog, JsonElement existingQuestions, string name) =>
+        existingQuestions.ValueKind == JsonValueKind.Object &&
+        existingQuestions.TryGetPropertyValue(name) is { } question &&
+        ChoiceCatalogs.IsCopy(question)
+            ? CopyVisibility.MarkCopied(existingCatalog)
+            : existingCatalog;
 
     private static OtherStorage? OtherStorageOf(JsonElement catalog) =>
         ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage));
@@ -96,7 +120,8 @@ internal static partial class FormSchemaCodebookBuilder
         {
             foreach (var property in catalog.EnumerateObject().Where(property =>
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
-                         !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage)))
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {
                 property.WriteTo(writer);
             }

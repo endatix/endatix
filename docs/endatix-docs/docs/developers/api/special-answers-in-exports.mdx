@@ -33,7 +33,12 @@ The examples use the native column names and values. An export format with the C
 
 ### Multi-select (checkbox, tag box)
 
-Each choice and each special item gets its own indicator column, in this order: the question's choices, then Other, then None, Refuse to answer, and Don't know. An indicator is `1` when chosen and `0` when not, and an unanswered question writes `0` in every column.
+Each choice and each special item gets its own indicator column, in this order: the question's choices, then Other, then None, Refuse to answer, and Don't know. An indicator is `1` when chosen and `0` when not, and an unanswered question writes `0` in every column, except where the respondent may not have seen the choice: then the cell is empty (`null` in JSON).
+
+- **A question that copies its choices** (`choicesFromQuestion`, or Hub carry forward): `0` only for a choice the respondent was shown. With mode `all`, `selected` or `unselected`, the shown choices are rebuilt from the source questions' answers in the same submission, or the same loop item first. Anything else leaves every unpicked choice empty: `edxCarryForwardMaxChoices`, `choicesVisibleIf` or a choice's `visibleIf`, an unrecognized mode, a source that copies its own choices or is a ranking, a source with no answer, a copy with no answer, a copy or source whose name the form uses twice (at the root and in a loop, or in two loops), a copy or source with its own `visibleIf` unless the submission is completed and the survey clears hidden answers on complete (`clearInvisibleValues` absent or `onComplete`), or a schema compiled before 0.9.2. The codebook's `choiceCatalogs[<question>].shown` (`mode`, `sources` with each source's `name` and `values`, and `whenComplete` when it holds only for a completed submission) is present only when the shown choices can be rebuilt.
+- **A loop item the respondent did not have:** every indicator of that item is empty.
+
+An unanswered ranking writes an empty cell for every choice; an answered one writes the rank, and `0` for a choice left unranked. A ranking that copies its choices writes an empty cell, not `0`, for a choice left unranked.
 
 For a checkbox `cb` with choices `a` and `b`, Other, None, Refuse to answer, and Don't know, a respondent who picks `a` and Other and types `typed` gets:
 
@@ -119,7 +124,7 @@ csv-shoji writes the category id in the `rg` column, so a respondent who refused
 
 ### Multi-select
 
-A checkbox or tag box is a `multiple_response` variable with one subvariable per choice and special item, such as `cb--none`. Every subvariable has the categories `not selected` (id 0) and `selected` (id 1), and neither is missing: in a multi-select, Refuse to answer and Don't know are selected or not selected like any other choice. csv-shoji writes `1` or `0`.
+A checkbox or tag box is a `multiple_response` variable with one subvariable per choice and special item, such as `cb--none`. Every subvariable has the categories `not selected` (id 0) and `selected` (id 1), and neither is missing: in a multi-select, Refuse to answer and Don't know are selected or not selected like any other choice. csv-shoji writes `1`, `0`, or an empty cell where the native export is empty, which Crunch imports as No Data.
 
 ### Other text
 
