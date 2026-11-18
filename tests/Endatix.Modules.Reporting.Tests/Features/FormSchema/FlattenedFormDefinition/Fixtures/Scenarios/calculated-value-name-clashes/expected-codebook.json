@@ -1,0 +1,312 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "colors": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Pick the colors you like"
+      },
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "red",
+          "id": 1,
+          "text": {
+            "default": "Red"
+          }
+        },
+        {
+          "value": "blue",
+          "id": 2,
+          "text": {
+            "default": "Blue"
+          }
+        }
+      ]
+    },
+    "contact": {
+      "surveyJsType": "multipletext",
+      "title": {
+        "default": "Your contact details"
+      },
+      "pageName": "page1",
+      "exportShape": "multiple_text",
+      "items": [
+        {
+          "name": "phone",
+          "title": {
+            "default": "Phone"
+          }
+        },
+        {
+          "name": "email",
+          "title": {
+            "default": "Email"
+          }
+        }
+      ]
+    },
+    "fruitRank": {
+      "surveyJsType": "ranking",
+      "title": {
+        "default": "Rank the fruit"
+      },
+      "pageName": "page1",
+      "exportShape": "ranking",
+      "choices": [
+        {
+          "value": "apple",
+          "id": 1,
+          "text": {
+            "default": "Apple"
+          }
+        },
+        {
+          "value": "pear",
+          "id": 2,
+          "text": {
+            "default": "Pear"
+          }
+        }
+      ]
+    },
+    "qTotal": {
+      "surveyJsType": "text",
+      "title": {
+        "default": "totalAmount"
+      },
+      "pageName": "page1",
+      "exportShape": "scalar"
+    },
+    "ratings": {
+      "surveyJsType": "matrix",
+      "title": {
+        "default": "Rate each service"
+      },
+      "pageName": "page1",
+      "exportShape": "categorical_array",
+      "columns": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Poor"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Good"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "value": "delivery",
+          "text": {
+            "default": "Delivery"
+          }
+        },
+        {
+          "value": "support",
+          "text": {
+            "default": "Support"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "colors": {
+      "parentKey": "colors",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "colors"
+      }
+    },
+    "colors__blue": {
+      "parentKey": "colors",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick the colors you like"
+      },
+      "choiceValue": "blue",
+      "choiceLabel": {
+        "default": "Blue"
+      }
+    },
+    "colors__red": {
+      "parentKey": "colors",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick the colors you like"
+      },
+      "choiceValue": "red",
+      "choiceLabel": {
+        "default": "Red"
+      }
+    },
+    "contact": {
+      "parentKey": "contact",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "contact"
+      }
+    },
+    "contact__email": {
+      "parentKey": "contact",
+      "surveyJsType": "multipletext",
+      "exportShape": "multiple_text",
+      "title": {
+        "default": "Your contact details"
+      },
+      "matrixRowValue": "email",
+      "rowLabel": {
+        "default": "email"
+      }
+    },
+    "contact__phone": {
+      "parentKey": "contact",
+      "surveyJsType": "multipletext",
+      "exportShape": "multiple_text",
+      "title": {
+        "default": "Your contact details"
+      },
+      "matrixRowValue": "phone",
+      "rowLabel": {
+        "default": "phone"
+      }
+    },
+    "fruitRank": {
+      "parentKey": "fruitRank",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "fruitRank"
+      }
+    },
+    "fruitRank__apple": {
+      "parentKey": "fruitRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the fruit"
+      },
+      "choiceValue": "apple",
+      "choiceLabel": {
+        "default": "Apple"
+      }
+    },
+    "fruitRank__pear": {
+      "parentKey": "fruitRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the fruit"
+      },
+      "choiceValue": "pear",
+      "choiceLabel": {
+        "default": "Pear"
+      }
+    },
+    "qTotal": {
+      "parentKey": "qTotal",
+      "surveyJsType": "text",
+      "exportShape": "scalar",
+      "title": {
+        "default": "totalAmount"
+      }
+    },
+    "ratings": {
+      "parentKey": "ratings",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "ratings"
+      }
+    },
+    "ratings__delivery": {
+      "parentKey": "ratings",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {
+        "default": "Rate each service"
+      },
+      "matrixRowValue": "delivery",
+      "rowLabel": {
+        "default": "Delivery"
+      }
+    },
+    "ratings__support": {
+      "parentKey": "ratings",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {
+        "default": "Rate each service"
+      },
+      "matrixRowValue": "support",
+      "rowLabel": {
+        "default": "Support"
+      }
+    },
+    "totalAmount": {
+      "parentKey": "totalAmount",
+      "surveyJsType": "calculatedvalue",
+      "exportShape": "calculated",
+      "title": {
+        "default": "totalAmount"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "colors": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "red",
+          "id": 1,
+          "text": {
+            "default": "Red"
+          }
+        },
+        {
+          "value": "blue",
+          "id": 2,
+          "text": {
+            "default": "Blue"
+          }
+        }
+      ]
+    },
+    "fruitRank": {
+      "choices": [
+        {
+          "value": "apple",
+          "id": 1,
+          "text": {
+            "default": "Apple"
+          }
+        },
+        {
+          "value": "pear",
+          "id": 2,
+          "text": {
+            "default": "Pear"
+          }
+        }
+      ]
+    },
+    "ratings": {
+      "choices": []
+    }
+  }
+}
