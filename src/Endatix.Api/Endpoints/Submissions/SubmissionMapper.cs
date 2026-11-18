@@ -59,8 +59,7 @@ public static class SubmissionMapper
 
     /// <summary>
     /// Maps a submission with its definition and form to submission details. The form theme is returned only when
-    /// the form's <c>PdfUsesFormTheme</c> is on, so load the submission with
-    /// <c>SubmissionWithDefinitionAndFormSpec(formId, submissionId, includeTheme: true)</c>.
+    /// the form's <c>PdfUsesFormTheme</c> is on; the GetById and GetByAccessToken handlers load it only then.
     /// </summary>
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)
     {

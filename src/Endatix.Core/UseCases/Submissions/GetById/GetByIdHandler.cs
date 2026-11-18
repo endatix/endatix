@@ -11,11 +11,13 @@ namespace Endatix.Core.UseCases.Submissions.GetById;
 /// <summary>
 /// Handler for the <c>GetByIdQuery</c> class
 /// </summary>
-public class GetByIdHandler(IRepository<Submission> repository) : IQueryHandler<GetByIdQuery, Result<Submission>>
+public class GetByIdHandler(
+    IRepository<Submission> repository,
+    IRepository<Theme> themeRepository) : IQueryHandler<GetByIdQuery, Result<Submission>>
 {
     public async Task<Result<Submission>> Handle(GetByIdQuery request, CancellationToken cancellationToken)
     {
-        var singleSubmissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, request.SubmissionId, includeTheme: true);
+        var singleSubmissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, request.SubmissionId);
         var submission = await repository.SingleOrDefaultAsync(singleSubmissionSpec, cancellationToken);
 
         if (submission == null)
@@ -23,6 +25,7 @@ public class GetByIdHandler(IRepository<Submission> repository) : IQueryHandler<
             return Result.NotFound("Submission not found");
         }
 
+        await SubmissionFormTheme.LoadAsync(submission, themeRepository, cancellationToken);
         return Result.Success(submission);
     }
 }

@@ -9,24 +9,10 @@ namespace Endatix.Core.Specifications;
 public class SubmissionWithDefinitionAndFormSpec : SingleResultSpecification<Submission>
 {
     public SubmissionWithDefinitionAndFormSpec(long formId, long submissionId)
-        : this(formId, submissionId, includeTheme: false)
     {
-    }
-
-    /// <param name="formId">The form the submission belongs to.</param>
-    /// <param name="submissionId">The submission.</param>
-    /// <param name="includeTheme">Also loads the form's theme, for submission details.</param>
-    public SubmissionWithDefinitionAndFormSpec(long formId, long submissionId, bool includeTheme)
-    {
-        Query.Include(s => s.FormDefinition);
-
-        var form = Query.Include(s => s.Form);
-        if (includeTheme)
-        {
-            form.ThenInclude(f => f.Theme);
-        }
-
         Query
+            .Include(s => s.FormDefinition)
+            .Include(s => s.Form)
             .Where(s => s.Id == submissionId && s.FormDefinition.FormId == formId)
             .AsNoTracking();
     }
