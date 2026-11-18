@@ -11,6 +11,9 @@ public static class BrandOverrideProblems
     /// <summary>The text is not JSON, or an object repeats a key.</summary>
     public const string INVALID_JSON = "invalid_json";
 
+    /// <summary>The text is longer than <see cref="BrandOverride.MAX_JSON_LENGTH"/> characters.</summary>
+    public const string TOO_LARGE = "too_large";
+
     /// <summary>A required field is missing.</summary>
     public const string REQUIRED = "required";
 

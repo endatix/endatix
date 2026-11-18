@@ -122,6 +122,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         }
         catch (Exception exception) when (TranslateSaveFailure(exception) is { } translated)
         {
+            DetachRefusedBranding(exception);
             throw translated;
         }
     }
@@ -136,6 +137,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         }
         catch (Exception exception) when (TranslateSaveFailure(exception) is { } translated)
         {
+            DetachRefusedBranding(exception);
             throw translated;
         }
     }
@@ -168,6 +170,23 @@ public class AppDbContext : DbContext, ITenantDbContext
         updateException.Entries.Count > 0
         && updateException.Entries.All(entry => entry.Entity is TenantBranding)
         && (updateException is DbUpdateConcurrencyException || IsUniqueViolation(updateException));
+
+    /// <summary>
+    /// A refused branding write leaves nothing tracked, so a later save in the same scope does not replay the stale update
+    /// or the losing insert (ARCHITECTURE.md, transaction locks, item 8).
+    /// </summary>
+    private static void DetachRefusedBranding(Exception exception)
+    {
+        if (exception is not DbUpdateException update || !IsTenantBrandingConflict(update))
+        {
+            return;
+        }
+
+        foreach (var entry in update.Entries)
+        {
+            entry.State = EntityState.Detached;
+        }
+    }
 
     private static bool IsUniqueViolation(DbUpdateException updateException)
     {

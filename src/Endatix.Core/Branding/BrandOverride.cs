@@ -15,6 +15,12 @@ namespace Endatix.Core.Branding;
 /// </remarks>
 public sealed class BrandOverride
 {
+    /// <summary>
+    /// The longest override text read, in characters. A full override is a few hundred; the bound keeps the parse,
+    /// the colour patterns and the problem list small whatever a caller sends.
+    /// </summary>
+    public const int MAX_JSON_LENGTH = 4096;
+
     private BrandOverride(long tenantId, string canonicalJson)
     {
         TenantId = tenantId;
@@ -40,10 +46,10 @@ public sealed class BrandOverride
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tenantId);
         ArgumentNullException.ThrowIfNull(json);
 
-        if (TryParseDocument(json) is not { } document)
+        var (document, refusal) = Read(json);
+        if (document is null)
         {
-            return Result<BrandOverride>.Invalid(
-                new ValidationError("", "Is not valid JSON, or repeats a key.", BrandOverrideProblems.INVALID_JSON, ValidationSeverity.Error));
+            return refusal!;
         }
 
         using (document)
@@ -62,15 +68,24 @@ public sealed class BrandOverride
     public bool IsSameAs(string? storedJson) =>
         storedJson is not null && CanonicalBrandJson.Write(storedJson) == CanonicalJson;
 
-    private static JsonDocument? TryParseDocument(string json)
+    /// <summary>The parsed text, or the problem with the text as a whole (its pointer is the empty string).</summary>
+    private static (JsonDocument? Document, Result<BrandOverride>? Refusal) Read(string json)
     {
+        if (json.Length > MAX_JSON_LENGTH)
+        {
+            return (null, RefusedWhole(BrandOverrideProblems.TOO_LARGE, $"Must be at most {MAX_JSON_LENGTH} characters."));
+        }
+
         try
         {
-            return JsonDocument.Parse(json, CanonicalBrandJson.Options);
+            return (JsonDocument.Parse(json, CanonicalBrandJson.Options), null);
         }
         catch (JsonException)
         {
-            return null;
+            return (null, RefusedWhole(BrandOverrideProblems.INVALID_JSON, "Is not valid JSON, or repeats a key."));
         }
     }
+
+    private static Result<BrandOverride> RefusedWhole(string code, string detail) =>
+        Result<BrandOverride>.Invalid(new ValidationError("", detail, code, ValidationSeverity.Error));
 }

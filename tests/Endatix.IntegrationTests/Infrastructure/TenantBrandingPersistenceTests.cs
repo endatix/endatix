@@ -83,9 +83,13 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
+        slowDb.ChangeTracker.Entries<TenantBranding>().Should().BeEmpty("a refused write must not be replayed by a later save");
+        var retry = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(BLUE.Replace("{tenant}", tenantId.ToString(), StringComparison.Ordinal), 2));
+        retry.IsSuccess.Should().BeTrue();
         var stored = await ReadAsync(tenantId);
-        stored.PublishedJson.Should().Contain("#8a2be2");
-        stored.Revision.Should().Be(2);
+        stored.PublishedJson.Should().Contain("#0052d1");
+        stored.PreviousJson.Should().Contain("#8a2be2");
+        stored.Revision.Should().Be(3);
     }
 
     [Fact]
@@ -102,6 +106,7 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
+        slowDb.ChangeTracker.Entries<TenantBranding>().Should().BeEmpty("the losing insert must not be replayed by a later save");
         (await ReadAsync(tenantId)).PublishedJson.Should().Contain("#16a34a");
     }
 

@@ -201,6 +201,78 @@ public sealed class BrandOverrideTests
         });
     }
 
+    [Fact]
+    public void Parse_TextOverTheLimit_IsTooLargeAndNotRead()
+    {
+        // Arrange
+        var json = "{\"version\":1" + new string(' ', BrandOverride.MAX_JSON_LENGTH) + "}";
+
+        // Act
+        var result = BrandOverride.Parse(json, TENANT_ID);
+
+        // Assert
+        ShouldHaveOnly(result, "", BrandOverrideProblems.TOO_LARGE);
+    }
+
+    [Fact]
+    public void Parse_TextAtTheLimit_IsRead()
+    {
+        // Arrange
+        const string start = "{\"version\":1";
+        var json = start + new string(' ', BrandOverride.MAX_JSON_LENGTH - start.Length - 1) + "}";
+
+        // Act
+        var result = BrandOverride.Parse(json, TENANT_ID);
+
+        // Assert
+        json.Length.Should().Be(BrandOverride.MAX_JSON_LENGTH);
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Parse_ColourLongerThanTheLimit_IsAnInvalidColour()
+    {
+        // Arrange: a colour the patterns would accept, padded past the limit
+        var value = "rgb(0 82 209" + new string(' ', BrandOverrideReader.COLOR_MAX_LENGTH) + ")";
+
+        // Act
+        var result = BrandOverride.Parse(
+            "{\"version\":1,\"tokens\":{\"color\":{\"primary\":{\"$type\":\"color\",\"$value\":\"" + value + "\"}}}}",
+            TENANT_ID);
+
+        // Assert
+        BrandColor.Parse(value).Should().NotBeNull();
+        ShouldHaveOnly(result, "/tokens/color/primary/$value", BrandOverrideProblems.INVALID_COLOR);
+    }
+
+    [Fact]
+    public void Parse_ManyUnknownFields_ReportsAtMostTheCap()
+    {
+        // Arrange
+        var fields = string.Concat(Enumerable.Range(0, 30).Select(i => $",\"extra{i}\":{i}"));
+
+        // Act
+        var result = BrandOverride.Parse("{\"version\":1" + fields + ",\"assets\":{\"other\":1}}", TENANT_ID);
+
+        // Assert
+        result.ValidationErrors.Should().HaveCount(BrandOverrideReader.MAX_UNKNOWN_FIELDS)
+            .And.OnlyContain(error => error.ErrorCode == BrandOverrideProblems.UNKNOWN_FIELD);
+    }
+
+    [Theory]
+    [InlineData("t/42/brand/logo.png\\n")]
+    [InlineData("t/42/brand/lo\\tgo.png")]
+    public void Parse_AssetKeyWithAControlCharacter_IsRejected(string escapedKey)
+    {
+        // Act: the key arrives JSON-escaped, as a client sends it
+        var result = BrandOverride.Parse(
+            "{\"version\":1,\"assets\":{\"icon\":\"" + escapedKey + "\"}}",
+            TENANT_ID);
+
+        // Assert
+        ShouldHaveOnly(result, "/assets/icon", BrandOverrideProblems.INVALID_ASSET_KEY);
+    }
+
     private static ValidationError ShouldHaveOnly(Result<BrandOverride> result, string path, string code)
     {
         result.Status.Should().Be(ResultStatus.Invalid);

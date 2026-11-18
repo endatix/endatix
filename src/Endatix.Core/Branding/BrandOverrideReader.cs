@@ -14,6 +14,12 @@ internal sealed partial class BrandOverrideReader
     internal const int SUPPORTED_VERSION = 1;
     internal const int ASSET_KEY_MAX_LENGTH = 256;
 
+    /// <summary>Longer than any colour the Hub writes, so the colour patterns never scan long runs of spaces or digits.</summary>
+    internal const int COLOR_MAX_LENGTH = 64;
+
+    /// <summary>Unknown fields reported, at most; the rest are left out of the problem list.</summary>
+    internal const int MAX_UNKNOWN_FIELDS = 10;
+
     private static readonly string[] _rasterExtensions = [".png", ".webp"];
 
     /// <summary>The brand pack schema's <c>packFile</c> pattern: plain names, none empty or starting with '.', no "..".</summary>
@@ -24,6 +30,7 @@ internal sealed partial class BrandOverrideReader
 
     private readonly long _tenantId;
     private readonly List<ValidationError> _problems = [];
+    private int _unknownFields;
 
     private BrandOverrideReader(long tenantId)
     {
@@ -133,10 +140,11 @@ internal sealed partial class BrandOverrideReader
 
     private Rgb? Color(string path, JsonElement value)
     {
-        var rgb = value.ValueKind == JsonValueKind.String ? BrandColor.Parse(value.GetString()!) : null;
+        var text = value.ValueKind == JsonValueKind.String ? value.GetString()! : null;
+        var rgb = text?.Length <= COLOR_MAX_LENGTH ? BrandColor.Parse(text) : null;
         if (rgb is null)
         {
-            Add(path, BrandOverrideProblems.INVALID_COLOR, "Use a hex, rgb(), hsl() or oklch() colour.");
+            Add(path, BrandOverrideProblems.INVALID_COLOR, $"Use a hex, rgb(), hsl() or oklch() colour of at most {COLOR_MAX_LENGTH} characters.");
         }
 
         return rgb;
@@ -165,7 +173,7 @@ internal sealed partial class BrandOverrideReader
 
         var value = key.GetString()!;
         var folder = $"t/{_tenantId}/brand/";
-        if (value.Length > ASSET_KEY_MAX_LENGTH || !value.StartsWith(folder, StringComparison.Ordinal) || !FilePath().IsMatch(value[folder.Length..]))
+        if (!IsFileUnder(folder, value))
         {
             Add(path, BrandOverrideProblems.INVALID_ASSET_KEY, $"Must be a file under '{folder}', at most {ASSET_KEY_MAX_LENGTH} characters.");
         }
@@ -174,6 +182,15 @@ internal sealed partial class BrandOverrideReader
             Add(path, BrandOverrideProblems.UNSUPPORTED_ASSET_TYPE, "Must be a PNG or WebP file.");
         }
     }
+
+    /// <summary>
+    /// The control-character check stands beside the pack schema's pattern, whose <c>$</c> also matches before a final newline.
+    /// </summary>
+    private static bool IsFileUnder(string folder, string value) =>
+        value.Length <= ASSET_KEY_MAX_LENGTH
+        && !value.Any(char.IsControl)
+        && value.StartsWith(folder, StringComparison.Ordinal)
+        && FilePath().IsMatch(value[folder.Length..]);
 
     private JsonElement? Optional(string path, JsonElement parent, string name) =>
         parent.TryGetProperty(name, out var value) && IsObject(path, value) ? value : null;
@@ -202,7 +219,8 @@ internal sealed partial class BrandOverrideReader
 
     private void OnlyFields(string path, JsonElement value, params string[] allowed)
     {
-        foreach (var property in value.EnumerateObject().Where(property => !allowed.Contains(property.Name, StringComparer.Ordinal)))
+        var unknown = value.EnumerateObject().Where(property => !allowed.Contains(property.Name, StringComparer.Ordinal));
+        foreach (var property in unknown.TakeWhile(_ => _unknownFields++ < MAX_UNKNOWN_FIELDS))
         {
             Add($"{path}/{Escape(property.Name)}", BrandOverrideProblems.UNKNOWN_FIELD, "Is not a field a tenant can set.");
         }
