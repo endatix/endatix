@@ -49,6 +49,26 @@ internal static class FormSchemaCodebookPropertyNames
     public const string Sources = "sources";
     public const string Reason = "reason";
 
+    /// <summary>
+    /// Choice catalog of a copied checkbox or tagbox: <c>mode</c> and <c>sources</c>, present only when the choices a
+    /// respondent was shown follow from the sources' answers alone. Absent means unknown.
+    /// </summary>
+    public const string Shown = "shown";
+
+    /// <summary>
+    /// Choice catalog: true once any compiled definition made the select a copy. Kept by every merge, so rows saved
+    /// while it copied never read as a select with its own choices.
+    /// </summary>
+    public const string Copied = "copied";
+    public const string Mode = "mode";
+
+    /// <summary><see cref="Shown"/>: a source's name and the regular choice values it offered when compiled.</summary>
+    public const string SourceName = "name";
+    public const string Values = "values";
+
+    /// <summary><see cref="Shown"/>: the rule holds only for a completed submission (a hidden answer is cleared then).</summary>
+    public const string WhenComplete = "whenComplete";
+
     /// <summary>Question: "text" when a single select's choices cannot be read, so its answers export as text.</summary>
     public const string Degraded = "degraded";
     public const string DegradedToText = "text";

@@ -4383,7 +4383,21 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "hiddenBrands",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "attribute": {
       "multiple": true,
@@ -4418,7 +4432,8 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "brandRank": {
       "choices": [
@@ -4443,7 +4458,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqAllOk": {
       "multiple": false,
@@ -4488,7 +4504,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqAllPick": {
       "multiple": true,
@@ -4514,7 +4531,21 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "all",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "cfqAllRank": {
       "choices": [
@@ -4539,7 +4570,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqLoopRank": {
       "choices": [
@@ -4564,7 +4596,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqSelectedOk": {
       "multiple": false,
@@ -4609,7 +4642,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqSelectedPick": {
       "multiple": true,
@@ -4635,7 +4669,21 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "cfqSelectedRank": {
       "choices": [
@@ -4660,7 +4708,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqTagPick": {
       "multiple": true,
@@ -4695,7 +4744,21 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "all",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "cfqUnselectedOk": {
       "multiple": false,
@@ -4740,7 +4803,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "cfqUnselectedPick": {
       "multiple": true,
@@ -4766,7 +4830,21 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "unselected",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "cfqUnselectedRank": {
       "choices": [
@@ -4791,7 +4869,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "consider": {
       "multiple": false,
@@ -4855,7 +4934,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxAllPick": {
       "multiple": true,
@@ -4881,7 +4961,21 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "all",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "edxAllRank": {
       "choices": [
@@ -4906,7 +5000,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxLoopPick": {
       "multiple": true,
@@ -4941,7 +5036,21 @@
             "default": "Other"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "unselected",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "edxLoopRank": {
       "choices": [
@@ -4966,7 +5075,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxSelectedOk": {
       "multiple": false,
@@ -5011,7 +5121,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxSelectedPick": {
       "multiple": true,
@@ -5037,7 +5148,21 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "edxSelectedRank": {
       "choices": [
@@ -5062,7 +5187,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxUnselectedOk": {
       "multiple": false,
@@ -5107,7 +5233,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "edxUnselectedPick": {
       "multiple": true,
@@ -5133,7 +5260,21 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "unselected",
+        "sources": [
+          {
+            "name": "stores",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "edxUnselectedRank": {
       "choices": [
@@ -5158,7 +5299,8 @@
             "default": "Store C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "favorite": {
       "multiple": false,
@@ -5184,7 +5326,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "hiddenBrands": {
       "multiple": true,
@@ -5307,7 +5450,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "region": {
       "multiple": false,
@@ -5406,7 +5550,21 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "hiddenTraits",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     }
   }
 }

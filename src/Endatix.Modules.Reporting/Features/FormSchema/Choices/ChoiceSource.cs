@@ -50,7 +50,8 @@ internal abstract record ChoiceSource
 
     /// <summary>
     /// The choices of other questions in this definition, in source order: SurveyJS <c>choicesFromQuestion</c> (one
-    /// source) or Hub <c>edxCarryForwardSources</c>. Modes, caps and priority items only shape a respondent's list.
+    /// source) or Hub <c>edxCarryForwardSources</c>. Modes, caps and priority items only shape a respondent's list, so they
+    /// change no choice here; <see cref="CopyVisibility"/> reads them to decide which cells may be 0.
     /// </summary>
     public sealed record CarryForward(IReadOnlyList<string> Sources) : ChoiceSource
     {

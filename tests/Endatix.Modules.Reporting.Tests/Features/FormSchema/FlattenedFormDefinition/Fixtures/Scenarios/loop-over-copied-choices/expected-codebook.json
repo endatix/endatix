@@ -472,7 +472,21 @@
             "default": "None"
           }
         }
-      ]
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "brands",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "brands": {
       "multiple": true,
@@ -543,7 +557,8 @@
             "default": "Brand 3"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "occasionRank": {
       "choices": [
@@ -561,7 +576,8 @@
             "default": "Evening"
           }
         }
-      ]
+      ],
+      "copied": true
     },
     "occasions": {
       "multiple": true,
