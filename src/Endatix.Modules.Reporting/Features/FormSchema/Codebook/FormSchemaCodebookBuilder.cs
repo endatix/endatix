@@ -349,7 +349,7 @@ internal static partial class FormSchemaCodebookBuilder
             writer.WriteString(FormSchemaPropertyNames.MatrixRowValue, column.MatrixRowValue);
             if (hasQuestion)
             {
-                WriteMatrixRowLabel(writer, questionElement, column.MatrixRowValue);
+                WriteMatrixRowLabel(writer, questionElement, column);
             }
         }
 
@@ -1213,12 +1213,17 @@ internal static partial class FormSchemaCodebookBuilder
     private static void WriteMatrixRowLabel(
         Utf8JsonWriter writer,
         JsonElement questionElement,
-        string rowValue)
+        FormSchemaColumn column)
     {
-        var rowElement = FindMatrixRowElement(questionElement, rowValue);
-        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
-            rowElement,
-            SurveyJsPropertyNames.Text);
+        var rowValue = column.MatrixRowValue!;
+        // A multiple-text item keeps its label in title; a matrix row keeps it in text.
+        var localized = column.Kind is FormSchemaColumnKind.MultipleTextItem
+            ? SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMultipleTextItemElement(questionElement, rowValue),
+                SurveyJsPropertyNames.Title)
+            : SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMatrixRowElement(questionElement, rowValue),
+                SurveyJsPropertyNames.Text);
         writer.WritePropertyName(FormSchemaCodebookPropertyNames.RowLabel);
         // SurveyJS allows value-only rows (no text). Mirror WriteChoiceLabel and fall back to value.
         WriteLocalizedStringsWithFallback(writer, localized, fallback: rowValue);

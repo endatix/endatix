@@ -2008,7 +2008,8 @@
       },
       "matrixRowValue": "emergency",
       "rowLabel": {
-        "default": "emergency"
+        "default": "Emergency Contact",
+        "es": "Contacto de emergencia"
       }
     },
     "qMultipleText__phone": {
@@ -2021,7 +2022,8 @@
       },
       "matrixRowValue": "phone",
       "rowLabel": {
-        "default": "phone"
+        "default": "Phone Number",
+        "es": "Número de teléfono"
       }
     },
     "qPanelText": {

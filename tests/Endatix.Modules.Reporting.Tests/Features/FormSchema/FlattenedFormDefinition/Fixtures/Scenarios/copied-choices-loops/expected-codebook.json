@@ -2768,7 +2768,7 @@
       "title": {},
       "matrixRowValue": "city",
       "rowLabel": {
-        "default": "city"
+        "default": "City"
       }
     },
     "contact__zip": {
@@ -2778,7 +2778,7 @@
       "title": {},
       "matrixRowValue": "zip",
       "rowLabel": {
-        "default": "zip"
+        "default": "Postal code"
       }
     },
     "edxAllLoop__1__edxAllOk": {
