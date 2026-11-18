@@ -1,5 +1,7 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using static Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission.CopiedChoiceVisibilityTests;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
@@ -74,6 +76,60 @@ public sealed class CopiedChoiceHiddenContainerTests
 
         // Assert
         cells.Should().Equal(Cells(("1", "1"), ("2", "0"), ("3", null)));
+    }
+
+    // A copy or source a panel or page visibleIf hides, nested panels included, in a survey that clears hidden answers
+    // on complete.
+    public static TheoryData<string> HiddenByAContainerVisibleIf => new(
+        Pages(Page($$"""{"type":"panel","name":"storesPanel","visibleIf":"{x} = 1","elements":[{{STORES}}]}""", SELECTED_COPY)),
+        Pages(Page(STORES), Page(SELECTED_COPY) with { VisibleIf = "{x} = 1" }),
+        Pages(Page(STORES, $$"""{"type":"panel","name":"outer","visibleIf":"{x} = 1","elements":[{"type":"panel","name":"inner","elements":[{{SELECTED_COPY}}]}]}""")));
+
+    [Theory]
+    [MemberData(nameof(HiddenByAContainerVisibleIf))]
+    public void Flatten_IncompleteSubmissionWhosePanelOrPageVisibleIfHidesTheCopyOrSource_WritesOnlyThePickedChoice(string definition)
+    {
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: false);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", null), ("3", null)));
+    }
+
+    [Fact]
+    public void Flatten_IncompleteSubmissionWithAVisibleIfOutsideTheCopyAndItsSources_StaysExact()
+    {
+        // Arrange
+        var definition = Pages(Page(STORES, SELECTED_COPY, """{"type":"text","name":"note","visibleIf":"{x} = 1"}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: false);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", "0"), ("3", null)));
+    }
+
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, "0")]
+    public void Flatten_CopyInADynamicPanelWithAVisibleIf_IsExactOnlyForACompleteSubmission(bool complete, string? unpicked)
+    {
+        // Arrange
+        var definition = Pages(Page(
+            """{"type":"checkbox","name":"brands","choices":["1"]}""",
+            $$"""{"type":"paneldynamic","name":"brandLoop","visibleIf":"{x} = 1","loopSource":["brands"],"templateElements":[{{STORES}},{{SELECTED_COPY}}]}"""));
+        var compiled = new FormSchemaCompiler().CompilePersisted(definition);
+
+        // Act
+        var flattened = FlattenedSubmissionFlattener.Flatten(
+            Json("""{"brands":["1"],"brandLoop":[{"itemValue":"1","stores":["1","2"],"pick":["1"]}]}"""),
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson, complete));
+
+        // Assert
+        Cell(flattened, "brandLoop__1__pick__1").Should().Be("1");
+        Cell(flattened, "brandLoop__1__pick__2").Should().Be(unpicked);
+        Cell(flattened, "brandLoop__1__pick__3").Should().BeNull();
     }
 
     [Fact]

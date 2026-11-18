@@ -58,9 +58,10 @@ internal sealed record SourceChoices(string Name, IReadOnlyList<string> Values)
 /// saw follows from the sources' answers alone, as Hub and SurveyJS build it from the sources' visible choices: only
 /// under <c>all</c>, <c>selected</c> or <c>unselected</c>, with no cap, no <c>choicesVisibleIf</c>, sources that show
 /// their own choices with no choice visibility rule, no question name the definition uses twice, and no static
-/// <c>visible: false</c> on the copy or an enclosing panel or page. A survey that keeps hidden answers has no exact copy once any page, panel or
-/// question has a <c>visibleIf</c>; otherwise a copy or source with its own <c>visibleIf</c> is exact only for a
-/// completed submission (<see cref="WhenComplete"/>). STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
+/// <c>visible: false</c> on the copy or an enclosing panel or page. A survey that keeps hidden answers has no exact
+/// copy once any page, panel or question has a <c>visibleIf</c>; otherwise a copy or source under a <c>visibleIf</c>
+/// (its own, or an enclosing panel's or page's) is exact only for a completed submission (<see cref="WhenComplete"/>).
+/// STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
 /// <see cref="Merge"/> keep the rule on the copy's choice catalog (<see cref="FormSchemaCodebookPropertyNames.Shown"/>).
 /// RUN: <see cref="Shows"/> rebuilds one respondent's list. Absent or null means unknown, never a guess.
 /// </summary>
@@ -77,7 +78,10 @@ internal sealed class CopyVisibility
 
     public IReadOnlyList<SourceChoices> Sources { get; }
 
-    /// <summary>A copy or source shows only under its own <c>visibleIf</c>: the rule holds for a completed submission.</summary>
+    /// <summary>
+    /// A copy or source shows only under a <c>visibleIf</c>, its own or an enclosing panel's or page's: the rule holds
+    /// for a completed submission.
+    /// </summary>
     public bool WhenComplete { get; }
 
     /// <summary>The rule of a copy whose shown list follows from the answers; null otherwise.</summary>
@@ -269,7 +273,7 @@ internal sealed class CopyVisibility
             ? UnknownBecause.UnrecognizedMode
             : ListProblem(question, fromQuestion) ?? ScopeProblem(question, sources, definition);
         return problem is null
-            ? FromSources(mode!.Value, sources, HasOwnVisibleIf(question) || sources.Exists(source => HasOwnVisibleIf(source.Element)))
+            ? FromSources(mode!.Value, sources, UnderAVisibleIf(question, sources, definition))
             : Unknown(problem.Value);
     }
 
@@ -316,12 +320,22 @@ internal sealed class CopyVisibility
             return UnknownBecause.CopyAlwaysHidden;
         }
 
-        var hidden = definition.HasVisibleIf || HasOwnVisibleIf(question) || sources.Any(source => HasOwnVisibleIf(source.Element));
+        var hidden = definition.HasVisibleIf || UnderAVisibleIf(question, sources, definition);
         return hidden && !definition.ClearsHiddenAnswersOnComplete ? UnknownBecause.HiddenAnswersKept : null;
     }
 
-    private static bool HasOwnVisibleIf(JsonElement question) =>
-        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null;
+    // Whether the copy or a source shows only under a visibleIf: its own, or one on an enclosing panel, dynamic panel or
+    // page.
+    private static bool UnderAVisibleIf(
+        JsonElement question,
+        IReadOnlyList<(string Name, JsonElement Element)> sources,
+        CopyDefinition definition) =>
+        UnderAVisibleIf(question, question.GetSurveyJsName(), definition) ||
+        sources.Any(source => UnderAVisibleIf(source.Element, source.Name, definition));
+
+    private static bool UnderAVisibleIf(JsonElement question, string? name, CopyDefinition definition) =>
+        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null ||
+        name is not null && definition.ContainerVisibleIfNames.Contains(name);
 
     private static List<string> OwnValues(JsonElement source) =>
         [.. SurveyJsChoiceHelper.EnumerateChoiceElements(source).Select(choice => choice.Value)];
@@ -330,7 +344,8 @@ internal sealed class CopyVisibility
 
     // A cap or a visibility rule on the copy shows fewer choices than its sources' answers give. A copy that is never
     // shown can still hold an answer (a default or a value set by an expression); a source that is never shown cannot
-    // differ from the list it gave the copy, so only the copy is checked.
+    // differ from the list it gave the copy, so only the copy is checked. The visible check serves CopyDefinition.None;
+    // with a definition, AlwaysHiddenNames covers it.
     private static UnknownBecause? ListProblem(JsonElement question, bool fromQuestion)
     {
         if (question.TryGetPropertyValue(SurveyJsPropertyNames.Visible) is { ValueKind: JsonValueKind.False })
