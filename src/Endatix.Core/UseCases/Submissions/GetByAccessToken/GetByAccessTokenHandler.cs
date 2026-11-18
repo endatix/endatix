@@ -32,7 +32,7 @@ public class GetByAccessTokenHandler(
             return Result.Forbidden("Token does not have view permission");
         }
 
-        var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, tokenClaims.SubmissionId);
+        var submissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, tokenClaims.SubmissionId, includeTheme: true);
         var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
 
         if (submission == null)

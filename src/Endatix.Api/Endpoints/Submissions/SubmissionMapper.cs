@@ -68,7 +68,9 @@ public static class SubmissionMapper
                 IsDraft = submission.FormDefinition.IsDraft,
                 JsonData = submission.FormDefinition.JsonData,
                 CreatedAt = submission.FormDefinition.CreatedAt,
-                ModifiedAt = submission.FormDefinition.ModifiedAt
+                ModifiedAt = submission.FormDefinition.ModifiedAt,
+                PdfUsesFormTheme = submission.Form?.PdfUsesFormTheme ?? false,
+                ThemeModel = submission.Form is { PdfUsesFormTheme: true } ? submission.Form.Theme?.JsonData : null
             };
         }
 

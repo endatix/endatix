@@ -57,6 +57,7 @@ public class GetActiveFormDefinitionHandler(
             ThemeJsonData = formWithActiveDefinition.Theme?.JsonData,
             RequiresReCaptcha = reCaptchaPolicyService.RequiresReCaptcha(formWithActiveDefinition),
             LimitOnePerUser = formWithActiveDefinition.LimitOnePerUser,
+            PdfUsesFormTheme = formWithActiveDefinition.PdfUsesFormTheme,
             CustomQuestions = customQuestionsJson ?? [],
             Metadata = formWithActiveDefinition.Metadata
         };

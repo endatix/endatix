@@ -38,7 +38,7 @@ public class PartialUpdateFormHandler(
             return gate;
         }
 
-        form.SetEnabled(request.IsEnabled ?? form.IsEnabled); // raises form.enabled_state_changed (outbox) on a change
+        ApplySwitches(form, request);
 
         var theme = await ApplyThemeAsync(form, request.ThemeId, cancellationToken);
         if (theme is not null)
@@ -133,6 +133,12 @@ public class PartialUpdateFormHandler(
             clearing ? "Form cannot be cleared from the requested folder." : "Form cannot be moved to the requested folder.",
             cancellationToken);
         return check.IsOk() ? null : check.ToErrorResult<Form>();
+    }
+
+    private static void ApplySwitches(Form form, PartialUpdateFormCommand request)
+    {
+        form.SetEnabled(request.IsEnabled ?? form.IsEnabled); // raises form.enabled_state_changed (outbox) on a change
+        form.SetPdfUsesFormTheme(request.PdfUsesFormTheme ?? form.PdfUsesFormTheme);
     }
 
     private static int? ResolveExpiry(Form form, PartialUpdateFormCommand request)

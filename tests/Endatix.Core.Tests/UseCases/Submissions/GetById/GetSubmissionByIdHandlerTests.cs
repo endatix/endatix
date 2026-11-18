@@ -37,6 +37,24 @@ public class GetSubmissionByIdHandlerTests
     }
 
     [Fact]
+    public async Task Handle_LoadsTheFormTheme()
+    {
+        // Arrange
+        _submissionsRepository.SingleOrDefaultAsync(
+            Arg.Any<SubmissionWithDefinitionAndFormSpec>(),
+            Arg.Any<CancellationToken>())
+            .Returns((Submission?)null);
+
+        // Act
+        await _handler.Handle(new GetByIdQuery(1, 1), CancellationToken.None);
+
+        // Assert
+        await _submissionsRepository.Received(1).SingleOrDefaultAsync(
+            Arg.Is<SubmissionWithDefinitionAndFormSpec>(spec => spec.IncludeExpressions.Count() == 3),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_ValidRequest_ReturnsSubmission()
     {
         // Arrange

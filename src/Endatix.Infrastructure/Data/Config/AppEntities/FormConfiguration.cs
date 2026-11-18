@@ -24,6 +24,9 @@ public class FormConfiguration : IEntityTypeConfiguration<Form>
         builder.Property(f => f.SubmissionTokenExpiryHours)
             .IsRequired(false);
 
+        builder.Property(f => f.PdfUsesFormTheme)
+            .HasDefaultValue(false);
+
         builder.Property(f => f.Revision)
             .HasDefaultValue(1L)
             .IsRequired();

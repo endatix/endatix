@@ -42,6 +42,7 @@ public static class FormDefinitionMapper
         CustomQuestions = formDefinition.CustomQuestions,
         RequiresReCaptcha = formDefinition.RequiresReCaptcha,
         LimitOnePerUser = formDefinition.LimitOnePerUser,
+        PdfUsesFormTheme = formDefinition.PdfUsesFormTheme,
         Metadata = formDefinition.Metadata,
     };
 

@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
@@ -55,6 +56,52 @@ public sealed class PartialUpdateFormHandlerBranchTests
 
         result.IsSuccess.Should().BeTrue();
         form.SubmissionTokenExpiryHours.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_PdfUsesFormTheme_SetsTheFlag()
+    {
+        var form = StoredForm();
+
+        var result = await _handler.Handle(new PartialUpdateFormCommand(1) { PdfUsesFormTheme = true }, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        form.PdfUsesFormTheme.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_PdfUsesFormThemeOmitted_KeepsTheFlag()
+    {
+        var form = StoredForm();
+        form.SetPdfUsesFormTheme(true);
+
+        var result = await _handler.Handle(new PartialUpdateFormCommand(1) { Name = "Renamed" }, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        form.PdfUsesFormTheme.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_PdfUsesFormThemeFalse_ClearsTheFlag()
+    {
+        var form = StoredForm();
+        form.SetPdfUsesFormTheme(true);
+
+        var result = await _handler.Handle(new PartialUpdateFormCommand(1) { PdfUsesFormTheme = false }, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        form.PdfUsesFormTheme.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Handle_PdfUsesFormTheme_IsInTheFormUpdatedPayload()
+    {
+        var form = StoredForm();
+
+        await _handler.Handle(new PartialUpdateFormCommand(1) { PdfUsesFormTheme = true }, CancellationToken.None);
+
+        var payload = form.DomainEvents.OfType<FormUpdatedEvent>().Single().GetPayload();
+        System.Text.Json.JsonSerializer.Serialize(payload).Should().Contain("\"pdfUsesFormTheme\":true");
     }
 
     private Form StoredForm(int? expiryHours = null)

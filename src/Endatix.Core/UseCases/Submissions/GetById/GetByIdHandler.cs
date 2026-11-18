@@ -15,7 +15,7 @@ public class GetByIdHandler(IRepository<Submission> repository) : IQueryHandler<
 {
     public async Task<Result<Submission>> Handle(GetByIdQuery request, CancellationToken cancellationToken)
     {
-        var singleSubmissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, request.SubmissionId);
+        var singleSubmissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, request.SubmissionId, includeTheme: true);
         var submission = await repository.SingleOrDefaultAsync(singleSubmissionSpec, cancellationToken);
 
         if (submission == null)

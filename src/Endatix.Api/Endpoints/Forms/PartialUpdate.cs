@@ -61,6 +61,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
                 IsEnabled = request.IsEnabled,
                 IsPublic = request.IsPublic,
                 ThemeId = request.ThemeId,
+                PdfUsesFormTheme = request.PdfUsesFormTheme,
                 WebHookSettingsJson = request.WebHookSettingsJson,
                 LimitOnePerUser = request.LimitOnePerUser,
                 SubmissionTokenExpiryHours = request.SubmissionTokenExpiryHours,

@@ -118,7 +118,8 @@ public class PartialUpdateTests
             FormId = 123,
             Name = "Updated Form",
             Description = "Updated Description",
-            IsEnabled = true
+            IsEnabled = true,
+            PdfUsesFormTheme = true
         };
         FormCreateArgs args = new(TenantId: SampleData.TENANT_ID, Name: "Updated Form");
         var result = Result.Success(Form.Create(args));
@@ -135,7 +136,8 @@ public class PartialUpdateTests
                 cmd.FormId == request.FormId &&
                 cmd.Name == request.Name &&
                 cmd.Description == request.Description &&
-                cmd.IsEnabled == request.IsEnabled
+                cmd.IsEnabled == request.IsEnabled &&
+                cmd.PdfUsesFormTheme == true
             ),
             Arg.Any<CancellationToken>()
         );

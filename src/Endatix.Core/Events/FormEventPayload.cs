@@ -28,6 +28,7 @@ internal static class FormEventPayload
         isEnabled = isEnabled ?? form.IsEnabled,
         activeDefinitionId = form.ActiveDefinitionId,
         themeId = form.ThemeId,
+        pdfUsesFormTheme = form.PdfUsesFormTheme,
         folderId = form.FolderId,
         createdAt = form.CreatedAt,
         modifiedAt = form.ModifiedAt,

@@ -41,6 +41,11 @@ public record FormDto
     public int? SubmissionTokenExpiryHours { get; init; }
 
     /// <summary>
+    /// Whether the form's submission PDFs use its theme.
+    /// </summary>
+    public bool PdfUsesFormTheme { get; init; }
+
+    /// <summary>
     /// Additional form-level metadata as raw JSON string.
     /// </summary>
     public string? Metadata { get; init; }
