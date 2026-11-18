@@ -1,14 +1,17 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.UseCases.FormDefinitions.Create;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.Create;
 
 public class CreateFormDefinitionHandlerTests
 {
+    private readonly IMediator _mediator;
     private readonly IFormsRepository _formsRepository;
     private readonly ITenantContext _tenantContext;
     private readonly CreateFormDefinitionHandler _handler;
@@ -17,7 +20,8 @@ public class CreateFormDefinitionHandlerTests
     {
         _formsRepository = Substitute.For<IFormsRepository>();
         _tenantContext = Substitute.For<ITenantContext>();
-        _handler = new CreateFormDefinitionHandler(_formsRepository, _tenantContext);
+        _mediator = Substitute.For<IMediator>();
+        _handler = new CreateFormDefinitionHandler(_formsRepository, _tenantContext, _mediator);
     }
 
     [Fact]
@@ -39,6 +43,7 @@ public class CreateFormDefinitionHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form not found.");
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormDefinitionChangedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -76,6 +81,9 @@ public class CreateFormDefinitionHandlerTests
         createdFormDefinition.JsonData.Should().Be(request.JsonData);
 
         await _formsRepository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
+        await _mediator.Received(1).Publish(
+            Arg.Is<FormDefinitionChangedEvent>(e => e.FormId == request.FormId),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

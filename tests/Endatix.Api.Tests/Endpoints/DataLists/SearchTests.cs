@@ -1,5 +1,6 @@
 using Endatix.Api.Endpoints.DataLists;
 using Endatix.Api.Endpoints.Public.DataLists;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Infrastructure;
@@ -17,10 +18,13 @@ namespace Endatix.Api.Tests.Endpoints.DataLists;
 
 public class SearchTests
 {
-    private const string TestFormAccessJwt = "test-form-access-jwt";
+    private const string TEST_FORM_ACCESS_JWT = "test-form-access-jwt";
+
+    private static readonly long[] _formLists = [11, 22, 42, 99];
 
     private readonly IMediator _mediator;
     private readonly IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> _publicFormAccessPolicy;
+    private readonly IFormRuntimeScopeReader _runtimeScopeReader;
     private readonly Search _endpoint;
 
     public SearchTests()
@@ -36,8 +40,12 @@ public class SearchTests
             .GetAccessData(Arg.Any<PublicFormAccessContext>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<ICachedData<PublicFormAccessData>>(cached));
         var httpContext = new DefaultHttpContext();
-        httpContext.Request.Headers.Authorization = $"Bearer {TestFormAccessJwt}";
-        _endpoint = Factory.Create<Search>(httpContext, _mediator, _publicFormAccessPolicy);
+        httpContext.Request.Headers.Authorization = $"Bearer {TEST_FORM_ACCESS_JWT}";
+        _runtimeScopeReader = Substitute.For<IFormRuntimeScopeReader>();
+        _runtimeScopeReader
+            .ReachesDataListAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<DataListReach>(), Arg.Any<CancellationToken>())
+            .Returns(call => _formLists.Contains(call.ArgAt<long>(1)));
+        _endpoint = Factory.Create<Search>(httpContext, _mediator, _publicFormAccessPolicy, _runtimeScopeReader);
     }
 
     [Fact]
@@ -76,7 +84,7 @@ public class SearchTests
         await _publicFormAccessPolicy.Received(1).GetAccessData(
             Arg.Is<PublicFormAccessContext>(c =>
                 c.FormId == request.FormId &&
-                c.Token == TestFormAccessJwt &&
+                c.Token == TEST_FORM_ACCESS_JWT &&
                 c.TokenType == SubmissionTokenType.FormToken),
             Arg.Any<CancellationToken>());
 
@@ -161,5 +169,30 @@ public class SearchTests
 
         response.Result.Should().BeOfType<ProblemHttpResult>();
         await _mediator.DidNotReceive().Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheFormDoesNotUseTheList_ReturnsNotFoundWithoutQuerying()
+    {
+        var request = new SearchDataListItemsRequest { FormId = 1, DataListId = 555, Query = "x", Skip = 0, Take = 10 };
+
+        var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        var problem = response.Result.Should().BeOfType<ProblemHttpResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        problem.ProblemDetails.Detail.Should().Be("Data list not found.");
+        await _mediator.DidNotReceive().Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ChecksTheListAgainstActiveDefinition()
+    {
+        var request = new SearchDataListItemsRequest { FormId = 1, DataListId = 11, Query = "x", Skip = 0, Take = 10 };
+        _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new Paged<DataListItemDto>(page: 1, pageSize: 10, totalRecords: 0, totalPages: 0, items: [])));
+
+        await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        await _runtimeScopeReader.Received(1).ReachesDataListAsync(1, 11, DataListReach.ActiveDefinition, Arg.Any<CancellationToken>());
     }
 }

@@ -14,7 +14,8 @@ namespace Endatix.Infrastructure.Features.Authorization.PublicForm;
 
 /// <summary>
 /// Issues and validates minimal HS256 ReBAC JWTs for public form surface (form id + tenant id).
-/// Payload: <c>iss</c> (ReBAC issuer), <c>aud</c>, <c>exp</c>, <c>resourceType=form</c>, <c>resourceId</c>, <c>tid</c>.
+/// Payload: <c>iss</c> (ReBAC issuer), <c>aud</c>, <c>exp</c>, <c>resourceType=form</c>, <c>resourceId</c>, <c>tid</c>,
+/// <c>grant</c> (<c>public</c> or <c>private</c>).
 /// </summary>
 /// <remarks>
 /// Registered as scoped with <see cref="IOptionsSnapshot{TOptions}"/> so signing key and issuer track configuration
@@ -23,7 +24,7 @@ namespace Endatix.Infrastructure.Features.Authorization.PublicForm;
 internal sealed class FormAccessTokenService : IFormAccessTokenService
 {
     /// <summary>HS256 requires at least 256 bits (32 bytes) of key material; we validate UTF-8-encoded length.</summary>
-    private const int MinSigningKeyUtf8ByteLength = 32;
+    private const int MIN_SIGNING_KEY_UTF8_BYTE_LENGTH = 32;
 
     private static readonly TimeSpan _clockSkew = TimeSpan.FromSeconds(15);
 
@@ -44,7 +45,7 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
         Guard.Against.NegativeOrZero(_options.FormAccessTokenExpiryMinutes);
 
         var signingKeyBytes = Encoding.UTF8.GetBytes(_options.SigningKey);
-        if (signingKeyBytes.Length < MinSigningKeyUtf8ByteLength)
+        if (signingKeyBytes.Length < MIN_SIGNING_KEY_UTF8_BYTE_LENGTH)
         {
             // InvalidOperationException: SigningKey is options config, not a ctor parameter (CA2208 / Sonar).
             throw new InvalidOperationException(
@@ -80,16 +81,19 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
     }
 
     /// <inheritdoc />
-    public Result<FormAccessTokenDto> CreateToken(long formId, long tenantId)
+    public Result<FormAccessTokenDto> CreateToken(long formId, long tenantId, bool isPublicGrant = true)
     {
         Guard.Against.NegativeOrZero(formId);
         Guard.Against.NegativeOrZero(tenantId);
 
         Claim[] claims =
         [
-            new Claim(JwtReBacClaims.ResourceType, JwtReBacClaims.ResourceTypeValueForm),
-            new Claim(JwtReBacClaims.ResourceId, formId.ToString()),
-            new Claim(ClaimNames.TenantId, tenantId.ToString())
+            new Claim(JwtReBacClaims.RESOURCE_TYPE, JwtReBacClaims.RESOURCE_TYPE_VALUE_FORM),
+            new Claim(JwtReBacClaims.RESOURCE_ID, formId.ToString()),
+            new Claim(ClaimNames.TenantId, tenantId.ToString()),
+            new Claim(
+                JwtReBacClaims.GRANT,
+                isPublicGrant ? JwtReBacClaims.GRANT_VALUE_PUBLIC : JwtReBacClaims.GRANT_VALUE_PRIVATE)
         ];
 
         var expiresUtc = _dateTimeProvider.UtcNow.AddMinutes(_options.FormAccessTokenExpiryMinutes).UtcDateTime;
@@ -117,13 +121,13 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
                 return Result.Invalid(FormAccessTokenErrors.ValidationErrors.InvalidToken);
             }
 
-            var resourceType = principal.FindFirst(JwtReBacClaims.ResourceType)?.Value;
-            if (resourceType != JwtReBacClaims.ResourceTypeValueForm)
+            var resourceType = principal.FindFirst(JwtReBacClaims.RESOURCE_TYPE)?.Value;
+            if (resourceType != JwtReBacClaims.RESOURCE_TYPE_VALUE_FORM)
             {
                 return Result.Invalid(FormAccessTokenErrors.ValidationErrors.InvalidToken);
             }
 
-            var formIdRaw = principal.FindFirst(JwtReBacClaims.ResourceId)?.Value;
+            var formIdRaw = principal.FindFirst(JwtReBacClaims.RESOURCE_ID)?.Value;
             if (!long.TryParse(formIdRaw, out var formId) || formId <= 0)
             {
                 return Result.Invalid(FormAccessTokenErrors.ValidationErrors.InvalidToken);
@@ -136,7 +140,8 @@ internal sealed class FormAccessTokenService : IFormAccessTokenService
             }
 
             var expiresAtUtc = jwtToken.ValidTo.ToUniversalTime();
-            return Result.Success(new FormAccessTokenClaims(formId, tenantId, expiresAtUtc));
+            var isPublicGrant = principal.FindFirst(JwtReBacClaims.GRANT)?.Value != JwtReBacClaims.GRANT_VALUE_PRIVATE;
+            return Result.Success(new FormAccessTokenClaims(formId, tenantId, expiresAtUtc, isPublicGrant));
         }
         catch (SecurityTokenExpiredException)
         {

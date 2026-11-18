@@ -1,15 +1,18 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
 public class PartialUpdateActiveFormDefinitionHandler(
     IFormsRepository formsRepository,
-    IRepository<Submission> submissionsRepository) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+    IRepository<Submission> submissionsRepository,
+    IMediator mediator) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
     public async Task<Result<FormDefinition>> Handle(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
@@ -42,6 +45,7 @@ public class PartialUpdateActiveFormDefinitionHandler(
         }
 
         await formsRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
+        await mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
 
         return Result.Success(activeDefinition);
     }

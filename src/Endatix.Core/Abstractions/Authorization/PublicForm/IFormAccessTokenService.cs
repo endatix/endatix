@@ -12,8 +12,11 @@ public interface IFormAccessTokenService
     /// </summary>
     /// <param name="formId">The ID of the form to create the access token for.</param>
     /// <param name="tenantId">The ID of the tenant to create the access token for.</param>
+    /// <param name="isPublicGrant">
+    /// <c>true</c> when the token is issued because the form is public; it is then refused once the form is not.
+    /// </param>
     /// <returns>The access token data.</returns>
-    Result<FormAccessTokenDto> CreateToken(long formId, long tenantId);
+    Result<FormAccessTokenDto> CreateToken(long formId, long tenantId, bool isPublicGrant = true);
 
     /// <summary>
     /// Validates a signed JWT for public form access.   

@@ -1,20 +1,24 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests.TestUtils;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdate;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.PartialUpdate;
 
 public class PartialUpdateFormDefinitionHandlerTests
 {
+    private readonly IMediator _mediator;
     private readonly IRepository<FormDefinition> _repository;
     private readonly PartialUpdateFormDefinitionHandler _handler;
 
     public PartialUpdateFormDefinitionHandlerTests()
     {
         _repository = Substitute.For<IRepository<FormDefinition>>();
-        _handler = new PartialUpdateFormDefinitionHandler(_repository);
+        _mediator = Substitute.For<IMediator>();
+        _handler = new PartialUpdateFormDefinitionHandler(_repository, _mediator);
     }
 
     [Fact]
@@ -35,6 +39,7 @@ public class PartialUpdateFormDefinitionHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form definition not found.");
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormDefinitionChangedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -91,6 +96,9 @@ public class PartialUpdateFormDefinitionHandlerTests
         actualResult.Id.Should().Be(2);
         actualResult.FormId.Should().Be(1);
         await _repository.Received(1).UpdateAsync(formDefinition, Arg.Any<CancellationToken>());
+        await _mediator.Received(1).Publish(
+            Arg.Is<FormDefinitionChangedEvent>(e => e.FormId == request.FormId),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

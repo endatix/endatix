@@ -81,18 +81,14 @@ public sealed class SignedInTenantFlowTests(EndatixIntegrationWebHostFixture fix
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, cancellationToken);
         var tenantId = world.Tenants[0].Id;
-        await world.Seed.SeedFormAsync(tenantId, "Form access token form", cancellationToken);
         using var scope = world.Services.CreateScope();
-        var formId = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Forms
-            .IgnoreQueryFilters()
-            .Where(form => form.TenantId == tenantId && form.Name == "Form access token form")
-            .Select(form => form.Id)
-            .SingleAsync(cancellationToken);
         var ownDataListId = await SeedDataListAsync(scope, tenantId, cancellationToken);
         var otherDataListId = await SeedDataListAsync(
             scope,
             await IntegrationTenants.InsertAsync(fixture.Database, cancellationToken),
             cancellationToken);
+        // The form binds both lists, so only the token's tenant can refuse the other one.
+        var formId = await SeedFormBindingAsync(scope, tenantId, [ownDataListId, otherDataListId], cancellationToken);
         var formAccessToken = scope.ServiceProvider.GetRequiredService<IFormAccessTokenService>()
             .CreateToken(formId, tenantId).Value.Token;
         using var client = world.AnonymousClient();
@@ -109,6 +105,27 @@ public sealed class SignedInTenantFlowTests(EndatixIntegrationWebHostFixture fix
         // Assert
         ownResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         otherResponse.StatusCode.Should().Be(HttpStatusCode.NotFound, "the request runs at the token's tenant");
+    }
+
+    private static async Task<long> SeedFormBindingAsync(
+        IServiceScope scope,
+        long tenantId,
+        IReadOnlyList<long> dataListIds,
+        CancellationToken cancellationToken)
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Form access token form", IsEnabled: true, IsPublic: true));
+        db.Forms.Add(form);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var questions = string.Join(",", dataListIds.Select((id, index) =>
+            $$"""{"type":"dropdown","name":"q{{index}}","edxDataListId":{{id}}}"""));
+        form.AddFormDefinition(new FormDefinition(
+            tenantId,
+            isDraft: false,
+            jsonData: $$"""{"pages":[{"name":"page1","elements":[{{questions}}]}]}"""));
+        await db.SaveChangesAsync(cancellationToken);
+        return form.Id;
     }
 
     private static async Task<long> SeedDataListAsync(IServiceScope scope, long tenantId, CancellationToken cancellationToken)

@@ -3,6 +3,7 @@ using Endatix.Api.Common.Security;
 using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Endpoints.DataLists;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Authorization.Access;
 using Endatix.Core.UseCases.DataLists.Search;
 using Endatix.Infrastructure.Features.AccessControl;
@@ -20,9 +21,12 @@ namespace Endatix.Api.Endpoints.Public.DataLists;
 /// </summary>
 public sealed class GetChoiceDisplayValues(
     IMediator mediator,
-    IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy)
+    IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext> publicFormAccessPolicy,
+    IFormRuntimeScopeReader runtimeScopeReader)
     : Endpoint<GetChoiceDisplayValuesRequest, Results<Ok<IReadOnlyCollection<DataListPublicChoiceModel>>, ProblemHttpResult>>
 {
+    /// <summary>Display-value reads one client may make per minute.</summary>
+    public const int REQUESTS_PER_MINUTE = 300;
 
     /// <inheritdoc />
     public override void Configure()
@@ -30,22 +34,27 @@ public sealed class GetChoiceDisplayValues(
         Get("forms/{formId}/data-lists/{dataListId}/display-values");
         Group<PublicApiGroup>();
         Policies(AuthorizationPolicies.PublicResourceAccess);
+        Throttle(REQUESTS_PER_MINUTE, 60);
         Summary(s =>
         {
             s.Summary = "Resolve data list display values";
             s.Description =
-                "Returns { value, labels: { default, ... } } for stored values in a runtime form context. Requires the form access JWT as Authorization: Bearer {jwt}. Use includeLocales to add catalog locales to labels.";
+                "Returns { value, labels: { default, ... } } for stored values in a runtime form context. Requires the form access JWT as Authorization: Bearer {jwt}. Use includeLocales to add catalog locales to labels. " +
+                "Answers only for a data list a definition of the form binds (the active one, a draft or an older one), so older submissions keep their labels; any other list is not found. " +
+                $"Limited to {REQUESTS_PER_MINUTE} requests a minute per client.";
             s.Responses[200] = "Data list display values resolved successfully.";
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[401] = "Unauthorized. Send Authorization: Bearer <jwt>";
-            s.Responses[404] = "Form not found.";
+            s.Responses[404] = "Form or data list not found.";
+            s.Responses[429] = "Too many requests.";
 
         });
         Description(builder => builder
             .Produces<IReadOnlyCollection<DataListPublicChoiceModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests));
     }
 
     /// <inheritdoc />
@@ -71,8 +80,17 @@ public sealed class GetChoiceDisplayValues(
             return accessDataResult.ToProblem();
         }
 
-        GetDataListChoiceDisplayValuesQuery query = new(request.DataListId, request.Values, request.IncludeLocales);
-        var result = await mediator.Send(query, ct);
+        var result = await PublicDataListScope.RefuseUnlessFormReachesAsync<IReadOnlyCollection<DataListChoiceDisplayValueDto>>(
+            runtimeScopeReader,
+            request.FormId,
+            request.DataListId,
+            DataListReach.AnyDefinition,
+            ct);
+        if (result is null)
+        {
+            GetDataListChoiceDisplayValuesQuery query = new(request.DataListId, request.Values, request.IncludeLocales);
+            result = await mediator.Send(query, ct);
+        }
 
         return TypedResultsBuilder
             .MapResult(result, items => (IReadOnlyCollection<DataListPublicChoiceModel>)items.Select(DataListMapper.MapPublic).ToArray())
