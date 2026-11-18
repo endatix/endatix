@@ -1,0 +1,111 @@
+{
+  "calculatedValues": [
+    { "name": "poolSize", "expression": "5", "includeIntoResult": true }
+  ],
+  "pages": [
+    {
+      "name": "setup",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "occasionPool",
+          "title": "Occasions offered",
+          "clearIfInvisible": "none",
+          "defaultValueExpression": "iif({poolSize} = 5, [1, 2, 3, 4, 5, 6], [])",
+          "choices": [
+            { "value": "2", "text": "Occasion 2" },
+            { "value": "3", "text": "Occasion 3" },
+            { "value": "4", "text": "Occasion 4" },
+            { "value": "5", "text": "Occasion 5" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "brands",
+          "title": "Brands offered",
+          "choices": [
+            { "value": "1", "text": "Brand 1" },
+            { "value": "2", "text": "Brand 2" },
+            { "value": "3", "text": "Brand 3" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "traits",
+          "title": "Traits offered",
+          "choices": [
+            { "value": "t1", "text": "Fresh" },
+            { "value": "t2", "text": "Cheap" },
+            { "value": "t3", "text": "Local" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "questions",
+      "elements": [
+        {
+          "type": "ranking",
+          "name": "topOccasions",
+          "title": "Rank your two main occasions",
+          "isRequired": true,
+          "choicesFromQuestion": "occasionPool",
+          "choicesFromQuestionMode": "selected",
+          "selectToRankEnabled": true,
+          "minSelectedChoices": 2,
+          "maxSelectedChoices": 2
+        },
+        {
+          "type": "checkbox",
+          "name": "aware",
+          "title": "Which of these brands do you know?",
+          "isRequired": true,
+          "showNoneItem": true,
+          "choicesFromQuestion": "brands",
+          "choicesFromQuestionMode": "selected"
+        },
+        {
+          "type": "paneldynamic",
+          "name": "occasionLoop",
+          "visibleIf": "{aware} noneof ['none']",
+          "loopSource": ["topOccasions"],
+          "randomizeLoop": true,
+          "displayMode": "carousel",
+          "allowAddPanel": false,
+          "allowRemovePanel": false,
+          "templateElements": [
+            {
+              "type": "radiogroup",
+              "name": "occasionBrand",
+              "title": "Which brand first comes to mind for {panel.itemText}?",
+              "isRequired": true,
+              "showNoneItem": true,
+              "choicesFromQuestion": "aware",
+              "choicesFromQuestionMode": "selected"
+            }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "traitLoop",
+          "visibleIf": "{aware} noneof ['none']",
+          "loopSource": ["aware"],
+          "displayMode": "carousel",
+          "allowAddPanel": false,
+          "allowRemovePanel": false,
+          "templateElements": [
+            {
+              "type": "checkbox",
+              "name": "brandTraits",
+              "title": "Which traits fit {panel.itemText}?",
+              "isRequired": true,
+              "showNoneItem": true,
+              "choicesFromQuestion": "traits",
+              "choicesFromQuestionMode": "selected"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Endatix.IntegrationTests.Infrastructure;
+using Endatix.IntegrationTests.Shared;
+
+namespace Endatix.IntegrationTests;
+
+/// <summary>
+/// Each export golden scenario with a submission (<c>Fixtures/Scenarios/</c> in the Reporting tests) run end to end over
+/// HTTP on <see cref="ReportingWebHost"/>: create the form, submit the response as complete, compile, backfill and export
+/// with the tenant's CSV format. The answer columns must match the scenario's <c>expected-csv.csv</c>, which the golden
+/// tests build in memory, so the goldens are proven against the running pipeline.
+/// </summary>
+[Collection(nameof(EndatixIntegrationTestCollection))]
+[Trait("Category", "FeatureFlow")]
+[Trait("Priority", "P1")]
+public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture fixture)
+{
+    private const string SEED_PASSWORD = "Password123!";
+
+    // FormId, Id, IsComplete, CollectionStatus, CreatedAt, ModifiedAt, StartedAt, CompletedAt, DurationSeconds,
+    // SubmitterId and SubmitterDisplayId: values the run sets, none of which holds a comma.
+    private const int SYSTEM_COLUMNS = 11;
+
+    private static string ScenariosRoot => Path.Combine(AppContext.BaseDirectory, "Fixtures", "Scenarios");
+
+    public static TheoryData<string> ScenariosWithASubmission() =>
+        new(Directory.EnumerateDirectories(ScenariosRoot)
+            .Where(folder => File.Exists(Path.Combine(folder, "submission.json")))
+            .Select(Path.GetFileName)
+            .OfType<string>()
+            .Order(StringComparer.Ordinal));
+
+    [Theory]
+    [MemberData(nameof(ScenariosWithASubmission))]
+    public async Task Scenario_exported_over_http_matches_its_csv_golden(string scenario)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var folder = Path.Combine(ScenariosRoot, scenario);
+        await using ReportingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        ScenarioApi api = new(client, ct);
+        var formId = await api.CreateFormAsync(File.ReadAllText(Path.Combine(folder, "definition.json")));
+        await api.SubmitCompleteAsync(formId, File.ReadAllText(Path.Combine(folder, "submission.json")));
+        await api.PostOkAsync($"/api/forms/{formId}/reporting/compile-schema", new { });
+        await api.PostOkAsync($"/api/forms/{formId}/submissions/backfill", new { force = true });
+
+        // Act
+        var csv = await api.ExportCsvAsync(formId);
+
+        // Assert
+        var expected = Lines(File.ReadAllText(Path.Combine(folder, "expected-csv.csv")));
+        var actual = Lines(csv);
+        actual.Should().HaveCount(2, because: $"scenario '{scenario}' exports a header and one row");
+        actual[0].Should().Be(expected[0], because: $"scenario '{scenario}' should export the golden's columns");
+        Answers(actual[1]).Should().Be(
+            Answers(expected[1]),
+            because: $"scenario '{scenario}' should export the golden's answers over HTTP");
+    }
+
+    private static string[] Lines(string csv) =>
+        csv.TrimStart('\uFEFF').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+    private static string Answers(string row) => row.Split(',', SYSTEM_COLUMNS + 1)[SYSTEM_COLUMNS];
+
+    // The admin's client and the test's token, so each call names only what it sends.
+    private sealed class ScenarioApi(HttpClient client, CancellationToken ct)
+    {
+        public async Task<string> CreateFormAsync(string definition)
+        {
+            using var response = await client.PostAsJsonAsync(
+                "/api/forms",
+                new { name = $"scenario-{Guid.NewGuid():N}", isEnabled = true, formDefinitionJsonData = definition },
+                ct);
+            response.StatusCode.Should().Be(HttpStatusCode.Created, await response.Content.ReadAsStringAsync(ct));
+            using var form = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            return form.RootElement.GetProperty("id").GetString()!;
+        }
+
+        public Task SubmitCompleteAsync(string formId, string jsonData) =>
+            PostAsync($"/api/forms/{formId}/submissions", new { isComplete = true, jsonData }, HttpStatusCode.Created);
+
+        public Task PostOkAsync(string uri, object body) => PostAsync(uri, body, HttpStatusCode.OK);
+
+        public async Task<string> ExportCsvAsync(string formId)
+        {
+            var formats = await client.GetFromJsonAsync<JsonElement>("/api/settings/export-formats", ct);
+            var csvFormat = formats.EnumerateArray().Single(format => format.GetProperty("wireKey").GetString() == "csv");
+            using var response = await client.PostAsJsonAsync(
+                $"/api/forms/{formId}/submissions/export",
+                new { exportFormatId = csvFormat.GetProperty("id").GetString() },
+                ct);
+            response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
+            return await response.Content.ReadAsStringAsync(ct);
+        }
+
+        private async Task PostAsync(string uri, object body, HttpStatusCode expected)
+        {
+            using var response = await client.PostAsJsonAsync(uri, body, ct);
+            response.StatusCode.Should().Be(expected, await response.Content.ReadAsStringAsync(ct));
+        }
+    }
+}

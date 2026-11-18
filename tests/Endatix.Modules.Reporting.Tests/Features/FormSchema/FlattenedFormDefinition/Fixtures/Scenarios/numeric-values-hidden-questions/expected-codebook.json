@@ -1,0 +1,490 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "brandStore": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Where did you buy it?"
+      },
+      "pageName": "visitsPage",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store one"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store two"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ]
+    },
+    "brandSwitch": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Which brand would you switch to?"
+      },
+      "pageName": "visitsPage",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand one"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand two"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ]
+    },
+    "brandUsed": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Which brand did you buy?"
+      },
+      "pageName": "visitsPage",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand one"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand two"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand three"
+          }
+        }
+      ]
+    },
+    "photoBack": {
+      "surveyJsType": "file",
+      "title": {
+        "default": "Photo of the back"
+      },
+      "parentPanelTitle": "photos",
+      "parentPanels": [
+        {
+          "key": "photos",
+          "title": "photos"
+        }
+      ],
+      "pageName": "visitsPage",
+      "exportShape": "file"
+    },
+    "photoFront": {
+      "surveyJsType": "file",
+      "title": {
+        "default": "Photo of the front"
+      },
+      "parentPanelTitle": "photos",
+      "parentPanels": [
+        {
+          "key": "photos",
+          "title": "photos"
+        }
+      ],
+      "pageName": "visitsPage",
+      "exportShape": "file"
+    },
+    "photos": {
+      "surveyJsType": "panel",
+      "title": {},
+      "pageName": "visitsPage",
+      "exportShape": "scalar"
+    },
+    "reasons": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Why do you visit?"
+      },
+      "pageName": "visitsPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Price"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Range"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Service"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
+          }
+        }
+      ]
+    },
+    "visits": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "How often do you visit?"
+      },
+      "pageName": "visitsPage",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Weekly"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Monthly"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Yearly"
+          }
+        },
+        {
+          "value": "4",
+          "id": 4,
+          "text": {
+            "default": "Never"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "brandStore": {
+      "parentKey": "brandStore",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Where did you buy it?"
+      }
+    },
+    "brandStore__other_text": {
+      "parentKey": "brandStore",
+      "surveyJsType": "radiogroup",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Where did you buy it?"
+      }
+    },
+    "brandSwitch": {
+      "parentKey": "brandSwitch",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Which brand would you switch to?"
+      }
+    },
+    "brandSwitch__other_text": {
+      "parentKey": "brandSwitch",
+      "surveyJsType": "radiogroup",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brand would you switch to?"
+      }
+    },
+    "brandUsed": {
+      "parentKey": "brandUsed",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Which brand did you buy?"
+      }
+    },
+    "photoBack": {
+      "parentKey": "photoBack",
+      "surveyJsType": "file",
+      "exportShape": "file",
+      "title": {
+        "default": "Photo of the back"
+      }
+    },
+    "photoFront": {
+      "parentKey": "photoFront",
+      "surveyJsType": "file",
+      "exportShape": "file",
+      "title": {
+        "default": "Photo of the front"
+      }
+    },
+    "reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why do you visit?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Price"
+      }
+    },
+    "reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why do you visit?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Range"
+      }
+    },
+    "reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why do you visit?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Service"
+      }
+    },
+    "reasons__other": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why do you visit?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Something else"
+      }
+    },
+    "reasons__other_text": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why do you visit?"
+      }
+    },
+    "visits": {
+      "parentKey": "visits",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "How often do you visit?"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "brandStore": {
+      "multiple": false,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Store one"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Store two"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ]
+    },
+    "brandSwitch": {
+      "multiple": false,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand one"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand two"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ]
+    },
+    "brandUsed": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand one"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand two"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand three"
+          }
+        }
+      ]
+    },
+    "reasons": {
+      "multiple": true,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Price"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Range"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Service"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
+          }
+        }
+      ]
+    },
+    "visits": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Weekly"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Monthly"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Yearly"
+          }
+        },
+        {
+          "value": "4",
+          "id": 4,
+          "text": {
+            "default": "Never"
+          }
+        }
+      ]
+    }
+  }
+}
