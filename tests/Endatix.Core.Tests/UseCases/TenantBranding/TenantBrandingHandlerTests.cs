@@ -1,0 +1,185 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Branding;
+using Endatix.Core.Exceptions;
+using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.TenantBranding.Publish;
+using Endatix.Core.UseCases.TenantBranding.Rollback;
+using TenantBrandingEntity = Endatix.Core.Entities.TenantBranding;
+
+namespace Endatix.Core.Tests.UseCases.TenantBranding;
+
+public sealed class TenantBrandingHandlerTests
+{
+    private const long TenantId = 42;
+    private const string Blue = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
+    private const string Green = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
+    private static readonly DateTimeOffset Now = new(2026, 11, 18, 9, 0, 0, TimeSpan.Zero);
+
+    private readonly IRepository<TenantBrandingEntity> _repository = Substitute.For<IRepository<TenantBrandingEntity>>();
+    private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
+    private readonly ITenantEntitlements _entitlements = Substitute.For<ITenantEntitlements>();
+    private readonly IDateTimeProvider _clock = Substitute.For<IDateTimeProvider>();
+    private readonly PublishTenantBrandingHandler _publish;
+    private readonly RollbackTenantBrandingHandler _rollback;
+
+    public TenantBrandingHandlerTests()
+    {
+        _tenantContext.TenantId.Returns(TenantId);
+        _entitlements.HasAsync(TenantId, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
+        _clock.Now.Returns(Now);
+        _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements, _clock);
+        _rollback = new RollbackTenantBrandingHandler(_repository, _tenantContext, _entitlements, _clock);
+    }
+
+    [Fact]
+    public async Task Publish_NotEntitled_IsForbiddenAndWritesNothing()
+    {
+        // Arrange
+        _entitlements.HasAsync(TenantId, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        await _repository.DidNotReceive().FirstOrDefaultAsync(Arg.Any<TenantBrandingByTenantIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Rollback_NotEntitled_IsForbidden()
+    {
+        // Arrange
+        _entitlements.HasAsync(TenantId, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _rollback.Handle(new RollbackTenantBrandingCommand(1), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+    }
+
+    [Fact]
+    public async Task Publish_InvalidOverride_ReturnsTheProblemList()
+    {
+        // Act
+        var result = await _publish.Handle(
+            new PublishTenantBrandingCommand("""{"version":1,"assets":{"icon":"t/43/brand/i.png"}}""", 0),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle().Which.ErrorCode.Should().Be(BrandOverrideProblems.INVALID_ASSET_KEY);
+    }
+
+    [Fact]
+    public async Task Publish_FirstTime_AddsTheRow()
+    {
+        // Arrange
+        NothingStored();
+
+        // Act
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Revision.Should().Be(1);
+        result.Value.PublishedAt.Should().Be(Now.UtcDateTime);
+        await _repository.Received(1).AddAsync(
+            Arg.Is<TenantBrandingEntity>(branding => branding.TenantId == TenantId && branding.Revision == 1),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Publish_SameValueAgain_SavesNothing()
+    {
+        // Arrange
+        var branding = Stored(new TenantBrandingEntity(TenantId));
+        await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        _repository.ClearReceivedCalls();
+
+        // Act
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Revision.Should().Be(1);
+        branding.Revision.Should().Be(1);
+        await _repository.DidNotReceive().UpdateAsync(Arg.Any<TenantBrandingEntity>(), Arg.Any<CancellationToken>());
+        await _repository.DidNotReceive().AddAsync(Arg.Any<TenantBrandingEntity>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Publish_StaleRevision_IsAConflict()
+    {
+        // Arrange
+        Stored(new TenantBrandingEntity(TenantId));
+        await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+
+        // Act
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(Green, 0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+    }
+
+    [Fact]
+    public async Task Publish_LosesTheRaceAtSave_IsAConflict()
+    {
+        // Arrange
+        Stored(new TenantBrandingEntity(TenantId));
+        _repository.UpdateAsync(Arg.Any<TenantBrandingEntity>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new TenantBrandingConflictException("lost"));
+
+        // Act
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+    }
+
+    [Fact]
+    public async Task Rollback_AtCurrentRevision_SwapsAndSaves()
+    {
+        // Arrange
+        var branding = Stored(new TenantBrandingEntity(TenantId));
+        await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        await _publish.Handle(new PublishTenantBrandingCommand(Green, 1), TestContext.Current.CancellationToken);
+        _repository.ClearReceivedCalls();
+
+        // Act
+        var result = await _rollback.Handle(new RollbackTenantBrandingCommand(2), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Revision.Should().Be(3);
+        result.Value.PublishedJson.Should().Be(branding.PublishedJson).And.Contain("#0052d1");
+        await _repository.Received(1).UpdateAsync(branding, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Rollback_NothingStored_IsInvalid()
+    {
+        // Arrange
+        NothingStored();
+
+        // Act
+        var result = await _rollback.Handle(new RollbackTenantBrandingCommand(0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        await _repository.DidNotReceive().AddAsync(Arg.Any<TenantBrandingEntity>(), Arg.Any<CancellationToken>());
+    }
+
+    private TenantBrandingEntity Stored(TenantBrandingEntity branding)
+    {
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantBrandingByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(branding);
+        return branding;
+    }
+
+    private void NothingStored() =>
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantBrandingByTenantIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns((TenantBrandingEntity?)null);
+}
