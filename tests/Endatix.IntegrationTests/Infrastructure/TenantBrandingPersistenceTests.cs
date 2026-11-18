@@ -1,4 +1,6 @@
+using Endatix.Core.Branding;
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Publishing;
@@ -93,19 +95,21 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     }
 
     [Fact]
-    public async Task A_second_first_publish_is_a_conflict()
+    public async Task A_second_first_insert_is_a_conflict_and_leaves_nothing_tracked()
     {
-        // Arrange: two requests find no row, one inserts first
+        // Arrange: a request found no row and starts one; another request inserts the tenant's row first
         var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
         await using var slowDb = CreateDb(tenantId);
-        (await slowDb.Set<TenantBranding>().AnyAsync(Cancellation)).Should().BeFalse();
+        var slow = new TenantBranding(tenantId);
+        slow.Publish(BrandOverride.Parse(PURPLE, tenantId).Value, 0, DateTime.UtcNow);
+        slowDb.Add(slow);
         await PublishAsync(tenantId, GREEN, 0);
 
         // Act
-        var result = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(PURPLE, 0));
+        var save = () => slowDb.SaveChangesAsync(Cancellation);
 
         // Assert
-        result.Status.Should().Be(ResultStatus.Conflict);
+        await save.Should().ThrowAsync<TenantBrandingConflictException>();
         slowDb.ChangeTracker.Entries<TenantBranding>().Should().BeEmpty("the losing insert must not be replayed by a later save");
         (await ReadAsync(tenantId)).PublishedJson.Should().Contain("#16a34a");
     }
