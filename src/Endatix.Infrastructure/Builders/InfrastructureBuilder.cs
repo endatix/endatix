@@ -89,6 +89,7 @@ public class InfrastructureBuilder
         Services.AddWebHookProcessing();
         Services.AddCollectionStatuses(Configuration);
         Services.AddMultitenancyConfiguration();
+        Services.AddTenantEntitlements();
 
         Data.UseDefaults();
         Messaging.UseDefaults();
