@@ -15,9 +15,11 @@ namespace Endatix.Infrastructure.Features.Outbox;
 /// </remarks>
 internal sealed partial class CompositeIntegrationEventPublisher(
     IEnumerable<IOutboxIntegrationEventHandler> handlers,
-    ILogger<CompositeIntegrationEventPublisher> logger) : IIntegrationEventPublisher
+    ILogger<CompositeIntegrationEventPublisher> logger,
+    IEnumerable<AppLevelOutboxWork>? appLevelWorks = null) : IIntegrationEventPublisher
 {
     private readonly IOutboxIntegrationEventHandler[] _handlers = handlers.ToArray();
+    private readonly HashSet<Type> _appLevelWorks = [.. (appLevelWorks ?? []).Select(work => work.WorkType)];
 
     /// <inheritdoc />
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
@@ -32,6 +34,8 @@ internal sealed partial class CompositeIntegrationEventPublisher(
             LogNoHandler(message);
             return;
         }
+
+        ThrowIfAppLevelWorkGetsATenantRow(matched, message);
 
         foreach (var handler in matched)
         {
@@ -55,6 +59,23 @@ internal sealed partial class CompositeIntegrationEventPublisher(
                     $"Outbox handler {handler.GetType().Name} failed for message {message.Id} ({message.EventType}).",
                     ex);
             }
+        }
+    }
+
+    // Checked before any handler runs, so the message fails whole, as it does when the relay enqueues jobs.
+    private void ThrowIfAppLevelWorkGetsATenantRow(IOutboxIntegrationEventHandler[] matched, IOutboxMessage message)
+    {
+        if (message.TenantId == OutboxAppLevel.NoTenant)
+        {
+            return;
+        }
+
+        var appLevel = matched.FirstOrDefault(handler => _appLevelWorks.Contains(handler.GetType()));
+        if (appLevel is not null)
+        {
+            throw new InvalidOperationException(
+                $"Outbox message {message.Id} ({message.EventType}) names a tenant, but {appLevel.GetType().Name} " +
+                $"is app-level work and runs on app-level messages only.");
         }
     }
 

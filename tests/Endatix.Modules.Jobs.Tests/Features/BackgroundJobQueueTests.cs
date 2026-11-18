@@ -245,6 +245,35 @@ public class BackgroundJobQueueTests : IDisposable
     }
 
     [Fact]
+    public async Task EnqueueManyAsync_SameKeyForSystemAndTenant_InsertsOneJobEach()
+    {
+        // Arrange — a dedup key is unique within a scope, so the system's key never collides with a tenant's.
+        var tenantJob = Request("A") with { DedupKey = "42:A" };
+        var systemJob = tenantJob with { Scope = JobScope.System };
+
+        // Act
+        var jobIds = await _queue.EnqueueManyAsync([tenantJob, systemJob], TestContext.Current.CancellationToken);
+
+        // Assert
+        jobIds[0].Should().NotBe(jobIds[1]);
+        (await _dbContext.BackgroundJobs.CountAsync(TestContext.Current.CancellationToken)).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task EnqueueAsync_SystemKeyAlreadyEnqueued_ReturnsExistingId()
+    {
+        // Arrange
+        var systemJob = new BackgroundJobRequest("A", """{"formId":"1"}""", JobScope.System, DedupKey: "42:A");
+        var existingId = await _queue.EnqueueAsync(systemJob, TestContext.Current.CancellationToken);
+
+        // Act
+        var jobId = await _queue.EnqueueAsync(systemJob, TestContext.Current.CancellationToken);
+
+        // Assert
+        jobId.Should().Be(existingId);
+    }
+
+    [Fact]
     public async Task EnqueueAsync_KeyAlreadyEnqueued_ReturnsExistingIdAndSchedulesNothing()
     {
         // Arrange

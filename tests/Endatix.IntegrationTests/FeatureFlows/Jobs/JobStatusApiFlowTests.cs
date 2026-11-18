@@ -129,10 +129,6 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
 
     private static Uri JobUri(long jobId) => new($"/api/jobs/{jobId}", UriKind.Relative);
 
-    /// <remarks>
-    /// Written straight to the queue table: nothing enqueues jobs yet, and the read under test does
-    /// not care how a row arrived.
-    /// </remarks>
     private static async Task<long> SeedSystemJobAsync(IntegrationTestWorld world, CancellationToken cancellationToken)
     {
         using var scope = world.Services.CreateScope();
@@ -145,6 +141,10 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
         return job.Id;
     }
 
+    /// <remarks>
+    /// Written straight to the queue table: nothing enqueues jobs yet, and the read under test does
+    /// not care how a row arrived.
+    /// </remarks>
     private static async Task<long> SeedJobAsync(
         IntegrationTestWorld world,
         long tenantId,

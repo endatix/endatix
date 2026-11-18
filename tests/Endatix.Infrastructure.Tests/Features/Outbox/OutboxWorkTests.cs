@@ -375,6 +375,7 @@ public sealed partial class OutboxWorkTests
         services.AddSingleton(_outbox);
         services.AddSingleton(_queue);
         services.AddScoped<JobQueueIntegrationEventPublisher>();
+        services.AddScoped<CompositeIntegrationEventPublisher>();
         addWork(services);
         addMore?.Invoke(services);
         return services.BuildServiceProvider();

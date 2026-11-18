@@ -523,7 +523,8 @@ job and as that job's subscriptions in one call; see
 - With the switch on and this module off, the relay pauses rather than lose messages.
 - With the switch on, startup fails while an inline outbox handler has no job for one of its events.
 - Work with no tenant registers with `AddAppLevelOutboxWork<TWork>()`: each app-level row (stored
-  tenant none) becomes a system job, and a row that names a tenant fails the publish. Work whose
+  tenant none) becomes a system job, and a row that names a tenant fails the publish, inline or to
+  the job queue. Work whose
   app-level row names the tenant it belongs to uses `AddOutboxWork<TWork>(appLevelTenant: …)` instead
   (Reporting's export-format seeding). A system job reads only an app-level row and only for app-level
   work, and a tenant job only its own tenant's rows, so neither reaches the other's outbox rows.

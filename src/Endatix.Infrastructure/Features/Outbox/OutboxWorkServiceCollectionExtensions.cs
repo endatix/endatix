@@ -56,7 +56,7 @@ public static class OutboxWorkServiceCollectionExtensions
     /// <summary>
     /// Registers <typeparamref name="TWork"/> like <see cref="AddOutboxWork{TWork}"/>, as work that belongs to no
     /// tenant: each app-level row (one whose stored tenant is none) becomes a system job, and a row that names a
-    /// tenant fails the publish.
+    /// tenant fails the publish, whether the relay runs the work inline or enqueues it.
     /// </summary>
     /// <remarks>
     /// Use it for work that has no tenant, such as work that comes before its tenant exists. Work on an app-level row
@@ -72,7 +72,9 @@ public static class OutboxWorkServiceCollectionExtensions
         BackgroundJobTypeDefaults? defaults = null,
         Func<IOutboxMessage, bool>? onlyWhen = null)
         where TWork : class, IOutboxWork<TWork> =>
-        services.AddWork<TWork>(defaults, new OutboxWorkRegistration<TWork>(readTenant: null, onlyWhen, appLevel: true));
+        services
+            .AddSingleton(new AppLevelOutboxWork(typeof(TWork)))
+            .AddWork<TWork>(defaults, new OutboxWorkRegistration<TWork>(readTenant: null, onlyWhen, appLevel: true));
 
     private static IServiceCollection AddWork<TWork>(
         this IServiceCollection services,
@@ -141,6 +143,9 @@ internal sealed record OutboxMessageJob<TWork>(long OutboxMessageId) : IBackgrou
 {
     public static string JobType => TWork.JobType;
 }
+
+/// <summary>An outbox work registered app-level, which inline delivery runs on app-level messages only.</summary>
+internal sealed record AppLevelOutboxWork(Type WorkType);
 
 /// <summary>What one work's registration told its job and its relay filter.</summary>
 internal sealed class OutboxWorkRegistration<TWork>(

@@ -78,6 +78,51 @@ public sealed class SystemJobsTests(DbIntegrationFixture fixture)
         recorder.Runs.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Inline_delivery_refuses_a_tenant_row_for_app_level_work()
+    {
+        // Arrange — job delivery off: the relay runs the work inline.
+        var ct = TestContext.Current.CancellationToken;
+        var recorder = new ProbeRecorder();
+        await using var host = await FanOutHost.StartAsync(
+            fixture,
+            new FanOutHostSetup(DeliverToJobQueue: false, services => services
+                .AddSingleton(recorder)
+                .AddAppLevelOutboxWork<AppLevelProbeWork>()),
+            ct);
+
+        // Act
+        await host.InsertMessageAsync(new OutboxRow(953, EVENT_TYPE, TenantId: 5), ct);
+        var retried = await host.WaitForMessageAsync(953, message => message.Attempts >= 1, ct);
+
+        // Assert — the same refusal as job delivery: the row is retried, and the work never runs.
+        retried.Should().BeTrue();
+        (await host.ReadMessageAsync(953, ct)).Status.Should().NotBe(SENT);
+        recorder.Runs.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Inline_delivery_runs_app_level_work_on_an_app_level_row()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var recorder = new ProbeRecorder();
+        await using var host = await FanOutHost.StartAsync(
+            fixture,
+            new FanOutHostSetup(DeliverToJobQueue: false, services => services
+                .AddSingleton(recorder)
+                .AddAppLevelOutboxWork<AppLevelProbeWork>()),
+            ct);
+
+        // Act
+        await host.InsertMessageAsync(new OutboxRow(954, EVENT_TYPE, NO_TENANT), ct);
+        var sent = await host.WaitForMessageAsync(954, message => message.Status == SENT, ct);
+
+        // Assert
+        sent.Should().BeTrue();
+        recorder.Runs.Should().Be(1);
+    }
+
     internal sealed class ProbeRecorder
     {
         private int _runs;

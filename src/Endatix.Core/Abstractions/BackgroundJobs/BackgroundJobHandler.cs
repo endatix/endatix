@@ -36,7 +36,7 @@ public abstract partial class BackgroundJobHandler<TPayload>(ILogger logger) : I
             // The log carries the reader's error, which names the offending member and position. Neither the
             // log nor the result carries the payload itself, which may hold data the status endpoint must not
             // return.
-            LogUnreadablePayload(logger, job.JobId, job.JobType, job.TenantId, job.AttemptCount, ex);
+            LogUnreadablePayload(logger, job.JobId, job.JobType, job.Scope, job.AttemptCount, ex);
 
             return Task.FromResult(Result.Invalid(
                 new ValidationError($"The job's input could not be read ({TPayload.JobType}).")));
@@ -57,12 +57,12 @@ public abstract partial class BackgroundJobHandler<TPayload>(ILogger logger) : I
     [LoggerMessage(
         Level = LogLevel.Warning,
         EventName = "BackgroundJobPayloadUnreadable",
-        Message = "Background job {JobId} ({JobType}) for tenant {TenantId} failed on attempt {AttemptCount}: its input could not be read")]
+        Message = "Background job {JobId} ({JobType}) in scope {Scope} failed on attempt {AttemptCount}: its input could not be read")]
     private static partial void LogUnreadablePayload(
         ILogger logger,
         long jobId,
         string jobType,
-        long tenantId,
+        JobScope scope,
         int attemptCount,
         Exception exception);
 }

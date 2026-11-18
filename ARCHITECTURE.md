@@ -616,8 +616,8 @@ that guard the switch are listed with it under [Domain and integration events](#
 webhooks expand to one job per distinct enabled endpoint URL. The relay pauses rather than claim when
 the switch is on and no job queue is registered. A row's jobs take its tenant, the tenant an
 `appLevelTenant` reader names in an app-level row, or, for work registered with `AddAppLevelOutboxWork`, the
-system scope, which takes only app-level rows: a row that names a tenant fails the publish and is retried,
-then failed, where an operator sees it.
+system scope, which takes only app-level rows: a row that names a tenant fails the publish, in either
+delivery mode, and is retried, then failed, where an operator sees it.
 
 ### Three idempotency guards
 
