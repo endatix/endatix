@@ -9,25 +9,30 @@ namespace Endatix.Core.UseCases.TenantBranding;
 /// The save every write of a tenant's branding shares: load the row (or start one), apply the change, and save only
 /// when the revision moved, turning a lost race into a conflict.
 /// </summary>
-internal static class TenantBrandingWriter
+internal sealed class TenantBrandingWriter(IRepository<Entities.TenantBranding> repository, long tenantId)
 {
-    internal static async Task<Result<TenantBrandingDto>> WriteAsync(
-        IRepository<Entities.TenantBranding> repository,
-        long tenantId,
+    internal async Task<Result<TenantBrandingDto>> WriteAsync(
         Func<Entities.TenantBranding, Result> change,
         CancellationToken cancellationToken)
     {
-        var branding = await repository.FirstOrDefaultAsync(new TenantBrandingByTenantIdSpec(tenantId), cancellationToken);
-        var isNew = branding is null;
-        branding ??= new Entities.TenantBranding(tenantId);
+        var stored = await repository.FirstOrDefaultAsync(new TenantBrandingByTenantIdSpec(tenantId), cancellationToken);
+        var branding = stored ?? new Entities.TenantBranding(tenantId);
         var revision = branding.Revision;
 
         var result = change(branding);
-        if (!result.IsSuccess || branding.Revision == revision)
+        if (!result.IsSuccess)
         {
-            return result.IsSuccess ? TenantBrandingDto.From(branding) : result;
+            return result;
         }
 
+        var saved = branding.Revision == revision || await TrySaveAsync(branding, stored is null, cancellationToken);
+        return saved
+            ? TenantBrandingDto.From(branding)
+            : Result.Conflict("The branding changed while it was being saved; read it again and retry.");
+    }
+
+    private async Task<bool> TrySaveAsync(Entities.TenantBranding branding, bool isNew, CancellationToken cancellationToken)
+    {
         try
         {
             if (isNew)
@@ -38,12 +43,12 @@ internal static class TenantBrandingWriter
             {
                 await repository.UpdateAsync(branding, cancellationToken);
             }
+
+            return true;
         }
         catch (TenantBrandingConflictException)
         {
-            return Result.Conflict("The branding changed while it was being saved; read it again and retry.");
+            return false;
         }
-
-        return TenantBrandingDto.From(branding);
     }
 }

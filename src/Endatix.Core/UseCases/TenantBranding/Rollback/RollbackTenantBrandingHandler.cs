@@ -12,22 +12,24 @@ namespace Endatix.Core.UseCases.TenantBranding.Rollback;
 public sealed class RollbackTenantBrandingHandler(
     IRepository<Entities.TenantBranding> repository,
     ITenantContext tenantContext,
-    ITenantEntitlements entitlements,
-    IDateTimeProvider dateTimeProvider)
+    ITenantEntitlements entitlements)
     : ICommandHandler<RollbackTenantBrandingCommand, Result<TenantBrandingDto>>
 {
     public async Task<Result<TenantBrandingDto>> Handle(RollbackTenantBrandingCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;
+        if (tenantId <= 0)
+        {
+            return Result.Unauthorized();
+        }
+
         if (!await entitlements.HasAsync(tenantId, Entitlements.BRANDING, cancellationToken))
         {
             return Result.Forbidden("The tenant's plan does not include branding.");
         }
 
-        var now = dateTimeProvider.Now.UtcDateTime;
-        return await TenantBrandingWriter.WriteAsync(
-            repository,
-            tenantId,
+        var now = DateTime.UtcNow;
+        return await new TenantBrandingWriter(repository, tenantId).WriteAsync(
             branding => branding.Rollback(request.ExpectedRevision, now),
             cancellationToken);
     }

@@ -71,21 +71,26 @@ internal sealed partial class BrandOverrideReader
         OnlyFields("/assets", assets, "logo", "icon");
         if (Optional("/assets/logo", assets, "logo") is { } logo)
         {
-            OnlyFields("/assets/logo", logo, "light", "dark");
-            if (Required("/assets/logo/light", logo, "light") is { } light)
-            {
-                CheckAssetKey("/assets/logo/light", light);
-            }
-
-            if (logo.TryGetProperty("dark", out var dark))
-            {
-                CheckAssetKey("/assets/logo/dark", dark);
-            }
+            CheckLogo(logo);
         }
 
         if (assets.TryGetProperty("icon", out var icon))
         {
             CheckAssetKey("/assets/icon", icon);
+        }
+    }
+
+    private void CheckLogo(JsonElement logo)
+    {
+        OnlyFields("/assets/logo", logo, "light", "dark");
+        if (Required("/assets/logo/light", logo, "light") is { } light)
+        {
+            CheckAssetKey("/assets/logo/light", light);
+        }
+
+        if (logo.TryGetProperty("dark", out var dark))
+        {
+            CheckAssetKey("/assets/logo/dark", dark);
         }
     }
 
@@ -121,15 +126,15 @@ internal sealed partial class BrandOverrideReader
             Add($"{path}/$type", BrandOverrideProblems.INVALID_TYPE, "Must be \"color\".");
         }
 
-        if (Required($"{path}/$value", value, "$value") is not { } colorValue)
-        {
-            return null;
-        }
+        return Required($"{path}/$value", value, "$value") is { } colorValue ? Color($"{path}/$value", colorValue) : null;
+    }
 
-        var rgb = colorValue.ValueKind == JsonValueKind.String ? BrandColor.Parse(colorValue.GetString()!) : null;
+    private Rgb? Color(string path, JsonElement value)
+    {
+        var rgb = value.ValueKind == JsonValueKind.String ? BrandColor.Parse(value.GetString()!) : null;
         if (rgb is null)
         {
-            Add($"{path}/$value", BrandOverrideProblems.INVALID_COLOR, "Use a hex, rgb(), hsl() or oklch() colour.");
+            Add(path, BrandOverrideProblems.INVALID_COLOR, "Use a hex, rgb(), hsl() or oklch() colour.");
         }
 
         return rgb;

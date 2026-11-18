@@ -54,12 +54,7 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned
     /// <paramref name="expectedRevision"/> is stale.</returns>
     public Result Publish(BrandOverride value, long expectedRevision, DateTime now)
     {
-        Guard.Against.Null(value);
-        if (value.TenantId != TenantId)
-        {
-            throw new ArgumentException("The override was checked for another tenant.", nameof(value));
-        }
-
+        EnsureOwnTenant(value);
         if (value.IsSameAs(PublishedJson))
         {
             return Result.Success();
@@ -103,6 +98,15 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned
         (PublishedJson, PreviousJson) = (PreviousJson, PublishedJson);
         Changed(now);
         return Result.Success();
+    }
+
+    private void EnsureOwnTenant(BrandOverride value)
+    {
+        Guard.Against.Null(value);
+        if (value.TenantId != TenantId)
+        {
+            throw new ArgumentException("The override was checked for another tenant.", nameof(value));
+        }
     }
 
     private void Changed(DateTime now)

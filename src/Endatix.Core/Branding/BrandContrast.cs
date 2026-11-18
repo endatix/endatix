@@ -25,17 +25,19 @@ internal static class BrandContrast
     private static readonly Oklch BuiltInLightPrimary = BrandColor.ToOklch(BrandColor.Parse("hsl(216 100% 41%)")!.Value);
     private static readonly Oklch BuiltInDarkPrimary = BrandColor.ToOklch(BrandColor.Parse("#b4c5ff")!.Value);
 
-    /// <summary>The page each mode's primary sits on (<c>--background</c>).</summary>
-    private static readonly Rgb LightBackground = BrandColor.Parse("#ffffff")!.Value;
-    private static readonly Rgb DarkBackground = BrandColor.Parse("#000f21")!.Value;
+    /// <summary>Each colour mode and the page its primary sits on (<c>--background</c>).</summary>
+    private static readonly ColorMode Light = new("light", BrandColor.Parse("#ffffff")!.Value);
+    private static readonly ColorMode Dark = new("dark", BrandColor.Parse("#000f21")!.Value);
+
+    private sealed record ColorMode(string Name, Rgb Background);
 
     internal static IReadOnlyList<ContrastFinding> Check(Rgb primary, Rgb? primaryOnDark)
     {
-        var darkPrimary = primaryOnDark ?? DeriveDarkPrimary(primary);
-        var findings = new List<ContrastFinding>();
-        AddIfLow(findings, "light", PrimaryField, primary, LightBackground);
-        AddIfLow(findings, "dark", primaryOnDark is null ? PrimaryField : PrimaryOnDarkField, darkPrimary, DarkBackground);
-        return findings;
+        var light = Finding(Light, PrimaryField, primary);
+        var dark = primaryOnDark is { } onDark
+            ? Finding(Dark, PrimaryOnDarkField, onDark)
+            : Finding(Dark, PrimaryField, DeriveDarkPrimary(primary));
+        return new[] { light, dark }.OfType<ContrastFinding>().ToList();
     }
 
     /// <summary>
@@ -53,12 +55,11 @@ internal static class BrandContrast
             BrandColor.WrapHue(BuiltInDarkPrimary.H + shift)));
     }
 
-    private static void AddIfLow(List<ContrastFinding> findings, string mode, string field, Rgb primary, Rgb background)
+    private static ContrastFinding? Finding(ColorMode mode, string field, Rgb primary)
     {
-        var ratio = BrandColor.ContrastRatio(BrandColor.AsWritten(primary), background);
-        if (ratio < UiContrast)
-        {
-            findings.Add(new ContrastFinding(mode, field, Math.Floor(ratio * 100) / 100, UiContrast));
-        }
+        var ratio = BrandColor.ContrastRatio(BrandColor.AsWritten(primary), mode.Background);
+        return ratio < UiContrast
+            ? new ContrastFinding(mode.Name, field, Math.Floor(ratio * 100) / 100, UiContrast)
+            : null;
     }
 }

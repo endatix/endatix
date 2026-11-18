@@ -119,21 +119,9 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return base.SaveChanges();
         }
-        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        catch (Exception exception) when (TranslateSaveFailure(exception) is { } translated)
         {
-            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
-        }
-        catch (DbUpdateException updateException) when (IsTenantBrandingConflict(updateException))
-        {
-            throw new TenantBrandingConflictException("Another write changed the tenant's branding first.", updateException);
-        }
-        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
-        {
-            throw DatabaseDeadlocks.Victim(exception);
-        }
-        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
-        {
-            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+            throw translated;
         }
     }
 
@@ -145,23 +133,24 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return await base.SaveChangesAsync(true, cancellationToken);
         }
-        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        catch (Exception exception) when (TranslateSaveFailure(exception) is { } translated)
         {
-            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
-        }
-        catch (DbUpdateException updateException) when (IsTenantBrandingConflict(updateException))
-        {
-            throw new TenantBrandingConflictException("Another write changed the tenant's branding first.", updateException);
-        }
-        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
-        {
-            throw DatabaseDeadlocks.Victim(exception);
-        }
-        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
-        {
-            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+            throw translated;
         }
     }
+
+    /// <summary>The domain exception a failed save stands for, or null to let the provider's exception through.</summary>
+    private static Exception? TranslateSaveFailure(Exception exception) => exception switch
+    {
+        DbUpdateConcurrencyException concurrency when IsSubmissionDeletedMeanwhile(concurrency) =>
+            new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrency),
+        DbUpdateException update when IsTenantBrandingConflict(update) =>
+            new TenantBrandingConflictException("Another write changed the tenant's branding first.", update),
+        _ when DatabaseDeadlocks.IsVictim(exception) => DatabaseDeadlocks.Victim(exception),
+        DbUpdateException update when IsDuplicateSubmissionConstraintViolation(update) =>
+            new DuplicateSubmissionException("A submission already exists for this user and form.", update),
+        _ => null,
+    };
 
     /// <summary>
     /// <see cref="BaseEntity.IsDeleted"/> is a concurrency token on <see cref="Submission"/>, so a tracked save of a submission deleted since it

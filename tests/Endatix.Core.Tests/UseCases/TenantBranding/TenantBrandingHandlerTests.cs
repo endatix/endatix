@@ -15,12 +15,10 @@ public sealed class TenantBrandingHandlerTests
     private const long TenantId = 42;
     private const string Blue = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
     private const string Green = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
-    private static readonly DateTimeOffset Now = new(2026, 11, 18, 9, 0, 0, TimeSpan.Zero);
 
     private readonly IRepository<TenantBrandingEntity> _repository = Substitute.For<IRepository<TenantBrandingEntity>>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ITenantEntitlements _entitlements = Substitute.For<ITenantEntitlements>();
-    private readonly IDateTimeProvider _clock = Substitute.For<IDateTimeProvider>();
     private readonly PublishTenantBrandingHandler _publish;
     private readonly RollbackTenantBrandingHandler _rollback;
 
@@ -28,9 +26,8 @@ public sealed class TenantBrandingHandlerTests
     {
         _tenantContext.TenantId.Returns(TenantId);
         _entitlements.HasAsync(TenantId, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
-        _clock.Now.Returns(Now);
-        _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements, _clock);
-        _rollback = new RollbackTenantBrandingHandler(_repository, _tenantContext, _entitlements, _clock);
+        _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements);
+        _rollback = new RollbackTenantBrandingHandler(_repository, _tenantContext, _entitlements);
     }
 
     [Fact]
@@ -61,6 +58,22 @@ public sealed class TenantBrandingHandlerTests
     }
 
     [Fact]
+    public async Task NoTenant_IsUnauthorizedAndReadsNothing()
+    {
+        // Arrange
+        _tenantContext.TenantId.Returns(0);
+
+        // Act
+        var publish = await _publish.Handle(new PublishTenantBrandingCommand(Blue, 0), TestContext.Current.CancellationToken);
+        var rollback = await _rollback.Handle(new RollbackTenantBrandingCommand(1), TestContext.Current.CancellationToken);
+
+        // Assert
+        publish.Status.Should().Be(ResultStatus.Unauthorized);
+        rollback.Status.Should().Be(ResultStatus.Unauthorized);
+        await _repository.DidNotReceive().FirstOrDefaultAsync(Arg.Any<TenantBrandingByTenantIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Publish_InvalidOverride_ReturnsTheProblemList()
     {
         // Act
@@ -85,7 +98,7 @@ public sealed class TenantBrandingHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Revision.Should().Be(1);
-        result.Value.PublishedAt.Should().Be(Now.UtcDateTime);
+        result.Value.PublishedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
         await _repository.Received(1).AddAsync(
             Arg.Is<TenantBrandingEntity>(branding => branding.TenantId == TenantId && branding.Revision == 1),
             Arg.Any<CancellationToken>());

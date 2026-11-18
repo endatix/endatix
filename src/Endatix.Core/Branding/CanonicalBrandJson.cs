@@ -26,30 +26,40 @@ internal static class CanonicalBrandJson
 
     private static void WriteValue(Utf8JsonWriter writer, JsonElement element)
     {
-        switch (element.ValueKind)
+        if (element.ValueKind == JsonValueKind.Object)
         {
-            case JsonValueKind.Object:
-                writer.WriteStartObject();
-                foreach (var property in element.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal))
-                {
-                    writer.WritePropertyName(property.Name);
-                    WriteValue(writer, property.Value);
-                }
-
-                writer.WriteEndObject();
-                break;
-            case JsonValueKind.Array:
-                writer.WriteStartArray();
-                foreach (var item in element.EnumerateArray())
-                {
-                    WriteValue(writer, item);
-                }
-
-                writer.WriteEndArray();
-                break;
-            default:
-                element.WriteTo(writer);
-                break;
+            WriteObject(writer, element);
         }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            WriteArray(writer, element);
+        }
+        else
+        {
+            element.WriteTo(writer);
+        }
+    }
+
+    private static void WriteObject(Utf8JsonWriter writer, JsonElement element)
+    {
+        writer.WriteStartObject();
+        foreach (var property in element.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal))
+        {
+            writer.WritePropertyName(property.Name);
+            WriteValue(writer, property.Value);
+        }
+
+        writer.WriteEndObject();
+    }
+
+    private static void WriteArray(Utf8JsonWriter writer, JsonElement element)
+    {
+        writer.WriteStartArray();
+        foreach (var item in element.EnumerateArray())
+        {
+            WriteValue(writer, item);
+        }
+
+        writer.WriteEndArray();
     }
 }

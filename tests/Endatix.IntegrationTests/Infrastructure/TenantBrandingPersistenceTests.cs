@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
@@ -80,7 +79,7 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
         await PublishAsync(tenantId, Purple, 1);
 
         // Act
-        var result = await PublishAsync(slowDb, tenantId, Blue.Replace("{tenant}", tenantId.ToString(), StringComparison.Ordinal), 1);
+        var result = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(Blue.Replace("{tenant}", tenantId.ToString(), StringComparison.Ordinal), 1));
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -99,7 +98,7 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
         await PublishAsync(tenantId, Green, 0);
 
         // Act
-        var result = await PublishAsync(slowDb, tenantId, Purple, 0);
+        var result = await PublishAsync(slowDb, tenantId, new PublishTenantBrandingCommand(Purple, 0));
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -109,17 +108,17 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     private async Task<Result<TenantBrandingDto>> PublishAsync(long tenantId, string json, long revision)
     {
         await using var db = CreateDb(tenantId);
-        return await PublishAsync(db, tenantId, json, revision);
+        return await PublishAsync(db, tenantId, new PublishTenantBrandingCommand(json, revision));
     }
 
-    private static Task<Result<TenantBrandingDto>> PublishAsync(AppDbContext db, long tenantId, string json, long revision) =>
-        new PublishTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new FixedClock())
-            .Handle(new PublishTenantBrandingCommand(json, revision), Cancellation);
+    private static Task<Result<TenantBrandingDto>> PublishAsync(AppDbContext db, long tenantId, PublishTenantBrandingCommand command) =>
+        new PublishTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements())
+            .Handle(command, Cancellation);
 
     private async Task<Result<TenantBrandingDto>> RollbackAsync(long tenantId, long revision)
     {
         await using var db = CreateDb(tenantId);
-        return await new RollbackTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new FixedClock())
+        return await new RollbackTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements())
             .Handle(new RollbackTenantBrandingCommand(revision), Cancellation);
     }
 
@@ -136,10 +135,5 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
         DbContextOptionsBuilder<AppDbContext> options = new();
         IntegrationAppDbContextFactory.ConfigureOptions(options, fixture.Database.ConnectionString, fixture.Database.Provider);
         return new AppDbContext(options.Options, new IntegrationTenantContext(tenantId), new OutboxIntegrationEventDispatcher());
-    }
-
-    private sealed class FixedClock : IDateTimeProvider
-    {
-        public DateTimeOffset Now { get; } = new(2026, 11, 18, 9, 0, 0, TimeSpan.Zero);
     }
 }

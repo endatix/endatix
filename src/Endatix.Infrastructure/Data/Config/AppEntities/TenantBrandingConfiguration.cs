@@ -15,21 +15,9 @@ public class TenantBrandingConfiguration : IEntityTypeConfiguration<TenantBrandi
         builder.Property(branding => branding.TenantId)
             .ValueGeneratedNever();
 
-        builder.Property(branding => branding.PublishedJson)
-            .IsRequired(false);
-
-        builder.Property(branding => branding.PreviousJson)
-            .IsRequired(false);
-
-        builder.Property(branding => branding.DraftJson)
-            .IsRequired(false);
-
+        // The JSON columns and PublishedAt are optional by their nullable types.
         builder.Property(branding => branding.Revision)
-            .IsRequired()
             .IsConcurrencyToken();
-
-        builder.Property(branding => branding.PublishedAt)
-            .IsRequired(false);
 
         builder.HasOne<Tenant>()
             .WithOne()

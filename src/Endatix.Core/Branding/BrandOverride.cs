@@ -40,12 +40,7 @@ public sealed class BrandOverride
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tenantId);
         ArgumentNullException.ThrowIfNull(json);
 
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(json);
-        }
-        catch (JsonException)
+        if (TryParseDocument(json) is not { } document)
         {
             return Result<BrandOverride>.Invalid(
                 new ValidationError("", "Must be a JSON object.", BrandOverrideProblems.INVALID_JSON, ValidationSeverity.Error));
@@ -66,4 +61,16 @@ public sealed class BrandOverride
     /// </summary>
     public bool IsSameAs(string? storedJson) =>
         storedJson is not null && CanonicalBrandJson.Write(storedJson) == CanonicalJson;
+
+    private static JsonDocument? TryParseDocument(string json)
+    {
+        try
+        {
+            return JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 }

@@ -49,27 +49,7 @@ internal static partial class BrandColor
 
         var commas = CommaArgs().Match(value);
         var match = commas.Success ? commas : SpaceArgs().Match(value);
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        var args = new[] { 2, 4, 6 }
-            .Select(i => new ColorArg(
-                double.Parse(match.Groups[i].Value, NumberStyles.Float, CultureInfo.InvariantCulture),
-                match.Groups[i + 1].Value.ToLowerInvariant()))
-            .ToArray();
-        if (args.Any(arg => !double.IsFinite(arg.Value)))
-        {
-            return null;
-        }
-
-        return match.Groups[1].Value.ToLowerInvariant() switch
-        {
-            "rgb" => RgbFromArgs(args, commas.Success),
-            "hsl" => HslFromArgs(args),
-            _ => OklchFromArgs(args),
-        };
+        return match.Success ? FromFunction(match, commas.Success) : null;
     }
 
     /// <summary><c>#rrggbb</c>, each channel rounded to the nearest byte.</summary>
@@ -107,12 +87,19 @@ internal static partial class BrandColor
             return ClampRgb(exact);
         }
 
+        var chroma = MaxChromaInGamut(lightness, color.C, color.H);
+        return ClampRgb(OklchToRgbUnclamped(new Oklch(lightness, chroma, color.H)));
+    }
+
+    /// <summary>Binary search for the largest chroma up to <paramref name="chroma"/> that stays inside sRGB.</summary>
+    private static double MaxChromaInGamut(double lightness, double chroma, double hue)
+    {
         var low = 0.0;
-        var high = color.C;
+        var high = chroma;
         for (var i = 0; i < GamutSearchSteps; i++)
         {
             var mid = (low + high) / 2;
-            if (InGamut(OklchToRgbUnclamped(new Oklch(lightness, mid, color.H))))
+            if (InGamut(OklchToRgbUnclamped(new Oklch(lightness, mid, hue))))
             {
                 low = mid;
             }
@@ -122,7 +109,7 @@ internal static partial class BrandColor
             }
         }
 
-        return ClampRgb(OklchToRgbUnclamped(new Oklch(lightness, low, color.H)));
+        return low;
     }
 
     /// <summary>WCAG 2.x contrast ratio, 1..21.</summary>
@@ -134,6 +121,26 @@ internal static partial class BrandColor
     }
 
     internal static double WrapHue(double hue) => ((hue % 360) + 360) % 360;
+
+    private static Rgb? FromFunction(Match match, bool commas)
+    {
+        var args = new[] { 2, 4, 6 }
+            .Select(i => new ColorArg(
+                double.Parse(match.Groups[i].Value, NumberStyles.Float, CultureInfo.InvariantCulture),
+                match.Groups[i + 1].Value.ToLowerInvariant()))
+            .ToArray();
+        if (args.Any(arg => !double.IsFinite(arg.Value)))
+        {
+            return null;
+        }
+
+        return match.Groups[1].Value.ToLowerInvariant() switch
+        {
+            "rgb" => RgbFromArgs(args, commas),
+            "hsl" => HslFromArgs(args),
+            _ => OklchFromArgs(args),
+        };
+    }
 
     private static Rgb? RgbFromArgs(ColorArg[] args, bool commas)
     {
