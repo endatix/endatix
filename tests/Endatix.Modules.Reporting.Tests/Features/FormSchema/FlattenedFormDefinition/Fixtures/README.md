@@ -105,6 +105,8 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
   titles keep `{panel.itemText}`.
 - **#1544, a copied Other:** see below.
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
+- **Multiple-text item labels:** an item is labelled by its name, not its title (`contact__email` has `rowLabel`
+  `email`, and Shoji names it `Your contact details -- email`), here and in the `AllQuestions/` golden.
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.
 The codebook publishes only the sources' own choices, so that answer has no category and its csv-shoji cell is empty.
