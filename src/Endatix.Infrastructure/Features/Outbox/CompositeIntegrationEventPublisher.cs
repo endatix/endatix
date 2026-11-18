@@ -25,17 +25,12 @@ internal sealed partial class CompositeIntegrationEventPublisher(
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
     {
         message = LegacyOutboxEvents.Translate(message);
-        var matched = _handlers
-            .Where(handler => handler.EventTypes.Contains(message.EventType, StringComparer.Ordinal))
-            .ToArray();
-
+        var matched = MatchedHandlers(message);
         if (matched.Length == 0)
         {
             LogNoHandler(message);
             return;
         }
-
-        ThrowIfAppLevelWorkGetsATenantRow(matched, message);
 
         foreach (var handler in matched)
         {
@@ -60,6 +55,15 @@ internal sealed partial class CompositeIntegrationEventPublisher(
                     ex);
             }
         }
+    }
+
+    private IOutboxIntegrationEventHandler[] MatchedHandlers(IOutboxMessage message)
+    {
+        var matched = _handlers
+            .Where(handler => handler.EventTypes.Contains(message.EventType, StringComparer.Ordinal))
+            .ToArray();
+        ThrowIfAppLevelWorkGetsATenantRow(matched, message);
+        return matched;
     }
 
     // Checked before any handler runs, so the message fails whole, as it does when the relay enqueues jobs.
