@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using static Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission.CopiedChoiceVisibilityTests;
 
@@ -12,7 +13,7 @@ public sealed class CopiedChoiceHiddenContainerTests
     private const string SELECTED_COPY = """{"type":"checkbox","name":"pick","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""";
     private const string ANSWERS = """{"stores":["1","2"],"pick":["1"]}""";
 
-    private static readonly string[] KeepModes =
+    private static string[] KeepModes =>
     [
         """{"clearInvisibleValues":"none"}""",
         """{"clearInvisibleValues":"onHidden"}""",
@@ -20,7 +21,7 @@ public sealed class CopiedChoiceHiddenContainerTests
     ];
 
     // Each hides something through a visibleIf other than the copy's or the source's own.
-    private static readonly string[] VisibleIfDefinitions =
+    private static string[] VisibleIfDefinitions =>
     [
         Pages(Page($$"""{"type":"panel","name":"storesPanel","visibleIf":"{x} = 1","elements":[{{STORES}}]}""", SELECTED_COPY)),
         Pages(Page(STORES), Page(SELECTED_COPY) with { VisibleIf = "{x} = 1" }),
@@ -161,31 +162,16 @@ public sealed class CopiedChoiceHiddenContainerTests
     private static UnknownBecause? WhyUnknown(string definition)
     {
         var survey = Json(definition);
-        var questions = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
-        CollectQuestions(survey, questions);
+        var questions = Descendants(survey)
+            .Where(element => element.TryGetProperty("type", out _))
+            .ToDictionary(element => element.GetProperty("name").GetString()!, StringComparer.Ordinal);
         return CopyVisibility.WhyUnknown(questions["pick"], questions, CopyDefinition.Of(survey));
     }
 
-    private static void CollectQuestions(System.Text.Json.JsonElement container, Dictionary<string, System.Text.Json.JsonElement> questions)
-    {
-        foreach (var property in new[] { "pages", "elements", "templateElements" })
-        {
-            if (!container.TryGetProperty(property, out var items))
-            {
-                continue;
-            }
-
-            foreach (var item in items.EnumerateArray())
-            {
-                if (property != "pages" && item.TryGetProperty("name", out var name))
-                {
-                    questions[name.GetString()!] = item;
-                }
-
-                CollectQuestions(item, questions);
-            }
-        }
-    }
+    private static IEnumerable<JsonElement> Descendants(JsonElement container) =>
+        new[] { "pages", "elements", "templateElements" }
+            .SelectMany(property => container.TryGetProperty(property, out var items) ? items.EnumerateArray() : Enumerable.Empty<JsonElement>())
+            .SelectMany(item => Descendants(item).Prepend(item));
 
     private sealed record PageJson(string[] Elements, string? VisibleIf = null)
     {
