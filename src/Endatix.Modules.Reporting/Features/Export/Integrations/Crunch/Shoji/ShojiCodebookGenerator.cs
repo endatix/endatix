@@ -1669,29 +1669,24 @@ internal static partial class ShojiCodebookGenerator
             return exportKey;
         }
 
-        var leaf = ResolveLeafLabel(exportKey, column, columnMetadata, keySeparator);
-        return leaf is null ? title : $"{title} -- {leaf}";
-    }
-
-    private static string? ResolveLeafLabel(
-        string exportKey,
-        FormSchemaColumn column,
-        JsonElement columnMetadata,
-        string keySeparator)
-    {
-        if (column.Kind is FormSchemaColumnKind.MultipleTextItem &&
-            ReadRowLabel(columnMetadata) is { } itemLabel)
+        var leaf = ResolveLeafLabel(column, columnMetadata, keySeparator);
+        if (string.IsNullOrWhiteSpace(leaf) || string.Equals(leaf, exportKey, StringComparison.Ordinal))
         {
-            return itemLabel;
+            return title;
         }
 
-        var leaf = ExportKeyTransformer.Transform(
-            column.Key[(column.SourceQuestion?.Length ?? 0)..].TrimStart('_'),
-            keySeparator);
-        return string.IsNullOrWhiteSpace(leaf) || string.Equals(leaf, exportKey, StringComparison.Ordinal)
-            ? null
-            : leaf.TrimStart('-');
+        return $"{title} -- {leaf.TrimStart('-')}";
     }
+
+    private static string ResolveLeafLabel(
+        FormSchemaColumn column,
+        JsonElement columnMetadata,
+        string keySeparator) =>
+        column.Kind is FormSchemaColumnKind.MultipleTextItem && ReadRowLabel(columnMetadata) is { } itemLabel
+            ? itemLabel
+            : ExportKeyTransformer.Transform(
+                column.Key[(column.SourceQuestion?.Length ?? 0)..].TrimStart('_'),
+                keySeparator);
 
     private static string? ReadRowLabel(JsonElement columnMetadata)
     {
