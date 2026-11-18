@@ -25,7 +25,9 @@ dotnet add package Endatix.Api.Host
 `Entitlements.BRANDING`. The default, `AllowAllTenantEntitlements`, answers yes for every tenant and every
 entitlement, so a self-hosted deployment has every feature; its licence governs paid use.
 
-A host that decides by plan registers its own scoped implementation, before or after Endatix's setup:
+`InfrastructureBuilder.UseDefaults()` registers the default; a host that composes the infrastructure itself calls
+`services.AddTenantEntitlements()`. A host that decides by plan registers its own scoped implementation, before
+or after Endatix's setup:
 
 ```csharp
 builder.Services.AddScoped<ITenantEntitlements, PlanTenantEntitlements>();
@@ -37,7 +39,8 @@ public sealed class PlanTenantEntitlements(IPlanStore plans) : ITenantEntitlemen
 }
 ```
 
-`IPlanStore` stands for the host's own plan lookup. A new paid capability adds a name to `Entitlements`.
+`IPlanStore` stands for the host's own plan lookup. Such a host denies a name it does not know, and throws when the
+lookup fails. A new paid capability adds a name to `Entitlements`.
 
 ## More Information:
 For detailed installation instructions, please visit [Endatix Installation Guide](https://docs.endatix.com/docs/getting-started/installation).

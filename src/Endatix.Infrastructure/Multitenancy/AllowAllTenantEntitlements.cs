@@ -8,6 +8,9 @@ namespace Endatix.Infrastructure.Multitenancy;
 public sealed class AllowAllTenantEntitlements : ITenantEntitlements
 {
     /// <inheritdoc />
-    public Task<bool> HasAsync(long tenantId, string name, CancellationToken cancellationToken = default) =>
-        Task.FromResult(true);
+    public Task<bool> HasAsync(long tenantId, string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return Task.FromResult(true);
+    }
 }

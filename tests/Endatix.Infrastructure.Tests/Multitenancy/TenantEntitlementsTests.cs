@@ -21,6 +21,19 @@ public sealed class TenantEntitlementsTests
         allowed.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task Default_rejects_a_missing_name(string? name)
+    {
+        var entitlements = new AllowAllTenantEntitlements();
+
+        var ask = () => entitlements.HasAsync(42, name!, TestContext.Current.CancellationToken);
+
+        await ask.Should().ThrowAsync<ArgumentException>();
+    }
+
     [Fact]
     public async Task Host_registered_before_the_default_keeps_its_implementation()
     {
