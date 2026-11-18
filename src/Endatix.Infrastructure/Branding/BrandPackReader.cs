@@ -25,7 +25,7 @@ internal sealed class BrandPackReader
     internal static DeploymentBrand Read(string path, JsonElement pack)
     {
         var reader = new BrandPackReader();
-        var brand = reader.Map(pack);
+        var brand = pack.ValueKind == JsonValueKind.Object ? reader.Map(pack) : reader.NotAnObject();
         if (reader._failures.Count > 0)
         {
             throw new BrandPackException($"Brand pack file '{path}' is not valid: {string.Join("; ", reader._failures)}");
@@ -34,28 +34,40 @@ internal sealed class BrandPackReader
         return brand;
     }
 
+    private DeploymentBrand NotAnObject()
+    {
+        _failures.Add("/: must be a JSON object");
+        return DeploymentBrand.BuiltIn;
+    }
+
     private DeploymentBrand Map(JsonElement pack)
     {
-        if (pack.ValueKind != JsonValueKind.Object)
-        {
-            _failures.Add("/: must be a JSON object");
-            return DeploymentBrand.BuiltIn;
-        }
-
         CheckVersion(Field(pack, "version"));
         var builtIn = DeploymentBrand.BuiltIn;
-        var name = Name("/name", Field(pack, "name"), required: true, NameMaxLength) ?? builtIn.ProductName;
-        var email = Group(pack, "email");
+        var name = Name("/name", Required("/name", Field(pack, "name")), NameMaxLength) ?? builtIn.ProductName;
 
         return new DeploymentBrand(
             ProductName: name,
             AppName: name,
             AssistantName: Text("/personas/assistant", Field(Group(pack, "personas"), "assistant")) ?? builtIn.AssistantName,
             WebsiteUrl: Website(Field(Group(pack, "links"), "website")) ?? builtIn.WebsiteUrl,
-            Email: new BrandEmail(
-                SenderName: Name("/email/senderName", Field(email, "senderName"), required: false) ?? name,
-                FromAddress: EmailAddress("/email/fromAddress", Field(email, "fromAddress")),
-                SupportAddress: EmailAddress("/email/supportAddress", Field(email, "supportAddress")) ?? builtIn.Email.SupportAddress));
+            Email: MapEmail(Group(pack, "email"), name));
+    }
+
+    private BrandEmail MapEmail(JsonElement? email, string productName) => new(
+        SenderName: Name("/email/senderName", Field(email, "senderName")) ?? productName,
+        FromAddress: EmailAddress("/email/fromAddress", Field(email, "fromAddress")),
+        SupportAddress: EmailAddress("/email/supportAddress", Field(email, "supportAddress"))
+            ?? DeploymentBrand.BuiltIn.Email.SupportAddress);
+
+    private JsonElement? Required(string path, JsonElement? element)
+    {
+        if (element is null)
+        {
+            _failures.Add($"{path}: is required");
+        }
+
+        return element;
     }
 
     private void CheckVersion(JsonElement? version)
@@ -78,14 +90,8 @@ internal sealed class BrandPackReader
         return null;
     }
 
-    private string? Name(string path, JsonElement? element, bool required, int? maxLength = null)
+    private string? Name(string path, JsonElement? element, int? maxLength = null)
     {
-        if (element is null && required)
-        {
-            _failures.Add($"{path}: is required");
-            return null;
-        }
-
         var value = Text(path, element);
         if (value is not null && value.Any(char.IsControl))
         {
