@@ -63,7 +63,7 @@ public sealed class StandardSeedTests
                     .Select(x => x.Id)
                     .FirstAsync(token);
 
-                Form extraForm = Form.Create(new FormCreateArgs(TenantId: firstTenantId, Name: "custom-post-seed-form", IsEnabled: true, IsPublic: false));
+                var extraForm = Form.Create(new FormCreateArgs(TenantId: firstTenantId, Name: "custom-post-seed-form", IsEnabled: true, IsPublic: false));
                 db.Forms.Add(extraForm);
                 await db.SaveChangesAsync(token);
             },
@@ -84,12 +84,20 @@ public sealed class StandardSeedTests
             .Select(x => x.Name)
             .ToArray();
 
+        // Admin and PlatformAdmin are one system row each at tenant 0, as the migrations create them.
+        string[] adminRoleNames = [SystemRole.Admin.Name, SystemRole.PlatformAdmin.Name];
+        var systemAdminRowCount = await identityDb.Roles.CountAsync(
+            x => x.TenantId == 0 && x.IsSystemDefined && adminRoleNames.Contains(x.Name!),
+            cancellationToken);
+        Assert.Equal(adminRoleNames.Length, systemAdminRowCount);
+        var tenantScopedRoleNames = persistedSystemRoleNames.Except(adminRoleNames).ToArray();
+
         foreach (var tenantId in seedResult.TenantIds)
         {
             var roleCount = await identityDb.Roles.CountAsync(
                 x => x.TenantId == tenantId && persistedSystemRoleNames.Contains(x.Name!),
                 cancellationToken);
-            Assert.Equal(persistedSystemRoleNames.Length, roleCount);
+            Assert.Equal(tenantScopedRoleNames.Length, roleCount);
 
             var hasAdminUser = await identityDb.Users.AnyAsync(
                 x => x.TenantId == tenantId && x.UserName!.StartsWith("seed-admin-"),

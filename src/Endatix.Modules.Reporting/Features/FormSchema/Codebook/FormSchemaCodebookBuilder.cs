@@ -21,10 +21,10 @@ internal static partial class FormSchemaCodebookBuilder
     {
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition);
         var questionElements = CollectQuestionElements(definition);
-        var questions = BuildQuestions(questionElements);
-        var existingColumns = TryParseExistingColumns(existingCodebookJson);
-        var columns = BuildColumns(merged, questionElements, existingColumns);
-        var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition));
+        var choiceSources = ChoiceSourcesIn(questionElements, definition);
+        var questions = BuildQuestions(questionElements, choiceSources);
+        var columns = BuildColumns(merged, questionElements, TryParseExistingColumns(existingCodebookJson));
+        var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition), choiceSources);
 
         if (!string.IsNullOrWhiteSpace(existingCodebookJson))
         {
@@ -135,22 +135,21 @@ internal static partial class FormSchemaCodebookBuilder
     }
 
     private static Dictionary<string, JsonElement> BuildQuestions(
-        IReadOnlyDictionary<string, CollectedQuestion> questionElements)
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        ChoiceSources choiceSources)
     {
         Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
 
-        foreach (var entry in questionElements)
+        foreach (var (name, question) in questionElements)
         {
-            var name = entry.Key;
-            var element = entry.Value.Element;
-            var type = element.GetSurveyJsType();
+            var type = question.Element.GetSurveyJsType();
 
             if (string.IsNullOrWhiteSpace(type))
             {
                 continue;
             }
 
-            if (TryBuildQuestionEntry(element, type, entry.Value.Placement, out var questionEntry))
+            if (TryBuildQuestionEntry(question, type, choiceSources, out var questionEntry))
             {
                 questions[name] = questionEntry;
             }
@@ -165,16 +164,13 @@ internal static partial class FormSchemaCodebookBuilder
         IReadOnlyDictionary<string, JsonElement>? existingColumns = null)
     {
         Dictionary<string, JsonElement> columns = new(StringComparer.Ordinal);
+        var choiceSources = ChoiceSourcesIn(questionElements);
 
         foreach (var column in merged.Columns)
         {
-            if (TryReuseExistingColumn(column, questionElements, existingColumns, out var existingColumn))
-            {
-                columns[column.Key] = existingColumn;
-                continue;
-            }
-
-            columns[column.Key] = CreateColumnEntry(column, questionElements);
+            columns[column.Key] = TryReuseExistingColumn(column, questionElements, existingColumns, out var existingColumn)
+                ? existingColumn
+                : CreateColumnEntry(column, questionElements, choiceSources);
         }
 
         return columns;
@@ -210,18 +206,18 @@ internal static partial class FormSchemaCodebookBuilder
 
     private static JsonElement CreateColumnEntry(
         FormSchemaColumn column,
-        IReadOnlyDictionary<string, CollectedQuestion> questionElements)
+        IReadOnlyDictionary<string, CollectedQuestion> questionElements,
+        ChoiceSources choiceSources)
     {
         if (IsDescribedByColumnAlone(column))
         {
             return CreateNonQuestionColumnEntry(column);
         }
 
-        var parentKey = column.SourceQuestion ?? column.Key;
         var hasQuestion = TryGetQuestionElement(column, questionElements, out var questionElement);
 
         return WriteColumnEntry(writer =>
-            WriteColumnMetadata(writer, column, parentKey, hasQuestion, questionElement));
+            WriteColumnMetadata(writer, column, hasQuestion ? questionElement : null, choiceSources));
     }
 
     private static bool TryGetQuestionElement(
@@ -244,11 +240,11 @@ internal static partial class FormSchemaCodebookBuilder
     private static void WriteColumnMetadata(
         Utf8JsonWriter writer,
         FormSchemaColumn column,
-        string parentKey,
-        bool hasQuestion,
-        JsonElement questionElement)
+        JsonElement? question,
+        ChoiceSources choiceSources)
     {
-        writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, parentKey);
+        var (hasQuestion, questionElement) = (question.HasValue, question.GetValueOrDefault());
+        writer.WriteString(FormSchemaCodebookPropertyNames.ParentKey, column.SourceQuestion ?? column.Key);
         writer.WriteString(
             FormSchemaCodebookPropertyNames.SurveyJsType,
             ResolveColumnSurveyJsType(hasQuestion, questionElement));
@@ -262,7 +258,7 @@ internal static partial class FormSchemaCodebookBuilder
             WriteDescription(writer, questionElement);
         }
 
-        WriteColumnChoiceMetadata(writer, column, hasQuestion, questionElement);
+        WriteColumnChoiceMetadata(writer, column, question, choiceSources);
         WriteColumnMatrixMetadata(writer, column, hasQuestion, questionElement);
         WriteColumnLoopPathMetadata(writer, column);
         WriteColumnLeafInputType(writer, column, hasQuestion, questionElement);
@@ -327,8 +323,8 @@ internal static partial class FormSchemaCodebookBuilder
     private static void WriteColumnChoiceMetadata(
         Utf8JsonWriter writer,
         FormSchemaColumn column,
-        bool hasQuestion,
-        JsonElement questionElement)
+        JsonElement? question,
+        ChoiceSources choiceSources)
     {
         if (string.IsNullOrWhiteSpace(column.ChoiceValue))
         {
@@ -336,9 +332,9 @@ internal static partial class FormSchemaCodebookBuilder
         }
 
         writer.WriteString(FormSchemaPropertyNames.ChoiceValue, column.ChoiceValue);
-        if (hasQuestion)
+        if (question is { } questionElement)
         {
-            WriteChoiceLabel(writer, questionElement, column.ChoiceValue);
+            WriteColumnChoiceLabel(writer, questionElement, column.ChoiceValue, choiceSources);
         }
     }
 
@@ -353,7 +349,7 @@ internal static partial class FormSchemaCodebookBuilder
             writer.WriteString(FormSchemaPropertyNames.MatrixRowValue, column.MatrixRowValue);
             if (hasQuestion)
             {
-                WriteMatrixRowLabel(writer, questionElement, column.MatrixRowValue);
+                WriteMatrixRowLabel(writer, questionElement, column);
             }
         }
 
@@ -379,7 +375,8 @@ internal static partial class FormSchemaCodebookBuilder
 
     private static Dictionary<string, JsonElement> BuildChoiceCatalogs(
         IReadOnlyDictionary<string, CollectedQuestion> questionElements,
-        SurveyChoiceDefaults surveyDefaults)
+        SurveyChoiceDefaults surveyDefaults,
+        ChoiceSources choiceSources)
     {
         Dictionary<string, JsonElement> catalogs = new(StringComparer.Ordinal);
 
@@ -390,7 +387,7 @@ internal static partial class FormSchemaCodebookBuilder
                 continue;
             }
 
-            catalogs[entry.Key] = BuildChoiceCatalog(entry.Value.Element, surveyDefaults);
+            catalogs[entry.Key] = BuildChoiceCatalog(entry.Value.Element, surveyDefaults, choiceSources);
         }
 
         return catalogs;
@@ -478,11 +475,12 @@ internal static partial class FormSchemaCodebookBuilder
         HasNonEmptyChoices(columnElement) ? columnElement : matrixElement;
 
     private static bool TryBuildQuestionEntry(
-        JsonElement element,
+        CollectedQuestion question,
         string? type,
-        QuestionPlacement placement,
+        ChoiceSources choiceSources,
         out JsonElement questionEntry)
     {
+        var (element, placement) = question;
         questionEntry = default;
 
         if (SurveyJsElementType.PanelDynamic.Matches(type))
@@ -528,35 +526,9 @@ internal static partial class FormSchemaCodebookBuilder
             return true;
         }
 
-        if (element.IsMultiSelectBaseSelect())
+        if (element.IsSingleSelectBaseSelect() || element.IsMultiSelectBaseSelect())
         {
-            questionEntry = WriteQuestionEntry(writer =>
-            {
-                writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
-                WriteTitle(writer, element);
-                WriteDescription(writer, element);
-                placement.WriteTo(writer);
-                writer.WriteString(
-                    FormSchemaCodebookPropertyNames.ExportShape,
-                    FormSchemaCodebookExportShape.MultipleResponse.Name);
-                WriteChoices(writer, element);
-            });
-            return true;
-        }
-
-        if (element.IsSingleSelectBaseSelect())
-        {
-            questionEntry = WriteQuestionEntry(writer =>
-            {
-                writer.WriteString(FormSchemaCodebookPropertyNames.SurveyJsType, type!);
-                WriteTitle(writer, element);
-                WriteDescription(writer, element);
-                placement.WriteTo(writer);
-                writer.WriteString(
-                    FormSchemaCodebookPropertyNames.ExportShape,
-                    FormSchemaCodebookExportShape.Categorical.Name);
-                WriteChoices(writer, element);
-            });
+            questionEntry = BuildSelectEntry(question, choiceSources.Resolve(element));
             return true;
         }
 
@@ -571,7 +543,7 @@ internal static partial class FormSchemaCodebookBuilder
                 writer.WriteString(
                     FormSchemaCodebookPropertyNames.ExportShape,
                     FormSchemaCodebookExportShape.Ranking.Name);
-                WriteChoices(writer, element);
+                WriteRankingSourceAndChoices(writer, element, choiceSources.Offered(element));
             });
             return true;
         }
@@ -716,7 +688,7 @@ internal static partial class FormSchemaCodebookBuilder
                     continue;
                 }
 
-                choiceCatalogs[property.Name] = MergeChoiceCatalog(property.Value, currentCatalog);
+                choiceCatalogs[property.Name] = MergeChoiceCatalog(MarkedIfCopied(property.Value, existingQuestions, property.Name), currentCatalog);
             }
         }
     }
@@ -966,11 +938,11 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteEndArray();
     }
 
-    private static void WriteChoices(Utf8JsonWriter writer, JsonElement element)
+    private static void WriteChoices(Utf8JsonWriter writer, JsonElement element, ResolvedChoices? choices = null)
     {
         writer.WritePropertyName(SurveyJsPropertyNames.Choices);
         writer.WriteStartArray();
-        if (ChoiceSet.Read(element) is { } choiceSet)
+        if (ChoiceSet.Read(element, choices: choices) is { } choiceSet)
         {
             choiceSet.WriteChoices((item, id) => WriteChoice(writer, element, item, id));
         }
@@ -1017,6 +989,11 @@ internal static partial class FormSchemaCodebookBuilder
                 fallback: text);
         }
 
+        WriteOtherChoice(writer, element, choiceId);
+    }
+
+    private static void WriteOtherChoice(Utf8JsonWriter writer, JsonElement element, int choiceId)
+    {
         if (element.GetBooleanProperty(SurveyJsPropertyNames.ShowOtherItem))
         {
             var otherText = SurveyJsLocalizationHelper.ReadLocalizedStrings(
@@ -1236,12 +1213,17 @@ internal static partial class FormSchemaCodebookBuilder
     private static void WriteMatrixRowLabel(
         Utf8JsonWriter writer,
         JsonElement questionElement,
-        string rowValue)
+        FormSchemaColumn column)
     {
-        var rowElement = FindMatrixRowElement(questionElement, rowValue);
-        var localized = SurveyJsLocalizationHelper.ReadLocalizedStrings(
-            rowElement,
-            SurveyJsPropertyNames.Text);
+        var rowValue = column.MatrixRowValue!;
+        // A multiple-text item keeps its label in title; a matrix row keeps it in text.
+        var localized = column.Kind is FormSchemaColumnKind.MultipleTextItem
+            ? SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMultipleTextItemElement(questionElement, rowValue),
+                SurveyJsPropertyNames.Title)
+            : SurveyJsLocalizationHelper.ReadLocalizedStrings(
+                FindMatrixRowElement(questionElement, rowValue),
+                SurveyJsPropertyNames.Text);
         writer.WritePropertyName(FormSchemaCodebookPropertyNames.RowLabel);
         // SurveyJS allows value-only rows (no text). Mirror WriteChoiceLabel and fall back to value.
         WriteLocalizedStringsWithFallback(writer, localized, fallback: rowValue);

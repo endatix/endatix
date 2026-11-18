@@ -1,0 +1,2 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,brands--1,brands--2,brands--3,aware--1,aware--2,aware--3,aware--none,occasions--10,occasions--20,occasionRank--10,occasionRank--20,considerLoop--1--consider,considerLoop--2--consider,considerLoop--3--consider,occasionLoop--10--occasionBrand,occasionLoop--20--occasionBrand
+100,1,1,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,,,,,,1,1,1,1,0,1,0,1,1,2,1,1,,2,,3

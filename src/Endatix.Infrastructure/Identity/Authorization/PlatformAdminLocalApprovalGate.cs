@@ -41,11 +41,12 @@ internal sealed class PlatformAdminLocalApprovalGate(
         var filteredRoles = ExcludePlatformAdminRole(mappedRoles);
         var filteredPermissions = filteredRoles.Length == 0
             ? []
-            : await ResolvePermissionsForRolesAsync(filteredRoles, cancellationToken);
+            : await ResolvePermissionsForRolesAsync(filteredRoles, tenantId, cancellationToken);
 
         return new PlatformAdminFilteredAuthorization(filteredRoles, filteredPermissions);
     }
 
+    /// <summary>Local approval is the built-in PlatformAdmin row assigned to the user.</summary>
     private async Task<bool> HasLocalPlatformAdminApprovalAsync(
         long tenantId,
         string authProvider,
@@ -67,6 +68,8 @@ internal sealed class PlatformAdminLocalApprovalGate(
                     (_, role) => role)
                 .AnyAsync(role =>
                     role.IsActive &&
+                    role.IsSystemDefined &&
+                    role.TenantId <= 0 &&
                     role.NormalizedName == normalizedPlatformAdminRoleName,
                     cancellationToken);
         }
@@ -79,13 +82,20 @@ internal sealed class PlatformAdminLocalApprovalGate(
                 && user.AuthProvider == authProvider
                 && user.ExternalSubjectId == externalSubjectId
                 && role.IsActive
+                && role.IsSystemDefined
+                && role.TenantId <= 0
                 && role.NormalizedName == normalizedPlatformAdminRoleName
             select user.Id)
             .AnyAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// The permissions the remaining roles grant, read as every access read does: the tenant's own roles and the
+    /// built-in system rows only, with platform permissions only from a built-in row.
+    /// </summary>
     private async Task<string[]> ResolvePermissionsForRolesAsync(
         string[] roleNames,
+        long tenantId,
         CancellationToken cancellationToken)
     {
         var normalizedRoleNames = roleNames
@@ -93,15 +103,15 @@ internal sealed class PlatformAdminLocalApprovalGate(
             .Distinct()
             .ToArray();
 
-        return await identityDbContext.Roles
+        var roles = await identityDbContext.Roles
             .AsNoTracking()
-            .Where(role => role.IsActive && normalizedRoleNames.Contains(role.NormalizedName))
-            .SelectMany(role => role.RolePermissions)
-            .Where(rolePermission => rolePermission.IsActive && rolePermission.Permission != null)
-            .Select(rolePermission => rolePermission.Permission.Name)
-            .Where(permissionName => !string.IsNullOrEmpty(permissionName))
-            .Distinct()
-            .ToArrayAsync(cancellationToken);
+            .InTenantScope(normalizedRoleNames, tenantId)
+            .Include(role => role.RolePermissions)
+                .ThenInclude(rolePermission => rolePermission.Permission)
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+
+        return ScopedRoleRead.GrantedPermissions(roles);
     }
 
     private static string[] ExcludePlatformAdminRole(string[] roles)

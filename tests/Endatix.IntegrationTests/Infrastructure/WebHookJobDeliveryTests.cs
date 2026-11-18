@@ -171,7 +171,10 @@ public sealed class WebHookJobDeliveryTests(DbIntegrationFixture fixture)
             fixture,
             new FanOutHostSetup(DeliverToJobQueue: true, _ => { })
             {
-                Settings = settings ?? new Dictionary<string, string?>(),
+                Settings = new Dictionary<string, string?>(settings ?? new Dictionary<string, string?>())
+                {
+                    [StubWebHookReceiver.AllowPrivateNetworkTargetsSetting] = "true",
+                },
                 OutboxPolling = outboxPolling,
             },
             ct);

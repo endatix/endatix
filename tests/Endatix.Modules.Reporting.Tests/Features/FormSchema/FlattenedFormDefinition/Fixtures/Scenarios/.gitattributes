@@ -1,0 +1,3 @@
+# Goldens are compared byte for byte: keep the exporters' CRLF in csv and LF in JSON on every checkout.
+*.csv -text
+*.json text eol=lf

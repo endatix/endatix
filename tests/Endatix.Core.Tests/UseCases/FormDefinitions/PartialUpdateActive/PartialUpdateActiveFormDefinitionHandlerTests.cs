@@ -6,10 +6,13 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
+using MediatR;
+
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.PartialUpdateActive;
 
 public class PartialUpdateActiveFormDefinitionHandlerTests
 {
+    private readonly IMediator _mediator;
     private readonly IFormsRepository _formRepository;
     private readonly IRepository<Submission> _submissionsRepository;
     private readonly PartialUpdateActiveFormDefinitionHandler _handler;
@@ -18,9 +21,11 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
     {
         _formRepository = Substitute.For<IFormsRepository>();
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
+        _mediator = Substitute.For<IMediator>();
         _handler = new PartialUpdateActiveFormDefinitionHandler(
             _formRepository,
-            _submissionsRepository);
+            _submissionsRepository,
+            _mediator);
     }
 
     [Fact]
@@ -40,6 +45,7 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Active form definition not found.");
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormDefinitionChangedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -67,6 +73,9 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
         result.Value.IsDraft.Should().Be(request.IsDraft!.Value);
         result.Value.JsonData.Should().Be(request.JsonData);
         await _formRepository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
+        await _mediator.Received(1).Publish(
+            Arg.Is<FormDefinitionChangedEvent>(e => e.FormId == request.FormId),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

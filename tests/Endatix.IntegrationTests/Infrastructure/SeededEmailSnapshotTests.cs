@@ -29,6 +29,9 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
     private const string Recipient = "user@example.com";
     private const string HubBaseUrl = "https://hub.example.com";
 
+    // Both providers seed the same text, so they share one snapshot. The project copies it to the test output.
+    private const string SnapshotFile = "Snapshots/seeded-emails.txt";
+
     private static readonly DeploymentBrand ExampleBrand = new(
         ProductName: "Example Forms",
         AppName: "Example Forms",
@@ -47,13 +50,14 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
 
         // Assert
         var actual = Snapshot(emails);
-        var path = SnapshotPath();
         if (Environment.GetEnvironmentVariable("ENDATIX_UPDATE_EMAIL_SNAPSHOTS") == "1")
         {
-            await File.WriteAllTextAsync(path, actual, cancellationToken);
+            await File.WriteAllTextAsync(SourceSnapshotPath(), actual, cancellationToken);
+            return;
         }
 
-        File.Exists(path).Should().BeTrue($"the snapshot {path} is committed with this test");
+        var path = Path.Combine(AppContext.BaseDirectory, SnapshotFile);
+        File.Exists(path).Should().BeTrue($"the snapshot {SnapshotFile} is committed with this test and copied to the output");
         var expected = await File.ReadAllTextAsync(path, cancellationToken);
         actual.Should().Be(expected.ReplaceLineEndings("\n"));
         emails.Should().OnlyContain(rendered => rendered.Email.FromName == null, "providers keep the sender name they sent before");
@@ -166,7 +170,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
     // A carriage return in a row is part of the bytes sent, so it is kept visible instead of normalized away.
     private static string ShowCarriageReturns(string body) => body.Replace("\r", "\\r", StringComparison.Ordinal);
 
-    // Both providers seed the same text, so they share one snapshot.
-    private static string SnapshotPath([System.Runtime.CompilerServices.CallerFilePath] string sourceFile = "") =>
-        Path.Combine(Path.GetDirectoryName(sourceFile)!, "Snapshots", "seeded-emails.txt");
+    // Re-recording writes to the source tree, which exists only in a local build: CI maps source paths to "/_/".
+    private static string SourceSnapshotPath([System.Runtime.CompilerServices.CallerFilePath] string sourceFile = "") =>
+        Path.Combine(Path.GetDirectoryName(sourceFile)!, SnapshotFile);
 }

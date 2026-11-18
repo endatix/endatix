@@ -1,20 +1,24 @@
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.FormDefinitions.UpdateActive;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.UpdateActive;
 
 public class UpdateActiveFormDefinitionHandlerTests
 {
+    private readonly IMediator _mediator;
     private readonly IFormsRepository _formsRepository;
     private readonly UpdateActiveFormDefinitionHandler _handler;
 
     public UpdateActiveFormDefinitionHandlerTests()
     {
         _formsRepository = Substitute.For<IFormsRepository>();
-        _handler = new UpdateActiveFormDefinitionHandler(_formsRepository);
+        _mediator = Substitute.For<IMediator>();
+        _handler = new UpdateActiveFormDefinitionHandler(_formsRepository, _mediator);
     }
 
     [Fact]
@@ -35,6 +39,7 @@ public class UpdateActiveFormDefinitionHandlerTests
         result.Should().NotBeNull();
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Active form definition not found.");
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormDefinitionChangedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -65,5 +70,8 @@ public class UpdateActiveFormDefinitionHandlerTests
         result.Value.IsDraft.Should().Be(request.IsDraft);
         result.Value.JsonData.Should().Be(request.JsonData);
         await _formsRepository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
+        await _mediator.Received(1).Publish(
+            Arg.Is<FormDefinitionChangedEvent>(e => e.FormId == request.FormId),
+            Arg.Any<CancellationToken>());
     }
 }

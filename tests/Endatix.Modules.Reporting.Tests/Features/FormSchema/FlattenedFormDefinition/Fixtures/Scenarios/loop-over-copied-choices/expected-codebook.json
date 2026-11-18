@@ -1,0 +1,602 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "aware": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "pageName": "awareness",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "brands"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "brands": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "pageName": "awareness",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        }
+      ]
+    },
+    "consider": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "parentPanelTitle": "considerLoop",
+      "parentPanels": [
+        {
+          "key": "considerLoop",
+          "title": "considerLoop"
+        }
+      ],
+      "pageName": "awareness",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Yes"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "No"
+          }
+        }
+      ]
+    },
+    "considerLoop": {
+      "surveyJsType": "paneldynamic",
+      "title": {},
+      "pageName": "awareness",
+      "loopSource": [
+        "aware"
+      ],
+      "exportShape": "loop_panel"
+    },
+    "occasionBrand": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Which brand for {panel.itemText}?"
+      },
+      "parentPanelTitle": "occasionLoop",
+      "parentPanels": [
+        {
+          "key": "occasionLoop",
+          "title": "occasionLoop"
+        }
+      ],
+      "pageName": "occasions",
+      "exportShape": "categorical",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "aware"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        }
+      ]
+    },
+    "occasionLoop": {
+      "surveyJsType": "paneldynamic",
+      "title": {},
+      "pageName": "occasions",
+      "loopSource": [
+        "occasionRank"
+      ],
+      "exportShape": "loop_panel"
+    },
+    "occasionRank": {
+      "surveyJsType": "ranking",
+      "title": {
+        "default": "Rank the occasions"
+      },
+      "pageName": "occasions",
+      "exportShape": "ranking",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "occasions"
+        ]
+      },
+      "choices": [
+        {
+          "value": "10",
+          "id": 1,
+          "text": {
+            "default": "Morning"
+          }
+        },
+        {
+          "value": "20",
+          "id": 2,
+          "text": {
+            "default": "Evening"
+          }
+        }
+      ]
+    },
+    "occasions": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "When do you buy?"
+      },
+      "pageName": "occasions",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "10",
+          "id": 1,
+          "text": {
+            "default": "Morning"
+          }
+        },
+        {
+          "value": "20",
+          "id": 2,
+          "text": {
+            "default": "Evening"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "aware__1": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand 1"
+      }
+    },
+    "aware__2": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand 2"
+      }
+    },
+    "aware__3": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand 3"
+      }
+    },
+    "aware__none": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "brands__1": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand 1"
+      }
+    },
+    "brands__2": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand 2"
+      }
+    },
+    "brands__3": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand 3"
+      }
+    },
+    "considerLoop__1__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__2__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__3__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "occasionLoop__10__occasionBrand": {
+      "parentKey": "occasionBrand",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Which brand for {panel.itemText}?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "occasionLoop__20__occasionBrand": {
+      "parentKey": "occasionBrand",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Which brand for {panel.itemText}?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "20"
+        }
+      ]
+    },
+    "occasionRank__10": {
+      "parentKey": "occasionRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the occasions"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Morning"
+      }
+    },
+    "occasionRank__20": {
+      "parentKey": "occasionRank",
+      "surveyJsType": "ranking",
+      "exportShape": "ranking",
+      "title": {
+        "default": "Rank the occasions"
+      },
+      "choiceValue": "20",
+      "choiceLabel": {
+        "default": "Evening"
+      }
+    },
+    "occasions__10": {
+      "parentKey": "occasions",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "When do you buy?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Morning"
+      }
+    },
+    "occasions__20": {
+      "parentKey": "occasions",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "When do you buy?"
+      },
+      "choiceValue": "20",
+      "choiceLabel": {
+        "default": "Evening"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "aware": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "brands",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
+    },
+    "brands": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        }
+      ]
+    },
+    "consider": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Yes"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "No"
+          }
+        }
+      ]
+    },
+    "occasionBrand": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand 3"
+          }
+        }
+      ],
+      "copied": true
+    },
+    "occasionRank": {
+      "choices": [
+        {
+          "value": "10",
+          "id": 1,
+          "text": {
+            "default": "Morning"
+          }
+        },
+        {
+          "value": "20",
+          "id": 2,
+          "text": {
+            "default": "Evening"
+          }
+        }
+      ],
+      "copied": true
+    },
+    "occasions": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "10",
+          "id": 1,
+          "text": {
+            "default": "Morning"
+          }
+        },
+        {
+          "value": "20",
+          "id": 2,
+          "text": {
+            "default": "Evening"
+          }
+        }
+      ]
+    }
+  }
+}

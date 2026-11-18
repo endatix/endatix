@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Abstractions.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,18 +20,18 @@ public sealed class AppUserRegistrationService(
     IEmailVerificationService emailVerificationService,
     IEmailSender emailSender,
     IEmailTemplateService emailTemplateService,
-    IRoleManagementService roleManagementService,
+    ISystemRoleAssignment systemRoleAssignment,
     [FromKeyedServices("identity")] IUnitOfWork unitOfWork,
     ILogger<AppUserRegistrationService> logger) : IUserRegistrationService
 {
-    private const string EmailAlreadyRegisteredMessage = "The email is already registered.";
-    private const string SuspiciousEmailMessage = "The email is from a suspicious domain.";
-    private const string UserAlreadyBelongsToTenantMessage = "The user already belongs to this tenant.";
-    private const string UppercaseChars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    private const string LowercaseChars = "abcdefghijkmnopqrstuvwxyz";
-    private const string DigitChars = "23456789";
-    private const string SpecialChars = "!@$?_#*-+";
-    private const int TemporaryInvitePasswordLength = 24;
+    private const string EMAIL_ALREADY_REGISTERED_MESSAGE = "The email is already registered.";
+    private const string SUSPICIOUS_EMAIL_MESSAGE = "The email is from a suspicious domain.";
+    private const string USER_ALREADY_BELONGS_TO_TENANT_MESSAGE = "The user already belongs to this tenant.";
+    private const string UPPERCASE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private const string LOWERCASE_CHARS = "abcdefghijkmnopqrstuvwxyz";
+    private const string DIGIT_CHARS = "23456789";
+    private const string SPECIAL_CHARS = "!@$?_#*-+";
+    private const int TEMPORARY_INVITE_PASSWORD_LENGTH = 24;
 
     // This is a short list of the top domains known to be used most frequently in disposable email registrations.
     // It is a good start but for better results more complete lists should be used, like from e.g. https://github.com/disposable-email-domains/disposable-email-domains
@@ -147,7 +147,7 @@ public sealed class AppUserRegistrationService(
                     : ToIdentityErrorResult(createUserResult);
             }
 
-            var assignRoleResult = await roleManagementService.AssignRoleToUserAsync(
+            var assignRoleResult = await systemRoleAssignment.AssignRoleAsSystemAsync(
                 newUser.Id,
                 roleName,
                 cancellationToken);
@@ -217,7 +217,7 @@ public sealed class AppUserRegistrationService(
         {
             if (createUserResult.Errors.Any(error => error.Code == "DuplicateUserName"))
             {
-                return Result.Invalid(new ValidationError(EmailAlreadyRegisteredMessage));
+                return Result.Invalid(new ValidationError(EMAIL_ALREADY_REGISTERED_MESSAGE));
             }
 
             return ToIdentityErrorResult(createUserResult);
@@ -264,7 +264,7 @@ public sealed class AppUserRegistrationService(
         {
             return isAnonymous
                 ? ExistingAccountSuppressed(email)
-                : Result.Invalid(new ValidationError(EmailAlreadyRegisteredMessage));
+                : Result.Invalid(new ValidationError(EMAIL_ALREADY_REGISTERED_MESSAGE));
         }
 
         if (existingUser.TenantId != tenantId)
@@ -276,7 +276,7 @@ public sealed class AppUserRegistrationService(
         {
             return isAnonymous
                 ? ExistingAccountSuppressed(email)
-                : Result.Invalid(new ValidationError(UserAlreadyBelongsToTenantMessage));
+                : Result.Invalid(new ValidationError(USER_ALREADY_BELONGS_TO_TENANT_MESSAGE));
         }
 
         await SendAccountEmailAsync(existingUser.Id, email, sendInvitationEmail, cancellationToken);
@@ -371,18 +371,18 @@ public sealed class AppUserRegistrationService(
 
     private static Result SuspiciousEmail()
     {
-        return Result.Invalid(new ValidationError(SuspiciousEmailMessage));
+        return Result.Invalid(new ValidationError(SUSPICIOUS_EMAIL_MESSAGE));
     }
 
     private static string GenerateTemporaryInvitePassword()
     {
-        var allChars = (UppercaseChars + LowercaseChars + DigitChars + SpecialChars).ToCharArray();
-        var password = new char[TemporaryInvitePasswordLength];
+        var allChars = (UPPERCASE_CHARS + LOWERCASE_CHARS + DIGIT_CHARS + SPECIAL_CHARS).ToCharArray();
+        var password = new char[TEMPORARY_INVITE_PASSWORD_LENGTH];
 
-        password[0] = GetRandomChar(UppercaseChars);
-        password[1] = GetRandomChar(LowercaseChars);
-        password[2] = GetRandomChar(DigitChars);
-        password[3] = GetRandomChar(SpecialChars);
+        password[0] = GetRandomChar(UPPERCASE_CHARS);
+        password[1] = GetRandomChar(LOWERCASE_CHARS);
+        password[2] = GetRandomChar(DIGIT_CHARS);
+        password[3] = GetRandomChar(SPECIAL_CHARS);
 
         for (var i = 4; i < password.Length; i++)
         {

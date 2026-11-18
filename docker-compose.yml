@@ -10,7 +10,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
       ConnectionStrings__DefaultConnection: Server=endatix-db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};Initial Catalog=endatix;TrustServerCertificate=True;
-      Security__JwtSigningKey: ${SECURITY_JWT_SIGNING_KEY}
+      Endatix__Auth__Providers__EndatixJwt__SigningKey: ${ENDATIX_JWT_SIGNING_KEY:?Set ENDATIX_JWT_SIGNING_KEY to the output of openssl rand -base64 48}
+      Endatix__Submissions__AccessTokenSigningKey: ${ENDATIX_SUBMISSION_SIGNING_KEY:?Set ENDATIX_SUBMISSION_SIGNING_KEY to the output of openssl rand -base64 48}
       Security__DevUsers__0__Email: ${SECURITY_DEV_USERS_0_EMAIL}
       Security__DevUsers__0__Password: ${SECURITY_DEV_USERS_0_PASSWORD}
       Email__SendGridSettings__ApiKey: ${SENDGRID_API_KEY}

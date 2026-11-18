@@ -39,39 +39,6 @@ public sealed partial class Submission : TenantEntity, IAggregateRoot, IOwnedEnt
         Id = id;
     }
 
-#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
-    [Obsolete("Use Submission.Create(SubmissionCreateArgs).")]
-#pragma warning restore S1133
-    public Submission(
-        long tenantId,
-        string jsonData,
-        long formId,
-        long formDefinitionId,
-        bool isComplete = true,
-        int currentPage = 0,
-        string? metadata = null,
-        string? submittedBy = null,
-        bool isTestSubmission = false,
-        bool enforceSingleSubmissionGate = false)
-        : this(new SubmissionCreateArgs(
-            TenantId: tenantId,
-            FormId: formId,
-            FormDefinitionId: formDefinitionId,
-            JsonData: jsonData,
-            IsComplete: isComplete,
-            CurrentPage: currentPage,
-            Metadata: metadata,
-            SubmitterId: submittedBy is not null && long.TryParse(submittedBy, out var legacySubmitterId)
-                ? legacySubmitterId
-                : null,
-            SubmitterDisplayId: submittedBy is not null && !long.TryParse(submittedBy, out _)
-                ? submittedBy
-                : null,
-            IsTestSubmission: isTestSubmission,
-            EnforceSingleSubmissionGate: enforceSingleSubmissionGate))
-    {
-    }
-
     /// <summary>Normal path. Id stays 0 until EF OnAdd stamps the snowflake.</summary>
     public static Submission Create(SubmissionCreateArgs args)
     {

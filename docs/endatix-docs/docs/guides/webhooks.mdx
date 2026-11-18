@@ -166,6 +166,35 @@ No authentication headers are sent:
 }
 ```
 
+## Endpoint addresses {/* #endpoint-addresses */}
+
+Webhooks are sent only to public network addresses.
+
+- **When a form is saved**, an endpoint URL must be an absolute `http` or `https` URL, and its host must not be a private or local IP address (loopback, private ranges, link-local and similar) or a reserved name (`localhost`, `*.localhost`, `*.internal`, `*.local`). Otherwise the save gets a 400 field error on `webHookSettings` or `webHookSettingsJson`. User info in the URL (`https://user:pass@host/`) is allowed.
+- **When a webhook is sent**, the API resolves the endpoint's host and connects only when every address it resolves to is public. A refused endpoint gets no request, and the API does not retry it. The API log names the endpoint by its key and the form id, never by its URL. A host that does not resolve is retried like any other failed delivery.
+- **Redirects are not followed.** A 3xx answer is a failed delivery.
+- **No proxy is used** for webhooks, even when `HTTP_PROXY` or `HTTPS_PROXY` is set.
+
+The 400 applies to form saves through the API. The check when a webhook is sent applies to every endpoint, whether it is configured on the form, the tenant or the server.
+
+### Self-hosted: allow private network targets {/* #allow-private-network-targets */}
+
+When your receivers run on your own network, for example a service in the same Kubernetes cluster or on `localhost` during development, turn on `AllowPrivateNetworkTargets`. Only server configuration sets it; tenants and the API cannot.
+
+```json
+{
+  "Endatix": {
+    "WebHooks": {
+      "ServerSettings": {
+        "AllowPrivateNetworkTargets": true
+      }
+    }
+  }
+}
+```
+
+As an environment variable: `Endatix__WebHooks__ServerSettings__AllowPrivateNetworkTargets=true`. When it is on, private addresses and reserved names are accepted when a form is saved and when a webhook is sent (URLs must still be absolute `http` or `https`), and the API logs one warning at startup. Redirects stay unfollowed and no proxy is used either way.
+
 ## Testing Webhooks
 
 You can use [webhook.site](https://webhook.site/) to test your webhook implementation. This service provides a unique URL that you can use as your webhook endpoint. It will display all incoming requests in real-time, allowing you to:
@@ -179,7 +208,7 @@ You can use [webhook.site](https://webhook.site/) to test your webhook implement
 To test your webhooks:
 1. Go to [webhook.site](https://webhook.site/)
 2. Copy the unique URL provided
-3. Configure this URL as your webhook endpoint (either at tenant or form level)
+3. Configure this URL as your webhook endpoint (either at tenant or form level). A receiver on `localhost` or your own network needs [`AllowPrivateNetworkTargets`](#allow-private-network-targets).
 4. Trigger events in your application
 5. View the incoming webhook requests on webhook.site
 

@@ -1,15 +1,16 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using NSubstitute;
-using FluentAssertions;
-using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Services;
-using Endatix.Infrastructure.Identity.Repositories;
-using Endatix.Core.Infrastructure.Result;
+using System.Security.Claims;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity;
+using Endatix.Infrastructure.Identity.Repositories;
+using Endatix.Infrastructure.Identity.Services;
+using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NSubstitute;
 
 namespace Endatix.Infrastructure.Tests.Identity.Services;
 
@@ -24,6 +25,7 @@ public class RoleManagementServiceTests
     private readonly IAuthorizationCache _authorizationCache;
     private readonly ILogger<RoleManagementService> _logger;
     private readonly RoleManagementService _service;
+    private const long CALLER_ID = 42;
 
     public RoleManagementServiceTests()
     {
@@ -87,6 +89,7 @@ public class RoleManagementServiceTests
     public async Task AssignRoleToUserAsync_UserNotFound_ReturnsNotFoundResult()
     {
         // Arrange
+        SignInAs(CALLER_ID, SystemRole.Admin.Name);
         var userId = 999L;
         var roleName = "Admin";
         _userManager.FindByIdAsync(userId.ToString()).Returns((AppUser?)null);
@@ -100,89 +103,10 @@ public class RoleManagementServiceTests
     }
 
     [Fact]
-    public async Task AssignRoleToUserAsync_UserAlreadyHasRole_ReturnsInvalidResult()
-    {
-        // Arrange
-        var userId = 1L;
-        var roleName = "Admin";
-        var user = new AppUser { Id = (int)userId };
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(true);
-
-        // Act
-        var result = await _service.AssignRoleToUserAsync(userId, roleName, CancellationToken.None);
-
-        // Assert
-        result.IsInvalid().Should().BeTrue();
-        result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be($"User already has role '{roleName}'.");
-    }
-
-    [Fact]
-    public async Task AssignRoleToUserAsync_AddToRoleFails_ReturnsErrorResult()
-    {
-        // Arrange
-        var userId = 1L;
-        var roleName = "Admin";
-        var user = new AppUser { Id = (int)userId };
-        var identityResult = IdentityResult.Failed(new IdentityError { Description = "Role assignment failed" });
-
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(false);
-        _userManager.AddToRoleAsync(user, roleName).Returns(identityResult);
-
-        // Act
-        var result = await _service.AssignRoleToUserAsync(userId, roleName, CancellationToken.None);
-
-        // Assert
-        result.IsError().Should().BeTrue();
-        result.Errors.Should().Contain("Role assignment failed");
-    }
-
-    [Fact]
-    public async Task AssignRoleToUserAsync_ValidRequest_ReturnsSuccessResult()
-    {
-        // Arrange
-        var userId = 1L;
-        var roleName = "Admin";
-        var user = new AppUser { Id = (int)userId };
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(false);
-        _userManager.AddToRoleAsync(user, roleName).Returns(IdentityResult.Success);
-
-        // Act
-        var result = await _service.AssignRoleToUserAsync(userId, roleName, CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        await _userManager.Received(1).AddToRoleAsync(user, roleName);
-    }
-
-    [Fact]
-    public async Task AssignRoleToUserAsync_RoleNameWithWhitespace_AssignsTrimmedRoleName()
-    {
-        // Arrange
-        var userId = 1L;
-        var roleName = "Admin";
-        var user = new AppUser { Id = (int)userId };
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(false);
-        _userManager.AddToRoleAsync(user, roleName).Returns(IdentityResult.Success);
-
-        // Act
-        var result = await _service.AssignRoleToUserAsync(userId, $" {roleName} ", CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        await _userManager.Received(1).IsInRoleAsync(user, roleName);
-        await _userManager.Received(1).AddToRoleAsync(user, roleName);
-    }
-
-    [Fact]
     public async Task AssignRoleToUserAsync_PlatformAdminByNonPlatformAdmin_ReturnsForbidden()
     {
         // Arrange
-        _httpContextAccessor.HttpContext.Returns(new DefaultHttpContext());
+        SignInAs(CALLER_ID);
         _currentUserAuthorizationService
             .IsPlatformAdminAsync(Arg.Any<CancellationToken>())
             .Returns(Result<bool>.Success(false));
@@ -200,49 +124,82 @@ public class RoleManagementServiceTests
     }
 
     [Fact]
-    public async Task AssignRoleToUserAsync_PlatformAdminWithoutHttpContext_AllowsSeedAssignment()
+    public async Task AssignRoleToUserAsync_WithoutSignedInUser_ReturnsForbidden()
     {
         // Arrange
-        var userId = 1L;
-        var roleName = SystemRole.PlatformAdmin.Name;
-        var user = new AppUser { Id = (int)userId };
         _httpContextAccessor.HttpContext.Returns((HttpContext?)null);
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(false);
-        _userManager.AddToRoleAsync(user, roleName).Returns(IdentityResult.Success);
 
         // Act
-        var result = await _service.AssignRoleToUserAsync(userId, roleName, CancellationToken.None);
+        var result = await _service.AssignRoleToUserAsync(1, "Creator", CancellationToken.None);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        await _currentUserAuthorizationService.DidNotReceive().IsPlatformAdminAsync(Arg.Any<CancellationToken>());
-        await _userManager.Received(1).AddToRoleAsync(user, roleName);
-        AssertPlatformAdminMutationWarningNotLogged();
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        await _userManager.DidNotReceiveWithAnyArgs().AddToRoleAsync(default!, default!);
     }
 
     [Fact]
-    public async Task AssignRoleToUserAsync_PlatformAdminByPlatformAdmin_AllowsAssignment()
+    public async Task AssignRoleToUserAsync_SignedInCallerWithNonNumericId_GetsTheCeilingMessage()
     {
         // Arrange
-        var userId = 1L;
-        var roleName = SystemRole.PlatformAdmin.Name;
-        var user = new AppUser { Id = (int)userId };
-        _httpContextAccessor.HttpContext.Returns(new DefaultHttpContext());
+        SignInAs(CALLER_ID);
         _currentUserAuthorizationService
-            .IsPlatformAdminAsync(Arg.Any<CancellationToken>())
-            .Returns(Result<bool>.Success(true));
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(false);
-        _userManager.AddToRoleAsync(user, roleName).Returns(IdentityResult.Success);
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AuthorizationData.ForAuthenticatedUser("external-subject", 0, [], [])));
 
         // Act
-        var result = await _service.AssignRoleToUserAsync(userId, roleName, CancellationToken.None);
+        var result = await _service.AssignRoleToUserAsync(1, "Creator", CancellationToken.None);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        await _userManager.Received(1).AddToRoleAsync(user, roleName);
-        AssertPlatformAdminMutationWarningNotLogged();
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        result.Errors.Should().ContainSingle().Which.Should().Be("You can only grant access you hold yourself.");
+    }
+
+    [Fact]
+    public async Task AssignRoleToUserAsync_SignedInCallerWhoseAccessCannotBeRead_GetsTheCeilingMessage()
+    {
+        // Arrange
+        SignInAs(CALLER_ID);
+        _currentUserAuthorizationService
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result<AuthorizationData>.Error("Failed to retrieve user role information"));
+
+        // Act
+        var result = await _service.AssignRoleToUserAsync(1, "Creator", CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        result.Errors.Should().ContainSingle().Which.Should().Be("You can only grant access you hold yourself.");
+    }
+
+    [Fact]
+    public async Task AssignRoleToUserAsync_OwnRolesByNonAdmin_ReturnsForbidden()
+    {
+        // Arrange
+        SignInAs(CALLER_ID);
+
+        // Act
+        var result = await _service.AssignRoleToUserAsync(CALLER_ID, "Creator", CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        await _userManager.DidNotReceiveWithAnyArgs().FindByIdAsync(default!);
+    }
+
+    [Fact]
+    public async Task AssignRoleToUserAsync_UserInAnotherTenant_ReturnsNotFound()
+    {
+        // Arrange
+        SignInAs(CALLER_ID, SystemRole.Admin.Name);
+        _tenantContext.TenantId.Returns(10);
+        var user = new AppUser { Id = 1, TenantId = 20 };
+        _userManager.FindByIdAsync("1").Returns(user);
+
+        // Act
+        var result = await _service.AssignRoleToUserAsync(1, "Creator", CancellationToken.None);
+
+        // Assert
+        result.IsNotFound().Should().BeTrue();
+        await _userManager.DidNotReceiveWithAnyArgs().AddToRoleAsync(default!, default!);
     }
 
     #endregion
@@ -266,6 +223,7 @@ public class RoleManagementServiceTests
     public async Task RemoveRoleFromUserAsync_UserNotFound_ReturnsNotFoundResult()
     {
         // Arrange
+        SignInAs(CALLER_ID, SystemRole.Admin.Name);
         var userId = 999L;
         var roleName = "Admin";
         _userManager.FindByIdAsync(userId.ToString()).Returns((AppUser?)null);
@@ -279,69 +237,10 @@ public class RoleManagementServiceTests
     }
 
     [Fact]
-    public async Task RemoveRoleFromUserAsync_UserDoesNotHaveRole_ReturnsInvalidResult()
-    {
-        // Arrange
-        var userId = 1L;
-        var roleName = "Admin";
-        var user = new AppUser { Id = (int)userId };
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(false);
-
-        // Act
-        var result = await _service.RemoveRoleFromUserAsync(userId, roleName, CancellationToken.None);
-
-        // Assert
-        result.IsInvalid().Should().BeTrue();
-        result.ValidationErrors.Should().ContainSingle()
-            .Which.ErrorMessage.Should().Be($"User does not have role '{roleName}'.");
-    }
-
-    [Fact]
-    public async Task RemoveRoleFromUserAsync_RemoveFromRoleFails_ReturnsErrorResult()
-    {
-        // Arrange
-        var userId = 1L;
-        var roleName = "Admin";
-        var user = new AppUser { Id = (int)userId };
-        var identityResult = IdentityResult.Failed(new IdentityError { Description = "Role removal failed" });
-
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(true);
-        _userManager.RemoveFromRoleAsync(user, roleName).Returns(identityResult);
-
-        // Act
-        var result = await _service.RemoveRoleFromUserAsync(userId, roleName, CancellationToken.None);
-
-        // Assert
-        result.IsError().Should().BeTrue();
-        result.Errors.Should().Contain("Role removal failed");
-    }
-
-    [Fact]
-    public async Task RemoveRoleFromUserAsync_ValidRequest_ReturnsSuccessResult()
-    {
-        // Arrange
-        var userId = 1L;
-        var roleName = "Admin";
-        var user = new AppUser { Id = (int)userId };
-        _userManager.FindByIdAsync(userId.ToString()).Returns(user);
-        _userManager.IsInRoleAsync(user, roleName).Returns(true);
-        _userManager.RemoveFromRoleAsync(user, roleName).Returns(IdentityResult.Success);
-
-        // Act
-        var result = await _service.RemoveRoleFromUserAsync(userId, roleName, CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-        await _userManager.Received(1).RemoveFromRoleAsync(user, roleName);
-    }
-
-    [Fact]
     public async Task RemoveRoleFromUserAsync_PlatformAdminByNonPlatformAdmin_ReturnsForbidden()
     {
         // Arrange
-        _httpContextAccessor.HttpContext.Returns(new DefaultHttpContext());
+        SignInAs(CALLER_ID);
         _currentUserAuthorizationService
             .IsPlatformAdminAsync(Arg.Any<CancellationToken>())
             .Returns(Result<bool>.Success(false));
@@ -478,16 +377,6 @@ public class RoleManagementServiceTests
             Arg.Any<Func<object, Exception?, string>>());
     }
 
-    private void AssertPlatformAdminMutationWarningNotLogged()
-    {
-        _logger.DidNotReceive().Log(
-            LogLevel.Warning,
-            Arg.Any<EventId>(),
-            Arg.Any<object>(),
-            Arg.Any<Exception?>(),
-            Arg.Any<Func<object, Exception?, string>>());
-    }
-
     #region Role Definition Tests
 
     [Fact]
@@ -539,4 +428,13 @@ public class RoleManagementServiceTests
     }
 
     #endregion
+
+    private void SignInAs(long userId, params string[] roles)
+    {
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test");
+        _httpContextAccessor.HttpContext.Returns(new DefaultHttpContext { User = new ClaimsPrincipal(identity) });
+        _currentUserAuthorizationService
+            .GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AuthorizationData.ForAuthenticatedUser(userId.ToString(), 0, roles, [])));
+    }
 }

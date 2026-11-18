@@ -1,0 +1,31 @@
+[
+  {
+    "formId": 100,
+    "id": 1,
+    "isComplete": true,
+    "collectionStatus": "complete",
+    "createdAt": "2026-10-14T10:00:00Z",
+    "modifiedAt": "2026-10-14T10:00:00Z",
+    "startedAt": "N/A",
+    "completedAt": "N/A",
+    "durationSeconds": "N/A",
+    "submitterId": "N/A",
+    "submitterDisplayId": "N/A",
+    "brands__1": 1,
+    "brands__2": 1,
+    "brands__3": 1,
+    "aware__1": 1,
+    "aware__2": 0,
+    "aware__3": 1,
+    "aware__none": 0,
+    "occasions__10": 1,
+    "occasions__20": 1,
+    "occasionRank__10": 2,
+    "occasionRank__20": 1,
+    "considerLoop__1__consider": "1",
+    "considerLoop__2__consider": null,
+    "considerLoop__3__consider": "2",
+    "occasionLoop__10__occasionBrand": null,
+    "occasionLoop__20__occasionBrand": "3"
+  }
+]

@@ -1,5 +1,5 @@
-using Ardalis.Specification;
 using System.Security.Claims;
+using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
@@ -16,6 +16,7 @@ using Endatix.Infrastructure.Features.AccessControl;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute.Core;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
@@ -76,6 +77,7 @@ public partial class PublicFormAccessPolicyTests
     private readonly ISubmissionTokenService _tokenService;
     private readonly ISubmissionAccessTokenService _accessTokenService;
     private readonly IFormAccessTokenService _formFrameTokenService;
+    private readonly IFormRuntimeScopeReader _runtimeScopeReader;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly HybridCache _cache;
     private readonly IOptions<EndatixJwtOptions> _jwtOptions;
@@ -91,6 +93,7 @@ public partial class PublicFormAccessPolicyTests
         _tokenService = Substitute.For<ISubmissionTokenService>();
         _accessTokenService = Substitute.For<ISubmissionAccessTokenService>();
         _formFrameTokenService = Substitute.For<IFormAccessTokenService>();
+        _runtimeScopeReader = Substitute.For<IFormRuntimeScopeReader>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _cache = Substitute.For<HybridCache>();
         _httpContextAccessor = new HttpContextAccessor
@@ -142,7 +145,7 @@ public partial class PublicFormAccessPolicyTests
                 return factory(token);
             });
 
-        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _authorizationService, _dateTimeProvider, _jwtOptions, _cache, _submitterResolver, _httpContextAccessor);
+        _policy = new PublicFormAccessPolicy(_formRepository, _submissionRepository, _tokenService, _accessTokenService, _formFrameTokenService, _runtimeScopeReader, _authorizationService, _dateTimeProvider, _jwtOptions, _cache, _submitterResolver, _httpContextAccessor, NullLogger<PublicFormAccessPolicy>.Instance);
     }
 
     #region Helper Methods
@@ -1182,16 +1185,9 @@ public partial class PublicFormAccessPolicyTests
         FormAccessTokenClaims claims = new(formId, tenantId, DateTime.UtcNow.AddMinutes(30));
         PublicFormAccessContext context = new(formId, rawJwt, SubmissionTokenType.FormToken);
 
-        FormCreateArgs formArgs = new(TenantId: tenantId, Name: "Form token test");
-        Form form = Form.Create(formArgs);
-        form.Id = formId;
-        FormDefinition definition = new(tenantId, isDraft: false, jsonData: "{}");
-        form.AddFormDefinition(definition, isActive: true);
-
         _formFrameTokenService.ValidateToken(rawJwt).Returns(Result.Success(claims));
-        _formRepository
-            .FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdWithRelatedForPublicAccess>(), Arg.Any<CancellationToken>())
-            .Returns(form);
+        _runtimeScopeReader.GetAsync(formId, Arg.Any<CancellationToken>())
+            .Returns(new FormRuntimeScope(formId, tenantId, IsPublic: true, IsEnabled: true));
 
         string? capturedCacheKey = null;
         _cache
@@ -1215,6 +1211,63 @@ public partial class PublicFormAccessPolicyTests
         capturedCacheKey.Should().NotBeNull();
         capturedCacheKey.Should().StartWith($"ac:form_token:{formId}:token_fp:");
         capturedCacheKey.Should().NotContain(rawJwt);
+    }
+
+    [Theory]
+    [InlineData(false, true, true, 99L, true, ResultStatus.NotFound)]
+    [InlineData(true, true, false, 99L, true, ResultStatus.NotFound)]
+    [InlineData(true, false, false, 99L, false, ResultStatus.NotFound)]
+    [InlineData(true, false, true, 99L, true, ResultStatus.Forbidden)]
+    [InlineData(true, true, true, 7L, true, ResultStatus.Forbidden)]
+    public async Task GetAccessDataAsync_FormAccessToken_IsRefusedForTheFormsCurrentState(
+        bool formExists,
+        bool isPublic,
+        bool isEnabled,
+        long formTenantId,
+        bool isPublicGrant,
+        ResultStatus expected)
+    {
+        var scope = formExists ? new FormRuntimeScope(1, formTenantId, isPublic, isEnabled) : null;
+        const string rawJwt = "form-token";
+        _formFrameTokenService.ValidateToken(rawJwt)
+            .Returns(Result.Success(new FormAccessTokenClaims(1, 99, DateTime.UtcNow.AddMinutes(30), isPublicGrant)));
+        _runtimeScopeReader.GetAsync(1, Arg.Any<CancellationToken>()).Returns(scope);
+
+        var result = await _policy.GetAccessData(
+            new PublicFormAccessContext(1, rawJwt, SubmissionTokenType.FormToken),
+            TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(expected);
+        await _cache.DidNotReceive().GetOrCreateAsync<Cached<PublicFormAccessData>>(
+            Arg.Any<string>(),
+            Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
+            Arg.Any<HybridCacheEntryOptions?>(),
+            Arg.Any<IEnumerable<string>?>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetAccessDataAsync_FormAccessToken_IssuedForAPrivateForm_IsAcceptedWhileTheFormIsEnabled()
+    {
+        const string rawJwt = "private-form-token";
+        _formFrameTokenService.ValidateToken(rawJwt)
+            .Returns(Result.Success(new FormAccessTokenClaims(1, 99, DateTime.UtcNow.AddMinutes(30), IsPublicGrant: false)));
+        _runtimeScopeReader.GetAsync(1, Arg.Any<CancellationToken>())
+            .Returns(new FormRuntimeScope(1, 99, IsPublic: false, IsEnabled: true));
+        _cache
+            .GetOrCreateAsync<Cached<PublicFormAccessData>>(
+                Arg.Any<string>(),
+                Arg.Any<Func<CancellationToken, ValueTask<Cached<PublicFormAccessData>>>>(),
+                Arg.Any<HybridCacheEntryOptions?>(),
+                Arg.Any<IEnumerable<string>?>(),
+                Arg.Any<CancellationToken>())
+            .Returns(InvokeHybridCacheGetOrCreateFactory);
+
+        var result = await _policy.GetAccessData(
+            new PublicFormAccessContext(1, rawJwt, SubmissionTokenType.FormToken),
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
     }
 
     #endregion

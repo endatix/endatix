@@ -45,8 +45,32 @@ internal static class SurveyJsPropertyNames
     public const string IsExclusive = "isExclusive";
     public const string ChoicesByUrl = "choicesByUrl";
     public const string ChoicesFromQuestion = "choicesFromQuestion";
+
+    /// <summary>SurveyJS: which of the source's choices a <see cref="ChoicesFromQuestion"/> copy shows (all, selected, unselected).</summary>
+    public const string ChoicesFromQuestionMode = "choicesFromQuestionMode";
+    public const string ChoicesVisibleIf = "choicesVisibleIf";
+    public const string Visible = "visible";
+    public const string ClearIfInvisible = "clearIfInvisible";
+    public const string DetailElements = "detailElements";
+    public const string VisibleIf = "visibleIf";
     public const string ChoiceValuesFromQuestion = "choiceValuesFromQuestion";
     public const string AllowCustomChoices = "allowCustomChoices";
+
+    /// <summary>Hub: the data list a select question loads its choices from.</summary>
+    public const string DataListId = "edxDataListId";
+
+    /// <summary>Hub carry forward: on when <c>true</c>, copying the choices of <see cref="CarryForwardSources"/>.</summary>
+    public const string CarryForwardEnabled = "edxCarryForwardEnabled";
+
+    /// <summary>Hub carry forward: the names of the questions whose choices are copied, in order.</summary>
+    public const string CarryForwardSources = "edxCarryForwardSources";
+
+    /// <summary>Hub carry forward: which of the sources' choices are copied (all, selected, unselected).</summary>
+    public const string CarryForwardMode = "edxCarryForwardMode";
+
+    /// <summary>Hub carry forward: at most this many copied choices are shown; 0 or absent is no cap.</summary>
+    public const string CarryForwardMaxChoices = "edxCarryForwardMaxChoices";
+    public const string Url = "url";
     public const string Comment = "comment";
 
     /// <summary>SurveyJS <c>settings.commentSuffix</c>: the key of a question's Other text or comment.</summary>

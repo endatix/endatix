@@ -221,6 +221,7 @@ Single-context. `GLOSSARY.md` at the root is created lazily by `domain-modeling`
 - Lint: `dotnet format Endatix.slnx --verify-no-changes --include <changed files>`. CI has no lint step and the whole solution does not pass yet, so check only the files you touched
 - Check (build-warnings): a C# change adds no in-scope build warning, as CI's gate counts them. `dotnet build Endatix.slnx --no-incremental 2>&1 | tee build.log; ./scripts/check-build-warnings.sh build.log` (exit 0; 1 lists the in-scope warnings; NU1901-NU1904 are allowed). `--no-incremental` matters: an incremental build skips projects and hides their warnings. `./scripts/check-build-warnings.test.sh` tests the script itself
 - Run: `dotnet run --project src/Endatix.WebHost` (API on https://localhost:5001)
+- Signing keys: outside Development the API refuses to start unless `Endatix:Auth:Providers:EndatixJwt:SigningKey` and `Endatix:Submissions:AccessTokenSigningKey` are both set, at least 32 bytes, and not a published example. Development generates a random key for each one that is not set
 - PR title scope: `e[0-9]+|deps|deps-dev` (the full title and branch rules are in [CONTRIBUTING.md](CONTRIBUTING.md))
 - Branch name: `<type>/e<issue>-<slug>`
 

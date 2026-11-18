@@ -33,21 +33,35 @@ internal readonly record struct CatalogChoice(string Value, int Id, ChoiceKind K
 
 /// <summary>
 /// RUN TIME read model of the codebook's <c>choiceCatalogs</c>: the merged union of every compiled definition. Built
-/// once per flatten. The only reader of the catalog fields <c>kind</c>, <c>exclusive</c>, <c>multiple</c> and
-/// <c>otherStorage</c>.
+/// once per flatten. The only reader of the catalog fields <c>kind</c>, <c>exclusive</c>, <c>multiple</c>,
+/// <c>otherStorage</c> and <c>shown</c>, and of which questions copy their choices.
 /// </summary>
 internal sealed class ChoiceCatalogs
 {
     private readonly Dictionary<string, SelectChoices> _selects;
+    private readonly HashSet<string> _copies;
+    private readonly Dictionary<string, CopyVisibility> _visibility;
 
-    private ChoiceCatalogs(Dictionary<string, SelectChoices> selects)
+    private ChoiceCatalogs(
+        Dictionary<string, SelectChoices> selects,
+        HashSet<string> copies,
+        Dictionary<string, CopyVisibility> visibility)
     {
         _selects = selects;
+        _copies = copies;
+        _visibility = visibility;
     }
 
-    public static ChoiceCatalogs Empty { get; } = new(new Dictionary<string, SelectChoices>(StringComparer.Ordinal));
+    public static ChoiceCatalogs Empty { get; } = new(
+        new Dictionary<string, SelectChoices>(StringComparer.Ordinal),
+        new HashSet<string>(StringComparer.Ordinal),
+        new Dictionary<string, CopyVisibility>(StringComparer.Ordinal));
 
-    public static ChoiceCatalogs Read(string? codebookJson)
+    /// <summary>
+    /// The codebook's catalogs for flattening one submission. <paramref name="submissionComplete"/> lets a rule that
+    /// holds only for a completed submission (<see cref="CopyVisibility.WhenComplete"/>) apply.
+    /// </summary>
+    public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false)
     {
         if (string.IsNullOrWhiteSpace(codebookJson))
         {
@@ -61,11 +75,23 @@ internal sealed class ChoiceCatalogs
             return Empty;
         }
 
-        return new ChoiceCatalogs(catalogs.EnumerateObject()
-            .Select(catalog => (catalog.Name, Select: SelectChoices.FromCatalog(catalog.Value)))
-            .Where(entry => entry.Select is not null)
-            .ToDictionary(entry => entry.Name, entry => entry.Select!, StringComparer.Ordinal));
+        return new ChoiceCatalogs(
+            ReadEach(catalogs, SelectChoices.FromCatalog),
+            CopiesIn(document.RootElement, catalogs),
+            ReadEach(catalogs, CopyVisibility.Read))
+        { SubmissionComplete = submissionComplete };
     }
+
+    // Every catalog that reads as a T, by question name.
+    private static Dictionary<string, T> ReadEach<T>(JsonElement catalogs, Func<JsonElement, T?> read)
+        where T : class =>
+        catalogs.EnumerateObject()
+            .Select(catalog => (catalog.Name, Value: read(catalog.Value)))
+            .Where(entry => entry.Value is not null)
+            .ToDictionary(entry => entry.Name, entry => entry.Value!, StringComparer.Ordinal);
+
+    /// <summary>Whether the submission being flattened is completed.</summary>
+    public bool SubmissionComplete { get; private init; }
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
     public bool IsSelect(string question) => _selects.ContainsKey(question);
@@ -76,6 +102,64 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public SelectChoices For(string question) =>
         _selects.TryGetValue(question, out var select) ? select : SelectChoices.Unknown;
+
+    /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
+    public bool Copies(string question) => _copies.Contains(question);
+
+    /// <summary>The question's select choices; null when it is not a base select.</summary>
+    public SelectChoices? SelectOrNull(string question) => _selects.GetValueOrDefault(question);
+
+    /// <summary>
+    /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
+    /// with its own choices shows every one, so the rest are 0. A copy that has no answer shows nothing provably, so the
+    /// rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
+    /// None, ...) and the copied choices the rule rebuilds from the sources' answers. Every other cell is empty.
+    /// </summary>
+    public IndicatorCell Indicator(AnswerScope scope, string question, string choiceValue)
+    {
+        if (For(question).Read(scope.Own, question).Has(choiceValue))
+        {
+            return IndicatorCell.Picked;
+        }
+
+        if (!_copies.Contains(question))
+        {
+            return IndicatorCell.ShownNotPicked;
+        }
+
+        return scope.OwnAnswers(question) && AnsweredCopyShows(scope, question, choiceValue)
+            ? IndicatorCell.ShownNotPicked
+            : IndicatorCell.Empty;
+    }
+
+    // The copy's own special items are always on its list, but only an exact rule that holds for this submission proves
+    // which definition's list, and that the copy was shown.
+    private bool AnsweredCopyShows(AnswerScope scope, string question, string choiceValue) =>
+        _visibility.TryGetValue(question, out var rule) &&
+        rule.HoldsFor(SubmissionComplete) &&
+        ((For(question).KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice) ||
+         rule.Shows(choiceValue, scope, this) == true);
+
+    // A copy in the current definition (its question entry, which every codebook since copied choices records), or in
+    // any earlier one (the catalog's sticky copied marker).
+    private static HashSet<string> CopiesIn(JsonElement codebook, JsonElement catalogs)
+    {
+        var copies = new HashSet<string>(
+            catalogs.EnumerateObject().Where(catalog => CopyVisibility.IsCopied(catalog.Value)).Select(catalog => catalog.Name),
+            StringComparer.Ordinal);
+        if (codebook.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is { ValueKind: JsonValueKind.Object } questions)
+        {
+            copies.UnionWith(questions.EnumerateObject().Where(question => IsCopy(question.Value)).Select(question => question.Name));
+        }
+
+        return copies;
+    }
+
+    /// <summary>Whether a codebook question entry records that the question copies its choices.</summary>
+    internal static bool IsCopy(JsonElement question) =>
+        question.ValueKind == JsonValueKind.Object &&
+        question.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceSource) is { ValueKind: JsonValueKind.Object } source &&
+        source.GetStringProperty(FormSchemaCodebookPropertyNames.Kind) == ChoiceSource.CarryForwardKind;
 }
 
 /// <summary>The stored choices of one select question and where its Other text goes.</summary>
@@ -88,6 +172,13 @@ internal sealed class SelectChoices
     public IReadOnlyList<CatalogChoice> Choices { get; private init; } = [];
 
     public OtherStorage? OtherStorage { get; private init; }
+
+    /// <summary>The kind of the catalog choice with this value; null when the catalog has none.</summary>
+    public ChoiceKind? KindOf(string value) =>
+        Choices.FirstOrDefault(choice => choice.Value == value) is { Value: not null } found ? found.Kind : null;
+
+    /// <summary>Whether the select offers this value as one of its own choices (not a special item).</summary>
+    public bool Offers(string value) => KindOf(value) == ChoiceKind.Choice;
 
     internal static SelectChoices? FromCatalog(JsonElement catalog)
     {

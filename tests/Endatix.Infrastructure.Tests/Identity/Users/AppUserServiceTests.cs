@@ -1,12 +1,12 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Infrastructure.Data.Querying;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Users;
-using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
-using System.Security.Claims;
-using Endatix.Infrastructure.Data.Querying;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Tests.Identity.Users;
@@ -20,6 +20,7 @@ public class AppUserServiceTests
     private readonly IUserContext _userContext;
     private readonly IRelationalSubstringLikeFilter _substringLikeFilter;
     private readonly IAuthorizationCache _authorizationCache;
+    private readonly IRoleManagementService _roleManagementService;
     private readonly ILogger<AppUserService> _logger;
     private readonly AppUserService _userService;
 
@@ -35,6 +36,10 @@ public class AppUserServiceTests
         _userContext = Substitute.For<IUserContext>();
         _substringLikeFilter = Substitute.For<IRelationalSubstringLikeFilter>();
         _authorizationCache = Substitute.For<IAuthorizationCache>();
+        _roleManagementService = Substitute.For<IRoleManagementService>();
+        _roleManagementService
+            .EnsureCurrentUserCanGrantRolesAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Core.Infrastructure.Result.Result.Success());
         _logger = Substitute.For<ILogger<AppUserService>>();
         _userService = new AppUserService(
             _userManager,
@@ -44,6 +49,7 @@ public class AppUserServiceTests
             _userContext,
             _substringLikeFilter,
             _authorizationCache,
+            _roleManagementService,
             _logger);
     }
 

@@ -63,39 +63,6 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         return new Form(id, args);
     }
 
-    /// <summary>
-    /// Legacy constructor. Prefer <see cref="Create(FormCreateArgs)"/>.
-    /// <paramref name="submissionTokenExpiryHours"/> is last so existing positional/named
-    /// call sites for metadata / webhooks / folder stay binary-compatible.
-    /// </summary>
-#pragma warning disable S1133, S107 // Public API kept, with its positional parameters, until callers move to Create(FormCreateArgs).
-    [Obsolete("Use Form.Create(FormCreateArgs).")]
-    public Form(
-        long tenantId,
-        string name,
-        string? description = null,
-        bool isEnabled = false,
-        bool isPublic = true,
-        bool limitOnePerUser = false,
-        string? metadata = null,
-        string? webHookSettingsJson = null,
-        long? folderId = null,
-        int? submissionTokenExpiryHours = null)
-        : this(new FormCreateArgs(
-            TenantId: tenantId,
-            Name: name,
-            Description: description,
-            IsEnabled: isEnabled,
-            IsPublic: isPublic,
-            LimitOnePerUser: limitOnePerUser,
-            Metadata: metadata,
-            WebHookSettingsJson: webHookSettingsJson,
-            FolderId: folderId,
-            SubmissionTokenExpiryHours: submissionTokenExpiryHours))
-    {
-    }
-#pragma warning restore S1133, S107
-
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public bool IsEnabled { get; set; }

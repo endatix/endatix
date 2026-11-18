@@ -414,6 +414,35 @@ public partial class FormSchemaCompilerTests
   }
 
   [Fact]
+  public void CompilePersisted_MultipleTextItems_WritesRowLabelsFromItemTitles()
+  {
+    // Arrange
+    const string definitionJson = """
+      {
+        "pages":[{"name":"page1","elements":[
+          {"type":"multipletext","name":"contact","items":[
+            {"name":"phone","title":{"default":"Phone","es":"Teléfono"}},
+            {"name":"email","title":"Email"},
+            {"name":"fax"}
+          ]}
+        ]}]
+      }
+      """;
+
+    // Act
+    FormSchemaCompileResult compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+    using JsonDocument codebook = JsonDocument.Parse(compiled.CodebookJson);
+    JsonElement columns = codebook.RootElement.GetProperty("columns");
+
+    // Assert
+    JsonElement phoneLabel = columns.GetProperty("contact__phone").GetProperty("rowLabel");
+    phoneLabel.GetProperty("default").GetString().Should().Be("Phone");
+    phoneLabel.GetProperty("es").GetString().Should().Be("Teléfono");
+    columns.GetProperty("contact__email").GetProperty("rowLabel").GetProperty("default").GetString().Should().Be("Email");
+    columns.GetProperty("contact__fax").GetProperty("rowLabel").GetProperty("default").GetString().Should().Be("fax");
+  }
+
+  [Fact]
   public void CompilePersisted_MatrixDropdownBlankTitle_FallsBackToColumnText()
   {
     // Arrange — blank localized title must not block usable text before columnValue fallback.

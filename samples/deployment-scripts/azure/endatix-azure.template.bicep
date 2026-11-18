@@ -41,11 +41,13 @@ param initialUserEmail string = 'admin@endatix.com'
 param initialUserPassword string
 
 @secure()
-@description('JWT signing key for Endatix API auth provider')
+@description('JWT signing key for Endatix API auth provider. A random value of at least 32 bytes, for example from openssl rand -base64 48; run generate-quickstart-secrets.mjs to generate it.')
+@minLength(32)
 param endatixJwtSigningKey string
 
 @secure()
-@description('Signing key for Endatix submission access tokens')
+@description('Signing key for Endatix submission access tokens. A random value of at least 32 bytes, for example from openssl rand -base64 48; run generate-quickstart-secrets.mjs to generate it.')
+@minLength(32)
 param submissionsAccessTokenSigningKey string
 
 @secure()

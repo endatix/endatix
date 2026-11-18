@@ -1,6 +1,8 @@
 ﻿using Endatix.Api.Common;
+using Endatix.Core.Common;
 using FastEndpoints;
 using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -10,9 +12,19 @@ namespace Endatix.Api.Endpoints.Forms;
 public class PartialUpdateFormValidator : Validator<PartialUpdateFormRequest>
 {
     /// <summary>
-    /// Default constructor
+    /// Validator without the server's settings: endpoint URLs on private and local networks are refused.
     /// </summary>
     public PartialUpdateFormValidator()
+        : this(OutboundAddressPolicy.PublicOnly)
+    {
+    }
+
+    /// <summary>
+    /// Validator the endpoint uses, built with the server's <see cref="OutboundAddressPolicy"/>.
+    /// </summary>
+    /// <param name="outboundAddressPolicy">Whether webhook endpoints may be on private and local networks.</param>
+    [ActivatorUtilitiesConstructor]
+    public PartialUpdateFormValidator(OutboundAddressPolicy outboundAddressPolicy)
     {
         RuleFor(x => x.FormId)
             .GreaterThan(0);
@@ -22,6 +34,7 @@ public class PartialUpdateFormValidator : Validator<PartialUpdateFormRequest>
             .When(x => x.Metadata != null);
 
         RuleFor(x => x.WebHookSettingsJson)
-            .NoRetiredWebHookKeys();
+            .NoRetiredWebHookKeys()
+            .PublicWebHookEndpoints(outboundAddressPolicy);
     }
 }

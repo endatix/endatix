@@ -1,0 +1,113 @@
+{
+  "title": "Calculated value name clashes",
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "colors",
+          "title": "Pick the colors you like",
+          "choices": [
+            {
+              "value": "red",
+              "text": "Red"
+            },
+            {
+              "value": "blue",
+              "text": "Blue"
+            }
+          ]
+        },
+        {
+          "type": "matrix",
+          "name": "ratings",
+          "title": "Rate each service",
+          "columns": [
+            {
+              "value": "1",
+              "text": "Poor"
+            },
+            {
+              "value": "2",
+              "text": "Good"
+            }
+          ],
+          "rows": [
+            {
+              "value": "delivery",
+              "text": "Delivery"
+            },
+            {
+              "value": "support",
+              "text": "Support"
+            }
+          ]
+        },
+        {
+          "type": "ranking",
+          "name": "fruitRank",
+          "title": "Rank the fruit",
+          "choices": [
+            {
+              "value": "apple",
+              "text": "Apple"
+            },
+            {
+              "value": "pear",
+              "text": "Pear"
+            }
+          ]
+        },
+        {
+          "type": "multipletext",
+          "name": "contact",
+          "title": "Your contact details",
+          "items": [
+            {
+              "name": "phone",
+              "title": "Phone"
+            },
+            {
+              "name": "email",
+              "title": "Email"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "qTotal",
+          "title": "totalAmount"
+        }
+      ]
+    }
+  ],
+  "calculatedValues": [
+    {
+      "name": "colors",
+      "expression": "1",
+      "includeIntoResult": true
+    },
+    {
+      "name": "ratings",
+      "expression": "2",
+      "includeIntoResult": true
+    },
+    {
+      "name": "fruitRank",
+      "expression": "3",
+      "includeIntoResult": true
+    },
+    {
+      "name": "contact",
+      "expression": "4",
+      "includeIntoResult": true
+    },
+    {
+      "name": "totalAmount",
+      "expression": "5",
+      "includeIntoResult": true
+    }
+  ],
+  "showTitle": false
+}

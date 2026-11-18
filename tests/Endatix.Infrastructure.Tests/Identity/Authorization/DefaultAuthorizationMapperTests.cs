@@ -12,6 +12,7 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
 public sealed class DefaultAuthorizationMapperTests
 {
+    private const long TENANT_ID = 5;
     private readonly RoleManager<AppRole> _roleManager;
     private readonly ILookupNormalizer _keyNormalizer;
     private readonly DefaultAuthorizationMapper _mapper;
@@ -45,7 +46,7 @@ public sealed class DefaultAuthorizationMapperTests
         var roleMappings = new Dictionary<string, string> { { "admin", "Admin" } };
 
         // Act
-        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, CancellationToken.None);
+        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, TENANT_ID, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -61,7 +62,7 @@ public sealed class DefaultAuthorizationMapperTests
         var roleMappings = new Dictionary<string, string>();
 
         // Act
-        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, CancellationToken.None);
+        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, TENANT_ID, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -77,7 +78,7 @@ public sealed class DefaultAuthorizationMapperTests
         var roleMappings = new Dictionary<string, string> { { "admin", "Admin" } };
 
         // Act
-        var result = await _mapper.MapToAppRolesAsync(externalRoles!, roleMappings, CancellationToken.None);
+        var result = await _mapper.MapToAppRolesAsync(externalRoles!, roleMappings, TENANT_ID, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -118,7 +119,7 @@ public sealed class DefaultAuthorizationMapperTests
         };
 
         // Act
-        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, CancellationToken.None);
+        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, TENANT_ID, CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeFalse();
@@ -143,10 +144,96 @@ public sealed class DefaultAuthorizationMapperTests
 
 
         // Act
-        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, CancellationToken.None);
+        var result = await _mapper.MapToAppRolesAsync(externalRoles, roleMappings, TENANT_ID, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
+    }
+
+    #endregion
+
+    #region Platform Permission Tests
+
+    [Fact]
+    public async Task MapToAppRolesAsync_TenantRoleHoldingAPlatformPermission_GrantsNoneOfIt()
+    {
+        // Arrange
+        var role = CreateRole("Operators", "OPERATORS", isActive: true, isSystemDefined: false);
+        Grant(role, "forms.view");
+        Grant(role, "platform.tenants.manage");
+        _roles.Add(role);
+        UpdateRolesQueryable();
+        _keyNormalizer.NormalizeName("Operators").Returns("OPERATORS");
+
+        // Act
+        var result = await _mapper.MapToAppRolesAsync(
+            ["ops"], new Dictionary<string, string> { { "ops", "Operators" } }, TENANT_ID, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Permissions.Should().BeEquivalentTo("forms.view");
+    }
+
+    [Fact]
+    public async Task MapToAppRolesAsync_SystemRoleHoldingAPlatformPermission_GrantsIt()
+    {
+        // Arrange
+        var role = CreateRole("PlatformAdmin", "PLATFORMADMIN", isActive: true);
+        Grant(role, "platform.tenants.manage");
+        _roles.Add(role);
+        UpdateRolesQueryable();
+        _keyNormalizer.NormalizeName("PlatformAdmin").Returns("PLATFORMADMIN");
+
+        // Act
+        var result = await _mapper.MapToAppRolesAsync(
+            ["platform"], new Dictionary<string, string> { { "platform", "PlatformAdmin" } }, TENANT_ID, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Permissions.Should().BeEquivalentTo("platform.tenants.manage");
+    }
+
+    [Fact]
+    public async Task MapToAppRolesAsync_AnotherTenantsRoleOfTheSameName_ContributesNothing()
+    {
+        // Arrange
+        var own = CreateRole("Operators", "OPERATORS", isActive: true, isSystemDefined: false);
+        Grant(own, "forms.view");
+        var other = CreateRole("Operators", "OPERATORS", isActive: true, isSystemDefined: false);
+        other.TenantId = TENANT_ID + 1;
+        Grant(other, "tenant.users.manage");
+        _roles.AddRange([own, other]);
+        UpdateRolesQueryable();
+        _keyNormalizer.NormalizeName("Operators").Returns("OPERATORS");
+
+        // Act
+        var result = await _mapper.MapToAppRolesAsync(
+            ["ops"], new Dictionary<string, string> { { "ops", "Operators" } }, TENANT_ID, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Roles.Should().BeEquivalentTo("Operators");
+        result.Permissions.Should().BeEquivalentTo("forms.view");
+    }
+
+    [Fact]
+    public async Task MapToAppRolesAsync_TenantRoleNamedAdmin_DoesNotCarryTheAdminName()
+    {
+        // Arrange
+        var lookalike = CreateRole("Admin", "ADMIN", isActive: true, isSystemDefined: false);
+        Grant(lookalike, "forms.view");
+        _roles.Add(lookalike);
+        UpdateRolesQueryable();
+        _keyNormalizer.NormalizeName("Admin").Returns("ADMIN");
+
+        // Act
+        var result = await _mapper.MapToAppRolesAsync(
+            ["admins"], new Dictionary<string, string> { { "admins", "Admin" } }, TENANT_ID, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Roles.Should().BeEmpty();
+        result.Permissions.Should().BeEquivalentTo("forms.view");
     }
 
     #endregion
@@ -337,7 +424,7 @@ public sealed class DefaultAuthorizationMapperTests
             NormalizedName = normalizedName,
             IsActive = isActive,
             IsSystemDefined = isSystemDefined,
-            TenantId = 0
+            TenantId = isSystemDefined ? 0 : TENANT_ID
         };
         return role;
     }
@@ -352,6 +439,15 @@ public sealed class DefaultAuthorizationMapperTests
             idProperty.SetValue(permission, _nextId++);
         }
         return permission;
+    }
+
+    /// <summary>Adds an active permission to the role with its navigation loaded, as the query's Include would.</summary>
+    private void Grant(AppRole role, string permissionName)
+    {
+        var permission = CreatePermission(permissionName);
+        role.AddPermission(permission);
+        var rolePermission = role.RolePermissions.Single(item => item.PermissionId == permission.Id);
+        typeof(RolePermission).GetProperty(nameof(RolePermission.Permission))!.SetValue(rolePermission, permission);
     }
 
     private void UpdateRolesQueryable()
@@ -412,7 +508,8 @@ public sealed class DefaultAuthorizationMapperTests
         }
 
         public IQueryable CreateQuery(Expression expression) => _inner.CreateQuery(expression);
-        public IQueryable<TElement> CreateQuery<TElement>(Expression expression) => _inner.CreateQuery<TElement>(expression);
+        public IQueryable<TElement> CreateQuery<TElement>(Expression expression) =>
+            new TestAsyncQueryable<TElement>(_inner.CreateQuery<TElement>(expression));
         public object Execute(Expression expression) => _inner.Execute(expression)!;
         public TResult Execute<TResult>(Expression expression) => _inner.Execute<TResult>(expression);
 

@@ -13,6 +13,7 @@ using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Features.AccessControl;
@@ -27,12 +28,14 @@ public sealed class PublicFormAccessPolicy(
     ISubmissionTokenService tokenService,
     ISubmissionAccessTokenService accessTokenService,
     IFormAccessTokenService formAccessTokenService,
+    IFormRuntimeScopeReader runtimeScopeReader,
     ICurrentUserAuthorizationService authorizationService,
     IDateTimeProvider dateTimeProvider,
     IOptions<EndatixJwtOptions> endatixJwtOptions,
     HybridCache cache,
     ISubmitterResolver submitterResolver,
-    IHttpContextAccessor httpContextAccessor
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<PublicFormAccessPolicy> logger
 ) : IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>
 {
     private static readonly TimeSpan _defaultTtl = TimeSpan.FromMinutes(10);
@@ -44,6 +47,7 @@ public sealed class PublicFormAccessPolicy(
 
     private const string UNAUTHORIZED_MESSAGE = "You must be authenticated to access this form";
     private const string FORBIDDEN_MESSAGE = "You are not allowed to access this form";
+    private const string FORM_NOT_FOUND_MESSAGE = "Form not found";
 
     /// <inheritdoc/>
     public async Task<Result<ICachedData<PublicFormAccessData>>> GetAccessData(
@@ -219,21 +223,25 @@ public sealed class PublicFormAccessPolicy(
         var claims = accessResult.Value;
         if (claims.FormId != context.FormId)
         {
-            return Result.Forbidden("Form access token does not match this form.");
+            return RefuseFormAccessToken(context.FormId, "Form access token does not match this form.");
         }
 
-        var form = await formRepository.FirstOrDefaultAsync(
-            new FormSpecifications.ByIdWithRelatedForPublicAccess(claims.FormId),
-            cancellationToken);
-
-        if (form is null)
+        // Checked on every use, not only at issue: the grant below is cached for the token's lifetime.
+        var scope = await runtimeScopeReader.GetAsync(claims.FormId, cancellationToken);
+        if (scope is null || !scope.IsEnabled)
         {
-            return Result.NotFound("Form not found");
+            logger.LogFormAccessTokenRefused(context.FormId, FORM_NOT_FOUND_MESSAGE);
+            return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
 
-        if (form.TenantId != claims.TenantId)
+        if (scope.TenantId != claims.TenantId)
         {
-            return Result.Forbidden("Form access token tenant does not match this form.");
+            return RefuseFormAccessToken(context.FormId, "Form access token tenant does not match this form.");
+        }
+
+        if (claims.IsPublicGrant && !scope.IsPublic)
+        {
+            return RefuseFormAccessToken(context.FormId, "Form access token is no longer valid for this form.");
         }
 
         var tokenSafeExpirationTtl = (claims.ExpiresAtUtc - dateTimeProvider.Now.UtcDateTime).TotalSeconds;
@@ -244,6 +252,12 @@ public sealed class PublicFormAccessPolicy(
             dynamicTtl,
             RouteType.FormAccessToken,
             FormTokenClaims: claims));
+    }
+
+    private Result<AccessPolicyRoute> RefuseFormAccessToken(long formId, string message)
+    {
+        logger.LogFormAccessTokenRefused(formId, message);
+        return Result.Forbidden(message);
     }
 
     /// <summary>No access-cache key holds a raw token: the cache can be distributed.</summary>

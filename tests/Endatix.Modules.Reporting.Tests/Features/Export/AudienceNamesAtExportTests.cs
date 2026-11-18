@@ -50,7 +50,7 @@ public sealed class AudienceNamesAtExportTests
     public async Task NativeCodebook_RenamedAndReorderedProperties_ShowsCurrentNamesInTheBlockOrder()
     {
         // Arrange
-        FormSchemaCodebookExportDataSource dataSource = new(new ExportSchemas(_schemas, _catalog), _settingsParser);
+        FormSchemaCodebookExportDataSource dataSource = new(new ExportSchemas(_schemas, _catalog, NullLogger<ExportSchemas>.Instance), _settingsParser);
 
         // Act
         using var codebook = JsonDocument.Parse(await StreamTextAsync(dataSource, Context("codebook", typeof(DynamicExportRow))));
@@ -69,7 +69,7 @@ public sealed class AudienceNamesAtExportTests
     {
         // Arrange
         ShojiCodebookExportDataSource dataSource = new(
-            new ExportSchemas(_schemas, _catalog),
+            new ExportSchemas(_schemas, _catalog, NullLogger<ExportSchemas>.Instance),
             Substitute.For<IFormsRepository>(),
             _settingsParser);
 
@@ -92,7 +92,7 @@ public sealed class AudienceNamesAtExportTests
         var rows = Substitute.For<IReportingExportRepository>();
         rows.HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>()).Returns(true);
         TabularExportDataSource dataSource = new(
-            new ExportSchemas(_schemas, _catalog),
+            new ExportSchemas(_schemas, _catalog, NullLogger<ExportSchemas>.Instance),
             rows,
             _settingsParser,
             ColumnAliasTransformerRegistry.Default,

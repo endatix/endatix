@@ -1,0 +1,3143 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "key": "region",
+      "kind": "Simple",
+      "label": "Region",
+      "dataType": "string",
+      "sourceQuestion": "region",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "hiddenBrands__1",
+      "kind": "ChoiceIndicator",
+      "label": "Brands shown to this respondent — <p><b>Brand A</b></p>",
+      "dataType": "number",
+      "sourceQuestion": "hiddenBrands",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "hiddenBrands__2",
+      "kind": "ChoiceIndicator",
+      "label": "Brands shown to this respondent — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "hiddenBrands",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "hiddenBrands__3",
+      "kind": "ChoiceIndicator",
+      "label": "Brands shown to this respondent — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "hiddenBrands",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "hiddenTraits__1",
+      "kind": "ChoiceIndicator",
+      "label": "Traits shown to this respondent — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "hiddenTraits",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "hiddenTraits__2",
+      "kind": "ChoiceIndicator",
+      "label": "Traits shown to this respondent — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "hiddenTraits",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "hiddenTraits__3",
+      "kind": "ChoiceIndicator",
+      "label": "Traits shown to this respondent — Local",
+      "dataType": "number",
+      "sourceQuestion": "hiddenTraits",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "AidedBrands__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands have you heard of? — <p><b>Brand A</b></p>",
+      "dataType": "number",
+      "sourceQuestion": "AidedBrands",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "AidedBrands__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands have you heard of? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "AidedBrands",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "AidedBrands__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands have you heard of? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "AidedBrands",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "AidedBrands__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands have you heard of? — None",
+      "dataType": "number",
+      "sourceQuestion": "AidedBrands",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "favorite",
+      "kind": "Simple",
+      "label": "Which one is your favorite?",
+      "dataType": "string",
+      "sourceQuestion": "favorite",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brandRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank the brands you know — <p><b>Brand A</b></p>",
+      "dataType": "number",
+      "sourceQuestion": "brandRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brandRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank the brands you know — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "brandRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brandRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank the brands you know — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "brandRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "stores__1",
+      "kind": "ChoiceIndicator",
+      "label": "Where do you shop? — Store A",
+      "dataType": "number",
+      "sourceQuestion": "stores",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "stores__2",
+      "kind": "ChoiceIndicator",
+      "label": "Where do you shop? — Store B",
+      "dataType": "number",
+      "sourceQuestion": "stores",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "stores__3",
+      "kind": "ChoiceIndicator",
+      "label": "Where do you shop? — Store C",
+      "dataType": "number",
+      "sourceQuestion": "stores",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqAllPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, all) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqAllPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqAllPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, all) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqAllPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqAllPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, all) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqAllPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqAllOne",
+      "kind": "Simple",
+      "label": "Pick one store (cfq, all)",
+      "dataType": "string",
+      "sourceQuestion": "cfqAllOne",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqAllRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, all) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqAllRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqAllRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, all) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqAllRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqAllRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, all) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqAllRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqTagPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Tag stores (cfq, all, tagbox) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqTagPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqTagPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Tag stores (cfq, all, tagbox) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqTagPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqTagPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Tag stores (cfq, all, tagbox) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqTagPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqTagPick__none",
+      "kind": "ChoiceIndicator",
+      "label": "Tag stores (cfq, all, tagbox) — None",
+      "dataType": "number",
+      "sourceQuestion": "cfqTagPick",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqSelectedPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, selected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqSelectedPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqSelectedPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, selected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqSelectedPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqSelectedPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, selected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqSelectedPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqSelectedOne",
+      "kind": "Simple",
+      "label": "Pick one store (cfq, selected)",
+      "dataType": "string",
+      "sourceQuestion": "cfqSelectedOne",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqSelectedRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, selected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqSelectedRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqSelectedRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, selected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqSelectedRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqSelectedRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, selected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqSelectedRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqUnselectedPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, unselected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqUnselectedPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqUnselectedPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, unselected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqUnselectedPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqUnselectedPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (cfq, unselected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqUnselectedPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqUnselectedOne",
+      "kind": "Simple",
+      "label": "Pick one store (cfq, unselected)",
+      "dataType": "string",
+      "sourceQuestion": "cfqUnselectedOne",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqUnselectedRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, unselected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqUnselectedRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqUnselectedRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, unselected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqUnselectedRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "cfqUnselectedRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores (cfq, unselected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqUnselectedRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxAllPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, all) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxAllPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxAllPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, all) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxAllPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxAllPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, all) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxAllPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxAllOne",
+      "kind": "Simple",
+      "label": "Pick one store (edx, all)",
+      "dataType": "string",
+      "sourceQuestion": "edxAllOne",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxAllRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, all) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxAllRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxAllRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, all) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxAllRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxAllRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, all) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxAllRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxSelectedPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, selected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxSelectedPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxSelectedPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, selected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxSelectedPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxSelectedPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, selected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxSelectedPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxSelectedOne",
+      "kind": "Simple",
+      "label": "Pick one store (edx, selected)",
+      "dataType": "string",
+      "sourceQuestion": "edxSelectedOne",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxSelectedRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, selected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxSelectedRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxSelectedRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, selected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxSelectedRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxSelectedRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, selected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxSelectedRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxUnselectedPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, unselected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxUnselectedPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxUnselectedPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, unselected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxUnselectedPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxUnselectedPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Pick stores (edx, unselected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxUnselectedPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxUnselectedOne",
+      "kind": "Simple",
+      "label": "Pick one store (edx, unselected)",
+      "dataType": "string",
+      "sourceQuestion": "edxUnselectedOne",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxUnselectedRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, unselected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxUnselectedRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxUnselectedRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, unselected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxUnselectedRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "edxUnselectedRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores (edx, unselected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxUnselectedRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__0__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #1)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 0,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__0__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #1)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 0,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__1__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #2)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 1,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__1__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #2)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 1,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__2__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #3)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 2,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__2__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #3)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 2,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__3__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #4)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 3,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__3__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #4)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 3,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__4__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #5)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 4,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__4__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #5)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 4,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__5__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #6)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 5,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__5__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #6)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 5,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__6__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #7)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 6,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__6__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #7)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 6,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__7__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #8)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 7,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__7__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #8)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 7,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__8__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #9)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 8,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__8__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #9)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 8,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__9__member",
+      "kind": "PanelDynamicIndex",
+      "label": "member (household #10)",
+      "dataType": "string",
+      "sourceQuestion": "member",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 9,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "household__9__pets",
+      "kind": "PanelDynamicIndex",
+      "label": "pets (household #10)",
+      "dataType": "string",
+      "sourceQuestion": "pets",
+      "choiceValue": null,
+      "panelName": "household",
+      "panelIndex": 9,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "satisfaction__price",
+      "kind": "MatrixRow",
+      "label": "satisfaction — Price",
+      "dataType": "number",
+      "sourceQuestion": "satisfaction",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "price",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "1",
+        "2",
+        "3"
+      ],
+      "loopPath": null
+    },
+    {
+      "key": "satisfaction__taste",
+      "kind": "MatrixRow",
+      "label": "satisfaction — Taste",
+      "dataType": "number",
+      "sourceQuestion": "satisfaction",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "taste",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "1",
+        "2",
+        "3"
+      ],
+      "loopPath": null
+    },
+    {
+      "key": "usage__home__frequency",
+      "kind": "MatrixCell",
+      "label": "usage — At home — frequency",
+      "dataType": "string",
+      "sourceQuestion": "usage",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "home",
+      "matrixColumnValue": "frequency",
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "usage__home__note",
+      "kind": "MatrixCell",
+      "label": "usage — At home — note",
+      "dataType": "string",
+      "sourceQuestion": "usage",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "home",
+      "matrixColumnValue": "note",
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "usage__work__frequency",
+      "kind": "MatrixCell",
+      "label": "usage — At work — frequency",
+      "dataType": "string",
+      "sourceQuestion": "usage",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "work",
+      "matrixColumnValue": "frequency",
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "usage__work__note",
+      "kind": "MatrixCell",
+      "label": "usage — At work — note",
+      "dataType": "string",
+      "sourceQuestion": "usage",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "work",
+      "matrixColumnValue": "note",
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "contact__city",
+      "kind": "MultipleTextItem",
+      "label": "contact — City",
+      "dataType": "string",
+      "sourceQuestion": "contact",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "city",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "contact__zip",
+      "kind": "MultipleTextItem",
+      "label": "contact — Postal code",
+      "dataType": "string",
+      "sourceQuestion": "contact",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "zip",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "comments",
+      "kind": "Simple",
+      "label": "Anything else?",
+      "dataType": "string",
+      "sourceQuestion": null,
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "considerLoop__1__consider",
+      "kind": "LoopSource",
+      "label": "Would you consider {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__consider",
+      "kind": "LoopSource",
+      "label": "Would you consider {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__consider",
+      "kind": "LoopSource",
+      "label": "Would you consider {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__1__traits__1",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__1__traits__2",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__1__traits__3",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Local",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__1__traits__other",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Other",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__1__traits__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "What describes {panel.itemText}? — Other text",
+      "dataType": "string",
+      "sourceQuestion": "traits",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__1__traits__none",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__2__traits__1",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__2__traits__2",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__2__traits__3",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Local",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__2__traits__other",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Other",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__2__traits__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "What describes {panel.itemText}? — Other text",
+      "dataType": "string",
+      "sourceQuestion": "traits",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__2__traits__none",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__3__traits__1",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__3__traits__2",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__3__traits__3",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Local",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__3__traits__other",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — Other",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__3__traits__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "What describes {panel.itemText}? — Other text",
+      "dataType": "string",
+      "sourceQuestion": "traits",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitsLoop__3__traits__none",
+      "kind": "ChoiceIndicator",
+      "label": "What describes {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitsLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__1__attribute__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — <p><b>Brand A</b></p>",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__1__attribute__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__1__attribute__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__1__attribute__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__2__attribute__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — <p><b>Brand A</b></p>",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__2__attribute__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__2__attribute__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__2__attribute__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__3__attribute__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — <p><b>Brand A</b></p>",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__3__attribute__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__3__attribute__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "attributeLoop__3__attribute__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands share this with {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "attribute",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "attributeLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "rankLoop__1__rankPick",
+      "kind": "LoopSource",
+      "label": "Which brand comes closest to {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "rankPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "rankLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "rankLoop__2__rankPick",
+      "kind": "LoopSource",
+      "label": "Which brand comes closest to {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "rankPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "rankLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "rankLoop__3__rankPick",
+      "kind": "LoopSource",
+      "label": "Which brand comes closest to {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "rankPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "rankLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "reasonLoop__1__reason",
+      "kind": "LoopSource",
+      "label": "Why {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "reason",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "reasonLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "reasonLoop__2__reason",
+      "kind": "LoopSource",
+      "label": "Why {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "reason",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "reasonLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "reasonLoop__3__reason",
+      "kind": "LoopSource",
+      "label": "Why {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "reason",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "reasonLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__1__cfqAllOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqAllOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__1__cfqLoopRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__1__cfqLoopRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__1__cfqLoopRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__2__cfqAllOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqAllOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__2__cfqLoopRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__2__cfqLoopRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__2__cfqLoopRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__3__cfqAllOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqAllOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__3__cfqLoopRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__3__cfqLoopRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "cfqAllLoop__3__cfqLoopRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (cfq, all) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "cfqLoopRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "cfqSelectedLoop__1__cfqSelectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqSelectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqSelectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "cfqSelectedLoop__2__cfqSelectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqSelectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqSelectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "cfqSelectedLoop__3__cfqSelectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqSelectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqSelectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "cfqUnselectedLoop__1__cfqUnselectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqUnselectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqUnselectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "cfqUnselectedLoop__2__cfqUnselectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqUnselectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqUnselectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "cfqUnselectedLoop__3__cfqUnselectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "cfqUnselectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "cfqUnselectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxAllOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxAllOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__other",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__1__edxLoopPick__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other text",
+      "dataType": "string",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxAllOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxAllOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__other",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__2__edxLoopPick__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other text",
+      "dataType": "string",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxAllOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxAllOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopRank__1",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopRank__2",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopRank__3",
+      "kind": "RankingChoice",
+      "label": "Rank stores after {panel.itemText} (edx, selected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopRank",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store A",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store B",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Store C",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__other",
+      "kind": "ChoiceIndicator",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other",
+      "dataType": "number",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": "other",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxAllLoop__3__edxLoopPick__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "Stores you would revisit after {panel.itemText} (edx, unselected) — Other text",
+      "dataType": "string",
+      "sourceQuestion": "edxLoopPick",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxAllLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxSelectedLoop__1__edxSelectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxSelectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxSelectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxSelectedLoop__2__edxSelectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxSelectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxSelectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxSelectedLoop__3__edxSelectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxSelectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxSelectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "edxUnselectedLoop__1__edxUnselectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxUnselectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxUnselectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "edxUnselectedLoop__2__edxUnselectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxUnselectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxUnselectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "edxUnselectedLoop__3__edxUnselectedOk",
+      "kind": "LoopSource",
+      "label": "Is {panel.itemText} open late?",
+      "dataType": "string",
+      "sourceQuestion": "edxUnselectedOk",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "edxUnselectedLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "brandPool",
+      "kind": "Calculated",
+      "label": "brandPool",
+      "dataType": "string",
+      "sourceQuestion": null,
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "traitPool",
+      "kind": "Calculated",
+      "label": "traitPool",
+      "dataType": "string",
+      "sourceQuestion": null,
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    }
+  ]
+}

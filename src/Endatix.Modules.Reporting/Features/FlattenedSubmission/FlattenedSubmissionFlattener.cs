@@ -25,12 +25,13 @@ internal static class FlattenedSubmissionFlattener
         Dictionary<string, JsonElement?> result = new(StringComparer.Ordinal);
         var frozen = snapshots ?? ResponseSnapshots.None;
         var catalogs = choices ?? ChoiceCatalogs.Empty;
+        var root = AnswerScope.Root(submission);
 
         foreach (var column in formSchema.Columns)
         {
             result[column.Key] = frozen.TryGetValue(column, out var value)
                 ? value
-                : ExtractValue(submission, column, catalogs);
+                : ExtractValue(root, column, catalogs);
         }
 
         return result;
@@ -68,40 +69,41 @@ internal static class FlattenedSubmissionFlattener
         value.Value.WriteTo(writer);
     }
 
-    private static JsonElement? ExtractValue(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
+    // The root scope is resolved once per row; a loop column narrows it to its own item.
+    private static JsonElement? ExtractValue(AnswerScope root, FormSchemaColumn column, ChoiceCatalogs choices)
     {
         if (IsChoiceColumn(column, choices))
         {
-            return ExtractChoiceValue(submission, column, choices);
+            return ExtractChoiceValue(root, column, choices);
         }
 
         switch (column.Kind)
         {
             case FormSchemaColumnKind.Simple:
             case FormSchemaColumnKind.Calculated:
-                return ExtractSimpleValue(submission, column);
+                return ExtractSimpleValue(root.Own, column);
 
             case FormSchemaColumnKind.RankingChoice:
-                return ExtractRankingChoiceValue(submission, column);
+                return ExtractRankingChoiceValue(root, column, choices);
 
             case FormSchemaColumnKind.MatrixRow:
-                return ExtractMatrixRowValue(submission, column);
+                return ExtractMatrixRowValue(root, column);
 
             case FormSchemaColumnKind.MatrixCell:
-                return ExtractMatrixCellValue(submission, column);
+                return ExtractMatrixCellValue(root, column);
 
             case FormSchemaColumnKind.MultipleTextItem:
-                return ExtractMultipleTextItemValue(submission, column);
+                return ExtractMultipleTextItemValue(root, column);
 
             case FormSchemaColumnKind.FileUpload:
-                return ExtractFileUploadValue(submission, column);
+                return ExtractFileUploadValue(root, column);
 
             case FormSchemaColumnKind.PanelDynamicIndex:
-                return ExtractPanelDynamicIndexValue(submission, column);
+                return ExtractPanelDynamicIndexValue(root.Own, column);
 
             case FormSchemaColumnKind.NestedLoop:
             case FormSchemaColumnKind.LoopSource:
-                return ExtractLoopSourceValue(submission, column);
+                return ExtractLoopSourceValue(root, column);
 
             default:
                 return null;
@@ -113,24 +115,22 @@ internal static class FlattenedSubmissionFlattener
         (column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource &&
          choices.IsSelect(column.SourceQuestion ?? column.Key));
 
-    private static JsonElement? ExtractChoiceValue(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
+    // Every cell of a loop item the respondent did not have is empty, indicators included.
+    private static JsonElement? ExtractChoiceValue(AnswerScope root, FormSchemaColumn column, ChoiceCatalogs choices)
     {
-        var answer = ReadSelectAnswer(submission, column, choices);
-        return column.Kind switch
+        if (root.Within(column.LoopPath) is not { } scope)
         {
-            FormSchemaColumnKind.ChoiceIndicator => ToBooleanJson(answer?.Has(column.ChoiceValue!) ?? false),
-            FormSchemaColumnKind.CheckboxOtherText => answer?.OtherText,
-            _ => answer?.SingleValueJson(),
-        };
-    }
+            return null;
+        }
 
-    // A select answer read from the submission, or from the loop panel item the column belongs to; null when the
-    // loop has no such item.
-    private static SelectAnswer? ReadSelectAnswer(JsonElement submission, FormSchemaColumn column, ChoiceCatalogs choices)
-    {
-        var context = column.LoopPath is null ? submission : TryResolveLoopContext(submission, column.LoopPath);
         var question = column.SourceQuestion ?? column.Key;
-        return context is { } found ? choices.For(question).Read(found, question) : null;
+        if (column.Kind == FormSchemaColumnKind.ChoiceIndicator)
+        {
+            return choices.Indicator(scope, question, column.ChoiceValue!).ToJson();
+        }
+
+        var answer = choices.For(question).Read(scope.Own, question);
+        return column.Kind == FormSchemaColumnKind.CheckboxOtherText ? answer.OtherText : answer.SingleValueJson();
     }
 
     private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)
@@ -144,36 +144,43 @@ internal static class FlattenedSubmissionFlattener
         return answer;
     }
 
-    private static JsonElement? ExtractRankingChoiceValue(JsonElement submission, FormSchemaColumn column) =>
+    // A copied ranking's list depends on its sources, so an unranked choice may never have been on it: empty, not 0.
+    private static JsonElement? ExtractRankingChoiceValue(AnswerScope root, FormSchemaColumn column, ChoiceCatalogs choices) =>
         ExtractFromLoopAwareContext(
-            submission,
+            root,
             column.LoopPath,
-            context => ToRankJson(GetRankPosition(context, column.SourceQuestion!, column.ChoiceValue!)));
+            context => RankCellOf(context, column, choices).ToJson());
 
-    private static JsonElement? ExtractMatrixRowValue(JsonElement submission, FormSchemaColumn column) =>
+    private static RankCell RankCellOf(JsonElement context, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        var cell = RankOf(context, column.SourceQuestion!, column.ChoiceValue!);
+        return cell.IsUnranked && choices.Copies(column.SourceQuestion!) ? RankCell.Empty : cell;
+    }
+
+    private static JsonElement? ExtractMatrixRowValue(AnswerScope root, FormSchemaColumn column) =>
         ExtractFromLoopAwareContext(
-            submission,
+            root,
             column.LoopPath,
             context => TryGetMatrixRadioRowValue(context, column));
 
-    private static JsonElement? ExtractMultipleTextItemValue(JsonElement submission, FormSchemaColumn column) =>
+    private static JsonElement? ExtractMultipleTextItemValue(AnswerScope root, FormSchemaColumn column) =>
         ExtractFromLoopAwareContext(
-            submission,
+            root,
             column.LoopPath,
             context => TryGetPlainMatrixRowValue(context, column.SourceQuestion!, column.MatrixRowValue!));
 
-    private static JsonElement? ExtractFileUploadValue(JsonElement submission, FormSchemaColumn column) =>
+    private static JsonElement? ExtractFileUploadValue(AnswerScope root, FormSchemaColumn column) =>
         ExtractFromLoopAwareContext(
-            submission,
+            root,
             column.LoopPath,
             context => TryGetFileValue(context, column.SourceQuestion ?? column.Key));
 
     private static JsonElement? ExtractPanelDynamicIndexValue(JsonElement submission, FormSchemaColumn column) =>
         TryGetPanelIndexValue(submission, column);
 
-    private static JsonElement? ExtractLoopSourceValue(JsonElement submission, FormSchemaColumn column)
+    private static JsonElement? ExtractLoopSourceValue(AnswerScope root, FormSchemaColumn column)
     {
-        if (TryGetLoopContextValue(submission, column) is not JsonElement answer)
+        if (TryGetLoopContextValue(root, column) is not JsonElement answer)
         {
             return null;
         }
@@ -181,60 +188,29 @@ internal static class FlattenedSubmissionFlattener
         return answer;
     }
 
-    private static JsonElement? ExtractMatrixCellValue(JsonElement submission, FormSchemaColumn column) =>
-        TryGetMatrixCellValue(submission, column);
+    private static JsonElement? ExtractMatrixCellValue(AnswerScope root, FormSchemaColumn column) =>
+        TryGetMatrixCellValue(root, column);
 
     private static JsonElement? ExtractFromLoopAwareContext(
-        JsonElement submission,
+        AnswerScope root,
         IReadOnlyList<LoopSegment>? loopPath,
         Func<JsonElement, JsonElement?> extract)
+        => root.Within(loopPath) is { } scope ? extract(scope.Own) : null;
+
+    // An unanswered ranking is empty; an answered one ranks each choice, 0 for a choice left unranked.
+    private static RankCell RankOf(JsonElement context, string questionName, string choiceValue)
     {
-        if (loopPath is null)
+        if (context.TryGetPropertyValue(questionName) is not { ValueKind: JsonValueKind.Array } answer ||
+            answer.GetArrayLength() == 0)
         {
-            return extract(submission);
+            return RankCell.Empty;
         }
 
-        if (TryResolveLoopContext(submission, loopPath) is not JsonElement loopContext)
-        {
-            return null;
-        }
-
-        return extract(loopContext);
-    }
-
-    private static JsonElement ToBooleanJson(bool value)
-    {
-        using var document = JsonDocument.Parse(value ? "1" : "0");
-        return document.RootElement.Clone();
-    }
-
-    private static int GetRankPosition(JsonElement context, string questionName, string choiceValue)
-    {
         var normalizedChoice = choiceValue.Trim();
-        if (context.TryGetPropertyValue(questionName) is not JsonElement answer ||
-            answer.ValueKind != JsonValueKind.Array)
-        {
-            return 0;
-        }
-
-        var rank = 1;
-        foreach (var item in answer.EnumerateArray())
-        {
-            if (string.Equals(item.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal))
-            {
-                return rank;
-            }
-
-            rank++;
-        }
-
-        return 0;
-    }
-
-    private static JsonElement ToRankJson(int rank)
-    {
-        using var document = JsonDocument.Parse(rank.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        return document.RootElement.Clone();
+        var ahead = answer.EnumerateArray()
+            .TakeWhile(item => !string.Equals(item.GetScalarStringValue(), normalizedChoice, StringComparison.Ordinal))
+            .Count();
+        return ahead < answer.GetArrayLength() ? RankCell.Ranked(ahead + 1) : RankCell.Unranked;
     }
 
     private static JsonElement? TryGetMatrixRadioRowValue(JsonElement context, FormSchemaColumn column)
@@ -274,7 +250,7 @@ internal static class FlattenedSubmissionFlattener
         {
             if (string.Equals(column.MatrixColumnChoices[index], selectedValue, StringComparison.Ordinal))
             {
-                return ToRankJson(index + 1);
+                return RankCell.Ranked(index + 1).ToJson();
             }
         }
 
@@ -294,14 +270,14 @@ internal static class FlattenedSubmissionFlattener
         return matrixAnswer.TryGetPropertyValue(rowValue);
     }
 
-    private static JsonElement? TryGetMatrixCellValue(JsonElement submission, FormSchemaColumn column)
+    private static JsonElement? TryGetMatrixCellValue(AnswerScope root, FormSchemaColumn column)
     {
         if (column.SourceQuestion is null || column.MatrixColumnValue is null)
         {
             return null;
         }
 
-        if (!TryResolveMatrixContext(submission, column, out var matrixContext))
+        if (!TryResolveMatrixContext(root, column, out var matrixContext))
         {
             return null;
         }
@@ -320,23 +296,17 @@ internal static class FlattenedSubmissionFlattener
     }
 
     private static bool TryResolveMatrixContext(
-        JsonElement submission,
+        AnswerScope root,
         FormSchemaColumn column,
         out JsonElement matrixContext)
     {
-        if (column.LoopPath is null)
-        {
-            matrixContext = submission;
-            return true;
-        }
-
-        if (TryResolveLoopContext(submission, column.LoopPath) is not JsonElement loopContext)
+        if (root.Within(column.LoopPath) is not { } scope)
         {
             matrixContext = default;
             return false;
         }
 
-        matrixContext = loopContext;
+        matrixContext = scope.Own;
         return true;
     }
 
@@ -451,65 +421,13 @@ internal static class FlattenedSubmissionFlattener
         return null;
     }
 
-    private static JsonElement? TryGetLoopContextValue(JsonElement submission, FormSchemaColumn column)
+    private static JsonElement? TryGetLoopContextValue(AnswerScope root, FormSchemaColumn column)
     {
         if (column.LoopPath is null || column.LoopPath.Count == 0 || column.SourceQuestion is null)
         {
             return null;
         }
 
-        if (TryResolveLoopContext(submission, column.LoopPath) is not JsonElement loopContext)
-        {
-            return null;
-        }
-
-        return loopContext.TryGetPropertyValue(column.SourceQuestion);
-    }
-
-    private static JsonElement? TryResolveLoopContext(
-        JsonElement submission,
-        IReadOnlyList<LoopSegment> loopPath)
-    {
-        var current = submission;
-
-        foreach (var segment in loopPath)
-        {
-            if (!TryFindLoopPanelItem(current, segment, out var matchedItem))
-            {
-                return null;
-            }
-
-            current = matchedItem;
-        }
-
-        return current;
-    }
-
-    private static bool TryFindLoopPanelItem(
-        JsonElement current,
-        LoopSegment segment,
-        out JsonElement matchedItem)
-    {
-        matchedItem = default;
-
-        if (current.TryGetPropertyValue(segment.PanelValueName) is not JsonElement panelArray ||
-            panelArray.ValueKind != JsonValueKind.Array)
-        {
-            return false;
-        }
-
-        var item = panelArray.EnumerateArray().FirstOrDefault(panelItem =>
-            string.Equals(
-                panelItem.TryGetPropertyValue(segment.PropertyName)?.GetScalarStringValue(),
-                segment.ChoiceValue,
-                StringComparison.Ordinal));
-
-        if (item.ValueKind == JsonValueKind.Undefined)
-        {
-            return false;
-        }
-
-        matchedItem = item;
-        return true;
+        return root.Within(column.LoopPath)?.Own.TryGetPropertyValue(column.SourceQuestion);
     }
 }

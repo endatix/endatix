@@ -1,11 +1,10 @@
-using System.Collections.Immutable;
-using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Branding;
+using Endatix.Core.Common;
 using Endatix.Core.Configuration;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
@@ -25,7 +24,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
-using Polly.Timeout;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -172,6 +170,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WebHookEventConfigReader>();
         services.AddScoped(typeof(IWebHookService), typeof(BackgroundTaskWebHookService));
         services.AddHostedService<WebHookBackgroundWorker>();
+        // Registered with Add, not TryAdd, so it wins over the public-only default a guarded client registers first.
+        services.AddSingleton(serviceProvider => new OutboundAddressPolicy(
+            serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value.ServerSettings.AllowPrivateNetworkTargets));
+        services.AddHostedService<PrivateNetworkTargetsStartupWarning>();
         services.AddHttpClient<WebHookServer>((serviceProvider, client) =>
                {
                    var webHookSettings = serviceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
@@ -179,16 +181,10 @@ public static class ServiceCollectionExtensions
                    client.Timeout = TimeSpan.FromSeconds(webHookSettings.ServerSettings.PipelineTimeoutInSeconds);
                    client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
                })
+               .ConnectToPublicAddressesOnly()
                .AddResilienceHandler("webhook-resilience", static (builder, context) =>
                {
                    var webHookSettings = context.ServiceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;
-
-                   var exceptionsToHandle = new[]
-                    {
-                        typeof(TimeoutRejectedException),
-                        typeof(SocketException),
-                        typeof(HttpRequestException),
-                    }.ToImmutableArray();
 
                    builder.AddRetry(new HttpRetryStrategyOptions
                    {
@@ -196,7 +192,7 @@ public static class ServiceCollectionExtensions
                        Delay = TimeSpan.FromSeconds(webHookSettings.ServerSettings.Delay),
                        MaxRetryAttempts = webHookSettings.ServerSettings.RetryAttempts,
                        UseJitter = true,
-                       ShouldHandle = ex => new ValueTask<bool>(exceptionsToHandle.Contains(ex.GetType()) || ex.Outcome.Result?.IsSuccessStatusCode == false)
+                       ShouldHandle = WebHookRetryPredicate.ShouldRetry
                    });
                    builder.AddTimeout(TimeSpan.FromSeconds(webHookSettings.ServerSettings.AttemptTimeoutInSeconds));
                    builder.AddConcurrencyLimiter(new ConcurrencyLimiterOptions
@@ -244,6 +240,7 @@ public static class ServiceCollectionExtensions
                    client.Timeout = TimeSpan.FromSeconds(webHookSettings.ServerSettings.PipelineTimeoutInSeconds);
                    client.DefaultRequestHeaders.UserAgent.ParseAdd(WebHookRequestHeaders.Constants.ENDATIX_USER_AGENT);
                })
+               .ConnectToPublicAddressesOnly()
                .AddResilienceHandler("webhook-job-resilience", static (builder, context) =>
                {
                    var webHookSettings = context.ServiceProvider.GetRequiredService<IOptions<WebHookSettings>>().Value;

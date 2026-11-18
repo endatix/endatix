@@ -18,7 +18,7 @@ public class IdentitySeedTests
     private readonly UserManager<AppUser> _userManager;
     private readonly IUserRegistrationService _userRegistrationService;
 
-    private readonly IRoleManagementService _roleManagementService;
+    private readonly ISystemRoleAssignment _systemRoleAssignment;
     private readonly DataOptions _dataOptions;
     private readonly ILogger _logger;
 
@@ -28,7 +28,7 @@ public class IdentitySeedTests
             Substitute.For<IUserStore<AppUser>>(),
             null, null, null, null, null, null, null, null);
         _userRegistrationService = Substitute.For<IUserRegistrationService>();
-        _roleManagementService = Substitute.For<IRoleManagementService>();
+        _systemRoleAssignment = Substitute.For<ISystemRoleAssignment>();
         _dataOptions = new DataOptions();
         _logger = Substitute.For<ILogger>();
     }
@@ -40,7 +40,7 @@ public class IdentitySeedTests
         UserManager<AppUser> userManager = null!;
 
         // Act
-        var act = () => IdentitySeed.SeedInitialUser(userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
+        var act = () => IdentitySeed.SeedInitialUser(userManager, _userRegistrationService, _systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
         var expectedMessage = ErrorMessages.GetErrorMessage(nameof(userManager), ErrorType.Null);
@@ -55,7 +55,7 @@ public class IdentitySeedTests
         IUserRegistrationService userRegistrationService = null!;
 
         // Act
-        var act = () => IdentitySeed.SeedInitialUser(_userManager, userRegistrationService, _roleManagementService, _dataOptions, _logger);
+        var act = () => IdentitySeed.SeedInitialUser(_userManager, userRegistrationService, _systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
         var expectedMessage = ErrorMessages.GetErrorMessage(nameof(userRegistrationService), ErrorType.Null);
@@ -64,16 +64,16 @@ public class IdentitySeedTests
     }
 
     [Fact]
-    public async Task SeedInitialUser_NullRoleManagementService_ThrowsArgumentNullException()
+    public async Task SeedInitialUser_NullSystemRoleAssignment_ThrowsArgumentNullException()
     {
         // Arrange
-        IRoleManagementService roleManagementService = null!;
+        ISystemRoleAssignment systemRoleAssignment = null!;
 
         // Act
-        var act = () => IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, roleManagementService, _dataOptions, _logger);
+        var act = () => IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
-        var expectedMessage = ErrorMessages.GetErrorMessage(nameof(roleManagementService), ErrorType.Null);
+        var expectedMessage = ErrorMessages.GetErrorMessage(nameof(systemRoleAssignment), ErrorType.Null);
         await act.Should().ThrowAsync<ArgumentNullException>()
             .WithMessage(expectedMessage);
     }
@@ -86,7 +86,7 @@ public class IdentitySeedTests
         _userManager.Users.Returns(users);
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
         await _userRegistrationService.DidNotReceive()
@@ -102,7 +102,7 @@ public class IdentitySeedTests
         _dataOptions.InitialUser = null;
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
         await AssertSkippedWithPasswordNotConfiguredError();
@@ -119,7 +119,7 @@ public class IdentitySeedTests
         _dataOptions.InitialUser = new InitialUserOptions { Email = "admin@example.com", Password = password };
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
         await AssertSkippedWithPasswordNotConfiguredError();
@@ -135,11 +135,11 @@ public class IdentitySeedTests
         _dataOptions.InitialUser = new InitialUserOptions { Password = expectedPassword };
         _userRegistrationService.RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>())
             .Returns(Result<User>.Success(new User(2L, expectedEmail, expectedEmail, true)));
-        _roleManagementService.AssignRoleToUserAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
+        _systemRoleAssignment.AssignRoleAsSystemAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
@@ -164,18 +164,18 @@ public class IdentitySeedTests
         var password = dataOptions.InitialUser.Password;
         _userRegistrationService.RegisterUserAsync(email, password, 1L, true, Arg.Any<CancellationToken>())
             .Returns(Result<User>.Success(new User(2L, email, email, true)));
-        _roleManagementService.AssignRoleToUserAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
+        _systemRoleAssignment.AssignRoleAsSystemAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, dataOptions, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _systemRoleAssignment, dataOptions, _logger);
 
         // Assert
         password.Should().NotBeNullOrWhiteSpace();
         await _userRegistrationService.Received(1)
             .RegisterUserAsync(email, password, 1L, true, Arg.Any<CancellationToken>());
-        await _roleManagementService.Received(1)
-            .AssignRoleToUserAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>());
+        await _systemRoleAssignment.Received(1)
+            .AssignRoleAsSystemAsync(2L, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -198,18 +198,18 @@ public class IdentitySeedTests
         // Setup mock return value
         _userRegistrationService.RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>())
             .Returns(Result<User>.Success(new User(expectedUserId, expectedEmail, expectedEmail, true)));
-        _roleManagementService.AssignRoleToUserAsync(expectedUserId, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
+        _systemRoleAssignment.AssignRoleAsSystemAsync(expectedUserId, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>())
            .Returns(Result.Success());
 
         // Act
-        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _roleManagementService, _dataOptions, _logger);
+        await IdentitySeed.SeedInitialUser(_userManager, _userRegistrationService, _systemRoleAssignment, _dataOptions, _logger);
 
         // Assert
         await _userRegistrationService.Received(1)
             .RegisterUserAsync(expectedEmail, expectedPassword, 1L, true, Arg.Any<CancellationToken>());
 
-        await _roleManagementService.Received(1)
-            .AssignRoleToUserAsync(expectedUserId, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>());
+        await _systemRoleAssignment.Received(1)
+            .AssignRoleAsSystemAsync(expectedUserId, SystemRole.PlatformAdmin.Name, Arg.Any<CancellationToken>());
     }
 
     private async Task AssertSkippedWithPasswordNotConfiguredError()

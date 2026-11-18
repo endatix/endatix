@@ -74,12 +74,12 @@ Use `{JWT_SIGNING_KEY}` or user secrets — never commit production signing keys
 
 ### Endatix Hub Configuration
 
-The Endatix JWT provider is automatically registered - no additional setup required. Below is the default configuration in the .env file:
+The Endatix JWT provider is automatically registered - no additional setup required. Set these in the Hub `.env` file:
 
 ```bash
 # .env
-# You can generate a secure AUTH_SECRET key using `npx auth secret` from the root of the Endatix Hub project
-AUTH_SECRET=QKYuOMS2deIInJt9q6WNmWwuh9QtL7BPKKQfTG/KI48=
+# Required, at least 32 bytes. Generate your own with `openssl rand -base64 32` or `npx auth secret`
+AUTH_SECRET=<your-generated-secret>
 
 # Needed for production deployment to ensure the authentication works correctly under reverse proxy - https://authjs.dev/getting-started/deployment
 AUTH_TRUST_HOST=true

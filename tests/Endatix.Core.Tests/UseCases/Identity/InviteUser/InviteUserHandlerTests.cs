@@ -23,6 +23,9 @@ public class InviteUserHandlerTests
         _currentUserAuthorizationService
             .ValidateAccessAsync(Actions.Tenant.InviteUsers, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
+        _roleManagementService
+            .EnsureCurrentUserCanGrantRolesAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
         _handler = new InviteUserHandler(
             _userRegistrationService,
             _roleManagementService,
@@ -63,7 +66,7 @@ public class InviteUserHandlerTests
             .Returns(Result.Forbidden("Invite users permission is required."));
 
         // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(command, TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Forbidden);
@@ -101,6 +104,27 @@ public class InviteUserHandlerTests
                 Arg.Any<string>(),
                 Arg.Any<long>(),
                 Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Handle_WhenARoleExceedsTheInvitersAccess_ReturnsForbiddenBeforeCreatingTheUser()
+    {
+        // Arrange
+        var command = new InviteUserCommand("new-user@endatix.com", ["Wider"]);
+        _roleManagementService
+            .GetMissingAssignableRoleNamesAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<string>>.Success([]));
+        _roleManagementService
+            .EnsureCurrentUserCanGrantRolesAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Forbidden("You can only grant access you hold yourself."));
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        await _userRegistrationService.DidNotReceive()
+            .RegisterInvitedUserAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

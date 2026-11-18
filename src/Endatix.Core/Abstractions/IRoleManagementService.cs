@@ -1,6 +1,6 @@
+using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Entities.Identity;
 using Endatix.Core.UseCases.Identity.ListRoles;
 
 namespace Endatix.Core.Abstractions;
@@ -36,6 +36,15 @@ public interface IRoleManagementService
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A Result indicating success or failure.</returns>
     Task<Result> ReplaceRolesForUserAsync(long userId, IReadOnlyList<string> roleNames, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks that the current user holds every permission the named roles carry, so they may hand them out.
+    /// Admin holds all; unknown role names are left to the caller's own existence check.
+    /// </summary>
+    /// <param name="roleNames">The roles about to be granted.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Success, or Forbidden when a role exceeds the current user's access.</returns>
+    Task<Result> EnsureCurrentUserCanGrantRolesAsync(IReadOnlyList<string> roleNames, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Grants the platform administrator role to a user.

@@ -187,7 +187,7 @@ public class FlattenedSubmissionFlattenerTests
 
         flattened["name"].Should().BeNull();
         flattened["colors__red"]!.Value.GetRawText().Should().Be("0");
-        flattened["rank__a"]!.Value.GetRawText().Should().Be("0");
+        flattened["rank__a"].Should().BeNull();
     }
 
     [Fact]

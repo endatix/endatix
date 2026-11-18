@@ -67,8 +67,7 @@ You need to migrate to the new Endatix:Auth:Providers:EndatixJwt section as belo
 The settings are defined under the `"Endatix" > "Auth" > "Providers" > "EndatixJwt"` section:
 
 - **SigningKey:** The key used to sign the JWT token. This key must remain confidential and be stored securely (e.g., in environment variables). Exposing this key can compromise the entire authentication system.
-  - :bulb: Tip: You can use the following command: `openssl rand -hex 32` to generate one.
-  - example: `a28110cc8b94c5f3b3c923aa2c9fae4ed50c86ec61debfe6edb3c29947dbb00c`
+  - example: generate your own key with `openssl rand -base64 48`. Never copy a key from documentation; a published key is refused at startup.
 - **AccessExpiryInMinutes:** Defines the lifetime of the JWT access token in minutes. The default value is 15 minutes, but you can adjust it to suit your security requirements.
   - :bulb: Tip: Shorter expiration times reduce the risk of token misuse. Consider using 15 minutes for production environments
   - example: `15`

@@ -3,65 +3,161 @@
   "$id": "https://docs.endatix.com/schemas/brand/1/brand.schema.json",
   "title": "Endatix brand pack v1 (spec artifact; H1's zod schema must generate an equal document)",
   "type": "object",
-  "additionalProperties": false,
-  "required": ["version", "name"],
   "properties": {
-    "$schema": { "type": "string" },
-    "version": { "const": 1 },
-    "name": { "type": "string", "minLength": 1, "maxLength": 60 },
-    "legalName": { "type": "string", "maxLength": 120 },
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "legalName": {
+      "type": "string",
+      "maxLength": 120
+    },
     "assets": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
       "properties": {
-        "logo": { "$ref": "#/$defs/themedFile" },
-        "icon": { "$ref": "#/$defs/packFile" },
-        "ogImage": { "$ref": "#/$defs/packFile" }
-      }
+        "logo": {
+          "$ref": "#/$defs/themedFile"
+        },
+        "icon": {
+          "$ref": "#/$defs/packFile"
+        },
+        "ogImage": {
+          "$ref": "#/$defs/packFile"
+        }
+      },
+      "additionalProperties": false
     },
     "tokens": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
       "properties": {
         "color": {
-          "type": "object", "additionalProperties": false, "required": ["primary"],
+          "type": "object",
           "properties": {
-            "primary": { "$ref": "#/$defs/colorToken" },
-            "primary-on-dark": { "$ref": "#/$defs/colorToken" }
-          }
+            "primary": {
+              "$ref": "#/$defs/colorToken"
+            },
+            "primary-on-dark": {
+              "$ref": "#/$defs/colorToken"
+            }
+          },
+          "required": [
+            "primary"
+          ],
+          "additionalProperties": false
         }
-      }
+      },
+      "additionalProperties": false
     },
     "links": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
       "properties": {
-        "website": { "$ref": "#/$defs/url" }, "docs": { "$ref": "#/$defs/url" },
-        "support": { "$ref": "#/$defs/url" }, "privacy": { "$ref": "#/$defs/url" },
-        "terms": { "$ref": "#/$defs/url" }
-      }
+        "website": {
+          "$ref": "#/$defs/url"
+        },
+        "docs": {
+          "$ref": "#/$defs/url"
+        },
+        "support": {
+          "$ref": "#/$defs/url"
+        },
+        "privacy": {
+          "$ref": "#/$defs/url"
+        },
+        "terms": {
+          "$ref": "#/$defs/url"
+        }
+      },
+      "additionalProperties": false
     },
-    "poweredBy": { "type": "boolean" },
+    "poweredBy": {
+      "type": "boolean"
+    },
     "personas": {
-      "type": "object", "additionalProperties": false,
-      "properties": { "assistant": { "type": "string", "minLength": 1 }, "bot": { "type": "string", "minLength": 1 } }
+      "type": "object",
+      "properties": {
+        "assistant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bot": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     },
     "email": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
       "properties": {
-        "senderName": { "type": "string", "minLength": 1 },
-        "fromAddress": { "type": "string", "format": "email" },
-        "supportAddress": { "type": "string", "format": "email" }
-      }
+        "senderName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fromAddress": {
+          "type": "string",
+          "format": "email"
+        },
+        "supportAddress": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "additionalProperties": false
     }
   },
+  "required": [
+    "version",
+    "name"
+  ],
+  "additionalProperties": false,
   "$defs": {
-    "packFile": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.)(?!.*:)[A-Za-z0-9._/-]+$" },
     "themedFile": {
-      "type": "object", "additionalProperties": false, "required": ["light"],
-      "properties": { "light": { "$ref": "#/$defs/packFile" }, "dark": { "$ref": "#/$defs/packFile" } }
+      "type": "object",
+      "properties": {
+        "light": {
+          "$ref": "#/$defs/packFile"
+        },
+        "dark": {
+          "$ref": "#/$defs/packFile"
+        }
+      },
+      "required": [
+        "light"
+      ],
+      "additionalProperties": false
+    },
+    "packFile": {
+      "type": "string",
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9_-][A-Za-z0-9._-]*(?:/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$"
     },
     "colorToken": {
-      "type": "object", "additionalProperties": false, "required": ["$type", "$value"],
-      "properties": { "$type": { "const": "color" }, "$value": { "type": "string", "minLength": 4 } }
+      "type": "object",
+      "properties": {
+        "$type": {
+          "const": "color"
+        },
+        "$value": {
+          "type": "string",
+          "minLength": 4
+        }
+      },
+      "required": [
+        "$type",
+        "$value"
+      ],
+      "additionalProperties": false
     },
-    "url": { "type": "string", "format": "uri", "pattern": "^(https?:|mailto:)" }
+    "url": {
+      "type": "string",
+      "pattern": "^(https?:|mailto:)",
+      "format": "uri"
+    }
   }
 }

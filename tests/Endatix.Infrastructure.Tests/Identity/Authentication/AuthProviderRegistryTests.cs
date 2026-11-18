@@ -20,7 +20,7 @@ public class AuthProviderRegistryTests
         var configData = new Dictionary<string, string?>
         {
             ["Endatix:Auth:EndatixJwt:Issuer"] = "endatix-api",
-            ["Endatix:Auth:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
+            ["Endatix:Auth:EndatixJwt:SigningKey"] = "test-signing-key-32-characters-padding-to-32-bytes",
             ["Endatix:Auth:EndatixJwt:Audiences:0"] = "endatix-hub",
             ["Endatix:Auth:EndatixJwt:Enabled"] = "true",
             ["Endatix:Auth:Keycloak:Issuer"] = "http://localhost:8080/realms/endatix",
@@ -476,7 +476,7 @@ public class AuthProviderRegistryTests
         {
             ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
             ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = "edx-api",
-            ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
+            ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters-padding-to-32-bytes",
             ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
             ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",
             ["Endatix:Auth:Providers:Keycloak:Issuer"] = "http://localhost:8080/realms/endatix",

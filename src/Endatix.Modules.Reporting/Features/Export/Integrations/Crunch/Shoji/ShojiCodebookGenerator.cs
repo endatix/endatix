@@ -1070,16 +1070,8 @@ internal static partial class ShojiCodebookGenerator
 
     private static bool TryGetExportShape(JsonElement question, out string exportShape)
     {
-        exportShape = string.Empty;
-
-        if (!question.TryGetProperty(FormSchemaCodebookPropertyNames.ExportShape, out var exportShapeElement) ||
-            exportShapeElement.ValueKind != JsonValueKind.String)
-        {
-            return false;
-        }
-
-        exportShape = exportShapeElement.GetString()!;
-        return true;
+        exportShape = FormSchemaCodebookExportShape.OfQuestionEntry(question) ?? string.Empty;
+        return exportShape.Length > 0;
     }
 
     private static bool IsCategoricalQuestion(
@@ -1677,15 +1669,41 @@ internal static partial class ShojiCodebookGenerator
             return exportKey;
         }
 
-        var leaf = ExportKeyTransformer.Transform(
-            column.Key[(column.SourceQuestion?.Length ?? 0)..].TrimStart('_'),
-            keySeparator);
+        var leaf = ResolveLeafLabel(column, columnMetadata, keySeparator);
         if (string.IsNullOrWhiteSpace(leaf) || string.Equals(leaf, exportKey, StringComparison.Ordinal))
         {
             return title;
         }
 
         return $"{title} -- {leaf.TrimStart('-')}";
+    }
+
+    private static string ResolveLeafLabel(
+        FormSchemaColumn column,
+        JsonElement columnMetadata,
+        string keySeparator) =>
+        column.Kind is FormSchemaColumnKind.MultipleTextItem && ReadItemTitle(columnMetadata) is { } itemLabel
+            ? itemLabel
+            : ExportKeyTransformer.Transform(
+                column.Key[(column.SourceQuestion?.Length ?? 0)..].TrimStart('_'),
+                keySeparator);
+
+    // An untitled item's rowLabel is its name; only a real title replaces the key-derived leaf.
+    private static string? ReadItemTitle(JsonElement columnMetadata)
+    {
+        if (columnMetadata.ValueKind != JsonValueKind.Object ||
+            !columnMetadata.TryGetProperty(FormSchemaCodebookPropertyNames.RowLabel, out var label))
+        {
+            return null;
+        }
+
+        var text = ReadDefaultLocalizedText(label).Trim();
+        var itemName = columnMetadata.TryGetProperty(FormSchemaPropertyNames.MatrixRowValue, out var rowValue)
+            ? rowValue.GetString()
+            : null;
+        return string.IsNullOrWhiteSpace(text) || string.Equals(text, itemName, StringComparison.Ordinal)
+            ? null
+            : text;
     }
 
     private static string BuildLoopDisplayName(

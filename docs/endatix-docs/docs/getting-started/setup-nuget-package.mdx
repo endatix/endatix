@@ -50,20 +50,20 @@ Host=localhost;Port=5432;Database=endatix;Username=postgres;Password=postgres
 
 ## What the template already sets
 
-These values are in `appsettings.Development.json` only. Replace both signing keys before you commit the file or share the machine.
+These values are in `appsettings.Development.json` only. Both signing keys are empty: in Development the API uses a random key for each run, so tokens and resume links stop working on restart. To keep them across restarts, and in every other environment, set each key to its own value from `openssl rand -base64 48`.
 
 <Settings>
   <Setting name="Endatix:Hub:HubBaseUrl" default="http://localhost:3000">
     Base URL the API uses for links to Hub.
   </Setting>
-  <Setting name="Endatix:Auth:Providers:EndatixJwt:SigningKey" default="DEV_ONLY_change_me_Endatix_local_jwt_signing_key_32b+">
-    Signs Hub access tokens. Replace this value.
+  <Setting name="Endatix:Auth:Providers:EndatixJwt:SigningKey" default="(empty)">
+    Signs Hub access tokens. Set it to the output of `openssl rand -base64 48`.
   </Setting>
   <Setting name="Endatix:Auth:Providers:EndatixJwt:ReBacIssuer" default="edx_res_auth">
     Issuer for resource authorization tokens. Leave this unless you change Hub to match.
   </Setting>
-  <Setting name="Endatix:Submissions:AccessTokenSigningKey" default="DEV_ONLY_change_me_Endatix_submission_access_token_key">
-    Signs submission resume links. Replace this value.
+  <Setting name="Endatix:Submissions:AccessTokenSigningKey" default="(empty)">
+    Signs submission resume links. Set it to its own output of `openssl rand -base64 48`.
   </Setting>
   <Setting name="Endatix:Data:InitialUser:Email" default="admin@localhost">
     Created on first run.

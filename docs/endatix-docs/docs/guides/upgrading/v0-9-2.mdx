@@ -1,19 +1,77 @@
 ---
 title: Upgrade to Endatix 0.9.2
 sidebar_label: v0.9.2
-description: Upgrade the Endatix API from 0.9.1 to 0.9.2 - set DefaultTenantId when Keycloak is enabled, expect 403 for signed-in requests without a tenant, and move legacy tenant-0 Keycloak users once.
+description: Upgrade Endatix from 0.9.1 to 0.9.2 - give the Hub a strong AUTH_SECRET and drop SESSION_SECRET, set both API signing keys before you start, set DefaultTenantId when Keycloak is enabled, expect 403 for signed-in requests without a tenant, move legacy tenant-0 Keycloak users once, assign roles from system code with ISystemRoleAssignment, and allow private webhook targets if your receivers run on your own network, check public data-list calls, and stop calling POST /api/slacktoken.
 ---
 
 # Upgrade to Endatix 0.9.2
 
 Release notes: [Endatix API v0.9.2](https://github.com/endatix/endatix/releases/tag/v0.9.2) and [Endatix Hub v0.9.2](https://github.com/endatix/endatix-hub/releases/tag/v0.9.2).
 
-This page covers an upgrade from 0.9.1. Most installations need no action: the sections below apply to hosts that enable Keycloak sign-in, send Google or custom-provider tokens to the API, or reference `TenantMiddleware` in code.
+This page covers an upgrade from 0.9.1. Every Hub needs a strong `AUTH_SECRET`, and every API outside Development needs its two signing keys, before it starts. The other sections apply only to hosts that enable Keycloak sign-in, send Google or custom-provider tokens to the API, reference `TenantMiddleware` in code, assign roles from code, send webhooks to receivers on their own network, call the public data-list routes directly, or call `POST /api/slacktoken`.
 
 ## Before you start
 
 - **Read the release notes of every version you skip.** An upgrade that skips 0.9.1 also needs the [0.9.1 guide](/docs/guides/upgrading/v0-9-1).
+- **Set the API signing keys** before you start API 0.9.2. See [Signing keys are required outside Development](#api-signing-keys).
 - **Back up the database** before you run the one-time step for [Keycloak users stored at another tenant](#keycloak-users-at-another-tenant).
+
+## The Hub needs a strong `AUTH_SECRET` {/* #hub-auth-secret */}
+
+**What changed:** Hub 0.9.2 refuses to start, in every environment, when `AUTH_SECRET` is missing, shorter than 32 bytes, or a value copied from an example file. That includes the value the Endatix `docker-compose.yaml` shipped before 0.9.2. `SESSION_SECRET` is no longer read. The startup error names the rule that failed, for example `AUTH_SECRET must be at least 32 bytes.`
+
+**Who is affected:** every Hub deployment. Hosts that started from the Endatix Compose file, `.env.example`, or a docs snippet must replace that value.
+
+**What to do:**
+
+- Generate a new secret with `openssl rand -base64 32` and set it as `AUTH_SECRET` before you start Hub 0.9.2. A new value signs every user out once.
+- If you set `NEXTAUTH_SECRET`, rename it to `AUTH_SECRET`.
+- Delete `SESSION_SECRET` from your env and secret store. The Helm chart still accepts its `session-secret` key for this release.
+- Compose users: the Endatix `docker-compose.yaml` now requires `AUTH_SECRET` from `.env` or the shell, and `docker/setup.sh` and `docker/setup.bat` generate one, or keep the one already in `.env` when it is 32 bytes or more.
+
+See [Sessions and sign-in](/docs/developers/hub/environment#sessions-and-sign-in) for the rule and the startup errors.
+
+## Signing keys are required outside Development {/* #api-signing-keys */}
+
+**What changed:** API 0.9.2 checks its two signing keys at startup and refuses to start when either is missing, shorter than 32 UTF-8 bytes, or a value published in the Endatix docs or samples:
+
+| Setting | Environment variable |
+| --- | --- |
+| `Endatix:Auth:Providers:EndatixJwt:SigningKey` (signs sign-in tokens) | `Endatix__Auth__Providers__EndatixJwt__SigningKey` |
+| `Endatix:Submissions:AccessTokenSigningKey` (signs submission access tokens) | `Endatix__Submissions__AccessTokenSigningKey` |
+
+The startup error names the setting and the rule that failed, never the value, for example `Endatix:Submissions:AccessTokenSigningKey is not set.` The legacy `Endatix:Jwt:SigningKey` still fills the sign-in key when that one is empty.
+
+- In Development, a key that is not set at all gets a random value for that run, and the API logs a warning. Tokens signed with it stop working on restart, and each replica gets its own key. A short or published key fails in Development too.
+- The API host's `appsettings.json` ships no keys. Before 0.9.2 it shipped a submission key, which the API now refuses.
+- The Endatix Compose files read `ENDATIX_JWT_SIGNING_KEY` and `ENDATIX_SUBMISSION_SIGNING_KEY`, and `docker/setup.sh` and `docker/setup.bat` generate them, or keep the ones already in `.env`.
+- The Helm chart reads both keys from the `auth.secretName` secret: the sign-in key from `signing-key` and the submission key from `submission-signing-key` (`auth.secretKey`, `auth.submissionSecretKey`).
+- The Azure deployment template requires both keys as parameters.
+
+**Who is affected:** every API that runs outside Development. Hosts that never set a submission key and relied on the one in `appsettings.json`, and hosts that kept a key from the Compose quick start, the Azure sample parameters, the NuGet setup guide or the API template, must set new values.
+
+**What to do:**
+
+- Generate one value for each key with `openssl rand -base64 48`, use a different value for each, and set both before you start API 0.9.2. Keep them in your secret store, not in `appsettings.json`.
+- A new sign-in key signs every user out once. A new submission key ends the submission access tokens issued with the old one.
+- Compose users: run `docker/setup.sh` or `docker/setup.bat` again, or add both variables to `.env`.
+- Helm users with an existing secret: add a `submission-signing-key` entry to it.
+- Azure template users: pass both keys as parameters.
+
+See the [Endatix API environment variables](/docs/building-your-solution/deployment/self-hosting#endatix-api-net-configuration).
+
+## Copied choices export empty cells {/* #copied-choices-export-empty-cells */}
+
+**What changed:** an export no longer writes `0` for a choice the respondent may not have seen. A checkbox or tag box that copies its choices from another question writes `1` for a picked choice, `0` for a choice the respondent was shown and did not pick, and an empty cell otherwise. A checkbox or tag box in a loop item the respondent did not have, an unanswered ranking, and a choice left unranked in a ranking that copies its choices, are empty instead of `0`. The Crunch codebook is unchanged; Crunch imports an empty cell as No Data. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
+
+**Who is affected:** forms with copied choices (`choicesFromQuestion` or carry forward), loops, or rankings, and any analysis that reads those `0`s.
+
+**What to do:**
+
+- Exports read the rows stored when each submission was saved, so existing rows keep their `0`s until they are loaded again. A backfill with `force=true` (`POST forms/{formId}/submissions/backfill`) rewrites them. Without a recompile first, copied choices then export `1` or an empty cell, never a wrong `0`.
+- To get exact `0`s for the choices a respondent saw, compile the form's schema with `replace=true` (`POST forms/{formId}/reporting/compile-schema`; Hub: **Rebuild reporting data…**, **Full recompile**), then backfill its submissions with `force=true` (`POST forms/{formId}/submissions/backfill`).
+- A question that stopped copying its choices keeps exporting 1 or an empty cell after a merge compile, also for new submissions, until a compile with `replace=true`. A question that started copying turns the `0`s of its earlier submissions into empty cells on the next backfill.
+- A form whose copied questions changed their mode, their source questions' choices, or whether they copy at all across form versions: a full recompile judges old submissions by the current form. Compile it without `replace` (merge mode once the form has real submissions), which leaves those cells empty, then backfill with `force=true`.
 
 ## Keycloak needs `DefaultTenantId` {/* #keycloak-default-tenant-id */}
 
@@ -118,6 +176,57 @@ A moved user signs in with the roles the Keycloak role mappings give them at the
 
 **What to do:** change the `using` to `Endatix.Api.Infrastructure` and update any log filter. To resolve a tenant outside the middleware, call `Endatix.Infrastructure.Multitenancy.TenantContextInitializer.TryInitialize`.
 
+## Role changes from code {/* #role-changes-from-code */}
+
+**What changed:** `IRoleManagementService` refuses a role change with no signed-in user, or for a user outside the current tenant.
+
+**Who is affected:** code that assigns roles outside a user's request, such as background jobs, provisioning or seeding, and code that implements `IRoleManagementService`, which gained `EnsureCurrentUserCanGrantRolesAsync`.
+
+**What to do:** assign roles from system code with `ISystemRoleAssignment.AssignRoleAsSystemAsync`, and implement the new member.
+
+## Webhooks go only to public addresses {/* #webhooks-public-addresses */}
+
+**What changed:**
+
+- Saving a form whose webhook endpoint URL names a private or local IP address or a reserved name (`localhost`, `*.localhost`, `*.internal`, `*.local`) returns 400.
+- Saving a form whose webhook endpoint URL is not an absolute `http` or `https` URL returns 400. Endpoints already stored are not changed.
+- Endpoints already stored with such a URL, at the form, the tenant or in server configuration (`Endatix:WebHooks:Tenants`), get no request. The API logs the refusal with the endpoint key and the form id and does not retry it. A job-queue delivery ends as failed with "The webhook endpoint address is not allowed."
+- An endpoint whose host name resolves to a private address is refused the same way when the webhook is sent.
+- Redirects are not followed: a 3xx answer is a failed delivery.
+- Webhooks use no proxy, even when `HTTP_PROXY` or `HTTPS_PROXY` is set.
+
+**Who is affected:** hosts whose webhook receivers run on their own network (a cluster-internal service, `localhost` during development), and hosts that send webhooks through a proxy or rely on redirects.
+
+**What to do:** for receivers on your own network, set `Endatix:WebHooks:ServerSettings:AllowPrivateNetworkTargets` to `true` (environment variable `Endatix__WebHooks__ServerSettings__AllowPrivateNetworkTargets=true`). See [Endpoint addresses](/docs/guides/webhooks#endpoint-addresses). Point endpoints that redirect at their final URL. Proxy support is not available in 0.9.2.
+
+## Public form data lists {/* #public-form-data-lists */}
+
+**What changed:**
+
+- `GET public/forms/{formId}/data-lists/{dataListId}/search` answers only for a data list the form's active definition uses. Any other list returns 404, the same as a list that does not exist.
+- `GET public/forms/{formId}/data-lists/{dataListId}/display-values` answers for a list that any definition of the form uses (the active one, a draft or an older one), so older submissions keep their labels. Any other list returns 404.
+- A form access token follows the form's current state. A token issued for a public form gets 403 once the form is no longer public. A token for a form that is disabled or deleted gets 404.
+- Each client may make 60 requests a minute to `POST public/forms/{formId}/access-tokens`, and 300 a minute to each data-list route. Above that the API returns 429.
+
+**Who is affected:** embedders and integrations that call these routes directly.
+
+**What to do:**
+
+- Search only the lists the form's active definition uses.
+- Treat 403 or 404 from a data-list route as a form that is no longer available to that token.
+- Cache form access tokens until they expire instead of requesting one per call, and retry a 429 after a pause.
+- Behind a reverse proxy, forward the client address in `X-Forwarded-For`. Without it, every client counts as one.
+
+See [Public search and display-values](/docs/developers/api/data-lists-translations#public-search-and-display-values).
+
+## `POST /api/slacktoken` is removed {/* #slack-token-route-removed */}
+
+**What changed:** the undocumented `POST /api/slacktoken` route is removed and returns 404. `SlackToken`, `SlackTokenRequest` and `EndatixEventIds.Api.SlackTokenReceived` (event id 6202) are removed from the packages.
+
+**Who is affected:** clients that call the route, code that references those types, and log filters on event id 6202.
+
+**What to do:** stop calling the route and remove the references. Slack notifications are unchanged; they keep using the tenant's Slack settings.
+
 ## Limitations
 
 - An upgrade that skips 0.9.1 is not covered here. Read the upgrade guide and release notes of every version in between (see [Upgrading Endatix](/docs/guides/upgrading)).
@@ -128,4 +237,5 @@ A moved user signs in with the roles the Keycloak role mappings give them at the
   <LinkCard title="Keycloak Setup" to="/docs/building-your-solution/authentication/keycloak" description="Configure Keycloak sign-in for the API and the Hub." />
   <LinkCard title="Keycloak RBAC" to="/docs/building-your-solution/authorization/keycloak-rbac" description="Map Keycloak roles onto Endatix roles." />
   <LinkCard title="Google OAuth Setup" to="/docs/building-your-solution/authentication/google-oauth" description="Why Google tokens get 403 on the API." />
+  <LinkCard title="Webhooks" to="/docs/guides/webhooks#endpoint-addresses" description="Which endpoint addresses webhooks are sent to." />
 </CardGrid>

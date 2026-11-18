@@ -31,6 +31,13 @@ internal static class FormDefinitionFlattener
         JsonElement Choices,
         JsonElement[] TemplateElements);
 
+    // The columns compiled so far, the limits they are held to, and the choices each question offers.
+    private sealed record FlattenContext(
+        List<FormSchemaColumn> Columns,
+        HashSet<string> SeenKeys,
+        SchemaCompilationLimits Limits,
+        ChoiceSources Sources);
+
     private sealed record PanelPath(
         IReadOnlyList<string> LoopPath,
         IReadOnlyList<string> PropertyPath,
@@ -62,11 +69,11 @@ internal static class FormDefinitionFlattener
         var dynamicPanels = BuildDynamicPanelNodes(allElements, drivingCheckboxNames);
         var panelPaths = BuildPanelPaths(dynamicPanels, effectiveLimits);
 
-        List<FormSchemaColumn> columns = [];
-        HashSet<string> seenKeys = new(StringComparer.Ordinal);
+        FlattenContext context = new([], new(StringComparer.Ordinal), effectiveLimits, ChoiceSourcesOf(allElements));
+        var (columns, seenKeys, _, _) = context;
 
-        EmitRootElementColumns(rootElements, drivingCheckboxNames, columns, seenKeys, effectiveLimits);
-        AddLoopSourceColumns(allElements, columns, seenKeys, effectiveLimits);
+        EmitRootElementColumns(rootElements, drivingCheckboxNames, context);
+        AddLoopSourceColumns(allElements, context);
         AddNestedLoopColumns(panelPaths, drivingCheckboxNames, columns, seenKeys, effectiveLimits);
         AddCalculatedValueColumns(definition, columns, seenKeys, effectiveLimits);
 
@@ -442,10 +449,9 @@ internal static class FormDefinitionFlattener
     private static void EmitRootElementColumns(
         IReadOnlyList<CollectedElement> rootElements,
         HashSet<string> drivingCheckboxNames,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
+        var (columns, seenKeys, limits, _) = context;
         foreach (var collected in rootElements)
         {
             if (string.IsNullOrWhiteSpace(collected.Name) ||
@@ -461,10 +467,10 @@ internal static class FormDefinitionFlattener
                 case SurveyJsFlattening.None:
                     break;
                 case SurveyJsFlattening.ChoiceIndicators:
-                    EmitChoiceIndicatorColumns(collected, drivingCheckboxNames, columns, seenKeys, limits);
+                    EmitChoiceIndicatorColumns(collected, drivingCheckboxNames, context);
                     break;
                 case SurveyJsFlattening.Ranking:
-                    EmitRankingColumns(collected, columns, seenKeys, limits);
+                    EmitRankingColumns(collected, context);
                     break;
                 case SurveyJsFlattening.Matrix:
                     EmitMatrixColumns(collected, columns, seenKeys, limits);
@@ -555,9 +561,11 @@ internal static class FormDefinitionFlattener
             SourceQuestion: name));
 
     // Other never counted toward the limit (it was added after the counted choices); special items do.
-    private static void CountChoices(string name, ChoiceSet choices, SchemaCompilationLimits limits)
+    private static void CountChoices(string name, ChoiceSet choices, SchemaCompilationLimits limits) =>
+        EnsureWithinChoiceLimit(name, choices.Items.Count(item => item.Kind != ChoiceKind.Other), limits);
+
+    private static void EnsureWithinChoiceLimit(string name, int count, SchemaCompilationLimits limits)
     {
-        var count = choices.Items.Count(item => item.Kind != ChoiceKind.Other);
         if (count > limits.MaxChoicesPerQuestion)
         {
             ThrowLimitExceeded(
@@ -568,12 +576,11 @@ internal static class FormDefinitionFlattener
         }
     }
 
+    // One indicator per choice the question offers: its own, or every choice its sources offer whatever the mode.
     private static void EmitChoiceIndicatorColumns(
         CollectedElement collected,
         HashSet<string> drivingCheckboxNames,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
         var name = collected.Name!;
 
@@ -582,10 +589,11 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        var choices = ChoiceSet.Read(collected.Element)!;
+        var (columns, seenKeys, limits, sources) = context;
+        var choices = ChoiceSet.Read(collected.Element, choices: sources.Resolve(collected.Element))!;
 
-        // Data-list and other lazy multi-selects have no choices on the form.
-        // One column keeps the selected values (including "other" and special items) instead of dropping them.
+        // A data list, a lazy multi-select or a copy whose source cannot be read has no choices on the form. One
+        // column keeps the selected values (including "other" and special items) instead of dropping them.
         if (!choices.HasInlineChoices)
         {
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
@@ -633,34 +641,50 @@ internal static class FormDefinitionFlattener
             ChoiceValue: choiceValue));
     }
 
-    private static void EmitRankingColumns(
-        CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+    private static void EmitRankingColumns(CollectedElement collected, FlattenContext context)
     {
         var name = collected.Name!;
+        EmitRankingChoiceColumns(
+            collected.Element,
+            name,
+            value => ExportPathBuilder.RankingChoiceKey(name, value),
+            loopPath: null,
+            context);
+    }
 
-        var choiceCount = 0;
-        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(collected.Element))
+    private static void EmitLoopSourceRankingColumns(
+        JsonElement template,
+        string childName,
+        IReadOnlyList<string> keyPrefix,
+        IReadOnlyList<LoopSegment> loopPath,
+        FlattenContext context) =>
+        EmitRankingChoiceColumns(
+            template,
+            childName,
+            value => ExportPathBuilder.Join([.. keyPrefix, childName, value]),
+            loopPath,
+            context);
+
+    // One rank column per choice the ranking offers: its own, or every choice its sources offer whatever the mode.
+    private static void EmitRankingChoiceColumns(
+        JsonElement ranking,
+        string name,
+        Func<string, string> keyOf,
+        IReadOnlyList<LoopSegment>? loopPath,
+        FlattenContext context)
+    {
+        var choices = context.Sources.Offered(ranking).Choices;
+        EnsureWithinChoiceLimit(name, choices.Count, context.Limits);
+        foreach (var choice in choices)
         {
-            if (++choiceCount > limits.MaxChoicesPerQuestion)
-            {
-                ThrowLimitExceeded(
-                    SchemaCompilationLimitKind.MaxChoicesPerQuestion,
-                    limits.MaxChoicesPerQuestion,
-                    actual: choiceCount,
-                    context: name);
-            }
-
-            var key = ExportPathBuilder.RankingChoiceKey(name, value);
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                key,
+            AddColumn(context.Columns, context.SeenKeys, context.Limits, new FormSchemaColumn(
+                keyOf(choice.Value),
                 FormSchemaColumnKind.RankingChoice,
-                $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
+                $"{ranking.GetSurveyJsTitle(name)} — {choice.Text}",
                 NUMBER_COLUMN_TYPE,
                 SourceQuestion: name,
-                ChoiceValue: value));
+                ChoiceValue: choice.Value,
+                LoopPath: loopPath));
         }
     }
 
@@ -962,13 +986,8 @@ internal static class FormDefinitionFlattener
     private static bool HasLoopSource(JsonElement element) =>
         element.TryGetLoopSource(out var loopSource) && loopSource.GetArrayLength() > 0;
 
-    private static void AddLoopSourceColumns(
-        IReadOnlyList<CollectedElement> allElements,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+    private static void AddLoopSourceColumns(IReadOnlyList<CollectedElement> allElements, FlattenContext context)
     {
-        var elementsByName = IndexCollectedElementsByName(allElements);
         var loopPanels = DiscoverLoopPanels(allElements);
 
         if (loopPanels.LoopPanelsByName.Count == 0)
@@ -976,13 +995,12 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        EmitLoopSourceColumnsFromLoopPanels(
-            loopPanels,
-            elementsByName,
-            columns,
-            seenKeys,
-            limits);
+        EmitLoopSourceColumnsFromLoopPanels(loopPanels, context);
     }
+
+    private static ChoiceSources ChoiceSourcesOf(IReadOnlyList<CollectedElement> allElements) =>
+        new(IndexCollectedElementsByName(allElements)
+            .ToDictionary(entry => entry.Key, entry => entry.Value.Element, StringComparer.Ordinal));
 
     private static Dictionary<string, CollectedElement> IndexCollectedElementsByName(
         IReadOnlyList<CollectedElement> allElements)
@@ -1038,13 +1056,9 @@ internal static class FormDefinitionFlattener
         return new LoopPanelDiscovery(loopPanelsByName, childLoopPanels);
     }
 
-    private static void EmitLoopSourceColumnsFromLoopPanels(
-        LoopPanelDiscovery loopPanels,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+    private static void EmitLoopSourceColumnsFromLoopPanels(LoopPanelDiscovery loopPanels, FlattenContext context)
     {
+        var (_, _, limits, sources) = context;
         List<LoopSourceLeafPath> leafPaths = [];
         foreach (var panel in loopPanels.LoopPanelsByName.Values)
         {
@@ -1059,7 +1073,7 @@ internal static class FormDefinitionFlattener
                 panelNames: [],
                 driverChoicesByLevel: [],
                 loopPanels.LoopPanelsByName,
-                elementsByName,
+                sources,
                 leafPaths,
                 limits);
         }
@@ -1068,7 +1082,7 @@ internal static class FormDefinitionFlattener
         {
             foreach (var driverChoices in EnumerateLoopSourceDriverCombinations(leafPath.DriverChoicesByLevel, limits))
             {
-                EmitLoopSourceColumnsForPath(leafPath, driverChoices, columns, seenKeys, limits);
+                EmitLoopSourceColumnsForPath(leafPath, driverChoices, context);
             }
         }
     }
@@ -1079,7 +1093,7 @@ internal static class FormDefinitionFlattener
         IReadOnlyList<string> panelNames,
         IReadOnlyList<IReadOnlyList<string>> driverChoicesByLevel,
         IReadOnlyDictionary<string, CollectedElement> loopPanelsByName,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        ChoiceSources sources,
         List<LoopSourceLeafPath> leafPaths,
         SchemaCompilationLimits limits)
     {
@@ -1088,7 +1102,7 @@ internal static class FormDefinitionFlattener
         List<string> nextLoopPath = [.. loopPath, loopPathSegment];
         List<string> nextPanelNames = [.. panelNames, panelName];
         List<IReadOnlyList<string>> nextDriverChoicesByLevel =
-            [.. driverChoicesByLevel, CollectLoopSourceDriverChoices(panel.Element, elementsByName, limits)];
+            [.. driverChoicesByLevel, CollectLoopSourceDriverChoices(panel.Element, sources, limits)];
 
         if (!panel.Element.TryGetTemplateElements(out var templateElements))
         {
@@ -1133,15 +1147,16 @@ internal static class FormDefinitionFlattener
                 nextPanelNames,
                 nextDriverChoicesByLevel,
                 loopPanelsByName,
-                elementsByName,
+                sources,
                 leafPaths,
                 limits);
         }
     }
 
+    // A driver repeats once per choice its source can offer: its own or copied ones, for any select or a ranking.
     private static IReadOnlyList<string> CollectLoopSourceDriverChoices(
         JsonElement panelElement,
-        IReadOnlyDictionary<string, CollectedElement> elementsByName,
+        ChoiceSources sources,
         SchemaCompilationLimits limits)
     {
         if (!panelElement.TryGetLoopSource(out var loopSource))
@@ -1160,14 +1175,13 @@ internal static class FormDefinitionFlattener
             }
 
             var sourceName = sourceNameElement.GetString();
-            if (string.IsNullOrWhiteSpace(sourceName) ||
-                !elementsByName.TryGetValue(sourceName, out var sourceElement))
+            if (string.IsNullOrWhiteSpace(sourceName))
             {
                 continue;
             }
 
             var choiceCount = 0;
-            foreach (var choiceValue in ChoiceSet.Read(sourceElement.Element)?.LoopDriverValues ?? [])
+            foreach (var choiceValue in sources.OfferedValues(sourceName))
             {
                 if (++choiceCount > limits.MaxChoicesPerQuestion)
                 {
@@ -1223,9 +1237,7 @@ internal static class FormDefinitionFlattener
     private static void EmitLoopSourceColumnsForPath(
         LoopSourceLeafPath leafPath,
         IReadOnlyList<string> driverChoices,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
         if (leafPath.LoopPath.Count == 0 ||
             leafPath.PanelNames.Count == 0 ||
@@ -1247,14 +1259,7 @@ internal static class FormDefinitionFlattener
 
         foreach (var template in leafPath.TemplateElements)
         {
-            EmitLoopSourceTemplateColumns(
-                keyPanelName,
-                driverChoices,
-                loopSegments,
-                template,
-                columns,
-                seenKeys,
-                limits);
+            EmitLoopSourceTemplateColumns(keyPanelName, driverChoices, loopSegments, template, context);
         }
     }
 
@@ -1263,10 +1268,9 @@ internal static class FormDefinitionFlattener
         IReadOnlyList<string> driverChoices,
         IReadOnlyList<LoopSegment> loopPath,
         JsonElement template,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
+        var (columns, seenKeys, limits, _) = context;
         var childName = template.GetSurveyJsName();
         var childType = template.GetSurveyJsType();
 
@@ -1283,14 +1287,7 @@ internal static class FormDefinitionFlattener
         switch (flattening)
         {
             case SurveyJsFlattening.ChoiceIndicators:
-                EmitLoopSourceChoiceIndicatorColumns(
-                    template,
-                    childName,
-                    keyPrefix,
-                    loopPath,
-                    columns,
-                    seenKeys,
-                    limits);
+                EmitLoopSourceChoiceIndicatorColumns(template, childName, keyPrefix, loopPath, context);
                 break;
             case SurveyJsFlattening.Simple when template.IsSingleSelectBaseSelect():
                 EmitLoopSourceSingleSelectColumn(
@@ -1312,7 +1309,7 @@ internal static class FormDefinitionFlattener
                     LoopPath: loopPath));
                 break;
             case SurveyJsFlattening.Ranking:
-                EmitLoopSourceRankingColumns(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+                EmitLoopSourceRankingColumns(template, childName, keyPrefix, loopPath, context);
                 break;
             case SurveyJsFlattening.Matrix:
                 EmitLoopSourceMatrixColumns(template, childName, childType, keyPrefix, loopPath, columns, seenKeys, limits);
@@ -1376,11 +1373,10 @@ internal static class FormDefinitionFlattener
         string childName,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
-        var choices = ChoiceSet.Read(template)!;
+        var (columns, seenKeys, limits, sources) = context;
+        var choices = ChoiceSet.Read(template, choices: sources.Resolve(template))!;
         if (!choices.HasInlineChoices)
         {
             EmitLoopSourceSingleSelectColumn(
@@ -1419,38 +1415,6 @@ internal static class FormDefinitionFlattener
             SourceQuestion: childName,
             ChoiceValue: choiceValue,
             LoopPath: loopPath));
-    }
-
-    private static void EmitLoopSourceRankingColumns(
-        JsonElement template,
-        string childName,
-        IReadOnlyList<string> keyPrefix,
-        IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
-    {
-        var choiceCount = 0;
-        foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateChoices(template))
-        {
-            if (++choiceCount > limits.MaxChoicesPerQuestion)
-            {
-                ThrowLimitExceeded(
-                    SchemaCompilationLimitKind.MaxChoicesPerQuestion,
-                    limits.MaxChoicesPerQuestion,
-                    actual: choiceCount,
-                    context: childName);
-            }
-
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
-                ExportPathBuilder.Join([.. keyPrefix, childName, value]),
-                FormSchemaColumnKind.RankingChoice,
-                $"{template.GetSurveyJsTitle(childName)} — {text}",
-                NUMBER_COLUMN_TYPE,
-                SourceQuestion: childName,
-                ChoiceValue: value,
-                LoopPath: loopPath));
-        }
     }
 
     private static void EmitLoopSourceMatrixColumns(

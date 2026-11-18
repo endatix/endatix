@@ -4,8 +4,8 @@ using Json.Schema;
 namespace Endatix.Infrastructure.Branding;
 
 /// <summary>
-/// The embedded copy of the v1 brand pack JSON Schema. The Hub owns the canonical schema; this copy must stay
-/// byte-equal to it, which <see cref="Sha256"/> pins.
+/// The embedded copy of the v1 brand pack JSON Schema. The Hub owns the canonical schema: this file is a byte copy
+/// of endatix-hub's generated <c>lib/branding/brand.schema.json</c>, and <see cref="Sha256"/> pins it.
 /// </summary>
 internal static class BrandPackSchema
 {
@@ -15,7 +15,7 @@ internal static class BrandPackSchema
     /// SHA-256 (lower-case hex) of <c>brand.schema.json</c>'s UTF-8 bytes with LF line endings. A schema change
     /// copies the Hub's file and updates this value in the same change.
     /// </summary>
-    internal const string Sha256 = "51b16eba23d85ad247ffbc1fdc928ac9874bd57842a291afc6f9112c87a980d3";
+    internal const string Sha256 = "f6d6355e4c8b98d249ef660f8419d26bbc4c9d46f36cfe824c2eaf494daf6507";
 
     private static readonly Lazy<JsonSchema> Schema = new(() => JsonSchema.FromText(ReadText()));
 

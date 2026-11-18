@@ -1,14 +1,10 @@
-using System.IO.Pipelines;
 using System.Text;
-using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Modules.Reporting.Contracts.Export;
-using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
-using Endatix.Modules.Reporting.Features.Export.Tabular;
+using Endatix.Modules.Reporting.Tests.Features.Export.Tabular;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
@@ -17,24 +13,25 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 
 /// <summary>
 /// The two files a Crunch import takes, produced the way production produces them: the Shoji codebook export and the
-/// <c>csv-shoji</c> submission export (data source, then <see cref="SubmissionShojiCsvExporter"/>), with the settings a
-/// Shoji export format is created with. Only the repositories are substitutes.
+/// <c>csv-shoji</c> submission export (<see cref="SubmissionFileExport"/>), with the settings a Shoji export format is
+/// created with. Only the repositories are substitutes.
 /// </summary>
 internal static class CrunchExport
 {
-    private const long TenantId = 1;
-    private const long FormId = 100;
-    private const string ShojiFormatSettings = """{"aliasProfile":"native","keySeparator":"--"}""";
+    internal const string SHOJI_FORMAT_SETTINGS = """{"aliasProfile":"native","keySeparator":"--"}""";
 
     private static readonly ExportFormatSettingsParser _settingsParser = new(NullLogger<ExportFormatSettingsParser>.Instance);
 
     public static async Task<string> ShojiCodebookAsync(
         FormSchemaEntity schema,
         CancellationToken cancellationToken,
-        string settingsJson = ShojiFormatSettings)
+        string settingsJson = SHOJI_FORMAT_SETTINGS)
     {
-        ShojiCodebookExportDataSource dataSource = new(TestExportSchemas.Of(Schemas(schema)), Substitute.For<IFormsRepository>(), _settingsParser);
-        var context = Context("codebook-shoji", typeof(DynamicExportRow), new(ExportFormatId: 1, SettingsJson: settingsJson));
+        ShojiCodebookExportDataSource dataSource = new(
+            TestExportSchemas.Of(SubmissionFileExport.Schemas(schema)),
+            Substitute.For<IFormsRepository>(),
+            _settingsParser);
+        var context = SubmissionFileExport.Context("codebook-shoji", typeof(DynamicExportRow), new(ExportFormatId: 1, SettingsJson: settingsJson));
         (await dataSource.PrepareOptionsAsync(context, cancellationToken)).IsSuccess.Should().BeTrue();
 
         StringBuilder codebook = new();
@@ -54,73 +51,16 @@ internal static class CrunchExport
 
     public static async Task<string> CsvAsync(CsvExport export, CancellationToken cancellationToken)
     {
-        TabularExportDataSource dataSource = new(
-            TestExportSchemas.Of(Schemas(export.Schema)),
-            Rows(export.Rows),
-            _settingsParser,
-            ColumnAliasTransformerRegistry.Default,
-            NullLogger<TabularExportDataSource>.Instance);
-        var context = Context(
-            "csv-shoji",
-            typeof(SubmissionExportRow),
-            new(ExportFormatId: 1, SettingsJson: export.SettingsJson, ColumnScope: export.ColumnScope));
-        var prepared = await dataSource.PrepareOptionsAsync(context, cancellationToken);
-        prepared.IsSuccess.Should().BeTrue();
-
-        Pipe pipe = new();
-        SubmissionShojiCsvExporter exporter = new(NullLogger<SubmissionShojiCsvExporter>.Instance, []);
-        var exported = await exporter.StreamExportAsync(ExportRows(dataSource, context, cancellationToken), prepared.Value, cancellationToken, pipe.Writer);
-        exported.IsSuccess.Should().BeTrue();
-        await pipe.Writer.CompleteAsync();
-        return await new StreamReader(pipe.Reader.AsStream()).ReadToEndAsync(cancellationToken);
+        var file = await SubmissionFileExport.ExportAsync(
+            new("csv-shoji", export.Schema, export.Rows, export.SettingsJson, export.ColumnScope),
+            cancellationToken);
+        return Encoding.UTF8.GetString(file);
     }
 
     /// <summary>A <c>csv-shoji</c> export of a schema's rows, with the format's settings and the request's column scope.</summary>
     internal sealed record CsvExport(
         FormSchemaEntity Schema,
         IReadOnlyList<FlattenedExportRow> Rows,
-        string SettingsJson = ShojiFormatSettings,
+        string SettingsJson = SHOJI_FORMAT_SETTINGS,
         IReadOnlyList<string>? ColumnScope = null);
-
-    private static async IAsyncEnumerable<SubmissionExportRow> ExportRows(
-        TabularExportDataSource dataSource,
-        ExportDataSourceContext context,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        await foreach (var item in dataSource.StreamAsync(context, cancellationToken))
-        {
-            yield return (SubmissionExportRow)item;
-        }
-    }
-
-    private static IFormSchemaRepository Schemas(FormSchemaEntity schema)
-    {
-        var schemas = Substitute.For<IFormSchemaRepository>();
-        schemas.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>()).Returns(schema);
-        return schemas;
-    }
-
-    private static IReportingExportRepository Rows(IReadOnlyList<FlattenedExportRow> rows)
-    {
-        var repository = Substitute.For<IReportingExportRepository>();
-        repository.HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>()).Returns(true);
-        repository.StreamFlattenedSubmissionsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
-            .Returns(_ => rows.ToAsyncEnumerable());
-        return repository;
-    }
-
-    private static ExportDataSourceContext Context(string format, Type itemType, SubmissionExportExecutionSettings settings) =>
-        new(
-            new ExportDataSourceRequest(format, itemType, null, ExportFormatId: 1),
-            TenantId,
-            FormId,
-            new ExportOptions
-            {
-                Metadata = new Dictionary<string, object>
-                {
-                    ["FormId"] = FormId,
-                    [SubmissionExportMetadataKeys.ExecutionSettings] = settings,
-                },
-            },
-            null);
 }
