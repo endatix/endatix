@@ -295,7 +295,7 @@ public class GetByAccessTokenHandlerTests
         result.IsSuccess.Should().BeTrue();
 
         await _submissionRepository.Received(1).SingleOrDefaultAsync(
-            Arg.Is<SubmissionWithDefinitionAndFormSpec>(spec => spec.IncludeExpressions.Count() == 3),
+            Arg.Is<SubmissionWithDefinitionAndFormSpec>(spec => Specifications.SubmissionWithDefinitionAndFormSpecTests.LoadsTheme(spec)),
             Arg.Any<CancellationToken>());
     }
 }

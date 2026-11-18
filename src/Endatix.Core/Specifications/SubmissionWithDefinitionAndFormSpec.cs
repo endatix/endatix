@@ -20,13 +20,10 @@ public class SubmissionWithDefinitionAndFormSpec : SingleResultSpecification<Sub
     {
         Query.Include(s => s.FormDefinition);
 
+        var form = Query.Include(s => s.Form);
         if (includeTheme)
         {
-            Query.Include(s => s.Form).ThenInclude(f => f.Theme);
-        }
-        else
-        {
-            Query.Include(s => s.Form);
+            form.ThenInclude(f => f.Theme);
         }
 
         Query

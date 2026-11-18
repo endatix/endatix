@@ -57,6 +57,11 @@ public static class SubmissionMapper
         CollectionStatus = dto.CollectionStatus
     };
 
+    /// <summary>
+    /// Maps a submission with its definition and form to submission details. The form theme is returned only when
+    /// the form's <c>PdfUsesFormTheme</c> is on, so load the submission with
+    /// <c>SubmissionWithDefinitionAndFormSpec(formId, submissionId, includeTheme: true)</c>.
+    /// </summary>
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)
     {
         var mappedModel = Map<SubmissionDetailsModel>(submission);
