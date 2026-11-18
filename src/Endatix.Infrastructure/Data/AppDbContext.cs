@@ -65,6 +65,8 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
 
+    public DbSet<TenantBranding> TenantBranding { get; set; }
+
     public DbSet<DataList> DataLists { get; set; }
 
     public DbSet<DataListItem> DataListItems { get; set; }
@@ -121,6 +123,10 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
         }
+        catch (DbUpdateException updateException) when (IsTenantBrandingConflict(updateException))
+        {
+            throw new TenantBrandingConflictException("Another write changed the tenant's branding first.", updateException);
+        }
         catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
         {
             throw DatabaseDeadlocks.Victim(exception);
@@ -143,6 +149,10 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
         }
+        catch (DbUpdateException updateException) when (IsTenantBrandingConflict(updateException))
+        {
+            throw new TenantBrandingConflictException("Another write changed the tenant's branding first.", updateException);
+        }
         catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
         {
             throw DatabaseDeadlocks.Victim(exception);
@@ -159,6 +169,27 @@ public class AppDbContext : DbContext, ITenantDbContext
     /// </summary>
     private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>
         concurrencyException.Entries.Any(entry => entry.Entity is Submission);
+
+    /// <summary>
+    /// <see cref="Core.Entities.TenantBranding.Revision"/> is a concurrency token, and the tenant id is the key: a save that
+    /// matches no row, or inserts a tenant's first row after another request did, lost a race with another write.
+    /// </summary>
+    private static bool IsTenantBrandingConflict(DbUpdateException updateException) =>
+        updateException.Entries.Any(entry => entry.Entity is TenantBranding)
+        && (updateException is DbUpdateConcurrencyException || IsUniqueViolation(updateException));
+
+    private static bool IsUniqueViolation(DbUpdateException updateException)
+    {
+        for (var current = updateException.InnerException; current is not null; current = current.InnerException)
+        {
+            if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
     {
