@@ -13,7 +13,8 @@ namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
 /// in any definition never writes 0 for a choice its rows may not have shown.
 /// </summary>
 public sealed class CopiedChoiceMergeTests
-{    [Fact]
+{
+    [Fact]
     public void CompilePersisted_MergeWhereTheCopyIsNoLongerASelect_DropsTheRule()
     {
         // Arrange
