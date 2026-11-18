@@ -58,7 +58,7 @@ internal sealed record SourceChoices(string Name, IReadOnlyList<string> Values)
 /// saw follows from the sources' answers alone, as Hub and SurveyJS build it from the sources' visible choices: only
 /// under <c>all</c>, <c>selected</c> or <c>unselected</c>, with no cap, no <c>choicesVisibleIf</c>, sources that show
 /// their own choices with no choice visibility rule, no question name the definition uses twice, and no static
-/// <c>visible: false</c> on the copy. A survey that keeps hidden answers has no exact copy once any page, panel or
+/// <c>visible: false</c> on the copy or an enclosing panel or page. A survey that keeps hidden answers has no exact copy once any page, panel or
 /// question has a <c>visibleIf</c>; otherwise a copy or source with its own <c>visibleIf</c> is exact only for a
 /// completed submission (<see cref="WhenComplete"/>). STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
 /// <see cref="Merge"/> keep the rule on the copy's choice catalog (<see cref="FormSchemaCodebookPropertyNames.Shown"/>).
@@ -296,9 +296,10 @@ internal sealed class CopyVisibility
         return selects.Count > 0 ? (new CopyVisibility(mode, selects, whenComplete), null) : Unknown(UnknownBecause.NoSelectSource);
     }
 
-    // A name the definition uses twice has one catalog for two questions. A survey that keeps hidden answers keeps one
-    // for a copy or source hidden by any visibleIf, its panel's or page's included; an own visibleIf is checked too for
-    // a copy compiled without the definition.
+    // A name the definition uses twice has one catalog for two questions. A copy in a panel or page that is never shown
+    // can hold an answer as one with its own visible: false can. A survey that keeps hidden answers keeps one for a copy
+    // or source hidden by any visibleIf, its panel's or page's included; an own visibleIf is checked too for a copy
+    // compiled without the definition.
     private static UnknownBecause? ScopeProblem(
         JsonElement question,
         IReadOnlyList<(string Name, JsonElement Element)> sources,
@@ -308,6 +309,11 @@ internal sealed class CopyVisibility
             sources.Any(source => definition.SharedNames.Contains(source.Name)))
         {
             return UnknownBecause.NameShared;
+        }
+
+        if (question.GetSurveyJsName() is { } copyName && definition.AlwaysHiddenNames.Contains(copyName))
+        {
+            return UnknownBecause.CopyAlwaysHidden;
         }
 
         var hidden = definition.HasVisibleIf || HasOwnVisibleIf(question) || sources.Any(source => HasOwnVisibleIf(source.Element));

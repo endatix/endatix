@@ -139,7 +139,35 @@ public sealed class CopiedChoiceHiddenContainerTests
         var why = WhyUnknown(definition);
 
         // Assert
-        why.ToString().Should().Be("CopyAlwaysHidden");
+        why.Should().Be(UnknownBecause.CopyAlwaysHidden);
+    }
+
+    public static TheoryData<string> CopyInAnAlwaysHiddenContainer => new(
+        Pages(Page(STORES, $$"""{"type":"panel","name":"pickPanel","visible":false,"elements":[{{SELECTED_COPY}}]}""")),
+        Pages(Page(STORES), Page(SELECTED_COPY) with { Visible = false }));
+
+    [Theory]
+    [MemberData(nameof(CopyInAnAlwaysHiddenContainer))]
+    public void Flatten_CopyInAPanelOrPageThatIsAlwaysHidden_WritesOnlyThePickedChoice(string definition)
+    {
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: true);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", null), ("3", null)));
+    }
+
+    [Fact]
+    public void Flatten_SourceInAPanelThatIsAlwaysHidden_StaysExact()
+    {
+        // Arrange
+        var definition = Pages(Page($$"""{"type":"panel","name":"storesPanel","visible":false,"elements":[{{STORES}}]}""", SELECTED_COPY));
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: true);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", "0"), ("3", null)));
     }
 
     [Theory]
@@ -173,12 +201,13 @@ public sealed class CopiedChoiceHiddenContainerTests
             .SelectMany(property => container.TryGetProperty(property, out var items) ? items.EnumerateArray() : Enumerable.Empty<JsonElement>())
             .SelectMany(item => Descendants(item).Prepend(item));
 
-    private sealed record PageJson(string[] Elements, string? VisibleIf = null)
+    private sealed record PageJson(string[] Elements, string? VisibleIf = null, bool Visible = true)
     {
-        public override string ToString() =>
-            VisibleIf is null
-                ? $$"""{"elements":[{{string.Join(',', Elements)}}]}"""
-                : $$"""{"visibleIf":"{{VisibleIf}}","elements":[{{string.Join(',', Elements)}}]}""";
+        public override string ToString()
+        {
+            var visibility = (VisibleIf is null ? "" : $"\"visibleIf\":\"{VisibleIf}\",") + (Visible ? "" : "\"visible\":false,");
+            return $$"""{{{visibility}}"elements":[{{string.Join(',', Elements)}}]}""";
+        }
     }
 
     private static PageJson Page(params string[] elements) => new(elements);
