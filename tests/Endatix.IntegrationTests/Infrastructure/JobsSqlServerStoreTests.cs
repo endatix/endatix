@@ -106,7 +106,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
             ("IX_BackgroundJobs_DedupKey", true, "([DedupKey] IS NOT NULL)"),
             ("IX_BackgroundJobs_Expiry", false, null),
             ("IX_BackgroundJobs_Tenant", false, null));
-        appliedMigrations.Should().Be(3);
+        appliedMigrations.Should().Be(4);
         await ShouldHaveTheAcquisitionColumnAndIndexAsync(database, ct);
     }
 
