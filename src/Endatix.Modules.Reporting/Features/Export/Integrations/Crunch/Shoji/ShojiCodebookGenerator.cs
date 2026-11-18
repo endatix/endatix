@@ -1682,13 +1682,14 @@ internal static partial class ShojiCodebookGenerator
         FormSchemaColumn column,
         JsonElement columnMetadata,
         string keySeparator) =>
-        column.Kind is FormSchemaColumnKind.MultipleTextItem && ReadRowLabel(columnMetadata) is { } itemLabel
+        column.Kind is FormSchemaColumnKind.MultipleTextItem && ReadItemTitle(columnMetadata) is { } itemLabel
             ? itemLabel
             : ExportKeyTransformer.Transform(
                 column.Key[(column.SourceQuestion?.Length ?? 0)..].TrimStart('_'),
                 keySeparator);
 
-    private static string? ReadRowLabel(JsonElement columnMetadata)
+    // An untitled item's rowLabel is its name; only a real title replaces the key-derived leaf.
+    private static string? ReadItemTitle(JsonElement columnMetadata)
     {
         if (columnMetadata.ValueKind != JsonValueKind.Object ||
             !columnMetadata.TryGetProperty(FormSchemaCodebookPropertyNames.RowLabel, out var label))
@@ -1697,7 +1698,12 @@ internal static partial class ShojiCodebookGenerator
         }
 
         var text = ReadDefaultLocalizedText(label).Trim();
-        return string.IsNullOrWhiteSpace(text) ? null : text;
+        var itemName = columnMetadata.TryGetProperty(FormSchemaPropertyNames.MatrixRowValue, out var rowValue)
+            ? rowValue.GetString()
+            : null;
+        return string.IsNullOrWhiteSpace(text) || string.Equals(text, itemName, StringComparison.Ordinal)
+            ? null
+            : text;
     }
 
     private static string BuildLoopDisplayName(
