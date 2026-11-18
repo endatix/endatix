@@ -17,6 +17,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
 {
     private const string THEME_JSON = """{"cssVariables":{"--sjs-primary-backcolor":"#123456"}}""";
     private const string FORM_JSON = """{"pages":[{"name":"page1","elements":[{"type":"text","name":"q1"}]}]}""";
+    private static readonly string[] _viewOnly = ["view"];
 
     [Fact]
     public async Task Setting_on_returns_the_theme_by_id_and_by_access_token()
@@ -121,7 +122,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         var ct = TestContext.Current.CancellationToken;
         using var response = await admin.PostAsJsonAsync(
             $"/api/forms/{formId}/submissions/{submissionId}/access-token",
-            new { expiryMinutes = 60, permissions = new[] { "view" } },
+            new { expiryMinutes = 60, permissions = _viewOnly },
             ct);
         response.EnsureSuccessStatusCode();
         return (await ReadJsonAsync(response)).GetProperty("token").GetString()!;
