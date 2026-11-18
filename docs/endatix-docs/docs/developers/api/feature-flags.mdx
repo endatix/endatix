@@ -26,7 +26,7 @@ These flags ship disabled and are deployment-scoped: they are read without a ten
 | `JobsModule` | The Background Jobs module: the job queue and the `jobs` schema. See [Background processing](/docs/configuration/background-processing) |
 | `PersonalizationModule` | The Audience module: properties, people, imports, personalized links, and the `audience` schema. See [Audience API](/docs/developers/api/audience) |
 | `MultiTenancy` | Tenant management: create, edit, assume, and switch tenants, and self-registration |
-| `WhiteLabeling` | The mounted brand pack in `ENDATIX_BRAND_DIR`: email product name, sender and support address. Read at startup; with it off, a mounted pack is ignored. The Helm value `whiteLabeling.enabled` sets it |
+| `WhiteLabeling` | The mounted brand pack in `ENDATIX_BRAND_DIR`: email product name, sender and support address. Read at startup; with it off, a mounted pack is ignored. The Helm value `whiteLabeling.enabled` sets it. See [Brand pack](/docs/configuration/brand-pack) |
 
 As environment variables: `Endatix__FeatureFlags__PersonalizationModule=true`.
 
