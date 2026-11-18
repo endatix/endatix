@@ -10,9 +10,10 @@ internal interface IExternalAuthorizationMapper
     /// </summary>
     /// <param name="externalRoles">The external roles to map.</param>
     /// <param name="roleMappings">The role mappings to use.</param>
+    /// <param name="tenantId">The tenant whose roles, and the built-in system rows, the mapped names resolve to.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The Endatix AppRoles.</returns>
-    Task<MappingResult> MapToAppRolesAsync(string[] externalRoles, Dictionary<string, string> roleMappings, CancellationToken cancellationToken);
+    Task<MappingResult> MapToAppRolesAsync(string[] externalRoles, Dictionary<string, string> roleMappings, long tenantId, CancellationToken cancellationToken);
 
 
     /// <summary>

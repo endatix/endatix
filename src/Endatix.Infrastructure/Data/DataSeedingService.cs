@@ -58,13 +58,13 @@ public class DataSeedingService : IHostedService
             using var scope = _serviceProvider.CreateScope();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
             var userRegistrationService = scope.ServiceProvider.GetRequiredService<IUserRegistrationService>();
-            var roleManagementService = scope.ServiceProvider.GetRequiredService<IRoleManagementService>();
+            var systemRoleAssignment = scope.ServiceProvider.GetRequiredService<ISystemRoleAssignment>();
 
             // Call the identity seed method
             await IdentitySeed.SeedInitialUser(
                 userManager,
                 userRegistrationService,
-                roleManagementService,
+                systemRoleAssignment,
                 _options,
                 _logger);
 

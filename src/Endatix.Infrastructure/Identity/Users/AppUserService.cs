@@ -27,6 +27,7 @@ public sealed class AppUserService(
     IUserContext userContext,
     IRelationalSubstringLikeFilter substringLikeFilter,
     IAuthorizationCache authorizationCache,
+    IRoleManagementService roleManagementService,
     ILogger<AppUserService> logger) : IUserService
 {
     private const string SELF_REMOVAL_FORBIDDEN_MESSAGE = "You cannot remove your own tenant access.";
@@ -385,6 +386,12 @@ public sealed class AppUserService(
             return Result.NotFound();
         }
 
+        var accessGuard = await EnsureCallerCoversUserAccessAsync(user, cancellationToken);
+        if (!accessGuard.IsSuccess)
+        {
+            return accessGuard;
+        }
+
         var enableLockoutResult = await userManager.SetLockoutEnabledAsync(user, true);
         if (!enableLockoutResult.Succeeded)
         {
@@ -416,6 +423,12 @@ public sealed class AppUserService(
             return Result.NotFound();
         }
 
+        var accessGuard = await EnsureCallerCoversUserAccessAsync(user, cancellationToken);
+        if (!accessGuard.IsSuccess)
+        {
+            return accessGuard;
+        }
+
         var unlockResult = await userManager.SetLockoutEndDateAsync(user, null);
         if (!unlockResult.Succeeded)
         {
@@ -439,12 +452,32 @@ public sealed class AppUserService(
             return Result.Forbidden(SELF_REMOVAL_FORBIDDEN_MESSAGE);
         }
 
-        if (await RemovingUserWouldLeaveTenantWithoutActiveAdminAsync(user, tenantId, cancellationToken))
+        // The access check comes first, so a caller who may not touch the user learns nothing about the tenant's admins.
+        var accessGuard = await EnsureCallerCoversUserAccessAsync(user, cancellationToken);
+        if (!accessGuard.IsSuccess)
         {
-            return Result.Conflict(LAST_TENANT_ADMIN_REMOVAL_FORBIDDEN_MESSAGE);
+            return accessGuard;
         }
 
-        return Result.Success();
+        return await RemovingUserWouldLeaveTenantWithoutActiveAdminAsync(user, tenantId, cancellationToken)
+            ? Result.Conflict(LAST_TENANT_ADMIN_REMOVAL_FORBIDDEN_MESSAGE)
+            : Result.Success();
+    }
+
+    /// <summary>
+    /// Removing, locking out or restoring a user moves all of their access, so the caller must hold every role they
+    /// have, as for taking those roles away (Admin holds all).
+    /// </summary>
+    /// <remarks>An external user's roles come from their identity provider, so those count too.</remarks>
+    private async Task<Result> EnsureCallerCoversUserAccessAsync(AppUser user, CancellationToken cancellationToken)
+    {
+        var roleNames = (await GetAssignedRoleNamesAsync(user.Id, cancellationToken)).ToList();
+        if (user.IsExternal)
+        {
+            roleNames.AddRange(ReadExternalRoles(user.Id, user.ExternalRolesJson));
+        }
+
+        return await roleManagementService.EnsureCurrentUserCanGrantRolesAsync(roleNames, cancellationToken);
     }
 
     private bool IsCurrentUser(long userId)
@@ -463,7 +496,7 @@ public sealed class AppUserService(
             return false;
         }
 
-        var userHasTenantAdminRole = await UserHasTenantAdminRoleAsync(user.Id, tenantId, cancellationToken);
+        var userHasTenantAdminRole = await UserHasTenantAdminRoleAsync(user.Id, cancellationToken);
         if (!userHasTenantAdminRole)
         {
             return false;
@@ -472,12 +505,12 @@ public sealed class AppUserService(
         return !await TenantHasAnotherActiveAdminAsync(user.Id, tenantId, cancellationToken);
     }
 
-    private Task<bool> UserHasTenantAdminRoleAsync(long userId, long tenantId, CancellationToken cancellationToken)
+    private Task<bool> UserHasTenantAdminRoleAsync(long userId, CancellationToken cancellationToken)
     {
         return identityDbContext.UserRoles
             .Where(userRole => userRole.UserId == userId)
             .Join(
-                TenantAdminRoles(tenantId),
+                TenantAdminRoles(),
                 userRole => userRole.RoleId,
                 role => role.Id,
                 (_, _) => true)
@@ -489,7 +522,7 @@ public sealed class AppUserService(
         return identityDbContext.UserRoles
             .Where(userRole => userRole.UserId != removedUserId)
             .Join(
-                TenantAdminRoles(tenantId),
+                TenantAdminRoles(),
                 userRole => userRole.RoleId,
                 role => role.Id,
                 (userRole, _) => userRole.UserId)
@@ -503,12 +536,14 @@ public sealed class AppUserService(
             .AnyAsync(cancellationToken);
     }
 
-    private IQueryable<AppRole> TenantAdminRoles(long tenantId)
+    private IQueryable<AppRole> TenantAdminRoles()
     {
         var normalizedAdminRoleName = NormalizeRoleName(SystemRole.Admin.Name);
 
+        // Only the built-in system row is Admin; a tenant role borrowing the name is not (see BuiltInAdminRoles).
         return identityDbContext.Roles.Where(role =>
-            (role.TenantId == tenantId || (role.IsSystemDefined && role.TenantId <= 0)) &&
+            role.IsSystemDefined &&
+            role.TenantId <= 0 &&
             (role.NormalizedName == normalizedAdminRoleName || role.Name == SystemRole.Admin.Name));
     }
 
