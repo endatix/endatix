@@ -125,7 +125,7 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 
 ## Transactional email
 
-- Compose `EmailWithTemplate` with `To`, `TemplateId` and `Metadata` only. **Do not set `From`** on stored templates: `EmailTemplateRenderer` resolves it (`Endatix:EmailTemplates:*:FromAddress` → brand pack `email.fromAddress` → template row → default). Seeded templates name the product through `{{productName}}` and `{{supportAddress}}`, which the renderer fills from `DeploymentBrand`; never write "Endatix" into a new seed row or composed metadata. External templates (`IsExternal = true`) send `From` as-is.
+- Compose `EmailWithTemplate` with `To`, `TemplateId` and `Metadata` only. **Do not set `From`** on stored templates: `EmailTemplateRenderer` resolves it (`Endatix:EmailTemplates:*:FromAddress` → brand pack `email.fromAddress` → template row → default). Every template can use `{{productName}}`, `{{supportAddress}}`, `{{websiteUrl}}` and `{{senderName}}`, which the renderer fills from `DeploymentBrand`; composed metadata names the product through the brand, never as "Endatix". A seed row may switch to those variables only one stable release after the release that added them (expand, then contract), so a rolled-back pod never sends a literal placeholder. External templates (`IsExternal = true`) send `From` as-is.
 - `Metadata` keys match the template's `{{placeholders}}` (`Scripts/Data/*.sql`); a template id with no row throws at render time.
 - Best-effort after a committed write: catch and log a send failure, do not turn it into a 5xx. When nothing was persisted, return `Result.Unavailable` (`ForgotPasswordHandler`).
 

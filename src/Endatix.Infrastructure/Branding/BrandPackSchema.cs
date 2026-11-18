@@ -1,11 +1,11 @@
 using System.Reflection;
-using Json.Schema;
 
 namespace Endatix.Infrastructure.Branding;
 
 /// <summary>
-/// The embedded copy of the v1 brand pack JSON Schema. The Hub owns the canonical schema: this file is a byte copy
-/// of endatix-hub's generated <c>lib/branding/brand.schema.json</c>, and <see cref="Sha256"/> pins it.
+/// The embedded copy of the v1 brand pack JSON Schema. The Hub owns the canonical schema and validates the whole pack:
+/// this file is a byte copy of endatix-hub's generated <c>lib/branding/brand.schema.json</c>, and <see cref="Sha256"/>
+/// pins it. The API checks only the fields it reads (<see cref="BrandPackReader"/>), so it needs no schema library.
 /// </summary>
 internal static class BrandPackSchema
 {
@@ -15,12 +15,7 @@ internal static class BrandPackSchema
     /// SHA-256 (lower-case hex) of <c>brand.schema.json</c>'s UTF-8 bytes with LF line endings. A schema change
     /// copies the Hub's file and updates this value in the same change.
     /// </summary>
-    internal const string Sha256 = "f6d6355e4c8b98d249ef660f8419d26bbc4c9d46f36cfe824c2eaf494daf6507";
-
-    private static readonly Lazy<JsonSchema> Schema = new(() => JsonSchema.FromText(ReadText()));
-
-    /// <summary>The compiled schema; built once, because building registers its <c>$id</c>.</summary>
-    internal static JsonSchema Instance => Schema.Value;
+    internal const string Sha256 = "9b27e9ff4eed44ad3ba55b2b559b23838b21fd6a75d8131c06522f24367cb44a";
 
     internal static string ReadText()
     {

@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixture) : IDisposable
 {
-    private const string InvalidPack = """{ "version": 1, "name": "Example Forms", "fonts": { "body": "Inter" } }""";
+    private const string InvalidPack = """{ "version": 1, "name": "Example Forms", "email": { "fromAddress": "not-an-email" } }""";
     private const string ValidPack = """{ "version": 1, "name": "Example Forms", "email": { "senderName": "Example Forms Team" } }""";
 
     private readonly string _packDirectory = Directory.CreateTempSubdirectory("brand-pack-").FullName;
@@ -37,7 +37,7 @@ public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixtu
         // Assert
         var brandPackError = FindBrandPackError(error);
         brandPackError.Should().NotBeNull("an invalid pack stops startup");
-        brandPackError!.Message.Should().Contain("/fonts");
+        brandPackError!.Message.Should().Contain("/email/fromAddress");
     }
 
     [Fact]

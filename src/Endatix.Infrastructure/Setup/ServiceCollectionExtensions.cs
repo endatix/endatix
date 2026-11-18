@@ -103,12 +103,8 @@ public static class ServiceCollectionExtensions
     /// <returns>The configured service collection.</returns>
     public static IServiceCollection AddDeploymentBrand(this IServiceCollection services, IConfiguration configuration)
     {
-        if (!services.Any(descriptor => descriptor.ServiceType == typeof(DeploymentBrand)))
-        {
-            services.AddSingleton(BrandPackLoader.Load(configuration));
-        }
-
-        return services;
+        // Replace, not TryAdd: an email sender added first leaves a lazy fallback that must not win.
+        return services.Replace(ServiceDescriptor.Singleton(BrandPackLoader.Load(configuration)));
     }
 
     // For a host that adds an email sender or the template settings without Integrations.UseDefaults():

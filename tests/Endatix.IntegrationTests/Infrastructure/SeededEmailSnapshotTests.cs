@@ -18,7 +18,8 @@ namespace Endatix.IntegrationTests;
 /// <summary>
 /// Renders every seeded email from a freshly migrated database. Without a brand pack the result is pinned to a
 /// snapshot recorded before brand variables existed, so a change to the seed rows, the renderer or the composed
-/// metadata that alters a byte for the built-in brand fails here. Set <c>ENDATIX_UPDATE_EMAIL_SNAPSHOTS=1</c> to
+/// metadata that alters a byte for the built-in brand fails here. The seed rows still carry the literal product
+/// name; a later release moves them to <c>{{productName}}</c>, once no running release lacks the variable. Set <c>ENDATIX_UPDATE_EMAIL_SNAPSHOTS=1</c> to
 /// re-record it after an intended change.
 /// </summary>
 [Collection(nameof(DbIntegrationTestCollection))]
@@ -64,7 +65,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task Seeded_emails_with_a_brand_pack_show_its_product_sender_and_support_address()
+    public async Task Seeded_emails_with_a_brand_pack_send_from_its_sender_and_name_it_in_composed_copy()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -74,18 +75,15 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
 
         // Assert
         emails.Should().HaveCount(6);
-        foreach (var (templateId, email) in emails)
-        {
-            var text = $"{email.Subject}\n{email.HtmlBody}\n{email.PlainTextBody}";
-            text.Should().NotContain("Endatix", $"{templateId} names the pack's product only");
-            text.Should().Contain("Example Forms", $"{templateId} names the pack's product");
-            email.From.Should().Be("noreply@example.com", $"{templateId} sends from the pack's address");
-            email.FromName.Should().Be("Example Forms Team", $"{templateId} carries the pack's sender name");
-        }
-
-        emails.Single(rendered => rendered.TemplateId == "password-changed").Email.PlainTextBody
-            .Should().Contain("help@example.com", "the password-changed email points people to the pack's support address");
+        emails.Should().OnlyContain(
+            rendered => rendered.Email.From == "noreply@example.com" && rendered.Email.FromName == "Example Forms Team",
+            "every email sends from the pack's address with its sender name");
+        Email(emails, "user-invitation").HtmlBody
+            .Should().Contain("Accept your Example Forms invitation").And.Contain("sign in to Example Forms.");
     }
+
+    private static EmailWithBody Email(List<(string TemplateId, EmailWithBody Email)> emails, string templateId) =>
+        emails.Single(rendered => rendered.TemplateId == templateId).Email;
 
     private async Task<List<(string TemplateId, EmailWithBody Email)>> RenderEveryEmailAsync(
         DeploymentBrand brand,
@@ -124,7 +122,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
         yield return SignupEmail(EmailTemplateSettings.TenantSignupApprovedTemplateId);
     }
 
-    // The saas waitlist module composes these two; every placeholder the seed rows use gets a marker value.
+    // A host module composes these two; every placeholder the seed rows use gets a marker value.
     private static EmailWithTemplate SignupEmail(string templateId) => new()
     {
         To = Recipient,

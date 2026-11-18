@@ -17,17 +17,36 @@ public sealed class BrandPackLoaderTests : IDisposable
 
     public static TheoryData<string, string> InvalidFixtures() => new()
     {
-        { "invalid-path-traversal.json", "/assets/icon" },
-        { "invalid-unknown-key.json", "/fonts" },
         { "invalid-version.json", "/version" },
         { "invalid-email-format.json", "/email/fromAddress" },
+    };
+
+    // Invalid in fields only the Hub reads (assets, unknown keys); the Hub rejects these packs at its own startup.
+    public static TheoryData<string> HubOnlyInvalidFixtures() =>
+    [
+        "invalid-path-traversal.json",
+        "invalid-unknown-key.json",
+    ];
+
+    public static TheoryData<string, string> InvalidPacks() => new()
+    {
+        { """{ "version": 1, "name": "   " }""", "/name: must not be blank" },
+        { """{ "version": 1, "name": "Example\u0007Forms" }""", "/name: must not contain control characters" },
+        { $$"""{ "version": 1, "name": "{{new string('x', 61)}}" }""", "/name: must be at most 60 characters" },
+        { """{ "version": 1, "name": "Example Forms", "email": { "senderName": "" } }""", "/email/senderName: must not be blank" },
+        { """{ "version": 1, "name": "Example Forms", "email": { "senderName": "Example\r\nBcc: x@example.com" } }""", "/email/senderName: must not contain control characters" },
+        { """{ "version": 1, "name": "Example Forms", "email": { "fromAddress": "Example <a@example.com>" } }""", "/email/fromAddress: must be an email address" },
+        { """{ "version": 1, "name": "Example Forms", "links": { "website": "ftp://example.com" } }""", "/links/website: must be an http, https or mailto URL" },
+        { """{ "version": 1, "name": "Example Forms", "email": "noreply@example.com" }""", "/email: must be a JSON object" },
+        { """{ "version": 1, "name": 7 }""", "/name: must be a string" },
     };
 
     [Fact]
     public void InvalidFixtures_CoverEveryInvalidFixtureFile()
     {
         // Arrange
-        var covered = InvalidFixtures().Select(row => row.Data.Item1);
+        var covered = InvalidFixtures().Select(row => row.Data.Item1)
+            .Concat(HubOnlyInvalidFixtures().Select(row => row.Data));
 
         // Act
         var onDisk = FixtureNames("invalid-");
@@ -100,18 +119,32 @@ public sealed class BrandPackLoaderTests : IDisposable
         load.Should().Throw<BrandPackException>().Which.Message.Should().Contain(fieldPath);
     }
 
-    [Fact]
-    public void Load_InvalidNestedField_NamesOnlyThatField()
+    [Theory]
+    [MemberData(nameof(HubOnlyInvalidFixtures))]
+    public void Load_FixtureInvalidOnlyInHubFields_LoadsThePack(string fixture)
     {
         // Arrange
-        UsePackFixture("invalid-path-traversal.json");
+        UsePackFixture(fixture);
+
+        // Act
+        var brand = BrandPackLoader.Load(Configuration(flag: "true"));
+
+        // Assert
+        brand.ProductName.Should().Be("Example Forms");
+    }
+
+    [Theory]
+    [MemberData(nameof(InvalidPacks))]
+    public void Load_InvalidFieldTheApiReads_ThrowsNamingIt(string pack, string failure)
+    {
+        // Arrange
+        File.WriteAllText(Path.Combine(_packDirectory, "brand.json"), pack);
 
         // Act
         var load = () => BrandPackLoader.Load(Configuration(flag: "true"));
 
         // Assert
-        var message = load.Should().Throw<BrandPackException>().Which.Message;
-        message.Should().Contain("/assets/icon:").And.NotContain("/assets:").And.NotContain(" /:");
+        load.Should().Throw<BrandPackException>().Which.Message.Should().Contain(failure);
     }
 
     [Fact]
@@ -125,7 +158,7 @@ public sealed class BrandPackLoaderTests : IDisposable
 
         // Assert
         load.Should().Throw<BrandPackException>().Which.Message
-            .Should().Contain("/:").And.Contain("name").And.Contain("/version:");
+            .Should().Contain("/name: is required").And.Contain("/version: must be 1");
     }
 
     [Fact]
