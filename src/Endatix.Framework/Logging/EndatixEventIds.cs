@@ -263,6 +263,10 @@ public static class EndatixEventIds
         public const int WorkerStarted = 4008;
         /// <summary>The webhook background worker stopped.</summary>
         public const int WorkerStopped = 4009;
+        /// <summary>A webhook endpoint's address is not a public network address, so nothing was sent to it.</summary>
+        public const int EndpointRefused = 4010;
+        /// <summary>Private network targets are allowed for webhook endpoints (logged once at startup).</summary>
+        public const int PrivateNetworkTargetsAllowed = 4011;
 
         /// <summary>First EventId of this group.</summary>
         public const int RangeStart = Ranges.WebhooksStart;
@@ -281,7 +285,9 @@ public static class EndatixEventIds
             DeliveryRejected,
             DeliveryError,
             WorkerStarted,
-            WorkerStopped
+            WorkerStopped,
+            EndpointRefused,
+            PrivateNetworkTargetsAllowed
         ];
     }
 

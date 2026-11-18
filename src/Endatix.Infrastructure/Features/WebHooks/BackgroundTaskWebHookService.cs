@@ -41,7 +41,7 @@ public class BackgroundTaskWebHookService(
         {
             await backgroundQueue.EnqueueAsync(async token =>
             {
-                var instructions = TaskInstructions.FromWebHookEndpointConfig(endpoint);
+                var instructions = TaskInstructions.FromWebHookEndpointConfig(endpoint, formId);
                 await httpServer.FireWebHookAsync(message, instructions, token);
             });
         }
@@ -65,14 +65,14 @@ public class BackgroundTaskWebHookService(
         }
 
         // Deliver to every endpoint and AWAIT each result (no background queue). All-or-nothing: if any
-        // endpoint fails, report failure so the caller (the outbox relay) retries the whole row — duplicate
+        // endpoint fails (a refused one is settled), report failure so the caller (the outbox relay) retries the whole row — duplicate
         // deliveries to already-succeeded endpoints are absorbed by the X-Endatix-Hook-Id dedup header.
         var allDelivered = true;
         foreach (var endpoint in endpoints)
         {
-            var instructions = TaskInstructions.FromWebHookEndpointConfig(endpoint);
-            var delivered = await httpServer.FireWebHookAsync(message, instructions, cancellationToken);
-            if (!delivered)
+            var instructions = TaskInstructions.FromWebHookEndpointConfig(endpoint, formId);
+            var outcome = await httpServer.FireWebHookAsync(message, instructions, cancellationToken);
+            if (outcome == WebHookDeliveryOutcome.Failed)
             {
                 allDelivered = false;
                 logger.LogWarning("WebHook delivery to {Uri} failed for {EventName} event (hook id {Id}).", instructions.Uri, message.operation.EventName, message.id);

@@ -70,6 +70,13 @@ public class WebHookSettings : IEndatixSettings
         /// </summary>
         [Range(1, 100)]
         public int MaxQueueSize { get; set; } = DEFAULT_MAX_QUEUE_SIZE;
+
+        /// <summary>
+        /// Allows webhook endpoints on private and local networks: loopback, private ranges, link-local, and reserved
+        /// names such as <c>localhost</c> or <c>*.internal</c>. Off by default. Only server configuration sets it;
+        /// redirects stay unfollowed and no proxy is used either way.
+        /// </summary>
+        public bool AllowPrivateNetworkTargets { get; set; }
     }
 
     /// <summary>

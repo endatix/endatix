@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Text.Json;
 using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using FluentValidation;
@@ -31,6 +32,27 @@ public static class FluentValidationExtensions
         ruleBuilder
             .Must(json => WebHookConfiguration.RetiredKeyError(json) is null)
             .WithMessage((_, json) => WebHookConfiguration.RetiredKeyError(json));
+
+    /// <summary>
+    /// Refuses webhook settings whose endpoint URL is not an absolute http or https URL, or names a private or local host
+    /// while the server does not allow private network targets, with the entity's message
+    /// (<see cref="WebHookConfiguration.EndpointUrlError(string?, OutboundAddressPolicy)"/>).
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> PublicWebHookEndpoints<T>(
+        this IRuleBuilder<T, string?> ruleBuilder, OutboundAddressPolicy policy) =>
+        ruleBuilder
+            .Must(json => WebHookConfiguration.EndpointUrlError(json, policy) is null)
+            .WithMessage((_, json) => WebHookConfiguration.EndpointUrlError(json, policy));
+
+    /// <inheritdoc cref="PublicWebHookEndpoints{T}(IRuleBuilder{T, string?}, OutboundAddressPolicy)"/>
+    public static IRuleBuilderOptions<T, JsonElement?> PublicWebHookEndpoints<T>(
+        this IRuleBuilder<T, JsonElement?> ruleBuilder, OutboundAddressPolicy policy) =>
+        ruleBuilder
+            .Must(settings => EndpointUrlError(settings, policy) is null)
+            .WithMessage((_, settings) => EndpointUrlError(settings, policy));
+
+    private static string? EndpointUrlError(JsonElement? settings, OutboundAddressPolicy policy) =>
+        settings is { } element ? WebHookConfiguration.EndpointUrlError(element, policy) : null;
 
     /// <summary>
     /// Validates that the string is a valid URL slug.

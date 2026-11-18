@@ -61,6 +61,7 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         {
             ["Endatix:BackgroundJobs:JobTypes:WebHookDelivery:BackoffBaseSeconds"] = "1",
             ["Endatix:BackgroundJobs:JobTypes:WebHookDelivery:BackoffCapSeconds"] = "1",
+            [StubWebHookReceiver.AllowPrivateNetworkTargetsSetting] = "true",
         });
         var (tenantId, formId, submissionId) = await host.SeedSubmissionAsync("reporting-failing-webhook", ct);
         await ConfigureTenantWebHookAsync(

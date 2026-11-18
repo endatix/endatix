@@ -1,5 +1,6 @@
 using Endatix.Core.Features.WebHooks;
 using Endatix.Framework.Logging;
+using Endatix.Infrastructure.Networking;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Features.WebHooks;
@@ -68,4 +69,17 @@ internal static partial class WebHookLoggerExtensions
         Level = LogLevel.Information,
         Message = "{Service} Service is stopped.")]
     public static partial void LogWebHookWorkerStopped(this ILogger logger, string service);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.Webhooks.PrivateNetworkTargetsAllowed,
+        Level = LogLevel.Warning,
+        Message = "Endatix:WebHooks:ServerSettings:AllowPrivateNetworkTargets is on: webhooks may be sent to private and local network addresses.")]
+    public static partial void LogPrivateNetworkTargetsAllowed(this ILogger logger);
+
+    [LoggerMessage(
+        EventId = EndatixEventIds.Webhooks.EndpointRefused,
+        Level = LogLevel.Warning,
+        Message = "Webhook endpoint {EndpointKey} of form {FormId} was refused ({Reason}): not a public network address. {EventName} hook {Id} was not sent.")]
+    public static partial void LogWebHookEndpointRefused(
+        this ILogger logger, string endpointKey, long? formId, OutboundAddressRefusalReason reason, string eventName, long id);
 }

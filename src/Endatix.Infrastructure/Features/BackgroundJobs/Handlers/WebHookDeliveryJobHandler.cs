@@ -2,11 +2,12 @@ using System.Text.Json;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.WebHooks;
-using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Networking;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
 
@@ -44,6 +45,7 @@ internal sealed class WebHookDeliveryJobHandler(
     public const string EndpointGone = "The webhook endpoint is no longer configured.";
     public const string EventDisabled = "Webhook delivery for this event is disabled.";
     public const string InvalidUrl = "The webhook endpoint URL is not valid.";
+    public const string EndpointAddressNotAllowed = "The webhook endpoint address is not allowed.";
 
     protected override async Task<Result> ExecuteAsync(
         BackgroundJobContext job,
@@ -58,7 +60,8 @@ internal sealed class WebHookDeliveryJobHandler(
 
         WebHookEvents.TryGetOperation(message!.EventType, out var operation);
         using var document = JsonDocument.Parse(message.Payload);
-        var delivery = new EndpointDelivery(message, operation, document.RootElement, payload.EndpointKey);
+        var formId = message.GetRequiredIdProp(document.RootElement, "formId");
+        var delivery = new EndpointDelivery(message, operation, document.RootElement, payload.EndpointKey, formId);
         var endpoint = await FindEndpointAsync(job.TenantId, delivery, cancellationToken);
         return endpoint.Refusal is { } refusal
             ? Refused(refusal)
@@ -94,9 +97,8 @@ internal sealed class WebHookDeliveryJobHandler(
         EndpointDelivery delivery,
         CancellationToken cancellationToken)
     {
-        var formId = delivery.Message.GetRequiredIdProp(delivery.EventPayload, "formId");
         var eventConfig = await configReader.GetEventConfigAsync(
-            new WebHookEventLookup(tenantId, delivery.Operation.EventName, formId), cancellationToken);
+            new WebHookEventLookup(tenantId, delivery.Operation.EventName, delivery.FormId), cancellationToken);
         return eventConfig is { IsEnabled: true }
             ? LookUpIn(eventConfig, delivery.EndpointKey)
             : EndpointLookup.NoneBecause(EventDisabled);
@@ -115,25 +117,42 @@ internal sealed class WebHookDeliveryJobHandler(
         };
     }
 
-    // One POST, through the client without retries; any answer but success is thrown for the job to retry.
+    // One POST, through the client without retries; any answer but success is thrown for the job to retry. A refused
+    // address is final, like an invalid URL: it stays refused until the configuration changes. The wrapper's message
+    // names the host, so only the key and the reason are logged.
     private async Task<Result> SendAsync(
+        EndpointDelivery delivery,
+        WebHookEndpointConfig endpoint,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return SucceededOrThrow(delivery, await PostAsync(delivery, endpoint, cancellationToken));
+        }
+        catch (HttpRequestException ex) when (OutboundAddressRefusedException.Of(ex) is { } refusal)
+        {
+            logger.LogWebHookEndpointRefused(
+                delivery.EndpointKey, delivery.FormId, refusal.Reason, delivery.Operation.EventName, delivery.Message.Id);
+            return Refused(EndpointAddressNotAllowed);
+        }
+    }
+
+    private static Result SucceededOrThrow(EndpointDelivery delivery, System.Net.HttpStatusCode status) =>
+        (int)status is >= 200 and <= 299
+            ? Result.Success()
+            : throw new WebHookDeliveryFailedException(delivery.EndpointKey, status);
+
+    private Task<System.Net.HttpStatusCode> PostAsync(
         EndpointDelivery delivery,
         WebHookEndpointConfig endpoint,
         CancellationToken cancellationToken)
     {
         var server = new WebHookServer(
             httpClientFactory.CreateClient(HttpClientName), loggerFactory.CreateLogger<WebHookServer>());
-        var status = await server.SendAsync(
+        return server.SendAsync(
             new WebHookMessage<JsonElement>(delivery.Message.Id, delivery.Operation, delivery.EventPayload),
             TaskInstructions.FromWebHookEndpointConfig(endpoint),
             cancellationToken);
-
-        if ((int)status is < 200 or > 299)
-        {
-            throw new WebHookDeliveryFailedException(delivery.EndpointKey, status);
-        }
-
-        return Result.Success();
     }
 
     /// <summary>The event a job delivers, and the key of the endpoint it delivers to.</summary>
@@ -141,7 +160,8 @@ internal sealed class WebHookDeliveryJobHandler(
         IOutboxMessage Message,
         WebHookOperation Operation,
         JsonElement EventPayload,
-        string EndpointKey);
+        string EndpointKey,
+        long? FormId);
 
     /// <summary>The endpoint to send to, or why there is none.</summary>
     private sealed record EndpointLookup(WebHookEndpointConfig? Endpoint, string? Refusal)

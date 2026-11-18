@@ -3,6 +3,7 @@ using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Networking;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -351,6 +352,35 @@ public class BackgroundTaskWebHookServiceTests
         form.Id = TEST_FORM_ID;
         form.UpdateWebHookSettings(webHookConfig);
         return form;
+    }
+
+    [Fact]
+    public async Task DeliverWebHookAsync_EndpointAddressRefused_SettlesSoTheRowIsNotRetried()
+    {
+        // Arrange
+        var form = CreateFormWithEnabledEvent("FormCreated", ["http://127.0.0.1:8080/hook"]);
+        _formRepository.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(form);
+        var refusingServer = new WebHookServer(new HttpClient(new RefusingHttpHandler()), NullLogger<WebHookServer>.Instance);
+        var service = new BackgroundTaskWebHookService(
+            _logger,
+            _backgroundQueue,
+            new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance),
+            refusingServer);
+
+        // Act
+        var delivered = await service.DeliverWebHookAsync(
+            TEST_TENANT_ID, CreateTestWebHookMessage(WebHookOperation.FormCreated), CancellationToken.None, TEST_FORM_ID);
+
+        // Assert
+        delivered.Should().BeTrue();
+    }
+
+    private sealed class RefusingHttpHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new HttpRequestException(
+                "Connection refused", new OutboundAddressRefusedException(OutboundAddressRefusalReason.NonPublicAddress));
     }
 
     private BackgroundTaskWebHookService CreateService() =>
