@@ -84,6 +84,9 @@ internal sealed class CopyVisibility
     /// </summary>
     public bool WhenComplete { get; }
 
+    /// <summary>Whether the rule applies to a submission, complete or not.</summary>
+    public bool HoldsFor(bool submissionComplete) => !WhenComplete || submissionComplete;
+
     /// <summary>The rule of a copy whose shown list follows from the answers; null otherwise.</summary>
     public static CopyVisibility? Of(
         JsonElement question,
@@ -211,7 +214,7 @@ internal sealed class CopyVisibility
     /// </summary>
     public bool? Shows(string value, AnswerScope scope, ChoiceCatalogs catalogs)
     {
-        if (WhenComplete && !catalogs.SubmissionComplete)
+        if (!HoldsFor(catalogs.SubmissionComplete))
         {
             return null;
         }
@@ -273,7 +276,7 @@ internal sealed class CopyVisibility
             ? UnknownBecause.UnrecognizedMode
             : ListProblem(question, fromQuestion) ?? ScopeProblem(question, sources, definition);
         return problem is null
-            ? FromSources(mode!.Value, sources, UnderAVisibleIf(question, sources, definition))
+            ? FromSources(mode!.Value, sources, UnderAVisibleIf(question, SelectsIn(sources), definition))
             : Unknown(problem.Value);
     }
 
@@ -301,9 +304,7 @@ internal sealed class CopyVisibility
     }
 
     // A name the definition uses twice has one catalog for two questions. A copy in a panel or page that is never shown
-    // can hold an answer as one with its own visible: false can. A survey that keeps hidden answers keeps one for a copy
-    // or source hidden by any visibleIf, its panel's or page's included; an own visibleIf is checked too for a copy
-    // compiled without the definition.
+    // can hold an answer as one with its own visible: false can.
     private static UnknownBecause? ScopeProblem(
         JsonElement question,
         IReadOnlyList<(string Name, JsonElement Element)> sources,
@@ -320,8 +321,22 @@ internal sealed class CopyVisibility
             return UnknownBecause.CopyAlwaysHidden;
         }
 
+        return HiddenAnswerProblem(question, sources, definition);
+    }
+
+    // A survey that keeps hidden answers keeps one for a copy or source hidden by any visibleIf, its panel's or page's
+    // included; an own visibleIf is checked too for a copy compiled without the definition. A copy or select source
+    // whose own clearIfInvisible keeps its answer does the same under a visibleIf that can hide it.
+    private static UnknownBecause? HiddenAnswerProblem(
+        JsonElement question,
+        IReadOnlyList<(string Name, JsonElement Element)> sources,
+        CopyDefinition definition)
+    {
         var hidden = definition.HasVisibleIf || UnderAVisibleIf(question, sources, definition);
-        return hidden && !definition.ClearsHiddenAnswersOnComplete ? UnknownBecause.HiddenAnswersKept : null;
+        var kept = hidden && !definition.ClearsHiddenAnswersOnComplete ||
+                   KeepsAHiddenAnswer(question, question.GetSurveyJsName(), definition) ||
+                   SelectsIn(sources).Any(source => KeepsAHiddenAnswer(source.Element, source.Name, definition));
+        return kept ? UnknownBecause.HiddenAnswersKept : null;
     }
 
     // Whether the copy or a source shows only under a visibleIf: its own, or one on an enclosing panel, dynamic panel or
@@ -336,6 +351,14 @@ internal sealed class CopyVisibility
     private static bool UnderAVisibleIf(JsonElement question, string? name, CopyDefinition definition) =>
         question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null ||
         name is not null && definition.ContainerVisibleIfNames.Contains(name);
+
+    // A question whose own clearIfInvisible keeps its answer while a visibleIf hides it.
+    private static bool KeepsAHiddenAnswer(JsonElement question, string? name, CopyDefinition definition) =>
+        definition.KeepsHiddenAnswer(question) && UnderAVisibleIf(question, name, definition);
+
+    // Only select sources add choices to the copy's list.
+    private static List<(string Name, JsonElement Element)> SelectsIn(IReadOnlyList<(string Name, JsonElement Element)> sources) =>
+        [.. sources.Where(source => IsSelect(source.Element))];
 
     private static List<string> OwnValues(JsonElement source) =>
         [.. SurveyJsChoiceHelper.EnumerateChoiceElements(source).Select(choice => choice.Value)];

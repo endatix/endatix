@@ -78,7 +78,8 @@ internal sealed class ChoiceCatalogs
         return new ChoiceCatalogs(
             ReadEach(catalogs, SelectChoices.FromCatalog),
             CopiesIn(document.RootElement, catalogs),
-            ReadEach(catalogs, CopyVisibility.Read)) { SubmissionComplete = submissionComplete };
+            ReadEach(catalogs, CopyVisibility.Read))
+        { SubmissionComplete = submissionComplete };
     }
 
     // Every catalog that reads as a T, by question name.
@@ -131,9 +132,11 @@ internal sealed class ChoiceCatalogs
             : IndicatorCell.Empty;
     }
 
-    // The copy's own special items are always on its list, but only an exact rule proves which definition's list.
+    // The copy's own special items are always on its list, but only an exact rule that holds for this submission proves
+    // which definition's list, and that the copy was shown.
     private bool AnsweredCopyShows(AnswerScope scope, string question, string choiceValue) =>
         _visibility.TryGetValue(question, out var rule) &&
+        rule.HoldsFor(SubmissionComplete) &&
         ((For(question).KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice) ||
          rule.Shows(choiceValue, scope, this) == true);
 

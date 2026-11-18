@@ -21,6 +21,7 @@ internal sealed record CopyDefinition(
 {
     private const string ClearInvisibleValues = "clearInvisibleValues";
     private const string OnComplete = "onComplete";
+    private const string Default = "default";
 
     /// <summary>No definition read: no rule may rely on hidden answers being cleared.</summary>
     public static CopyDefinition None { get; } =
@@ -45,6 +46,15 @@ internal sealed record CopyDefinition(
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
     // "onHidden" and "onHiddenContainer" keep or clear it at other times.
+    /// <summary>
+    /// Whether <paramref name="question"/> keeps its answer while hidden: its own <c>clearIfInvisible</c>, or the survey's
+    /// <c>clearInvisibleValues</c> when it has none or <c>default</c>.
+    /// </summary>
+    public bool KeepsHiddenAnswer(JsonElement question) =>
+        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ClearIfInvisible) is { } own && own != Default
+            ? own != OnComplete
+            : !ClearsHiddenAnswersOnComplete;
+
     private static bool ClearsOnComplete(JsonElement definition) =>
         definition.TryGetPropertyValue(ClearInvisibleValues) switch
         {
@@ -53,7 +63,8 @@ internal sealed record CopyDefinition(
             _ => false,
         };
 
-    // Counts the data names, notes any visibleIf on a page or on an element at any depth (panels and loops too), and
+    // Counts the data names, notes any visibleIf on a page or on an element at any depth (panels, loops and matrix
+    // detail panels too), and
     // collects the data names under a container visibleIf and those under a static visible: false.
     private sealed class DefinitionWalk
     {
@@ -79,6 +90,7 @@ internal sealed record CopyDefinition(
 
             VisitElements(container, SurveyJsPropertyNames.Elements, hiding);
             VisitElements(container, SurveyJsPropertyNames.TemplateElements, hiding);
+            VisitElements(container, SurveyJsPropertyNames.DetailElements, hiding);
         }
 
         private void VisitElements(JsonElement container, string property, Hiding hiding)

@@ -161,6 +161,97 @@ public sealed class CopiedChoiceHiddenContainerTests
         Cell(flattened, "brandLoop__1__pick__3").Should().BeNull();
     }
 
+    // A question's own clearIfInvisible overrides the survey's; "default" defers to it.
+    public static TheoryData<string, string?> QuestionLevelClearing => new()
+    {
+        { "none", null },
+        { "onHidden", null },
+        { "onHiddenContainer", null },
+        { "onComplete", "0" },
+        { "default", "0" },
+    };
+
+    [Theory]
+    [MemberData(nameof(QuestionLevelClearing))]
+    public void Flatten_CompleteRowOfACopyUnderAVisibleIfThatKeepsItsOwnHiddenAnswer_WritesZeroOnlyWhenItClears(string clearing, string? unpicked)
+    {
+        // Arrange
+        var definition = Pages(Page(
+            STORES,
+            $$"""{"type":"panel","name":"pickPanel","visibleIf":"{x} = 1","elements":[{"type":"checkbox","name":"pick","clearIfInvisible":"{{clearing}}","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}]}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: true);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", unpicked), ("3", null)));
+    }
+
+    [Fact]
+    public void Flatten_CompleteRowOfASourceUnderAVisibleIfThatKeepsItsOwnHiddenAnswer_WritesOnlyThePickedChoice()
+    {
+        // Arrange
+        var definition = Pages(Page(
+            """{"type":"panel","name":"storesPanel","visibleIf":"{x} = 1","elements":[{"type":"checkbox","name":"stores","clearIfInvisible":"none","choices":["1","2","3"]}]}""",
+            SELECTED_COPY));
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: true);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", null), ("3", null)));
+    }
+
+    [Fact]
+    public void Flatten_SurveyThatKeepsHiddenAnswersWithAVisibleIfInMatrixDetailElements_WritesOnlyThePickedChoice()
+    {
+        // Arrange
+        var definition = SurveyWith(
+            """{"clearInvisibleValues":"none"}""",
+            STORES,
+            SELECTED_COPY,
+            """{"type":"matrixdynamic","name":"grid","columns":[{"name":"a"}],"detailPanelMode":"underRow","detailElements":[{"type":"text","name":"detail","visibleIf":"{x} = 1"}]}""");
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: true);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", null), ("3", null)));
+    }
+
+    [Theory]
+    [MemberData(nameof(CompleteOrNot))]
+    public void Flatten_UnpickedNoneOfACopyUnderAVisibleIf_IsZeroOnlyForACompleteSubmission(bool complete, string? unpicked)
+    {
+        // Arrange
+        var definition = Pages(Page(
+            STORES,
+            """{"type":"panel","name":"pickPanel","visibleIf":"{x} = 1","elements":[{"type":"checkbox","name":"pick","showNoneItem":true,"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}]}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete);
+
+        // Assert
+        cells["none"].Should().Be(unpicked);
+        cells["1"].Should().Be("1");
+    }
+
+    [Fact]
+    public void Flatten_IncompleteRowWithANonSelectSourceUnderAVisibleIf_StaysExact()
+    {
+        // Arrange
+        var definition = Pages(Page(
+            STORES,
+            """{"type":"panel","name":"notePanel","visibleIf":"{x} = 1","elements":[{"type":"text","name":"note"}]}""",
+            """{"type":"checkbox","name":"pick","edxCarryForwardEnabled":true,"edxCarryForwardSources":["stores","note"],"edxCarryForwardMode":"selected"}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, ANSWERS, complete: false);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", "0"), ("3", null)));
+    }
+
     [Fact]
     public void WhyUnknown_SourceInAHiddenPanelOfASurveyThatKeepsHiddenAnswers_IsHiddenAnswersKept()
     {
