@@ -81,7 +81,7 @@ internal sealed class JobHandlerRunner(
     {
         activity?.SetStatus(ActivityStatusCode.Error, nameof(JobScopeMismatchException));
         logger.LogWarning(mismatch, "Background job {JobId} ({JobType}) ran in the wrong scope", job.Id, job.JobType);
-        return new HandlerInvocation(Result.Invalid(new ValidationError(mismatch.EndUserMessage)), null);
+        return new HandlerInvocation(Result.Invalid(new ValidationError(JobScopeMismatchException.WrongScope)), null);
     }
 
     private async Task<Result> ExecuteHandlerAsync(

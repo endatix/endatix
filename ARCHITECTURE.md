@@ -587,13 +587,15 @@ A job has a **scope** (`JobScope`): a tenant's, or the system's. A tenant job ca
 signup processed before its tenant exists, and is made only from `JobScope.System` (`BackgroundJob.ForSystem`,
 or a request with that scope), never from a tenant id. `JobScopeStorage` is the one place a scope meets the `TenantId` column: a system job
 stores the value an app-level outbox row stores for "no tenant", which the tenant filter shows to no tenant,
-so `GET jobs/{jobId}` never returns one to a tenant. Platform admins see system jobs' triggers in the Quartz
-dashboard.
+so `GET jobs/{jobId}` answers `404` to a tenant asking for one. That is the only API view of a job: there is no
+job listing or retry endpoint, so a system job, failed ones included, has no API view at all. The
+PlatformAdmin-only Quartz dashboard shows a system job's trigger while the job waits or retries, as it shows
+every job's; a finished job has no trigger, so its row is read in the database.
 
 A system job runs as the relay runs its work inline: with no ambient tenant, so app-level repositories work.
 The tenant filter is permissive there, so an unscoped query in a system job reads every tenant's rows; the
 handler scopes its own queries, as inline work does. Making tenant-filtered queries match nothing in a system
-job is part of the wider tenant-scope change, not yet built. `BackgroundJobContext.TenantId` throws
+job belongs to the tenant-scope change that follows, not to this one. `BackgroundJobContext.TenantId` throws
 `JobScopeMismatchException` for a system job, and the runner fails that job at once, without a retry, so a
 handler written for tenant work never runs one with no tenant.
 

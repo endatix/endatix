@@ -112,7 +112,13 @@ A tenant job always has a real tenant: `JobScope.ForTenant` (and the `long tenan
 zero or less, so a missing tenant fails the enqueue instead of becoming a system job. `JobScopeStorage` is
 the one place a scope meets the `TenantId` column; a system row stores the value an app-level outbox row
 stores for "no tenant". The tenant filter shows a system job to no tenant, so `GET jobs/{jobId}` answers
-`404` to a tenant asking for one. Platform admins see its triggers in the Quartz dashboard.
+`404` to a tenant asking for one. No endpoint lists or retries jobs, so a system job has no API view; the
+PlatformAdmin-only Quartz dashboard shows its trigger while it waits or retries, and a finished system
+job's row is read in the database.
+
+A system job runs with no ambient tenant, as the relay's inline work does, so the tenant filter is
+permissive: an unscoped query reads every tenant's rows. Its handler scopes its own queries. Filters that
+match nothing for a system job belong to the tenant-scope change that follows.
 
 **Idempotent enqueue.** A request may carry a `DedupKey` naming its unit of work — for a fan-out,
 `{outboxMessageId}:{subscriber}`. It is unique per scope and job type (a filtered unique index,
