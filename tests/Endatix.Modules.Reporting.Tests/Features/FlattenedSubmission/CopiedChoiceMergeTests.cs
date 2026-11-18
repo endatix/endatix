@@ -183,4 +183,53 @@ public sealed class CopiedChoiceMergeTests
         oldRow.Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
     }
 
+    [Fact]
+    public void FlattenAndMerge_CodebookWithTheEarlierShownShape_ReadsNoRuleAndDropsItOnMerge()
+    {
+        // Arrange
+        var definition = Survey(STORES, Copy("checkbox", """{"choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}"""));
+        var first = new FormSchemaCompiler().CompilePersisted(definition);
+        var earlierCodebook = JsonNode.Parse(first.CodebookJson)!;
+        earlierCodebook["choiceCatalogs"]!["pick"]![FormSchemaCodebookPropertyNames.Shown] =
+            JsonNode.Parse("""{"mode":"selected","sources":["stores"]}""");
+
+        // Act
+        var flattened = FlattenedSubmissionFlattener.Flatten(
+            Json("""{"stores":["1","2"],"pick":["1"]}"""),
+            first.FlatteningMap,
+            ChoiceCatalogs.Read(earlierCodebook.ToJsonString()));
+        var merged = new FormSchemaCompiler().CompilePersisted(
+            definition,
+            first.FlatteningMapJson,
+            earlierCodebook.ToJsonString(),
+            FormSchemaCompileMode.Merge);
+
+        // Assert
+        Cells(flattened).Should().Equal(Cells(("1", "1"), ("2", null), ("3", null)));
+        Shown(merged.CodebookJson).Should().BeNull();
+    }
+
+    [Fact]
+    public void CompilePersisted_MergeWithTheSourcesReordered_DropsTheRule()
+    {
+        // Arrange
+        const string online = """{"type":"checkbox","name":"online","choices":["4"]}""";
+        var first = new FormSchemaCompiler().CompilePersisted(Survey(
+            STORES,
+            online,
+            Copy("checkbox", """{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["stores","online"],"edxCarryForwardMode":"selected"}""")));
+
+        // Act
+        var merged = Recompile(
+            first,
+            Survey(
+                STORES,
+                online,
+                Copy("checkbox", """{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["online","stores"],"edxCarryForwardMode":"selected"}""")),
+            FormSchemaCompileMode.Merge);
+
+        // Assert
+        Shown(first.CodebookJson).Should().NotBeNull();
+        Shown(merged.CodebookJson).Should().BeNull();
+    }
 }

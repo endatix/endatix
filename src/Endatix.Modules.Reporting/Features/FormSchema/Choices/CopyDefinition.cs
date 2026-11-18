@@ -7,23 +7,25 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// <summary>
 /// COMPILE TIME. What a copy's <see cref="CopyVisibility"/> needs from the whole definition: the question names it
 /// uses more than once (a root question and a loop's, or two loops'), whose one choice catalog cannot tell which
-/// question a respondent saw, and whether the survey clears a hidden question's answer when it is completed.
+/// question a respondent saw, whether the survey clears a hidden question's answer when it is completed, and whether
+/// any page, panel or question has a <c>visibleIf</c>.
 /// </summary>
-internal sealed record CopyDefinition(IReadOnlySet<string> SharedNames, bool ClearsHiddenAnswersOnComplete)
+internal sealed record CopyDefinition(IReadOnlySet<string> SharedNames, bool ClearsHiddenAnswersOnComplete, bool HasVisibleIf)
 {
     private const string ClearInvisibleValues = "clearInvisibleValues";
     private const string OnComplete = "onComplete";
 
     /// <summary>No definition read: no rule may rely on hidden answers being cleared.</summary>
-    public static CopyDefinition None { get; } = new(new HashSet<string>(StringComparer.Ordinal), false);
+    public static CopyDefinition None { get; } = new(new HashSet<string>(StringComparer.Ordinal), false, false);
 
     public static CopyDefinition Of(JsonElement definition)
     {
-        Dictionary<string, int> counts = new(StringComparer.Ordinal);
-        CountNames(definition, counts);
+        DefinitionWalk walk = new();
+        walk.Visit(definition);
         return new CopyDefinition(
-            counts.Where(count => count.Value > 1).Select(count => count.Key).ToHashSet(StringComparer.Ordinal),
-            ClearsOnComplete(definition));
+            walk.Counts.Where(count => count.Value > 1).Select(count => count.Key).ToHashSet(StringComparer.Ordinal),
+            ClearsOnComplete(definition),
+            walk.HasVisibleIf);
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
@@ -36,35 +38,48 @@ internal sealed record CopyDefinition(IReadOnlySet<string> SharedNames, bool Cle
             _ => false,
         };
 
-    private static void CountNames(JsonElement container, Dictionary<string, int> counts)
+    // Counts the data names, and notes any visibleIf on a page or on an element at any depth (panels and loops too).
+    private sealed class DefinitionWalk
     {
-        if (container.TryGetArrayProperty(SurveyJsPropertyNames.Pages, out var pages))
+        public Dictionary<string, int> Counts { get; } = new(StringComparer.Ordinal);
+
+        public bool HasVisibleIf { get; private set; }
+
+        public void Visit(JsonElement container)
         {
-            foreach (var page in pages.EnumerateArray())
+            if (container.TryGetArrayProperty(SurveyJsPropertyNames.Pages, out var pages))
             {
-                CountNames(page, counts);
+                foreach (var page in pages.EnumerateArray())
+                {
+                    NoteVisibleIf(page);
+                    Visit(page);
+                }
+            }
+
+            VisitElements(container, SurveyJsPropertyNames.Elements);
+            VisitElements(container, SurveyJsPropertyNames.TemplateElements);
+        }
+
+        private void VisitElements(JsonElement container, string property)
+        {
+            if (!container.TryGetArrayProperty(property, out var elements))
+            {
+                return;
+            }
+
+            foreach (var element in elements.EnumerateArray())
+            {
+                NoteVisibleIf(element);
+                if (!SurveyJsElementType.IsNonData(element.GetSurveyJsType()) && element.GetSurveyJsName() is { } name)
+                {
+                    Counts[name] = Counts.GetValueOrDefault(name) + 1;
+                }
+
+                Visit(element);
             }
         }
 
-        CountElements(container, SurveyJsPropertyNames.Elements, counts);
-        CountElements(container, SurveyJsPropertyNames.TemplateElements, counts);
-    }
-
-    private static void CountElements(JsonElement container, string property, Dictionary<string, int> counts)
-    {
-        if (!container.TryGetArrayProperty(property, out var elements))
-        {
-            return;
-        }
-
-        foreach (var element in elements.EnumerateArray())
-        {
-            if (!SurveyJsElementType.IsNonData(element.GetSurveyJsType()) && element.GetSurveyJsName() is { } name)
-            {
-                counts[name] = counts.GetValueOrDefault(name) + 1;
-            }
-
-            CountNames(element, counts);
-        }
+        private void NoteVisibleIf(JsonElement element) =>
+            HasVisibleIf |= element.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null;
     }
 }

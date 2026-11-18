@@ -27,6 +27,7 @@ internal enum UnknownBecause
     SourceChoicesVisibleIf,
     NameShared,
     HiddenAnswersKept,
+    CopyAlwaysHidden,
 }
 
 /// <summary>One source of an exact copy: its name and the regular choice values it offered.</summary>
@@ -56,9 +57,10 @@ internal sealed record SourceChoices(string Name, IReadOnlyList<string> Values)
 /// The one owner of "was this copied choice shown". COMPILE: <see cref="Of"/> decides whether the list a respondent
 /// saw follows from the sources' answers alone, as Hub and SurveyJS build it from the sources' visible choices: only
 /// under <c>all</c>, <c>selected</c> or <c>unselected</c>, with no cap, no <c>choicesVisibleIf</c>, sources that show
-/// their own choices with no choice visibility rule, and no question name the definition uses twice. A copy or source
-/// with its own <c>visibleIf</c> is exact only for a completed submission of a survey that clears hidden answers on
-/// complete (<see cref="WhenComplete"/>). STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
+/// their own choices with no choice visibility rule, no question name the definition uses twice, and no static
+/// <c>visible: false</c> on the copy. A survey that keeps hidden answers has no exact copy once any page, panel or
+/// question has a <c>visibleIf</c>; otherwise a copy or source with its own <c>visibleIf</c> is exact only for a
+/// completed submission (<see cref="WhenComplete"/>). STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
 /// <see cref="Merge"/> keep the rule on the copy's choice catalog (<see cref="FormSchemaCodebookPropertyNames.Shown"/>).
 /// RUN: <see cref="Shows"/> rebuilds one respondent's list. Absent or null means unknown, never a guess.
 /// </summary>
@@ -294,8 +296,9 @@ internal sealed class CopyVisibility
         return selects.Count > 0 ? (new CopyVisibility(mode, selects, whenComplete), null) : Unknown(UnknownBecause.NoSelectSource);
     }
 
-    // A name the definition uses twice has one catalog for two questions; a hidden copy or source keeps its answer
-    // unless the survey clears hidden answers on complete.
+    // A name the definition uses twice has one catalog for two questions. A survey that keeps hidden answers keeps one
+    // for a copy or source hidden by any visibleIf, its panel's or page's included; an own visibleIf is checked too for
+    // a copy compiled without the definition.
     private static UnknownBecause? ScopeProblem(
         JsonElement question,
         IReadOnlyList<(string Name, JsonElement Element)> sources,
@@ -307,7 +310,7 @@ internal sealed class CopyVisibility
             return UnknownBecause.NameShared;
         }
 
-        var hidden = HasOwnVisibleIf(question) || sources.Any(source => HasOwnVisibleIf(source.Element));
+        var hidden = definition.HasVisibleIf || HasOwnVisibleIf(question) || sources.Any(source => HasOwnVisibleIf(source.Element));
         return hidden && !definition.ClearsHiddenAnswersOnComplete ? UnknownBecause.HiddenAnswersKept : null;
     }
 
@@ -319,9 +322,16 @@ internal sealed class CopyVisibility
 
     private static (CopyVisibility? Rule, UnknownBecause? Reason) Unknown(UnknownBecause reason) => (null, reason);
 
-    // A cap or a visibility rule on the copy shows fewer choices than its sources' answers give.
+    // A cap or a visibility rule on the copy shows fewer choices than its sources' answers give. A copy that is never
+    // shown can still hold an answer (a default or a value set by an expression); a source that is never shown cannot
+    // differ from the list it gave the copy, so only the copy is checked.
     private static UnknownBecause? ListProblem(JsonElement question, bool fromQuestion)
     {
+        if (question.TryGetPropertyValue(SurveyJsPropertyNames.Visible) is { ValueKind: JsonValueKind.False })
+        {
+            return UnknownBecause.CopyAlwaysHidden;
+        }
+
         if (!fromQuestion && HasMaxChoices(question))
         {
             return UnknownBecause.MaxChoices;

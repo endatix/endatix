@@ -383,7 +383,7 @@ public sealed class CopiedChoiceVisibilityTests
     private static Dictionary<string, string?> FlattenCopy(string definition, string submission) =>
         Cells(Flatten(definition, submission));
 
-    private static Dictionary<string, string?> FlattenCopy(string definition, string submission, bool complete)
+    internal static Dictionary<string, string?> FlattenCopy(string definition, string submission, bool complete)
     {
         var compiled = new FormSchemaCompiler().CompilePersisted(definition);
         return Cells(FlattenedSubmissionFlattener.Flatten(
@@ -393,9 +393,12 @@ public sealed class CopiedChoiceVisibilityTests
     }
 
     // The survey's own properties (a JSON object), then its one page.
-    private static string SurveyWith(string surveyProperties, params string[] questions)
+    internal static string SurveyWith(string surveyProperties, params string[] questions) =>
+        WithSurveyProperties(Survey(questions), surveyProperties);
+
+    internal static string WithSurveyProperties(string definition, string surveyProperties)
     {
-        var survey = System.Text.Json.Nodes.JsonNode.Parse(Survey(questions))!.AsObject();
+        var survey = System.Text.Json.Nodes.JsonNode.Parse(definition)!.AsObject();
         foreach (var (name, value) in System.Text.Json.Nodes.JsonNode.Parse(surveyProperties)!.AsObject())
         {
             survey[name] = value?.DeepClone();
