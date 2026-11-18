@@ -44,6 +44,7 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | `copied-choices-selected-mode` | A radiogroup copies its choices from a checkbox with `choicesFromQuestion` in selected mode (#1163). |
 | `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. `occasionRank` has one rank column per copied choice, and `occasionLoop` labels its iterations with the source's labels (#1723). `aware` has one indicator column per copied choice and `considerLoop` labels its iterations with the source's labels (#1724). |
 | `copied-choices-loops` | A synthetic survey with copied choices throughout (#1722), below. |
+| `calculated-value-name-clashes` | Calculated values named like a checkbox, a matrix, a ranking and a multiple-text question, and one named like a question's title (#1171). Each gets its own codebook column. In Shoji the checkbox and matrix keep their variables and the two calculated values are left out; the ranking and multiple-text clashes get `text` variables under their own names; the title clash is named `totalAmount -- totalAmount`. |
 
 ### `copied-choices-loops`
 

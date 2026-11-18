@@ -1,0 +1,246 @@
+{
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Shoji codebook metadata",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "colors": {
+          "type": "multiple_response",
+          "alias": "colors",
+          "name": "Pick the colors you like",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "colors--red",
+              "name": "Red"
+            },
+            {
+              "alias": "colors--blue",
+              "name": "Blue"
+            }
+          ]
+        },
+        "ratings": {
+          "type": "categorical_array",
+          "alias": "ratings",
+          "name": "Rate each service",
+          "description": "",
+          "categories": [
+            {
+              "name": "Poor",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "Good",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "ratings--delivery",
+              "name": "Delivery"
+            },
+            {
+              "alias": "ratings--support",
+              "name": "Support"
+            }
+          ]
+        },
+        "qTotal": {
+          "type": "text",
+          "alias": "qTotal",
+          "name": "totalAmount",
+          "description": ""
+        },
+        "contact--email": {
+          "type": "text",
+          "alias": "contact--email",
+          "name": "Your contact details -- Email",
+          "description": ""
+        },
+        "contact--phone": {
+          "type": "text",
+          "alias": "contact--phone",
+          "name": "Your contact details -- Phone",
+          "description": ""
+        },
+        "fruitRank--apple": {
+          "type": "numeric",
+          "alias": "fruitRank--apple",
+          "name": "Rank the fruit -- apple",
+          "description": ""
+        },
+        "fruitRank--pear": {
+          "type": "numeric",
+          "alias": "fruitRank--pear",
+          "name": "Rank the fruit -- pear",
+          "description": ""
+        },
+        "fruitRank": {
+          "type": "text",
+          "alias": "fruitRank",
+          "name": "fruitRank",
+          "description": ""
+        },
+        "contact": {
+          "type": "text",
+          "alias": "contact",
+          "name": "contact",
+          "description": ""
+        },
+        "totalAmount": {
+          "type": "text",
+          "alias": "totalAmount",
+          "name": "totalAmount -- totalAmount",
+          "description": ""
+        }
+      },
+      "order": [
+        {
+          "group": "Meta-data",
+          "entities": [
+            "Id",
+            "IsComplete",
+            "CollectionStatus",
+            "CreatedAt",
+            "ModifiedAt",
+            "StartedAt",
+            "CompletedAt",
+            "DurationSeconds",
+            "SubmitterId",
+            "SubmitterDisplayId"
+          ]
+        },
+        {
+          "group": "Calculated values",
+          "entities": [
+            "fruitRank",
+            "contact",
+            "totalAmount"
+          ]
+        },
+        {
+          "group": "Questions",
+          "entities": [
+            "colors",
+            "ratings",
+            "fruitRank--apple",
+            "fruitRank--pear",
+            "contact--phone",
+            "contact--email",
+            "qTotal"
+          ]
+        }
+      ],
+      "hidden": [
+        "FormId"
+      ]
+    }
+  }
+}
