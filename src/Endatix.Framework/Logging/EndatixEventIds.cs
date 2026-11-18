@@ -313,8 +313,7 @@ public static class EndatixEventIds
         public const int CorsDefaultPolicy = Ranges.ApiStart;
         /// <summary>AllowCredentials was ignored because the policy allows any origin.</summary>
         public const int CorsCredentialsIgnored = 6201;
-        /// <summary>A Slack token request was received (the token is not logged).</summary>
-        public const int SlackTokenReceived = 6202;
+        // 6202 is retired (it belonged to a removed endpoint); do not reuse it.
 
         /// <summary>First EventId of this group.</summary>
         public const int RangeStart = Ranges.ApiStart;
@@ -325,8 +324,7 @@ public static class EndatixEventIds
         public static readonly int[] All =
         [
             CorsDefaultPolicy,
-            CorsCredentialsIgnored,
-            SlackTokenReceived
+            CorsCredentialsIgnored
         ];
     }
 
