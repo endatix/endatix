@@ -1,0 +1,930 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "aware": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which of these brands do you know well?"
+      },
+      "pageName": "awareness",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "brands"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ]
+    },
+    "brandLoop": {
+      "surveyJsType": "paneldynamic",
+      "title": {},
+      "pageName": "loop",
+      "loopSource": [
+        "brands"
+      ],
+      "exportShape": "loop_panel"
+    },
+    "brands": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which brands have you bought?"
+      },
+      "pageName": "awareness",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ]
+    },
+    "fromShortlist": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which of the shortlisted brands would you buy again?"
+      },
+      "pageName": "shortlist",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "shortlist"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "pick": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "parentPanelTitle": "brandLoop",
+      "parentPanels": [
+        {
+          "key": "brandLoop",
+          "title": "brandLoop"
+        }
+      ],
+      "pageName": "loop",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "aware"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "pickTop": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which of these brands would you recommend?"
+      },
+      "pageName": "awareness",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "aware"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "shortlist": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Pick up to two brands to shortlist"
+      },
+      "pageName": "shortlist",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "brands"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "aware__1": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands do you know well?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      }
+    },
+    "aware__2": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands do you know well?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      }
+    },
+    "aware__3": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands do you know well?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      }
+    },
+    "brandLoop__1__pick__1": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "brandLoop__1__pick__2": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "brandLoop__1__pick__3": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "brandLoop__1__pick__none": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "brandLoop__2__pick__1": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "brandLoop__2__pick__2": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "brandLoop__2__pick__3": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "brandLoop__2__pick__none": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "brandLoop__3__pick__1": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "brandLoop__3__pick__2": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "brandLoop__3__pick__3": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "brandLoop__3__pick__none": {
+      "parentKey": "pick",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you compare with {panel.itemText}?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "brands__1": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands have you bought?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      }
+    },
+    "brands__2": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands have you bought?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      }
+    },
+    "brands__3": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands have you bought?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      }
+    },
+    "fromShortlist__1": {
+      "parentKey": "fromShortlist",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of the shortlisted brands would you buy again?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      }
+    },
+    "fromShortlist__2": {
+      "parentKey": "fromShortlist",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of the shortlisted brands would you buy again?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      }
+    },
+    "fromShortlist__3": {
+      "parentKey": "fromShortlist",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of the shortlisted brands would you buy again?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      }
+    },
+    "fromShortlist__none": {
+      "parentKey": "fromShortlist",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of the shortlisted brands would you buy again?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "pickTop__1": {
+      "parentKey": "pickTop",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands would you recommend?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      }
+    },
+    "pickTop__2": {
+      "parentKey": "pickTop",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands would you recommend?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      }
+    },
+    "pickTop__3": {
+      "parentKey": "pickTop",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands would you recommend?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      }
+    },
+    "pickTop__none": {
+      "parentKey": "pickTop",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these brands would you recommend?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "shortlist__1": {
+      "parentKey": "shortlist",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick up to two brands to shortlist"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Brand A"
+      }
+    },
+    "shortlist__2": {
+      "parentKey": "shortlist",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick up to two brands to shortlist"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Brand B"
+      }
+    },
+    "shortlist__3": {
+      "parentKey": "shortlist",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Pick up to two brands to shortlist"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Brand C"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "aware": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "brands",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
+    },
+    "brands": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ]
+    },
+    "fromShortlist": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ],
+      "copied": true
+    },
+    "pick": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "aware",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
+    },
+    "pickTop": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "aware",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
+    },
+    "shortlist": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Brand A"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Brand B"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Brand C"
+          }
+        }
+      ],
+      "copied": true
+    }
+  }
+}

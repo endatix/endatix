@@ -183,22 +183,6 @@ public sealed class CopiedChoiceVisibilityTests
     }
 
     [Fact]
-    public void Flatten_SourceThatIsItselfACopy_WritesOnlyThePickedChoice()
-    {
-        // Arrange
-        var definition = Survey(
-            STORES,
-            """{"type":"checkbox","name":"aided","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""",
-            Copy("checkbox", """{"choicesFromQuestion":"aided","choicesFromQuestionMode":"selected"}"""));
-
-        // Act
-        var cells = FlattenCopy(definition, """{"stores":["1","2"],"aided":["1","2"],"pick":["2"]}""");
-
-        // Assert
-        cells.Should().Equal(Cells(("1", null), ("2", "1"), ("3", null)));
-    }
-
-    [Fact]
     public void Flatten_InlineCheckbox_KeepsZeroForAnUnansweredQuestionInACompleteSubmission()
     {
         // Arrange
@@ -354,7 +338,8 @@ public sealed class CopiedChoiceVisibilityTests
         { STORES, """{"choicesFromQuestion":"stores","choicesVisibleIf":"{item} != '1'"}""", nameof(UnknownBecause.ChoicesVisibleIf) },
         { """{"type":"checkbox","name":"stores","choices":["1",{"value":"2","visibleIf":"{x} = 1"}]}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceChoicesVisibleIf) },
         { """{"type":"ranking","name":"stores","choices":["1","2"]}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsARanking) },
-        { """{"type":"checkbox","name":"stores","choicesFromQuestion":"other"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsNotOwnChoices) },
+        { """{"type":"checkbox","name":"stores","choicesByUrl":{"url":"https://example.com/stores"}}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsNotOwnChoices) },
+        { """{"type":"checkbox","name":"stores","edxDataListId":"list-1"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsNotOwnChoices) },
         { """{"type":"text","name":"stores"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.NoSelectSource) },
     };
 

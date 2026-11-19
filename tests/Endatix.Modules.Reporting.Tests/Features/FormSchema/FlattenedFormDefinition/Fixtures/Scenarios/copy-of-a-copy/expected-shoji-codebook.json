@@ -1,0 +1,442 @@
+{
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Shoji codebook metadata",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "aware": {
+          "type": "multiple_response",
+          "alias": "aware",
+          "name": "Which of these brands do you know well?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "aware--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "aware--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "aware--3",
+              "name": "Brand C"
+            }
+          ]
+        },
+        "brands": {
+          "type": "multiple_response",
+          "alias": "brands",
+          "name": "Which brands have you bought?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "brands--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "brands--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "brands--3",
+              "name": "Brand C"
+            }
+          ]
+        },
+        "fromShortlist": {
+          "type": "multiple_response",
+          "alias": "fromShortlist",
+          "name": "Which of the shortlisted brands would you buy again?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "fromShortlist--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "fromShortlist--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "fromShortlist--3",
+              "name": "Brand C"
+            },
+            {
+              "alias": "fromShortlist--none",
+              "name": "None"
+            }
+          ]
+        },
+        "pickTop": {
+          "type": "multiple_response",
+          "alias": "pickTop",
+          "name": "Which of these brands would you recommend?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "pickTop--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "pickTop--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "pickTop--3",
+              "name": "Brand C"
+            },
+            {
+              "alias": "pickTop--none",
+              "name": "None"
+            }
+          ]
+        },
+        "shortlist": {
+          "type": "multiple_response",
+          "alias": "shortlist",
+          "name": "Pick up to two brands to shortlist",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "shortlist--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "shortlist--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "shortlist--3",
+              "name": "Brand C"
+            }
+          ]
+        },
+        "brandLoop--1--pick": {
+          "type": "multiple_response",
+          "alias": "brandLoop--1--pick",
+          "name": "Which brands do you compare with Brand A?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "brandLoop--1--pick--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "brandLoop--1--pick--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "brandLoop--1--pick--3",
+              "name": "Brand C"
+            },
+            {
+              "alias": "brandLoop--1--pick--none",
+              "name": "None"
+            }
+          ]
+        },
+        "brandLoop--2--pick": {
+          "type": "multiple_response",
+          "alias": "brandLoop--2--pick",
+          "name": "Which brands do you compare with Brand B?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "brandLoop--2--pick--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "brandLoop--2--pick--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "brandLoop--2--pick--3",
+              "name": "Brand C"
+            },
+            {
+              "alias": "brandLoop--2--pick--none",
+              "name": "None"
+            }
+          ]
+        },
+        "brandLoop--3--pick": {
+          "type": "multiple_response",
+          "alias": "brandLoop--3--pick",
+          "name": "Which brands do you compare with Brand C?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "brandLoop--3--pick--1",
+              "name": "Brand A"
+            },
+            {
+              "alias": "brandLoop--3--pick--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "brandLoop--3--pick--3",
+              "name": "Brand C"
+            },
+            {
+              "alias": "brandLoop--3--pick--none",
+              "name": "None"
+            }
+          ]
+        }
+      },
+      "order": [
+        {
+          "group": "Meta-data",
+          "entities": [
+            "Id",
+            "IsComplete",
+            "CollectionStatus",
+            "CreatedAt",
+            "ModifiedAt",
+            "StartedAt",
+            "CompletedAt",
+            "DurationSeconds",
+            "SubmitterId",
+            "SubmitterDisplayId"
+          ]
+        },
+        {
+          "group": "Questions",
+          "entities": [
+            "brands",
+            "aware",
+            "pickTop",
+            "shortlist",
+            "fromShortlist",
+            {
+              "group": "brandLoop",
+              "entities": [
+                "brandLoop--1--pick",
+                "brandLoop--2--pick",
+                "brandLoop--3--pick"
+              ]
+            }
+          ]
+        }
+      ],
+      "hidden": [
+        "FormId"
+      ]
+    }
+  }
+}

@@ -79,6 +79,9 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
     private readonly Dictionary<string, List<SourceChoice>?> _resolvedSources = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResolvedChoices> _resolvedCopies = new(StringComparer.Ordinal);
 
+    /// <summary>The definition's questions by name.</summary>
+    public IReadOnlyDictionary<string, JsonElement> QuestionsByName => questionsByName;
+
     /// <summary>The choices a base select's columns and categories use; any other question's own choices.</summary>
     public ResolvedChoices Resolve(JsonElement question) =>
         question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect()
@@ -141,7 +144,7 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
     /// </summary>
     public void WriteVisibilityFields(Utf8JsonWriter writer, JsonElement question)
     {
-        CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, questionsByName, definition ?? CopyDefinition.None));
+        CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, this, definition ?? CopyDefinition.None));
         if (definition is { } whole &&
             question.IsMultiSelectBaseSelect() &&
             ChoiceSource.Parse(question) is not ChoiceSource.CarryForward &&
