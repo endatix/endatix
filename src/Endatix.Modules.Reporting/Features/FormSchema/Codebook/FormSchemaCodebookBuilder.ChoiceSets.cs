@@ -84,10 +84,7 @@ internal static partial class FormSchemaCodebookBuilder
         }
 
         CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
-        if (SelectChoices.CanBeHiddenIn(existingCatalog) || SelectChoices.CanBeHiddenIn(currentCatalog))
-        {
-            writer.WriteBoolean(FormSchemaCodebookPropertyNames.CanBeHidden, true);
-        }
+        SelectChoices.MergeCanBeHidden(writer, existingCatalog, currentCatalog);
     }
 
     // A codebook compiled before the copied marker still names the copy on its stored question entry, which the merge

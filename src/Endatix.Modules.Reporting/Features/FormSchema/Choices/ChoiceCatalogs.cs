@@ -179,9 +179,17 @@ internal sealed class SelectChoices
     /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
     public bool CanBeHidden { get; private init; }
 
-    /// <summary>Whether a choice catalog records <c>canBeHidden</c>.</summary>
-    internal static bool CanBeHiddenIn(JsonElement catalog) =>
+    private static bool CanBeHiddenIn(JsonElement catalog) =>
         catalog.ValueKind == JsonValueKind.Object && catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.CanBeHidden);
+
+    /// <summary>MERGE: <c>canBeHidden</c> once either definition's catalog has it.</summary>
+    internal static void MergeCanBeHidden(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
+    {
+        if (CanBeHiddenIn(existingCatalog) || CanBeHiddenIn(currentCatalog))
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.CanBeHidden, true);
+        }
+    }
 
     /// <summary>The kind of the catalog choice with this value; null when the catalog has none.</summary>
     public ChoiceKind? KindOf(string value) =>
