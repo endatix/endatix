@@ -65,14 +65,14 @@ internal sealed class ChoiceCatalogs
     {
         if (string.IsNullOrWhiteSpace(codebookJson))
         {
-            return Empty;
+            return EmptyFor(submissionComplete);
         }
 
         using var document = JsonDocument.Parse(codebookJson);
         if (document.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
         {
-            return Empty;
+            return EmptyFor(submissionComplete);
         }
 
         return new ChoiceCatalogs(
@@ -81,6 +81,10 @@ internal sealed class ChoiceCatalogs
             ReadEach(catalogs, CopyVisibility.Read))
         { SubmissionComplete = submissionComplete };
     }
+
+    // No catalogs, but the submission's completion still decides whether an unanswered select is 0.
+    private static ChoiceCatalogs EmptyFor(bool submissionComplete) =>
+        submissionComplete ? new(Empty._selects, Empty._copies, Empty._visibility) { SubmissionComplete = true } : Empty;
 
     // Every catalog that reads as a T, by question name.
     private static Dictionary<string, T> ReadEach<T>(JsonElement catalogs, Func<JsonElement, T?> read)

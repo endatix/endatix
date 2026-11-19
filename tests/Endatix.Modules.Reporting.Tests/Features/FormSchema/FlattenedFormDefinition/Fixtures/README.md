@@ -116,6 +116,10 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
   not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
 - **A copy of a copy:** its unpicked choices are empty, also when the source's answer proves them shown
   (`copied-choices-loops`, `attributeLoop`).
+- **A 0 the respondent did not see, with its own choices (no scenario yet):** a checkbox or tagbox added or removed
+  between form versions writes 0 under a merge compile for rows saved without it; `choicesVisibleIf` or a choice's own
+  `visibleIf` can hide a choice that still writes 0; a question after a `complete` trigger ended the survey writes 0.
+  #1753 covers only question, panel and page visibility.
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.
 The codebook publishes only the sources' own choices, so that answer has no category and its csv-shoji cell is empty.
