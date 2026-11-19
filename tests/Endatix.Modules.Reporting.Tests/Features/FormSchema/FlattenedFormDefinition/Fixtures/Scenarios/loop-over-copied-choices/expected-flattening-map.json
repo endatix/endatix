@@ -44,6 +44,118 @@
       "loopPath": null
     },
     {
+      "key": "brands__4",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 4",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__5",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 5",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__6",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 6",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__7",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 7",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__8",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 8",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__9",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 9",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__10",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 10",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__11",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you know? — Brand 11",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
       "key": "aware__1",
       "kind": "ChoiceIndicator",
       "label": "Which of these have you bought? — Brand 1",
@@ -78,6 +190,118 @@
       "dataType": "number",
       "sourceQuestion": "aware",
       "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__4",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 4",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__5",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 5",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__6",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 6",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__7",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 7",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__8",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 8",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__9",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 9",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__10",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 10",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__11",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these have you bought? — Brand 11",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "11",
       "panelName": null,
       "panelIndex": null,
       "matrixRowValue": null,
@@ -176,12 +400,452 @@
       ]
     },
     {
+      "key": "considerLoop__1__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__1__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
       "key": "considerLoop__2__consider",
       "kind": "LoopSource",
       "label": "Would you buy {panel.itemText} again?",
       "dataType": "string",
       "sourceQuestion": "consider",
       "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__2__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
       "panelName": null,
       "panelIndex": null,
       "matrixRowValue": null,
@@ -212,6 +876,2146 @@
           "panelValueName": "considerLoop",
           "propertyName": "itemValue",
           "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__3__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__4__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__5__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__6__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__7__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__8__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__9__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__10__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__consider",
+      "kind": "LoopSource",
+      "label": "Would you buy {panel.itemText} again?",
+      "dataType": "string",
+      "sourceQuestion": "consider",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__1",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 1",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__2",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 2",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__3",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 3",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__4",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 4",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__5",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 5",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__6",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 6",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "6",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__7",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 7",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "7",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__8",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 8",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "8",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__9",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 9",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "9",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__10",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 10",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "10",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    {
+      "key": "considerLoop__11__reasons__11",
+      "kind": "ChoiceIndicator",
+      "label": "Why would you buy {panel.itemText}? — Reason 11",
+      "dataType": "number",
+      "sourceQuestion": "reasons",
+      "choiceValue": "11",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
         }
       ]
     },
