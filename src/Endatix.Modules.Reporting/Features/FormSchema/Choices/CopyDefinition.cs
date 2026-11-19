@@ -10,7 +10,8 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// question a respondent saw, whether the survey clears a hidden question's answer when it is completed, whether any
 /// page, panel or question has a <c>visibleIf</c>, the questions a <c>visibleIf</c> on an enclosing panel, dynamic panel
 /// or page can hide, and the questions a static <c>visible: false</c> on themselves or on an enclosing panel or page
-/// always hides.
+/// always hides. At run time the same walk lists the question names of the definition a submission was made on
+/// (<see cref="QuestionNamesIn"/>).
 /// </summary>
 internal sealed record CopyDefinition(
     IReadOnlySet<string> SharedNames,
@@ -45,8 +46,9 @@ internal sealed record CopyDefinition(
     }
 
     /// <summary>
-    /// RUN TIME. Every data name in <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels;
-    /// null when there is no definition to read.
+    /// RUN TIME. Every question name (<c>name</c>, not <c>valueName</c>, as the indicator columns are keyed) in
+    /// <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels; null when there is no
+    /// definition to read.
     /// </summary>
     public static IReadOnlySet<string>? QuestionNamesIn(string? definitionJson)
     {

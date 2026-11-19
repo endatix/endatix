@@ -65,7 +65,8 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false, string? submittedDefinitionJson = null)
     {
-        var submittedQuestions = CopyDefinition.QuestionNamesIn(submittedDefinitionJson);
+        // Only a complete submission infers a 0 for an unanswered question, so only it needs its definition's names.
+        var submittedQuestions = submissionComplete ? CopyDefinition.QuestionNamesIn(submittedDefinitionJson) : null;
         using var document = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonDocument.Parse(codebookJson);
         if (document?.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
@@ -122,8 +123,8 @@ internal sealed class ChoiceCatalogs
     /// <summary>
     /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
     /// with its own choices shows every one, so the rest are 0 when it is answered, or when a complete submission left it
-    /// unanswered, nothing could hide it (<see cref="SelectChoices.CanBeHidden"/>) and the submission's form version
-    /// has it; otherwise they are empty. A copy
+    /// unanswered, nothing could hide it (<see cref="SelectChoices.CanBeHidden"/>) and the submission's form version has
+    /// it; otherwise they are empty. A copy
     /// that has no answer shows nothing provably, so the rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
     /// None, ...) and the copied choices the rule rebuilds from the sources' answers. Every other cell is empty.
     /// </summary>
