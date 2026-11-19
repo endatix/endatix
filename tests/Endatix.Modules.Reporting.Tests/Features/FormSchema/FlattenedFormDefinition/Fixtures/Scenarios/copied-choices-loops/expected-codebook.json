@@ -5353,7 +5353,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "canBeHidden": true
     },
     "hiddenTraits": {
       "multiple": true,
@@ -5379,7 +5380,8 @@
             "default": "Local"
           }
         }
-      ]
+      ],
+      "canBeHidden": true
     },
     "member": {
       "multiple": false,

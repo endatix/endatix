@@ -451,7 +451,8 @@
             "default": "Something else"
           }
         }
-      ]
+      ],
+      "canBeHidden": true
     },
     "visits": {
       "multiple": false,

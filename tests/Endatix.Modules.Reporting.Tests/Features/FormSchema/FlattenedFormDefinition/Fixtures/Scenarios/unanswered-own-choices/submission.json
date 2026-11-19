@@ -1,0 +1,5 @@
+{
+  "shopper": "no",
+  "reasons": ["B"],
+  "reasonLoop": [{ "itemValue": "B", "loopIndex": 0 }]
+}

@@ -1,0 +1,501 @@
+{
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Shoji codebook metadata",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "channels": {
+          "type": "multiple_response",
+          "alias": "channels",
+          "name": "Where did you hear about us?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "channels--A",
+              "name": "Radio"
+            },
+            {
+              "alias": "channels--B",
+              "name": "Friends"
+            }
+          ]
+        },
+        "elsewhere": {
+          "type": "multiple_response",
+          "alias": "elsewhere",
+          "name": "Where do you shop instead?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "elsewhere--A",
+              "name": "Online"
+            },
+            {
+              "alias": "elsewhere--B",
+              "name": "Market"
+            }
+          ]
+        },
+        "flavours": {
+          "type": "multiple_response",
+          "alias": "flavours",
+          "name": "Which flavours do you buy?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "flavours--A",
+              "name": "Mint"
+            },
+            {
+              "alias": "flavours--B",
+              "name": "Lemon"
+            },
+            {
+              "alias": "flavours--none",
+              "name": "None"
+            }
+          ]
+        },
+        "internalTags": {
+          "type": "multiple_response",
+          "alias": "internalTags",
+          "name": "Internal tags",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "internalTags--A",
+              "name": "Panel"
+            },
+            {
+              "alias": "internalTags--B",
+              "name": "Walk-in"
+            }
+          ]
+        },
+        "reasons": {
+          "type": "multiple_response",
+          "alias": "reasons",
+          "name": "Why don't you shop with us?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "reasons--A",
+              "name": "Prices"
+            },
+            {
+              "alias": "reasons--B",
+              "name": "Service"
+            }
+          ]
+        },
+        "staffNotes": {
+          "type": "multiple_response",
+          "alias": "staffNotes",
+          "name": "Staff notes",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "staffNotes--A",
+              "name": "Follow up"
+            },
+            {
+              "alias": "staffNotes--B",
+              "name": "Closed"
+            }
+          ]
+        },
+        "stores": {
+          "type": "multiple_response",
+          "alias": "stores",
+          "name": "storePanel -- Which stores do you visit?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "stores--A",
+              "name": "North"
+            },
+            {
+              "alias": "stores--B",
+              "name": "South"
+            },
+            {
+              "alias": "stores--other",
+              "name": "Other"
+            }
+          ]
+        },
+        "topics": {
+          "type": "multiple_response",
+          "alias": "topics",
+          "name": "Which topics interest you?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "topics--A",
+              "name": "Recipes"
+            },
+            {
+              "alias": "topics--B",
+              "name": "Offers"
+            },
+            {
+              "alias": "topics--none",
+              "name": "None"
+            }
+          ]
+        },
+        "shopper": {
+          "type": "categorical",
+          "alias": "shopper",
+          "name": "Do you shop with us?",
+          "description": "",
+          "categories": [
+            {
+              "name": "Yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "No",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ]
+        },
+        "stores--other_text": {
+          "type": "text",
+          "alias": "stores--other_text",
+          "name": "Which stores do you visit? -- Other",
+          "description": ""
+        },
+        "reasonLoop--A--reasonDetail": {
+          "type": "multiple_response",
+          "alias": "reasonLoop--A--reasonDetail",
+          "name": "What about it? -- Prices",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "reasonLoop--A--reasonDetail--A",
+              "name": "Often"
+            },
+            {
+              "alias": "reasonLoop--A--reasonDetail--B",
+              "name": "Sometimes"
+            }
+          ]
+        },
+        "reasonLoop--B--reasonDetail": {
+          "type": "multiple_response",
+          "alias": "reasonLoop--B--reasonDetail",
+          "name": "What about it? -- Service",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "reasonLoop--B--reasonDetail--A",
+              "name": "Often"
+            },
+            {
+              "alias": "reasonLoop--B--reasonDetail--B",
+              "name": "Sometimes"
+            }
+          ]
+        }
+      },
+      "order": [
+        {
+          "group": "Meta-data",
+          "entities": [
+            "Id",
+            "IsComplete",
+            "CollectionStatus",
+            "CreatedAt",
+            "ModifiedAt",
+            "StartedAt",
+            "CompletedAt",
+            "DurationSeconds",
+            "SubmitterId",
+            "SubmitterDisplayId"
+          ]
+        },
+        {
+          "group": "Questions",
+          "entities": [
+            "shopper",
+            "channels",
+            "topics",
+            "flavours",
+            "internalTags",
+            {
+              "group": "storePanel",
+              "entities": [
+                "stores",
+                "stores--other_text"
+              ]
+            },
+            "reasons",
+            "elsewhere",
+            "staffNotes",
+            {
+              "group": "reasonLoop",
+              "entities": [
+                "reasonLoop--A--reasonDetail",
+                "reasonLoop--B--reasonDetail"
+              ]
+            }
+          ]
+        }
+      ],
+      "hidden": [
+        "FormId"
+      ]
+    }
+  }
+}

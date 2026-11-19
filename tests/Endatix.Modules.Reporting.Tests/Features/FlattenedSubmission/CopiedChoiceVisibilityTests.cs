@@ -199,13 +199,16 @@ public sealed class CopiedChoiceVisibilityTests
     }
 
     [Fact]
-    public void Flatten_InlineCheckbox_KeepsZeroForAnUnansweredQuestion()
+    public void Flatten_InlineCheckbox_KeepsZeroForAnUnansweredQuestionInACompleteSubmission()
     {
         // Arrange
-        var definition = Survey(STORES);
+        var compiled = new FormSchemaCompiler().CompilePersisted(Survey(STORES));
 
         // Act
-        var flattened = Flatten(definition, """{}""");
+        var flattened = FlattenedSubmissionFlattener.Flatten(
+            Json("""{}"""),
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson, submissionComplete: true));
 
         // Assert
         Cell(flattened, "stores__1").Should().Be("0");

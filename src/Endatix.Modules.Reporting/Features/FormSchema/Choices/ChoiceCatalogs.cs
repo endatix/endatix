@@ -65,14 +65,14 @@ internal sealed class ChoiceCatalogs
     {
         if (string.IsNullOrWhiteSpace(codebookJson))
         {
-            return Empty;
+            return EmptyFor(submissionComplete);
         }
 
         using var document = JsonDocument.Parse(codebookJson);
         if (document.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
         {
-            return Empty;
+            return EmptyFor(submissionComplete);
         }
 
         return new ChoiceCatalogs(
@@ -81,6 +81,10 @@ internal sealed class ChoiceCatalogs
             ReadEach(catalogs, CopyVisibility.Read))
         { SubmissionComplete = submissionComplete };
     }
+
+    // No catalogs, but the submission's completion still decides whether an unanswered select is 0.
+    private static ChoiceCatalogs EmptyFor(bool submissionComplete) =>
+        submissionComplete ? new(Empty._selects, Empty._copies, Empty._visibility) { SubmissionComplete = true } : Empty;
 
     // Every catalog that reads as a T, by question name.
     private static Dictionary<string, T> ReadEach<T>(JsonElement catalogs, Func<JsonElement, T?> read)
@@ -111,8 +115,9 @@ internal sealed class ChoiceCatalogs
 
     /// <summary>
     /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
-    /// with its own choices shows every one, so the rest are 0. A copy that has no answer shows nothing provably, so the
-    /// rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
+    /// with its own choices shows every one, so the rest are 0 when it is answered, or when a complete submission left it
+    /// unanswered and nothing could hide it (<see cref="SelectChoices.CanBeHidden"/>); otherwise they are empty. A copy
+    /// that has no answer shows nothing provably, so the rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
     /// None, ...) and the copied choices the rule rebuilds from the sources' answers. Every other cell is empty.
     /// </summary>
     public IndicatorCell Indicator(AnswerScope scope, string question, string choiceValue)
@@ -124,7 +129,9 @@ internal sealed class ChoiceCatalogs
 
         if (!_copies.Contains(question))
         {
-            return IndicatorCell.ShownNotPicked;
+            return scope.OwnAnswers(question) || (SubmissionComplete && !For(question).CanBeHidden)
+                ? IndicatorCell.ShownNotPicked
+                : IndicatorCell.Empty;
         }
 
         return scope.OwnAnswers(question) && AnsweredCopyShows(scope, question, choiceValue)
@@ -173,6 +180,21 @@ internal sealed class SelectChoices
 
     public OtherStorage? OtherStorage { get; private init; }
 
+    /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
+    public bool CanBeHidden { get; private init; }
+
+    private static bool CanBeHiddenIn(JsonElement catalog) =>
+        catalog.ValueKind == JsonValueKind.Object && catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.CanBeHidden);
+
+    /// <summary>MERGE: <c>canBeHidden</c> once either definition's catalog has it.</summary>
+    internal static void MergeCanBeHidden(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
+    {
+        if (CanBeHiddenIn(existingCatalog) || CanBeHiddenIn(currentCatalog))
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.CanBeHidden, true);
+        }
+    }
+
     /// <summary>The kind of the catalog choice with this value; null when the catalog has none.</summary>
     public ChoiceKind? KindOf(string value) =>
         Choices.FirstOrDefault(choice => choice.Value == value) is { Value: not null } found ? found.Kind : null;
@@ -193,6 +215,7 @@ internal sealed class SelectChoices
         {
             Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
+            CanBeHidden = CanBeHiddenIn(catalog),
         };
         select._values.UnionWith(choices.Select(choice => choice.Value));
         return select;

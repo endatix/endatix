@@ -26,10 +26,10 @@
   "snacksAgain__none": 0,
   "rating__a": 3,
   "rating__b": 2,
-  "extras__A": 0,
-  "extras__B": 0,
-  "extras__C": 0,
-  "extras__other": 0,
+  "extras__A": null,
+  "extras__B": null,
+  "extras__C": null,
+  "extras__other": null,
   "extras__other_text": null,
   "extrasNote": null
 }
