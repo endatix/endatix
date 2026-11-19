@@ -17,6 +17,9 @@ Each folder under `Scenarios/` is one edge case:
 
 - `definition.json`: the form definition, as small as the case allows.
 - `submission.json` (optional): one stored response, as Hub stores it. With it, the scenario exports every format.
+- `versions.json` (optional): earlier form versions. `earlier` lists definition files compiled in order before
+  `definition.json` (the first replaces, each later one merges, as a form with real submissions does), and
+  `submittedOn` names the one the submission was saved on. Without it, the submission was saved on `definition.json`.
 - `expected-codebook.json`: the format-neutral codebook it compiles to.
 - `expected-shoji-codebook.json`: the Shoji codebook it exports to.
 
@@ -33,7 +36,7 @@ The submission exports run through the tabular data source and the Infrastructur
 default export formats (`DefaultExportFormats`), and csv-shoji with the Shoji format's. The row's system values are
 pinned (`PersonalizationPipeline.ExportRows`), and the response is flattened with the row's completion state, so a
 copy's "shown" rule that holds only for a complete submission applies as it does in the running API.
-`ScenarioCsvExportFlowTests` (integration tests) runs every scenario with a submission over HTTP, compile, backfill
+`ScenarioCsvExportFlowTests` (integration tests) runs every scenario with a submission and no `versions.json` over HTTP, compile, backfill
 and the CSV export format included, and compares its answer columns with `expected-csv.csv`. Global value transformers do not run: they rewrite file URLs and large
 values only.
 
@@ -53,6 +56,7 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | `capped-ranking-loops` | `topOccasions` ranks two of the choices `occasionPool` was given (`selected`, `minSelectedChoices` and `maxSelectedChoices` 2, select-to-rank); unranked choices are empty. `occasionPool` is filled by a `defaultValueExpression` with numbers and strings, two of them values its choices do not offer (known gap below). `occasionLoop` repeats over the ranking, with a radiogroup copying `aware` that picks its own None in one iteration. `traitLoop`, a loop with its own `visibleIf`, repeats over `aware` with a checkbox copying the top-level `traits`: 1, 0 and empty per iteration, under a rule that holds for a complete submission. |
 | `unanswered-own-choices` | Checkboxes and a tagbox with their own choices that a completed response leaves unanswered (#1753). `channels` and `topics` (with None), which nothing can hide, are 0. Empty in every column: `flavours` (its own `visibleIf`, None included), `internalTags` (`visible: false`), `stores` (in a panel with a `visibleIf`, Other included), `elsewhere` (on a page with a `visibleIf`; that page was shown, but the compile cannot tell, so an unanswered question there is empty too), `staffNotes` (on a `visible: false` page), and `reasonDetail` in `reasonLoop` (its own `visibleIf` inside a loop item the respondent had). `reasons`, answered on a page with a `visibleIf`, is 1 and 0. An incomplete response is covered by `InlineChoiceVisibilityTests` and the in-progress row of `AllQuestionsPersonalized/`. |
 | `copy-of-a-copy` | Checkboxes that copy a copy (#1754). `aware` copies the brands picked in `brands` (selected); `pickTop`, and `pick` in `brandLoop` over `brands`, copy what `aware` picked (selected): `aware`'s picks are 0 or 1, the brand it left is empty, and the copy's None is 0 when not picked. `fromShortlist` copies all of `shortlist`, which caps its list (`edxCarryForwardMaxChoices`), so its unpicked choices and None stay empty. |
+| `question-across-versions` | A checkbox removed and one added between form versions (#1758). Version 1 has `oldPerks`, version 2 drops it, and `definition.json` adds `newPerks`; the merge keeps every column. The completed submission was saved on version 2 and leaves `channels` unanswered: `oldPerks` and `newPerks`, which its version does not have, are empty in every column, while `channels`, which nothing can hide, is 0 and the answered `topics` 1 and 0. |
 
 ### `copied-choices-loops`
 
@@ -115,9 +119,8 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
 - **#1441, stored values never offered:** a value a checkbox stores but its choices do not offer has no column and is
   not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
-- **A 0 the respondent did not see, with its own choices (no scenario yet):** a checkbox or tagbox added or removed
-  between form versions writes 0 under a merge compile for rows saved without it (#1758); `choicesVisibleIf` or a
-  choice's own `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0.
+- **A 0 the respondent did not see, with its own choices (no scenario yet):** `choicesVisibleIf` or a choice's own
+  `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0.
   #1753 covers only question, panel and page visibility.
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.

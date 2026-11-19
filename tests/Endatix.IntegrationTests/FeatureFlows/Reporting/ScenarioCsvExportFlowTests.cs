@@ -25,9 +25,12 @@ public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture 
 
     private static string ScenariosRoot => Path.Combine(AppContext.BaseDirectory, "Fixtures", "Scenarios");
 
+    // A scenario with earlier form versions (versions.json) merges them in memory; over HTTP a compile with no real
+    // submissions replaces the schema, so the earlier versions' columns would not be there to compare.
     public static TheoryData<string> ScenariosWithASubmission() =>
         new(Directory.EnumerateDirectories(ScenariosRoot)
-            .Where(folder => File.Exists(Path.Combine(folder, "submission.json")))
+            .Where(folder => File.Exists(Path.Combine(folder, "submission.json")) &&
+                             !File.Exists(Path.Combine(folder, "versions.json")))
             .Select(Path.GetFileName)
             .OfType<string>()
             .Order(StringComparer.Ordinal));

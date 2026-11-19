@@ -67,6 +67,31 @@ public partial class SubmissionFlatteningProcessorTests
     }
 
     [Fact]
+    public async Task ProcessAsync_CheckboxAddedAfterTheSubmissionsVersion_LeavesItsChoicesEmpty()
+    {
+        // Arrange
+        const string submittedOn = """{"pages":[{"name":"p1","elements":[{"type":"text","name":"x"}]}]}""";
+        const string current =
+            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"x"},{"type":"checkbox","name":"pick","choices":["1","2"]}]}]}""";
+        var submission = CompletedSubmission("""{"x":"a"}""", revision: 1);
+        typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!
+            .SetValue(submission, new FormDefinition(TenantId, jsonData: submittedOn));
+        GivenSubmission(submission);
+        GivenSchema(definition: current);
+        GivenRowAcceptsRevision(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _rows.Received(1).TryMarkProcessedAsync(
+            WriteOf(submission),
+            Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("\"pick__1\":null") && data.DataJson.Contains("\"pick__2\":null")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ProcessAsync_SchemaWithSearchKeys_WritesTheSearchCopyOfThoseKeys()
     {
         // Arrange
@@ -365,9 +390,12 @@ public partial class SubmissionFlatteningProcessorTests
             .Returns((FormSchemaEntity?)null);
 
     // The submitter columns a flatten's include would have added, so the schema is as a flatten finds it.
-    private void GivenSchema(SubmitterProfileFields? fields = null, string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson)
+    private void GivenSchema(
+        SubmitterProfileFields? fields = null,
+        string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson,
+        string? definition = null)
     {
-        var definition = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        definition ??= FormSchemaFixtureLoader.LoadText("simple-definition.json");
         FormSchemaCompiler compiler = new(submitterProfileFields: fields);
         var compiled = compiler.CompilePersisted(definition);
         compiled = compiler.IncludePersonalization(

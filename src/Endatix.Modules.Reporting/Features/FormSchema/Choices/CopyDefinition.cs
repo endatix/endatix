@@ -44,6 +44,23 @@ internal sealed record CopyDefinition(
             walk.AlwaysHidden);
     }
 
+    /// <summary>
+    /// RUN TIME. Every data name in <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels;
+    /// null when there is no definition to read.
+    /// </summary>
+    public static IReadOnlySet<string>? QuestionNamesIn(string? definitionJson)
+    {
+        if (string.IsNullOrWhiteSpace(definitionJson))
+        {
+            return null;
+        }
+
+        using var document = JsonDocument.Parse(definitionJson);
+        DefinitionWalk walk = new();
+        walk.Visit(document.RootElement);
+        return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
+    }
+
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
     // "onHidden" and "onHiddenContainer" keep or clear it at other times.
     /// <summary>
