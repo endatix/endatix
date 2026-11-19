@@ -320,7 +320,7 @@ internal sealed class CopyVisibility
         IReadOnlyList<(string Name, JsonElement Element)> sources,
         CopyDefinition definition)
     {
-        if (question.GetSurveyJsName() is { } name && definition.SharedNames.Contains(name) ||
+        if ((question.GetSurveyJsName() is { } name && definition.SharedNames.Contains(name)) ||
             sources.Any(source => definition.SharedNames.Contains(source.Name)))
         {
             return UnknownBecause.NameShared;
@@ -343,7 +343,7 @@ internal sealed class CopyVisibility
         CopyDefinition definition)
     {
         var hidden = definition.HasVisibleIf || UnderAVisibleIf(question, sources, definition);
-        var kept = hidden && !definition.ClearsHiddenAnswersOnComplete ||
+        var kept = (hidden && !definition.ClearsHiddenAnswersOnComplete) ||
                    KeepsAHiddenAnswer(question, question.GetSurveyJsName(), definition) ||
                    SelectsIn(sources).Any(source => KeepsAHiddenAnswer(source.Element, source.Name, definition));
         return kept ? UnknownBecause.HiddenAnswersKept : null;
