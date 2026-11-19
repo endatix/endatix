@@ -52,6 +52,7 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | `numeric-values-hidden-questions` | Choice values written as numbers and stored as numbers. Questions with `visible: false` and a `visibleIf`, answered and not: `reasons`, a checkbox with Other picked and its text; `brandStore`, a radiogroup with Other picked (`other` natively, the Other category in Shoji); `brandSwitch` unanswered. `photos`, a panel with the same pattern, holds two unanswered file questions. |
 | `capped-ranking-loops` | `topOccasions` ranks two of the choices `occasionPool` was given (`selected`, `minSelectedChoices` and `maxSelectedChoices` 2, select-to-rank); unranked choices are empty. `occasionPool` is filled by a `defaultValueExpression` with numbers and strings, two of them values its choices do not offer (known gap below). `occasionLoop` repeats over the ranking, with a radiogroup copying `aware` that picks its own None in one iteration. `traitLoop`, a loop with its own `visibleIf`, repeats over `aware` with a checkbox copying the top-level `traits`: 1, 0 and empty per iteration, under a rule that holds for a complete submission. |
 | `unanswered-own-choices` | Checkboxes and a tagbox with their own choices that a completed response leaves unanswered (#1753). `channels` and `topics` (with None), which nothing can hide, are 0. Empty in every column: `flavours` (its own `visibleIf`, None included), `internalTags` (`visible: false`), `stores` (in a panel with a `visibleIf`, Other included), `elsewhere` (on a page with a `visibleIf`; that page was shown, but the compile cannot tell, so an unanswered question there is empty too), `staffNotes` (on a `visible: false` page), and `reasonDetail` in `reasonLoop` (its own `visibleIf` inside a loop item the respondent had). `reasons`, answered on a page with a `visibleIf`, is 1 and 0. An incomplete response is covered by `InlineChoiceVisibilityTests` and the in-progress row of `AllQuestionsPersonalized/`. |
+| `copy-of-a-copy` | Checkboxes that copy a copy (#1754). `aware` copies the brands picked in `brands` (selected); `pickTop`, and `pick` in `brandLoop` over `brands`, copy what `aware` picked (selected): `aware`'s picks are 0 or 1, the brand it left is empty, and the copy's None is 0 when not picked. `fromShortlist` copies all of `shortlist`, which caps its list (`edxCarryForwardMaxChoices`), so its unpicked choices and None stay empty. |
 
 ### `copied-choices-loops`
 
@@ -66,7 +67,7 @@ About 50 questions on five pages, three choices each, and one response that answ
   - `considerLoop` over `AidedBrands`, with a radiogroup with its own choices and a `visibleIf`;
   - `traitsLoop` over `AidedBrands`, with a checkbox copying `hiddenTraits` (None, Other);
   - `attributeLoop` over the hidden `hiddenBrands`, with a checkbox copying `AidedBrands` that keeps the Creator's
-    `item1..3`;
+    `item1..3`; a copy of a copy, so what `AidedBrands` picked is 1 or 0 and the rest empty (#1754);
   - `rankLoop` over `brandRank`, with a radiogroup copying `AidedBrands`;
   - `reasonLoop` over `AidedBrands` with `randomizeLoop`, with a text question;
   - `cfqAllLoop` and `edxAllLoop` (copy matrix, below) each also hold a ranking copying `stores`: `cfqLoopRank`
@@ -114,11 +115,9 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
 - **#1441, stored values never offered:** a value a checkbox stores but its choices do not offer has no column and is
   not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
-- **A copy of a copy:** its unpicked choices are empty, also when the source's answer proves them shown
-  (`copied-choices-loops`, `attributeLoop`).
 - **A 0 the respondent did not see, with its own choices (no scenario yet):** a checkbox or tagbox added or removed
-  between form versions writes 0 under a merge compile for rows saved without it; `choicesVisibleIf` or a choice's own
-  `visibleIf` can hide a choice that still writes 0; a question after a `complete` trigger ended the survey writes 0.
+  between form versions writes 0 under a merge compile for rows saved without it (#1758); `choicesVisibleIf` or a
+  choice's own `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0.
   #1753 covers only question, panel and page visibility.
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.

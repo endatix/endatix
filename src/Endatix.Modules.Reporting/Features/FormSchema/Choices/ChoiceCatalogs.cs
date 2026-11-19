@@ -110,6 +110,9 @@ internal sealed class ChoiceCatalogs
     /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
     public bool Copies(string question) => _copies.Contains(question);
 
+    /// <summary>The copy's stored <see cref="CopyVisibility"/>; null when it has none.</summary>
+    public CopyVisibility? VisibilityOf(string question) => _visibility.GetValueOrDefault(question);
+
     /// <summary>The question's select choices; null when it is not a base select.</summary>
     public SelectChoices? SelectOrNull(string question) => _selects.GetValueOrDefault(question);
 
