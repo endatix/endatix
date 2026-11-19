@@ -27,8 +27,8 @@ public sealed class InlineChoiceVisibilityTests
     private static string Pages(string secondPageProperties, string inner) =>
         $$"""{"pages":[{"name":"p1","elements":[{"type":"text","name":"x"}]},{"name":"p2",{{secondPageProperties}},"elements":[{{inner}}]}]}""";
 
-    public static TheoryData<string> HideableDefinitions => new()
-    {
+    private static string[] CheckboxesThatCanBeHidden =>
+    [
         Survey(Pick("\"visibleIf\":\"{x} = 1\"")),
         Survey(Pick("\"visible\":false")),
         Survey(Panel("\"visibleIf\":\"{x} = 1\"", PICK)),
@@ -36,7 +36,12 @@ public sealed class InlineChoiceVisibilityTests
         Pages("\"visibleIf\":\"{x} = 1\"", PICK),
         Pages("\"visible\":false", PICK),
         Survey(Panel("\"visibleIf\":\"{x} = 1\"", Panel("\"title\":\"inner\"", PICK))),
-    };
+    ];
+
+    // Every hiding case, as a checkbox and as a tagbox.
+    public static TheoryData<string> HideableDefinitions => new(
+        CheckboxesThatCanBeHidden.Concat(CheckboxesThatCanBeHidden.Select(definition =>
+            definition.Replace("\"type\":\"checkbox\",\"name\":\"pick\"", "\"type\":\"tagbox\",\"name\":\"pick\"", StringComparison.Ordinal))));
 
     public static TheoryData<string> Types => new("checkbox", "tagbox");
 
@@ -53,10 +58,10 @@ public sealed class InlineChoiceVisibilityTests
 
     [Theory]
     [MemberData(nameof(HideableDefinitions))]
-    public void Flatten_AnsweredQuestionThatCanBeHidden_WritesOneAndZero(string definition)
+    public void Flatten_AnswerKeptOnAQuestionThatCanBeHidden_WritesOneAndZero(string definition)
     {
         // Act
-        var cells = FlattenCopy(definition, """{"x":1,"pick":["2"]}""", complete: true);
+        var cells = FlattenCopy(definition, """{"x":2,"pick":["2"]}""", complete: true);
 
         // Assert
         cells.Should().Equal(Cells(("1", "0"), ("2", "1"), ("3", "0"), ("other", "0")));
@@ -147,7 +152,7 @@ public sealed class InlineChoiceVisibilityTests
 
         // Assert
         CanBeHidden(merged.CodebookJson).Should().BeTrue();
-        Cells(FlattenCompiled(merged, UNANSWERED)).Should().OnlyContain(cell => cell.Value == null);
+        Cells(FlattenCompiled(merged, UNANSWERED)).Should().Equal(Cells(("1", null), ("2", null), ("3", null), ("other", null)));
     }
 
     [Fact]
@@ -174,6 +179,51 @@ public sealed class InlineChoiceVisibilityTests
 
         // Assert
         CanBeHidden(merged.CodebookJson).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CompilePersisted_NameSharedWithALoopQuestionThatHasAVisibleIf_MarksTheCatalog()
+    {
+        // Act
+        var compiled = new FormSchemaCompiler().CompilePersisted(Survey(
+            PICK,
+            """{"type":"checkbox","name":"brands","choices":["a"]}""",
+            """{"type":"paneldynamic","name":"brandLoop","loopSource":["brands"],"templateElements":[{"type":"checkbox","name":"pick","visibleIf":"{x} = 1","choices":["1","2","3"]}]}"""));
+
+        // Assert
+        CanBeHidden(compiled.CodebookJson).Should().BeTrue();
+    }
+
+    [Fact]
+    public void CompilePersisted_CopyUnderAVisibleIf_LeavesItsCatalogUnmarked()
+    {
+        // Act
+        var compiled = new FormSchemaCompiler().CompilePersisted(Survey(
+            STORES,
+            """{"type":"checkbox","name":"pick","visibleIf":"{x} = 1","choicesFromQuestion":"stores"}"""));
+
+        // Assert
+        CanBeHidden(compiled.CodebookJson).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(true, "0")]
+    [InlineData(false, null)]
+    public void Flatten_CodebookCompiledBeforeTheMarker_KeepsZeroOnlyInACompleteSubmission(bool complete, string? expected)
+    {
+        // Arrange
+        var compiled = new FormSchemaCompiler().CompilePersisted(Survey(Pick("\"visibleIf\":\"{x} = 1\"")));
+        var legacy = JsonNode.Parse(compiled.CodebookJson)!;
+        legacy["choiceCatalogs"]!["pick"]!.AsObject().Remove(FormSchemaCodebookPropertyNames.CanBeHidden);
+
+        // Act
+        var cells = Cells(FlattenedSubmissionFlattener.Flatten(
+            Json(UNANSWERED),
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(legacy.ToJsonString(), complete)));
+
+        // Assert
+        cells.Should().Equal(Cells(("1", expected), ("2", expected), ("3", expected), ("other", expected)));
     }
 
     private static Dictionary<string, JsonElement?> Flatten(string definition, string submission, bool complete) =>

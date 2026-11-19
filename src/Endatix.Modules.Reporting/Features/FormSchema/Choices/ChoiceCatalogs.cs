@@ -125,7 +125,7 @@ internal sealed class ChoiceCatalogs
 
         if (!_copies.Contains(question))
         {
-            return scope.OwnAnswers(question) || SubmissionComplete && !For(question).CanBeHidden
+            return scope.OwnAnswers(question) || (SubmissionComplete && !For(question).CanBeHidden)
                 ? IndicatorCell.ShownNotPicked
                 : IndicatorCell.Empty;
         }

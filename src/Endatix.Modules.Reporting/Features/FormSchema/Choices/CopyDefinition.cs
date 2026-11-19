@@ -65,9 +65,11 @@ internal sealed record CopyDefinition(
 
     /// <summary>
     /// Whether a respondent can miss <paramref name="question"/>: a <c>visibleIf</c> (<see cref="UnderAVisibleIf"/>), or a
-    /// static <c>visible: false</c> on it or on an enclosing panel or page.
+    /// static <c>visible: false</c> on it or on an enclosing panel or page. A name the definition uses twice can be hidden:
+    /// only one of its questions is read here, and the other's own <c>visibleIf</c> is not.
     /// </summary>
     public bool CanHide(JsonElement question, string? name) =>
+        (name is not null && SharedNames.Contains(name)) ||
         UnderAVisibleIf(question, name) ||
         question.TryGetPropertyValue(SurveyJsPropertyNames.Visible) is { ValueKind: JsonValueKind.False } ||
         name is not null && AlwaysHiddenNames.Contains(name);
