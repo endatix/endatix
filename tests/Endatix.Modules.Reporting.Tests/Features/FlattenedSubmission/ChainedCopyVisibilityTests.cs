@@ -337,6 +337,38 @@ public sealed class ChainedCopyVisibilityTests
         cells.Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
     }
 
+    // Each level copies both questions of the level before in all mode, so a choice reaches pick along 2^24 paths.
+    [Fact(Timeout = 10_000)]
+    public async Task Flatten_DeepChainOfPairedCopies_ReadsEachSourceRuleOnce()
+    {
+        // Arrange
+        const int levels = 24;
+        List<string> questions =
+        [
+            """{"type":"checkbox","name":"q0","choices":["a","b"]}""",
+            """{"type":"checkbox","name":"l0a","choicesFromQuestion":"q0","choicesFromQuestionMode":"selected"}""",
+            """{"type":"checkbox","name":"l0b","choicesFromQuestion":"q0","choicesFromQuestionMode":"selected"}""",
+        ];
+        for (var level = 1; level <= levels; level++)
+        {
+            foreach (var side in new[] { "a", "b" })
+            {
+                questions.Add($$"""{"type":"checkbox","name":"l{{level}}{{side}}","edxCarryForwardEnabled":true,"edxCarryForwardSources":["l{{level - 1}}a","l{{level - 1}}b"],"edxCarryForwardMode":"all"}""");
+            }
+        }
+
+        questions.Add(Copy("checkbox", $$"""{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["l{{levels}}a","l{{levels}}b"],"edxCarryForwardMode":"all"}"""));
+        var answers = "{" + string.Join(',', questions.Select(question => $$"""
+            "{{Json(question).GetProperty("name").GetString()}}":["a"]
+            """.Trim())) + "}";
+
+        // Act
+        var cells = await Task.Run(() => FlattenCopy(Survey([.. questions]), answers, complete: false), TestContext.Current.CancellationToken);
+
+        // Assert
+        cells.Should().Equal(Cells(("a", "1"), ("b", null)));
+    }
+
     [Fact]
     public void Shows_StoredRulesThatCopyEachOther_IsUnknownInsteadOfLooping()
     {

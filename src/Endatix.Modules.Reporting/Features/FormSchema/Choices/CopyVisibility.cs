@@ -56,11 +56,11 @@ internal sealed record SourceChoices(string Name, IReadOnlyList<string> Values)
 /// <c>visible: false</c> on the copy or an enclosing panel or page. A survey that keeps hidden answers has no exact
 /// copy once any page, panel or question has a <c>visibleIf</c>; otherwise a copy or source under a <c>visibleIf</c>
 /// (its own, or an enclosing panel's or page's) is exact only for a completed submission (<see cref="WhenComplete"/>).
-/// STORE: <see cref="WriteTo"/>, <see cref="Read"/> and
+/// STORE (<c>CopyVisibility.Store.cs</c>): <see cref="WriteTo"/>, <see cref="Read"/> and
 /// <see cref="Merge"/> keep the rule on the copy's choice catalog (<see cref="FormSchemaCodebookPropertyNames.Shown"/>).
 /// RUN: <see cref="Shows"/> rebuilds one respondent's list. Absent or null means unknown, never a guess.
 /// </summary>
-internal sealed class CopyVisibility
+internal sealed partial class CopyVisibility
 {
     private CopyVisibility(CopyMode mode, IReadOnlyList<SourceChoices> sources, bool whenComplete)
     {
@@ -94,125 +94,20 @@ internal sealed class CopyVisibility
         Compile(question, new Lookup(new ChoiceSources(questionsByName), definition)).Reason;
 
     /// <summary>
-    /// Writes a copy's catalog fields: <c>copied</c> on any copy, and <c>shown</c> on a checkbox or tagbox whose shown
-    /// choices follow from the answers (only those have indicator columns).
-    /// </summary>
-    public static void WriteFor(Utf8JsonWriter writer, JsonElement question, Func<CopyVisibility?> rule)
-    {
-        if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward)
-        {
-            return;
-        }
-
-        writer.WriteBoolean(FormSchemaCodebookPropertyNames.Copied, true);
-        if (question.IsMultiSelectBaseSelect())
-        {
-            rule()?.WriteTo(writer);
-        }
-    }
-
-    /// <summary>Whether a choice catalog is marked as a copy's.</summary>
-    public static bool IsCopied(JsonElement catalog) =>
-        catalog.ValueKind == JsonValueKind.Object && catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.Copied);
-
-    /// <summary>The catalog with <c>copied</c> set, for a codebook compiled before the marker existed.</summary>
-    public static JsonElement MarkCopied(JsonElement catalog)
-    {
-        if (IsCopied(catalog) || catalog.ValueKind != JsonValueKind.Object)
-        {
-            return catalog;
-        }
-
-        var marked = System.Text.Json.Nodes.JsonNode.Parse(catalog.GetRawText())!.AsObject();
-        marked[FormSchemaCodebookPropertyNames.Copied] = true;
-        return JsonSerializer.SerializeToElement(marked);
-    }
-
-    /// <summary>Writes <c>"shown": {mode, sources: [{name, values}], whenComplete}</c>.</summary>
-    public void WriteTo(Utf8JsonWriter writer)
-    {
-        writer.WriteStartObject(FormSchemaCodebookPropertyNames.Shown);
-        writer.WriteString(FormSchemaCodebookPropertyNames.Mode, CopyModes.ToJsonName(Mode));
-        writer.WriteStartArray(FormSchemaCodebookPropertyNames.Sources);
-        foreach (var source in Sources)
-        {
-            source.WriteTo(writer);
-        }
-
-        writer.WriteEndArray();
-        if (WhenComplete)
-        {
-            writer.WriteBoolean(FormSchemaCodebookPropertyNames.WhenComplete, true);
-        }
-
-        writer.WriteEndObject();
-    }
-
-    /// <summary>The rule on a choice catalog; null when it has none or it is malformed (sources without values too).</summary>
-    public static CopyVisibility? Read(JsonElement catalog)
-    {
-        if (catalog.ValueKind != JsonValueKind.Object ||
-            catalog.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Shown) is not { ValueKind: JsonValueKind.Object } shown ||
-            CopyModes.ParseExact(shown.GetStringProperty(FormSchemaCodebookPropertyNames.Mode)) is not { } mode ||
-            !shown.TryGetArrayProperty(FormSchemaCodebookPropertyNames.Sources, out var sourcesArray))
-        {
-            return null;
-        }
-
-        List<SourceChoices> sources = [.. sourcesArray.EnumerateArray().Select(ReadSource).OfType<SourceChoices>()];
-        return sources.Count == sourcesArray.GetArrayLength() && sources.Count > 0
-            ? new CopyVisibility(mode, sources, shown.GetBooleanProperty(FormSchemaCodebookPropertyNames.WhenComplete))
-            : null;
-    }
-
-    private static SourceChoices? ReadSource(JsonElement source)
-    {
-        if (source.ValueKind != JsonValueKind.Object ||
-            source.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.SourceName) is not { } name ||
-            !source.TryGetArrayProperty(FormSchemaCodebookPropertyNames.Values, out var values))
-        {
-            return null;
-        }
-
-        List<string> offered = [.. values.EnumerateArray().Select(value => value.ValueKind == JsonValueKind.String ? value.GetString() : null).OfType<string>()];
-        return offered.Count == values.GetArrayLength() ? new SourceChoices(name, offered) : null;
-    }
-
-    /// <summary>
-    /// MERGE (a compile over an earlier definition's codebook): the rule is kept only when the stored and the new rule
-    /// are the same, each source offers the same values, and the copy offers the same choices and special items. Otherwise it is dropped, and stays dropped
-    /// until a replace compile, so a row saved under an earlier definition is never judged by a rule it was not shown
-    /// under. The <c>copied</c> marker is kept whenever either catalog has it.
-    /// </summary>
-    public static void Merge(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
-    {
-        if (IsCopied(existingCatalog) || IsCopied(currentCatalog))
-        {
-            writer.WriteBoolean(FormSchemaCodebookPropertyNames.Copied, true);
-        }
-
-        if (Read(existingCatalog) is { } stored &&
-            Read(currentCatalog) is { } current &&
-            stored.SameAs(current) &&
-            CatalogValues(existingCatalog).SetEquals(CatalogValues(currentCatalog)))
-        {
-            current.WriteTo(writer);
-        }
-    }
-
-    /// <summary>
     /// RUN: whether the respondent was shown <paramref name="value"/>. With several sources a value is shown when any
     /// source showed it. Null when no source showed it and a source has no answer in the scope or no select catalog.
     /// A source that copies its choices showed what its own rule rebuilds; null when it has none.
     /// </summary>
     public bool? Shows(string value, AnswerScope scope, ChoiceCatalogs catalogs) =>
-        ShowsAt(new Cell(value, scope, catalogs, 0));
+        ShowsAt(new Cell(
+            value,
+            scope,
+            catalogs,
+            Sources.Any(source => catalogs.VisibilityOf(source.Name) is not null) ? new(StringComparer.Ordinal) : null));
 
-    // A compiled chain has no cycle (ChoiceSources degrades every copy on one), but a stored codebook is only read
-    // here, so the depth caps a pair of rules that name each other instead of overflowing the stack.
     private bool? ShowsAt(Cell cell)
     {
-        if (!HoldsFor(cell.Catalogs.SubmissionComplete) || cell.Depth > MAX_CHAIN_DEPTH)
+        if (!HoldsFor(cell.Catalogs.SubmissionComplete))
         {
             return null;
         }
@@ -226,8 +121,6 @@ internal sealed class CopyVisibility
         return verdicts.Contains(null) ? null : false;
     }
 
-    private const int MAX_CHAIN_DEPTH = 64;
-
     private bool SameAs(CopyVisibility other) =>
         Mode == other.Mode &&
         WhenComplete == other.WhenComplete &&
@@ -237,7 +130,8 @@ internal sealed class CopyVisibility
     // One source as the cell's scope sees it: the context that answers it, and the select that reads its answer. What
     // it offered comes from the rule, not from the catalog, which is the union of every definition. A selected copy
     // shows the source's picks, which were on the source's list; the other modes need the list itself, which for a
-    // copied source is its own rule's (Listed). The three-valued & keeps a source's pick out of an unselected copy's list even when the source's list is unknown.
+    // copied source is its own rule's (Listed). The three-valued & keeps a source's pick out of an unselected copy's
+    // list even when the source's list is unknown.
     private bool? SourceShows(SourceChoices source, Cell cell)
     {
         var (value, scope, catalogs, _) = cell;
@@ -262,14 +156,34 @@ internal sealed class CopyVisibility
     private static bool? Listed(SourceChoices source, Cell cell) =>
         cell.Catalogs.VisibilityOf(source.Name) switch
         {
-            { } sourceRule => sourceRule.ShowsAt(cell with { Depth = cell.Depth + 1 }),
+            { } sourceRule => ListedBy(sourceRule, source.Name, cell),
             null when cell.Catalogs.Copies(source.Name) => null,
             _ => source.Offers(cell.Value),
         };
 
-    // The cell being judged: one choice value, the answers its scope sees, the codebook's catalogs, and how many
-    // copied sources deep the rule being read is.
-    private readonly record struct Cell(string Value, AnswerScope Scope, ChoiceCatalogs Catalogs, int Depth);
+    // A copied source's list, read once per traversal: sources that share upstream copies would otherwise rebuild them
+    // once per path, which doubles per level. A source still being read is unknown, so stored rules that name each
+    // other, which no compile writes, stop instead of overflowing the stack.
+    private static bool? ListedBy(CopyVisibility sourceRule, string sourceName, Cell cell)
+    {
+        var read = cell.ListsRead!;
+        if (!read.TryAdd(sourceName, null))
+        {
+            return read[sourceName];
+        }
+
+        var shown = sourceRule.ShowsAt(cell);
+        read[sourceName] = shown;
+        return shown;
+    }
+
+    // The cell being judged: one choice value, the answers its scope sees, the codebook's catalogs, and each copied
+    // source's list read so far in this traversal (null when no source has a stored rule).
+    private readonly record struct Cell(
+        string Value,
+        AnswerScope Scope,
+        ChoiceCatalogs Catalogs,
+        Dictionary<string, bool?>? ListsRead);
 
     // What a compile reads besides the question: the choices each question offers (a copy's resolved through its
     // chain, over the definition's questions), and the definition-wide facts.
@@ -487,13 +401,4 @@ internal sealed class CopyVisibility
                 (!double.TryParse(text.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var cap) || cap >= 1),
             _ => true,
         };
-
-    // Every value with its kind: the copied choices and the copy's own special items.
-    private static HashSet<(string, ChoiceKind)> CatalogValues(JsonElement catalog) =>
-        catalog.TryGetArrayProperty(SurveyJsPropertyNames.Choices, out var entries)
-            ? [.. entries.EnumerateArray()
-                .Select(CatalogChoice.Read)
-                .OfType<CatalogChoice>()
-                .Select(choice => (choice.Value, choice.Kind))]
-            : [];
 }
