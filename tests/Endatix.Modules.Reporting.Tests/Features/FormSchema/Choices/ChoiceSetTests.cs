@@ -136,6 +136,14 @@ public sealed class ChoiceSetTests
     [InlineData("""{"showOtherItem":true,"storeOthersAsComment":false,"choicesByUrl":{"url":"x"}}""", true, "Comment")]
     [InlineData("""{"showOtherItem":true,"showCommentArea":true,"choicesByUrl":{"url":"x"}}""", true, "Value")]
     [InlineData("""{"showOtherItem":true,"storeOthersAsComment":false,"choices":[{"value":"a","showCommentArea":true}]}""", true, "Comment")]
+    [InlineData("""{"type":"dropdown","showOtherItem":true,"storeOthersAsComment":false,"choices":[{"value":"a","showCommentArea":true}]}""", true, "Comment")]
+    [InlineData("""{"type":"checkbox","showOtherItem":true,"choices":[{"value":"a","showCommentArea":true}]}""", true, "Value")]
+    [InlineData("""{"type":"checkbox","showOtherItem":true,"storeOthersAsComment":true,"choices":[{"value":"a","showCommentArea":true}]}""", true, "Value")]
+    [InlineData("""{"type":"tagbox","showOtherItem":true,"choices":[{"value":"a","showCommentArea":true}]}""", true, "Comment")]
+    [InlineData("""{"type":"tagbox","showOtherItem":true,"choices":[{"value":"a","showCommentArea":true}]}""", false, "Value")]
+    [InlineData("""{"type":"checkbox","showOtherItem":true,"valuePropertyName":"brand"}""", true, "Value")]
+    [InlineData("""{"type":"tagbox","showOtherItem":true,"valuePropertyName":"brand"}""", true, "Value")]
+    [InlineData("""{"type":"checkbox","showOtherItem":true,"choices":["a"]}""", true, "Comment")]
     public void Read_OtherStorage_FollowsSurveyJsPrecedence(string questionProperties, bool surveyStoresComment, string expected)
     {
         using var properties = JsonDocument.Parse(questionProperties);
