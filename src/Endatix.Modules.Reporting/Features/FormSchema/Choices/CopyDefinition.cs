@@ -60,19 +60,19 @@ internal sealed record CopyDefinition(
         try
         {
             using var document = JsonDocument.Parse(definitionJson);
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-            {
-                return null;
-            }
-
-            DefinitionWalk walk = new();
-            walk.Visit(document.RootElement);
-            return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
+            return document.RootElement.ValueKind == JsonValueKind.Object ? NamesIn(document.RootElement) : null;
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    private static HashSet<string> NamesIn(JsonElement definition)
+    {
+        DefinitionWalk walk = new();
+        walk.Visit(definition);
+        return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
