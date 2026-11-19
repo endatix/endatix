@@ -121,11 +121,11 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
   choice's own `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0.
   #1753 covers only question, panel and page visibility.
 - **#1762, a choice's comment:** `choice-comments` `question2` stores a comment on `item2`; no column exports it yet.
-- **Checkbox answers stored as objects, outside own inline choices (no scenario yet):** a checkbox with a choice comment
+- **#1768, checkbox answers stored as objects, outside own inline choices (no scenario yet):** a checkbox with a choice comment
   box on `choicesByUrl`, on leftover choices under `choicesFromQuestion`, or with `allowCustomChoices` still records
   comment storage, so its typed Other text is lost; items under a custom `valuePropertyName` (`{"brand":"b"}`) are not
   read at all, so every column stays 0. Matrix checkbox columns are unchecked.
-- **A ranking with a choice comment box (no scenario yet):** SurveyJS stores its items as objects, and every choice
+- **#1769, a ranking with a choice comment box (no scenario yet):** SurveyJS stores its items as objects, and every choice
   reads as unranked.
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.
