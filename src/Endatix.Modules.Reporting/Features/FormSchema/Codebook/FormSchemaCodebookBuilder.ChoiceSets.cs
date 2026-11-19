@@ -26,7 +26,7 @@ internal static partial class FormSchemaCodebookBuilder
             return WriteQuestionEntry(writer =>
             {
                 choiceSet.WriteCatalog(writer, (item, id) => WriteChoice(writer, element, item, id));
-                choiceSources.WriteCopyFields(writer, element);
+                choiceSources.WriteVisibilityFields(writer, element);
             });
         }
 
@@ -38,7 +38,7 @@ internal static partial class FormSchemaCodebookBuilder
         if (SurveyJsElementType.Ranking.Matches(element.GetSurveyJsType()))
         {
             WriteRankingChoices(writer, element, choiceSources.Offered(element));
-            choiceSources.WriteCopyFields(writer, element);
+            choiceSources.WriteVisibilityFields(writer, element);
             return;
         }
 
@@ -67,7 +67,7 @@ internal static partial class FormSchemaCodebookBuilder
 
     // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
     // the value, so a later comment-storage definition must not make the flatten forget it. A copy's shown rule is kept
-    // only while every definition agrees on it (CopyVisibility.Merge).
+    // only while every definition agrees on it (CopyVisibility.Merge); canBeHidden once any definition sets it.
     private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
     {
         if (currentCatalog.TryGetProperty(FormSchemaCodebookPropertyNames.Multiple, out var multiple))
@@ -84,6 +84,10 @@ internal static partial class FormSchemaCodebookBuilder
         }
 
         CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
+        if (SelectChoices.CanBeHiddenIn(existingCatalog) || SelectChoices.CanBeHiddenIn(currentCatalog))
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.CanBeHidden, true);
+        }
     }
 
     // A codebook compiled before the copied marker still names the copy on its stored question entry, which the merge
@@ -121,6 +125,7 @@ internal static partial class FormSchemaCodebookBuilder
             foreach (var property in catalog.EnumerateObject().Where(property =>
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.CanBeHidden) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {
                 property.WriteTo(writer);

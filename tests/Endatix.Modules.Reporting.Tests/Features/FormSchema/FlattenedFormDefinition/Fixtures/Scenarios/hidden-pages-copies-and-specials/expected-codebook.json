@@ -796,7 +796,8 @@
             "default": "Other"
           }
         }
-      ]
+      ],
+      "canBeHidden": true
     },
     "fruits": {
       "multiple": true,

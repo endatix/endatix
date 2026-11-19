@@ -111,8 +111,9 @@ internal sealed class ChoiceCatalogs
 
     /// <summary>
     /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
-    /// with its own choices shows every one, so the rest are 0. A copy that has no answer shows nothing provably, so the
-    /// rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
+    /// with its own choices shows every one, so the rest are 0 when it is answered, or when a complete submission left it
+    /// unanswered and nothing could hide it (<see cref="SelectChoices.CanBeHidden"/>); otherwise they are empty. A copy
+    /// that has no answer shows nothing provably, so the rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
     /// None, ...) and the copied choices the rule rebuilds from the sources' answers. Every other cell is empty.
     /// </summary>
     public IndicatorCell Indicator(AnswerScope scope, string question, string choiceValue)
@@ -124,7 +125,9 @@ internal sealed class ChoiceCatalogs
 
         if (!_copies.Contains(question))
         {
-            return IndicatorCell.ShownNotPicked;
+            return scope.OwnAnswers(question) || SubmissionComplete && !For(question).CanBeHidden
+                ? IndicatorCell.ShownNotPicked
+                : IndicatorCell.Empty;
         }
 
         return scope.OwnAnswers(question) && AnsweredCopyShows(scope, question, choiceValue)
@@ -173,6 +176,13 @@ internal sealed class SelectChoices
 
     public OtherStorage? OtherStorage { get; private init; }
 
+    /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
+    public bool CanBeHidden { get; private init; }
+
+    /// <summary>Whether a choice catalog records <c>canBeHidden</c>.</summary>
+    internal static bool CanBeHiddenIn(JsonElement catalog) =>
+        catalog.ValueKind == JsonValueKind.Object && catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.CanBeHidden);
+
     /// <summary>The kind of the catalog choice with this value; null when the catalog has none.</summary>
     public ChoiceKind? KindOf(string value) =>
         Choices.FirstOrDefault(choice => choice.Value == value) is { Value: not null } found ? found.Kind : null;
@@ -193,6 +203,7 @@ internal sealed class SelectChoices
         {
             Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
+            CanBeHidden = CanBeHiddenIn(catalog),
         };
         select._values.UnionWith(choices.Select(choice => choice.Value));
         return select;

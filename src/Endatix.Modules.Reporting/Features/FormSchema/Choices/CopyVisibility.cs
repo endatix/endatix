@@ -345,16 +345,12 @@ internal sealed class CopyVisibility
         JsonElement question,
         IReadOnlyList<(string Name, JsonElement Element)> sources,
         CopyDefinition definition) =>
-        UnderAVisibleIf(question, question.GetSurveyJsName(), definition) ||
-        sources.Any(source => UnderAVisibleIf(source.Element, source.Name, definition));
-
-    private static bool UnderAVisibleIf(JsonElement question, string? name, CopyDefinition definition) =>
-        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null ||
-        name is not null && definition.ContainerVisibleIfNames.Contains(name);
+        definition.UnderAVisibleIf(question, question.GetSurveyJsName()) ||
+        sources.Any(source => definition.UnderAVisibleIf(source.Element, source.Name));
 
     // A question whose own clearIfInvisible keeps its answer while a visibleIf hides it.
     private static bool KeepsAHiddenAnswer(JsonElement question, string? name, CopyDefinition definition) =>
-        definition.KeepsHiddenAnswer(question) && UnderAVisibleIf(question, name, definition);
+        definition.KeepsHiddenAnswer(question) && definition.UnderAVisibleIf(question, name);
 
     // Only select sources add choices to the copy's list.
     private static List<(string Name, JsonElement Element)> SelectsIn(IReadOnlyList<(string Name, JsonElement Element)> sources) =>
