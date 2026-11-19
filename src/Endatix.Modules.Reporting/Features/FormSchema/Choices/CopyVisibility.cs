@@ -273,7 +273,23 @@ internal sealed class CopyVisibility
 
     // What a compile reads besides the question: the choices each question offers (a copy's resolved through its
     // chain, over the definition's questions), and the definition-wide facts.
-    private sealed record Lookup(ChoiceSources Offered, CopyDefinition Definition);
+    // Each source's rule is compiled once per lookup: both the exactness check and whenComplete read it, and a chain
+    // would otherwise recompile every link twice per level.
+    private sealed record Lookup(ChoiceSources Offered, CopyDefinition Definition)
+    {
+        private readonly Dictionary<string, CopyVisibility?> _sourceRules = new(StringComparer.Ordinal);
+
+        public CopyVisibility? SourceRule((string Name, JsonElement Element) source)
+        {
+            if (!_sourceRules.TryGetValue(source.Name, out var rule))
+            {
+                rule = Compile(source.Element, this).Rule;
+                _sourceRules[source.Name] = rule;
+            }
+
+            return rule;
+        }
+    }
 
     private static (CopyVisibility? Rule, UnknownBecause? Reason) Compile(JsonElement question, Lookup lookup)
     {
@@ -329,7 +345,7 @@ internal sealed class CopyVisibility
         IReadOnlyList<(string Name, JsonElement Element)> sources,
         CopyMode mode,
         Lookup lookup) =>
-        sources.Select(source => SourceProblem(source.Element, mode, lookup)).FirstOrDefault(problem => problem is not null);
+        sources.Select(source => SourceProblem(source, mode, lookup)).FirstOrDefault(problem => problem is not null);
 
     // Each select source with the values it offers: its own choices, or for a copy the union its chain resolves to.
     private static List<SourceChoices> SelectChoicesIn(IReadOnlyList<(string Name, JsonElement Element)> sources, Lookup lookup) =>
@@ -416,23 +432,24 @@ internal sealed class CopyVisibility
         question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect();
 
     // A ranking source has no select catalog to read; a data-list or loaded source's list is not known here, nor a
-    // copy's that does not resolve (a cycle, a data list up the chain); a visibility rule makes the source's visible choices depend on more than its answer.
-    private static UnknownBecause? SourceProblem(JsonElement source, CopyMode mode, Lookup lookup)
+    // copy's that does not resolve (a cycle, a data list up the chain); a visibility rule makes the source's visible
+    // choices depend on more than its answer.
+    private static UnknownBecause? SourceProblem((string Name, JsonElement Element) source, CopyMode mode, Lookup lookup)
     {
-        if (SurveyJsElementType.Ranking.Matches(source.GetSurveyJsType()))
+        if (SurveyJsElementType.Ranking.Matches(source.Element.GetSurveyJsType()))
         {
             return UnknownBecause.SourceIsARanking;
         }
 
-        if (HasChoiceVisibilityRule(source))
+        if (HasChoiceVisibilityRule(source.Element))
         {
             return UnknownBecause.SourceChoicesVisibleIf;
         }
 
-        return ChoiceSource.Parse(source) switch
+        return ChoiceSource.Parse(source.Element) switch
         {
             ChoiceSource.Inline => null,
-            ChoiceSource.CarryForward when lookup.Offered.Offered(source).IsDegraded => UnknownBecause.SourceCopyIsNotExact,
+            ChoiceSource.CarryForward when lookup.Offered.Offered(source.Element).IsDegraded => UnknownBecause.SourceCopyIsNotExact,
             ChoiceSource.CarryForward => CopiedSourceProblem(source, mode, lookup),
             _ => UnknownBecause.SourceIsNotOwnChoices,
         };
@@ -450,13 +467,13 @@ internal sealed class CopyVisibility
         CopyMode mode,
         Lookup lookup) =>
         mode != CopyMode.Selected &&
-        SelectsIn(sources).Any(source => Compile(source.Element, lookup).Rule is { WhenComplete: true });
+        SelectsIn(sources).Any(source => lookup.SourceRule(source) is { WhenComplete: true });
 
     // A selected copy needs only the source's picks. The other modes rebuild the source's list from its own rule, which
     // is stored only on a checkbox or tagbox. A cycle never gets here: ChoiceSources leaves every copy on it degraded.
-    private static UnknownBecause? CopiedSourceProblem(JsonElement source, CopyMode mode, Lookup lookup) =>
+    private static UnknownBecause? CopiedSourceProblem((string Name, JsonElement Element) source, CopyMode mode, Lookup lookup) =>
         mode == CopyMode.Selected ||
-        (source.IsMultiSelectBaseSelect() && Compile(source, lookup).Rule is not null)
+        (source.Element.IsMultiSelectBaseSelect() && lookup.SourceRule(source) is not null)
             ? null
             : UnknownBecause.SourceCopyIsNotExact;
 

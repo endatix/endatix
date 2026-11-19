@@ -292,6 +292,51 @@ public sealed class ChainedCopyVisibilityTests
     }
 
     [Fact]
+    public void Flatten_MergeOverACodebookWithoutTheChainRule_LeavesTheUnpickedChoicesEmpty()
+    {
+        // Arrange: a 0.9.2 codebook marked the copy of a copy copied but stored no shown rule for it.
+        var definition = Survey(
+            BRANDS,
+            Aware("""{"choicesFromQuestion":"brands","choicesFromQuestionMode":"selected"}"""),
+            Copy("checkbox", """{"choicesFromQuestion":"aware","choicesFromQuestionMode":"selected","showNoneItem":true}"""));
+        var current = new FormSchemaCompiler().CompilePersisted(definition);
+        var codebook = System.Text.Json.Nodes.JsonNode.Parse(current.CodebookJson)!;
+        codebook["choiceCatalogs"]!["pick"]!.AsObject().Remove("shown");
+        var earlier = new FormSchemaCompiler().CompilePersisted(
+            definition,
+            current.FlatteningMapJson,
+            codebook.ToJsonString(),
+            FormSchemaCompileMode.Merge);
+
+        // Act
+        var merged = Recompile(earlier, definition, FormSchemaCompileMode.Merge);
+        var cells = FlattenWith(merged, """{"brands":["1","2","3"],"aware":["1","3"],"pick":["3"]}""");
+
+        // Assert
+        Shown(merged.CodebookJson).Should().BeNull();
+        cells.Should().Equal(Cells(("1", null), ("2", null), ("3", "1"), ("none", null)));
+    }
+
+    [Fact]
+    public void Flatten_MergeAfterTheMiddleLinkChangedItsMode_LeavesTheUnpickedChoicesEmpty()
+    {
+        // Arrange: pick's own rule is the same in both versions; aware's changed from all to selected.
+        var copy = Copy("checkbox", """{"choicesFromQuestion":"aware"}""");
+        var first = new FormSchemaCompiler().CompilePersisted(
+            Survey(BRANDS, Aware("""{"choicesFromQuestion":"brands"}"""), copy));
+
+        // Act
+        var merged = Recompile(
+            first,
+            Survey(BRANDS, Aware("""{"choicesFromQuestion":"brands","choicesFromQuestionMode":"selected"}"""), copy),
+            FormSchemaCompileMode.Merge);
+        var cells = FlattenWith(merged, """{"brands":["1","2"],"aware":["1"],"pick":["3"]}""");
+
+        // Assert
+        cells.Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
+    }
+
+    [Fact]
     public void Shows_StoredRulesThatCopyEachOther_IsUnknownInsteadOfLooping()
     {
         // Arrange: a codebook no compile writes, two copies whose rules name each other.
