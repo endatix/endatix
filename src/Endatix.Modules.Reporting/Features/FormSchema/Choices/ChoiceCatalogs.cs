@@ -66,13 +66,8 @@ internal sealed class ChoiceCatalogs
     public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false, string? submittedDefinitionJson = null)
     {
         var submittedQuestions = CopyDefinition.QuestionNamesIn(submittedDefinitionJson);
-        if (string.IsNullOrWhiteSpace(codebookJson))
-        {
-            return EmptyFor(submissionComplete, submittedQuestions);
-        }
-
-        using var document = JsonDocument.Parse(codebookJson);
-        if (document.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
+        using var document = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonDocument.Parse(codebookJson);
+        if (document?.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
         {
             return EmptyFor(submissionComplete, submittedQuestions);

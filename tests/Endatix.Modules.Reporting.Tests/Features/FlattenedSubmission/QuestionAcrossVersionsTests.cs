@@ -28,7 +28,7 @@ public sealed class QuestionAcrossVersionsTests
         var merged = Merged(_withoutPick, _withPick);
 
         // Act
-        var cells = FlattenOn(merged, _withoutPick, UNANSWERED);
+        var cells = FlattenOn(merged, _withoutPick);
 
         // Assert
         cells.Should().Equal(_empty);
@@ -41,7 +41,7 @@ public sealed class QuestionAcrossVersionsTests
         var merged = Merged(_withoutPick, _withPick);
 
         // Act
-        var cells = FlattenOn(merged, _withPick, UNANSWERED);
+        var cells = FlattenOn(merged, _withPick);
 
         // Assert
         cells.Should().Equal(_zero);
@@ -54,7 +54,7 @@ public sealed class QuestionAcrossVersionsTests
         var merged = Merged(_withPick, _withoutPick);
 
         // Act
-        var cells = FlattenOn(merged, _withoutPick, UNANSWERED);
+        var cells = FlattenOn(merged, _withoutPick);
 
         // Assert
         cells.Should().Equal(_empty);
@@ -67,7 +67,7 @@ public sealed class QuestionAcrossVersionsTests
         var merged = Merged(_withPick, _withoutPick);
 
         // Act
-        var cells = FlattenOn(merged, _withPick, UNANSWERED);
+        var cells = FlattenOn(merged, _withPick);
 
         // Assert
         cells.Should().Equal(_zero);
@@ -81,7 +81,7 @@ public sealed class QuestionAcrossVersionsTests
         var merged = Merged(_withoutPick, inPanel);
 
         // Act
-        var cells = FlattenOn(merged, inPanel, UNANSWERED);
+        var cells = FlattenOn(merged, inPanel);
 
         // Assert
         cells.Should().Equal(_zero);
@@ -94,7 +94,7 @@ public sealed class QuestionAcrossVersionsTests
         var merged = Merged(_withoutPick, _withPick);
 
         // Act
-        var cells = FlattenOn(merged, submittedDefinition: null, UNANSWERED);
+        var cells = FlattenOn(merged, submittedDefinition: null);
 
         // Assert
         cells.Should().Equal(_zero);
@@ -107,7 +107,7 @@ public sealed class QuestionAcrossVersionsTests
         var merged = Merged(_withoutPick, _withPick);
 
         // Act
-        var cells = FlattenOn(merged, _withPick, UNANSWERED, complete: false);
+        var cells = FlattenOn(merged, _withPick, complete: false);
 
         // Assert
         cells.Should().Equal(_empty);
@@ -119,10 +119,9 @@ public sealed class QuestionAcrossVersionsTests
     private static Dictionary<string, string?> FlattenOn(
         FormSchemaCompileResult compiled,
         string? submittedDefinition,
-        string submission,
         bool complete = true) =>
         Cells(FlattenedSubmissionFlattener.Flatten(
-            Json(submission),
+            Json(UNANSWERED),
             compiled.FlatteningMap,
             ChoiceCatalogs.Read(compiled.CodebookJson, complete, submittedDefinition)));
 }

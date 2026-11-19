@@ -78,7 +78,7 @@ internal sealed record CopyDefinition(
     /// </summary>
     public bool UnderAVisibleIf(JsonElement question, string? name) =>
         question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null ||
-        name is not null && ContainerVisibleIfNames.Contains(name);
+        (name is not null && ContainerVisibleIfNames.Contains(name));
 
     /// <summary>
     /// Whether a respondent can miss <paramref name="question"/>: a <c>visibleIf</c> (<see cref="UnderAVisibleIf"/>), or a

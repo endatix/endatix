@@ -1,22 +1,22 @@
-using Endatix.Modules.Reporting.Persistence;
-using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Data;
-using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
-using FlattenedSubmissionKey = Endatix.Modules.Reporting.Domain.FlattenedSubmissionKey;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
+using Endatix.Modules.Reporting.Features.SearchCopy;
+using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using FlattenedSubmissionKey = Endatix.Modules.Reporting.Domain.FlattenedSubmissionKey;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
 
@@ -170,7 +170,7 @@ public partial class SubmissionFlatteningProcessorTests
     public async Task ProcessAsync_SubmissionNotDeletedInThisForm_ThrowsWithoutTouchingRows(string situation)
     {
         // Arrange
-        SubmissionDeletionState? state = situation switch
+        var state = situation switch
         {
             "never existed, or another tenant's" => null,
             "deleted in another form" => new SubmissionDeletionState(FormId: 999, IsDeleted: true, FormIsDeleted: false),
