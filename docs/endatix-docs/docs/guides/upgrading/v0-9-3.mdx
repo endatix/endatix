@@ -35,6 +35,6 @@ A question nothing could hide, skipped in a completed submission, still writes `
 **What to do:**
 
 - Compile the form's schema with `replace=true` (`POST forms/{formId}/reporting/compile-schema`). A merge compile keeps a copy's rule only when the stored schema already had the same one, and a schema compiled by 0.9.2 has none for these copies, so without `replace=true` their cells stay empty, for new submissions too.
-- Then backfill with `force=true` (`POST forms/{formId}/submissions/backfill`), once with `completionScope=completed` (the default) and once with `completionScope=incomplete`, repeating each with `nextAfterSubmissionId` until `hasMore` is false.
+- Then backfill with `force=true` (`POST forms/{formId}/submissions/backfill`), once with `completionScope=completed` (the default) and once with `completionScope=incomplete`, repeating each and passing the response's `nextAfterSubmissionId` as `afterSubmissionId` until `hasMore` is false.
 - In the Hub, **Rebuild reporting data…** with **Full recompile** does both.
 - A form whose copied questions changed their mode, their source questions' choices, or whether they copy at all across form versions: a compile with `replace=true` judges old submissions by the current form. Compile it without `replace` instead, which leaves those cells empty, then backfill with `force=true`.

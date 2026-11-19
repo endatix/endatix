@@ -333,6 +333,7 @@ public sealed class ChainedCopyVisibilityTests
         var cells = FlattenWith(merged, """{"brands":["1","2"],"aware":["1"],"pick":["3"]}""");
 
         // Assert
+        Shown(merged.CodebookJson).Should().NotBeNull();
         cells.Should().Equal(Cells(("1", null), ("2", null), ("3", "1")));
     }
 
