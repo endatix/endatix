@@ -412,80 +412,80 @@
       "exportShape": "multiple_response",
       "choices": [
         {
-          "value": "1",
-          "id": 1,
-          "text": {
-            "default": "Reason 1"
-          }
-        },
-        {
           "value": "2",
-          "id": 2,
+          "id": 1,
           "text": {
             "default": "Reason 2"
           }
         },
         {
-          "value": "3",
+          "value": "10",
+          "id": 2,
+          "text": {
+            "default": "Reason 10"
+          }
+        },
+        {
+          "value": "1",
           "id": 3,
+          "text": {
+            "default": "Reason 1"
+          }
+        },
+        {
+          "value": "11",
+          "id": 4,
+          "text": {
+            "default": "Reason 11"
+          }
+        },
+        {
+          "value": "3",
+          "id": 5,
           "text": {
             "default": "Reason 3"
           }
         },
         {
           "value": "4",
-          "id": 4,
+          "id": 6,
           "text": {
             "default": "Reason 4"
           }
         },
         {
           "value": "5",
-          "id": 5,
+          "id": 7,
           "text": {
             "default": "Reason 5"
           }
         },
         {
           "value": "6",
-          "id": 6,
+          "id": 8,
           "text": {
             "default": "Reason 6"
           }
         },
         {
           "value": "7",
-          "id": 7,
+          "id": 9,
           "text": {
             "default": "Reason 7"
           }
         },
         {
           "value": "8",
-          "id": 8,
+          "id": 10,
           "text": {
             "default": "Reason 8"
           }
         },
         {
           "value": "9",
-          "id": 9,
-          "text": {
-            "default": "Reason 9"
-          }
-        },
-        {
-          "value": "10",
-          "id": 10,
-          "text": {
-            "default": "Reason 10"
-          }
-        },
-        {
-          "value": "11",
           "id": 11,
           "text": {
-            "default": "Reason 11"
+            "default": "Reason 9"
           }
         }
       ]
@@ -3651,80 +3651,80 @@
       "multiple": true,
       "choices": [
         {
-          "value": "1",
-          "id": 1,
-          "text": {
-            "default": "Reason 1"
-          }
-        },
-        {
           "value": "2",
-          "id": 2,
+          "id": 1,
           "text": {
             "default": "Reason 2"
           }
         },
         {
-          "value": "3",
+          "value": "10",
+          "id": 2,
+          "text": {
+            "default": "Reason 10"
+          }
+        },
+        {
+          "value": "1",
           "id": 3,
+          "text": {
+            "default": "Reason 1"
+          }
+        },
+        {
+          "value": "11",
+          "id": 4,
+          "text": {
+            "default": "Reason 11"
+          }
+        },
+        {
+          "value": "3",
+          "id": 5,
           "text": {
             "default": "Reason 3"
           }
         },
         {
           "value": "4",
-          "id": 4,
+          "id": 6,
           "text": {
             "default": "Reason 4"
           }
         },
         {
           "value": "5",
-          "id": 5,
+          "id": 7,
           "text": {
             "default": "Reason 5"
           }
         },
         {
           "value": "6",
-          "id": 6,
+          "id": 8,
           "text": {
             "default": "Reason 6"
           }
         },
         {
           "value": "7",
-          "id": 7,
+          "id": 9,
           "text": {
             "default": "Reason 7"
           }
         },
         {
           "value": "8",
-          "id": 8,
+          "id": 10,
           "text": {
             "default": "Reason 8"
           }
         },
         {
           "value": "9",
-          "id": 9,
-          "text": {
-            "default": "Reason 9"
-          }
-        },
-        {
-          "value": "10",
-          "id": 10,
-          "text": {
-            "default": "Reason 10"
-          }
-        },
-        {
-          "value": "11",
           "id": 11,
           "text": {
-            "default": "Reason 11"
+            "default": "Reason 9"
           }
         }
       ]

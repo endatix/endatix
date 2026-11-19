@@ -48,17 +48,17 @@
               "name": "reasons",
               "title": "Why would you buy {panel.itemText}?",
               "choices": [
-                { "value": "1", "text": "Reason 1" },
                 { "value": "2", "text": "Reason 2" },
+                { "value": "10", "text": "Reason 10" },
+                { "value": "1", "text": "Reason 1" },
+                { "value": "11", "text": "Reason 11" },
                 { "value": "3", "text": "Reason 3" },
                 { "value": "4", "text": "Reason 4" },
                 { "value": "5", "text": "Reason 5" },
                 { "value": "6", "text": "Reason 6" },
                 { "value": "7", "text": "Reason 7" },
                 { "value": "8", "text": "Reason 8" },
-                { "value": "9", "text": "Reason 9" },
-                { "value": "10", "text": "Reason 10" },
-                { "value": "11", "text": "Reason 11" }
+                { "value": "9", "text": "Reason 9" }
               ]
             }
           ]

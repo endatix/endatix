@@ -808,6 +808,7 @@ internal static partial class ShojiCodebookGenerator
                 continue;
             }
 
+            // Members stay in flattening-map (choice) order; a key sort reads 1, 10, 11, 2 (#1764).
             var members = groupEntry.Value;
             var sourceQuestion = members[0].SourceQuestion ?? string.Empty;
             questions.TryGetValue(sourceQuestion, out var question);
@@ -1036,6 +1037,7 @@ internal static partial class ShojiCodebookGenerator
 
             var sourceQuestion = groupEntry.Value[0].SourceQuestion ?? string.Empty;
             questions.TryGetValue(sourceQuestion, out var question);
+            // Subvariables stay in flattening-map (choice) order; a key sort reads 1, 10, 11, 2 (#1764).
             var columnKeys = groupEntry.Value
                 .Select(column => column.Key)
                 .ToList();
