@@ -103,7 +103,8 @@ internal sealed partial class CopyVisibility
             value,
             scope,
             catalogs,
-            Sources.Any(source => catalogs.VisibilityOf(source.Name) is not null) ? new(StringComparer.Ordinal) : null));
+            Sources.Any(source => catalogs.VisibilityOf(source.Name) is not null) ? new(StringComparer.Ordinal) : null,
+            0));
 
     private bool? ShowsAt(Cell cell)
     {
@@ -134,7 +135,7 @@ internal sealed partial class CopyVisibility
     // list even when the source's list is unknown.
     private bool? SourceShows(SourceChoices source, Cell cell)
     {
-        var (value, scope, catalogs, _) = cell;
+        var (value, scope, catalogs, _, _) = cell;
         if (scope.ContextAnswering(source.Name) is not { } context)
         {
             return null;
@@ -163,27 +164,39 @@ internal sealed partial class CopyVisibility
 
     // A copied source's list, read once per traversal: sources that share upstream copies would otherwise rebuild them
     // once per path, which doubles per level. A source still being read is unknown, so stored rules that name each
-    // other, which no compile writes, stop instead of overflowing the stack.
+    // other, which no compile writes, stop. A chain deeper than MAX_CHAIN_DEPTH is unknown too: the run would otherwise
+    // recurse once per link and overflow the stack on a long stored chain.
     private static bool? ListedBy(CopyVisibility sourceRule, string sourceName, Cell cell)
     {
+        if (cell.Depth >= MAX_CHAIN_DEPTH)
+        {
+            return null;
+        }
+
         var read = cell.ListsRead!;
         if (!read.TryAdd(sourceName, null))
         {
             return read[sourceName];
         }
 
-        var shown = sourceRule.ShowsAt(cell);
+        var shown = sourceRule.ShowsAt(cell with { Depth = cell.Depth + 1 });
         read[sourceName] = shown;
         return shown;
     }
 
-    // The cell being judged: one choice value, the answers its scope sees, the codebook's catalogs, and each copied
-    // source's list read so far in this traversal (null when no source has a stored rule).
+    // The cell being judged: one choice value, the answers its scope sees, the codebook's catalogs, each copied
+    // source's list read so far in this traversal (null when no source has a stored rule), and how many copied sources
+    // deep the rule being read is.
     private readonly record struct Cell(
         string Value,
         AnswerScope Scope,
         ChoiceCatalogs Catalogs,
-        Dictionary<string, bool?>? ListsRead);
+        Dictionary<string, bool?>? ListsRead,
+        int Depth);
+
+    // A fixed cap, not the stack's free space, so a chain is judged the same on every platform. A form's real chains
+    // are a handful of links; one longer than this is unknown.
+    private const int MAX_CHAIN_DEPTH = 64;
 
     // What a compile reads besides the question: the choices each question offers (a copy's resolved through its
     // chain, over the definition's questions), and the definition-wide facts.
@@ -192,15 +205,26 @@ internal sealed partial class CopyVisibility
     private sealed record Lookup(ChoiceSources Offered, CopyDefinition Definition)
     {
         private readonly Dictionary<string, CopyVisibility?> _sourceRules = new(StringComparer.Ordinal);
+        private int _depth;
 
+        // Null past MAX_CHAIN_DEPTH links, so the copy reads SourceCopyIsNotExact instead of overflowing the stack; that
+        // null is not kept, since the same source may be reached again nearer the copy.
         public CopyVisibility? SourceRule((string Name, JsonElement Element) source)
         {
-            if (!_sourceRules.TryGetValue(source.Name, out var rule))
+            if (_sourceRules.TryGetValue(source.Name, out var rule))
             {
-                rule = Compile(source.Element, this).Rule;
-                _sourceRules[source.Name] = rule;
+                return rule;
             }
 
+            if (_depth >= MAX_CHAIN_DEPTH)
+            {
+                return null;
+            }
+
+            _depth++;
+            rule = Compile(source.Element, this).Rule;
+            _depth--;
+            _sourceRules[source.Name] = rule;
             return rule;
         }
     }

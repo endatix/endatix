@@ -358,15 +358,57 @@ public sealed class ChainedCopyVisibilityTests
         }
 
         questions.Add(Copy("checkbox", $$"""{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["l{{levels}}a","l{{levels}}b"],"edxCarryForwardMode":"all"}"""));
-        var answers = "{" + string.Join(',', questions.Select(question => $$"""
-            "{{Json(question).GetProperty("name").GetString()}}":["a"]
-            """.Trim())) + "}";
+        // q0 and the first pair pick both choices, so b reaches pick shown along every path.
+        var answers = "{" + string.Join(',', questions.Select(question => Json(question).GetProperty("name").GetString()).Select(name =>
+            name is "q0" or "l0a" or "l0b" ? $"\"{name}\":[\"a\",\"b\"]" : $"\"{name}\":[\"a\"]")) + "}";
 
         // Act
         var cells = await Task.Run(() => FlattenCopy(Survey([.. questions]), answers, complete: false), TestContext.Current.CancellationToken);
 
         // Assert
-        cells.Should().Equal(Cells(("a", "1"), ("b", null)));
+        cells.Should().Equal(Cells(("a", "1"), ("b", "0")));
+    }
+
+    private const int LONG_CHAIN = 1_400;
+
+    [Fact]
+    public void Compile_LinearChainLongerThanTheDepthLimit_IsSourceCopyIsNotExactInsteadOfOverflowing()
+    {
+        // Arrange: q0, then 1,400 all-mode copies, each of the one before; pick copies the last.
+        List<string> questions = ["""{"type":"checkbox","name":"c0","choices":["a","b"]}"""];
+        for (var link = 1; link <= LONG_CHAIN; link++)
+        {
+            questions.Add($$"""{"type":"checkbox","name":"c{{link}}","choicesFromQuestion":"c{{link - 1}}"}""");
+        }
+
+        questions.Add(Copy("checkbox", $$"""{"choicesFromQuestion":"c{{LONG_CHAIN}}"}"""));
+        var byName = Questions([.. questions]);
+
+        // Act
+        var why = CopyVisibility.WhyUnknown(byName["pick"], byName, CopyDefinition.None);
+        var compiled = new FormSchemaCompiler().CompilePersisted(Survey([.. questions]));
+
+        // Assert
+        why.Should().Be(UnknownBecause.SourceCopyIsNotExact);
+        Shown(compiled.CodebookJson).Should().BeNull();
+    }
+
+    [Fact]
+    public void Shows_StoredChainLongerThanTheDepthLimit_IsUnknownInsteadOfOverflowing()
+    {
+        // Arrange: a codebook no compile writes, 1,400 all-mode copies each reading the one before.
+        var catalogs = string.Join(',', Enumerable.Range(1, LONG_CHAIN).Select(link => $$$"""
+            "c{{{link}}}":{"multiple":true,"copied":true,"choices":[{"value":"a","id":1}],"shown":{"mode":"all","sources":[{"name":"c{{{link - 1}}}","values":["a"]}]}}
+            """.Trim()));
+        var codebook = $$$"""{"choiceCatalogs":{"c0":{"multiple":true,"choices":[{"value":"a","id":1}]},{{{catalogs}}}}}""";
+        var answers = "{" + string.Join(',', Enumerable.Range(0, LONG_CHAIN + 1).Select(link => $"\"c{link}\":[\"a\"]")) + "}";
+        var read = ChoiceCatalogs.Read(codebook);
+
+        // Act
+        var shown = read.VisibilityOf($"c{LONG_CHAIN}")!.Shows("a", AnswerScope.Root(Json(answers)), read);
+
+        // Assert
+        shown.Should().BeNull();
     }
 
     [Fact]
