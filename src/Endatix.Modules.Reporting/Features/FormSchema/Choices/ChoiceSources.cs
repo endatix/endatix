@@ -141,7 +141,7 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
     /// </summary>
     public void WriteVisibilityFields(Utf8JsonWriter writer, JsonElement question)
     {
-        CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, questionsByName, definition ?? CopyDefinition.None));
+        CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, questionsByName, definition ?? CopyDefinition.None, this));
         if (definition is { } whole &&
             question.IsMultiSelectBaseSelect() &&
             ChoiceSource.Parse(question) is not ChoiceSource.CarryForward &&

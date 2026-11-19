@@ -24,6 +24,7 @@ internal enum UnknownBecause
     NoSelectSource,
     SourceIsARanking,
     SourceIsNotOwnChoices,
+    SourceCopyIsNotExact,
     SourceChoicesVisibleIf,
     NameShared,
     HiddenAnswersKept,
@@ -56,8 +57,10 @@ internal sealed record SourceChoices(string Name, IReadOnlyList<string> Values)
 /// <summary>
 /// The one owner of "was this copied choice shown". COMPILE: <see cref="Of"/> decides whether the list a respondent
 /// saw follows from the sources' answers alone, as Hub and SurveyJS build it from the sources' visible choices: only
-/// under <c>all</c>, <c>selected</c> or <c>unselected</c>, with no cap, no <c>choicesVisibleIf</c>, sources that show
-/// their own choices with no choice visibility rule, no question name the definition uses twice, and no static
+/// under <c>all</c>, <c>selected</c> or <c>unselected</c>, with no cap, no <c>choicesVisibleIf</c>, sources with no
+/// choice visibility rule that show their own choices or copy them (in <c>all</c> and <c>unselected</c> mode only from
+/// a checkbox or tagbox copy that is exact itself; in <c>selected</c> mode a source's picks were on its list), no
+/// question name the definition uses twice, and no static
 /// <c>visible: false</c> on the copy or an enclosing panel or page. A survey that keeps hidden answers has no exact
 /// copy once any page, panel or question has a <c>visibleIf</c>; otherwise a copy or source under a <c>visibleIf</c>
 /// (its own, or an enclosing panel's or page's) is exact only for a completed submission (<see cref="WhenComplete"/>).
@@ -91,15 +94,16 @@ internal sealed class CopyVisibility
     public static CopyVisibility? Of(
         JsonElement question,
         IReadOnlyDictionary<string, JsonElement> questionsByName,
-        CopyDefinition definition) =>
-        Compile(question, questionsByName, definition).Rule;
+        CopyDefinition definition,
+        ChoiceSources? offered = null) =>
+        Compile(question, new Lookup(questionsByName, definition, offered ?? new ChoiceSources(questionsByName))).Rule;
 
     /// <summary>Why <see cref="Of"/> returns null; null when it returns a rule.</summary>
     internal static UnknownBecause? WhyUnknown(
         JsonElement question,
         IReadOnlyDictionary<string, JsonElement> questionsByName,
         CopyDefinition definition) =>
-        Compile(question, questionsByName, definition).Reason;
+        Compile(question, new Lookup(questionsByName, definition, new ChoiceSources(questionsByName))).Reason;
 
     /// <summary>
     /// Writes a copy's catalog fields: <c>copied</c> on any copy, and <c>shown</c> on a checkbox or tagbox whose shown
@@ -211,6 +215,7 @@ internal sealed class CopyVisibility
     /// <summary>
     /// RUN: whether the respondent was shown <paramref name="value"/>. With several sources a value is shown when any
     /// source showed it. Null when no source showed it and a source has no answer in the scope or no select catalog.
+    /// A source that copies its choices showed what its own rule rebuilds; null when it has none.
     /// </summary>
     public bool? Shows(string value, AnswerScope scope, ChoiceCatalogs catalogs)
     {
@@ -219,11 +224,7 @@ internal sealed class CopyVisibility
             return null;
         }
 
-        List<bool?> verdicts =
-        [
-            .. Sources.Select(source =>
-                new SourceAnswer(source, scope.ContextAnswering(source.Name), catalogs.For(source.Name)).Shows(Mode, value)),
-        ];
+        List<bool?> verdicts = [.. Sources.Select(source => SourceShows(source, value, scope, catalogs))];
         if (verdicts.Contains(true))
         {
             return true;
@@ -239,31 +240,39 @@ internal sealed class CopyVisibility
         Sources.Zip(other.Sources).All(pair => pair.First.SameAs(pair.Second));
 
     // One source as the cell's scope sees it: the context that answers it, and the select that reads its answer. What
-    // it offered comes from the rule, not from the catalog, which is the union of every definition.
-    private readonly record struct SourceAnswer(SourceChoices Source, JsonElement? Context, SelectChoices Select)
+    // it offered comes from the rule, not from the catalog, which is the union of every definition. A selected copy
+    // shows the source's picks, which were on the source's list; the other modes need the list itself, which for a
+    // copied source is its own rule's. The lifted & keeps a source's pick out of an unselected copy's list even when
+    // the source's list is unknown.
+    private bool? SourceShows(SourceChoices source, string value, AnswerScope scope, ChoiceCatalogs catalogs)
     {
-        public bool? Shows(CopyMode mode, string value)
+        if (scope.ContextAnswering(source.Name) is not { } context)
         {
-            if (Context is not { } context)
-            {
-                return null;
-            }
-
-            var picked = Select.Read(context, Source.Name).Has(value);
-            return mode switch
-            {
-                CopyMode.Selected => picked && Source.Offers(value),
-                CopyMode.All => Source.Offers(value),
-                _ => Source.Offers(value) && !picked,
-            };
+            return null;
         }
+
+        var picked = catalogs.For(source.Name).Read(context, source.Name).Has(value);
+        if (Mode == CopyMode.Selected)
+        {
+            return picked && source.Offers(value);
+        }
+
+        var listed = catalogs.Copies(source.Name)
+            ? catalogs.VisibilityOf(source.Name)?.Shows(value, scope, catalogs)
+            : source.Offers(value);
+        return Mode == CopyMode.All ? listed : listed & !picked;
     }
 
-    private static (CopyVisibility? Rule, UnknownBecause? Reason) Compile(
-        JsonElement question,
-        IReadOnlyDictionary<string, JsonElement> questionsByName,
-        CopyDefinition definition)
+    // What a compile reads besides the question: the definition's questions, the definition-wide facts, and the
+    // choices each question offers, a copy's resolved through its chain.
+    private sealed record Lookup(
+        IReadOnlyDictionary<string, JsonElement> QuestionsByName,
+        CopyDefinition Definition,
+        ChoiceSources Offered);
+
+    private static (CopyVisibility? Rule, UnknownBecause? Reason) Compile(JsonElement question, Lookup lookup)
     {
+        var (questionsByName, definition, _) = lookup;
         if (ChoiceSource.Parse(question) is not ChoiceSource.CarryForward copy)
         {
             return Unknown(UnknownBecause.NotACopy);
@@ -276,7 +285,7 @@ internal sealed class CopyVisibility
             ? UnknownBecause.UnrecognizedMode
             : ListProblem(question, fromQuestion) ?? ScopeProblem(question, sources, definition);
         return problem is null
-            ? FromSources(mode!.Value, sources, UnderAVisibleIf(question, SelectsIn(sources), definition))
+            ? FromSources(mode!.Value, sources, UnderAVisibleIf(question, SelectsIn(sources), definition), lookup)
             : Unknown(problem.Value);
     }
 
@@ -289,16 +298,17 @@ internal sealed class CopyVisibility
     private static (CopyVisibility? Rule, UnknownBecause? Reason) FromSources(
         CopyMode mode,
         IReadOnlyList<(string Name, JsonElement Element)> sources,
-        bool whenComplete)
+        bool whenComplete,
+        Lookup lookup)
     {
-        if (sources.Select(source => SourceProblem(source.Element)).FirstOrDefault(problem => problem is not null) is { } problem)
+        if (sources.Select(source => SourceProblem(source.Element, mode, lookup)).FirstOrDefault(problem => problem is not null) is { } problem)
         {
             return Unknown(problem);
         }
 
         List<SourceChoices> selects =
         [
-            .. sources.Where(source => IsSelect(source.Element)).Select(source => new SourceChoices(source.Name, OwnValues(source.Element))),
+            .. sources.Where(source => IsSelect(source.Element)).Select(source => new SourceChoices(source.Name, OfferedValues(source.Element, lookup))),
         ];
         return selects.Count > 0 ? (new CopyVisibility(mode, selects, whenComplete), null) : Unknown(UnknownBecause.NoSelectSource);
     }
@@ -356,8 +366,9 @@ internal sealed class CopyVisibility
     private static List<(string Name, JsonElement Element)> SelectsIn(IReadOnlyList<(string Name, JsonElement Element)> sources) =>
         [.. sources.Where(source => IsSelect(source.Element))];
 
-    private static List<string> OwnValues(JsonElement source) =>
-        [.. SurveyJsChoiceHelper.EnumerateChoiceElements(source).Select(choice => choice.Value)];
+    // A source's own choices, or for a copy the union its chain resolves to.
+    private static List<string> OfferedValues(JsonElement source, Lookup lookup) =>
+        [.. lookup.Offered.Offered(source).Choices.Select(choice => choice.Value)];
 
     private static (CopyVisibility? Rule, UnknownBecause? Reason) Unknown(UnknownBecause reason) => (null, reason);
 
@@ -383,27 +394,39 @@ internal sealed class CopyVisibility
     private static bool IsSelect(JsonElement question) =>
         question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect();
 
-    // A ranking source has no select catalog to read; a copied, data-list or loaded source's list is not its own; a
-    // visibility rule makes the source's visible choices depend on more than its answer.
-    private static UnknownBecause? SourceProblem(JsonElement source)
+    // A ranking source has no select catalog to read; a data-list or loaded source's list, or a copy's that does not
+    // resolve, is not known here; a visibility rule makes the source's visible choices depend on more than its answer.
+    private static UnknownBecause? SourceProblem(JsonElement source, CopyMode mode, Lookup lookup)
     {
         if (SurveyJsElementType.Ranking.Matches(source.GetSurveyJsType()))
         {
             return UnknownBecause.SourceIsARanking;
         }
 
-        if (ChoiceSource.Parse(source) is not ChoiceSource.Inline)
+        if (source.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is not null ||
+            SurveyJsChoiceHelper.EnumerateChoiceElements(source).Any(choice =>
+                choice.Element.ValueKind == JsonValueKind.Object &&
+                choice.Element.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf) is not null))
         {
-            return UnknownBecause.SourceIsNotOwnChoices;
+            return UnknownBecause.SourceChoicesVisibleIf;
         }
 
-        return source.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is not null ||
-               SurveyJsChoiceHelper.EnumerateChoiceElements(source).Any(choice =>
-                   choice.Element.ValueKind == JsonValueKind.Object &&
-                   choice.Element.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf) is not null)
-            ? UnknownBecause.SourceChoicesVisibleIf
-            : null;
+        return ChoiceSource.Parse(source) switch
+        {
+            ChoiceSource.Inline => null,
+            ChoiceSource.CarryForward when lookup.Offered.Offered(source).IsDegraded => UnknownBecause.SourceIsNotOwnChoices,
+            ChoiceSource.CarryForward => CopiedSourceProblem(source, mode, lookup),
+            _ => UnknownBecause.SourceIsNotOwnChoices,
+        };
     }
+
+    // A selected copy needs only the source's picks. The other modes rebuild the source's list from its own rule, which
+    // is stored only on a checkbox or tagbox. A cycle never gets here: ChoiceSources leaves every copy on it degraded.
+    private static UnknownBecause? CopiedSourceProblem(JsonElement source, CopyMode mode, Lookup lookup) =>
+        mode == CopyMode.Selected ||
+        (source.IsMultiSelectBaseSelect() && Compile(source, lookup).Rule is not null)
+            ? null
+            : UnknownBecause.SourceCopyIsNotExact;
 
     // SurveyJS knows the three exact values and defaults to all. Hub also accepts its loop labels, trimmed and in any
     // case, and defaults to all; an unknown string Hub would read as all stays unknown here rather than a guess.
