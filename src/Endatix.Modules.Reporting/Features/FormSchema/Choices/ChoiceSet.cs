@@ -160,8 +160,8 @@ internal sealed class ChoiceSet
 
     // survey-core question_baseselect.ts getStoreOthersAsComment: the question comment owns "-Comment", per-choice
     // comments force comment storage, then the question's own setting, then the survey's; choicesByUrl forces it.
-    // A checkbox or tag box whose items are objects (question_checkbox.ts getValuePropertyName) keeps the typed text
-    // in the value, whatever the settings say.
+    // question_checkbox.ts overrides it: a checkbox or tag box whose items are objects keeps the typed text in the
+    // value. That is read only on the question's own inline choices, where typed text can be told apart.
     private static OtherStorage ResolveOtherStorage(JsonElement question, SurveyChoiceDefaults survey)
     {
         if (question.GetBooleanProperty(SurveyJsPropertyNames.ShowCommentArea) ||
