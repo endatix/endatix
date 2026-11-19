@@ -1,4 +1,5 @@
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using static Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission.CopiedChoiceVisibilityTests;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
@@ -43,14 +44,16 @@ public sealed class ChainedCopyVisibilityTests
         // Act
         var flattened = Flatten(
             definition,
-            """{"brands":["1","2","3"],"aware":["1","3"],"brandLoop":[{"itemValue":"2","loopIndex":0,"pick":["3"]}]}""");
+            """{"brands":["1","2","3"],"aware":["1","3"],"brandLoop":[{"itemValue":"2","loopIndex":0,"pick":["3"]},{"itemValue":"1","loopIndex":1,"pick":["1"]}]}""");
 
         // Assert
         Cell(flattened, "brandLoop__2__pick__1").Should().Be("0");
         Cell(flattened, "brandLoop__2__pick__2").Should().BeNull();
         Cell(flattened, "brandLoop__2__pick__3").Should().Be("1");
         Cell(flattened, "brandLoop__2__pick__none").Should().Be("0");
-        Cell(flattened, "brandLoop__1__pick__1").Should().BeNull();
+        Cell(flattened, "brandLoop__1__pick__1").Should().Be("1");
+        Cell(flattened, "brandLoop__1__pick__3").Should().Be("0");
+        Cell(flattened, "brandLoop__3__pick__1").Should().BeNull();
     }
 
     [Fact]
@@ -175,18 +178,17 @@ public sealed class ChainedCopyVisibilityTests
         cells.Should().Equal(Cells(("1", "0"), ("2", null), ("3", "1")));
     }
 
-    public static TheoryData<string, string, string> ChainReasons => new()
+    public static TheoryData<string, string, string?> ChainReasons => new()
     {
         { CAPPED, "all", nameof(UnknownBecause.SourceCopyIsNotExact) },
         { CAPPED, "unselected", nameof(UnknownBecause.SourceCopyIsNotExact) },
-        { CAPPED, "selected", "" },
-        { """{"choicesFromQuestion":"brands","choicesVisibleIf":"{item} != '2'"}""", "selected", nameof(UnknownBecause.SourceChoicesVisibleIf) },
-        { """{"choicesFromQuestion":"brands"}""", "all", "" },
+        { CAPPED, "selected", null },
+        { """{"choicesFromQuestion":"brands"}""", "all", null },
     };
 
     [Theory]
     [MemberData(nameof(ChainReasons))]
-    public void WhyUnknown_CopyOfACopy_NeedsAnExactSourceOnlyOutsideSelectedMode(string awareProperties, string mode, string reason)
+    public void WhyUnknown_CopyOfACopy_NeedsAnExactSourceOnlyOutsideSelectedMode(string awareProperties, string mode, string? reason)
     {
         // Arrange
         var questions = Questions(
@@ -198,7 +200,114 @@ public sealed class ChainedCopyVisibilityTests
         var why = CopyVisibility.WhyUnknown(questions["pick"], questions, CopyDefinition.None);
 
         // Assert
-        (why?.ToString() ?? "").Should().Be(reason);
+        (why?.ToString()).Should().Be(reason);
+    }
+
+    [Fact]
+    public void WhyUnknown_SelectedCopyOfACopyWithChoiceVisibilityRules_IsSourceChoicesVisibleIf()
+    {
+        // Arrange
+        var questions = Questions(
+            BRANDS,
+            Aware("""{"choicesFromQuestion":"brands","choicesVisibleIf":"{item} != '2'"}"""),
+            Copy("checkbox", """{"choicesFromQuestion":"aware","choicesFromQuestionMode":"selected"}"""));
+
+        // Act
+        var why = CopyVisibility.WhyUnknown(questions["pick"], questions, CopyDefinition.None);
+
+        // Assert
+        why.Should().Be(UnknownBecause.SourceChoicesVisibleIf);
+    }
+
+    [Theory]
+    [MemberData(nameof(CopyTypes), MemberType = typeof(CopiedChoiceVisibilityTests))]
+    public void Flatten_AllCopyOfAMultiSelectCopy_FollowsTheSourcesRule(string sourceType)
+    {
+        // Arrange
+        var definition = Survey(
+            BRANDS,
+            $$"""{"type":"{{sourceType}}","name":"aware","choicesFromQuestion":"brands","choicesFromQuestionMode":"selected"}""",
+            Copy("checkbox", """{"choicesFromQuestion":"aware"}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, """{"brands":["1","3"],"aware":["3"],"pick":["1"]}""", complete: false);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "1"), ("2", null), ("3", "0")));
+    }
+
+    [Fact]
+    public void Flatten_CopyOfACopyAndAnInlineSource_ShowsWhatEitherShowed()
+    {
+        // Arrange
+        var definition = Survey(
+            BRANDS,
+            Aware("""{"choicesFromQuestion":"brands","choicesFromQuestionMode":"selected"}"""),
+            """{"type":"checkbox","name":"online","choices":["3","4"]}""",
+            Copy("checkbox", """{"edxCarryForwardEnabled":true,"edxCarryForwardSources":["aware","online"],"edxCarryForwardMode":"all"}"""));
+
+        // Act
+        var cells = FlattenCopy(definition, """{"brands":["1"],"aware":["1"],"online":["4"],"pick":["4"]}""", complete: false);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", "0"), ("2", null), ("3", "0"), ("4", "1")));
+    }
+
+    // brands sits on a page with a visibleIf; the survey clears hidden answers on complete, so aware's rule, and the
+    // rule of pick that reads it, hold only for a completed submission.
+    [Theory]
+    [InlineData(true, "0")]
+    [InlineData(false, null)]
+    public void Flatten_AllCopyOfACopyWhoseSourceIsUnderAVisibleIf_IsExactOnlyForACompleteSubmission(bool complete, string? unpicked)
+    {
+        // Arrange
+        var definition = $$"""
+            {"pages":[
+              {"name":"p0","elements":[{"type":"text","name":"x"}]},
+              {"name":"p1","visibleIf":"{x} = 1","elements":[{{BRANDS}}]},
+              {"name":"p2","elements":[{{Aware("""{"choicesFromQuestion":"brands"}""")}},{{Copy("checkbox", """{"choicesFromQuestion":"aware","showNoneItem":true}""")}}]}]}
+            """;
+
+        // Act
+        var cells = FlattenCopy(definition, """{"x":1,"brands":["2"],"aware":["1"],"pick":["3"]}""", complete);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", unpicked), ("2", unpicked), ("3", "1"), ("none", unpicked)));
+    }
+
+    [Fact]
+    public void Compile_AllCopyOfACopyWhoseSourceIsUnderAVisibleIf_RecordsWhenComplete()
+    {
+        // Arrange
+        var definition = Survey(
+            """{"type":"checkbox","name":"brands","visibleIf":"{x} = 1","choices":["1","2","3"]}""",
+            Aware("""{"choicesFromQuestion":"brands"}"""),
+            Copy("checkbox", """{"choicesFromQuestion":"aware"}"""));
+
+        // Act
+        var compiled = new FormSchemaCompiler().CompilePersisted(definition);
+
+        // Assert
+        Shown(compiled.CodebookJson).Should().Contain("\"whenComplete\":true");
+    }
+
+    [Fact]
+    public void Shows_StoredRulesThatCopyEachOther_IsUnknownInsteadOfLooping()
+    {
+        // Arrange: a codebook no compile writes, two copies whose rules name each other.
+        var codebook = """
+            {"choiceCatalogs":{
+              "a":{"multiple":true,"copied":true,"choices":[{"value":"1","id":1}],"shown":{"mode":"all","sources":[{"name":"b","values":["1"]}]}},
+              "b":{"multiple":true,"copied":true,"choices":[{"value":"1","id":1}],"shown":{"mode":"all","sources":[{"name":"a","values":["1"]}]}}}}
+            """;
+        var catalogs = ChoiceCatalogs.Read(codebook);
+        var scope = AnswerScope.Root(Json("""{"a":["1"],"b":["1"]}"""));
+
+        // Act
+        var shown = catalogs.VisibilityOf("a")!.Shows("2", scope, catalogs);
+
+        // Assert
+        shown.Should().BeNull();
     }
 
     [Fact]
@@ -218,7 +327,7 @@ public sealed class ChainedCopyVisibilityTests
     }
 
     [Fact]
-    public void WhyUnknown_CopyOfACycle_IsSourceIsNotOwnChoices()
+    public void WhyUnknown_CopyOfACycle_IsSourceCopyIsNotExact()
     {
         // Arrange
         var questions = Questions(
@@ -230,7 +339,7 @@ public sealed class ChainedCopyVisibilityTests
         var why = CopyVisibility.WhyUnknown(questions["pick"], questions, CopyDefinition.None);
 
         // Assert
-        why.Should().Be(UnknownBecause.SourceIsNotOwnChoices);
+        why.Should().Be(UnknownBecause.SourceCopyIsNotExact);
     }
 
     private static string Aware(string properties) => $$"""{"type":"checkbox","name":"aware",{{properties[1..]}}""";

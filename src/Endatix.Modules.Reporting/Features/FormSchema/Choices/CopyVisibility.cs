@@ -213,14 +213,18 @@ internal sealed class CopyVisibility
     /// source showed it. Null when no source showed it and a source has no answer in the scope or no select catalog.
     /// A source that copies its choices showed what its own rule rebuilds; null when it has none.
     /// </summary>
-    public bool? Shows(string value, AnswerScope scope, ChoiceCatalogs catalogs)
+    public bool? Shows(string value, AnswerScope scope, ChoiceCatalogs catalogs) =>
+        Shows(new Cell(value, scope, catalogs, 0));
+
+    // A compiled chain has no cycle (ChoiceSources degrades every copy on one), but a stored codebook is only read
+    // here, so the depth caps a pair of rules that name each other instead of overflowing the stack.
+    private bool? Shows(Cell cell)
     {
-        if (!HoldsFor(catalogs.SubmissionComplete))
+        if (!HoldsFor(cell.Catalogs.SubmissionComplete) || cell.Depth > MaxChainDepth)
         {
             return null;
         }
 
-        Cell cell = new(value, scope, catalogs);
         List<bool?> verdicts = [.. Sources.Select(source => SourceShows(source, cell))];
         if (verdicts.Contains(true))
         {
@@ -229,6 +233,8 @@ internal sealed class CopyVisibility
 
         return verdicts.Contains(null) ? null : false;
     }
+
+    private const int MaxChainDepth = 64;
 
     private bool SameAs(CopyVisibility other) =>
         Mode == other.Mode &&
@@ -239,11 +245,11 @@ internal sealed class CopyVisibility
     // One source as the cell's scope sees it: the context that answers it, and the select that reads its answer. What
     // it offered comes from the rule, not from the catalog, which is the union of every definition. A selected copy
     // shows the source's picks, which were on the source's list; the other modes need the list itself, which for a
-    // copied source is its own rule's. The lifted & keeps a source's pick out of an unselected copy's list even when
-    // the source's list is unknown.
+    // copied source is its own rule's (a source that copied in any definition but has no stored rule is unknown).
+    // The three-valued & keeps a source's pick out of an unselected copy's list even when the source's list is unknown.
     private bool? SourceShows(SourceChoices source, Cell cell)
     {
-        var (value, scope, catalogs) = cell;
+        var (value, scope, catalogs, depth) = cell;
         if (scope.ContextAnswering(source.Name) is not { } context)
         {
             return null;
@@ -255,14 +261,15 @@ internal sealed class CopyVisibility
             return picked && source.Offers(value);
         }
 
-        var listed = catalogs.Copies(source.Name)
-            ? catalogs.VisibilityOf(source.Name)?.Shows(value, scope, catalogs)
-            : source.Offers(value);
+        var listed = catalogs.VisibilityOf(source.Name) is { } sourceRule
+            ? sourceRule.Shows(cell with { Depth = depth + 1 })
+            : catalogs.Copies(source.Name) ? null : source.Offers(value);
         return Mode == CopyMode.All ? listed : listed & !picked;
     }
 
-    // The cell being judged: one choice value, the answers its scope sees, and the codebook's catalogs.
-    private readonly record struct Cell(string Value, AnswerScope Scope, ChoiceCatalogs Catalogs);
+    // The cell being judged: one choice value, the answers its scope sees, the codebook's catalogs, and how many
+    // copied sources deep the rule being read is.
+    private readonly record struct Cell(string Value, AnswerScope Scope, ChoiceCatalogs Catalogs, int Depth);
 
     // What a compile reads besides the question: the choices each question offers (a copy's resolved through its
     // chain, over the definition's questions), and the definition-wide facts.
@@ -285,7 +292,10 @@ internal sealed class CopyVisibility
               ScopeProblem(question, sources, definition) ??
               SourcesProblem(sources, mode.Value, lookup);
         return problem is null
-            ? FromSources(mode!.Value, SelectChoicesIn(sources, lookup), UnderAVisibleIf(question, SelectsIn(sources), definition))
+            ? FromSources(
+                mode!.Value,
+                SelectChoicesIn(sources, lookup),
+                UnderAVisibleIf(question, SelectsIn(sources), definition) || ChainHoldsWhenComplete(sources, mode.Value, lookup))
             : Unknown(problem.Value);
     }
 
@@ -391,8 +401,8 @@ internal sealed class CopyVisibility
     private static bool IsSelect(JsonElement question) =>
         question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect();
 
-    // A ranking source has no select catalog to read; a data-list or loaded source's list, or a copy's that does not
-    // resolve, is not known here; a visibility rule makes the source's visible choices depend on more than its answer.
+    // A ranking source has no select catalog to read; a data-list or loaded source's list is not known here, nor a
+    // copy's that does not resolve (a cycle, a data list up the chain); a visibility rule makes the source's visible choices depend on more than its answer.
     private static UnknownBecause? SourceProblem(JsonElement source, CopyMode mode, Lookup lookup)
     {
         if (SurveyJsElementType.Ranking.Matches(source.GetSurveyJsType()))
@@ -408,7 +418,7 @@ internal sealed class CopyVisibility
         return ChoiceSource.Parse(source) switch
         {
             ChoiceSource.Inline => null,
-            ChoiceSource.CarryForward when lookup.Offered.Offered(source).IsDegraded => UnknownBecause.SourceIsNotOwnChoices,
+            ChoiceSource.CarryForward when lookup.Offered.Offered(source).IsDegraded => UnknownBecause.SourceCopyIsNotExact,
             ChoiceSource.CarryForward => CopiedSourceProblem(source, mode, lookup),
             _ => UnknownBecause.SourceIsNotOwnChoices,
         };
@@ -419,6 +429,14 @@ internal sealed class CopyVisibility
         SurveyJsChoiceHelper.EnumerateChoiceElements(source).Any(choice =>
             choice.Element.ValueKind == JsonValueKind.Object &&
             choice.Element.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf) is not null);
+
+    // A copy that reads its copied sources' lists holds only when their rules do; a selected copy reads only picks.
+    private static bool ChainHoldsWhenComplete(
+        IReadOnlyList<(string Name, JsonElement Element)> sources,
+        CopyMode mode,
+        Lookup lookup) =>
+        mode != CopyMode.Selected &&
+        SelectsIn(sources).Any(source => Compile(source.Element, lookup).Rule is { WhenComplete: true });
 
     // A selected copy needs only the source's picks. The other modes rebuild the source's list from its own rule, which
     // is stored only on a checkbox or tagbox. A cycle never gets here: ChoiceSources leaves every copy on it degraded.
