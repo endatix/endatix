@@ -34,5 +34,6 @@ A question nothing could hide, skipped in a completed submission, still writes `
 
 **What to do:**
 
-- Compile the form's schema (`POST forms/{formId}/reporting/compile-schema`, with `replace=true` or in merge mode: both record that the text is in the value), then backfill with `force=true` (`POST forms/{formId}/submissions/backfill`). Without the compile, new submissions keep exporting `0`.
-- In the Hub, **Rebuild reporting data…** with **Full recompile** does both.
+- Compile the form's schema in merge mode (`POST forms/{formId}/reporting/compile-schema`, without `replace`), then backfill with `force=true` (`POST forms/{formId}/submissions/backfill`). The merge compile records that the text is in the value and keeps every choice the stored schema knows. Without the compile, new submissions keep exporting `0`.
+- Avoid `replace=true` for these forms when a choice was removed from the checkbox: a replace compile drops it from the schema, and a stored answer with that choice then exports as typed Other text.
+- In the Hub, **Rebuild reporting data…** with **Full recompile** compiles with `replace=true` and backfills with `force=true`, so use it only when no choice was removed from these checkboxes; otherwise call the two endpoints above. A rebuild without **Full recompile** compiles in merge mode but skips rows that have not changed.
