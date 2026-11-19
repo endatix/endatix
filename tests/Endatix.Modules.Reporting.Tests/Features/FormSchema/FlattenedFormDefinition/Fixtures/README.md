@@ -120,7 +120,9 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
 - **#1441, stored values never offered:** a value a checkbox stores but its choices do not offer has no column and is
   not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
 - **A 0 the respondent did not see, with its own choices (no scenario yet):** `choicesVisibleIf` or a choice's own
-  `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0.
+  `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0;
+  a checkbox moved between the form's root and a loop across versions writes 0 in the place its version did not have it,
+  because the check against the submission's version (#1758) matches the question's name, not where it sits.
   #1753 covers only question, panel and page visibility.
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.

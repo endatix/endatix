@@ -48,7 +48,7 @@ internal sealed record CopyDefinition(
     /// <summary>
     /// RUN TIME. Every question name (<c>name</c>, not <c>valueName</c>, as the indicator columns are keyed) in
     /// <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels; null when there is no
-    /// definition to read.
+    /// definition to read, or one that is not a JSON object, so an unreadable stored definition never fails a flatten.
     /// </summary>
     public static IReadOnlySet<string>? QuestionNamesIn(string? definitionJson)
     {
@@ -57,10 +57,22 @@ internal sealed record CopyDefinition(
             return null;
         }
 
-        using var document = JsonDocument.Parse(definitionJson);
-        DefinitionWalk walk = new();
-        walk.Visit(document.RootElement);
-        return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
+        try
+        {
+            using var document = JsonDocument.Parse(definitionJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            DefinitionWalk walk = new();
+            walk.Visit(document.RootElement);
+            return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",

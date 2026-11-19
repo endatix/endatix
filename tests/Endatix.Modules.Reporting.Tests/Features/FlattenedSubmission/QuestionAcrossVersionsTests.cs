@@ -100,6 +100,22 @@ public sealed class QuestionAcrossVersionsTests
         cells.Should().Equal(_zero);
     }
 
+    [Theory]
+    [InlineData("{not json")]
+    [InlineData("[]")]
+    [InlineData("\"survey\"")]
+    public void Flatten_RowsVersionUnreadable_WritesZeroAsBefore(string submittedDefinition)
+    {
+        // Arrange
+        var merged = Merged(_withoutPick, _withPick);
+
+        // Act
+        var cells = FlattenOn(merged, submittedDefinition);
+
+        // Assert
+        cells.Should().Equal(_zero);
+    }
+
     [Fact]
     public void Flatten_IncompleteRowSavedOnAVersionWithTheQuestion_IsEmptyAsBefore()
     {
