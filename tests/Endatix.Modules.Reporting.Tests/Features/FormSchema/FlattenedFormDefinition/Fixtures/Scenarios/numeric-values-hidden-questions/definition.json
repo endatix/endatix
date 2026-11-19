@@ -1,0 +1,99 @@
+{
+  "pages": [
+    {
+      "name": "visitsPage",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "visits",
+          "title": "How often do you visit?",
+          "isRequired": true,
+          "choices": [
+            { "value": 1, "text": "Weekly" },
+            { "value": 2, "text": "Monthly" },
+            { "value": 3, "text": "Yearly" },
+            { "value": 4, "text": "Never" }
+          ]
+        },
+        {
+          "type": "panel",
+          "name": "photos",
+          "visible": false,
+          "visibleIf": "{visits} = 4",
+          "elements": [
+            {
+              "type": "file",
+              "name": "photoFront",
+              "title": "Photo of the front",
+              "storeDataAsText": false,
+              "waitForUpload": true,
+              "acceptedTypes": "image/*"
+            },
+            {
+              "type": "file",
+              "name": "photoBack",
+              "title": "Photo of the back",
+              "storeDataAsText": false,
+              "waitForUpload": true,
+              "acceptedTypes": "image/*"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "reasons",
+          "title": "Why do you visit?",
+          "visible": false,
+          "visibleIf": "{visits} <= 2",
+          "isRequired": true,
+          "showOtherItem": true,
+          "otherText": "Something else",
+          "choices": [
+            { "value": 1, "text": "Price" },
+            { "value": 2, "text": "Range" },
+            { "value": 3, "text": "Service" }
+          ]
+        },
+        {
+          "type": "radiogroup",
+          "name": "brandUsed",
+          "title": "Which brand did you buy?",
+          "visible": false,
+          "visibleIf": "{visits} <= 2",
+          "isRequired": true,
+          "choices": [
+            { "value": 1, "text": "Brand one" },
+            { "value": 2, "text": "Brand two" },
+            { "value": 3, "text": "Brand three" }
+          ]
+        },
+        {
+          "type": "radiogroup",
+          "name": "brandStore",
+          "title": "Where did you buy it?",
+          "visible": false,
+          "visibleIf": "{visits} <= 2",
+          "isRequired": true,
+          "showOtherItem": true,
+          "choices": [
+            { "value": 1, "text": "Store one" },
+            { "value": 2, "text": "Store two" }
+          ]
+        },
+        {
+          "type": "radiogroup",
+          "name": "brandSwitch",
+          "title": "Which brand would you switch to?",
+          "visible": false,
+          "visibleIf": "{visits} = 4",
+          "isRequired": true,
+          "showOtherItem": true,
+          "choices": [
+            { "value": 1, "text": "Brand one" },
+            { "value": 2, "text": "Brand two" }
+          ]
+        }
+      ]
+    }
+  ]
+}
