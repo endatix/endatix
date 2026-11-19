@@ -125,6 +125,38 @@
               "name": "Brand 3"
             },
             {
+              "alias": "aware--4",
+              "name": "Brand 4"
+            },
+            {
+              "alias": "aware--5",
+              "name": "Brand 5"
+            },
+            {
+              "alias": "aware--6",
+              "name": "Brand 6"
+            },
+            {
+              "alias": "aware--7",
+              "name": "Brand 7"
+            },
+            {
+              "alias": "aware--8",
+              "name": "Brand 8"
+            },
+            {
+              "alias": "aware--9",
+              "name": "Brand 9"
+            },
+            {
+              "alias": "aware--10",
+              "name": "Brand 10"
+            },
+            {
+              "alias": "aware--11",
+              "name": "Brand 11"
+            },
+            {
               "alias": "aware--none",
               "name": "None"
             }
@@ -163,6 +195,38 @@
             {
               "alias": "brands--3",
               "name": "Brand 3"
+            },
+            {
+              "alias": "brands--4",
+              "name": "Brand 4"
+            },
+            {
+              "alias": "brands--5",
+              "name": "Brand 5"
+            },
+            {
+              "alias": "brands--6",
+              "name": "Brand 6"
+            },
+            {
+              "alias": "brands--7",
+              "name": "Brand 7"
+            },
+            {
+              "alias": "brands--8",
+              "name": "Brand 8"
+            },
+            {
+              "alias": "brands--9",
+              "name": "Brand 9"
+            },
+            {
+              "alias": "brands--10",
+              "name": "Brand 10"
+            },
+            {
+              "alias": "brands--11",
+              "name": "Brand 11"
             }
           ]
         },
@@ -241,6 +305,38 @@
             {
               "alias": "considerLoop--3--consider",
               "name": "Brand 3"
+            },
+            {
+              "alias": "considerLoop--4--consider",
+              "name": "Brand 4"
+            },
+            {
+              "alias": "considerLoop--5--consider",
+              "name": "Brand 5"
+            },
+            {
+              "alias": "considerLoop--6--consider",
+              "name": "Brand 6"
+            },
+            {
+              "alias": "considerLoop--7--consider",
+              "name": "Brand 7"
+            },
+            {
+              "alias": "considerLoop--8--consider",
+              "name": "Brand 8"
+            },
+            {
+              "alias": "considerLoop--9--consider",
+              "name": "Brand 9"
+            },
+            {
+              "alias": "considerLoop--10--consider",
+              "name": "Brand 10"
+            },
+            {
+              "alias": "considerLoop--11--consider",
+              "name": "Brand 11"
             }
           ]
         },
@@ -267,6 +363,54 @@
               "id": 3,
               "numeric_value": 3,
               "missing": false
+            },
+            {
+              "name": "Brand 4",
+              "id": 4,
+              "numeric_value": 4,
+              "missing": false
+            },
+            {
+              "name": "Brand 5",
+              "id": 5,
+              "numeric_value": 5,
+              "missing": false
+            },
+            {
+              "name": "Brand 6",
+              "id": 6,
+              "numeric_value": 6,
+              "missing": false
+            },
+            {
+              "name": "Brand 7",
+              "id": 7,
+              "numeric_value": 7,
+              "missing": false
+            },
+            {
+              "name": "Brand 8",
+              "id": 8,
+              "numeric_value": 8,
+              "missing": false
+            },
+            {
+              "name": "Brand 9",
+              "id": 9,
+              "numeric_value": 9,
+              "missing": false
+            },
+            {
+              "name": "Brand 10",
+              "id": 10,
+              "numeric_value": 10,
+              "missing": false
+            },
+            {
+              "name": "Brand 11",
+              "id": 11,
+              "numeric_value": 11,
+              "missing": false
             }
           ],
           "subvariables": [
@@ -277,6 +421,754 @@
             {
               "alias": "occasionLoop--20--occasionBrand",
               "name": "Evening"
+            }
+          ]
+        },
+        "considerLoop--10--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--10--reasons",
+          "name": "Why would you buy Brand 10?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--10--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--10--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--10--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--10--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--10--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--10--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--10--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--10--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--10--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--10--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--10--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--11--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--11--reasons",
+          "name": "Why would you buy Brand 11?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--11--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--11--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--11--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--11--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--11--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--11--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--11--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--11--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--11--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--11--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--11--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--1--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--1--reasons",
+          "name": "Why would you buy Brand 1?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--1--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--1--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--1--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--1--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--1--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--1--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--1--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--1--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--1--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--1--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--1--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--2--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--2--reasons",
+          "name": "Why would you buy Brand 2?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--2--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--2--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--2--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--2--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--2--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--2--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--2--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--2--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--2--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--2--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--2--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--3--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--3--reasons",
+          "name": "Why would you buy Brand 3?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--3--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--3--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--3--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--3--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--3--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--3--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--3--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--3--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--3--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--3--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--3--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--4--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--4--reasons",
+          "name": "Why would you buy Brand 4?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--4--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--4--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--4--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--4--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--4--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--4--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--4--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--4--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--4--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--4--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--4--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--5--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--5--reasons",
+          "name": "Why would you buy Brand 5?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--5--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--5--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--5--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--5--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--5--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--5--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--5--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--5--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--5--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--5--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--5--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--6--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--6--reasons",
+          "name": "Why would you buy Brand 6?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--6--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--6--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--6--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--6--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--6--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--6--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--6--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--6--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--6--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--6--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--6--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--7--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--7--reasons",
+          "name": "Why would you buy Brand 7?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--7--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--7--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--7--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--7--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--7--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--7--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--7--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--7--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--7--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--7--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--7--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--8--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--8--reasons",
+          "name": "Why would you buy Brand 8?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--8--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--8--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--8--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--8--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--8--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--8--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--8--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--8--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--8--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--8--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--8--reasons--9",
+              "name": "Reason 9"
+            }
+          ]
+        },
+        "considerLoop--9--reasons": {
+          "type": "multiple_response",
+          "alias": "considerLoop--9--reasons",
+          "name": "Why would you buy Brand 9?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "considerLoop--9--reasons--2",
+              "name": "Reason 2"
+            },
+            {
+              "alias": "considerLoop--9--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--9--reasons--1",
+              "name": "Reason 1"
+            },
+            {
+              "alias": "considerLoop--9--reasons--11",
+              "name": "Reason 11"
+            },
+            {
+              "alias": "considerLoop--9--reasons--3",
+              "name": "Reason 3"
+            },
+            {
+              "alias": "considerLoop--9--reasons--4",
+              "name": "Reason 4"
+            },
+            {
+              "alias": "considerLoop--9--reasons--5",
+              "name": "Reason 5"
+            },
+            {
+              "alias": "considerLoop--9--reasons--6",
+              "name": "Reason 6"
+            },
+            {
+              "alias": "considerLoop--9--reasons--7",
+              "name": "Reason 7"
+            },
+            {
+              "alias": "considerLoop--9--reasons--8",
+              "name": "Reason 8"
+            },
+            {
+              "alias": "considerLoop--9--reasons--9",
+              "name": "Reason 9"
             }
           ]
         }
@@ -308,7 +1200,18 @@
             {
               "group": "considerLoop",
               "entities": [
-                "considerLoop--consider"
+                "considerLoop--consider",
+                "considerLoop--1--reasons",
+                "considerLoop--2--reasons",
+                "considerLoop--3--reasons",
+                "considerLoop--4--reasons",
+                "considerLoop--5--reasons",
+                "considerLoop--6--reasons",
+                "considerLoop--7--reasons",
+                "considerLoop--8--reasons",
+                "considerLoop--9--reasons",
+                "considerLoop--10--reasons",
+                "considerLoop--11--reasons"
               ]
             },
             {
