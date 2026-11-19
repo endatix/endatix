@@ -339,10 +339,6 @@
           ],
           "subvariables": [
             {
-              "alias": "traitLoop--1--brandTraits--none",
-              "name": "None"
-            },
-            {
               "alias": "traitLoop--1--brandTraits--t1",
               "name": "Fresh"
             },
@@ -353,6 +349,10 @@
             {
               "alias": "traitLoop--1--brandTraits--t3",
               "name": "Local"
+            },
+            {
+              "alias": "traitLoop--1--brandTraits--none",
+              "name": "None"
             }
           ]
         },
@@ -379,10 +379,6 @@
           ],
           "subvariables": [
             {
-              "alias": "traitLoop--2--brandTraits--none",
-              "name": "None"
-            },
-            {
               "alias": "traitLoop--2--brandTraits--t1",
               "name": "Fresh"
             },
@@ -393,6 +389,10 @@
             {
               "alias": "traitLoop--2--brandTraits--t3",
               "name": "Local"
+            },
+            {
+              "alias": "traitLoop--2--brandTraits--none",
+              "name": "None"
             }
           ]
         },
@@ -419,10 +419,6 @@
           ],
           "subvariables": [
             {
-              "alias": "traitLoop--3--brandTraits--none",
-              "name": "None"
-            },
-            {
               "alias": "traitLoop--3--brandTraits--t1",
               "name": "Fresh"
             },
@@ -433,6 +429,10 @@
             {
               "alias": "traitLoop--3--brandTraits--t3",
               "name": "Local"
+            },
+            {
+              "alias": "traitLoop--3--brandTraits--none",
+              "name": "None"
             }
           ]
         },

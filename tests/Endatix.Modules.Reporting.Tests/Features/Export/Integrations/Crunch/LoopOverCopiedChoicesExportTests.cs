@@ -105,7 +105,7 @@ public sealed class LoopOverCopiedChoicesExportTests
     }
 
     // Hub carry forward offers the union of its sources, a value offered twice repeating once. The Shoji codebook lists
-    // subvariables by alias; the flattener keeps source order (LoopSourceDriverTests).
+    // subvariables in the flattener's source order (LoopSourceDriverTests, #1764).
     [Fact]
     public async Task Export_LoopOverACarryForwardFromTwoSources_RepeatsOverTheUnion()
     {
@@ -125,7 +125,7 @@ public sealed class LoopOverCopiedChoicesExportTests
 
         // Assert
         Subvariables(shoji, "loop--q").Should().Equal(
-            ("loop--apple--q", "apple"), ("loop--pear--q", "Pear (orchard)"), ("loop--plum--q", "plum"));
+            ("loop--pear--q", "Pear (orchard)"), ("loop--plum--q", "plum"), ("loop--apple--q", "apple"));
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
         Column(csv, "loop--plum--q").Should().Equal("1");
     }

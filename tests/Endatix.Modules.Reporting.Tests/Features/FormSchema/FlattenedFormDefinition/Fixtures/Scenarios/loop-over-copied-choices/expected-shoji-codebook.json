@@ -295,14 +295,6 @@
           ],
           "subvariables": [
             {
-              "alias": "considerLoop--10--consider",
-              "name": "Brand 10"
-            },
-            {
-              "alias": "considerLoop--11--consider",
-              "name": "Brand 11"
-            },
-            {
               "alias": "considerLoop--1--consider",
               "name": "Brand 1"
             },
@@ -337,6 +329,14 @@
             {
               "alias": "considerLoop--9--consider",
               "name": "Brand 9"
+            },
+            {
+              "alias": "considerLoop--10--consider",
+              "name": "Brand 10"
+            },
+            {
+              "alias": "considerLoop--11--consider",
+              "name": "Brand 11"
             }
           ]
         },
@@ -451,14 +451,6 @@
               "name": "Reason 1"
             },
             {
-              "alias": "considerLoop--10--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--10--reasons--11",
-              "name": "Reason 11"
-            },
-            {
               "alias": "considerLoop--10--reasons--2",
               "name": "Reason 2"
             },
@@ -489,6 +481,14 @@
             {
               "alias": "considerLoop--10--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--10--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--10--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -517,14 +517,6 @@
             {
               "alias": "considerLoop--11--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--11--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--11--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--11--reasons--2",
@@ -557,6 +549,14 @@
             {
               "alias": "considerLoop--11--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--11--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--11--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -585,14 +585,6 @@
             {
               "alias": "considerLoop--1--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--1--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--1--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--1--reasons--2",
@@ -625,6 +617,14 @@
             {
               "alias": "considerLoop--1--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--1--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--1--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -653,14 +653,6 @@
             {
               "alias": "considerLoop--2--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--2--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--2--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--2--reasons--2",
@@ -693,6 +685,14 @@
             {
               "alias": "considerLoop--2--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--2--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--2--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -721,14 +721,6 @@
             {
               "alias": "considerLoop--3--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--3--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--3--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--3--reasons--2",
@@ -761,6 +753,14 @@
             {
               "alias": "considerLoop--3--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--3--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--3--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -789,14 +789,6 @@
             {
               "alias": "considerLoop--4--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--4--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--4--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--4--reasons--2",
@@ -829,6 +821,14 @@
             {
               "alias": "considerLoop--4--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--4--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--4--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -857,14 +857,6 @@
             {
               "alias": "considerLoop--5--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--5--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--5--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--5--reasons--2",
@@ -897,6 +889,14 @@
             {
               "alias": "considerLoop--5--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--5--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--5--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -925,14 +925,6 @@
             {
               "alias": "considerLoop--6--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--6--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--6--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--6--reasons--2",
@@ -965,6 +957,14 @@
             {
               "alias": "considerLoop--6--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--6--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--6--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -993,14 +993,6 @@
             {
               "alias": "considerLoop--7--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--7--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--7--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--7--reasons--2",
@@ -1033,6 +1025,14 @@
             {
               "alias": "considerLoop--7--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--7--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--7--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -1061,14 +1061,6 @@
             {
               "alias": "considerLoop--8--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--8--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--8--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--8--reasons--2",
@@ -1101,6 +1093,14 @@
             {
               "alias": "considerLoop--8--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--8--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--8--reasons--11",
+              "name": "Reason 11"
             }
           ]
         },
@@ -1129,14 +1129,6 @@
             {
               "alias": "considerLoop--9--reasons--1",
               "name": "Reason 1"
-            },
-            {
-              "alias": "considerLoop--9--reasons--10",
-              "name": "Reason 10"
-            },
-            {
-              "alias": "considerLoop--9--reasons--11",
-              "name": "Reason 11"
             },
             {
               "alias": "considerLoop--9--reasons--2",
@@ -1169,6 +1161,14 @@
             {
               "alias": "considerLoop--9--reasons--9",
               "name": "Reason 9"
+            },
+            {
+              "alias": "considerLoop--9--reasons--10",
+              "name": "Reason 10"
+            },
+            {
+              "alias": "considerLoop--9--reasons--11",
+              "name": "Reason 11"
             }
           ]
         }
