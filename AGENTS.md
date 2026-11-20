@@ -5,13 +5,13 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 ## C# conventions
 
 - Primary constructors for DI. `sealed` by default; `internal` unless the type is public API or framework-discovered (endpoints, requests, validators).
-- A type added by a feature still in development is `internal sealed`, unless another assembly or a host needs it. Then it is public with `[Experimental("ENDATIXnnnn")]` (`System.Diagnostics.CodeAnalysis`), one ID per feature, so its C# signatures can change between releases. The attribute comes off when the feature's API is declared stable (on demand, or with the developer customization story). Endatix's own projects suppress the IDs through `EndatixExperimentalIds` in `Directory.Build.props`; add a new ID there and in the table below. Two limits:
+- A type added by a feature still in development is `internal sealed`, unless another assembly or a host needs it. Then it is public with `[Experimental("ENDATIXnnnn")]` (`System.Diagnostics.CodeAnalysis`), one ID per feature, so its C# signatures can change between releases. The owner declares a feature's API stable (on demand, or with the developer customization story); then the attribute comes off, and its table row and its ID in `EndatixExperimentalIds` are deleted with it. An ID is never reused. Endatix's own projects suppress the IDs through `EndatixExperimentalIds` in the root `Directory.Build.props`; add a new ID there and in the table below. The samples do not import the root props: a sample that uses an Experimental type opts in per project (`<NoWarn>$(NoWarn);ENDATIXnnnn</NoWarn>`), as a consumer does. Two limits:
   - Experimental frees the C# signatures only, never stored or wire values (an entitlement name, a route, a JSON field).
   - A change to an Experimental type is not a breaking change in the release notes; the notes name its ID instead.
 
   | ID | Feature | Types |
   | --- | --- | --- |
-  | `ENDATIX0001` | Tenant entitlements | `ITenantEntitlements`, `EntitlementNames`, `AddTenantEntitlements()` |
+  | `ENDATIX0001` | Tenant entitlements | `ITenantEntitlements`, `EntitlementNames`, `TenantEntitlementsServiceCollectionExtensions` |
 
   Next free ID: `ENDATIX0002`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.

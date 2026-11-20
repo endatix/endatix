@@ -8,6 +8,7 @@ namespace Endatix.Infrastructure.Multitenancy;
 /// <summary>
 /// Registers the tenant entitlement seam.
 /// </summary>
+[Experimental("ENDATIX0001")]
 public static class TenantEntitlementsServiceCollectionExtensions
 {
     /// <summary>
@@ -20,7 +21,6 @@ public static class TenantEntitlementsServiceCollectionExtensions
     /// </remarks>
     /// <param name="services">The service collection to configure.</param>
     /// <returns>The configured service collection.</returns>
-    [Experimental("ENDATIX0001")]
     public static IServiceCollection AddTenantEntitlements(this IServiceCollection services)
     {
         services.TryAddScoped<ITenantEntitlements, AllowAllTenantEntitlements>();
