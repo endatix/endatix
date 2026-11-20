@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Endatix.Core.Abstractions;
 
 /// <summary>
@@ -25,6 +27,7 @@ namespace Endatix.Core.Abstractions;
 /// is not asked here.
 /// </para>
 /// </remarks>
+[Experimental("ENDATIX0001")]
 public interface ITenantEntitlements
 {
     /// <summary>

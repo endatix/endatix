@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -19,6 +20,7 @@ public static class TenantEntitlementsServiceCollectionExtensions
     /// </remarks>
     /// <param name="services">The service collection to configure.</param>
     /// <returns>The configured service collection.</returns>
+    [Experimental("ENDATIX0001")]
     public static IServiceCollection AddTenantEntitlements(this IServiceCollection services)
     {
         services.TryAddScoped<ITenantEntitlements, AllowAllTenantEntitlements>();
