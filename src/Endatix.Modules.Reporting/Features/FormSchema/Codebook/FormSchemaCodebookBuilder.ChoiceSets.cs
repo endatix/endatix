@@ -75,6 +75,13 @@ internal static partial class FormSchemaCodebookBuilder
             writer.WriteBoolean(FormSchemaCodebookPropertyNames.Multiple, multiple.GetBoolean());
         }
 
+        WriteOtherFields(writer, existingCatalog, currentCatalog);
+        CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
+        SelectChoices.MergeCanBeHidden(writer, existingCatalog, currentCatalog);
+    }
+
+    private static void WriteOtherFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
+    {
         var storage = OtherStorageOf(existingCatalog) == OtherStorage.Value
             ? OtherStorage.Value
             : OtherStorageOf(currentCatalog);
@@ -87,9 +94,6 @@ internal static partial class FormSchemaCodebookBuilder
         {
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherFrom, otherFrom);
         }
-
-        CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
-        SelectChoices.MergeCanBeHidden(writer, existingCatalog, currentCatalog);
     }
 
     // A codebook compiled before the copied marker still names the copy on its stored question entry, which the merge

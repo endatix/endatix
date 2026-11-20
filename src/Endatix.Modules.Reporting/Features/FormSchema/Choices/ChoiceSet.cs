@@ -79,21 +79,31 @@ internal sealed class ChoiceSet
 
         var items = ChoiceItems(question, choices);
         items.AddRange(SpecialItems(question, items));
-        var copiedOther = CopiedOtherItem(choices?.Other, items);
-        if (copiedOther is not null)
-        {
-            items.Add(copiedOther);
-        }
-
+        var otherFrom = AddCopiedOther(items, choices?.Other);
         return new ChoiceSet
         {
             Items = items,
             IsMultiple = multiple,
-            OtherFrom = copiedOther is null ? null : choices!.Other!.Value.SourceName,
-            OtherStorage = items.Exists(item => item.Kind == ChoiceKind.Other)
-                ? ResolveOtherStorage(question, survey ?? SurveyChoiceDefaults.Default)
-                : null,
+            OtherFrom = otherFrom,
+            OtherStorage = OtherStorageOf(question, items, survey),
         };
+    }
+
+    private static OtherStorage? OtherStorageOf(JsonElement question, List<ChoiceSetItem> items, SurveyChoiceDefaults? survey) =>
+        items.Exists(item => item.Kind == ChoiceKind.Other)
+            ? ResolveOtherStorage(question, survey ?? SurveyChoiceDefaults.Default)
+            : null;
+
+    // Adds the source's Other last; the source's name when it was added.
+    private static string? AddCopiedOther(List<ChoiceSetItem> items, CopiedOther? other)
+    {
+        if (other is not { } copied || CopiedOtherItem(copied.Source, items) is not { } item)
+        {
+            return null;
+        }
+
+        items.Add(item);
+        return copied.SourceName;
     }
 
     private static List<ChoiceSetItem> ChoiceItems(JsonElement question, ResolvedChoices? resolved)
@@ -136,10 +146,9 @@ internal sealed class ChoiceSet
     }
 
     // The source's Other, labelled with the source's otherText; not when a copied choice already stores "other".
-    private static ChoiceSetItem? CopiedOtherItem(CopiedOther? other, List<ChoiceSetItem> items)
+    private static ChoiceSetItem? CopiedOtherItem(JsonElement source, List<ChoiceSetItem> items)
     {
-        if (other is not { Source: var source } ||
-            items.Exists(item => string.Equals(item.Value, SurveyJsPropertyNames.Other, StringComparison.Ordinal)))
+        if (items.Exists(item => string.Equals(item.Value, SurveyJsPropertyNames.Other, StringComparison.Ordinal)))
         {
             return null;
         }

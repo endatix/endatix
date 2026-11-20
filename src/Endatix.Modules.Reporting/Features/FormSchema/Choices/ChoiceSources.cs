@@ -17,12 +17,11 @@ internal sealed class ResolvedChoices
     private readonly IReadOnlyList<SourceChoice>? _choices;
     private Dictionary<string, SourceChoice>? _choicesByValue;
 
-    private ResolvedChoices(ChoiceSource source, IReadOnlyList<SourceChoice>? choices, bool isCopied, CopiedOther? other = null)
+    private ResolvedChoices(ChoiceSource source, IReadOnlyList<SourceChoice>? choices, bool isCopied)
     {
         Source = source;
         _choices = choices;
         IsCopied = isCopied;
-        Other = other;
     }
 
     public ChoiceSource Source { get; }
@@ -37,7 +36,7 @@ internal sealed class ResolvedChoices
     public bool IsDegraded => _choices is null;
 
     /// <summary>The source whose Other the copy also offers; null when it offers none.</summary>
-    public CopiedOther? Other { get; }
+    public CopiedOther? Other { get; private init; }
 
     /// <summary>The question's own choices, whatever its source says.</summary>
     public static ResolvedChoices Own(ChoiceSource source, IReadOnlyList<SourceChoice> choices) => new(source, choices, false);
@@ -48,7 +47,7 @@ internal sealed class ResolvedChoices
 
     /// <summary>These choices, then the source's Other; a degraded copy offers no Other.</summary>
     public ResolvedChoices WithOther(CopiedOther? other) =>
-        other is null || IsDegraded ? this : new(Source, _choices, IsCopied, other);
+        other is null || IsDegraded ? this : new(Source, _choices, IsCopied) { Other = other };
 
     /// <summary>The first offered choice with this value; each column's label reads one, so the lookup is built once.</summary>
     public bool TryGetChoice(string value, out SourceChoice choice)

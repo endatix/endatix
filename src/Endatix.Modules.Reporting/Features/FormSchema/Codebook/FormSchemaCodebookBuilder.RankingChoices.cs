@@ -55,22 +55,19 @@ internal static partial class FormSchemaCodebookBuilder
         string choiceValue,
         ChoiceSources choiceSources)
     {
-        // A copy that offers its source's Other labels it as the source does.
-        if (choiceValue == SurveyJsPropertyNames.Other && choiceSources.Offered(question).Other is { } other)
-        {
-            WriteChoiceLabel(writer, other.Source, choiceValue);
-            return;
-        }
-
         if (CopiedChoice(question, choiceValue, choiceSources) is not { } copied)
         {
-            WriteChoiceLabel(writer, question, choiceValue);
+            WriteChoiceLabel(writer, LabelledOn(question, choiceValue, choiceSources), choiceValue);
             return;
         }
 
         writer.WritePropertyName(FormSchemaCodebookPropertyNames.ChoiceLabel);
         WriteCopiedChoiceText(writer, copied);
     }
+
+    // A copy that offers its source's Other labels it as the source does.
+    private static JsonElement LabelledOn(JsonElement question, string value, ChoiceSources choiceSources) =>
+        value == SurveyJsPropertyNames.Other && choiceSources.Offered(question).Other is { } other ? other.Source : question;
 
     // A select or a ranking that copies its choices reads each label on the source question's choice; its special
     // items are its own, so they are not found here.
