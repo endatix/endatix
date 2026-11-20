@@ -11,7 +11,7 @@ namespace Endatix.Core.UseCases.TenantBranding.Publishing;
 /// override's problem list; a conflict when the revision is stale. Publishing the value already published is a success
 /// that changes nothing.
 /// </summary>
-public sealed class PublishTenantBrandingHandler(
+internal sealed class PublishTenantBrandingHandler(
     IRepository<Entities.TenantBranding> repository,
     ITenantContext tenantContext,
     ITenantEntitlements entitlements)

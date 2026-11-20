@@ -6,7 +6,7 @@ namespace Endatix.Core.Branding;
 /// of these, and whose <c>ErrorMessage</c> is the detail.
 /// </summary>
 /// <remarks>Clients match on these values, so they must not change.</remarks>
-public static class BrandOverrideProblems
+internal static class BrandOverrideProblems
 {
     /// <summary>The text is not JSON, or an object repeats a key.</summary>
     public const string INVALID_JSON = "invalid_json";

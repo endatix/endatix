@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
@@ -12,4 +13,5 @@ namespace Endatix.Core.UseCases.TenantBranding.Publishing;
 /// </remarks>
 /// <param name="OverrideJson">The override: logo, icon and accent in the brand pack's shape (see <see cref="Branding.BrandOverride"/>).</param>
 /// <param name="ExpectedRevision">The revision the client read; 0 before the first publish.</param>
+[Experimental("ENDATIX0002")]
 public sealed record PublishTenantBrandingCommand(string OverrideJson, long ExpectedRevision) : ICommand<Result<TenantBrandingDto>>;

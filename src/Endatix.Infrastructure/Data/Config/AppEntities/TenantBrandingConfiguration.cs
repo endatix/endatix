@@ -6,7 +6,7 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 
 /// <summary>Maps <see cref="TenantBranding"/>: the tenant id as key and foreign key, and <c>Revision</c> as the concurrency token.</summary>
 [ApplyConfigurationFor<AppDbContext>()]
-public class TenantBrandingConfiguration : IEntityTypeConfiguration<TenantBranding>
+internal sealed class TenantBrandingConfiguration : IEntityTypeConfiguration<TenantBranding>
 {
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<TenantBranding> builder)

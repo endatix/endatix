@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Branding;
@@ -15,6 +16,7 @@ namespace Endatix.Core.Entities;
 /// names the revision it read and is refused when another write came first. A publish of the value already published
 /// changes nothing, whatever revision it names, so a retried request leaves the previous version in place.
 /// </remarks>
+[Experimental("ENDATIX0002")]
 public sealed class TenantBranding : IAggregateRoot, ITenantOwned
 {
     private TenantBranding() { } // For EF Core
@@ -52,7 +54,7 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned
     /// <param name="now">The time of the publish.</param>
     /// <returns>Success, also when the value is already published (nothing changes); <see cref="ResultStatus.Conflict"/> when
     /// <paramref name="expectedRevision"/> is stale.</returns>
-    public Result Publish(BrandOverride value, long expectedRevision, DateTime now)
+    internal Result Publish(BrandOverride value, long expectedRevision, DateTime now)
     {
         EnsureOwnTenant(value);
         if (value.IsSameAs(PublishedJson))
@@ -79,7 +81,7 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned
     /// <param name="now">The time of the rollback.</param>
     /// <returns>Success; <see cref="ResultStatus.Conflict"/> when <paramref name="expectedRevision"/> is stale;
     /// <see cref="ResultStatus.Invalid"/> (<see cref="BrandOverrideProblems.NO_PREVIOUS_VERSION"/>) when nothing was ever published.</returns>
-    public Result Rollback(long expectedRevision, DateTime now)
+    internal Result Rollback(long expectedRevision, DateTime now)
     {
         if (expectedRevision != Revision)
         {

@@ -9,7 +9,7 @@ namespace Endatix.Core.UseCases.TenantBranding.Rollback;
 /// Swaps the current tenant's published and previous brand overrides. Forbidden without the <c>branding</c>
 /// entitlement; a conflict when the revision is stale; invalid when nothing was ever published.
 /// </summary>
-public sealed class RollbackTenantBrandingHandler(
+internal sealed class RollbackTenantBrandingHandler(
     IRepository<Entities.TenantBranding> repository,
     ITenantContext tenantContext,
     ITenantEntitlements entitlements)

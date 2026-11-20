@@ -6,7 +6,7 @@ namespace Endatix.Core.Specifications;
 /// <summary>
 /// A tenant's branding, tracked: the save checks <see cref="TenantBranding.Revision"/> against the value read here.
 /// </summary>
-public sealed class TenantBrandingByTenantIdSpec : SingleResultSpecification<TenantBranding>
+internal sealed class TenantBrandingByTenantIdSpec : SingleResultSpecification<TenantBranding>
 {
     /// <summary>Selects the branding row of <paramref name="tenantId"/>.</summary>
     public TenantBrandingByTenantIdSpec(long tenantId)

@@ -8,7 +8,7 @@ namespace Endatix.Persistence.PostgreSql.Config;
 
 /// <summary>Stores <see cref="TenantBranding"/>'s overrides as <c>jsonb</c> on PostgreSQL.</summary>
 [ApplyConfigurationFor<AppDbContext>]
-public class TenantBrandingConfigurationPostgreSql : IEntityTypeConfiguration<TenantBranding>
+internal sealed class TenantBrandingConfigurationPostgreSql : IEntityTypeConfiguration<TenantBranding>
 {
     /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<TenantBranding> builder)

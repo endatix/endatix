@@ -13,7 +13,7 @@ namespace Endatix.Core.Branding;
 /// WCAG 2.x contrast in light and dark mode (as the Hub derives it), and the asset keys. The API cannot see an asset's
 /// size: the 1 MB limit is checked where the file is uploaded.
 /// </remarks>
-public sealed class BrandOverride
+internal sealed class BrandOverride
 {
     /// <summary>
     /// The longest override text read, in characters. A full override is a few hundred; the bound keeps the parse,

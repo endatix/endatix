@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
@@ -66,6 +67,7 @@ public class AppDbContext : DbContext, ITenantDbContext
     public DbSet<TenantSettings> TenantSettings { get; set; }
 
     /// <summary>Each tenant's own branding, one row per tenant.</summary>
+    [Experimental("ENDATIX0002")]
     public DbSet<TenantBranding> TenantBranding { get; set; }
 
     public DbSet<DataList> DataLists { get; set; }
