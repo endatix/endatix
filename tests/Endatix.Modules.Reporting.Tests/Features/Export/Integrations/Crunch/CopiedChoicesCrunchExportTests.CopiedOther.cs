@@ -16,12 +16,14 @@ public sealed partial class CopiedChoicesCrunchExportTests
         {"type":"checkbox","name":"Q1","choices":["1","2"],"showOtherItem":true,"otherText":"Something else"}
         """;
 
-    [Fact]
-    public async Task CsvShoji_RadiogroupCopyPicksTheSourcesOther_WritesOtherAndTheSourcesText()
+    [Theory]
+    [InlineData("radiogroup")]
+    [InlineData("dropdown")]
+    public async Task CsvShoji_SingleSelectCopyPicksTheSourcesOther_WritesOtherAndTheSourcesText(string type)
     {
         // Arrange
-        var definition = DefinitionWith(SOURCE_WITH_OTHER, """
-            {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
+        var definition = DefinitionWith(SOURCE_WITH_OTHER, $$"""
+            {"type":"{{type}}","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
             """);
         IReadOnlyList<FixtureResponse> responses =
         [
@@ -38,12 +40,14 @@ public sealed partial class CopiedChoicesCrunchExportTests
         Column(csv, "Q2--other_text").Should().Equal("typed");
     }
 
-    [Fact]
-    public async Task CsvShoji_CheckboxCopyOfASourceWithOther_ShowsOtherOnlyWhenTheSourcePickedItWithText()
+    [Theory]
+    [InlineData("checkbox")]
+    [InlineData("tagbox")]
+    public async Task CsvShoji_MultiSelectCopyOfASourceWithOther_ShowsOtherOnlyWhenTheSourcePickedItWithText(string type)
     {
         // Arrange
-        var definition = DefinitionWith(SOURCE_WITH_OTHER, """
-            {"type":"checkbox","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
+        var definition = DefinitionWith(SOURCE_WITH_OTHER, $$"""
+            {"type":"{{type}}","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
             """);
         IReadOnlyList<FixtureResponse> responses =
         [
@@ -151,9 +155,63 @@ public sealed partial class CopiedChoicesCrunchExportTests
         // Assert
         Column(mergedCsv, "Q2").Should().Equal("3");
         Column(mergedCsv, "Q2--other_text").Should().Equal("typed");
-        Column(mergedCsv, "Q3--other").Should().Equal(string.Empty);
+        Column(mergedCsv, "Q3--1").Should().Equal("1");
+        Column(mergedCsv, "Q3--other").Should().Equal([string.Empty], "the merge dropped the rule, so a shown choice is empty, not 0");
         Column(replacedCsv, "Q3--other").Should().Equal("0");
-        Column(replacedCsv, "Q3--2").Should().Equal(string.Empty);
+        Column(replacedCsv, "Q3--2").Should().Equal([string.Empty], "Q1 did not pick 2");
+    }
+
+    // A copy in a question loop reads its source at the root, as every copy in a loop does.
+    [Fact]
+    public async Task CsvShoji_CopyInAQuestionLoop_ReadsTheSourcesOtherAtTheRoot()
+    {
+        // Arrange
+        var definition = DefinitionWith(SOURCE_WITH_OTHER, """
+            {"type":"paneldynamic","name":"L","loopSource":["Q1"],"templateElements":[
+              {"type":"radiogroup","name":"Q4","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}]}
+            """);
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("r1", """{"Q1":["1","other"],"Q1-Comment":"typed","L":[{"itemValue":"1","loopIndex":0,"Q4":"other"}]}""", null),
+        ];
+
+        // Act
+        var (shoji, csv) = await ExportAsync(definition, responses);
+
+        // Assert
+        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+        Column(csv, "L--1--Q4").Should().Equal("3");
+        Column(csv, "L--1--Q4--other_text").Should().Equal("typed");
+    }
+
+    // A copy that offered its source's Other, then got an Other of its own: the merge keeps otherFrom, so a row saved
+    // before keeps the source's text, and a row saved after has its own.
+    [Fact]
+    public async Task Export_CopyThatGainsItsOwnOther_KeepsTheSourcesTextForEarlierRows()
+    {
+        // Arrange
+        var before = DefinitionWith(SOURCE_WITH_OTHER, """
+            {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
+            """);
+        var after = DefinitionWith(SOURCE_WITH_OTHER, """
+            {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected","showOtherItem":true}
+            """);
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("earlier", """{"Q1":["other"],"Q1-Comment":"typed on Q1","Q2":"other"}""", null),
+            new("later", """{"Q1":["1"],"Q2":"other","Q2-Comment":"typed on Q2"}""", null),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(before);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        pipeline.Recompile(after, FormSchemaCompileMode.Merge);
+        pipeline.FlattenAll(after, responses);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+
+        // Assert
+        Column(csv, "Q2").Should().Equal("3", "3");
+        Column(csv, "Q2--other_text").Should().Equal("typed on Q1", "typed on Q2");
     }
 
     [Fact]

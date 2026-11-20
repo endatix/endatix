@@ -148,19 +148,17 @@ internal sealed class ChoiceCatalogs
     }
 
     /// <summary>
-    /// The question's Other text in <paramref name="scope"/>: its own, or for a copy that offers its source's Other
-    /// (<see cref="SelectChoices.OtherFrom"/>) the source's, once the copy picked it.
+    /// The question's Other text in <paramref name="scope"/>. For a copy that offers, or once offered, its source's
+    /// Other (<see cref="SelectChoices.OtherFrom"/>) and picked it: the source's text, else its own (a row saved while
+    /// the copy had an Other of its own).
     /// </summary>
     public JsonElement? OtherText(AnswerScope scope, string question)
     {
         var select = For(question);
         var answer = select.Read(scope.Own, question);
-        if (select.OtherFrom is not { } source)
-        {
-            return answer.OtherText;
-        }
-
-        return answer.Has(SurveyJsPropertyNames.Other) ? CopyVisibility.CopiedOtherText(source, scope, this) : null;
+        return select.OtherFrom is { } source && answer.Has(SurveyJsPropertyNames.Other)
+            ? CopyVisibility.CopiedOtherText(source, scope, this) ?? answer.OtherText
+            : answer.OtherText;
     }
 
     private bool WasSubmittedWith(string question) => SubmittedQuestions?.Contains(question) ?? true;

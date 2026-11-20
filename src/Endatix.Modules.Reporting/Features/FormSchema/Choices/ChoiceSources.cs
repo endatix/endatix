@@ -108,30 +108,38 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
         }
 
         // A copy's union depends only on its own name (a cycle back to it) and its sources, and every column of the
-        // copy asks for it, so it is resolved once per compile.
+        // copy asks for it, so it is resolved once per compile, with the source's Other when the copy offers it.
         var name = question.GetSurveyJsName();
-        var key = string.Join('\0', [name ?? string.Empty, .. copy.Sources]);
+        var other = CopiedOtherOf(question);
+        var key = string.Join('\0', [name ?? string.Empty, .. copy.Sources, other is null ? string.Empty : SurveyJsPropertyNames.Other]);
         if (!_resolvedCopies.TryGetValue(key, out var resolved))
         {
-            HashSet<string> visiting = new(StringComparer.Ordinal);
-            if (name is not null)
-            {
-                visiting.Add(name);
-            }
-
-            resolved = ResolvedChoices.Copied(source, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
+            resolved = ResolveCopy(name, copy).WithOther(other);
             _resolvedCopies[key] = resolved;
         }
 
-        return resolved.WithOther(CopiedOtherOf(question));
+        return resolved;
+    }
+
+    private ResolvedChoices ResolveCopy(string? name, ChoiceSource.CarryForward copy)
+    {
+        HashSet<string> visiting = new(StringComparer.Ordinal);
+        if (name is not null)
+        {
+            visiting.Add(name);
+        }
+
+        return ResolvedChoices.Copied(copy, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
     }
 
     // SurveyJS getChoicesFromSelectQuestion: a selected-mode choicesFromQuestion copy that shows no Other of its own
     // also offers its source's Other, once the respondent picked it and typed its text. Hub carry forward never adds it,
-    // and a source's Other is its own item: one the source copied from further up is a regular choice there.
+    // and a source's Other is its own item. Known gaps: a ranking copy, whose catalog lists no copied Other, and a
+    // copy of such a copy, which SurveyJS gives that Other as a regular choice.
     private CopiedOther? CopiedOtherOf(JsonElement question)
     {
-        if (question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ChoicesFromQuestion) is not { } sourceName ||
+        if (!IsSelect(question) ||
+            question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ChoicesFromQuestion) is not { } sourceName ||
             CopyModes.Of(question, fromQuestion: true) != CopyMode.Selected ||
             ChoiceSet.ShowsOther(question) ||
             !questionsByName.TryGetValue(sourceName, out var source) ||
