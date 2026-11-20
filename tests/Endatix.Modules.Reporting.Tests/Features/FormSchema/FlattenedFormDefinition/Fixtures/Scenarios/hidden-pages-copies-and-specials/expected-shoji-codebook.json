@@ -413,6 +413,12 @@
               "id": 4,
               "numeric_value": 4,
               "missing": false
+            },
+            {
+              "name": "Other",
+              "id": 5,
+              "numeric_value": 5,
+              "missing": false
             }
           ]
         },
@@ -432,6 +438,12 @@
           "type": "text",
           "alias": "fruits--other_text",
           "name": "Which fruits do you buy? -- Other",
+          "description": ""
+        },
+        "topFruit--other_text": {
+          "type": "text",
+          "alias": "topFruit--other_text",
+          "name": "Which one do you buy most? -- Other",
           "description": ""
         }
       },
@@ -457,6 +469,7 @@
             "fruits",
             "fruits--other_text",
             "topFruit",
+            "topFruit--other_text",
             "veggies",
             "veggiesAgain",
             "snacks",

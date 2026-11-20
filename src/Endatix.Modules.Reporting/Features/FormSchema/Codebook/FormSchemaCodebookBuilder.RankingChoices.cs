@@ -55,6 +55,13 @@ internal static partial class FormSchemaCodebookBuilder
         string choiceValue,
         ChoiceSources choiceSources)
     {
+        // A copy that offers its source's Other labels it as the source does.
+        if (choiceValue == SurveyJsPropertyNames.Other && choiceSources.Offered(question).Other is { } other)
+        {
+            WriteChoiceLabel(writer, other.Source, choiceValue);
+            return;
+        }
+
         if (CopiedChoice(question, choiceValue, choiceSources) is not { } copied)
         {
             WriteChoiceLabel(writer, question, choiceValue);

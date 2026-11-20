@@ -1,0 +1,2 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,Q1__1,Q1__2,Q1__3,Q1__other,Q1__other_text,Q2,Q2__other_text,Q3__1,Q3__2,Q3__3,Q3__other,Q3__other_text,calc1
+100,1,true,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,N/A,N/A,N/A,N/A,N/A,1,0,0,1,A typed brand,other,A typed brand,1,,,0,,Test

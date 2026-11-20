@@ -34,7 +34,7 @@ internal readonly record struct CatalogChoice(string Value, int Id, ChoiceKind K
 /// <summary>
 /// RUN TIME read model of the codebook's <c>choiceCatalogs</c>: the merged union of every compiled definition. Built
 /// once per flatten. The only reader of the catalog fields <c>kind</c>, <c>exclusive</c>, <c>multiple</c>,
-/// <c>otherStorage</c> and <c>shown</c>, and of which questions copy their choices.
+/// <c>otherStorage</c>, <c>otherFrom</c> and <c>shown</c>, and of which questions copy their choices.
 /// </summary>
 internal sealed class ChoiceCatalogs
 {
@@ -147,15 +147,36 @@ internal sealed class ChoiceCatalogs
             : IndicatorCell.Empty;
     }
 
+    /// <summary>
+    /// The question's Other text in <paramref name="scope"/>: its own, or for a copy that offers its source's Other
+    /// (<see cref="SelectChoices.OtherFrom"/>) the source's, once the copy picked it.
+    /// </summary>
+    public JsonElement? OtherText(AnswerScope scope, string question)
+    {
+        var select = For(question);
+        var answer = select.Read(scope.Own, question);
+        if (select.OtherFrom is not { } source)
+        {
+            return answer.OtherText;
+        }
+
+        return answer.Has(SurveyJsPropertyNames.Other) ? CopyVisibility.CopiedOtherText(source, scope, this) : null;
+    }
+
     private bool WasSubmittedWith(string question) => SubmittedQuestions?.Contains(question) ?? true;
 
     // The copy's own special items are always on its list, but only an exact rule that holds for this submission proves
-    // which definition's list, and that the copy was shown.
+    // which definition's list, and that the copy was shown. A source's Other was on it only when the source picked it
+    // with text.
     private bool AnsweredCopyShows(AnswerScope scope, string question, string choiceValue) =>
         _visibility.TryGetValue(question, out var rule) &&
         rule.HoldsFor(SubmissionComplete) &&
-        ((For(question).KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice) ||
-         rule.Shows(choiceValue, scope, this) == true);
+        (For(question).KindOf(choiceValue) switch
+        {
+            ChoiceKind.Other when For(question).OtherFrom is { } source => CopyVisibility.CopiedOtherText(source, scope, this) is not null,
+            not null and not ChoiceKind.Choice => true,
+            _ => rule.Shows(choiceValue, scope, this) == true,
+        });
 
     // A copy in the current definition (its question entry, which every codebook since copied choices records), or in
     // any earlier one (the catalog's sticky copied marker).
@@ -189,6 +210,9 @@ internal sealed class SelectChoices
     public IReadOnlyList<CatalogChoice> Choices { get; private init; } = [];
 
     public OtherStorage? OtherStorage { get; private init; }
+
+    /// <summary>The source whose Other the copy offers (<c>otherFrom</c>); its text is the source's. Null otherwise.</summary>
+    public string? OtherFrom { get; private init; }
 
     /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
     public bool CanBeHidden { get; private init; }
@@ -225,6 +249,7 @@ internal sealed class SelectChoices
         {
             Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
+            OtherFrom = catalog.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.OtherFrom),
             CanBeHidden = CanBeHiddenIn(catalog),
         };
         select._values.UnionWith(choices.Select(choice => choice.Value));

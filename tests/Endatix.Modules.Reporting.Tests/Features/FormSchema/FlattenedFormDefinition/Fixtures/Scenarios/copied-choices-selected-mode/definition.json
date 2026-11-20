@@ -22,7 +22,9 @@
               "value": "3",
               "text": "Item 3"
             }
-          ]
+          ],
+          "showOtherItem": true,
+          "otherText": "Something else"
         }
       ]
     },
@@ -34,6 +36,13 @@
           "name": "Q2",
           "title": "Question 2",
           "isRequired": true,
+          "choicesFromQuestion": "Q1",
+          "choicesFromQuestionMode": "selected"
+        },
+        {
+          "type": "checkbox",
+          "name": "Q3",
+          "title": "Question 3",
           "choicesFromQuestion": "Q1",
           "choicesFromQuestionMode": "selected"
         }

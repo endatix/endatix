@@ -123,6 +123,50 @@
             {
               "alias": "Q1--3",
               "name": "Item 3"
+            },
+            {
+              "alias": "Q1--other",
+              "name": "Something else"
+            }
+          ]
+        },
+        "Q3": {
+          "type": "multiple_response",
+          "alias": "Q3",
+          "name": "Question 3",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "Q3--1",
+              "name": "Item 1"
+            },
+            {
+              "alias": "Q3--2",
+              "name": "Item 2"
+            },
+            {
+              "alias": "Q3--3",
+              "name": "Item 3"
+            },
+            {
+              "alias": "Q3--other",
+              "name": "Something else"
             }
           ]
         },
@@ -149,8 +193,32 @@
               "id": 3,
               "numeric_value": 3,
               "missing": false
+            },
+            {
+              "name": "Something else",
+              "id": 4,
+              "numeric_value": 4,
+              "missing": false
             }
           ]
+        },
+        "Q1--other_text": {
+          "type": "text",
+          "alias": "Q1--other_text",
+          "name": "Question 1 -- Other",
+          "description": ""
+        },
+        "Q2--other_text": {
+          "type": "text",
+          "alias": "Q2--other_text",
+          "name": "Question 2 -- Other",
+          "description": ""
+        },
+        "Q3--other_text": {
+          "type": "text",
+          "alias": "Q3--other_text",
+          "name": "Question 3 -- Other",
+          "description": ""
         },
         "calc1": {
           "type": "text",
@@ -185,7 +253,11 @@
           "group": "Questions",
           "entities": [
             "Q1",
-            "Q2"
+            "Q1--other_text",
+            "Q2",
+            "Q2--other_text",
+            "Q3",
+            "Q3--other_text"
           ]
         }
       ],

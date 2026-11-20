@@ -114,6 +114,20 @@
       "loopPath": null
     },
     {
+      "key": "topFruit__other_text",
+      "kind": "CheckboxOtherText",
+      "label": "Which one do you buy most? — Other text",
+      "dataType": "string",
+      "sourceQuestion": "topFruit",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
       "key": "veggies__A",
       "kind": "ChoiceIndicator",
       "label": "Which vegetables do you buy? — Asparagus",

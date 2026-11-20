@@ -65,7 +65,7 @@ internal static partial class FormSchemaCodebookBuilder
             WriteChoices(writer, question.Element, choices);
         });
 
-    // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
+    // multiple and otherFrom follow the current definition. Value storage is sticky: rows saved under it keep typed Other text in
     // the value, so a later comment-storage definition must not make the flatten forget it. A copy's shown rule is kept
     // only while every definition agrees on it (CopyVisibility.Merge); canBeHidden once any definition sets it.
     private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
@@ -81,6 +81,11 @@ internal static partial class FormSchemaCodebookBuilder
         if (storage is { } stored)
         {
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ChoiceSet.ToJsonName(stored));
+        }
+
+        if (currentCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom) is { } otherFrom)
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.OtherFrom, otherFrom);
         }
 
         CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
@@ -122,6 +127,7 @@ internal static partial class FormSchemaCodebookBuilder
             foreach (var property in catalog.EnumerateObject().Where(property =>
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.OtherFrom) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.CanBeHidden) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {

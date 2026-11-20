@@ -129,8 +129,9 @@ internal static class FlattenedSubmissionFlattener
             return choices.Indicator(scope, question, column.ChoiceValue!).ToJson();
         }
 
-        var answer = choices.For(question).Read(scope.Own, question);
-        return column.Kind == FormSchemaColumnKind.CheckboxOtherText ? answer.OtherText : answer.SingleValueJson();
+        return column.Kind == FormSchemaColumnKind.CheckboxOtherText
+            ? choices.OtherText(scope, question)
+            : choices.For(question).Read(scope.Own, question).SingleValueJson();
     }
 
     private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)
