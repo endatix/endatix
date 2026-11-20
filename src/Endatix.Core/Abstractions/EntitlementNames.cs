@@ -6,7 +6,7 @@ namespace Endatix.Core.Abstractions;
 /// <remarks>
 /// The values are stored and compared by hosts that grant entitlements, so they must not change.
 /// </remarks>
-public static class Entitlements
+public static class EntitlementNames
 {
     /// <summary>
     /// The tenant may set its own branding (logo, icon, accent).
