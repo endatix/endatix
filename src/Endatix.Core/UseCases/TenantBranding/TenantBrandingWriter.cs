@@ -26,7 +26,7 @@ internal sealed class TenantBrandingWriter(IRepository<Entities.TenantBranding> 
             return Result.Unauthorized();
         }
 
-        return await entitlements.HasAsync(tenantId, Entitlements.BRANDING, cancellationToken)
+        return await entitlements.IsEntitledAsync(tenantId, EntitlementNames.BRANDING, cancellationToken)
             ? null
             : Result.Forbidden("The tenant's plan does not include branding.");
     }

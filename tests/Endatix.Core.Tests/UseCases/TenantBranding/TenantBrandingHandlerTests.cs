@@ -25,7 +25,7 @@ public sealed class TenantBrandingHandlerTests
     public TenantBrandingHandlerTests()
     {
         _tenantContext.TenantId.Returns(TENANT_ID);
-        _entitlements.HasAsync(TENANT_ID, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
+        _entitlements.IsEntitledAsync(TENANT_ID, EntitlementNames.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
         _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements);
         _rollback = new RollbackTenantBrandingHandler(_repository, _tenantContext, _entitlements);
     }
@@ -34,7 +34,7 @@ public sealed class TenantBrandingHandlerTests
     public async Task Publish_NotEntitled_IsForbiddenAndWritesNothing()
     {
         // Arrange
-        _entitlements.HasAsync(TENANT_ID, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
+        _entitlements.IsEntitledAsync(TENANT_ID, EntitlementNames.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
@@ -48,7 +48,7 @@ public sealed class TenantBrandingHandlerTests
     public async Task Rollback_NotEntitled_IsForbidden()
     {
         // Arrange
-        _entitlements.HasAsync(TENANT_ID, Entitlements.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
+        _entitlements.IsEntitledAsync(TENANT_ID, EntitlementNames.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _rollback.Handle(new RollbackTenantBrandingCommand(1), TestContext.Current.CancellationToken);
