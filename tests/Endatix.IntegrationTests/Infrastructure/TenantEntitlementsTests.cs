@@ -17,7 +17,7 @@ public sealed class TenantEntitlementsTests(EndatixIntegrationWebHostFixture fix
         await using var scope = fixture.Factory.Services.CreateAsyncScope();
         var entitlements = scope.ServiceProvider.GetRequiredService<ITenantEntitlements>();
 
-        var allowed = await entitlements.HasAsync(1, Entitlements.BRANDING, TestContext.Current.CancellationToken);
+        var allowed = await entitlements.IsEntitledAsync(1, EntitlementNames.BRANDING, TestContext.Current.CancellationToken);
 
         entitlements.Should().BeOfType<AllowAllTenantEntitlements>();
         allowed.Should().BeTrue();
@@ -34,7 +34,7 @@ public sealed class TenantEntitlementsTests(EndatixIntegrationWebHostFixture fix
         await using var scope = factory.Services.CreateAsyncScope();
         var entitlements = scope.ServiceProvider.GetRequiredService<ITenantEntitlements>();
 
-        var branding = await entitlements.HasAsync(1, Entitlements.BRANDING, TestContext.Current.CancellationToken);
+        var branding = await entitlements.IsEntitledAsync(1, EntitlementNames.BRANDING, TestContext.Current.CancellationToken);
 
         entitlements.Should().BeOfType<NoBrandingTenantEntitlements>();
         branding.Should().BeFalse();
@@ -42,7 +42,7 @@ public sealed class TenantEntitlementsTests(EndatixIntegrationWebHostFixture fix
 
     private sealed class NoBrandingTenantEntitlements : ITenantEntitlements
     {
-        public Task<bool> HasAsync(long tenantId, string name, CancellationToken cancellationToken = default) =>
-            Task.FromResult(name != Entitlements.BRANDING);
+        public Task<bool> IsEntitledAsync(long tenantId, string name, CancellationToken cancellationToken = default) =>
+            Task.FromResult(name != EntitlementNames.BRANDING);
     }
 }

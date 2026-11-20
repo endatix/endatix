@@ -7,7 +7,7 @@ namespace Endatix.Infrastructure.Tests.Multitenancy;
 public sealed class TenantEntitlementsTests
 {
     [Theory]
-    [InlineData(Entitlements.BRANDING)]
+    [InlineData(EntitlementNames.BRANDING)]
     [InlineData("a-capability-not-named-yet")]
     public async Task Default_allows_every_entitlement(string name)
     {
@@ -15,7 +15,7 @@ public sealed class TenantEntitlementsTests
         await using var scope = provider.CreateAsyncScope();
         var entitlements = scope.ServiceProvider.GetRequiredService<ITenantEntitlements>();
 
-        var allowed = await entitlements.HasAsync(42, name, TestContext.Current.CancellationToken);
+        var allowed = await entitlements.IsEntitledAsync(42, name, TestContext.Current.CancellationToken);
 
         entitlements.Should().BeOfType<AllowAllTenantEntitlements>();
         allowed.Should().BeTrue();
@@ -29,7 +29,7 @@ public sealed class TenantEntitlementsTests
     {
         var entitlements = new AllowAllTenantEntitlements();
 
-        var ask = () => entitlements.HasAsync(42, name!, TestContext.Current.CancellationToken);
+        var ask = () => entitlements.IsEntitledAsync(42, name!, TestContext.Current.CancellationToken);
 
         await ask.Should().ThrowAsync<ArgumentException>();
     }
@@ -46,7 +46,7 @@ public sealed class TenantEntitlementsTests
         await using var scope = provider.CreateAsyncScope();
         var entitlements = scope.ServiceProvider.GetRequiredService<ITenantEntitlements>();
         entitlements.Should().BeOfType<DenyAllTenantEntitlements>();
-        (await entitlements.HasAsync(42, Entitlements.BRANDING, TestContext.Current.CancellationToken)).Should().BeFalse();
+        (await entitlements.IsEntitledAsync(42, EntitlementNames.BRANDING, TestContext.Current.CancellationToken)).Should().BeFalse();
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class TenantEntitlementsTests
 
     private sealed class DenyAllTenantEntitlements : ITenantEntitlements
     {
-        public Task<bool> HasAsync(long tenantId, string name, CancellationToken cancellationToken = default) =>
+        public Task<bool> IsEntitledAsync(long tenantId, string name, CancellationToken cancellationToken = default) =>
             Task.FromResult(false);
     }
 }
