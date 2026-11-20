@@ -1,0 +1,851 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "channels": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Where did you hear about us?"
+      },
+      "pageName": "startPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Radio"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Friends"
+          }
+        }
+      ]
+    },
+    "elsewhere": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Where do you shop instead?"
+      },
+      "pageName": "notShoppingPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Online"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Market"
+          }
+        }
+      ]
+    },
+    "flavours": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which flavours do you buy?"
+      },
+      "pageName": "startPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Mint"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Lemon"
+          }
+        },
+        {
+          "value": "none",
+          "id": 3,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "internalTags": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Internal tags"
+      },
+      "pageName": "startPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Panel"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Walk-in"
+          }
+        }
+      ]
+    },
+    "reasonDetail": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "What about it?"
+      },
+      "parentPanelTitle": "reasonLoop",
+      "parentPanels": [
+        {
+          "key": "reasonLoop",
+          "title": "reasonLoop"
+        }
+      ],
+      "pageName": "reasonsPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Often"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Sometimes"
+          }
+        }
+      ]
+    },
+    "reasonLoop": {
+      "surveyJsType": "paneldynamic",
+      "title": {},
+      "pageName": "reasonsPage",
+      "loopSource": [
+        "reasons"
+      ],
+      "exportShape": "loop_panel"
+    },
+    "reasons": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Why don't you shop with us?"
+      },
+      "pageName": "reasonsPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Prices"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Service"
+          }
+        }
+      ]
+    },
+    "shopper": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Do you shop with us?"
+      },
+      "pageName": "startPage",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "yes",
+          "id": 1,
+          "text": {
+            "default": "Yes"
+          }
+        },
+        {
+          "value": "no",
+          "id": 2,
+          "text": {
+            "default": "No"
+          }
+        }
+      ]
+    },
+    "staffNotes": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Staff notes"
+      },
+      "pageName": "hiddenPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Follow up"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Closed"
+          }
+        }
+      ]
+    },
+    "storePanel": {
+      "surveyJsType": "panel",
+      "title": {},
+      "pageName": "startPage",
+      "exportShape": "scalar"
+    },
+    "stores": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which stores do you visit?"
+      },
+      "parentPanelTitle": "storePanel",
+      "parentPanels": [
+        {
+          "key": "storePanel",
+          "title": "storePanel"
+        }
+      ],
+      "pageName": "startPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "North"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "South"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ]
+    },
+    "topics": {
+      "surveyJsType": "tagbox",
+      "title": {
+        "default": "Which topics interest you?"
+      },
+      "pageName": "startPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Recipes"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Offers"
+          }
+        },
+        {
+          "value": "none",
+          "id": 3,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "channels__A": {
+      "parentKey": "channels",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Where did you hear about us?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Radio"
+      }
+    },
+    "channels__B": {
+      "parentKey": "channels",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Where did you hear about us?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Friends"
+      }
+    },
+    "elsewhere__A": {
+      "parentKey": "elsewhere",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Where do you shop instead?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Online"
+      }
+    },
+    "elsewhere__B": {
+      "parentKey": "elsewhere",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Where do you shop instead?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Market"
+      }
+    },
+    "flavours__A": {
+      "parentKey": "flavours",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which flavours do you buy?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Mint"
+      }
+    },
+    "flavours__B": {
+      "parentKey": "flavours",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which flavours do you buy?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Lemon"
+      }
+    },
+    "flavours__none": {
+      "parentKey": "flavours",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which flavours do you buy?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "internalTags__A": {
+      "parentKey": "internalTags",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Internal tags"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Panel"
+      }
+    },
+    "internalTags__B": {
+      "parentKey": "internalTags",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Internal tags"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Walk-in"
+      }
+    },
+    "reasonLoop__A__reasonDetail__A": {
+      "parentKey": "reasonDetail",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What about it?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Often"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "reasonLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "A"
+        }
+      ]
+    },
+    "reasonLoop__A__reasonDetail__B": {
+      "parentKey": "reasonDetail",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What about it?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Sometimes"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "reasonLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "A"
+        }
+      ]
+    },
+    "reasonLoop__B__reasonDetail__A": {
+      "parentKey": "reasonDetail",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What about it?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Often"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "reasonLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "B"
+        }
+      ]
+    },
+    "reasonLoop__B__reasonDetail__B": {
+      "parentKey": "reasonDetail",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What about it?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Sometimes"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "reasonLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "B"
+        }
+      ]
+    },
+    "reasons__A": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why don't you shop with us?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Prices"
+      }
+    },
+    "reasons__B": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why don't you shop with us?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Service"
+      }
+    },
+    "shopper": {
+      "parentKey": "shopper",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Do you shop with us?"
+      }
+    },
+    "staffNotes__A": {
+      "parentKey": "staffNotes",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Staff notes"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Follow up"
+      }
+    },
+    "staffNotes__B": {
+      "parentKey": "staffNotes",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Staff notes"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Closed"
+      }
+    },
+    "stores__A": {
+      "parentKey": "stores",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which stores do you visit?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "North"
+      }
+    },
+    "stores__B": {
+      "parentKey": "stores",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which stores do you visit?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "South"
+      }
+    },
+    "stores__other": {
+      "parentKey": "stores",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which stores do you visit?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
+      }
+    },
+    "stores__other_text": {
+      "parentKey": "stores",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which stores do you visit?"
+      }
+    },
+    "topics__A": {
+      "parentKey": "topics",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which topics interest you?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Recipes"
+      }
+    },
+    "topics__B": {
+      "parentKey": "topics",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which topics interest you?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Offers"
+      }
+    },
+    "topics__none": {
+      "parentKey": "topics",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which topics interest you?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "channels": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Radio"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Friends"
+          }
+        }
+      ]
+    },
+    "elsewhere": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Online"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Market"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "flavours": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Mint"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Lemon"
+          }
+        },
+        {
+          "value": "none",
+          "id": 3,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "internalTags": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Panel"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Walk-in"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "reasonDetail": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Often"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Sometimes"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "reasons": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Prices"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Service"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "shopper": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "yes",
+          "id": 1,
+          "text": {
+            "default": "Yes"
+          }
+        },
+        {
+          "value": "no",
+          "id": 2,
+          "text": {
+            "default": "No"
+          }
+        }
+      ]
+    },
+    "staffNotes": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Follow up"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Closed"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "stores": {
+      "multiple": true,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "North"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "South"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "topics": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Recipes"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Offers"
+          }
+        },
+        {
+          "value": "none",
+          "id": 3,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    }
+  }
+}

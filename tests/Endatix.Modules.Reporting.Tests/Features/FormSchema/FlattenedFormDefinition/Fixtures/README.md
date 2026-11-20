@@ -31,7 +31,10 @@ A scenario with a `submission.json` also has:
 
 The submission exports run through the tabular data source and the Infrastructure exporters with the settings of the
 default export formats (`DefaultExportFormats`), and csv-shoji with the Shoji format's. The row's system values are
-pinned (`PersonalizationPipeline.ExportRows`). Global value transformers do not run: they rewrite file URLs and large
+pinned (`PersonalizationPipeline.ExportRows`), and the response is flattened with the row's completion state, so a
+copy's "shown" rule that holds only for a complete submission applies as it does in the running API.
+`ScenarioCsvExportFlowTests` (integration tests) runs every scenario with a submission over HTTP, compile, backfill
+and the CSV export format included, and compares its answer columns with `expected-csv.csv`. Global value transformers do not run: they rewrite file URLs and large
 values only.
 
 `ScenarioGoldenTests` runs every folder that has a `definition.json`, so a new scenario needs no new test. The folder
@@ -42,9 +45,14 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | Scenario | Case |
 | --- | --- |
 | `copied-choices-selected-mode` | A radiogroup copies its choices from a checkbox with `choicesFromQuestion` in selected mode (#1163). |
-| `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. `occasionRank` has one rank column per copied choice, and `occasionLoop` labels its iterations with the source's labels (#1723). `aware` has one indicator column per copied choice and `considerLoop` labels its iterations with the source's labels (#1724). |
+| `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. `occasionRank` has one rank column per copied choice, and `occasionLoop` labels its iterations with the source's labels (#1723). `aware` has one indicator column per copied choice and `considerLoop` labels its iterations with the source's labels (#1724). `brands` offers 11 choices and `considerLoop` holds a `reasons` checkbox with 11, declared 2, 10, 1, 11, 3, …, 9. The Shoji codebook lists a loop's categorical-array members (1, 2, …, 10, 11) and multiple-response subvariables (2, 10, 1, 11, 3, …) in choice order (#1764). The loop variables' metadata keys stay in key order (`considerLoop--10--reasons` before `considerLoop--1--reasons`) and the `order` section is unchanged, so no variable moves in an existing Crunch dataset. |
 | `copied-choices-loops` | A synthetic survey with copied choices throughout (#1722), below. |
 | `calculated-value-name-clashes` | Calculated values named like a checkbox, a matrix, a ranking and a multiple-text question, and one named like a question's title (#1171). Each gets its own codebook column. In Shoji the checkbox and matrix keep their variables and the two calculated values are left out; the ranking and multiple-text clashes get `text` variables under their own names; the title clash is named `totalAmount -- totalAmount`. |
+| `hidden-pages-copies-and-specials` | One question per page, five pages with a `visibleIf`. `topFruit`, a radiogroup copying `fruits` (selected; the source has None and Other), sits on a page hidden by the answer and is empty. `veggiesAgain` copies `veggies` on a page shown by the answer and picks its own None: the source's pick is 0, the rest empty, None 1 (a rule that holds for a complete submission). `snacksAgain` adds its own None to a source without one. `rating` is a matrix in Hub's carousel display. `extras`, a checkbox with its own choices on a hidden page, has no answer, so every one of its cells is empty (#1753); `extrasNote` is a comment on a hidden page. |
+| `numeric-values-hidden-questions` | Choice values written as numbers and stored as numbers. Questions with `visible: false` and a `visibleIf`, answered and not: `reasons`, a checkbox with Other picked and its text; `brandStore`, a radiogroup with Other picked (`other` natively, the Other category in Shoji); `brandSwitch` unanswered. `photos`, a panel with the same pattern, holds two unanswered file questions. |
+| `capped-ranking-loops` | `topOccasions` ranks two of the choices `occasionPool` was given (`selected`, `minSelectedChoices` and `maxSelectedChoices` 2, select-to-rank); unranked choices are empty. `occasionPool` is filled by a `defaultValueExpression` with numbers and strings, two of them values its choices do not offer (known gap below). `occasionLoop` repeats over the ranking, with a radiogroup copying `aware` that picks its own None in one iteration. `traitLoop`, a loop with its own `visibleIf`, repeats over `aware` with a checkbox copying the top-level `traits`: 1, 0 and empty per iteration, under a rule that holds for a complete submission. |
+| `unanswered-own-choices` | Checkboxes and a tagbox with their own choices that a completed response leaves unanswered (#1753). `channels` and `topics` (with None), which nothing can hide, are 0. Empty in every column: `flavours` (its own `visibleIf`, None included), `internalTags` (`visible: false`), `stores` (in a panel with a `visibleIf`, Other included), `elsewhere` (on a page with a `visibleIf`; that page was shown, but the compile cannot tell, so an unanswered question there is empty too), `staffNotes` (on a `visible: false` page), and `reasonDetail` in `reasonLoop` (its own `visibleIf` inside a loop item the respondent had). `reasons`, answered on a page with a `visibleIf`, is 1 and 0. An incomplete response is covered by `InlineChoiceVisibilityTests` and the in-progress row of `AllQuestionsPersonalized/`. |
+| `copy-of-a-copy` | Checkboxes that copy a copy (#1754). `aware` copies the brands picked in `brands` (selected); `pickTop`, and `pick` in `brandLoop` over `brands`, copy what `aware` picked (selected): `aware`'s picks are 0 or 1, the brand it left is empty, and the copy's None is 0 when not picked. `fromShortlist` copies all of `shortlist`, which caps its list (`edxCarryForwardMaxChoices`), so its unpicked choices and None stay empty. |
 
 ### `copied-choices-loops`
 
@@ -59,7 +67,7 @@ About 50 questions on five pages, three choices each, and one response that answ
   - `considerLoop` over `AidedBrands`, with a radiogroup with its own choices and a `visibleIf`;
   - `traitsLoop` over `AidedBrands`, with a checkbox copying `hiddenTraits` (None, Other);
   - `attributeLoop` over the hidden `hiddenBrands`, with a checkbox copying `AidedBrands` that keeps the Creator's
-    `item1..3`;
+    `item1..3`; a copy of a copy, so what `AidedBrands` picked is 1 or 0 and the rest empty (#1754);
   - `rankLoop` over `brandRank`, with a radiogroup copying `AidedBrands`;
   - `reasonLoop` over `AidedBrands` with `randomizeLoop`, with a text question;
   - `cfqAllLoop` and `edxAllLoop` (copy matrix, below) each also hold a ranking copying `stores`: `cfqLoopRank`
@@ -105,6 +113,12 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
   titles keep `{panel.itemText}`.
 - **#1544, a copied Other:** see below.
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
+- **#1441, stored values never offered:** a value a checkbox stores but its choices do not offer has no column and is
+  not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
+- **A 0 the respondent did not see, with its own choices (no scenario yet):** a checkbox or tagbox added or removed
+  between form versions writes 0 under a merge compile for rows saved without it (#1758); `choicesVisibleIf` or a
+  choice's own `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0.
+  #1753 covers only question, panel and page visibility.
 
 Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.
 The codebook publishes only the sources' own choices, so that answer has no category and its csv-shoji cell is empty.

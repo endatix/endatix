@@ -5,7 +5,7 @@ namespace Endatix.Infrastructure.Multitenancy;
 /// <summary>
 /// The default <see cref="ITenantEntitlements"/>: every tenant holds every entitlement.
 /// </summary>
-public sealed class AllowAllTenantEntitlements : ITenantEntitlements
+internal sealed class AllowAllTenantEntitlements : ITenantEntitlements
 {
     /// <inheritdoc />
     public Task<bool> IsEntitledAsync(long tenantId, string name, CancellationToken cancellationToken = default)

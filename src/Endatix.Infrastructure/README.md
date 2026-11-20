@@ -27,7 +27,9 @@ entitlement, so a self-hosted deployment has every feature; its licence governs 
 
 `InfrastructureBuilder.UseDefaults()` registers the default; a host that composes the infrastructure itself calls
 `services.AddTenantEntitlements()`. A host that decides by plan registers its own scoped implementation, before
-or after Endatix's setup:
+or after Endatix's setup. The API is experimental while the feature is in development, so the host opts in to
+`ENDATIX0001` (`<NoWarn>$(NoWarn);ENDATIX0001</NoWarn>`); its C# signatures may change between releases, the
+entitlement names may not:
 
 ```csharp
 builder.Services.AddScoped<ITenantEntitlements, PlanTenantEntitlements>();

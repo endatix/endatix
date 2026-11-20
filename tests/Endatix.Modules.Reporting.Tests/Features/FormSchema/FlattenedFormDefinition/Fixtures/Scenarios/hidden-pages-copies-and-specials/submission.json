@@ -1,0 +1,8 @@
+{
+  "fruits": ["B"],
+  "veggies": ["C"],
+  "veggiesAgain": ["none"],
+  "snacks": ["A"],
+  "snacksAgain": ["A"],
+  "rating": { "a": 3, "b": 2 }
+}

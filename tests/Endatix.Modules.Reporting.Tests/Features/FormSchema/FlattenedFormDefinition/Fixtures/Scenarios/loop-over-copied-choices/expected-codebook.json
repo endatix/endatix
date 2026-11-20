@@ -40,8 +40,64 @@
           }
         },
         {
-          "value": "none",
+          "value": "4",
           "id": 4,
+          "text": {
+            "default": "Brand 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 5,
+          "text": {
+            "default": "Brand 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 6,
+          "text": {
+            "default": "Brand 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 7,
+          "text": {
+            "default": "Brand 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 8,
+          "text": {
+            "default": "Brand 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 9,
+          "text": {
+            "default": "Brand 9"
+          }
+        },
+        {
+          "value": "10",
+          "id": 10,
+          "text": {
+            "default": "Brand 10"
+          }
+        },
+        {
+          "value": "11",
+          "id": 11,
+          "text": {
+            "default": "Brand 11"
+          }
+        },
+        {
+          "value": "none",
+          "id": 12,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -77,6 +133,62 @@
           "id": 3,
           "text": {
             "default": "Brand 3"
+          }
+        },
+        {
+          "value": "4",
+          "id": 4,
+          "text": {
+            "default": "Brand 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 5,
+          "text": {
+            "default": "Brand 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 6,
+          "text": {
+            "default": "Brand 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 7,
+          "text": {
+            "default": "Brand 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 8,
+          "text": {
+            "default": "Brand 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 9,
+          "text": {
+            "default": "Brand 9"
+          }
+        },
+        {
+          "value": "10",
+          "id": 10,
+          "text": {
+            "default": "Brand 10"
+          }
+        },
+        {
+          "value": "11",
+          "id": 11,
+          "text": {
+            "default": "Brand 11"
           }
         }
       ]
@@ -162,6 +274,62 @@
           "text": {
             "default": "Brand 3"
           }
+        },
+        {
+          "value": "4",
+          "id": 4,
+          "text": {
+            "default": "Brand 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 5,
+          "text": {
+            "default": "Brand 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 6,
+          "text": {
+            "default": "Brand 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 7,
+          "text": {
+            "default": "Brand 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 8,
+          "text": {
+            "default": "Brand 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 9,
+          "text": {
+            "default": "Brand 9"
+          }
+        },
+        {
+          "value": "10",
+          "id": 10,
+          "text": {
+            "default": "Brand 10"
+          }
+        },
+        {
+          "value": "11",
+          "id": 11,
+          "text": {
+            "default": "Brand 11"
+          }
         }
       ]
     },
@@ -227,6 +395,100 @@
           }
         }
       ]
+    },
+    "reasons": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "parentPanelTitle": "considerLoop",
+      "parentPanels": [
+        {
+          "key": "considerLoop",
+          "title": "considerLoop"
+        }
+      ],
+      "pageName": "awareness",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "2",
+          "id": 1,
+          "text": {
+            "default": "Reason 2"
+          }
+        },
+        {
+          "value": "10",
+          "id": 2,
+          "text": {
+            "default": "Reason 10"
+          }
+        },
+        {
+          "value": "1",
+          "id": 3,
+          "text": {
+            "default": "Reason 1"
+          }
+        },
+        {
+          "value": "11",
+          "id": 4,
+          "text": {
+            "default": "Reason 11"
+          }
+        },
+        {
+          "value": "3",
+          "id": 5,
+          "text": {
+            "default": "Reason 3"
+          }
+        },
+        {
+          "value": "4",
+          "id": 6,
+          "text": {
+            "default": "Reason 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 7,
+          "text": {
+            "default": "Reason 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 8,
+          "text": {
+            "default": "Reason 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 9,
+          "text": {
+            "default": "Reason 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 10,
+          "text": {
+            "default": "Reason 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 11,
+          "text": {
+            "default": "Reason 9"
+          }
+        }
+      ]
     }
   },
   "columns": {
@@ -240,6 +502,30 @@
       "choiceValue": "1",
       "choiceLabel": {
         "default": "Brand 1"
+      }
+    },
+    "aware__10": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Brand 10"
+      }
+    },
+    "aware__11": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Brand 11"
       }
     },
     "aware__2": {
@@ -266,6 +552,78 @@
         "default": "Brand 3"
       }
     },
+    "aware__4": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Brand 4"
+      }
+    },
+    "aware__5": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Brand 5"
+      }
+    },
+    "aware__6": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Brand 6"
+      }
+    },
+    "aware__7": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Brand 7"
+      }
+    },
+    "aware__8": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Brand 8"
+      }
+    },
+    "aware__9": {
+      "parentKey": "aware",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these have you bought?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Brand 9"
+      }
+    },
     "aware__none": {
       "parentKey": "aware",
       "surveyJsType": "checkbox",
@@ -288,6 +646,30 @@
       "choiceValue": "1",
       "choiceLabel": {
         "default": "Brand 1"
+      }
+    },
+    "brands__10": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Brand 10"
+      }
+    },
+    "brands__11": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Brand 11"
       }
     },
     "brands__2": {
@@ -314,12 +696,741 @@
         "default": "Brand 3"
       }
     },
+    "brands__4": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Brand 4"
+      }
+    },
+    "brands__5": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Brand 5"
+      }
+    },
+    "brands__6": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Brand 6"
+      }
+    },
+    "brands__7": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Brand 7"
+      }
+    },
+    "brands__8": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Brand 8"
+      }
+    },
+    "brands__9": {
+      "parentKey": "brands",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which brands do you know?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Brand 9"
+      }
+    },
+    "considerLoop__10__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__10__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "10"
+        }
+      ]
+    },
+    "considerLoop__11__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
+    "considerLoop__11__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "11"
+        }
+      ]
+    },
     "considerLoop__1__consider": {
       "parentKey": "consider",
       "surveyJsType": "radiogroup",
       "exportShape": "categorical",
       "title": {
         "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    "considerLoop__1__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
       },
       "loopPath": [
         {
@@ -344,6 +1455,215 @@
         }
       ]
     },
+    "considerLoop__2__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    "considerLoop__2__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
     "considerLoop__3__consider": {
       "parentKey": "consider",
       "surveyJsType": "radiogroup",
@@ -356,6 +1676,1559 @@
           "panelValueName": "considerLoop",
           "propertyName": "itemValue",
           "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__3__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    "considerLoop__4__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__4__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    "considerLoop__5__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__5__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    "considerLoop__6__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__6__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "6"
+        }
+      ]
+    },
+    "considerLoop__7__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__7__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "7"
+        }
+      ]
+    },
+    "considerLoop__8__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__8__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "8"
+        }
+      ]
+    },
+    "considerLoop__9__consider": {
+      "parentKey": "consider",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Would you buy {panel.itemText} again?"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__1": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Reason 1"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__10": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "10",
+      "choiceLabel": {
+        "default": "Reason 10"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__11": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "11",
+      "choiceLabel": {
+        "default": "Reason 11"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__2": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Reason 2"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__3": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Reason 3"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__4": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "4",
+      "choiceLabel": {
+        "default": "Reason 4"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__5": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "5",
+      "choiceLabel": {
+        "default": "Reason 5"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__6": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "6",
+      "choiceLabel": {
+        "default": "Reason 6"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__7": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "7",
+      "choiceLabel": {
+        "default": "Reason 7"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__8": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "8",
+      "choiceLabel": {
+        "default": "Reason 8"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
+        }
+      ]
+    },
+    "considerLoop__9__reasons__9": {
+      "parentKey": "reasons",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Why would you buy {panel.itemText}?"
+      },
+      "choiceValue": "9",
+      "choiceLabel": {
+        "default": "Reason 9"
+      },
+      "loopPath": [
+        {
+          "panelValueName": "considerLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "9"
         }
       ]
     },
@@ -464,8 +3337,64 @@
           }
         },
         {
-          "value": "none",
+          "value": "4",
           "id": 4,
+          "text": {
+            "default": "Brand 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 5,
+          "text": {
+            "default": "Brand 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 6,
+          "text": {
+            "default": "Brand 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 7,
+          "text": {
+            "default": "Brand 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 8,
+          "text": {
+            "default": "Brand 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 9,
+          "text": {
+            "default": "Brand 9"
+          }
+        },
+        {
+          "value": "10",
+          "id": 10,
+          "text": {
+            "default": "Brand 10"
+          }
+        },
+        {
+          "value": "11",
+          "id": 11,
+          "text": {
+            "default": "Brand 11"
+          }
+        },
+        {
+          "value": "none",
+          "id": 12,
           "kind": "none",
           "exclusive": true,
           "text": {
@@ -482,7 +3411,15 @@
             "values": [
               "1",
               "2",
-              "3"
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9",
+              "10",
+              "11"
             ]
           }
         ]
@@ -510,6 +3447,62 @@
           "id": 3,
           "text": {
             "default": "Brand 3"
+          }
+        },
+        {
+          "value": "4",
+          "id": 4,
+          "text": {
+            "default": "Brand 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 5,
+          "text": {
+            "default": "Brand 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 6,
+          "text": {
+            "default": "Brand 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 7,
+          "text": {
+            "default": "Brand 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 8,
+          "text": {
+            "default": "Brand 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 9,
+          "text": {
+            "default": "Brand 9"
+          }
+        },
+        {
+          "value": "10",
+          "id": 10,
+          "text": {
+            "default": "Brand 10"
+          }
+        },
+        {
+          "value": "11",
+          "id": 11,
+          "text": {
+            "default": "Brand 11"
           }
         }
       ]
@@ -556,6 +3549,62 @@
           "text": {
             "default": "Brand 3"
           }
+        },
+        {
+          "value": "4",
+          "id": 4,
+          "text": {
+            "default": "Brand 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 5,
+          "text": {
+            "default": "Brand 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 6,
+          "text": {
+            "default": "Brand 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 7,
+          "text": {
+            "default": "Brand 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 8,
+          "text": {
+            "default": "Brand 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 9,
+          "text": {
+            "default": "Brand 9"
+          }
+        },
+        {
+          "value": "10",
+          "id": 10,
+          "text": {
+            "default": "Brand 10"
+          }
+        },
+        {
+          "value": "11",
+          "id": 11,
+          "text": {
+            "default": "Brand 11"
+          }
         }
       ],
       "copied": true
@@ -594,6 +3643,88 @@
           "id": 2,
           "text": {
             "default": "Evening"
+          }
+        }
+      ]
+    },
+    "reasons": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "2",
+          "id": 1,
+          "text": {
+            "default": "Reason 2"
+          }
+        },
+        {
+          "value": "10",
+          "id": 2,
+          "text": {
+            "default": "Reason 10"
+          }
+        },
+        {
+          "value": "1",
+          "id": 3,
+          "text": {
+            "default": "Reason 1"
+          }
+        },
+        {
+          "value": "11",
+          "id": 4,
+          "text": {
+            "default": "Reason 11"
+          }
+        },
+        {
+          "value": "3",
+          "id": 5,
+          "text": {
+            "default": "Reason 3"
+          }
+        },
+        {
+          "value": "4",
+          "id": 6,
+          "text": {
+            "default": "Reason 4"
+          }
+        },
+        {
+          "value": "5",
+          "id": 7,
+          "text": {
+            "default": "Reason 5"
+          }
+        },
+        {
+          "value": "6",
+          "id": 8,
+          "text": {
+            "default": "Reason 6"
+          }
+        },
+        {
+          "value": "7",
+          "id": 9,
+          "text": {
+            "default": "Reason 7"
+          }
+        },
+        {
+          "value": "8",
+          "id": 10,
+          "text": {
+            "default": "Reason 8"
+          }
+        },
+        {
+          "value": "9",
+          "id": 11,
+          "text": {
+            "default": "Reason 9"
           }
         }
       ]

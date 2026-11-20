@@ -85,8 +85,10 @@ internal sealed class PersonalizationPipeline
 
         using var answers = JsonDocument.Parse(response.AnswersJson);
         ResponseSnapshots snapshots = new(response.Personalization, _submitterProfileFields.Read(response.SubmitterProfile));
+        // Flatten with the completion state the export row reports, as the flattening processor does.
+        var catalogs = ChoiceCatalogs.Read(Schema.CodebookJson, new FixtureSystemValues(response.System).IsComplete);
         _rows[response.Id] = FlattenedSubmissionFlattener.Flatten(
-                answers.RootElement, Schema.FlatteningMap, ChoiceCatalogs.Read(Schema.CodebookJson), snapshots)
+                answers.RootElement, Schema.FlatteningMap, catalogs, snapshots)
             .ToDictionary(entry => entry.Key, entry => entry.Value?.Clone(), StringComparer.Ordinal);
     }
 

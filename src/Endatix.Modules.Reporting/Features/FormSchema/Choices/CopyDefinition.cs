@@ -55,6 +55,24 @@ internal sealed record CopyDefinition(
             ? own != OnComplete
             : !ClearsHiddenAnswersOnComplete;
 
+    /// <summary>
+    /// Whether <paramref name="question"/> shows only under a <c>visibleIf</c>: its own, or one on an enclosing panel,
+    /// dynamic panel or page.
+    /// </summary>
+    public bool UnderAVisibleIf(JsonElement question, string? name) =>
+        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null ||
+        name is not null && ContainerVisibleIfNames.Contains(name);
+
+    /// <summary>
+    /// Whether a respondent can miss <paramref name="question"/>: a <c>visibleIf</c> (<see cref="UnderAVisibleIf"/>), or a
+    /// static <c>visible: false</c> on it or on an enclosing panel or page (<see cref="AlwaysHiddenNames"/>). A name the definition uses twice can be hidden:
+    /// only one of its questions is read here, and the other's own <c>visibleIf</c> is not.
+    /// </summary>
+    public bool CanHide(JsonElement question, string? name) =>
+        (name is not null && SharedNames.Contains(name)) ||
+        UnderAVisibleIf(question, name) ||
+        (name is not null && AlwaysHiddenNames.Contains(name));
+
     private static bool ClearsOnComplete(JsonElement definition) =>
         definition.TryGetPropertyValue(ClearInvisibleValues) switch
         {

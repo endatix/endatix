@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -7,6 +8,7 @@ namespace Endatix.Infrastructure.Multitenancy;
 /// <summary>
 /// Registers the tenant entitlement seam.
 /// </summary>
+[Experimental("ENDATIX0001")]
 public static class TenantEntitlementsServiceCollectionExtensions
 {
     /// <summary>

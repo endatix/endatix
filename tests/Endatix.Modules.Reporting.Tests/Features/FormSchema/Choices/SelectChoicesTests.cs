@@ -195,6 +195,19 @@ public sealed class SelectChoicesTests
         ChoiceCatalogs.Read("{}").For("q").Should().BeSameAs(SelectChoices.Unknown);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("{}")]
+    public void Read_CodebookWithoutCatalogs_KeepsTheSubmissionComplete(string? codebook)
+    {
+        // Act
+        var catalogs = ChoiceCatalogs.Read(codebook, submissionComplete: true);
+
+        // Assert
+        catalogs.SubmissionComplete.Should().BeTrue();
+    }
+
     private static SelectAnswer ReadAnswer(string codebook, string context)
     {
         using var document = JsonDocument.Parse(context);
