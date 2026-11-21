@@ -22,14 +22,9 @@ internal sealed class PublishTenantBrandingHandler(
     public async Task<Result<TenantBrandingDto>> Handle(PublishTenantBrandingCommand request, CancellationToken cancellationToken)
     {
         var tenantId = tenantContext.TenantId;
-        if (await TenantBrandingWriter.RefusalAsync(tenantId, entitlements, cancellationToken) is { } refusal)
+        if (await RefusalAsync(tenantId, request, cancellationToken) is { } refusal)
         {
             return refusal;
-        }
-
-        if (request.OverrideJson is null)
-        {
-            return Result.Invalid(new ValidationError("", "Is required.", BrandOverrideProblems.REQUIRED, ValidationSeverity.Error));
         }
 
         var value = BrandOverride.Parse(request.OverrideJson, tenantId);
@@ -42,5 +37,21 @@ internal sealed class PublishTenantBrandingHandler(
         return await new TenantBrandingWriter(repository, tenantId).WriteAsync(
             branding => branding.Publish(value.Value, request.ExpectedRevision, now),
             cancellationToken);
+    }
+
+    /// <summary>
+    /// Why the request is refused before the override is read: no tenant or no <c>branding</c> entitlement (the shared
+    /// step), then no override at all. Null when it may go on.
+    /// </summary>
+    private async Task<Result?> RefusalAsync(long tenantId, PublishTenantBrandingCommand request, CancellationToken cancellationToken)
+    {
+        if (await TenantBrandingWriter.RefusalAsync(tenantId, entitlements, cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return request.OverrideJson is null
+            ? Result.Invalid(new ValidationError("", "Is required.", BrandOverrideProblems.REQUIRED, ValidationSeverity.Error))
+            : null;
     }
 }
