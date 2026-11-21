@@ -1,6 +1,7 @@
 using Endatix.Core.Branding;
 using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Publishing;
@@ -121,13 +122,13 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     }
 
     private static Task<Result<TenantBrandingDto>> PublishAsync(AppDbContext db, long tenantId, PublishTenantBrandingCommand command) =>
-        new PublishTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements())
+        new PublishTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new DateTimeProvider())
             .Handle(command, Cancellation);
 
     private async Task<Result<TenantBrandingDto>> RollbackAsync(long tenantId, long revision)
     {
         await using var db = CreateDb(tenantId);
-        return await new RollbackTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements())
+        return await new RollbackTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new DateTimeProvider())
             .Handle(new RollbackTenantBrandingCommand(revision), Cancellation);
     }
 
