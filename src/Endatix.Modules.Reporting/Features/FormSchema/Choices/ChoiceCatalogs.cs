@@ -148,15 +148,15 @@ internal sealed class ChoiceCatalogs
     }
 
     /// <summary>
-    /// The question's Other text in <paramref name="scope"/>. For a copy that offers, or once offered, its source's
-    /// Other (<see cref="SelectChoices.OtherFrom"/>) and picked it: the source's text, else its own (a row saved while
-    /// the copy had an Other of its own).
+    /// The question's Other text in <paramref name="scope"/>: its own when not empty. For a copy that offers, or once
+    /// offered, its source's Other (<see cref="SelectChoices.OtherFrom"/>) and picked it with no text of its own: the
+    /// source's text (a row saved while the copy had no Other of its own).
     /// </summary>
     public JsonElement? OtherText(AnswerScope scope, string question)
     {
         var select = For(question);
         var answer = select.Read(scope.Own, question);
-        return select.OtherFrom is { } source && answer.Has(SurveyJsPropertyNames.Other)
+        return select.OtherFrom is { } source && answer.Has(SurveyJsPropertyNames.Other) && !CopyVisibility.IsText(answer.OtherText)
             ? CopyVisibility.CopiedOtherText(source, scope, this) ?? answer.OtherText
             : answer.OtherText;
     }
@@ -171,7 +171,8 @@ internal sealed class ChoiceCatalogs
         rule.HoldsFor(SubmissionComplete) &&
         (For(question).KindOf(choiceValue) switch
         {
-            ChoiceKind.Other when For(question).OtherFrom is { } source => CopyVisibility.CopiedOtherText(source, scope, this) is not null,
+            ChoiceKind.Other when For(question) is { OtherFrom: { } source, OwnOther: false } =>
+                CopyVisibility.CopiedOtherText(source, scope, this) is not null,
             not null and not ChoiceKind.Choice => true,
             _ => rule.Shows(choiceValue, scope, this) == true,
         });
@@ -212,6 +213,9 @@ internal sealed class SelectChoices
     /// <summary>The source whose Other the copy offers (<c>otherFrom</c>); its text is the source's. Null otherwise.</summary>
     public string? OtherFrom { get; private init; }
 
+    /// <summary>The copy's current definition shows an Other of its own (<c>ownOther</c>).</summary>
+    public bool OwnOther { get; private init; }
+
     /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
     public bool CanBeHidden { get; private init; }
 
@@ -248,6 +252,7 @@ internal sealed class SelectChoices
             Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
             OtherFrom = catalog.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.OtherFrom),
+            OwnOther = catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.OwnOther),
             CanBeHidden = CanBeHiddenIn(catalog),
         };
         select._values.UnionWith(choices.Select(choice => choice.Value));

@@ -119,12 +119,14 @@ internal sealed partial class CopyVisibility
         }
 
         var answer = catalogs.For(sourceName).Read(context, sourceName);
-        return answer.Has(SurveyJsPropertyNames.Other) &&
-               answer.OtherText is { ValueKind: JsonValueKind.String } text &&
-               !string.IsNullOrEmpty(text.GetString())
-            ? text
+        return answer.Has(SurveyJsPropertyNames.Other) && IsText(answer.OtherText)
+            ? answer.OtherText
             : null;
     }
+
+    /// <summary>Whether an Other text is a non-empty string.</summary>
+    public static bool IsText(JsonElement? otherText) =>
+        otherText is { ValueKind: JsonValueKind.String } text && !string.IsNullOrEmpty(text.GetString());
 
     private bool? ShowsAt(Cell cell)
     {

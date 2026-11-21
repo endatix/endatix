@@ -185,7 +185,7 @@ public sealed partial class CopiedChoicesCrunchExportTests
     }
 
     // A copy that offered its source's Other, then got an Other of its own: the merge keeps otherFrom, so a row saved
-    // before keeps the source's text, and a row saved after has its own.
+    // before keeps the source's text, and a row saved after has its own, even when the source picked Other too.
     [Fact]
     public async Task Export_CopyThatGainsItsOwnOther_KeepsTheSourcesTextForEarlierRows()
     {
@@ -200,6 +200,7 @@ public sealed partial class CopiedChoicesCrunchExportTests
         [
             new("earlier", """{"Q1":["other"],"Q1-Comment":"typed on Q1","Q2":"other"}""", null),
             new("later", """{"Q1":["1"],"Q2":"other","Q2-Comment":"typed on Q2"}""", null),
+            new("both", """{"Q1":["other"],"Q1-Comment":"A","Q2":"other","Q2-Comment":"B"}""", null),
         ];
         var pipeline = PersonalizationPipeline.Compile(before);
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -210,8 +211,33 @@ public sealed partial class CopiedChoicesCrunchExportTests
         var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
 
         // Assert
-        Column(csv, "Q2").Should().Equal("3", "3");
-        Column(csv, "Q2--other_text").Should().Equal("typed on Q1", "typed on Q2");
+        Column(csv, "Q2").Should().Equal("3", "3", "3");
+        Column(csv, "Q2--other_text").Should().Equal("typed on Q1", "typed on Q2", "B");
+    }
+
+    // Once the copy shows an Other of its own, that Other is on its list whatever the source picked.
+    [Fact]
+    public async Task CsvShoji_CheckboxCopyThatGainsItsOwnOther_WritesZeroForItsUnpickedOther()
+    {
+        // Arrange
+        var before = DefinitionWith(SOURCE_WITH_OTHER, """
+            {"type":"checkbox","name":"Q3","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
+            """);
+        var after = DefinitionWith(SOURCE_WITH_OTHER, """
+            {"type":"checkbox","name":"Q3","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected","showOtherItem":true}
+            """);
+        IReadOnlyList<FixtureResponse> responses = [new("later", """{"Q1":["1"],"Q3":["1"]}""", null)];
+        var pipeline = PersonalizationPipeline.Compile(before);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        // Act
+        pipeline.Recompile(after, FormSchemaCompileMode.Merge);
+        pipeline.FlattenAll(after, responses);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+
+        // Assert
+        Column(csv, "Q3--1").Should().Equal("1");
+        Column(csv, "Q3--other").Should().Equal("0");
     }
 
     [Fact]
