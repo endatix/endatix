@@ -25,9 +25,12 @@ public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture 
 
     private static string ScenariosRoot => Path.Combine(AppContext.BaseDirectory, "Fixtures", "Scenarios");
 
+    // A scenario with earlier form versions (versions.json) merges them in memory; over HTTP a compile with no real
+    // submissions replaces the schema, so the earlier versions' columns would not be there to compare.
     public static TheoryData<string> ScenariosWithASubmission() =>
         new(Directory.EnumerateDirectories(ScenariosRoot)
-            .Where(folder => File.Exists(Path.Combine(folder, "submission.json")))
+            .Where(folder => File.Exists(Path.Combine(folder, "submission.json")) &&
+                             !File.Exists(Path.Combine(folder, "versions.json")))
             .Select(Path.GetFileName)
             .OfType<string>()
             .Order(StringComparer.Ordinal));
@@ -62,6 +65,37 @@ public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture 
             because: $"scenario '{scenario}' should export the golden's answers over HTTP");
     }
 
+    // The issue's repro (#1758): a completed response saved before a checkbox was added must not export 0 for it.
+    [Fact]
+    public async Task Checkbox_added_after_a_response_exports_empty_for_that_response()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using ReportingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        ScenarioApi api = new(client, ct);
+        const string before = """{"pages":[{"name":"p1","elements":[{"type":"text","name":"customer"}]}]}""";
+        const string after =
+            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"customer"},{"type":"checkbox","name":"perks","choices":["1","2"]}]}]}""";
+        var formId = await api.CreateFormAsync(before);
+        await api.SubmitCompleteAsync(formId, """{"customer":"Sam"}""");
+        await api.PostOkAsync($"/api/forms/{formId}/reporting/compile-schema", new { });
+        await api.PublishDefinitionAsync(formId, after);
+        await api.SubmitCompleteAsync(formId, """{"customer":"Kim"}""");
+        await api.PostOkAsync($"/api/forms/{formId}/reporting/compile-schema", new { });
+        await api.PostOkAsync($"/api/forms/{formId}/submissions/backfill", new { force = true });
+
+        // Act
+        var csv = await api.ExportCsvAsync(formId);
+
+        // Assert
+        var lines = Lines(csv);
+        lines[0].Should().EndWith(",customer,perks__1,perks__2");
+        lines.Skip(1).Select(Answers).Should().BeEquivalentTo("Sam,,", "Kim,0,0");
+    }
+
     private static string[] Lines(string csv) =>
         csv.TrimStart('\uFEFF').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
 
@@ -85,6 +119,9 @@ public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture 
             PostAsync($"/api/forms/{formId}/submissions", new { isComplete = true, jsonData }, HttpStatusCode.Created);
 
         public Task PostOkAsync(string uri, object body) => PostAsync(uri, body, HttpStatusCode.OK);
+
+        public Task PublishDefinitionAsync(string formId, string jsonData) =>
+            PostAsync($"/api/forms/{formId}/definitions", new { isDraft = false, jsonData }, HttpStatusCode.Created);
 
         public async Task<string> ExportCsvAsync(string formId)
         {

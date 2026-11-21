@@ -17,6 +17,9 @@ Each folder under `Scenarios/` is one edge case:
 
 - `definition.json`: the form definition, as small as the case allows.
 - `submission.json` (optional): one stored response, as Hub stores it. With it, the scenario exports every format.
+- `versions.json` (optional): earlier form versions. `earlier` lists definition files compiled in order before
+  `definition.json` (the first replaces, each later one merges, as a form with real submissions does), and
+  `submittedOn` names the one the submission was saved on. Without it, the submission was saved on `definition.json`.
 - `expected-codebook.json`: the format-neutral codebook it compiles to.
 - `expected-shoji-codebook.json`: the Shoji codebook it exports to.
 
@@ -33,7 +36,7 @@ The submission exports run through the tabular data source and the Infrastructur
 default export formats (`DefaultExportFormats`), and csv-shoji with the Shoji format's. The row's system values are
 pinned (`PersonalizationPipeline.ExportRows`), and the response is flattened with the row's completion state, so a
 copy's "shown" rule that holds only for a complete submission applies as it does in the running API.
-`ScenarioCsvExportFlowTests` (integration tests) runs every scenario with a submission over HTTP, compile, backfill
+`ScenarioCsvExportFlowTests` (integration tests) runs every scenario with a submission and no `versions.json` over HTTP, compile, backfill
 and the CSV export format included, and compares its answer columns with `expected-csv.csv`. Global value transformers do not run: they rewrite file URLs and large
 values only.
 
@@ -54,6 +57,7 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | `choice-comments` | Checkboxes and a tag box with Other picked and typed text (#1761). `question1` offers Other only: its text is in `question1-Comment`. `question2` adds a comment box on `item2`, so SurveyJS stores each checked item as an object and the typed text as a value (`{"value":"Typed for question2"}`), with no `-Comment`: the compile records value storage, and `--other` is 1 with the text. `question3` is a tag box with the same choices; a tag box's choices show no comment box, so its Other text stays in `question3-Comment`. The choice comment itself has no column yet. |
 | `unanswered-own-choices` | Checkboxes and a tagbox with their own choices that a completed response leaves unanswered (#1753). `channels` and `topics` (with None), which nothing can hide, are 0. Empty in every column: `flavours` (its own `visibleIf`, None included), `internalTags` (`visible: false`), `stores` (in a panel with a `visibleIf`, Other included), `elsewhere` (on a page with a `visibleIf`; that page was shown, but the compile cannot tell, so an unanswered question there is empty too), `staffNotes` (on a `visible: false` page), and `reasonDetail` in `reasonLoop` (its own `visibleIf` inside a loop item the respondent had). `reasons`, answered on a page with a `visibleIf`, is 1 and 0. An incomplete response is covered by `InlineChoiceVisibilityTests` and the in-progress row of `AllQuestionsPersonalized/`. |
 | `copy-of-a-copy` | Checkboxes that copy a copy (#1754). `aware` copies the brands picked in `brands` (selected); `pickTop`, and `pick` in `brandLoop` over `brands`, copy what `aware` picked (selected): `aware`'s picks are 0 or 1, the brand it left is empty, and the copy's None is 0 when not picked. `fromShortlist` copies all of `shortlist`, which caps its list (`edxCarryForwardMaxChoices`), so its unpicked choices and None stay empty. |
+| `question-across-versions` | A checkbox removed and one added between form versions (#1758). Version 1 has `oldPerks`, version 2 drops it, and `definition.json` adds `newPerks`; the merge keeps every column. The completed submission was saved on version 2 and leaves `channels` unanswered: `oldPerks` and `newPerks`, which its version does not have, are empty in every column, while `channels`, which nothing can hide, is 0 and the answered `topics` 1 and 0. |
 
 ### `copied-choices-loops`
 
@@ -116,9 +120,10 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
 - **#1441, stored values never offered:** a value a checkbox stores but its choices do not offer has no column and is
   not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
-- **A 0 the respondent did not see, with its own choices (no scenario yet):** a checkbox or tagbox added or removed
-  between form versions writes 0 under a merge compile for rows saved without it (#1758); `choicesVisibleIf` or a
-  choice's own `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0.
+- **A 0 the respondent did not see, with its own choices (no scenario yet):** `choicesVisibleIf` or a choice's own
+  `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0;
+  a checkbox moved between the form's root and a loop across versions writes 0 in the place its version did not have it,
+  because the check against the submission's version (#1758) matches the question's name, not where it sits (#1770).
   #1753 covers only question, panel and page visibility.
 - **#1762, a choice's comment:** `choice-comments` `question2` stores a comment on `item2`; no column exports it yet.
 - **#1768, checkbox answers stored as objects, outside own inline choices (no scenario yet):** a checkbox with a choice comment

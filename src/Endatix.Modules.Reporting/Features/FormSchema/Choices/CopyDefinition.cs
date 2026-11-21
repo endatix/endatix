@@ -10,7 +10,8 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// question a respondent saw, whether the survey clears a hidden question's answer when it is completed, whether any
 /// page, panel or question has a <c>visibleIf</c>, the questions a <c>visibleIf</c> on an enclosing panel, dynamic panel
 /// or page can hide, and the questions a static <c>visible: false</c> on themselves or on an enclosing panel or page
-/// always hides.
+/// always hides. At run time the same walk lists the question names of the definition a submission was made on
+/// (<see cref="QuestionNamesIn"/>).
 /// </summary>
 internal sealed record CopyDefinition(
     IReadOnlySet<string> SharedNames,
@@ -44,6 +45,36 @@ internal sealed record CopyDefinition(
             walk.AlwaysHidden);
     }
 
+    /// <summary>
+    /// RUN TIME. Every question name (<c>name</c>, not <c>valueName</c>, as the indicator columns are keyed) in
+    /// <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels; null when there is no
+    /// definition to read, or one that is not a JSON object, so an unreadable stored definition never fails a flatten.
+    /// </summary>
+    public static IReadOnlySet<string>? QuestionNamesIn(string? definitionJson)
+    {
+        if (string.IsNullOrWhiteSpace(definitionJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(definitionJson);
+            return document.RootElement.ValueKind == JsonValueKind.Object ? NamesIn(document.RootElement) : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static HashSet<string> NamesIn(JsonElement definition)
+    {
+        DefinitionWalk walk = new();
+        walk.Visit(definition);
+        return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
+    }
+
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
     // "onHidden" and "onHiddenContainer" keep or clear it at other times.
     /// <summary>
@@ -61,7 +92,7 @@ internal sealed record CopyDefinition(
     /// </summary>
     public bool UnderAVisibleIf(JsonElement question, string? name) =>
         question.GetNonEmptyStringProperty(SurveyJsPropertyNames.VisibleIf) is not null ||
-        name is not null && ContainerVisibleIfNames.Contains(name);
+        (name is not null && ContainerVisibleIfNames.Contains(name));
 
     /// <summary>
     /// Whether a respondent can miss <paramref name="question"/>: a <c>visibleIf</c> (<see cref="UnderAVisibleIf"/>), or a

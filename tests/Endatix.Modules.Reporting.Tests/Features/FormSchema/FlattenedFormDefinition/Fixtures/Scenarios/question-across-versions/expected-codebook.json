@@ -1,0 +1,363 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "channels": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Where did you hear about us?"
+      },
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Radio"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Friends"
+          }
+        }
+      ]
+    },
+    "customer": {
+      "surveyJsType": "text",
+      "title": {
+        "default": "Your name"
+      },
+      "pageName": "page1",
+      "exportShape": "scalar"
+    },
+    "newPerks": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which new perks would you use?"
+      },
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Loyalty points"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Same-day pickup"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "oldPerks": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which perks did you use?"
+      },
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Free delivery"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Gift wrap"
+          }
+        }
+      ]
+    },
+    "topics": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which topics interest you?"
+      },
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "P",
+          "id": 1,
+          "text": {
+            "default": "Prices"
+          }
+        },
+        {
+          "value": "S",
+          "id": 2,
+          "text": {
+            "default": "Service"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "channels__A": {
+      "parentKey": "channels",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Where did you hear about us?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Radio"
+      }
+    },
+    "channels__B": {
+      "parentKey": "channels",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Where did you hear about us?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Friends"
+      }
+    },
+    "customer": {
+      "parentKey": "customer",
+      "surveyJsType": "text",
+      "exportShape": "scalar",
+      "title": {
+        "default": "Your name"
+      }
+    },
+    "newPerks__1": {
+      "parentKey": "newPerks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which new perks would you use?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Loyalty points"
+      }
+    },
+    "newPerks__2": {
+      "parentKey": "newPerks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which new perks would you use?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Same-day pickup"
+      }
+    },
+    "newPerks__none": {
+      "parentKey": "newPerks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which new perks would you use?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "newPerks__other": {
+      "parentKey": "newPerks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which new perks would you use?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
+      }
+    },
+    "newPerks__other_text": {
+      "parentKey": "newPerks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which new perks would you use?"
+      }
+    },
+    "oldPerks__1": {
+      "parentKey": "oldPerks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which perks did you use?"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Free delivery"
+      }
+    },
+    "oldPerks__2": {
+      "parentKey": "oldPerks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which perks did you use?"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Gift wrap"
+      }
+    },
+    "topics__P": {
+      "parentKey": "topics",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which topics interest you?"
+      },
+      "choiceValue": "P",
+      "choiceLabel": {
+        "default": "Prices"
+      }
+    },
+    "topics__S": {
+      "parentKey": "topics",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which topics interest you?"
+      },
+      "choiceValue": "S",
+      "choiceLabel": {
+        "default": "Service"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "channels": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Radio"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Friends"
+          }
+        }
+      ]
+    },
+    "newPerks": {
+      "multiple": true,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Loyalty points"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Same-day pickup"
+          }
+        },
+        {
+          "value": "other",
+          "id": 3,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "oldPerks": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Free delivery"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Gift wrap"
+          }
+        }
+      ]
+    },
+    "topics": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "P",
+          "id": 1,
+          "text": {
+            "default": "Prices"
+          }
+        },
+        {
+          "value": "S",
+          "id": 2,
+          "text": {
+            "default": "Service"
+          }
+        }
+      ]
+    }
+  }
+}

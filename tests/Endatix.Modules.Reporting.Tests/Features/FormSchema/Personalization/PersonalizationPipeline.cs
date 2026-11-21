@@ -16,14 +16,16 @@ namespace Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 
 /// <summary>
 /// One response of a personalization fixture: its answers, the snapshot frozen on it if any, the system values its
-/// export row carries (<c>system</c>, optional), and its submitter profile snapshot (<c>submitterProfile</c>, optional).
+/// export row carries (<c>system</c>, optional), its submitter profile snapshot (<c>submitterProfile</c>, optional), and
+/// the definition it was made on when that is not the one it is flattened with (<c>SubmittedDefinition</c>).
 /// </summary>
 internal sealed record FixtureResponse(
     string Id,
     string AnswersJson,
     string? Snapshot,
     JsonElement System = default,
-    string? SubmitterProfile = null)
+    string? SubmitterProfile = null,
+    string? SubmittedDefinition = null)
 {
     public PersonalizationRead? Personalization => PersonalizationReader.Read(Snapshot);
 }
@@ -85,8 +87,12 @@ internal sealed class PersonalizationPipeline
 
         using var answers = JsonDocument.Parse(response.AnswersJson);
         ResponseSnapshots snapshots = new(response.Personalization, _submitterProfileFields.Read(response.SubmitterProfile));
-        // Flatten with the completion state the export row reports, as the flattening processor does.
-        var catalogs = ChoiceCatalogs.Read(Schema.CodebookJson, new FixtureSystemValues(response.System).IsComplete);
+        // Flatten with the completion state the export row reports and the definition the response was made on, as the
+        // flattening processor does.
+        var catalogs = ChoiceCatalogs.Read(
+            Schema.CodebookJson,
+            new FixtureSystemValues(response.System).IsComplete,
+            response.SubmittedDefinition ?? definitionJson);
         _rows[response.Id] = FlattenedSubmissionFlattener.Flatten(
                 answers.RootElement, Schema.FlatteningMap, catalogs, snapshots)
             .ToDictionary(entry => entry.Key, entry => entry.Value?.Clone(), StringComparer.Ordinal);
