@@ -1,0 +1,27 @@
+[
+  {
+    "formId": 100,
+    "id": 1,
+    "isComplete": true,
+    "collectionStatus": "complete",
+    "createdAt": "2026-10-14T10:00:00Z",
+    "modifiedAt": "2026-10-14T10:00:00Z",
+    "startedAt": "N/A",
+    "completedAt": "N/A",
+    "durationSeconds": "N/A",
+    "submitterId": "N/A",
+    "submitterDisplayId": "N/A",
+    "customer": "Sam",
+    "channels__A": 0,
+    "channels__B": 0,
+    "topics__P": 0,
+    "topics__S": 1,
+    "oldPerks__1": null,
+    "oldPerks__2": null,
+    "newPerks__1": null,
+    "newPerks__2": null,
+    "newPerks__other": null,
+    "newPerks__other_text": null,
+    "newPerks__none": null
+  }
+]

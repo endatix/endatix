@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.RateLimiting;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
@@ -21,7 +22,9 @@ using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
 
@@ -101,20 +104,65 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection to configure.</param>
     /// <param name="configuration">The host configuration holding the flag and <c>ENDATIX_BRAND_DIR</c>.</param>
     /// <returns>The configured service collection.</returns>
+    [Experimental("ENDATIX0003")]
     public static IServiceCollection AddDeploymentBrand(this IServiceCollection services, IConfiguration configuration)
     {
         // Replace, not TryAdd: an email sender added first leaves a lazy fallback that must not win.
-        return services.Replace(ServiceDescriptor.Singleton(BrandPackLoader.Load(configuration)));
+        List<string> warnings = [];
+        services.Replace(ServiceDescriptor.Singleton(BrandPackLoader.Load(configuration, warnings)));
+        return services.AddHostedService(provider => new BrandPackWarnings(
+            warnings,
+            provider.GetRequiredService<ILogger<BrandPackWarnings>>()));
     }
 
     // For a host that adds an email sender or the template settings without Integrations.UseDefaults():
-    // the renderer and the composer need a brand. Here the pack is read on first use, not at startup.
-    private static void AddDeploymentBrandFallback(IServiceCollection services) =>
-        services.TryAddSingleton(provider => BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>()));
+    // the renderer and the composer need a brand. The pack is read when the host starts (DeploymentBrandStartupCheck),
+    // so an invalid pack still stops startup instead of failing every email, and its warnings are logged then.
+    private static void AddDeploymentBrandFallback(IServiceCollection services)
+    {
+        services.TryAddSingleton(LoadFallbackBrand);
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, DeploymentBrandStartupCheck>());
+    }
+
+    private static DeploymentBrand LoadFallbackBrand(IServiceProvider provider)
+    {
+        List<string> warnings = [];
+        var brand = BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>(), warnings);
+        var logger = provider.GetService<ILogger<BrandPackWarnings>>();
+        foreach (var warning in warnings)
+        {
+            logger?.LogBrandPackFieldIgnored(warning);
+        }
+
+        return brand;
+    }
+
+    // The sender and the variables are factories over the registered brand, so AddDeploymentBrand may come before
+    // or after them.
+    private static void AddEmailIdentity(IServiceCollection services)
+    {
+        AddDeploymentBrandFallback(services);
+        // The renderer and the composer need the variables, also when the host supplies its own sender.
+        services.TryAddSingleton(provider => EmailVariables.From(provider.GetRequiredService<DeploymentBrand>()));
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(DeploymentSender)))
+        {
+            return;
+        }
+
+        services.AddOptions<EmailSenderSettings>()
+                .BindConfiguration(EmailSenderSettings.SectionName)
+                .Validate(EmailSenderSettingsRules.AreValid, EmailSenderSettingsRules.Message)
+                .ValidateOnStart();
+        services.AddSingleton(provider => DeploymentSender.From(
+            provider.GetRequiredService<IOptions<EmailSenderSettings>>().Value,
+            provider.GetRequiredService<DeploymentBrand>(),
+            DeprecatedSmtpSender.Read(provider.GetRequiredService<IOptions<SmtpSettings>>().Value)));
+        services.AddHostedService<DeprecatedSmtpSender>();
+    }
 
     private static void AddEmailTemplateRenderer(IServiceCollection services)
     {
-        AddDeploymentBrandFallback(services);
+        AddEmailIdentity(services);
         services.TryAddScoped<EmailTemplateRenderer>();
     }
 
@@ -135,7 +183,7 @@ public static class ServiceCollectionExtensions
         // Exposes the POCO to Core handlers without pulling IOptions into Core.Remove once settings are persisted in the database.
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<EmailTemplateSettings>>().Value);
 
-        AddDeploymentBrandFallback(services);
+        AddEmailIdentity(services);
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
         return services;

@@ -37,7 +37,9 @@ public class SendGridEmailSenderTests
             _options,
             new EmailTemplateRenderer(
                 _templateRepository,
-                Options.Create(new EmailTemplateSettings()), DeploymentBrand.BuiltIn));
+                Options.Create(new EmailTemplateSettings()),
+                EmailVariables.From(DeploymentBrand.BuiltIn),
+                new DeploymentSender("noreply@endatix.com", "Endatix", ConfiguredAddress: null)));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -221,7 +223,41 @@ public class SendGridEmailSenderTests
         sentMessage!.From.Email.Should().Be("sender@example.com");
         sentMessage.Personalizations[0].Tos[0].Email.Should().Be("recipient@example.com");
         sentMessage.TemplateId.Should().Be("sendgrid-template");
-        sentMessage.Personalizations[0].TemplateData.Should().BeEquivalentTo(email.Metadata);
+        sentMessage.Personalizations[0].TemplateData.Should().BeEquivalentTo(new Dictionary<string, object>
+        {
+            ["name"] = "Alice",
+            ["attempt"] = 2,
+            ["productName"] = "Endatix",
+            ["supportAddress"] = "support@endatix.com",
+            ["websiteUrl"] = "https://endatix.com",
+        });
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateMetadataClash_TheCallerWinsAndKeepsItsType()
+    {
+        // Arrange
+        SendGridMessage? sentMessage = null;
+        _sendGridClient
+            .SendEmailAsync(Arg.Do<SendGridMessage>(msg => sentMessage = msg), Arg.Any<CancellationToken>())
+            .Returns(CreateSuccessResponse());
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            From = "sender@example.com",
+            TemplateId = "sendgrid-template",
+            IsExternal = true,
+            Metadata = new Dictionary<string, object> { ["productName"] = "Caller Product", ["isTrial"] = true }
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var data = sentMessage!.Personalizations[0].TemplateData.Should().BeAssignableTo<IDictionary<string, object>>().Subject;
+        data["productName"].Should().Be("Caller Product");
+        data["isTrial"].Should().Be(true);
+        data["websiteUrl"].Should().Be("https://endatix.com");
     }
 
     [Fact]
@@ -342,6 +378,31 @@ public class SendGridEmailSenderTests
         // Assert
         await _sendGridClient.Received(1).SendEmailAsync(
             Arg.Is<SendGridMessage>(msg => msg.From.Name == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_KeepsTheFromsOwnName()
+    {
+        // Arrange: an operator FromAddress may already carry a display name.
+        _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
+            .Returns(CreateSuccessResponse());
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "Operator Team <sender@example.com>",
+            FromName = "Example Forms",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        await _sendGridClient.Received(1).SendEmailAsync(
+            Arg.Is<SendGridMessage>(msg => msg.From.Email == "sender@example.com" && msg.From.Name == "Operator Team"),
             Arg.Any<CancellationToken>());
     }
 }

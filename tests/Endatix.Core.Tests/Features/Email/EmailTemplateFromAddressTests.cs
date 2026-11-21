@@ -1,4 +1,5 @@
 using Endatix.Core.Configuration;
+using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using FluentAssertions;
 
@@ -6,6 +7,11 @@ namespace Endatix.Core.Tests.Features.Email;
 
 public class EmailTemplateFromAddressTests
 {
+    private static readonly DeploymentSender NoSender = new("noreply@endatix.com", "Endatix", ConfiguredAddress: null);
+    private static readonly DeploymentSender ConfiguredSender = new("sender@example.com", "Endatix", "sender@example.com");
+
+    private static EmailTemplate Row(string name, string fromAddress) => new(name, "Subject", "<p>Body</p>", "Body", fromAddress);
+
     [Fact]
     public void Resolve_ConfiguredAddressOverridesDatabaseValue()
     {
@@ -18,10 +24,7 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            "email-verification",
-            "noreply@endatix.com");
+        var result = EmailTemplateFromAddress.Resolve(settings, Row("email-verification", "noreply@endatix.com"), NoSender);
 
         result.Should().Be("custom@example.com");
     }
@@ -38,10 +41,7 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            "forgot-password",
-            "noreply@endatix.com");
+        var result = EmailTemplateFromAddress.Resolve(settings, Row("forgot-password", "noreply@endatix.com"), NoSender);
 
         result.Should().Be("noreply@endatix.com");
     }
@@ -58,10 +58,7 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            "email-verification",
-            "noreply@endatix.com");
+        var result = EmailTemplateFromAddress.Resolve(settings, Row("email-verification", "noreply@endatix.com"), NoSender);
 
         result.Should().Be("noreply@endatix.com");
     }
@@ -71,25 +68,45 @@ public class EmailTemplateFromAddressTests
     {
         var settings = new EmailTemplateSettings();
 
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            "custom-template",
-            "db-sender@example.com");
+        var result = EmailTemplateFromAddress.Resolve(settings, Row("custom-template", "db-sender@example.com"), NoSender);
 
         result.Should().Be("db-sender@example.com");
     }
 
     [Fact]
-    public void Resolve_NoConfiguredOrDatabaseValueUsesDefault()
+    public void Resolve_ConfiguredSenderAddressWinsOverDatabaseValue()
     {
-        var settings = new EmailTemplateSettings();
-
         var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            "custom-template",
-            string.Empty);
+            new EmailTemplateSettings(),
+            Row("forgot-password", "noreply@endatix.com"),
+            ConfiguredSender);
 
-        result.Should().Be(EmailTemplateFromAddress.DefaultFromAddress);
+        result.Should().Be("sender@example.com");
+    }
+
+    [Fact]
+    public void Resolve_NoConfiguredOrDatabaseValueUsesTheDeploymentSenderAddress()
+    {
+        // A hand-edited row can hold an empty address: EF materialization skips the constructor guard.
+        var row = Row("custom-template", "db@example.com");
+        typeof(EmailTemplate).GetProperty(nameof(EmailTemplate.FromAddress))!.SetValue(row, string.Empty);
+
+        var result = EmailTemplateFromAddress.Resolve(new EmailTemplateSettings(), row, NoSender);
+
+        result.Should().Be("noreply@endatix.com");
+    }
+
+    [Fact]
+    public void Resolve_ConfiguredTemplateAddressWinsOverConfiguredSender()
+    {
+        var settings = new EmailTemplateSettings
+        {
+            ForgotPasswordEmail = new EmailTemplateConfig { TemplateId = "forgot-password", FromAddress = "reset@example.com" }
+        };
+
+        var result = EmailTemplateFromAddress.Resolve(settings, Row("forgot-password", "noreply@endatix.com"), ConfiguredSender);
+
+        result.Should().Be("reset@example.com");
     }
 
     [Fact]
@@ -109,15 +126,9 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        EmailTemplateFromAddress.Resolve(
-            settings,
-            "email-verification",
-            "noreply@endatix.com").Should().Be("verify@example.com");
+        EmailTemplateFromAddress.Resolve(settings, Row("email-verification", "noreply@endatix.com"), NoSender).Should().Be("verify@example.com");
 
-        EmailTemplateFromAddress.Resolve(
-            settings,
-            EmailTemplateSettings.UserInvitationTemplateId,
-            "noreply@endatix.com").Should().Be("invite@example.com");
+        EmailTemplateFromAddress.Resolve(settings, Row(EmailTemplateSettings.UserInvitationTemplateId, "noreply@endatix.com"), NoSender).Should().Be("invite@example.com");
     }
 
     [Fact]
@@ -132,10 +143,7 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            EmailTemplateSettings.UserInvitationTemplateId,
-            "noreply@endatix.com");
+        var result = EmailTemplateFromAddress.Resolve(settings, Row(EmailTemplateSettings.UserInvitationTemplateId, "noreply@endatix.com"), NoSender);
 
         result.Should().Be("pick@endatix.com");
     }
@@ -152,10 +160,7 @@ public class EmailTemplateFromAddressTests
             }
         };
 
-        var result = EmailTemplateFromAddress.Resolve(
-            settings,
-            EmailTemplateSettings.UserInvitationTemplateId,
-            "noreply@endatix.com");
+        var result = EmailTemplateFromAddress.Resolve(settings, Row(EmailTemplateSettings.UserInvitationTemplateId, "noreply@endatix.com"), NoSender);
 
         result.Should().Be("pick@endatix.com");
     }
@@ -170,9 +175,6 @@ public class EmailTemplateFromAddressTests
         settings.ForgotPasswordEmail.FromAddress.Should().BeEmpty();
         settings.PasswordChangedEmail.FromAddress.Should().BeEmpty();
 
-        EmailTemplateFromAddress.Resolve(
-            settings,
-            "email-verification",
-            "db@example.com").Should().Be("db@example.com");
+        EmailTemplateFromAddress.Resolve(settings, Row("email-verification", "db@example.com"), NoSender).Should().Be("db@example.com");
     }
 }

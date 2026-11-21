@@ -1,6 +1,6 @@
-using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Email.ListTemplates;
@@ -10,6 +10,8 @@ namespace Endatix.Core.Tests.UseCases.Email.ListTemplates;
 
 public class ListEmailTemplatesHandlerTests
 {
+    private static readonly DeploymentSender NoSender = new("noreply@endatix.com", "Endatix", ConfiguredAddress: null);
+
     private readonly IRepository<EmailTemplate> _repository;
     private readonly ListEmailTemplatesHandler _sut;
 
@@ -24,7 +26,7 @@ public class ListEmailTemplatesHandlerTests
                 FromAddress = "custom@example.com"
             }
         };
-        _sut = new ListEmailTemplatesHandler(_repository, settings, DeploymentBrand.BuiltIn);
+        _sut = new ListEmailTemplatesHandler(_repository, settings, NoSender);
     }
 
     [Fact]
@@ -73,7 +75,7 @@ public class ListEmailTemplatesHandlerTests
                     FromAddress = string.Empty
                 }
             },
-            DeploymentBrand.BuiltIn);
+            NoSender);
 
         var result = await sut.Handle(new ListEmailTemplatesQuery(), TestContext.Current.CancellationToken);
 
@@ -81,7 +83,7 @@ public class ListEmailTemplatesHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PackWithFromAddress_ListsThePackAddressLikeTheSendDoes()
+    public async Task Handle_ConfiguredSenderAddress_ListsItLikeTheSendDoes()
     {
         // Arrange
         var repository = Substitute.For<IRepository<EmailTemplate>>();
@@ -89,11 +91,8 @@ public class ListEmailTemplatesHandlerTests
         [
             new EmailTemplate("forgot-password", "Reset", "<p>Reset</p>", "Reset", "noreply@endatix.com")
         ]);
-        var brand = DeploymentBrand.BuiltIn with
-        {
-            Email = DeploymentBrand.BuiltIn.Email with { FromAddress = "noreply@example.com" }
-        };
-        var sut = new ListEmailTemplatesHandler(repository, new EmailTemplateSettings(), brand);
+        var sender = new DeploymentSender("noreply@example.com", "Example Forms", "noreply@example.com");
+        var sut = new ListEmailTemplatesHandler(repository, new EmailTemplateSettings(), sender);
 
         // Act
         var result = await sut.Handle(new ListEmailTemplatesQuery(), TestContext.Current.CancellationToken);

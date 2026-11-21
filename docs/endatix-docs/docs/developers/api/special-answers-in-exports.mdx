@@ -94,7 +94,7 @@ The **Codebook** format exports the form's codebook JSON. Its `choiceCatalogs` o
 | Field | Meaning |
 | --- | --- |
 | `multiple` | `true` for checkbox and tag box, `false` for single-select questions. |
-| `otherStorage` | Where the Other text is: `comment` (a separate comment, the SurveyJS default) or `value` (`storeOthersAsComment: false`, the text replaces `other`). Only on questions with Other. |
+| `otherStorage` | Where the Other text is: `comment` (a separate comment, the SurveyJS default) or `value` (the text replaces `other`: `storeOthersAsComment: false`, or a checkbox whose regular choice shows a comment box, which stores each checked item as an object such as `{"value": "x"}`). Only on questions with Other. |
 | `id` | The choice's code. It keeps its value after choices are added, removed, or reordered: a new item takes the next free id. A form that removed a choice before this rule existed has its later choices renumbered once, in its next Shoji export. |
 | `kind` | `other`, `none`, `refused`, or `dontknow` for a special item. Absent for an ordinary choice. |
 | `exclusive` | `true` when choosing the item clears the other choices, including a custom `isExclusive` choice. |

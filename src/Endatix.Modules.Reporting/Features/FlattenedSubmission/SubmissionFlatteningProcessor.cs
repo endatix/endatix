@@ -5,8 +5,8 @@ using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
-using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
@@ -154,8 +154,9 @@ internal sealed class SubmissionFlatteningProcessor(
         var mergedSchema = await schemaPersonalization.IncludeAsync(schema, personalization, cancellationToken);
         ResponseSnapshots snapshots = new(personalization, submitterProfileFields.Read(submission.SubmitterProfileSnapshot));
         using var submissionDocument = JsonDocument.Parse(submission.JsonData);
-        var flattened = FlattenedSubmissionFlattener.Flatten(
-            submissionDocument.RootElement, mergedSchema, ChoiceCatalogs.Read(schema.Codebook, submission.IsComplete), snapshots);
+        // The definition the submission was made on: a question added or removed in another version was never shown.
+        var catalogs = ChoiceCatalogs.Read(schema.Codebook, submission.IsComplete, submission.FormDefinition?.JsonData);
+        var flattened = FlattenedSubmissionFlattener.Flatten(submissionDocument.RootElement, mergedSchema, catalogs, snapshots);
         var searchKeys = FormSearchKeys.Of(schema);
         return new FlattenedRowData(
             FlattenedSubmissionFlattener.ToJson(mergedSchema, flattened),

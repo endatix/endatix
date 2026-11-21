@@ -5,6 +5,10 @@ namespace Endatix.Infrastructure.Email;
 /// <summary>
 /// POCO Class for SMTP settings needed for email sending.
 /// </summary>
+/// <remarks>
+/// The sender is not an SMTP setting: every provider uses <c>Endatix:Integrations:Email:Sender</c>.
+/// <see cref="DefaultFromAddress"/> and <see cref="DefaultFromName"/> are deprecated and read only below it.
+/// </remarks>
 public class SmtpSettings
 {
     /// <summary>
@@ -50,14 +54,14 @@ public class SmtpSettings
     public string? Password { get; set; }
 
     /// <summary>
-    /// The default sender email address.
+    /// Deprecated: set <c>Endatix:Integrations:Email:Sender:Address</c>. Read only when that is empty, as the sender
+    /// of an email without a template or a From address; it never wins over a template row.
     /// </summary>
-    [Required]
     [EmailAddress]
-    public string DefaultFromAddress { get; set; } = "noreply@endatix.com";
+    public string? DefaultFromAddress { get; set; }
 
     /// <summary>
-    /// The default sender display name.
+    /// Deprecated: set <c>Endatix:Integrations:Email:Sender:Name</c>. Read only when that is empty.
     /// </summary>
-    public string DefaultFromName { get; set; } = "Endatix";
+    public string? DefaultFromName { get; set; }
 } 

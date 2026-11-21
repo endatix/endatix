@@ -2,8 +2,8 @@ using System.Text;
 using Ardalis.GuardClauses;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
+using Endatix.Core.Features.Email;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 
@@ -18,22 +18,22 @@ public class EmailTemplateService : IEmailTemplateService
 {
     private readonly IOptions<EmailTemplateSettings> _emailTemplateSettings;
     private readonly IOptions<HubSettings> _hubSettings;
-    private readonly DeploymentBrand _brand;
+    private readonly EmailVariables _variables;
 
     /// <summary>
     /// Initializes a new instance of the EmailTemplateService class.
     /// </summary>
     /// <param name="emailTemplateSettings">The template ids and sender overrides.</param>
     /// <param name="hubSettings">The Hub base URL for links.</param>
-    /// <param name="brand">The deployment brand; it names the product in the composed copy.</param>
+    /// <param name="variables">The email variables; they name the product in the composed copy.</param>
     public EmailTemplateService(
         IOptions<EmailTemplateSettings> emailTemplateSettings,
         IOptions<HubSettings> hubSettings,
-        DeploymentBrand brand)
+        EmailVariables variables)
     {
         _emailTemplateSettings = emailTemplateSettings;
         _hubSettings = hubSettings;
-        _brand = brand;
+        _variables = variables;
     }
 
     private string HubUrl => !string.IsNullOrWhiteSpace(_hubSettings.Value.HubBaseUrl)
@@ -58,7 +58,7 @@ public class EmailTemplateService : IEmailTemplateService
                     ? BuildHubUrl("verify-email", new Dictionary<string, string?> { ["token"] = token })
                     : string.Empty,
                 ["headline"] = "Verify your email address",
-                ["bodyText"] = $"Verify your email address to activate your {_brand.ProductName} account.",
+                ["bodyText"] = $"Verify your email address to activate your {_variables.ProductName} account.",
                 ["actionText"] = "Verify email address"
             }
         };
@@ -79,8 +79,8 @@ public class EmailTemplateService : IEmailTemplateService
                 ["activationUrl"] = token is not null
                     ? BuildHubUrl("activate-invite", new Dictionary<string, string?> { ["token"] = token })
                     : string.Empty,
-                ["headline"] = $"Accept your {_brand.ProductName} invitation",
-                ["bodyText"] = $"Set your password to activate your account and sign in to {_brand.AppName}.",
+                ["headline"] = $"Accept your {_variables.ProductName} invitation",
+                ["bodyText"] = $"Set your password to activate your account and sign in to {_variables.AppName}.",
                 ["actionText"] = "Accept invitation"
             }
         };

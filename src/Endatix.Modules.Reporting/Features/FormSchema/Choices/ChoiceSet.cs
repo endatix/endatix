@@ -160,6 +160,8 @@ internal sealed class ChoiceSet
 
     // survey-core question_baseselect.ts getStoreOthersAsComment: the question comment owns "-Comment", per-choice
     // comments force comment storage, then the question's own setting, then the survey's; choicesByUrl forces it.
+    // question_checkbox.ts overrides it: a checkbox or tag box whose items are objects keeps the typed text in the
+    // value. That is read only on the question's own inline choices, where typed text can be told apart.
     private static OtherStorage ResolveOtherStorage(JsonElement question, SurveyChoiceDefaults survey)
     {
         if (question.GetBooleanProperty(SurveyJsPropertyNames.ShowCommentArea) ||
@@ -168,7 +170,7 @@ internal sealed class ChoiceSet
             return Storage.Value;
         }
 
-        if (HasChoiceComments(question) || question.TryGetProperty(SurveyJsPropertyNames.ChoicesByUrl, out _))
+        if (question.TryGetProperty(SurveyJsPropertyNames.ChoicesByUrl, out _))
         {
             return Storage.Comment;
         }
@@ -181,13 +183,19 @@ internal sealed class ChoiceSet
             return Storage.Comment;
         }
 
-        var storesComment = question.TryGetProperty(SurveyJsPropertyNames.StoreOthersAsComment, out var own) &&
-                            own.ValueKind is JsonValueKind.True or JsonValueKind.False
+        if (StoresObjectItems(question))
+        {
+            return Storage.Value;
+        }
+
+        return ShowsChoiceComments(question) || StoresOthersAsComment(question, survey) ? Storage.Comment : Storage.Value;
+    }
+
+    private static bool StoresOthersAsComment(JsonElement question, SurveyChoiceDefaults survey) =>
+        question.TryGetProperty(SurveyJsPropertyNames.StoreOthersAsComment, out var own) &&
+        own.ValueKind is JsonValueKind.True or JsonValueKind.False
             ? own.ValueKind == JsonValueKind.True
             : survey.StoreOthersAsComment;
-
-        return storesComment ? Storage.Comment : Storage.Value;
-    }
 
     // Leftover inline choices on a copy or a data list are not what the respondent sees, so only an inline source counts.
     private static bool HasOwnChoices(JsonElement question) =>
@@ -195,7 +203,24 @@ internal sealed class ChoiceSet
         ChoiceSource.Parse(question) is ChoiceSource.Inline &&
         !question.GetBooleanProperty(SurveyJsPropertyNames.AllowCustomChoices);
 
-    private static bool HasChoiceComments(JsonElement question) =>
+    // question_checkbox.ts getValuePropertyName: a checkbox or a tag box with a valuePropertyName, or a checkbox whose
+    // choice shows a comment box, stores each checked item as an object.
+    private static bool StoresObjectItems(JsonElement question)
+    {
+        var type = question.GetSurveyJsType();
+        var isCheckbox = SurveyJsElementType.Checkbox.Matches(type);
+        if (!isCheckbox && !SurveyJsElementType.Tagbox.Matches(type))
+        {
+            return false;
+        }
+
+        return !string.IsNullOrEmpty(question.GetStringProperty(SurveyJsPropertyNames.ValuePropertyName)) ||
+               (isCheckbox && ShowsChoiceComments(question));
+    }
+
+    // A tag box's choices show no comment box, so survey-core ignores the setting there.
+    private static bool ShowsChoiceComments(JsonElement question) =>
+        !SurveyJsElementType.Tagbox.Matches(question.GetSurveyJsType()) &&
         SurveyJsChoiceHelper.EnumerateChoiceElements(question).Any(choice =>
             choice.Element.ValueKind == JsonValueKind.Object &&
             choice.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowCommentArea));
