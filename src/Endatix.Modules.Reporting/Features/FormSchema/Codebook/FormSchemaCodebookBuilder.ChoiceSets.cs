@@ -91,6 +91,12 @@ internal static partial class FormSchemaCodebookBuilder
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ChoiceSet.ToJsonName(stored));
         }
 
+        WriteOtherFrom(writer, existingCatalog, currentCatalog);
+    }
+
+    // A kept otherFrom on a copy that now shows its own Other also writes ownOther.
+    private static void WriteOtherFrom(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
+    {
         var currentFrom = currentCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom);
         if ((currentFrom ?? existingCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom)) is not { } otherFrom)
         {
