@@ -1,0 +1,27 @@
+{
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "question1",
+          "choices": ["item1", "item2", "item3"],
+          "showOtherItem": true
+        },
+        {
+          "type": "checkbox",
+          "name": "question2",
+          "choices": ["item1", { "value": "item2", "text": "item2", "showCommentArea": true }, "item3"],
+          "showOtherItem": true
+        },
+        {
+          "type": "tagbox",
+          "name": "question3",
+          "choices": ["item1", { "value": "item2", "text": "item2", "showCommentArea": true }, "item3"],
+          "showOtherItem": true
+        }
+      ]
+    }
+  ]
+}

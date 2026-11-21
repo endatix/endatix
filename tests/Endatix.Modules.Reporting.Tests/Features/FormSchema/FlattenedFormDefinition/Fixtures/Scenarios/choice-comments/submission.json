@@ -1,0 +1,10 @@
+{
+  "question1": ["item2", "other"],
+  "question1-Comment": "Typed for question1",
+  "question2": [
+    { "value": "item2", "comment": "Note on item2" },
+    { "value": "Typed for question2" }
+  ],
+  "question3": ["item2", "other"],
+  "question3-Comment": "Typed for question3"
+}
