@@ -53,6 +53,11 @@ public record PartialUpdateFormCommand : ICommand<Result<Form>>
     public string? WebHookSettingsJson { get; init; }
 
     /// <summary>
+    /// When set, turns the form's theme on its submission PDFs on or off.
+    /// </summary>
+    public bool? PdfUsesFormTheme { get; init; }
+
+    /// <summary>
     /// When true, clears folder assignment (subject to tenant policy).
     /// </summary>
     public bool ClearFolderId { get; init; }

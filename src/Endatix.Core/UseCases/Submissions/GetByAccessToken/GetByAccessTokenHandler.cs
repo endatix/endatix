@@ -12,6 +12,7 @@ namespace Endatix.Core.UseCases.Submissions.GetByAccessToken;
 /// </summary>
 public class GetByAccessTokenHandler(
     IRepository<Submission> submissionRepository,
+    IRepository<Theme> themeRepository,
     ISubmissionAccessTokenService tokenService
     ) : IQueryHandler<GetByAccessTokenQuery, Result<Submission>>
 {
@@ -45,6 +46,7 @@ public class GetByAccessTokenHandler(
             return Result.NotFound("Form not found");
         }
 
+        await SubmissionFormTheme.LoadAsync(submission, themeRepository, cancellationToken);
         return Result.Success(submission);
     }
 }

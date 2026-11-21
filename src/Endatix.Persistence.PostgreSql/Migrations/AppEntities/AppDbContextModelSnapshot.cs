@@ -340,6 +340,11 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<bool>("PdfUsesFormTheme")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<long>("Revision")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")

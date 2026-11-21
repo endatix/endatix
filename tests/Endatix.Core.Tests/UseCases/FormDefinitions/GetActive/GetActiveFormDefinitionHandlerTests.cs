@@ -306,5 +306,31 @@ public class GetActiveFormDefinitionHandlerTests
         result.Value!.LimitOnePerUser.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task Handle_PdfUsesFormTheme_ReturnsTheFlag()
+    {
+        // Arrange
+        var form = Form.Create(new FormCreateArgs(
+            TenantId: SampleData.TENANT_ID,
+            Name: SampleData.FORM_NAME_1,
+            IsEnabled: true,
+            IsPublic: true));
+        form.Id = 1;
+        form.SetPdfUsesFormTheme(true);
+        form.AddFormDefinition(new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1));
+
+        _formsRepository.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), CancellationToken.None)
+            .Returns(form);
+        _customQuestionsRepository.ListAsync(Arg.Any<CustomQuestionSpecifications.ByTenantId>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        // Act
+        var result = await _handler.Handle(new GetActiveFormDefinitionQuery(1, null, "access.authenticated"), CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Ok);
+        result.Value!.PdfUsesFormTheme.Should().BeTrue();
+    }
+
     #endregion
 }

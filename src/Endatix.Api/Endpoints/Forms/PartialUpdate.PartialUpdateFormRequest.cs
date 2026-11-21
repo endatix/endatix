@@ -56,6 +56,11 @@ public class PartialUpdateFormRequest
     public long? ThemeId { get; set; }
 
     /// <summary>
+    /// Whether the form's submission PDFs use its theme. Omit to keep the current value.
+    /// </summary>
+    public bool? PdfUsesFormTheme { get; set; }
+
+    /// <summary>
     /// The JSON data containing webhook configuration settings for this form.
     /// </summary>
     public string? WebHookSettingsJson { get; set; }

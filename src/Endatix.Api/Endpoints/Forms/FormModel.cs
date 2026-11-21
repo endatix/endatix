@@ -43,6 +43,11 @@ public class FormModel
     public int? SubmissionTokenExpiryHours { get; set; }
 
     /// <summary>
+    /// Whether the form's submission PDFs use its theme.
+    /// </summary>
+    public bool PdfUsesFormTheme { get; set; }
+
+    /// <summary>
     /// Additional form-level metadata as raw JSON string.
     /// </summary>
     public string? Metadata { get; set; }
