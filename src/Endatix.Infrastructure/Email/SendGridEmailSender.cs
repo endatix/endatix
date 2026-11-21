@@ -65,10 +65,9 @@ public class SendGridEmailSender(
         Guard.Against.NullOrWhiteSpace(email.From);
         Guard.Against.NullOrWhiteSpace(email.Subject);
 
-        var fromEmail = new EmailAddress(email.From, email.FromName);
         var toEmail = new EmailAddress(email.To);
         var msg = MailHelper.CreateSingleEmail(
-            fromEmail,
+            FromEmail(email),
             toEmail,
             email.Subject,
             email.PlainTextBody,
@@ -99,6 +98,13 @@ public class SendGridEmailSender(
         await SendEmailAsync(emailWithBody, cancellationToken);
     }
 
+    // Called after the From guard, so the address is set. The From may already carry a display name.
+    private static EmailAddress FromEmail(EmailWithBody email)
+    {
+        var sender = FromMailbox.Create(email.From!, email.FromName);
+        return new EmailAddress(sender.Address, string.IsNullOrEmpty(sender.Name) ? null : sender.Name);
+    }
+
     private async Task SendExternalTemplateEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(email);
@@ -110,7 +116,7 @@ public class SendGridEmailSender(
         msg.SetFrom(new EmailAddress(email.From));
         msg.AddTo(new EmailAddress(email.To));
         msg.SetTemplateId(email.TemplateId);
-        msg.SetTemplateData(email.Metadata);
+        msg.SetTemplateData(_templateRenderer.ProviderTemplateData(email));
 
         var response = await _sendGridClient
             .SendEmailAsync(msg, cancellationToken)

@@ -60,6 +60,13 @@ internal static class FormSchemaCodebookPropertyNames
     /// while it copied never read as a select with its own choices.
     /// </summary>
     public const string Copied = "copied";
+
+    /// <summary>
+    /// Choice catalog of a checkbox or tagbox with its own choices: true once any compiled definition put it under a
+    /// <c>visibleIf</c> (its own or an enclosing panel's, dynamic panel's or page's) or a static <c>visible: false</c>.
+    /// Kept by every merge, so an unanswered row saved under such a definition never claims it was shown.
+    /// </summary>
+    public const string CanBeHidden = "canBeHidden";
     public const string Mode = "mode";
 
     /// <summary><see cref="Shown"/>: a source's name and the regular choice values it offered when compiled.</summary>

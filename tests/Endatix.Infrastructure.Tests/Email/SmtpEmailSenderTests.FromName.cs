@@ -13,10 +13,13 @@ namespace Endatix.Infrastructure.Tests.Email;
 
 public partial class SmtpEmailSenderTests
 {
+    private static readonly DeploymentSender _sender = new("deployment@example.com", "Example Team", ConfiguredAddress: null);
+    private static readonly EmailVariables _variables = EmailVariables.From(DeploymentBrand.BuiltIn);
+
     [Theory]
-    [InlineData(null, "Endatix")]
+    [InlineData(null, "Example Team")]
     [InlineData("Example Forms", "Example Forms")]
-    public async Task SendEmailWithBody_FromName_NamesTheSenderOrKeepsTheConfiguredDefault(string? fromName, string expectedName)
+    public async Task SendEmailWithBody_FromName_NamesTheSenderOrUsesTheDeploymentSenderName(string? fromName, string expectedName)
     {
         // Arrange
         // Inspect inside Arg.Do: SendEmailAsync disposes the message before returning.
@@ -30,7 +33,7 @@ public partial class SmtpEmailSenderTests
             sentAddress = sender.Address;
         }), Arg.Any<CancellationToken>()).Returns("250 OK");
 
-        var sut = SenderNamed("Endatix", transport);
+        var sut = SmtpSenderWith(transport);
         var email = new EmailWithBody
         {
             To = "recipient@example.com",
@@ -49,16 +52,69 @@ public partial class SmtpEmailSenderTests
         sentAddress.Should().Be("sender@example.com");
     }
 
-    private static TestableSmtpEmailSender SenderNamed(string defaultFromName, IMailTransport transport) => new(
-        Substitute.For<ILogger<SmtpEmailSender>>(),
-        Options.Create(new SmtpSettings
+    [Fact]
+    public async Task SendEmailWithBody_NoFromAddress_SendsFromTheDeploymentSender()
+    {
+        // Arrange
+        var transport = Substitute.For<IMailTransport>();
+        string? sentAddress = null;
+        transport.SendAsync(Arg.Do<MimeMessage>(msg => sentAddress = msg.From.Mailboxes.Single().Address), Arg.Any<CancellationToken>())
+            .Returns("250 OK");
+        var sut = SmtpSenderWith(transport);
+        var email = new EmailWithBody
         {
-            Host = "smtp.example.com",
-            DefaultFromAddress = "noreply@example.com",
-            DefaultFromName = defaultFromName
-        }),
+            To = "recipient@example.com",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        sentAddress.Should().Be("deployment@example.com");
+    }
+
+    [Theory]
+    [InlineData(null, "Operator Team")]
+    [InlineData("Example Forms", "Operator Team")]
+    public async Task SendEmailWithBody_FromWithADisplayName_KeepsTheAddressAndItsOwnName(string? fromName, string expectedName)
+    {
+        // Arrange: an operator FromAddress may already carry a display name.
+        var transport = Substitute.For<IMailTransport>();
+        string? sentName = null;
+        string? sentAddress = null;
+        transport.SendAsync(Arg.Do<MimeMessage>(msg =>
+        {
+            var sender = msg.From.Mailboxes.Single();
+            sentName = sender.Name;
+            sentAddress = sender.Address;
+        }), Arg.Any<CancellationToken>()).Returns("250 OK");
+        var sut = SmtpSenderWith(transport);
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "Operator Team <sender@example.com>",
+            FromName = fromName,
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        sentAddress.Should().Be("sender@example.com");
+        sentName.Should().Be(expectedName);
+    }
+
+    private static TestableSmtpEmailSender SmtpSenderWith(IMailTransport transport) => new(
+        Substitute.For<ILogger<SmtpEmailSender>>(),
+        Options.Create(new SmtpSettings { Host = "smtp.example.com" }),
         new EmailTemplateRenderer(
             Substitute.For<IRepository<EmailTemplate>>(),
-            Options.Create(new EmailTemplateSettings()), DeploymentBrand.BuiltIn),
+            Options.Create(new EmailTemplateSettings()), _variables, _sender),
         transport);
 }

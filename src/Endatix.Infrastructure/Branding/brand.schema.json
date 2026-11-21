@@ -92,24 +92,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "email": {
-      "type": "object",
-      "properties": {
-        "senderName": {
-          "type": "string",
-          "minLength": 1
-        },
-        "fromAddress": {
-          "type": "string",
-          "format": "email"
-        },
-        "supportAddress": {
-          "type": "string",
-          "format": "email"
-        }
-      },
-      "additionalProperties": false
     }
   },
   "required": [

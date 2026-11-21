@@ -1,0 +1,138 @@
+{
+  "pages": [
+    {
+      "name": "startPage",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "shopper",
+          "title": "Do you shop with us?",
+          "isRequired": true,
+          "choices": [
+            { "value": "yes", "text": "Yes" },
+            { "value": "no", "text": "No" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "channels",
+          "title": "Where did you hear about us?",
+          "choices": [
+            { "value": "A", "text": "Radio" },
+            { "value": "B", "text": "Friends" }
+          ]
+        },
+        {
+          "type": "tagbox",
+          "name": "topics",
+          "title": "Which topics interest you?",
+          "showNoneItem": true,
+          "choices": [
+            { "value": "A", "text": "Recipes" },
+            { "value": "B", "text": "Offers" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "flavours",
+          "title": "Which flavours do you buy?",
+          "visibleIf": "{shopper} = 'yes'",
+          "showNoneItem": true,
+          "choices": [
+            { "value": "A", "text": "Mint" },
+            { "value": "B", "text": "Lemon" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "internalTags",
+          "title": "Internal tags",
+          "visible": false,
+          "choices": [
+            { "value": "A", "text": "Panel" },
+            { "value": "B", "text": "Walk-in" }
+          ]
+        },
+        {
+          "type": "panel",
+          "name": "storePanel",
+          "visibleIf": "{shopper} = 'yes'",
+          "elements": [
+            {
+              "type": "checkbox",
+              "name": "stores",
+              "title": "Which stores do you visit?",
+              "showOtherItem": true,
+              "choices": [
+                { "value": "A", "text": "North" },
+                { "value": "B", "text": "South" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reasonsPage",
+      "visibleIf": "{shopper} = 'no'",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "reasons",
+          "title": "Why don't you shop with us?",
+          "choices": [
+            { "value": "A", "text": "Prices" },
+            { "value": "B", "text": "Service" }
+          ]
+        },
+        {
+          "type": "paneldynamic",
+          "name": "reasonLoop",
+          "loopSource": ["reasons"],
+          "templateElements": [
+            {
+              "type": "checkbox",
+              "name": "reasonDetail",
+              "title": "What about it?",
+              "visibleIf": "{shopper} = 'yes'",
+              "choices": [
+                { "value": "A", "text": "Often" },
+                { "value": "B", "text": "Sometimes" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "notShoppingPage",
+      "visibleIf": "{shopper} = 'no'",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "elsewhere",
+          "title": "Where do you shop instead?",
+          "choices": [
+            { "value": "A", "text": "Online" },
+            { "value": "B", "text": "Market" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hiddenPage",
+      "visible": false,
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "staffNotes",
+          "title": "Staff notes",
+          "choices": [
+            { "value": "A", "text": "Follow up" },
+            { "value": "B", "text": "Closed" }
+          ]
+        }
+      ]
+    }
+  ]
+}

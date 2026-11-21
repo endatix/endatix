@@ -70,6 +70,14 @@
         <NuGetAuditLevel>low</NuGetAuditLevel>
     </PropertyGroup>
 
+    <!-- Experimental APIs: a feature still in development marks its public types [Experimental("ENDATIXnnnn")],
+         so their C# signatures may change between releases (ID table: AGENTS.md, C# conventions). Endatix's own
+         projects and tests use them freely; a consumer of the packages opts in per ID. -->
+    <PropertyGroup>
+        <EndatixExperimentalIds>ENDATIX0001;ENDATIX0003;ENDATIX0004</EndatixExperimentalIds>
+        <NoWarn>$(NoWarn);$(EndatixExperimentalIds)</NoWarn>
+    </PropertyGroup>
+
     <!-- GitHub Actions / most CI runners set CI=true. Map it so ContinuousIntegrationBuild
          (and the NU1903/NU1904 ratchet below) apply without every workflow repeating -p:. -->
     <PropertyGroup Condition="'$(CI)' == 'true' And '$(ContinuousIntegrationBuild)' == ''">

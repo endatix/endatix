@@ -1,0 +1,15 @@
+name: endatix
+
+# Optional local SMTP sink for development: every email the API sends lands in Mailpit instead of
+# a real inbox. Start it with `docker compose -f docker/docker-compose.mailpit.yml up`, point the
+# API's SMTP settings at 127.0.0.1:1025 with TLS off, and read the messages at http://localhost:8025
+# (UI and REST API, https://mailpit.axllent.org/docs/api-v1/). It keeps messages in memory only.
+services:
+  mailpit:
+    container_name: endatix-mailpit
+    image: axllent/mailpit:v1.33.1
+    ports:
+      # Loopback only: the UI and API are unauthenticated and show every email body.
+      - "127.0.0.1:1025:1025" # SMTP
+      - "127.0.0.1:8025:8025" # UI and REST API
+    restart: unless-stopped

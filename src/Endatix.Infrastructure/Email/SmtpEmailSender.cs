@@ -22,6 +22,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     private readonly ILogger<SmtpEmailSender> _logger;
     private readonly SmtpSettings _settings;
     private readonly EmailTemplateRenderer _templateRenderer;
+    private readonly DeploymentSender _sender;
 
     // Static (not per-instance): IEmailSender is registered scoped, so an instance field would
     // re-warn on every request on an anonymous-relay deployment instead of once for the process.
@@ -34,18 +35,20 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
     /// <param name="logger">The logger.</param>
     /// <param name="options">The SMTP settings.</param>
     /// <param name="templateRenderer">The email template renderer.</param>
+    /// <param name="sender">The deployment sender, for an email without a From address or display name.</param>
     public SmtpEmailSender(
         ILogger<SmtpEmailSender> logger,
         IOptions<SmtpSettings> options,
-        EmailTemplateRenderer templateRenderer)
+        EmailTemplateRenderer templateRenderer,
+        DeploymentSender sender)
     {
         _logger = logger;
         _settings = options.Value;
         _templateRenderer = templateRenderer;
+        _sender = sender;
 
         Guard.Against.Null(_settings);
         Guard.Against.NullOrEmpty(_settings.Host);
-        Guard.Against.NullOrEmpty(_settings.DefaultFromAddress);
         if (!string.IsNullOrEmpty(_settings.Username))
         {
             Guard.Against.NullOrEmpty(_settings.Password);
@@ -204,10 +207,10 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
 
     private MimeMessage CreateMimeMessage(EmailWithBody email)
     {
-        var fromAddress = string.IsNullOrEmpty(email.From) ? _settings.DefaultFromAddress : email.From;
+        var fromAddress = string.IsNullOrEmpty(email.From) ? _sender.Address : email.From;
 
         var mimeMessage = new MimeMessage();
-        mimeMessage.From.Add(new MailboxAddress(email.FromName ?? _settings.DefaultFromName, fromAddress));
+        mimeMessage.From.Add(FromMailbox.Create(fromAddress, email.FromName, _sender.Name));
         // AddRange(InternetAddressList.Parse(...)), not MailboxAddress.Parse — the latter accepts
         // exactly one mailbox and throws on a comma-separated list, which the old MailMessage.To.Add
         // string contract allowed.

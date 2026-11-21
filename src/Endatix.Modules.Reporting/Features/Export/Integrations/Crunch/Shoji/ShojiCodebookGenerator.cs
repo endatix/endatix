@@ -808,9 +808,8 @@ internal static partial class ShojiCodebookGenerator
                 continue;
             }
 
-            var members = groupEntry.Value
-                .OrderBy(column => column.Key, StringComparer.Ordinal)
-                .ToList();
+            // Members stay in flattening-map order; a key sort reads 1, 10, 11, 2 (#1764).
+            var members = groupEntry.Value;
             var sourceQuestion = members[0].SourceQuestion ?? string.Empty;
             questions.TryGetValue(sourceQuestion, out var question);
 
@@ -1038,9 +1037,9 @@ internal static partial class ShojiCodebookGenerator
 
             var sourceQuestion = groupEntry.Value[0].SourceQuestion ?? string.Empty;
             questions.TryGetValue(sourceQuestion, out var question);
+            // Subvariables stay in flattening-map order; a key sort reads 1, 10, 11, 2 (#1764).
             var columnKeys = groupEntry.Value
                 .Select(column => column.Key)
-                .OrderBy(key => key, StringComparer.Ordinal)
                 .ToList();
             var preferredName = BuildLoopGroupDisplayName(exportKey, question, questions, keySeparator);
             var driverText = ResolveLoopDriverChoiceText(groupEntry.Value[0], questions, keySeparator);

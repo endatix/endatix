@@ -79,6 +79,9 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
     private readonly Dictionary<string, List<SourceChoice>?> _resolvedSources = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ResolvedChoices> _resolvedCopies = new(StringComparer.Ordinal);
 
+    /// <summary>The definition's questions by name.</summary>
+    public IReadOnlyDictionary<string, JsonElement> QuestionsByName => questionsByName;
+
     /// <summary>The choices a base select's columns and categories use; any other question's own choices.</summary>
     public ResolvedChoices Resolve(JsonElement question) =>
         question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect()
@@ -134,9 +137,22 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
     public IReadOnlyList<string> OfferedValues(string questionName) =>
         questionsByName.TryGetValue(questionName, out var question) ? OfferedValues(question) : [];
 
-    /// <summary>Writes a copy's catalog fields (<see cref="CopyVisibility.WriteFor"/>).</summary>
-    public void WriteCopyFields(Utf8JsonWriter writer, JsonElement question) =>
-        CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, questionsByName, definition ?? CopyDefinition.None));
+    /// <summary>
+    /// Writes what a catalog records about which choices a respondent saw: a copy's fields
+    /// (<see cref="CopyVisibility.WriteFor"/>), or <c>canBeHidden</c> on a checkbox or tagbox with its own choices that
+    /// the definition can hide (<see cref="CopyDefinition.CanHide"/>).
+    /// </summary>
+    public void WriteVisibilityFields(Utf8JsonWriter writer, JsonElement question)
+    {
+        CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, this, definition ?? CopyDefinition.None));
+        if (definition is { } whole &&
+            question.IsMultiSelectBaseSelect() &&
+            ChoiceSource.Parse(question) is not ChoiceSource.CarryForward &&
+            whole.CanHide(question, question.GetSurveyJsName()))
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.CanBeHidden, true);
+        }
+    }
 
     private List<SourceChoice>? Union(IReadOnlyList<string> sourceNames, HashSet<string> visiting)
     {

@@ -1,6 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
 using Ardalis.GuardClauses;
 using Endatix.Core;
-using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
@@ -14,12 +14,14 @@ namespace Endatix.Infrastructure.Email;
 /// Renders database-backed email templates into provider-ready email bodies.
 /// </summary>
 /// <remarks>
-/// Every template gets the <see cref="DeploymentBrand.TemplateVariables"/>; the caller's metadata wins on a clash.
+/// Every template gets the <see cref="EmailVariables"/>; the caller's metadata wins on a clash. Every email sends
+/// with the <see cref="DeploymentSender"/>'s display name.
 /// </remarks>
 public sealed class EmailTemplateRenderer(
     IRepository<EmailTemplate> templateRepository,
     IOptions<EmailTemplateSettings> emailTemplateSettings,
-    DeploymentBrand brand)
+    EmailVariables variables,
+    DeploymentSender sender)
 {
     /// <summary>
     /// Renders a database-backed email template into a provider-ready email body.
@@ -42,29 +44,27 @@ public sealed class EmailTemplateRenderer(
             throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
         }
 
-        // The pack's address replaces the row's, so the operator's per-template config still wins over both.
-        var fromAddress = EmailTemplateFromAddress.Resolve(
-            emailTemplateSettings.Value,
-            template.Name,
-            brand.Email.FromAddress ?? template.FromAddress);
+        var fromAddress = EmailTemplateFromAddress.Resolve(emailTemplateSettings.Value, template, sender);
 
         var rendered = template.Render(
             email.To,
-            Variables(email),
+            variables.ForTemplate(email.Metadata),
             subject: email.Subject,
             from: fromAddress);
-        rendered.FromName = brand.Email.SenderName;
+        rendered.FromName = sender.Name;
         return rendered;
     }
 
-    private Dictionary<string, string> Variables(EmailWithTemplate email)
+    /// <summary>
+    /// The dynamic data for a provider template (<see cref="EmailWithTemplate.IsExternal"/>): the same variables a
+    /// stored template gets, with the caller's metadata values kept as they are.
+    /// </summary>
+    /// <param name="email">The email sent with a provider template.</param>
+    /// <returns>The variables merged with the email's metadata.</returns>
+    [Experimental("ENDATIX0004")]
+    public Dictionary<string, object> ProviderTemplateData(EmailWithTemplate email)
     {
-        var variables = new Dictionary<string, string>(brand.TemplateVariables);
-        foreach (var (key, value) in email.Metadata ?? [])
-        {
-            variables[key] = value?.ToString() ?? string.Empty;
-        }
-
-        return variables;
+        Guard.Against.Null(email);
+        return variables.ForProvider(email.Metadata);
     }
 }
