@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// page, panel or question has a <c>visibleIf</c>, the questions a <c>visibleIf</c> on an enclosing panel, dynamic panel
 /// or page can hide, and the questions a static <c>visible: false</c> on themselves or on an enclosing panel or page
 /// always hides. At run time the same walk lists the question names of the definition a submission was made on
-/// (<see cref="QuestionNamesIn"/>).
+/// (<see cref="QuestionsIn"/>).
 /// </summary>
 internal sealed record CopyDefinition(
     IReadOnlySet<string> SharedNames,
@@ -47,10 +47,11 @@ internal sealed record CopyDefinition(
 
     /// <summary>
     /// RUN TIME. Every question name (<c>name</c>, not <c>valueName</c>, as the indicator columns are keyed) in
-    /// <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels; null when there is no
-    /// definition to read, or one that is not a JSON object, so an unreadable stored definition never fails a flatten.
+    /// <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels, and those that show an Other
+    /// of their own; null when there is no definition to read, or one that is not a JSON object, so an unreadable stored
+    /// definition never fails a flatten.
     /// </summary>
-    public static IReadOnlySet<string>? QuestionNamesIn(string? definitionJson)
+    public static SubmittedQuestions? QuestionsIn(string? definitionJson)
     {
         if (string.IsNullOrWhiteSpace(definitionJson))
         {
@@ -68,11 +69,11 @@ internal sealed record CopyDefinition(
         }
     }
 
-    private static HashSet<string> NamesIn(JsonElement definition)
+    private static SubmittedQuestions NamesIn(JsonElement definition)
     {
         DefinitionWalk walk = new();
         walk.Visit(definition);
-        return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
+        return new(walk.Counts.Keys.ToHashSet(StringComparer.Ordinal), walk.ShowingOther);
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
@@ -123,6 +124,8 @@ internal sealed record CopyDefinition(
 
         public HashSet<string> UnderVisibleIf { get; } = new(StringComparer.Ordinal);
 
+        public HashSet<string> ShowingOther { get; } = new(StringComparer.Ordinal);
+
         public bool HasVisibleIf { get; private set; }
 
         public void Visit(JsonElement container) => Visit(container, default);
@@ -154,13 +157,20 @@ internal sealed record CopyDefinition(
                 var inside = hiding.Inside(element, HasVisibleIfNoted(element));
                 if (!SurveyJsElementType.IsNonData(element.GetSurveyJsType()) && element.GetSurveyJsName() is { } name)
                 {
-                    Counts[name] = Counts.GetValueOrDefault(name) + 1;
-                    Note(AlwaysHidden, name, inside.Always);
-                    Note(UnderVisibleIf, name, hiding.ByVisibleIf);
+                    NoteQuestion(element, name, new Hiding(inside.Always, hiding.ByVisibleIf));
                 }
 
                 Visit(element, inside);
             }
+        }
+
+        // Always is the question's own or an enclosing static visible: false; ByVisibleIf an enclosing visibleIf only.
+        private void NoteQuestion(JsonElement question, string name, Hiding hidden)
+        {
+            Counts[name] = Counts.GetValueOrDefault(name) + 1;
+            Note(AlwaysHidden, name, hidden.Always);
+            Note(UnderVisibleIf, name, hidden.ByVisibleIf);
+            Note(ShowingOther, name, ChoiceSet.ShowsOther(question));
         }
 
         private bool HasVisibleIfNoted(JsonElement element)
@@ -189,3 +199,9 @@ internal sealed record CopyDefinition(
                 ByVisibleIf || visibleIf);
     }
 }
+
+/// <summary>
+/// RUN TIME. The questions of the definition a submission was made on (<see cref="CopyDefinition.QuestionsIn"/>): every
+/// name, and the names of those that show an Other of their own.
+/// </summary>
+internal sealed record SubmittedQuestions(IReadOnlySet<string> Names, IReadOnlySet<string> ShowingOther);

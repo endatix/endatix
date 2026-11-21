@@ -8,6 +8,9 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// <summary>One choice a question can offer, with the definition element its labels are read from.</summary>
 internal readonly record struct SourceChoice(string Value, string Text, JsonElement Element);
 
+/// <summary>The source whose Other a copy offers (<see cref="ChoiceSources.Offered"/>), with its definition element.</summary>
+internal readonly record struct CopiedOther(string SourceName, JsonElement Source);
+
 /// <summary>A question's <see cref="ChoiceSource"/> and the choices it publishes in one definition.</summary>
 internal sealed class ResolvedChoices
 {
@@ -32,12 +35,19 @@ internal sealed class ResolvedChoices
     /// <summary>A copy with a source the codebook cannot read: its answers export as text.</summary>
     public bool IsDegraded => _choices is null;
 
+    /// <summary>The source whose Other the copy also offers; null when it offers none.</summary>
+    public CopiedOther? Other { get; private init; }
+
     /// <summary>The question's own choices, whatever its source says.</summary>
     public static ResolvedChoices Own(ChoiceSource source, IReadOnlyList<SourceChoice> choices) => new(source, choices, false);
 
     /// <summary>Choices copied from other questions; null when a source cannot be read.</summary>
     public static ResolvedChoices Copied(ChoiceSource source, IReadOnlyList<SourceChoice>? choices) =>
         new(source, choices, choices is not null);
+
+    /// <summary>These choices, then the source's Other; a degraded copy offers no Other.</summary>
+    public ResolvedChoices WithOther(CopiedOther? other) =>
+        other is null || IsDegraded ? this : new(Source, _choices, IsCopied) { Other = other };
 
     /// <summary>The first offered choice with this value; each column's label reads one, so the lookup is built once.</summary>
     public bool TryGetChoice(string value, out SourceChoice choice)
@@ -98,22 +108,48 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
         }
 
         // A copy's union depends only on its own name (a cycle back to it) and its sources, and every column of the
-        // copy asks for it, so it is resolved once per compile.
+        // copy asks for it, so it is resolved once per compile, with the source's Other when the copy offers it.
         var name = question.GetSurveyJsName();
-        var key = string.Join('\0', [name ?? string.Empty, .. copy.Sources]);
+        var other = CopiedOtherOf(question);
+        var key = string.Join('\0', [name ?? string.Empty, .. copy.Sources, other is null ? string.Empty : SurveyJsPropertyNames.Other]);
         if (!_resolvedCopies.TryGetValue(key, out var resolved))
         {
-            HashSet<string> visiting = new(StringComparer.Ordinal);
-            if (name is not null)
-            {
-                visiting.Add(name);
-            }
-
-            resolved = ResolvedChoices.Copied(source, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
+            resolved = ResolveCopy(name, copy).WithOther(other);
             _resolvedCopies[key] = resolved;
         }
 
         return resolved;
+    }
+
+    private ResolvedChoices ResolveCopy(string? name, ChoiceSource.CarryForward copy)
+    {
+        HashSet<string> visiting = new(StringComparer.Ordinal);
+        if (name is not null)
+        {
+            visiting.Add(name);
+        }
+
+        return ResolvedChoices.Copied(copy, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
+    }
+
+    // SurveyJS getChoicesFromSelectQuestion: a selected-mode choicesFromQuestion copy that shows no Other of its own
+    // also offers its source's Other, once the respondent picked it and typed its text. Hub carry forward never adds it,
+    // and a source's Other is its own item. Known gaps: a ranking copy, whose catalog lists no copied Other, and a
+    // copy of such a copy, which SurveyJS gives that Other as a regular choice.
+    private CopiedOther? CopiedOtherOf(JsonElement question)
+    {
+        if (!IsSelect(question) ||
+            question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ChoicesFromQuestion) is not { } sourceName ||
+            CopyModes.Of(question, fromQuestion: true) != CopyMode.Selected ||
+            ChoiceSet.ShowsOther(question) ||
+            !questionsByName.TryGetValue(sourceName, out var source) ||
+            !IsSelect(source) ||
+            !ChoiceSet.ShowsOther(source))
+        {
+            return null;
+        }
+
+        return new CopiedOther(sourceName, source);
     }
 
     /// <summary>
@@ -205,12 +241,13 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
         };
 
     private static bool OffersChoices(JsonElement question) =>
-        question.IsSingleSelectBaseSelect() ||
-        question.IsMultiSelectBaseSelect() ||
-        SurveyJsElementType.Ranking.Matches(question.GetSurveyJsType());
+        IsSelect(question) || SurveyJsElementType.Ranking.Matches(question.GetSurveyJsType());
+
+    private static bool IsSelect(JsonElement question) =>
+        question.IsSingleSelectBaseSelect() || question.IsMultiSelectBaseSelect();
 
     // Only the question's own choices: Hub (getChoicesFromSourceQuestion) and SurveyJS skip a source's Other, None and
-    // the other special items, which ChoiceSet adds from the destination's own flags.
+    // the other special items, which ChoiceSet adds from the destination's own flags (and a copied Other, CopiedOtherOf).
     private static List<SourceChoice> OwnChoices(JsonElement question) =>
     [
         .. SurveyJsChoiceHelper.EnumerateChoiceElements(question)

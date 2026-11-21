@@ -66,7 +66,8 @@ internal static partial class FormSchemaCodebookBuilder
         });
 
     // multiple follows the current definition. Value storage is sticky: rows saved under it keep typed Other text in
-    // the value, so a later comment-storage definition must not make the flatten forget it. A copy's shown rule is kept
+    // the value, so a later comment-storage definition must not make the flatten forget it. otherFrom is sticky too:
+    // rows saved while the copy offered its source's Other keep the source's text. A copy's shown rule is kept
     // only while every definition agrees on it (CopyVisibility.Merge); canBeHidden once any definition sets it.
     private static void WriteSelectFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
     {
@@ -75,6 +76,13 @@ internal static partial class FormSchemaCodebookBuilder
             writer.WriteBoolean(FormSchemaCodebookPropertyNames.Multiple, multiple.GetBoolean());
         }
 
+        WriteOtherFields(writer, existingCatalog, currentCatalog);
+        CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
+        SelectChoices.MergeCanBeHidden(writer, existingCatalog, currentCatalog);
+    }
+
+    private static void WriteOtherFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
+    {
         var storage = OtherStorageOf(existingCatalog) == OtherStorage.Value
             ? OtherStorage.Value
             : OtherStorageOf(currentCatalog);
@@ -83,8 +91,11 @@ internal static partial class FormSchemaCodebookBuilder
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ChoiceSet.ToJsonName(stored));
         }
 
-        CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
-        SelectChoices.MergeCanBeHidden(writer, existingCatalog, currentCatalog);
+        if ((currentCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom) ??
+             existingCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom)) is { } otherFrom)
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.OtherFrom, otherFrom);
+        }
     }
 
     // A codebook compiled before the copied marker still names the copy on its stored question entry, which the merge
@@ -122,6 +133,7 @@ internal static partial class FormSchemaCodebookBuilder
             foreach (var property in catalog.EnumerateObject().Where(property =>
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
+                         !property.NameEquals(FormSchemaCodebookPropertyNames.OtherFrom) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.CanBeHidden) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {

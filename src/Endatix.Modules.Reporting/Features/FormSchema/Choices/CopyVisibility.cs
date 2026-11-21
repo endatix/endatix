@@ -106,6 +106,28 @@ internal sealed partial class CopyVisibility
             Sources.Any(source => catalogs.VisibilityOf(source.Name) is not null) ? new(StringComparer.Ordinal) : null,
             0));
 
+    /// <summary>
+    /// RUN: the Other text of <paramref name="sourceName"/> that a copy offering the source's Other showed: SurveyJS adds
+    /// that Other once the source picked it with a non-empty text. Null when the source did not, or has no answer in the
+    /// scope.
+    /// </summary>
+    public static JsonElement? CopiedOtherText(string sourceName, AnswerScope scope, ChoiceCatalogs catalogs)
+    {
+        if (scope.ContextAnswering(sourceName) is not { } context)
+        {
+            return null;
+        }
+
+        var answer = catalogs.For(sourceName).Read(context, sourceName);
+        return answer.Has(SurveyJsPropertyNames.Other) && IsText(answer.OtherText)
+            ? answer.OtherText
+            : null;
+    }
+
+    /// <summary>Whether an Other text is a non-empty string.</summary>
+    public static bool IsText(JsonElement? otherText) =>
+        otherText is { ValueKind: JsonValueKind.String } text && !string.IsNullOrEmpty(text.GetString());
+
     private bool? ShowsAt(Cell cell)
     {
         if (!HoldsFor(cell.Catalogs.SubmissionComplete))

@@ -45,6 +45,9 @@ internal static class SpecialChoices
             SurveyJsPropertyNames.DontKnowText, "Don't know", Exclusive: true, MissingInCrunch: true, AllTypes: false),
     ];
 
+    /// <summary>The Other item.</summary>
+    public static SpecialChoiceSpec Other => All[0];
+
     /// <summary>The persisted <c>kind</c>: the special item's value; null for an inline choice.</summary>
     public static string? JsonName(this ChoiceKind kind) => Of(kind)?.Value;
 

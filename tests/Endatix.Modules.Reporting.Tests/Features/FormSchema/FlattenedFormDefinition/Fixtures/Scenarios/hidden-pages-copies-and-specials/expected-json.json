@@ -19,6 +19,7 @@
     "fruits__other_text": null,
     "fruits__none": 0,
     "topFruit": null,
+    "topFruit__other_text": null,
     "veggies__A": 0,
     "veggies__B": 0,
     "veggies__C": 1,

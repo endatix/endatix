@@ -47,7 +47,7 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 
 | Scenario | Case |
 | --- | --- |
-| `copied-choices-selected-mode` | A radiogroup copies its choices from a checkbox with `choicesFromQuestion` in selected mode (#1163). |
+| `copied-choices-selected-mode` | A radiogroup (`Q2`) and a checkbox (`Q3`) copy their choices from a checkbox with Other (`Q1`) with `choicesFromQuestion` in selected mode (#1163). `Q1` picks `1` and Other with text, so both copies also offer `Q1`'s Other, last and labelled with `Q1`'s `otherText` (#1763). `Q2` picks it: its Other category, and `Q2__other_text` holds `Q1`'s text. `Q3` picks `1`: its Other is 0 and `2` and `3`, which `Q1` did not pick, are empty. |
 | `loop-over-copied-choices` | Question loops over a checkbox and a ranking that copy their choices (#1721). Each repeats once per choice its source offers, read on the question at the root of the copy chain. `occasionRank` has one rank column per copied choice, and `occasionLoop` labels its iterations with the source's labels (#1723). `aware` has one indicator column per copied choice and `considerLoop` labels its iterations with the source's labels (#1724). `brands` offers 11 choices and `considerLoop` holds a `reasons` checkbox with 11, declared 2, 10, 1, 11, 3, …, 9. The Shoji codebook lists a loop's categorical-array members (1, 2, …, 10, 11) and multiple-response subvariables (2, 10, 1, 11, 3, …) in choice order (#1764). The loop variables' metadata keys stay in key order (`considerLoop--10--reasons` before `considerLoop--1--reasons`) and the `order` section is unchanged, so no variable moves in an existing Crunch dataset. |
 | `copied-choices-loops` | A synthetic survey with copied choices throughout (#1722), below. |
 | `calculated-value-name-clashes` | Calculated values named like a checkbox, a matrix, a ranking and a multiple-text question, and one named like a question's title (#1171). Each gets its own codebook column. In Shoji the checkbox and matrix keep their variables and the two calculated values are left out; the ranking and multiple-text clashes get `text` variables under their own names; the title clash is named `totalAmount -- totalAmount`. |
@@ -116,7 +116,6 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
 - **#1725, JSON keys:** the JSON export camel-cases question names (`aidedBrands`).
 - **#1726, plain-text labels:** HTML in a label reaches the Shoji codebook as written (`hiddenBrands--1`), and loop
   titles keep `{panel.itemText}`.
-- **#1544, a copied Other:** see below.
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
 - **#1441, stored values never offered:** a value a checkbox stores but its choices do not offer has no column and is
   not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
@@ -133,11 +132,8 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
 - **#1769, a ranking with a choice comment box (no scenario yet):** SurveyJS stores its items as objects, and every choice
   reads as unranked.
 
-Known gap: in selected mode a copy also offers the source's Other when the respondent picked it, and stores `other`.
-The codebook publishes only the sources' own choices, so that answer has no category and its csv-shoji cell is empty.
-`CopiedChoicesCrunchExportTests.CsvShoji_CopiedOtherInSelectedMode_HasNoCategoryUntil1544` pins this until #1544
-publishes the source's Other as a special item. A question loop over such a copy has no panel for that Other either, so the answers in
-the panel the respondent saw for it are not exported until #1544.
+Known gap: a question loop over a selected-mode copy that offers its source's Other (#1763) has no panel for that
+Other, so the answers in the panel the respondent saw for it are not exported.
 
 ### Adding a scenario
 

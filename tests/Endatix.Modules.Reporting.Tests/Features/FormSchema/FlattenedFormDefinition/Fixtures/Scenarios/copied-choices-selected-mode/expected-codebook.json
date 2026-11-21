@@ -32,6 +32,14 @@
           "text": {
             "default": "Item 3"
           }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
+          }
         }
       ]
     },
@@ -68,6 +76,59 @@
           "id": 3,
           "text": {
             "default": "Item 3"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
+          }
+        }
+      ]
+    },
+    "Q3": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Question 3"
+      },
+      "pageName": "page2",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "Q1"
+        ]
+      },
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Item 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Item 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Item 3"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
           }
         }
       ]
@@ -110,12 +171,96 @@
         "default": "Item 3"
       }
     },
+    "Q1__other": {
+      "parentKey": "Q1",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 1"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Something else"
+      }
+    },
+    "Q1__other_text": {
+      "parentKey": "Q1",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 1"
+      }
+    },
     "Q2": {
       "parentKey": "Q2",
       "surveyJsType": "radiogroup",
       "exportShape": "categorical",
       "title": {
         "default": "Question 2"
+      }
+    },
+    "Q2__other_text": {
+      "parentKey": "Q2",
+      "surveyJsType": "radiogroup",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 2"
+      }
+    },
+    "Q3__1": {
+      "parentKey": "Q3",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 3"
+      },
+      "choiceValue": "1",
+      "choiceLabel": {
+        "default": "Item 1"
+      }
+    },
+    "Q3__2": {
+      "parentKey": "Q3",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 3"
+      },
+      "choiceValue": "2",
+      "choiceLabel": {
+        "default": "Item 2"
+      }
+    },
+    "Q3__3": {
+      "parentKey": "Q3",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 3"
+      },
+      "choiceValue": "3",
+      "choiceLabel": {
+        "default": "Item 3"
+      }
+    },
+    "Q3__other": {
+      "parentKey": "Q3",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 3"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Something else"
+      }
+    },
+    "Q3__other_text": {
+      "parentKey": "Q3",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Question 3"
       }
     },
     "calc1": {
@@ -130,6 +275,7 @@
   "choiceCatalogs": {
     "Q1": {
       "multiple": true,
+      "otherStorage": "comment",
       "choices": [
         {
           "value": "1",
@@ -150,12 +296,22 @@
           "id": 3,
           "text": {
             "default": "Item 3"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
           }
         }
       ]
     },
     "Q2": {
       "multiple": false,
+      "otherStorage": "comment",
+      "otherFrom": "Q1",
       "choices": [
         {
           "value": "1",
@@ -177,9 +333,67 @@
           "text": {
             "default": "Item 3"
           }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
+          }
         }
       ],
       "copied": true
+    },
+    "Q3": {
+      "multiple": true,
+      "otherStorage": "comment",
+      "otherFrom": "Q1",
+      "choices": [
+        {
+          "value": "1",
+          "id": 1,
+          "text": {
+            "default": "Item 1"
+          }
+        },
+        {
+          "value": "2",
+          "id": 2,
+          "text": {
+            "default": "Item 2"
+          }
+        },
+        {
+          "value": "3",
+          "id": 3,
+          "text": {
+            "default": "Item 3"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Something else"
+          }
+        }
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "Q1",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     }
   }
 }
