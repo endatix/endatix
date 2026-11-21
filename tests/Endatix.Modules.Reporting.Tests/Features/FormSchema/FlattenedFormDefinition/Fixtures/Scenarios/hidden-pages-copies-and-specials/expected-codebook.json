@@ -1,0 +1,1066 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "extras": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "What makes Store B better?"
+      },
+      "pageName": "extrasPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Prices"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Staff"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Location"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ]
+    },
+    "extrasNote": {
+      "surveyJsType": "comment",
+      "title": {
+        "default": "Why crisps?"
+      },
+      "pageName": "extrasNotePage",
+      "exportShape": "scalar"
+    },
+    "fruits": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which fruits do you buy?"
+      },
+      "pageName": "fruitsPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Apples"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Bananas"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Cherries"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Dates"
+          }
+        },
+        {
+          "value": "other",
+          "id": 5,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        },
+        {
+          "value": "none",
+          "id": 6,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "rating": {
+      "surveyJsType": "matrix",
+      "title": {
+        "default": "Rate each store"
+      },
+      "pageName": "ratingPage",
+      "exportShape": "categorical_array",
+      "columns": [
+        {
+          "value": "Poor",
+          "id": 1,
+          "text": {
+            "default": "Poor"
+          }
+        },
+        {
+          "value": "Fair",
+          "id": 2,
+          "text": {
+            "default": "Fair"
+          }
+        },
+        {
+          "value": "Good",
+          "id": 3,
+          "text": {
+            "default": "Good"
+          }
+        },
+        {
+          "value": "Very good",
+          "id": 4,
+          "text": {
+            "default": "Very good"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "value": "a",
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "b",
+          "text": {
+            "default": "Store B"
+          }
+        }
+      ]
+    },
+    "snacks": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which snacks do you buy?"
+      },
+      "pageName": "snacksPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Almonds"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Biscuits"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Crisps"
+          }
+        }
+      ]
+    },
+    "snacksAgain": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "pageName": "snacksPage",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "snacks"
+        ]
+      },
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Almonds"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Biscuits"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Crisps"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "topFruit": {
+      "surveyJsType": "radiogroup",
+      "title": {
+        "default": "Which one do you buy most?"
+      },
+      "pageName": "topFruitPage",
+      "exportShape": "categorical",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "fruits"
+        ]
+      },
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Apples"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Bananas"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Cherries"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Dates"
+          }
+        }
+      ]
+    },
+    "veggies": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which vegetables do you buy?"
+      },
+      "pageName": "veggiesPage",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Asparagus"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Beans"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Carrots"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Daikon"
+          }
+        },
+        {
+          "value": "none",
+          "id": 5,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "veggiesAgain": {
+      "surveyJsType": "checkbox",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "pageName": "veggiesAgainPage",
+      "exportShape": "multiple_response",
+      "choiceSource": {
+        "kind": "carryForward",
+        "sources": [
+          "veggies"
+        ]
+      },
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Asparagus"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Beans"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Carrots"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Daikon"
+          }
+        },
+        {
+          "value": "none",
+          "id": 5,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "extrasNote": {
+      "parentKey": "extrasNote",
+      "surveyJsType": "comment",
+      "exportShape": "scalar",
+      "title": {
+        "default": "Why crisps?"
+      }
+    },
+    "extras__A": {
+      "parentKey": "extras",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What makes Store B better?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Prices"
+      }
+    },
+    "extras__B": {
+      "parentKey": "extras",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What makes Store B better?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Staff"
+      }
+    },
+    "extras__C": {
+      "parentKey": "extras",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What makes Store B better?"
+      },
+      "choiceValue": "C",
+      "choiceLabel": {
+        "default": "Location"
+      }
+    },
+    "extras__other": {
+      "parentKey": "extras",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What makes Store B better?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
+      }
+    },
+    "extras__other_text": {
+      "parentKey": "extras",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "What makes Store B better?"
+      }
+    },
+    "fruits__A": {
+      "parentKey": "fruits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which fruits do you buy?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Apples"
+      }
+    },
+    "fruits__B": {
+      "parentKey": "fruits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which fruits do you buy?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Bananas"
+      }
+    },
+    "fruits__C": {
+      "parentKey": "fruits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which fruits do you buy?"
+      },
+      "choiceValue": "C",
+      "choiceLabel": {
+        "default": "Cherries"
+      }
+    },
+    "fruits__D": {
+      "parentKey": "fruits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which fruits do you buy?"
+      },
+      "choiceValue": "D",
+      "choiceLabel": {
+        "default": "Dates"
+      }
+    },
+    "fruits__none": {
+      "parentKey": "fruits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which fruits do you buy?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "fruits__other": {
+      "parentKey": "fruits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which fruits do you buy?"
+      },
+      "choiceValue": "other",
+      "choiceLabel": {
+        "default": "Other"
+      }
+    },
+    "fruits__other_text": {
+      "parentKey": "fruits",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which fruits do you buy?"
+      }
+    },
+    "rating__a": {
+      "parentKey": "rating",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {
+        "default": "Rate each store"
+      },
+      "matrixRowValue": "a",
+      "rowLabel": {
+        "default": "Store A"
+      }
+    },
+    "rating__b": {
+      "parentKey": "rating",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {
+        "default": "Rate each store"
+      },
+      "matrixRowValue": "b",
+      "rowLabel": {
+        "default": "Store B"
+      }
+    },
+    "snacksAgain__A": {
+      "parentKey": "snacksAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Almonds"
+      }
+    },
+    "snacksAgain__B": {
+      "parentKey": "snacksAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Biscuits"
+      }
+    },
+    "snacksAgain__C": {
+      "parentKey": "snacksAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "C",
+      "choiceLabel": {
+        "default": "Crisps"
+      }
+    },
+    "snacksAgain__none": {
+      "parentKey": "snacksAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "snacks__A": {
+      "parentKey": "snacks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which snacks do you buy?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Almonds"
+      }
+    },
+    "snacks__B": {
+      "parentKey": "snacks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which snacks do you buy?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Biscuits"
+      }
+    },
+    "snacks__C": {
+      "parentKey": "snacks",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which snacks do you buy?"
+      },
+      "choiceValue": "C",
+      "choiceLabel": {
+        "default": "Crisps"
+      }
+    },
+    "topFruit": {
+      "parentKey": "topFruit",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {
+        "default": "Which one do you buy most?"
+      }
+    },
+    "veggiesAgain__A": {
+      "parentKey": "veggiesAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Asparagus"
+      }
+    },
+    "veggiesAgain__B": {
+      "parentKey": "veggiesAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Beans"
+      }
+    },
+    "veggiesAgain__C": {
+      "parentKey": "veggiesAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "C",
+      "choiceLabel": {
+        "default": "Carrots"
+      }
+    },
+    "veggiesAgain__D": {
+      "parentKey": "veggiesAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "D",
+      "choiceLabel": {
+        "default": "Daikon"
+      }
+    },
+    "veggiesAgain__none": {
+      "parentKey": "veggiesAgain",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which of these did you buy last week?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    },
+    "veggies__A": {
+      "parentKey": "veggies",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which vegetables do you buy?"
+      },
+      "choiceValue": "A",
+      "choiceLabel": {
+        "default": "Asparagus"
+      }
+    },
+    "veggies__B": {
+      "parentKey": "veggies",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which vegetables do you buy?"
+      },
+      "choiceValue": "B",
+      "choiceLabel": {
+        "default": "Beans"
+      }
+    },
+    "veggies__C": {
+      "parentKey": "veggies",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which vegetables do you buy?"
+      },
+      "choiceValue": "C",
+      "choiceLabel": {
+        "default": "Carrots"
+      }
+    },
+    "veggies__D": {
+      "parentKey": "veggies",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which vegetables do you buy?"
+      },
+      "choiceValue": "D",
+      "choiceLabel": {
+        "default": "Daikon"
+      }
+    },
+    "veggies__none": {
+      "parentKey": "veggies",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which vegetables do you buy?"
+      },
+      "choiceValue": "none",
+      "choiceLabel": {
+        "default": "None"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "extras": {
+      "multiple": true,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Prices"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Staff"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Location"
+          }
+        },
+        {
+          "value": "other",
+          "id": 4,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        }
+      ],
+      "canBeHidden": true
+    },
+    "fruits": {
+      "multiple": true,
+      "otherStorage": "comment",
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Apples"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Bananas"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Cherries"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Dates"
+          }
+        },
+        {
+          "value": "other",
+          "id": 5,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
+        },
+        {
+          "value": "none",
+          "id": 6,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "rating": {
+      "choices": []
+    },
+    "snacks": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Almonds"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Biscuits"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Crisps"
+          }
+        }
+      ]
+    },
+    "snacksAgain": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Almonds"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Biscuits"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Crisps"
+          }
+        },
+        {
+          "value": "none",
+          "id": 4,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "snacks",
+            "values": [
+              "A",
+              "B",
+              "C"
+            ]
+          }
+        ]
+      }
+    },
+    "topFruit": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Apples"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Bananas"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Cherries"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Dates"
+          }
+        }
+      ],
+      "copied": true
+    },
+    "veggies": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Asparagus"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Beans"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Carrots"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Daikon"
+          }
+        },
+        {
+          "value": "none",
+          "id": 5,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ]
+    },
+    "veggiesAgain": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "A",
+          "id": 1,
+          "text": {
+            "default": "Asparagus"
+          }
+        },
+        {
+          "value": "B",
+          "id": 2,
+          "text": {
+            "default": "Beans"
+          }
+        },
+        {
+          "value": "C",
+          "id": 3,
+          "text": {
+            "default": "Carrots"
+          }
+        },
+        {
+          "value": "D",
+          "id": 4,
+          "text": {
+            "default": "Daikon"
+          }
+        },
+        {
+          "value": "none",
+          "id": 5,
+          "kind": "none",
+          "exclusive": true,
+          "text": {
+            "default": "None"
+          }
+        }
+      ],
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "veggies",
+            "values": [
+              "A",
+              "B",
+              "C",
+              "D"
+            ]
+          }
+        ],
+        "whenComplete": true
+      }
+    }
+  }
+}

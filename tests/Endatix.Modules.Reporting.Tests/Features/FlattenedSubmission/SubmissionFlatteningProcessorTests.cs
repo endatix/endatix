@@ -1,22 +1,22 @@
-using Endatix.Modules.Reporting.Persistence;
-using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Modules.Reporting.Data;
-using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
-using FlattenedSubmissionKey = Endatix.Modules.Reporting.Domain.FlattenedSubmissionKey;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
+using Endatix.Modules.Reporting.Features.SearchCopy;
+using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using FlattenedSubmissionKey = Endatix.Modules.Reporting.Domain.FlattenedSubmissionKey;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.FlattenedSubmission;
 
@@ -64,6 +64,31 @@ public partial class SubmissionFlatteningProcessorTests
             Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessAsync_CheckboxAddedAfterTheSubmissionsVersion_LeavesItsChoicesEmpty()
+    {
+        // Arrange
+        const string submittedOn = """{"pages":[{"name":"p1","elements":[{"type":"text","name":"x"}]}]}""";
+        const string current =
+            """{"pages":[{"name":"p1","elements":[{"type":"text","name":"x"},{"type":"checkbox","name":"pick","choices":["1","2"]}]}]}""";
+        var submission = CompletedSubmission("""{"x":"a"}""", revision: 1);
+        typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!
+            .SetValue(submission, new FormDefinition(TenantId, jsonData: submittedOn));
+        GivenSubmission(submission);
+        GivenSchema(definition: current);
+        GivenRowAcceptsRevision(true);
+        GivenDeletionState(new SubmissionDeletionState(FormId, IsDeleted: false, FormIsDeleted: false));
+
+        // Act
+        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+
+        // Assert
+        await _rows.Received(1).TryMarkProcessedAsync(
+            WriteOf(submission),
+            Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("\"pick__1\":null") && data.DataJson.Contains("\"pick__2\":null")),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -145,7 +170,7 @@ public partial class SubmissionFlatteningProcessorTests
     public async Task ProcessAsync_SubmissionNotDeletedInThisForm_ThrowsWithoutTouchingRows(string situation)
     {
         // Arrange
-        SubmissionDeletionState? state = situation switch
+        var state = situation switch
         {
             "never existed, or another tenant's" => null,
             "deleted in another form" => new SubmissionDeletionState(FormId: 999, IsDeleted: true, FormIsDeleted: false),
@@ -365,9 +390,12 @@ public partial class SubmissionFlatteningProcessorTests
             .Returns((FormSchemaEntity?)null);
 
     // The submitter columns a flatten's include would have added, so the schema is as a flatten finds it.
-    private void GivenSchema(SubmitterProfileFields? fields = null, string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson)
+    private void GivenSchema(
+        SubmitterProfileFields? fields = null,
+        string searchKeysJson = FormSchemaEntity.EmptySearchKeysJson,
+        string? definition = null)
     {
-        var definition = FormSchemaFixtureLoader.LoadText("simple-definition.json");
+        definition ??= FormSchemaFixtureLoader.LoadText("simple-definition.json");
         FormSchemaCompiler compiler = new(submitterProfileFields: fields);
         var compiled = compiler.CompilePersisted(definition);
         compiled = compiler.IncludePersonalization(

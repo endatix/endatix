@@ -19,5 +19,34 @@ For running and hosting the Endatix Platform, **Endatix.Api.Host** is the recomm
 dotnet add package Endatix.Api.Host
 ```
 
+## Tenant entitlements
+
+`ITenantEntitlements` answers whether a tenant may use a capability that a plan or licence can grant, such as
+`EntitlementNames.BRANDING`. The default, `AllowAllTenantEntitlements`, answers yes for every tenant and every
+entitlement, so a self-hosted deployment has every feature; its licence governs paid use.
+
+`InfrastructureBuilder.UseDefaults()` registers the default; a host that composes the infrastructure itself calls
+`services.AddTenantEntitlements()`. A host that decides by plan registers its own scoped implementation, before
+or after Endatix's setup. The API is experimental while the feature is in development, so the host opts in to
+`ENDATIX0001` (`<NoWarn>$(NoWarn);ENDATIX0001</NoWarn>`); its C# signatures may change between releases, the
+entitlement names may not:
+
+```csharp
+builder.Services.AddScoped<ITenantEntitlements, PlanTenantEntitlements>();
+
+public sealed class PlanTenantEntitlements(IPlanStore plans) : ITenantEntitlements
+{
+    public async Task<bool> IsEntitledAsync(long tenantId, string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var plan = await plans.GetForTenantAsync(tenantId, cancellationToken);
+        return plan.Includes(name);
+    }
+}
+```
+
+`IPlanStore` stands for the host's own plan lookup. Like the default, `PlanTenantEntitlements` throws
+`ArgumentException` on a blank name; it also denies a name it does not know and throws when the lookup fails. A new paid capability adds a name to `EntitlementNames`.
+
 ## More Information:
 For detailed installation instructions, please visit [Endatix Installation Guide](https://docs.endatix.com/docs/getting-started/installation).

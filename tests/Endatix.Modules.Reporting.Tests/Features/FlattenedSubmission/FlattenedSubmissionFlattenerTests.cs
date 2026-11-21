@@ -186,7 +186,7 @@ public class FlattenedSubmissionFlattenerTests
             FlattenedSubmissionFlattener.Flatten(document.RootElement, formSchema);
 
         flattened["name"].Should().BeNull();
-        flattened["colors__red"]!.Value.GetRawText().Should().Be("0");
+        flattened["colors__red"].Should().BeNull("with no catalogs the submission is not known to be complete");
         flattened["rank__a"].Should().BeNull();
     }
 

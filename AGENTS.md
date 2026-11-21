@@ -5,6 +5,15 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 ## C# conventions
 
 - Primary constructors for DI. `sealed` by default; `internal` unless the type is public API or framework-discovered (endpoints, requests, validators).
+- A type added by a feature still in development is `internal sealed`, unless another assembly or a host needs it. Then it is public with `[Experimental("ENDATIXnnnn")]` (`System.Diagnostics.CodeAnalysis`), one ID per feature, so its C# signatures can change between releases. The owner declares a feature's API stable (on demand, or with the developer customization story); then the attribute comes off, and its table row and its ID in `EndatixExperimentalIds` are deleted with it. An ID is never reused. Endatix's own projects suppress the IDs through `EndatixExperimentalIds` in the root `Directory.Build.props`; add a new ID there and in the table below. The samples do not import the root props: a sample that uses an Experimental type opts in per project (`<NoWarn>$(NoWarn);ENDATIXnnnn</NoWarn>`), as a consumer does. Two limits:
+  - Experimental frees the C# signatures only, never stored or wire values (an entitlement name, a route, a JSON field).
+  - A change to an Experimental type is not a breaking change in the release notes; the notes name its ID instead.
+
+  | ID | Feature | Types |
+  | --- | --- | --- |
+  | `ENDATIX0001` | Tenant entitlements | `ITenantEntitlements`, `EntitlementNames`, `TenantEntitlementsServiceCollectionExtensions` |
+
+  Next free ID: `ENDATIX0002`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
 - Before committing C#, the build must add no new diagnostics of any severity on the lines you changed. SonarCloud imports every result in the build's SARIF log, including the info and suggestion ones (CA2012, CA1859, xUnit1045) that `dotnet build` never prints. To see them, run `dotnet build Endatix.slnx --no-incremental -p:ErrorLog=obj/diagnostics.sarif%2Cversion=2.1` and read each project's `obj/diagnostics.sarif` for results on your lines (the Endatix clean-code skill's `diagnostics.py` does this for you). A rule that is noise in tests gets `severity = none` in `.editorconfig`; `suggestion` still reaches Sonar.

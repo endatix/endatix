@@ -4433,7 +4433,20 @@
           }
         }
       ],
-      "copied": true
+      "copied": true,
+      "shown": {
+        "mode": "selected",
+        "sources": [
+          {
+            "name": "AidedBrands",
+            "values": [
+              "1",
+              "2",
+              "3"
+            ]
+          }
+        ]
+      }
     },
     "brandRank": {
       "choices": [
@@ -5353,7 +5366,8 @@
             "default": "Brand C"
           }
         }
-      ]
+      ],
+      "canBeHidden": true
     },
     "hiddenTraits": {
       "multiple": true,
@@ -5379,7 +5393,8 @@
             "default": "Local"
           }
         }
-      ]
+      ],
+      "canBeHidden": true
     },
     "member": {
       "multiple": false,

@@ -1,0 +1,591 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "key": "occasionPool__2",
+      "kind": "ChoiceIndicator",
+      "label": "Occasions offered — Occasion 2",
+      "dataType": "number",
+      "sourceQuestion": "occasionPool",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "occasionPool__3",
+      "kind": "ChoiceIndicator",
+      "label": "Occasions offered — Occasion 3",
+      "dataType": "number",
+      "sourceQuestion": "occasionPool",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "occasionPool__4",
+      "kind": "ChoiceIndicator",
+      "label": "Occasions offered — Occasion 4",
+      "dataType": "number",
+      "sourceQuestion": "occasionPool",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "occasionPool__5",
+      "kind": "ChoiceIndicator",
+      "label": "Occasions offered — Occasion 5",
+      "dataType": "number",
+      "sourceQuestion": "occasionPool",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__1",
+      "kind": "ChoiceIndicator",
+      "label": "Brands offered — Brand 1",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__2",
+      "kind": "ChoiceIndicator",
+      "label": "Brands offered — Brand 2",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__3",
+      "kind": "ChoiceIndicator",
+      "label": "Brands offered — Brand 3",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "traits__t1",
+      "kind": "ChoiceIndicator",
+      "label": "Traits offered — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "t1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "traits__t2",
+      "kind": "ChoiceIndicator",
+      "label": "Traits offered — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "t2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "traits__t3",
+      "kind": "ChoiceIndicator",
+      "label": "Traits offered — Local",
+      "dataType": "number",
+      "sourceQuestion": "traits",
+      "choiceValue": "t3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "topOccasions__2",
+      "kind": "RankingChoice",
+      "label": "Rank your two main occasions — Occasion 2",
+      "dataType": "number",
+      "sourceQuestion": "topOccasions",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "topOccasions__3",
+      "kind": "RankingChoice",
+      "label": "Rank your two main occasions — Occasion 3",
+      "dataType": "number",
+      "sourceQuestion": "topOccasions",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "topOccasions__4",
+      "kind": "RankingChoice",
+      "label": "Rank your two main occasions — Occasion 4",
+      "dataType": "number",
+      "sourceQuestion": "topOccasions",
+      "choiceValue": "4",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "topOccasions__5",
+      "kind": "RankingChoice",
+      "label": "Rank your two main occasions — Occasion 5",
+      "dataType": "number",
+      "sourceQuestion": "topOccasions",
+      "choiceValue": "5",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands do you know? — Brand 1",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands do you know? — Brand 2",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands do you know? — Brand 3",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands do you know? — None",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "occasionLoop__2__occasionBrand",
+      "kind": "LoopSource",
+      "label": "Which brand first comes to mind for {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "occasionBrand",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "occasionLoop__3__occasionBrand",
+      "kind": "LoopSource",
+      "label": "Which brand first comes to mind for {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "occasionBrand",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "occasionLoop__4__occasionBrand",
+      "kind": "LoopSource",
+      "label": "Which brand first comes to mind for {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "occasionBrand",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "4"
+        }
+      ]
+    },
+    {
+      "key": "occasionLoop__5__occasionBrand",
+      "kind": "LoopSource",
+      "label": "Which brand first comes to mind for {panel.itemText}?",
+      "dataType": "string",
+      "sourceQuestion": "occasionBrand",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "occasionLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "5"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__1__brandTraits__t1",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__1__brandTraits__t2",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__1__brandTraits__t3",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Local",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__1__brandTraits__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__2__brandTraits__t1",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__2__brandTraits__t2",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__2__brandTraits__t3",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Local",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__2__brandTraits__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__3__brandTraits__t1",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Fresh",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__3__brandTraits__t2",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Cheap",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__3__brandTraits__t3",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — Local",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "t3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "traitLoop__3__brandTraits__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which traits fit {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "brandTraits",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "traitLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "poolSize",
+      "kind": "Calculated",
+      "label": "poolSize",
+      "dataType": "string",
+      "sourceQuestion": null,
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    }
+  ]
+}

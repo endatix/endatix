@@ -514,6 +514,34 @@
           ],
           "subvariables": [
             {
+              "alias": "qLoop--adidas--qLoopColor",
+              "name": "Adidas"
+            },
+            {
+              "alias": "qLoop--puma--qLoopColor",
+              "name": "Puma"
+            },
+            {
+              "alias": "qLoop--nike--qLoopColor",
+              "name": "Nike"
+            },
+            {
+              "alias": "qLoop--reebok--qLoopColor",
+              "name": "Reebok"
+            },
+            {
+              "alias": "qLoop--axe--qLoopColor",
+              "name": "Axe"
+            },
+            {
+              "alias": "qLoop--sword--qLoopColor",
+              "name": "Sword"
+            },
+            {
+              "alias": "qLoop--hammer--qLoopColor",
+              "name": "Hammer"
+            },
+            {
               "alias": "qLoop--1--qLoopColor",
               "name": "Song for me"
             },
@@ -534,36 +562,8 @@
               "name": "I have waited"
             },
             {
-              "alias": "qLoop--adidas--qLoopColor",
-              "name": "Adidas"
-            },
-            {
-              "alias": "qLoop--axe--qLoopColor",
-              "name": "Axe"
-            },
-            {
-              "alias": "qLoop--hammer--qLoopColor",
-              "name": "Hammer"
-            },
-            {
-              "alias": "qLoop--nike--qLoopColor",
-              "name": "Nike"
-            },
-            {
               "alias": "qLoop--other--qLoopColor",
               "name": "Other (pick)"
-            },
-            {
-              "alias": "qLoop--puma--qLoopColor",
-              "name": "Puma"
-            },
-            {
-              "alias": "qLoop--reebok--qLoopColor",
-              "name": "Reebok"
-            },
-            {
-              "alias": "qLoop--sword--qLoopColor",
-              "name": "Sword"
             }
           ]
         },

@@ -1,0 +1,483 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "key": "brands__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands have you bought? — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands have you bought? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brands__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands have you bought? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "brands",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands do you know well? — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands do you know well? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "aware__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands do you know well? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "aware",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "pickTop__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands would you recommend? — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "pickTop",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "pickTop__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands would you recommend? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "pickTop",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "pickTop__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands would you recommend? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "pickTop",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "pickTop__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which of these brands would you recommend? — None",
+      "dataType": "number",
+      "sourceQuestion": "pickTop",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "shortlist__1",
+      "kind": "ChoiceIndicator",
+      "label": "Pick up to two brands to shortlist — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "shortlist",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "shortlist__2",
+      "kind": "ChoiceIndicator",
+      "label": "Pick up to two brands to shortlist — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "shortlist",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "shortlist__3",
+      "kind": "ChoiceIndicator",
+      "label": "Pick up to two brands to shortlist — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "shortlist",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "fromShortlist__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which of the shortlisted brands would you buy again? — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "fromShortlist",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "fromShortlist__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which of the shortlisted brands would you buy again? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "fromShortlist",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "fromShortlist__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which of the shortlisted brands would you buy again? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "fromShortlist",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "fromShortlist__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which of the shortlisted brands would you buy again? — None",
+      "dataType": "number",
+      "sourceQuestion": "fromShortlist",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "brandLoop__1__pick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__1__pick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__1__pick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__1__pick__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "1"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__2__pick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__2__pick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__2__pick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__2__pick__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "2"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__3__pick__1",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand A",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "1",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__3__pick__2",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand B",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "2",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__3__pick__3",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — Brand C",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "3",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    },
+    {
+      "key": "brandLoop__3__pick__none",
+      "kind": "ChoiceIndicator",
+      "label": "Which brands do you compare with {panel.itemText}? — None",
+      "dataType": "number",
+      "sourceQuestion": "pick",
+      "choiceValue": "none",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": [
+        {
+          "panelValueName": "brandLoop",
+          "propertyName": "itemValue",
+          "choiceValue": "3"
+        }
+      ]
+    }
+  ]
+}

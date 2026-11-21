@@ -1,0 +1,148 @@
+{
+  "checkErrorsMode": "onValueChanged",
+  "pages": [
+    {
+      "name": "fruitsPage",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "fruits",
+          "title": "Which fruits do you buy?",
+          "isRequired": true,
+          "showNoneItem": true,
+          "showOtherItem": true,
+          "choices": [
+            { "value": "A", "text": "Apples" },
+            { "value": "B", "text": "Bananas" },
+            { "value": "C", "text": "Cherries" },
+            { "value": "D", "text": "Dates" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "topFruitPage",
+      "visibleIf": "{fruits.length} > 1",
+      "elements": [
+        {
+          "type": "radiogroup",
+          "name": "topFruit",
+          "title": "Which one do you buy most?",
+          "isRequired": true,
+          "choicesFromQuestion": "fruits",
+          "choicesFromQuestionMode": "selected"
+        }
+      ]
+    },
+    {
+      "name": "veggiesPage",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "veggies",
+          "title": "Which vegetables do you buy?",
+          "isRequired": true,
+          "showNoneItem": true,
+          "choices": [
+            { "value": "A", "text": "Asparagus" },
+            { "value": "B", "text": "Beans" },
+            { "value": "C", "text": "Carrots" },
+            { "value": "D", "text": "Daikon" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "veggiesAgainPage",
+      "visibleIf": "{veggies} notcontains 'none'",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "veggiesAgain",
+          "title": "Which of these did you buy last week?",
+          "isRequired": true,
+          "showNoneItem": true,
+          "choicesFromQuestion": "veggies",
+          "choicesFromQuestionMode": "selected"
+        }
+      ]
+    },
+    {
+      "name": "snacksPage",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "snacks",
+          "title": "Which snacks do you buy?",
+          "isRequired": true,
+          "choices": [
+            { "value": "A", "text": "Almonds" },
+            { "value": "B", "text": "Biscuits" },
+            { "value": "C", "text": "Crisps" }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "snacksAgain",
+          "title": "Which of these did you buy last week?",
+          "isRequired": true,
+          "showNoneItem": true,
+          "choicesFromQuestion": "snacks",
+          "choicesFromQuestionMode": "selected"
+        }
+      ]
+    },
+    {
+      "name": "ratingPage",
+      "elements": [
+        {
+          "type": "matrix",
+          "name": "rating",
+          "title": "Rate each store",
+          "edxDisplayMode": "carousel",
+          "eachRowRequired": true,
+          "columns": [
+            { "value": 1, "text": "Poor" },
+            { "value": 2, "text": "Fair" },
+            { "value": 3, "text": "Good" },
+            { "value": 4, "text": "Very good" }
+          ],
+          "rows": [
+            { "value": "a", "text": "Store A" },
+            { "value": "b", "text": "Store B" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extrasPage",
+      "visibleIf": "{rating.b} >= 4",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "extras",
+          "title": "What makes Store B better?",
+          "isRequired": true,
+          "showOtherItem": true,
+          "choices": [
+            { "value": "A", "text": "Prices" },
+            { "value": "B", "text": "Staff" },
+            { "value": "C", "text": "Location" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "extrasNotePage",
+      "visibleIf": "{snacks} contains 'C'",
+      "elements": [
+        {
+          "type": "comment",
+          "name": "extrasNote",
+          "title": "Why crisps?",
+          "isRequired": true
+        }
+      ]
+    }
+  ]
+}
