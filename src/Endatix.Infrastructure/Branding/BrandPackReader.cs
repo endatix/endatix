@@ -137,7 +137,8 @@ internal sealed class BrandPackReader
             ? value
             : Fail(path, "must be an http, https or mailto URL");
 
-    // Only a mailto: link names a support address; a web support page leaves the built-in one.
+    // Only a mailto: link names a support address; a web support page leaves the built-in one, with a warning,
+    // since emails would then name the Endatix support address in a white-labelled deployment.
     private string? SupportAddress(JsonElement? element)
     {
         const string path = "/links/support";
@@ -149,7 +150,11 @@ internal sealed class BrandPackReader
 
         if (!link.StartsWith(MailtoPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            CheckLink(path, link);
+            if (CheckLink(path, link) is not null)
+            {
+                _warnings.Add($"{path} is not a mailto link, so emails use the built-in support address");
+            }
+
             return null;
         }
 

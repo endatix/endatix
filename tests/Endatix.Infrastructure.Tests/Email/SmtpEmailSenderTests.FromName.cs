@@ -78,8 +78,8 @@ public partial class SmtpEmailSenderTests
 
     [Theory]
     [InlineData(null, "Operator Team")]
-    [InlineData("Example Forms", "Example Forms")]
-    public async Task SendEmailWithBody_FromWithADisplayName_KeepsTheAddressAndNamesIt(string? fromName, string expectedName)
+    [InlineData("Example Forms", "Operator Team")]
+    public async Task SendEmailWithBody_FromWithADisplayName_KeepsTheAddressAndItsOwnName(string? fromName, string expectedName)
     {
         // Arrange: an operator FromAddress may already carry a display name.
         var transport = Substitute.For<IMailTransport>();

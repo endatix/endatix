@@ -245,6 +245,40 @@ public sealed class BrandPackLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_WebSupportLink_KeepsTheBuiltInSupportAddressAndWarns()
+    {
+        // Arrange
+        File.WriteAllText(
+            Path.Combine(_packDirectory, "brand.json"),
+            """{ "version": 1, "name": "Example Forms", "links": { "support": "https://forms.example.com/help" } }""");
+        List<string> warnings = [];
+
+        // Act
+        var brand = BrandPackLoader.Load(Configuration(flag: "true"), warnings);
+
+        // Assert
+        brand.SupportAddress.Should().Be("support@endatix.com");
+        warnings.Should().ContainSingle().Which.Should().Contain("/links/support").And.Contain("not a mailto link");
+    }
+
+    [Fact]
+    public void Load_MailtoSupportLink_DoesNotWarn()
+    {
+        // Arrange
+        File.WriteAllText(
+            Path.Combine(_packDirectory, "brand.json"),
+            """{ "version": 1, "name": "Example Forms", "links": { "support": "mailto:help@example.com" } }""");
+        List<string> warnings = [];
+
+        // Act
+        var brand = BrandPackLoader.Load(Configuration(flag: "true"), warnings);
+
+        // Assert
+        brand.SupportAddress.Should().Be("help@example.com");
+        warnings.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Load_PackWithAnEmailSection_IgnoresIt()
     {
         // Arrange

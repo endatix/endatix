@@ -382,7 +382,7 @@ public class SendGridEmailSenderTests
     }
 
     [Fact]
-    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_SendsTheAddressNamedByFromName()
+    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_KeepsTheFromsOwnName()
     {
         // Arrange: an operator FromAddress may already carry a display name.
         _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
@@ -402,7 +402,7 @@ public class SendGridEmailSenderTests
 
         // Assert
         await _sendGridClient.Received(1).SendEmailAsync(
-            Arg.Is<SendGridMessage>(msg => msg.From.Email == "sender@example.com" && msg.From.Name == "Example Forms"),
+            Arg.Is<SendGridMessage>(msg => msg.From.Email == "sender@example.com" && msg.From.Name == "Operator Team"),
             Arg.Any<CancellationToken>());
     }
 }

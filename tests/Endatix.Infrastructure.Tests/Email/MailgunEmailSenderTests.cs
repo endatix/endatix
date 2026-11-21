@@ -467,7 +467,7 @@ public class MailgunEmailSenderTests
     }
 
     [Fact]
-    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_SendsTheAddressNamedByFromName()
+    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_KeepsTheFromsOwnName()
     {
         // Arrange: an operator FromAddress may already carry a display name.
         var email = new EmailWithBody
@@ -485,6 +485,6 @@ public class MailgunEmailSenderTests
 
         // Assert
         var form = ParseFormContent(_handler.RequestContent!);
-        form["from"].Should().Be("\"Example Forms\" <sender@example.com>");
+        form["from"].Should().Be("\"Operator Team\" <sender@example.com>");
     }
 }
