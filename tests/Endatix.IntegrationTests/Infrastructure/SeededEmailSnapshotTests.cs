@@ -33,7 +33,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
     // Both providers seed the same text, so they share one snapshot. The project copies it to the test output.
     private const string SnapshotFile = "Snapshots/seeded-emails.txt";
 
-    private static readonly DeploymentBrand ExampleBrand = new(
+    private static readonly DeploymentBrand _exampleBrand = new(
         ProductName: "Example Forms",
         AppName: "Example Forms",
         AssistantName: "Example Assistant",
@@ -41,7 +41,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
         SupportAddress: "help@example.com");
 
     // The shipped default: no sender configured.
-    private static readonly EmailSenderSettings NoSenderConfigured = new();
+    private static readonly EmailSenderSettings _noSenderConfigured = new();
 
     [Fact]
     public async Task Seeded_emails_without_a_brand_pack_match_the_recorded_snapshot()
@@ -50,7 +50,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
         var cancellationToken = TestContext.Current.CancellationToken;
 
         // Act
-        var emails = await RenderEveryEmailAsync(DeploymentBrand.BuiltIn, NoSenderConfigured, cancellationToken);
+        var emails = await RenderEveryEmailAsync(DeploymentBrand.BuiltIn, _noSenderConfigured, cancellationToken);
 
         // Assert
         var actual = Snapshot(emails);
@@ -77,7 +77,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
         var sender = new EmailSenderSettings { Address = "noreply@example.com" };
 
         // Act
-        var emails = await RenderEveryEmailAsync(ExampleBrand, sender, cancellationToken);
+        var emails = await RenderEveryEmailAsync(_exampleBrand, sender, cancellationToken);
 
         // Assert
         emails.Should().HaveCount(6);

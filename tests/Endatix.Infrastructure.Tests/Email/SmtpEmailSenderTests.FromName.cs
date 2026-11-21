@@ -13,8 +13,8 @@ namespace Endatix.Infrastructure.Tests.Email;
 
 public partial class SmtpEmailSenderTests
 {
-    private static readonly DeploymentSender Sender = new("deployment@example.com", "Example Team", ConfiguredAddress: null);
-    private static readonly EmailVariables Variables = EmailVariables.From(DeploymentBrand.BuiltIn);
+    private static readonly DeploymentSender _sender = new("deployment@example.com", "Example Team", ConfiguredAddress: null);
+    private static readonly EmailVariables _variables = EmailVariables.From(DeploymentBrand.BuiltIn);
 
     [Theory]
     [InlineData(null, "Example Team")]
@@ -81,6 +81,6 @@ public partial class SmtpEmailSenderTests
         Options.Create(new SmtpSettings { Host = "smtp.example.com" }),
         new EmailTemplateRenderer(
             Substitute.For<IRepository<EmailTemplate>>(),
-            Options.Create(new EmailTemplateSettings()), Variables, Sender),
+            Options.Create(new EmailTemplateSettings()), _variables, _sender),
         transport);
 }

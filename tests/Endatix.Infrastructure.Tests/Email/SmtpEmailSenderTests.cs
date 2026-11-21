@@ -34,7 +34,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender), Sender);
+                Options.Create(new EmailTemplateSettings()), _variables, _sender), _sender);
 
         sut.ProviderName.Should().Be("SMTP");
         sut.IsConfigured.Should().BeFalse();
@@ -52,7 +52,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 templateRepository,
-                Options.Create(new EmailTemplateSettings()), Variables, Sender), Sender);
+                Options.Create(new EmailTemplateSettings()), _variables, _sender), _sender);
 
         var email = new EmailWithTemplate
         {
@@ -100,7 +100,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender), Sender);
+                Options.Create(new EmailTemplateSettings()), _variables, _sender), _sender);
 
         // Act
         var result = sut.ResolveSecureSocketOptions();
@@ -127,7 +127,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -165,7 +165,7 @@ public partial class SmtpEmailSenderTests
             settings,
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             Substitute.For<IMailTransport>());
 
         // Assert
@@ -185,7 +185,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -219,7 +219,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -259,7 +259,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -338,7 +338,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -381,7 +381,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -430,7 +430,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -483,7 +483,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -521,7 +521,7 @@ public partial class SmtpEmailSenderTests
             }),
             new EmailTemplateRenderer(
                 Substitute.For<IRepository<EmailTemplate>>(),
-                Options.Create(new EmailTemplateSettings()), Variables, Sender),
+                Options.Create(new EmailTemplateSettings()), _variables, _sender),
             transport);
 
         var email = new EmailWithBody
@@ -558,7 +558,7 @@ public partial class SmtpEmailSenderTests
         ILogger<SmtpEmailSender> logger,
         IOptions<SmtpSettings> options,
         EmailTemplateRenderer templateRenderer,
-        IMailTransport transport) : SmtpEmailSender(logger, options, templateRenderer, Sender)
+        IMailTransport transport) : SmtpEmailSender(logger, options, templateRenderer, _sender)
     {
         protected override IMailTransport CreateTransport() => transport;
     }

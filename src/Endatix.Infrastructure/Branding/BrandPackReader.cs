@@ -14,9 +14,12 @@ namespace Endatix.Infrastructure.Branding;
 internal sealed class BrandPackReader
 {
     private const int NameMaxLength = 60;
-    private static readonly string[] LinkSchemes = [Uri.UriSchemeHttp, Uri.UriSchemeHttps, Uri.UriSchemeMailto];
+    private static readonly string[] _linkSchemes = [Uri.UriSchemeHttp, Uri.UriSchemeHttps, Uri.UriSchemeMailto];
 
     private const string MailtoPrefix = "mailto:";
+
+    // RFC 6068: a mailto address ends at the headers ('?') or a fragment ('#').
+    private static readonly char[] _mailtoAddressEnd = ['?', '#'];
 
     private readonly List<string> _failures = [];
     private readonly ICollection<string> _warnings;
@@ -129,7 +132,7 @@ internal sealed class BrandPackReader
     }
 
     private string? CheckLink(string path, string value) =>
-        Uri.TryCreate(value, UriKind.Absolute, out var uri) && LinkSchemes.Contains(uri.Scheme)
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) && _linkSchemes.Contains(uri.Scheme)
             ? value
             : Fail(path, "must be an http, https or mailto URL");
 
@@ -154,8 +157,8 @@ internal sealed class BrandPackReader
 
     private string? MailtoAddress(string path, string link)
     {
-        // RFC 6068: the address ends at '?' (headers) or '#', and may be percent-encoded.
-        var address = Uri.UnescapeDataString(link[MailtoPrefix.Length..].Split('?', '#')[0]);
+        // The address may be percent-encoded.
+        var address = Uri.UnescapeDataString(link[MailtoPrefix.Length..].Split(_mailtoAddressEnd)[0]);
         if (address.Contains(','))
         {
             _warnings.Add($"{path} names more than one address, so emails use the built-in support address");
