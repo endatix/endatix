@@ -119,7 +119,7 @@ pnpm brand:validate ./brand
 
 It runs the same checks the Hub runs at start. On success it prints `Brand pack OK: <name> (<folder>, <n> files)` and exits 0. On failure it prints each problem with its field path and exits 1. It also warns when an accent color has less than 3:1 contrast against the light or dark page background (WCAG 2.x); the pack still applies.
 
-The API checks a few more rules at start, so a pack can pass `brand:validate` and still stop the API: no blank or whitespace-only strings, no control characters in `name`, and a `mailto:` support link to one bare address (`mailto:help@example.com`, not `mailto:Example <help@example.com>`).
+The API checks a few more rules at start, so a pack can pass `brand:validate` and still stop the API: no blank or whitespace-only `name`, `links.website`, `links.support` or `personas.assistant`, no control characters in `name`, and a `mailto:` support link to one bare address (`mailto:help@example.com`, not `mailto:Example <help@example.com>`).
 
 ## Deploy with Helm
 
@@ -178,7 +178,7 @@ Brand pack file '/etc/endatix/brand/brand.json' is not valid: /version: must be 
 
 A missing file fails with `Brand pack file '<path>' was not found. Set ENDATIX_BRAND_DIR to a folder that holds brand.json.` With the flag off, the API does not read the pack. With the flag on and `ENDATIX_BRAND_DIR` unset, the API uses the built-in brand without an error. A change to the pack needs an API restart.
 
-**Hub.** With the flag on, an invalid pack stops the Hub at start with the field paths in the error. With environment flags off, the problem is only logged and the Hub starts. Under PostHog flags the flag is decided per request, so an invalid pack always stops the Hub: turning the flag off in PostHog does not help. Fix the pack or remove the mount.
+**Hub.** With the flag on, an invalid pack stops the Hub at start with the field paths in the error. With environment flags and `FLAG_WHITE_LABELING` not `true`, the problem is only logged and the Hub starts. Under PostHog flags the flag is decided per request, so an invalid pack always stops the Hub: turning the flag off in PostHog does not help. Fix the pack or remove the mount.
 
 While running, the Hub reads the pack again when the folder, `brand.json` or a file it names changes. A change that does not validate is logged, and the last valid `brand.json` keeps serving.
 
@@ -194,7 +194,7 @@ Every email the API sends can use three variables, filled from the brand. A stor
 | `{{supportAddress}}` | the address in a `mailto:` `links.support` | `support@endatix.com` |
 | `{{websiteUrl}}` | `links.website` | `https://endatix.com` |
 
-Metadata an email sends with the same key wins over the brand value. A pack that leaves out `links.website` keeps `https://endatix.com` in emails.
+Metadata an email sends with the same key wins over the brand value. A pack that leaves out `links.website` keeps `https://endatix.com` in emails, and a pack that leaves out `links.support` keeps `support@endatix.com`, with no warning.
 
 The seeded templates do not use these variables yet: their subjects and bodies still say Endatix. The text the API composes into the verification and invitation emails already uses the pack's `name`.
 
@@ -215,7 +215,7 @@ The pack does not set the sender. The From address and name come from the [deplo
 - **Address:** the per-template `Endatix:EmailTemplates:<Template>:FromAddress`, then `Sender:Address`, then the address on the template row.
 - **Name:** a display name written in the per-template `FromAddress` (`Ops Team <ops@example.com>`), then `Sender:Name`, then the brand's `name`.
 
-`Endatix:Integrations:Email:SmtpSettings:DefaultFromAddress` and `DefaultFromName` still work as deprecated fallbacks below `Sender:*`, and log warning `6002` at start. See [Email settings](/docs/configuration/settings/email-settings#sender-address-resolution).
+The deprecated `Endatix:Integrations:Email:SmtpSettings:DefaultFromName` is still read as the name below `Sender:Name`, before the brand's `name`. The deprecated `DefaultFromAddress` is not part of the address order above: it sends only an email with no template and no From address, and never replaces a template row's address. Either one logs warning `6002` at start. See [Email settings](/docs/configuration/settings/email-settings#sender-address-resolution).
 
 ## Limitations
 
