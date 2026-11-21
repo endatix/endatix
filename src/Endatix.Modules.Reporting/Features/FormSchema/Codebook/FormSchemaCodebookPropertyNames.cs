@@ -47,12 +47,6 @@ internal static class FormSchemaCodebookPropertyNames
     public const string OtherFrom = "otherFrom";
 
     /// <summary>
-    /// Choice catalog of a copy with <see cref="OtherFrom"/> whose current definition shows an Other of its own:
-    /// <c>true</c>. That Other is on the copy's list whatever the source picked.
-    /// </summary>
-    public const string OwnOther = "ownOther";
-
-    /// <summary>
     /// Question: where a single select's choices come from, when not its own <c>choices</c>: <c>kind</c> ("dataList",
     /// "carryForward", "unresolvable") and <c>listId</c>, <c>sources</c> or <c>reason</c>. Absent means inline.
     /// </summary>

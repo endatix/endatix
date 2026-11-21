@@ -91,28 +91,12 @@ internal static partial class FormSchemaCodebookBuilder
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ChoiceSet.ToJsonName(stored));
         }
 
-        WriteOtherFrom(writer, existingCatalog, currentCatalog);
-    }
-
-    // A kept otherFrom on a copy that now shows its own Other also writes ownOther.
-    private static void WriteOtherFrom(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
-    {
-        var currentFrom = currentCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom);
-        if ((currentFrom ?? existingCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom)) is not { } otherFrom)
+        if ((currentCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom) ??
+             existingCatalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherFrom)) is { } otherFrom)
         {
-            return;
-        }
-
-        writer.WriteString(FormSchemaCodebookPropertyNames.OtherFrom, otherFrom);
-        if (currentFrom is null && HasOtherChoice(currentCatalog))
-        {
-            writer.WriteBoolean(FormSchemaCodebookPropertyNames.OwnOther, true);
+            writer.WriteString(FormSchemaCodebookPropertyNames.OtherFrom, otherFrom);
         }
     }
-
-    // A current catalog without otherFrom lists an Other only when the copy shows its own.
-    private static bool HasOtherChoice(JsonElement catalog) =>
-        SelectChoices.FromCatalog(catalog)?.KindOf(SurveyJsPropertyNames.Other) == ChoiceKind.Other;
 
     // A codebook compiled before the copied marker still names the copy on its stored question entry, which the merge
     // replaces with the current one: carry it onto the catalog first.
@@ -150,7 +134,6 @@ internal static partial class FormSchemaCodebookBuilder
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Multiple) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherFrom) &&
-                         !property.NameEquals(FormSchemaCodebookPropertyNames.OwnOther) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.CanBeHidden) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {

@@ -65,8 +65,8 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false, string? submittedDefinitionJson = null)
     {
-        // Only a complete submission infers a 0 for an unanswered question, so only it needs its definition's names.
-        var submittedQuestions = submissionComplete ? CopyDefinition.QuestionNamesIn(submittedDefinitionJson) : null;
+        // Read only when a cell needs it: an unanswered question in a complete submission, or a copy's copied Other.
+        Lazy<SubmittedQuestions?> submittedQuestions = new(() => CopyDefinition.QuestionsIn(submittedDefinitionJson));
         using var document = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonDocument.Parse(codebookJson);
         if (document?.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
@@ -82,7 +82,7 @@ internal sealed class ChoiceCatalogs
     }
 
     // No catalogs, but the submission's completion still decides whether an unanswered select is 0.
-    private static ChoiceCatalogs EmptyFor(bool submissionComplete, IReadOnlySet<string>? submittedQuestions) =>
+    private static ChoiceCatalogs EmptyFor(bool submissionComplete, Lazy<SubmittedQuestions?> submittedQuestions) =>
         submissionComplete
             ? new(Empty._selects, Empty._copies, Empty._visibility) { SubmissionComplete = true, SubmittedQuestions = submittedQuestions }
             : Empty;
@@ -98,8 +98,8 @@ internal sealed class ChoiceCatalogs
     /// <summary>Whether the submission being flattened is completed.</summary>
     public bool SubmissionComplete { get; private init; }
 
-    // The question names of the definition the submission was made on; null when unknown.
-    private IReadOnlySet<string>? SubmittedQuestions { get; init; }
+    // The questions of the definition the submission was made on; null when unknown.
+    private Lazy<SubmittedQuestions?> SubmittedQuestions { get; init; } = new(() => null);
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
     public bool IsSelect(string question) => _selects.ContainsKey(question);
@@ -161,17 +161,20 @@ internal sealed class ChoiceCatalogs
             : answer.OtherText;
     }
 
-    private bool WasSubmittedWith(string question) => SubmittedQuestions?.Contains(question) ?? true;
+    private bool WasSubmittedWith(string question) => SubmittedQuestions.Value?.Names.Contains(question) ?? true;
+
+    // Unknown when the submission's definition is: then only the source's answer can show its Other.
+    private bool ShowedOwnOther(string question) => SubmittedQuestions.Value?.ShowingOther.Contains(question) == true;
 
     // The copy's own special items are always on its list, but only an exact rule that holds for this submission proves
     // which definition's list, and that the copy was shown. A source's Other was on it only when the source picked it
-    // with text.
+    // with text, unless the definition the submission was made on gave the copy an Other of its own.
     private bool AnsweredCopyShows(AnswerScope scope, string question, string choiceValue) =>
         _visibility.TryGetValue(question, out var rule) &&
         rule.HoldsFor(SubmissionComplete) &&
         (For(question).KindOf(choiceValue) switch
         {
-            ChoiceKind.Other when For(question) is { OtherFrom: { } source, OwnOther: false } =>
+            ChoiceKind.Other when For(question).OtherFrom is { } source && !ShowedOwnOther(question) =>
                 CopyVisibility.CopiedOtherText(source, scope, this) is not null,
             not null and not ChoiceKind.Choice => true,
             _ => rule.Shows(choiceValue, scope, this) == true,
@@ -213,9 +216,6 @@ internal sealed class SelectChoices
     /// <summary>The source whose Other the copy offers (<c>otherFrom</c>); its text is the source's. Null otherwise.</summary>
     public string? OtherFrom { get; private init; }
 
-    /// <summary>The copy's current definition shows an Other of its own (<c>ownOther</c>).</summary>
-    public bool OwnOther { get; private init; }
-
     /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
     public bool CanBeHidden { get; private init; }
 
@@ -252,7 +252,6 @@ internal sealed class SelectChoices
             Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
             OtherFrom = catalog.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.OtherFrom),
-            OwnOther = catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.OwnOther),
             CanBeHidden = CanBeHiddenIn(catalog),
         };
         select._values.UnionWith(choices.Select(choice => choice.Value));

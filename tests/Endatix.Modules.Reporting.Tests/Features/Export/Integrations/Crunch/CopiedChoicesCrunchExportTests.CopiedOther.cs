@@ -215,9 +215,10 @@ public sealed partial class CopiedChoicesCrunchExportTests
         Column(csv, "Q2--other_text").Should().Equal("typed on Q1", "typed on Q2", "B");
     }
 
-    // Once the copy shows an Other of its own, that Other is on its list whatever the source picked.
+    // The form version a row was saved on decides: once the copy shows an Other of its own, that Other is on its list
+    // whatever the source picked; before, it was there only when the source picked Other with text.
     [Fact]
-    public async Task CsvShoji_CheckboxCopyThatGainsItsOwnOther_WritesZeroForItsUnpickedOther()
+    public async Task CsvShoji_CheckboxCopyThatGainsItsOwnOther_WritesZeroOnlyForRowsSavedWithItsOwnOther()
     {
         // Arrange
         var before = DefinitionWith(SOURCE_WITH_OTHER, """
@@ -226,7 +227,11 @@ public sealed partial class CopiedChoicesCrunchExportTests
         var after = DefinitionWith(SOURCE_WITH_OTHER, """
             {"type":"checkbox","name":"Q3","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected","showOtherItem":true}
             """);
-        IReadOnlyList<FixtureResponse> responses = [new("later", """{"Q1":["1"],"Q3":["1"]}""", null)];
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("earlier", """{"Q1":["1"],"Q3":["1"]}""", null, SubmittedDefinition: before),
+            new("later", """{"Q1":["1"],"Q3":["1"]}""", null, SubmittedDefinition: after),
+        ];
         var pipeline = PersonalizationPipeline.Compile(before);
         var cancellationToken = TestContext.Current.CancellationToken;
 
@@ -236,8 +241,8 @@ public sealed partial class CopiedChoicesCrunchExportTests
         var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
 
         // Assert
-        Column(csv, "Q3--1").Should().Equal("1");
-        Column(csv, "Q3--other").Should().Equal("0");
+        Column(csv, "Q3--1").Should().Equal("1", "1");
+        Column(csv, "Q3--other").Should().Equal(string.Empty, "0");
     }
 
     [Fact]
