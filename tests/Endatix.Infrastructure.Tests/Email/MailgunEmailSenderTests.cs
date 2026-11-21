@@ -43,7 +43,9 @@ public class MailgunEmailSenderTests
             _options,
             new EmailTemplateRenderer(
                 _templateRepository,
-                Options.Create(new EmailTemplateSettings()), DeploymentBrand.BuiltIn));
+                Options.Create(new EmailTemplateSettings()),
+                EmailVariables.From(DeploymentBrand.BuiltIn),
+                new DeploymentSender("noreply@endatix.com", "Endatix")));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -239,7 +241,7 @@ public class MailgunEmailSenderTests
         _handler.Request.Should().NotBeNull();
         var form = ParseFormContent(_handler.RequestContent!);
         form["to"].Should().Be("recipient@example.com");
-        form["from"].Should().Be("template-from@example.com");
+        form["from"].Should().Be("\"Endatix\" <template-from@example.com>", "a rendered template sends with the deployment sender's name");
         form["subject"].Should().Be("Test Subject");
         form["text"].Should().Be("Hello John");
         form["html"].Should().Be("<html>Hello John</html>");
@@ -280,6 +282,46 @@ public class MailgunEmailSenderTests
         using var variables = JsonDocument.Parse(form["h:X-Mailgun-Variables"]);
         variables.RootElement.GetProperty("name").GetString().Should().Be("Alice");
         variables.RootElement.GetProperty("attempt").GetInt32().Should().Be(2);
+        variables.RootElement.GetProperty("productName").GetString().Should().Be("Endatix");
+        variables.RootElement.GetProperty("supportAddress").GetString().Should().Be("support@endatix.com");
+        variables.RootElement.GetProperty("websiteUrl").GetString().Should().Be("https://endatix.com");
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateMetadataClash_TheCallerWinsAndKeepsItsType()
+    {
+        // Arrange
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            TemplateId = "mailgun-template",
+            IsExternal = true,
+            Metadata = new Dictionary<string, object> { ["productName"] = "Caller Product", ["isTrial"] = true }
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        using var variables = JsonDocument.Parse(form["h:X-Mailgun-Variables"]);
+        variables.RootElement.GetProperty("productName").GetString().Should().Be("Caller Product");
+        variables.RootElement.GetProperty("isTrial").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateWithoutMetadata_StillSendsTheVariables()
+    {
+        // Arrange
+        var email = new EmailWithTemplate { To = "recipient@example.com", TemplateId = "mailgun-template", IsExternal = true };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        using var variables = JsonDocument.Parse(form["h:X-Mailgun-Variables"]);
+        variables.RootElement.GetProperty("productName").GetString().Should().Be("Endatix");
     }
 
     [Fact]

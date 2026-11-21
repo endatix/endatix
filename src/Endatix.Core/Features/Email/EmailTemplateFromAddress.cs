@@ -11,8 +11,6 @@ namespace Endatix.Core.Features.Email;
 /// <remarks>
 /// Precedence: explicit <c>Endatix:EmailTemplates:*:FromAddress</c> (customer
 /// override without a DB edit) → database FromAddress → <see cref="DefaultFromAddress"/>.
-/// A brand pack's <c>email.fromAddress</c> is passed in place of the database value,
-/// so it sits between the two.
 /// </remarks>
 public static class EmailTemplateFromAddress
 {

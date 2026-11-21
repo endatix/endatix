@@ -119,10 +119,8 @@ public class MailgunEmailSender(
             contentValues.Add(new("subject", email.Subject));
         }
 
-        if (email.Metadata.Count > 0)
-        {
-            contentValues.Add(new("h:X-Mailgun-Variables", JsonSerializer.Serialize(email.Metadata)));
-        }
+        // Never empty: the email variables are always there.
+        contentValues.Add(new("h:X-Mailgun-Variables", JsonSerializer.Serialize(_templateRenderer.ProviderTemplateData(email))));
 
         using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 

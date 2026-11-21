@@ -17,8 +17,8 @@ namespace Endatix.IntegrationTests;
 [Trait("Priority", "P1")]
 public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixture) : IDisposable
 {
-    private const string InvalidPack = """{ "version": 1, "name": "Example Forms", "email": { "fromAddress": "not-an-email" } }""";
-    private const string ValidPack = """{ "version": 1, "name": "Example Forms", "email": { "senderName": "Example Forms Team" } }""";
+    private const string InvalidPack = """{ "version": 1, "name": "Example Forms", "links": { "support": "mailto:not-an-email" } }""";
+    private const string ValidPack = """{ "version": 1, "name": "Example Forms", "links": { "support": "mailto:help@example.com" } }""";
 
     private readonly string _packDirectory = Directory.CreateTempSubdirectory("brand-pack-").FullName;
 
@@ -37,7 +37,7 @@ public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixtu
         // Assert
         var brandPackError = FindBrandPackError(error);
         brandPackError.Should().NotBeNull("an invalid pack stops startup");
-        brandPackError!.Message.Should().Contain("/email/fromAddress");
+        brandPackError!.Message.Should().Contain("/links/support");
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public sealed class BrandPackStartupTests(EndatixIntegrationWebHostFixture fixtu
 
         // Assert
         brand.ProductName.Should().Be("Example Forms");
-        brand.Email.SenderName.Should().Be("Example Forms Team");
+        brand.SupportAddress.Should().Be("help@example.com");
     }
 
     private WebApplicationFactory<EndatixWebHost::Program> HostWithPack(bool whiteLabeling) =>

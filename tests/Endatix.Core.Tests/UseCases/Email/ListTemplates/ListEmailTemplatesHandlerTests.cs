@@ -1,4 +1,3 @@
-using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -24,7 +23,7 @@ public class ListEmailTemplatesHandlerTests
                 FromAddress = "custom@example.com"
             }
         };
-        _sut = new ListEmailTemplatesHandler(_repository, settings, DeploymentBrand.BuiltIn);
+        _sut = new ListEmailTemplatesHandler(_repository, settings);
     }
 
     [Fact]
@@ -72,33 +71,10 @@ public class ListEmailTemplatesHandlerTests
                     TemplateId = "email-verification",
                     FromAddress = string.Empty
                 }
-            },
-            DeploymentBrand.BuiltIn);
+            });
 
         var result = await sut.Handle(new ListEmailTemplatesQuery(), TestContext.Current.CancellationToken);
 
         result.Value!.Single().FromAddress.Should().Be("db@example.com");
-    }
-
-    [Fact]
-    public async Task Handle_PackWithFromAddress_ListsThePackAddressLikeTheSendDoes()
-    {
-        // Arrange
-        var repository = Substitute.For<IRepository<EmailTemplate>>();
-        repository.ListAsync(Arg.Any<CancellationToken>()).Returns(
-        [
-            new EmailTemplate("forgot-password", "Reset", "<p>Reset</p>", "Reset", "noreply@endatix.com")
-        ]);
-        var brand = DeploymentBrand.BuiltIn with
-        {
-            Email = DeploymentBrand.BuiltIn.Email with { FromAddress = "noreply@example.com" }
-        };
-        var sut = new ListEmailTemplatesHandler(repository, new EmailTemplateSettings(), brand);
-
-        // Act
-        var result = await sut.Handle(new ListEmailTemplatesQuery(), TestContext.Current.CancellationToken);
-
-        // Assert
-        result.Value!.Single().FromAddress.Should().Be("noreply@example.com");
     }
 }

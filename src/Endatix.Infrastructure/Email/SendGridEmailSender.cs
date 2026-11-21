@@ -110,7 +110,7 @@ public class SendGridEmailSender(
         msg.SetFrom(new EmailAddress(email.From));
         msg.AddTo(new EmailAddress(email.To));
         msg.SetTemplateId(email.TemplateId);
-        msg.SetTemplateData(email.Metadata);
+        msg.SetTemplateData(_templateRenderer.ProviderTemplateData(email));
 
         var response = await _sendGridClient
             .SendEmailAsync(msg, cancellationToken)

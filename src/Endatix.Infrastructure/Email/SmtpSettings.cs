@@ -5,6 +5,9 @@ namespace Endatix.Infrastructure.Email;
 /// <summary>
 /// POCO Class for SMTP settings needed for email sending.
 /// </summary>
+/// <remarks>
+/// The sender is not an SMTP setting: every provider uses <c>Endatix:Integrations:Email:Sender</c>.
+/// </remarks>
 public class SmtpSettings
 {
     /// <summary>
@@ -48,16 +51,4 @@ public class SmtpSettings
     /// The password for SMTP authentication (optional).
     /// </summary>
     public string? Password { get; set; }
-
-    /// <summary>
-    /// The default sender email address.
-    /// </summary>
-    [Required]
-    [EmailAddress]
-    public string DefaultFromAddress { get; set; } = "noreply@endatix.com";
-
-    /// <summary>
-    /// The default sender display name.
-    /// </summary>
-    public string DefaultFromName { get; set; } = "Endatix";
 } 

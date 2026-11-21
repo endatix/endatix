@@ -1,9 +1,11 @@
 using Endatix.Core.Branding;
+using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Branding;
 using Endatix.Infrastructure.Email;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Setup;
 
@@ -40,6 +42,7 @@ public sealed class DeploymentBrandRegistrationTests : IDisposable
 
         // Assert
         ResolvedBrandName(services).Should().Be("Example Forms");
+        ResolvedEmailIdentity(services).Should().Be(("Example Forms", "Example Forms"));
     }
 
     [Fact]
@@ -55,6 +58,67 @@ public sealed class DeploymentBrandRegistrationTests : IDisposable
         // Assert
         services.Count(descriptor => descriptor.ServiceType == typeof(DeploymentBrand)).Should().Be(1);
         ResolvedBrandName(services).Should().Be("Example Forms");
+        ResolvedEmailIdentity(services).Should().Be(("Example Forms", "Example Forms"));
+    }
+
+    [Fact]
+    public void AddEmailSenderAndTemplateSettings_Together_RegisterTheSenderOnce()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+
+        // Act
+        services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
+        services.AddEmailTemplateSettings();
+
+        // Assert
+        services.Count(descriptor => descriptor.ServiceType == typeof(DeploymentSender)).Should().Be(1);
+        services.Count(descriptor => descriptor.ServiceType == typeof(EmailVariables)).Should().Be(1);
+    }
+
+    [Fact]
+    public void AddEmailSender_ConfiguredSender_ResolvesItsAddressAndName()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Endatix:Integrations:Email:Sender:Address"] = "noreply@example.com",
+                ["Endatix:Integrations:Email:Sender:Name"] = "Example Team",
+            })
+            .Build());
+
+        // Act
+        services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
+
+        // Assert
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<DeploymentSender>().Should().Be(new DeploymentSender("noreply@example.com", "Example Team"));
+    }
+
+    [Theory]
+    [InlineData("Example <noreply@example.com>", null)]
+    [InlineData("noreply@example.com", "Example\r\nBcc: x@example.com")]
+    public void AddEmailSender_InvalidSender_FailsValidation(string address, string? name)
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Endatix:Integrations:Email:Sender:Address"] = address,
+                ["Endatix:Integrations:Email:Sender:Name"] = name,
+            })
+            .Build());
+        services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
+        using var provider = services.BuildServiceProvider();
+
+        // Act
+        var resolve = () => provider.GetRequiredService<DeploymentSender>();
+
+        // Assert
+        resolve.Should().Throw<OptionsValidationException>().Which.Message.Should().Contain("Endatix:Integrations:Email:Sender");
     }
 
     [Fact]
@@ -81,6 +145,12 @@ public sealed class DeploymentBrandRegistrationTests : IDisposable
                 [BrandPackLoader.BrandDirectoryKey] = _packDirectory,
             })
             .Build();
+    }
+
+    private static (string ProductName, string SenderName) ResolvedEmailIdentity(IServiceCollection services)
+    {
+        using var provider = services.BuildServiceProvider();
+        return (provider.GetRequiredService<EmailVariables>().ProductName, provider.GetRequiredService<DeploymentSender>().Name);
     }
 
     private static string ResolvedBrandName(IServiceCollection services)

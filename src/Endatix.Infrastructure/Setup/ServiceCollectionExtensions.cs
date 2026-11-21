@@ -112,9 +112,29 @@ public static class ServiceCollectionExtensions
     private static void AddDeploymentBrandFallback(IServiceCollection services) =>
         services.TryAddSingleton(provider => BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>()));
 
-    private static void AddEmailTemplateRenderer(IServiceCollection services)
+    // The sender and the variables are factories over the registered brand, so AddDeploymentBrand may come before
+    // or after them.
+    private static void AddEmailIdentity(IServiceCollection services)
     {
         AddDeploymentBrandFallback(services);
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(DeploymentSender)))
+        {
+            return;
+        }
+
+        services.AddOptions<EmailSenderSettings>()
+                .BindConfiguration(EmailSenderSettings.SectionName)
+                .Validate(EmailSenderSettingsRules.AreValid, EmailSenderSettingsRules.Message)
+                .ValidateOnStart();
+        services.AddSingleton(provider => DeploymentSender.From(
+            provider.GetRequiredService<IOptions<EmailSenderSettings>>().Value,
+            provider.GetRequiredService<DeploymentBrand>()));
+        services.AddSingleton(provider => EmailVariables.From(provider.GetRequiredService<DeploymentBrand>()));
+    }
+
+    private static void AddEmailTemplateRenderer(IServiceCollection services)
+    {
+        AddEmailIdentity(services);
         services.TryAddScoped<EmailTemplateRenderer>();
     }
 
@@ -135,7 +155,7 @@ public static class ServiceCollectionExtensions
         // Exposes the POCO to Core handlers without pulling IOptions into Core.Remove once settings are persisted in the database.
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<EmailTemplateSettings>>().Value);
 
-        AddDeploymentBrandFallback(services);
+        AddEmailIdentity(services);
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
         return services;

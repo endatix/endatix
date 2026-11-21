@@ -6,14 +6,15 @@ namespace Endatix.Infrastructure.Branding;
 
 /// <summary>
 /// Reads and checks the fields of <c>brand.json</c> the API uses: <c>version</c>, <c>name</c>, <c>links.website</c>,
-/// <c>personas.assistant</c> and <c>email</c>. The rules are the brand pack schema's for those fields, plus no blank
-/// values and no control characters in names, which reach mail headers. Assets, colours and the other links belong
-/// to the Hub, which validates the whole pack.
+/// <c>links.support</c> and <c>personas.assistant</c>. The rules are the brand pack schema's for those fields, plus no
+/// blank values, no control characters in the name, which can reach a mail header as the sender name, and one bare
+/// address in a <c>mailto:</c> support link. Assets, colours and the other links belong to the Hub, which validates
+/// the whole pack.
 /// </summary>
 internal sealed class BrandPackReader
 {
     private const int NameMaxLength = 60;
-    private static readonly string[] WebsiteSchemes = [Uri.UriSchemeHttp, Uri.UriSchemeHttps, Uri.UriSchemeMailto];
+    private static readonly string[] LinkSchemes = [Uri.UriSchemeHttp, Uri.UriSchemeHttps, Uri.UriSchemeMailto];
 
     private readonly List<string> _failures = [];
 
@@ -45,20 +46,15 @@ internal sealed class BrandPackReader
         CheckVersion(Field(pack, "version"));
         var builtIn = DeploymentBrand.BuiltIn;
         var name = Name("/name", Required("/name", Field(pack, "name")), NameMaxLength) ?? builtIn.ProductName;
+        var links = Group(pack, "links");
 
         return new DeploymentBrand(
             ProductName: name,
             AppName: name,
             AssistantName: Text("/personas/assistant", Field(Group(pack, "personas"), "assistant")) ?? builtIn.AssistantName,
-            WebsiteUrl: Website(Field(Group(pack, "links"), "website")) ?? builtIn.WebsiteUrl,
-            Email: MapEmail(Group(pack, "email"), name));
+            WebsiteUrl: Link("/links/website", Field(links, "website")) ?? builtIn.WebsiteUrl,
+            SupportAddress: SupportAddress(Field(links, "support")) ?? builtIn.SupportAddress);
     }
-
-    private BrandEmail MapEmail(JsonElement? email, string productName) => new(
-        SenderName: Name("/email/senderName", Field(email, "senderName")) ?? productName,
-        FromAddress: EmailAddress("/email/fromAddress", Field(email, "fromAddress")),
-        SupportAddress: EmailAddress("/email/supportAddress", Field(email, "supportAddress"))
-            ?? DeploymentBrand.BuiltIn.Email.SupportAddress);
 
     private JsonElement? Required(string path, JsonElement? element)
     {
@@ -90,7 +86,7 @@ internal sealed class BrandPackReader
         return null;
     }
 
-    private string? Name(string path, JsonElement? element, int? maxLength = null)
+    private string? Name(string path, JsonElement? element, int maxLength)
     {
         var value = Text(path, element);
         if (value is not null && value.Any(char.IsControl))
@@ -119,20 +115,7 @@ internal sealed class BrandPackReader
         return string.IsNullOrWhiteSpace(value) ? Fail(path, "must not be blank") : value;
     }
 
-    private string? Website(JsonElement? element)
-    {
-        var value = Text("/links/website", element);
-        if (value is null)
-        {
-            return null;
-        }
-
-        return Uri.TryCreate(value, UriKind.Absolute, out var uri) && WebsiteSchemes.Contains(uri.Scheme)
-            ? value
-            : Fail("/links/website", "must be an http, https or mailto URL");
-    }
-
-    private string? EmailAddress(string path, JsonElement? element)
+    private string? Link(string path, JsonElement? element)
     {
         var value = Text(path, element);
         if (value is null)
@@ -140,10 +123,26 @@ internal sealed class BrandPackReader
             return null;
         }
 
-        // A bare address only: "Name <a@b>" would smuggle a display name past the sender name.
-        return MailAddress.TryCreate(value, out var address) && address.Address == value
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) && LinkSchemes.Contains(uri.Scheme)
             ? value
-            : Fail(path, "must be an email address");
+            : Fail(path, "must be an http, https or mailto URL");
+    }
+
+    // Only a mailto: link names a support address; a web support page leaves the built-in one.
+    private string? SupportAddress(JsonElement? element)
+    {
+        const string path = "/links/support";
+        var link = Link(path, element);
+        if (link is null || !link.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        // A bare address only: "Name <a@b>" or a list would reach the email copy as more than one address.
+        var address = link["mailto:".Length..].Split('?')[0];
+        return MailAddress.TryCreate(address, out var parsed) && parsed.Address == address
+            ? address
+            : Fail(path, "must be a mailto link to one email address");
     }
 
     private string? Fail(string path, string message)
