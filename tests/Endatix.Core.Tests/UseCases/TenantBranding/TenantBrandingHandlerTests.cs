@@ -153,6 +153,21 @@ public sealed class TenantBrandingHandlerTests
     }
 
     [Fact]
+    public async Task Publish_LosesTheFirstInsertRace_IsAConflict()
+    {
+        // Arrange
+        NothingStored();
+        _repository.AddAsync(Arg.Any<TenantBrandingEntity>(), Arg.Any<CancellationToken>())
+            .Returns<TenantBrandingEntity>(_ => throw new TenantBrandingConflictException("lost"));
+
+        // Act
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+    }
+
+    [Fact]
     public async Task Rollback_AtCurrentRevision_SwapsAndSaves()
     {
         // Arrange
