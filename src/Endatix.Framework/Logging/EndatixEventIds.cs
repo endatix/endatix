@@ -300,6 +300,8 @@ public static class EndatixEventIds
         public const int ProviderTemplateMessageSent = 6001;
         /// <summary>The host sets the deprecated SMTP sender keys.</summary>
         public const int DeprecatedSmtpSenderKeys = 6002;
+        /// <summary>A brand pack field the API cannot use keeps its built-in value.</summary>
+        public const int BrandPackFieldIgnored = 6003;
 
         /// <summary>First EventId of this group.</summary>
         public const int RangeStart = Ranges.EmailStart;
@@ -311,7 +313,8 @@ public static class EndatixEventIds
         [
             ProviderMessageSent,
             ProviderTemplateMessageSent,
-            DeprecatedSmtpSenderKeys
+            DeprecatedSmtpSenderKeys,
+            BrandPackFieldIgnored
         ];
     }
 

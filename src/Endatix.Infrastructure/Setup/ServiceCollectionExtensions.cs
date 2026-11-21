@@ -22,6 +22,7 @@ using Endatix.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
 
@@ -104,7 +105,11 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddDeploymentBrand(this IServiceCollection services, IConfiguration configuration)
     {
         // Replace, not TryAdd: an email sender added first leaves a lazy fallback that must not win.
-        return services.Replace(ServiceDescriptor.Singleton(BrandPackLoader.Load(configuration)));
+        List<string> warnings = [];
+        services.Replace(ServiceDescriptor.Singleton(BrandPackLoader.Load(configuration, warnings)));
+        return services.AddHostedService(provider => new BrandPackWarnings(
+            warnings,
+            provider.GetRequiredService<ILogger<BrandPackWarnings>>()));
     }
 
     // For a host that adds an email sender or the template settings without Integrations.UseDefaults():

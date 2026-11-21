@@ -1,13 +1,13 @@
 namespace Endatix.Core.Configuration;
 
 /// <summary>
-/// The deployment's sender, from <c>Endatix:Integrations:Email:Sender</c>. Every email provider uses it.
+/// The deployment's sender, from <c>Endatix:Integrations:Email:Sender</c>, for every email provider.
 /// </summary>
 /// <remarks>
-/// A set address is the sender of every email: it wins over a template row's address, and only an operator's
-/// per-template <c>Endatix:EmailTemplates:*:FromAddress</c> wins over it. Left empty, each template sends from its
-/// row's address. The name is the From display name of every email; left empty, it is the deployment brand's product
-/// name.
+/// It applies to emails rendered from a stored template, and on SMTP to an email without a From address or display
+/// name. A provider template (<c>IsExternal</c>) sends the caller's From as-is. A set address wins over a template
+/// row's address; only an operator's per-template <c>Endatix:EmailTemplates:*:FromAddress</c> wins over it. Left
+/// empty, each template sends from its row's address. The name defaults to the deployment brand's product name.
 /// </remarks>
 public class EmailSenderSettings
 {

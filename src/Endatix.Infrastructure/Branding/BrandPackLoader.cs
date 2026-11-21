@@ -17,7 +17,9 @@ internal static class BrandPackLoader
 
     private const string PackFileName = "brand.json";
 
-    internal static DeploymentBrand Load(IConfiguration configuration)
+    /// <param name="configuration">The host configuration holding the flag and the pack folder.</param>
+    /// <param name="warnings">Receives a line for each pack field the API cannot use and replaces with its built-in value.</param>
+    internal static DeploymentBrand Load(IConfiguration configuration, ICollection<string>? warnings = null)
     {
         var directory = configuration[BrandDirectoryKey];
         if (!EndatixModuleRegistration.IsFeatureFlagEnabled(configuration, Framework.FeatureFlags.FeatureFlags.WhiteLabeling)
@@ -28,7 +30,7 @@ internal static class BrandPackLoader
 
         var path = Path.Combine(directory, PackFileName);
         using var document = Parse(path);
-        return BrandPackReader.Read(path, document.RootElement);
+        return BrandPackReader.Read(path, document.RootElement, warnings ?? []);
     }
 
     private static JsonDocument Parse(string path)

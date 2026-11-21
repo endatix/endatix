@@ -13,9 +13,15 @@ internal sealed class DeprecatedSmtpSender(
     IOptions<SmtpSettings> smtpSettings,
     ILogger<DeprecatedSmtpSender> logger) : IHostedService
 {
-    /// <summary>The deprecated values, as a sender fallback.</summary>
-    internal static EmailSenderSettings Read(SmtpSettings settings) =>
-        new() { Address = settings.DefaultFromAddress, Name = settings.DefaultFromName };
+    /// <summary>
+    /// The deprecated values, as a sender fallback. A name with a control character is dropped, by the rule
+    /// <c>Sender:Name</c> follows, so the brand name is used instead.
+    /// </summary>
+    internal static EmailSenderSettings Read(SmtpSettings settings) => new()
+    {
+        Address = settings.DefaultFromAddress,
+        Name = EmailSenderSettingsRules.IsValidName(settings.DefaultFromName) ? settings.DefaultFromName : null,
+    };
 
     public Task StartAsync(CancellationToken cancellationToken)
     {

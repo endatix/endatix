@@ -182,6 +182,9 @@ public sealed class BrandPackLoaderTests : IDisposable
 
     [Theory]
     [InlineData("mailto:help@example.com?subject=Help", "help@example.com")]
+    [InlineData("mailto:help@example.com#contact", "help@example.com")]
+    [InlineData("mailto:first%2Blast@example.com", "first+last@example.com")]
+    [InlineData("mailto:help%40example.com", "help@example.com")]
     [InlineData("https://example.com/support", "support@endatix.com")]
     public void Load_SupportLink_GivesTheSupportAddressOnlyForMailto(string supportLink, string supportAddress)
     {
@@ -195,6 +198,23 @@ public sealed class BrandPackLoaderTests : IDisposable
 
         // Assert
         brand.SupportAddress.Should().Be(supportAddress);
+    }
+
+    [Fact]
+    public void Load_MailtoListOfAddresses_KeepsTheBuiltInSupportAddressAndWarns()
+    {
+        // Arrange
+        File.WriteAllText(
+            Path.Combine(_packDirectory, "brand.json"),
+            """{ "version": 1, "name": "Example Forms", "links": { "support": "mailto:a@example.com,b@example.com" } }""");
+        List<string> warnings = [];
+
+        // Act
+        var brand = BrandPackLoader.Load(Configuration(flag: "true"), warnings);
+
+        // Assert
+        brand.SupportAddress.Should().Be("support@endatix.com");
+        warnings.Should().ContainSingle().Which.Should().Contain("/links/support").And.Contain("more than one address");
     }
 
     [Fact]

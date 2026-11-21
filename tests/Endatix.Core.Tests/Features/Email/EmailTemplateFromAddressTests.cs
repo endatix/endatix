@@ -85,6 +85,18 @@ public class EmailTemplateFromAddressTests
     }
 
     [Fact]
+    public void Resolve_NoConfiguredOrDatabaseValueUsesTheDeploymentSenderAddress()
+    {
+        // A hand-edited row can hold an empty address: EF materialization skips the constructor guard.
+        var row = Row("custom-template", "db@example.com");
+        typeof(EmailTemplate).GetProperty(nameof(EmailTemplate.FromAddress))!.SetValue(row, string.Empty);
+
+        var result = EmailTemplateFromAddress.Resolve(new EmailTemplateSettings(), row, NoSender);
+
+        result.Should().Be("noreply@endatix.com");
+    }
+
+    [Fact]
     public void Resolve_ConfiguredTemplateAddressWinsOverConfiguredSender()
     {
         var settings = new EmailTemplateSettings

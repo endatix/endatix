@@ -12,8 +12,8 @@ namespace Endatix.Core.Features.Email;
 /// <remarks>
 /// Precedence: explicit <c>Endatix:EmailTemplates:*:FromAddress</c> (customer
 /// override without a DB edit) → the deployment sender's configured address
-/// (<c>Endatix:Integrations:Email:Sender:Address</c>) → database FromAddress,
-/// which every row has.
+/// (<c>Endatix:Integrations:Email:Sender:Address</c>) → database FromAddress →
+/// the deployment sender's address (a hand-edited row may hold an empty one).
 /// </remarks>
 public static class EmailTemplateFromAddress
 {
@@ -34,7 +34,13 @@ public static class EmailTemplateFromAddress
             return configuredFromAddress;
         }
 
-        return sender.ConfiguredAddress ?? template.FromAddress;
+        if (sender.ConfiguredAddress is not null)
+        {
+            return sender.ConfiguredAddress;
+        }
+
+        // Never an empty From: Mailgun and SendGrid refuse one.
+        return string.IsNullOrWhiteSpace(template.FromAddress) ? sender.Address : template.FromAddress;
     }
 
     private static string? GetConfiguredFromAddress(EmailTemplateSettings settings, string templateName)

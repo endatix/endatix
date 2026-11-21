@@ -53,6 +53,20 @@ public sealed class DeprecatedSmtpSenderTests
     }
 
     [Fact]
+    public void Read_DeprecatedNameWithAControlCharacter_DropsItForTheBrandName()
+    {
+        // Arrange
+        var settings = new SmtpSettings { DefaultFromAddress = "smtp@example.com", DefaultFromName = "SMTP\r\nBcc: x@example.com" };
+
+        // Act
+        var legacy = DeprecatedSmtpSender.Read(settings);
+
+        // Assert
+        legacy.Address.Should().Be("smtp@example.com");
+        legacy.Name.Should().BeNull();
+    }
+
+    [Fact]
     public void AddEmailSender_SenderAndDeprecatedKeys_TheSenderWins()
     {
         // Arrange

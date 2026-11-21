@@ -16,16 +16,23 @@ internal sealed class BrandPackReader
     private const int NameMaxLength = 60;
     private static readonly string[] LinkSchemes = [Uri.UriSchemeHttp, Uri.UriSchemeHttps, Uri.UriSchemeMailto];
 
-    private readonly List<string> _failures = [];
+    private const string MailtoPrefix = "mailto:";
 
-    private BrandPackReader()
+    private readonly List<string> _failures = [];
+    private readonly ICollection<string> _warnings;
+
+    private BrandPackReader(ICollection<string> warnings)
     {
+        _warnings = warnings;
     }
 
-    /// <summary>Maps the pack, or throws <see cref="BrandPackException"/> naming every failing field.</summary>
-    internal static DeploymentBrand Read(string path, JsonElement pack)
+    /// <summary>
+    /// Maps the pack, or throws <see cref="BrandPackException"/> naming every failing field. A field the API cannot
+    /// use but the pack format allows keeps its built-in value and adds a line to <paramref name="warnings"/>.
+    /// </summary>
+    internal static DeploymentBrand Read(string path, JsonElement pack, ICollection<string> warnings)
     {
-        var reader = new BrandPackReader();
+        var reader = new BrandPackReader(warnings);
         var brand = pack.ValueKind == JsonValueKind.Object ? reader.Map(pack) : reader.NotAnObject();
         if (reader._failures.Count > 0)
         {
@@ -118,28 +125,44 @@ internal sealed class BrandPackReader
     private string? Link(string path, JsonElement? element)
     {
         var value = Text(path, element);
-        if (value is null)
-        {
-            return null;
-        }
+        return value is null ? null : CheckLink(path, value);
+    }
 
-        return Uri.TryCreate(value, UriKind.Absolute, out var uri) && LinkSchemes.Contains(uri.Scheme)
+    private string? CheckLink(string path, string value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) && LinkSchemes.Contains(uri.Scheme)
             ? value
             : Fail(path, "must be an http, https or mailto URL");
-    }
 
     // Only a mailto: link names a support address; a web support page leaves the built-in one.
     private string? SupportAddress(JsonElement? element)
     {
         const string path = "/links/support";
-        var link = Link(path, element);
-        if (link is null || !link.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase))
+        var link = Text(path, element);
+        if (link is null)
         {
             return null;
         }
 
-        // A bare address only: "Name <a@b>" or a list would reach the email copy as more than one address.
-        var address = link["mailto:".Length..].Split('?')[0];
+        if (!link.StartsWith(MailtoPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            CheckLink(path, link);
+            return null;
+        }
+
+        return MailtoAddress(path, link);
+    }
+
+    private string? MailtoAddress(string path, string link)
+    {
+        // RFC 6068: the address ends at '?' (headers) or '#', and may be percent-encoded.
+        var address = Uri.UnescapeDataString(link[MailtoPrefix.Length..].Split('?', '#')[0]);
+        if (address.Contains(','))
+        {
+            _warnings.Add($"{path} names more than one address, so emails use the built-in support address");
+            return null;
+        }
+
+        // A bare address only: "Name <a@b>" would reach the email copy as more than the address.
         return MailAddress.TryCreate(address, out var parsed) && parsed.Address == address
             ? address
             : Fail(path, "must be a mailto link to one email address");

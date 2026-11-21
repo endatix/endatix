@@ -142,7 +142,7 @@ For an overview of email providers and how to activate them in Endatix API see t
 
 ## Deployment sender
 
-One sender serves every provider. It binds under `Endatix:Integrations:Email:Sender`.
+One sender, for every provider, binds under `Endatix:Integrations:Email:Sender`. It applies to emails the API renders from a stored template, and on SMTP to an email sent without a From address. A provider template (a SendGrid or Mailgun template id) sends the From its caller sets, without a display name.
 
 ```json
 {
@@ -159,8 +159,8 @@ One sender serves every provider. It binds under `Endatix:Integrations:Email:Sen
 }
 ```
 
-  * **`Address`**: A bare address, with no display name. When set, every email sends from it, templates included; only a per-template `Endatix:EmailTemplates:*:FromAddress` wins over it (see [sender address resolution](#sender-address-resolution)). Left empty, each template sends from the address its database row stores, and an email with no template and no From address sends from `noreply@endatix.com`.
-  * **`Name`**: The From display name on every email. Defaults to the deployment's product name: `Endatix`, or the brand pack's `name` when [white-labeling](/docs/developers/api/feature-flags) is on.
+  * **`Address`**: A bare address, with no display name. When set, every stored-template email sends from it; only a per-template `Endatix:EmailTemplates:*:FromAddress` wins over it (see [sender address resolution](#sender-address-resolution)). Left empty, each template sends from the address its database row stores. On SMTP, it is also the sender of an email without a From address, and `noreply@endatix.com` when empty; Mailgun and SendGrid require such an email to set its own From.
+  * **`Name`**: The From display name of every stored-template email, and on SMTP of an email without a display name. Defaults to the deployment's product name: `Endatix`, or the brand pack's `name` when [white-labeling](/docs/developers/api/feature-flags) is on.
 
 The API does not start when `Address` holds a display name or `Name` holds a control character.
 
@@ -225,6 +225,7 @@ When Endatix sends or lists a template, the from-address is:
 1. `FromAddress` from `Endatix:EmailTemplates` for that template, if it is not empty (customer override, no DB edit)
 2. The [deployment sender](#deployment-sender) `Address`, if it is set
 3. The address stored on the database template (seed today; Hub UI later)
+4. The deployment sender's address, `noreply@endatix.com` by default, only if the row's address is empty
 
 The Hub **Email Settings** page shows the same resolved address that send uses.
 

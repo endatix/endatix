@@ -14,7 +14,9 @@ internal static class EmailSenderSettingsRules
         $"{EmailSenderSettings.SectionName}: Address must be a bare email address and Name must not contain control characters.";
 
     internal static bool AreValid(EmailSenderSettings settings) =>
-        IsBareAddress(settings.Address) && !(settings.Name ?? string.Empty).Any(char.IsControl);
+        IsBareAddress(settings.Address) && IsValidName(settings.Name);
+
+    internal static bool IsValidName(string? name) => !(name ?? string.Empty).Any(char.IsControl);
 
     // Empty falls back to the default address.
     private static bool IsBareAddress(string? address) =>
