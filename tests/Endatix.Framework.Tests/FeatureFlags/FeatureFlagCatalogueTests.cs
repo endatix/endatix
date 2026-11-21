@@ -242,4 +242,21 @@ public class FeatureFlagCatalogueTests
             FeatureFlagScope.Deployment,
             "PlatformAdmin create/assume runs before a target-tenant evaluation context exists");
     }
+
+    [Fact]
+    public void Definitions_WhiteLabeling_IsDeploymentScopedAndOffByDefault()
+    {
+        // Arrange
+        var whiteLabeling = FeatureFlagCatalogue.FindByConfigKey(
+            Endatix.Framework.FeatureFlags.FeatureFlags.WhiteLabeling);
+
+        // Act
+        var scope = whiteLabeling?.Scope;
+
+        // Assert
+        whiteLabeling.Should().NotBeNull();
+        whiteLabeling!.Key.Should().Be("white-labeling", "the Hub flag of the same key is set from the same Helm value");
+        whiteLabeling.DefaultValue.Should().Be(false);
+        scope.Should().Be(FeatureFlagScope.Deployment, "the brand pack is read once at startup, before any tenant exists");
+    }
 }

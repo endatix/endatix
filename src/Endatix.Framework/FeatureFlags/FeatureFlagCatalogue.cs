@@ -91,6 +91,15 @@ public static class FeatureFlagCatalogue
             defaultValue: false,
             flagClass: FeatureFlagClass.Rollout,
             scope: FeatureFlagScope.Deployment),
+
+        // Deployment-scoped: the brand pack is read once at startup, before any tenant exists. Short-lived:
+        // at GA the pack becomes plain configuration and the flag goes.
+        FeatureFlagDefinition.Boolean(
+            key: "white-labeling",
+            configKey: FeatureFlags.WhiteLabeling,
+            defaultValue: false,
+            flagClass: FeatureFlagClass.Rollout,
+            scope: FeatureFlagScope.Deployment),
     ];
 
     private static readonly ImmutableDictionary<string, FeatureFlagDefinition> ByKeyIndex =

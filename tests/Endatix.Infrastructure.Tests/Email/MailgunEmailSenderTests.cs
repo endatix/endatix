@@ -4,6 +4,7 @@ using System.Web;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Endatix.Core;
+using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
@@ -42,7 +43,9 @@ public class MailgunEmailSenderTests
             _options,
             new EmailTemplateRenderer(
                 _templateRepository,
-                Options.Create(new EmailTemplateSettings())));
+                Options.Create(new EmailTemplateSettings()),
+                EmailVariables.From(DeploymentBrand.BuiltIn),
+                new DeploymentSender("noreply@endatix.com", "Endatix", ConfiguredAddress: null)));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()
@@ -238,7 +241,7 @@ public class MailgunEmailSenderTests
         _handler.Request.Should().NotBeNull();
         var form = ParseFormContent(_handler.RequestContent!);
         form["to"].Should().Be("recipient@example.com");
-        form["from"].Should().Be("template-from@example.com");
+        form["from"].Should().Be("\"Endatix\" <template-from@example.com>", "a rendered template sends with the deployment sender's name");
         form["subject"].Should().Be("Test Subject");
         form["text"].Should().Be("Hello John");
         form["html"].Should().Be("<html>Hello John</html>");
@@ -279,6 +282,46 @@ public class MailgunEmailSenderTests
         using var variables = JsonDocument.Parse(form["h:X-Mailgun-Variables"]);
         variables.RootElement.GetProperty("name").GetString().Should().Be("Alice");
         variables.RootElement.GetProperty("attempt").GetInt32().Should().Be(2);
+        variables.RootElement.GetProperty("productName").GetString().Should().Be("Endatix");
+        variables.RootElement.GetProperty("supportAddress").GetString().Should().Be("support@endatix.com");
+        variables.RootElement.GetProperty("websiteUrl").GetString().Should().Be("https://endatix.com");
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateMetadataClash_TheCallerWinsAndKeepsItsType()
+    {
+        // Arrange
+        var email = new EmailWithTemplate
+        {
+            To = "recipient@example.com",
+            TemplateId = "mailgun-template",
+            IsExternal = true,
+            Metadata = new Dictionary<string, object> { ["productName"] = "Caller Product", ["isTrial"] = true }
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        using var variables = JsonDocument.Parse(form["h:X-Mailgun-Variables"]);
+        variables.RootElement.GetProperty("productName").GetString().Should().Be("Caller Product");
+        variables.RootElement.GetProperty("isTrial").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SendEmailWithTemplate_ExternalTemplateWithoutMetadata_StillSendsTheVariables()
+    {
+        // Arrange
+        var email = new EmailWithTemplate { To = "recipient@example.com", TemplateId = "mailgun-template", IsExternal = true };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        using var variables = JsonDocument.Parse(form["h:X-Mailgun-Variables"]);
+        variables.RootElement.GetProperty("productName").GetString().Should().Be("Endatix");
     }
 
     [Fact]
@@ -397,5 +440,51 @@ public class MailgunEmailSenderTests
             RequestContent = request.Content is not null ? await request.Content.ReadAsStringAsync(cancellationToken) : null;
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
+    }
+
+    [Theory]
+    [InlineData("Example Forms", "\"Example Forms\" <sender@example.com>")]
+    [InlineData("Example, Inc.", "\"Example, Inc.\" <sender@example.com>")]
+    public async Task SendEmailWithBody_FromName_SendsANamedFromHeader(string fromName, string expectedFrom)
+    {
+        // Arrange
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "sender@example.com",
+            FromName = fromName,
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        form["from"].Should().Be(expectedFrom);
+    }
+
+    [Fact]
+    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_KeepsTheFromsOwnName()
+    {
+        // Arrange: an operator FromAddress may already carry a display name.
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "Operator Team <sender@example.com>",
+            FromName = "Example Forms",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        form["from"].Should().Be("\"Operator Team\" <sender@example.com>");
     }
 }

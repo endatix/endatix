@@ -13,9 +13,11 @@ namespace Endatix.Core.UseCases.Email.ListTemplates;
 /// </summary>
 /// <param name="repository">The repository.</param>
 /// <param name="emailTemplateSettings">Email template settings (config FromAddress overlay).</param>
+/// <param name="sender">The deployment sender; its configured address wins over the row, as on send.</param>
 public class ListEmailTemplatesHandler(
     IRepository<EmailTemplate> repository,
-    EmailTemplateSettings emailTemplateSettings
+    EmailTemplateSettings emailTemplateSettings,
+    DeploymentSender sender
 ) : IQueryHandler<ListEmailTemplatesQuery, Result<IEnumerable<EmailTemplateSummaryDto>>>
 {
     /// <summary>
@@ -33,7 +35,7 @@ public class ListEmailTemplatesHandler(
                 t.Id,
                 t.Name,
                 t.Subject,
-                EmailTemplateFromAddress.Resolve(emailTemplateSettings, t.Name, t.FromAddress)))
+                EmailTemplateFromAddress.Resolve(emailTemplateSettings, t, sender)))
             .ToList()
             .AsEnumerable();
 

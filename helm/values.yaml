@@ -107,6 +107,26 @@ hub:
   # Base URL of the Endatix Hub frontend, used for email links etc.
   baseUrl: ""
 
+# White-labeling: a deployment that shows its own product name and support address
+# instead of Endatix. Off by default, and with it off a mounted pack is ignored. Set
+# the Hub chart's whiteLabeling.enabled to the same value, so the API emails and the
+# Hub pages show the same brand. The seeded email subjects and bodies keep "Endatix"
+# and support@endatix.com until endatix/endatix#1775; the sender address is
+# Endatix:Integrations:Email:Sender, not the pack.
+whiteLabeling:
+  # Sets Endatix__FeatureFlags__WhiteLabeling.
+  enabled: false
+
+# The brand pack: a ConfigMap holding brand.json (and its asset files, which the
+# Hub serves). Mounted read-only at mountPath, with ENDATIX_BRAND_DIR pointing at
+# it. Mount the same ConfigMap into the Hub. At startup the API checks the fields it
+# reads (version, name, links.website, links.support, personas.assistant) and
+# refuses to start on an invalid one, naming the field. The Hub checks the whole pack.
+brandPack:
+  # Name of the ConfigMap. Empty mounts nothing.
+  configMap: ""
+  mountPath: /etc/endatix/brand
+
 cors:
   policyName: AllowAll
 

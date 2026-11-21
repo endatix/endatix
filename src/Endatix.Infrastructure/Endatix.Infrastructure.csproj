@@ -50,6 +50,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<EmbeddedResource Include="Data\SeedData\Forms\**\*.json" />
+		<EmbeddedResource Include="Branding\brand.schema.json" LogicalName="Endatix.Infrastructure.Branding.brand.schema.json" />
 	</ItemGroup>
 	<ItemGroup>
 		<InternalsVisibleTo Include="Endatix.Infrastructure.Tests" />
