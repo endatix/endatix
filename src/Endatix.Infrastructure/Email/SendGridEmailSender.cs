@@ -82,13 +82,6 @@ public class SendGridEmailSender(
         _logger.LogEmailSent(ProviderName, response.StatusCode, responseBody);
     }
 
-    // Called after the From guard, so the address is set. The From may already carry a display name.
-    private static EmailAddress FromEmail(EmailWithBody email)
-    {
-        var sender = FromMailbox.Create(email.From!, email.FromName);
-        return new EmailAddress(sender.Address, string.IsNullOrEmpty(sender.Name) ? null : sender.Name);
-    }
-
     /// <inheritdoc />
     public async Task SendEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
     {
@@ -103,6 +96,13 @@ public class SendGridEmailSender(
         var emailWithBody = await _templateRenderer.RenderAsync(email, cancellationToken);
 
         await SendEmailAsync(emailWithBody, cancellationToken);
+    }
+
+    // Called after the From guard, so the address is set. The From may already carry a display name.
+    private static EmailAddress FromEmail(EmailWithBody email)
+    {
+        var sender = FromMailbox.Create(email.From!, email.FromName);
+        return new EmailAddress(sender.Address, string.IsNullOrEmpty(sender.Name) ? null : sender.Name);
     }
 
     private async Task SendExternalTemplateEmailAsync(EmailWithTemplate email, CancellationToken cancellationToken = default)
