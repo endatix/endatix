@@ -36,7 +36,9 @@ public static class OutboxWorkServiceCollectionExtensions
     /// <param name="appLevelTenant">
     /// Reads the job's tenant from an app-level row, whose stored tenant is none. Omitted, the row carries the tenant.
     /// An <see cref="OutboxPermanentFailureException"/> thrown here fails the job at once, and when the relay enqueues
-    /// it fails the outbox row at once, for every subscriber, since no job can be enqueued for this one.
+    /// it fails the outbox row at once, for every subscriber, since no job can be enqueued for this one. Use it when the
+    /// work belongs to the tenant the row's payload names; work that belongs to no tenant registers with
+    /// <see cref="AddAppLevelOutboxWork{TWork}"/> instead.
     /// </param>
     /// <param name="onlyWhen">
     /// Enqueues no job when this returns false, so a frequent event that rarely needs the work adds no empty jobs.
@@ -48,6 +50,36 @@ public static class OutboxWorkServiceCollectionExtensions
         BackgroundJobTypeDefaults? defaults = null,
         Func<IOutboxMessage, long>? appLevelTenant = null,
         Func<IOutboxMessage, bool>? onlyWhen = null)
+        where TWork : class, IOutboxWork<TWork> =>
+        services.AddWork<TWork>(defaults, new OutboxWorkRegistration<TWork>(appLevelTenant, onlyWhen));
+
+    /// <summary>
+    /// Registers <typeparamref name="TWork"/> like <see cref="AddOutboxWork{TWork}"/>, as work that belongs to no
+    /// tenant: each app-level row (one whose stored tenant is none) becomes a system job, and a row that names a
+    /// tenant fails the publish, whether the relay runs the work inline or enqueues it.
+    /// </summary>
+    /// <remarks>
+    /// Use it for work that has no tenant, such as work that comes before its tenant exists. Work on an app-level row
+    /// that belongs to the tenant the row's payload names uses <see cref="AddOutboxWork{TWork}"/> with
+    /// <c>appLevelTenant</c> instead. Before switching existing work here, let its outbox rows and in-flight jobs
+    /// drain: a tenant job of work registered here fails at once.
+    /// </remarks>
+    /// <param name="services">The service collection.</param>
+    /// <param name="defaults">The job's retry policy. Omitted uses <see cref="DefaultJob"/>.</param>
+    /// <param name="onlyWhen">As on <see cref="AddOutboxWork{TWork}"/>.</param>
+    public static IServiceCollection AddAppLevelOutboxWork<TWork>(
+        this IServiceCollection services,
+        BackgroundJobTypeDefaults? defaults = null,
+        Func<IOutboxMessage, bool>? onlyWhen = null)
+        where TWork : class, IOutboxWork<TWork> =>
+        services
+            .AddSingleton(new AppLevelOutboxWork(typeof(TWork)))
+            .AddWork<TWork>(defaults, new OutboxWorkRegistration<TWork>(readTenant: null, onlyWhen, appLevel: true));
+
+    private static IServiceCollection AddWork<TWork>(
+        this IServiceCollection services,
+        BackgroundJobTypeDefaults? defaults,
+        OutboxWorkRegistration<TWork> registration)
         where TWork : class, IOutboxWork<TWork>
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -62,15 +94,16 @@ public static class OutboxWorkServiceCollectionExtensions
         services.AddScoped<IOutboxIntegrationEventHandler>(provider => provider.GetRequiredService<TWork>());
         services.AddBackgroundJobHandler<OutboxJobHandler<TWork>, OutboxMessageJob<TWork>>(defaults ?? DefaultJob);
         services.TryAddScoped<OutboxJobMessages>();
-        services.AddSingleton(new OutboxWorkRegistration<TWork>(appLevelTenant, onlyWhen));
+        services.AddSingleton(registration);
 
         foreach (var eventType in TWork.HandledEventTypes)
         {
             var source = new OutboxSubscriptionServiceCollectionExtensions.SubscriptionSource(
                 eventType,
-                appLevelTenant is { } readTenant ? TenantOrNone(readTenant) : null,
-                typeof(TWork));
-            if (onlyWhen is null)
+                registration.ReadTenant is { } readTenant ? TenantOrNone(readTenant) : null,
+                typeof(TWork),
+                registration.AppLevel);
+            if (registration.OnlyWhen is null)
             {
                 services.AddJobSubscription(source, message => new OutboxMessageJob<TWork>(message.Id));
             }
@@ -111,13 +144,20 @@ internal sealed record OutboxMessageJob<TWork>(long OutboxMessageId) : IBackgrou
     public static string JobType => TWork.JobType;
 }
 
+/// <summary>An outbox work registered app-level, which inline delivery runs on app-level messages only.</summary>
+internal sealed record AppLevelOutboxWork(Type WorkType);
+
 /// <summary>What one work's registration told its job and its relay filter.</summary>
 internal sealed class OutboxWorkRegistration<TWork>(
     Func<IOutboxMessage, long>? readTenant,
-    Func<IOutboxMessage, bool>? onlyWhen)
+    Func<IOutboxMessage, bool>? onlyWhen,
+    bool appLevel = false)
     where TWork : class, IOutboxWork<TWork>
 {
     public Func<IOutboxMessage, long>? ReadTenant { get; } = readTenant;
+
+    /// <summary>Whether the work runs as a system job on app-level rows.</summary>
+    public bool AppLevel { get; } = appLevel;
 
     public Func<IOutboxMessage, bool>? OnlyWhen { get; } = onlyWhen;
 

@@ -1,5 +1,6 @@
 using System.Reflection;
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Outbox.Engine;
 
 namespace Endatix.Infrastructure.Features.Outbox;
@@ -45,7 +46,12 @@ public sealed class OutboxJobSubscription
     /// <summary>Reads the tenant from an app-level message; <see langword="null"/> takes the message's own.</summary>
     internal Func<IOutboxMessage, long>? TenantResolver { private get; init; }
 
-    /// <summary>Builds the job requests for a message delivered to one tenant.</summary>
+    /// <summary>
+    /// Whether the jobs are system jobs: the work belongs to no tenant, so it takes only app-level messages.
+    /// </summary>
+    internal bool AppLevel { get; init; }
+
+    /// <summary>Builds the job requests for a message delivered to one scope.</summary>
     internal OutboxRequestsBuilder Requests { private get; init; } = null!;
 
     /// <summary>
@@ -55,6 +61,33 @@ public sealed class OutboxJobSubscription
     public long ResolveTenantId(IOutboxMessage message) =>
         TenantResolver is null ? message.TenantId : TenantResolver(message);
 
+    /// <summary>
+    /// The scope the jobs belong to: the system for an app-level subscription, otherwise the tenant
+    /// <see cref="ResolveTenantId"/> reads.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// An app-level subscription got a message that names a tenant, or a tenant subscription resolved no tenant.
+    /// Failing the publish retries the message and then fails it, where an operator sees it, instead of writing a job
+    /// that runs in the wrong scope.
+    /// </exception>
+    internal JobScope ResolveScope(IOutboxMessage message)
+    {
+        if (AppLevel)
+        {
+            return message.TenantId == OutboxAppLevel.NoTenant
+                ? JobScope.System
+                : throw new InvalidOperationException(
+                    $"Outbox message {message.Id} ({message.EventType}) names a tenant, but subscriber {JobType} runs " +
+                    $"system jobs for app-level messages only.");
+        }
+
+        var tenantId = ResolveTenantId(message);
+        return tenantId > 0
+            ? JobScope.ForTenant(tenantId)
+            : throw new InvalidOperationException(
+                $"Outbox message {message.Id} ({message.EventType}) resolved no tenant for subscriber {JobType}.");
+    }
+
     /// <summary>The job requests for <paramref name="delivery"/>, one per subscriber.</summary>
     internal Task<IReadOnlyList<BackgroundJobRequest>> BuildRequestsAsync(
         IServiceProvider services,
@@ -63,14 +96,20 @@ public sealed class OutboxJobSubscription
         Requests(services, delivery, cancellationToken);
 }
 
-/// <summary>Builds the job requests one subscription makes of a message delivered to one tenant.</summary>
+/// <summary>Builds the job requests one subscription makes of a message delivered to one scope.</summary>
 internal delegate Task<IReadOnlyList<BackgroundJobRequest>> OutboxRequestsBuilder(
     IServiceProvider services,
     OutboxDelivery delivery,
     CancellationToken cancellationToken);
 
-/// <summary>An outbox message, and the tenant whose jobs it becomes.</summary>
-internal readonly record struct OutboxDelivery(IOutboxMessage Message, long TenantId);
+/// <summary>An outbox message, and the scope whose jobs it becomes.</summary>
+internal readonly record struct OutboxDelivery(IOutboxMessage Message, JobScope Scope);
+
+/// <summary>What an app-level outbox row, one written outside any tenant, stores as its tenant.</summary>
+internal static class OutboxAppLevel
+{
+    public const long NoTenant = AuthConstants.DEFAULT_TENANT_ID;
+}
 
 /// <summary>
 /// Every outbox subscription registered on this host. Only the job-queue publisher reads it; the Jobs module has

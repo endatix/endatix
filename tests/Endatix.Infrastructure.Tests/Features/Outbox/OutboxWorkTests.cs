@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
-public sealed class OutboxWorkTests
+public sealed partial class OutboxWorkTests
 {
     private const long TenantA = 11;
     private const long MessageId = 700;
@@ -264,7 +264,7 @@ public sealed class OutboxWorkTests
 
         // Assert — the wire shape and dedup key of jobs queued before this registration existed.
         var request = _enqueued.Should().ContainSingle().Subject;
-        (request.JobType, request.TenantId, request.DedupKey)
+        (request.JobType, request.Scope.TenantId, request.DedupKey)
             .Should().Be((WorkStub.JobType, TenantA, $"{MessageId}:{WorkStub.JobType}"));
         request.PayloadJson.Should().Be($$"""{"outboxMessageId":{{MessageId}}}""");
     }
@@ -279,7 +279,7 @@ public sealed class OutboxWorkTests
         await PublishAsync(provider, new OutboxMessageStub(MessageId, "x.happened", """{"newTenantId":"31"}""", 0));
 
         // Assert
-        _enqueued.Should().ContainSingle().Which.TenantId.Should().Be(31);
+        _enqueued.Should().ContainSingle().Which.Scope.TenantId.Should().Be(31);
     }
 
     [Fact]
@@ -364,7 +364,10 @@ public sealed class OutboxWorkTests
     private ServiceProvider Build(
         Action<IServiceCollection>? addMore = null,
         Func<IOutboxMessage, long>? appLevelTenant = null,
-        Func<IOutboxMessage, bool>? onlyWhen = null)
+        Func<IOutboxMessage, bool>? onlyWhen = null) =>
+        BuildWith(services => services.AddOutboxWork<WorkStub>(Defaults, appLevelTenant, onlyWhen), addMore);
+
+    private ServiceProvider BuildWith(Action<IServiceCollection> addWork, Action<IServiceCollection>? addMore = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -372,7 +375,8 @@ public sealed class OutboxWorkTests
         services.AddSingleton(_outbox);
         services.AddSingleton(_queue);
         services.AddScoped<JobQueueIntegrationEventPublisher>();
-        services.AddOutboxWork<WorkStub>(Defaults, appLevelTenant, onlyWhen);
+        services.AddScoped<CompositeIntegrationEventPublisher>();
+        addWork(services);
         addMore?.Invoke(services);
         return services.BuildServiceProvider();
     }
@@ -380,16 +384,21 @@ public sealed class OutboxWorkTests
     private void Seed(string payload, long tenantId) =>
         _messages.Add(new OutboxMessage("x.happened", payload, tenantId, DateTime.UtcNow, 1) { Id = MessageId });
 
+    private static Task<(Core.Infrastructure.Result.Result Result, WorkStub Work)> RunJobAsync(
+        IServiceProvider provider,
+        long tenantId) =>
+        RunJobAsync(provider, JobScope.ForTenant(tenantId));
+
     private static async Task<(Core.Infrastructure.Result.Result Result, WorkStub Work)> RunJobAsync(
         IServiceProvider provider,
-        long tenantId)
+        JobScope scope)
     {
-        using var scope = provider.CreateScope();
-        var handler = scope.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(WorkStub.JobType);
-        var job = new BackgroundJobContext(1, WorkStub.JobType, tenantId,
+        using var services = provider.CreateScope();
+        var handler = services.ServiceProvider.GetRequiredKeyedService<IBackgroundJobHandler>(WorkStub.JobType);
+        var job = new BackgroundJobContext(1, WorkStub.JobType, scope,
             BackgroundJobPayloadSerializer.Serialize(new OutboxMessageJob<WorkStub>(MessageId)), 1);
         var result = await handler.ExecuteAsync(job, TestContext.Current.CancellationToken);
-        return (result, scope.ServiceProvider.GetRequiredService<WorkStub>());
+        return (result, services.ServiceProvider.GetRequiredService<WorkStub>());
     }
 
     private static async Task PublishAsync(IServiceProvider provider, IOutboxMessage message)

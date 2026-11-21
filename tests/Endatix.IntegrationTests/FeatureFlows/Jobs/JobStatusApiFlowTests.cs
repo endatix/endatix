@@ -53,6 +53,25 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     }
 
     [Fact]
+    public async Task Tenant_admin_cannot_read_a_system_job()
+    {
+        // Arrange
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword },
+            cancellationToken);
+
+        var systemJobId = await SeedSystemJobAsync(world, cancellationToken);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
+
+        // Act
+        using var response = await client.GetAsync(JobUri(systemJobId), cancellationToken);
+
+        // Assert — a system job belongs to no tenant, so it is as absent as another tenant's.
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Anonymous_callers_are_refused()
     {
         // Arrange
@@ -109,6 +128,18 @@ public sealed class JobStatusApiFlowTests(EndatixIntegrationWebHostFixture fixtu
     }
 
     private static Uri JobUri(long jobId) => new($"/api/jobs/{jobId}", UriKind.Relative);
+
+    private static async Task<long> SeedSystemJobAsync(IntegrationTestWorld world, CancellationToken cancellationToken)
+    {
+        using var scope = world.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<IJobsDbContext>();
+
+        var job = BackgroundJob.ForSystem("TestSystemWork", "{}", DateTime.UtcNow);
+        dbContext.BackgroundJobs.Add(job);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return job.Id;
+    }
 
     /// <remarks>
     /// Written straight to the queue table: nothing enqueues jobs yet, and the read under test does

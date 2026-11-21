@@ -13,12 +13,13 @@ namespace Endatix.Modules.Jobs.Domain;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Implements <see cref="ITenantOwned"/> deliberately, unlike <see cref="OutboxMessage"/>. Every job
-/// row belongs to a real tenant, so the global filter gives tenant-scoped reads for free on the
-/// request path — and because the ambient tenant resolves to 0 outside a request, the filter is
-/// permissive there, which is what lets the job wrapper read any tenant's row by id with no special
-/// casing. Do <b>not</b> "fix" this by giving background services a tenant scope: the wrapper would
-/// no longer find the jobs it is asked to run.
+/// Implements <see cref="ITenantOwned"/> deliberately, unlike <see cref="OutboxMessage"/>. A job is a tenant's or the
+/// system's (<see cref="Scope"/>): a tenant job stores its tenant, a system job the value
+/// <see cref="JobScopeStorage"/> owns, which matches no tenant. The global filter therefore gives tenant-scoped reads
+/// for free on the request path, and no tenant ever sees a system job. Because the ambient tenant resolves to 0
+/// outside a request, the filter is permissive there, which is what lets the job wrapper read any row by id with no
+/// special casing. Do <b>not</b> "fix" this by giving background services a tenant scope: the wrapper would no longer
+/// find the jobs it is asked to run.
 /// </para>
 /// <para>
 /// The transition methods below are the readable, guarded expression of the state machine and are
@@ -33,8 +34,9 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     private BackgroundJob() { } // For EF Core
 
     /// <summary>
-    /// Creates a job that is eligible to run at <paramref name="nextAttemptAt"/>.
+    /// Creates a job of tenant <paramref name="tenantId"/> that is eligible to run at <paramref name="nextAttemptAt"/>.
     /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="tenantId"/> is zero or negative.</exception>
     public BackgroundJob(
         string jobType,
         string payloadJson,
@@ -43,18 +45,26 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         long? createdByUserId = null,
         DateTime? expiresAt = null,
         string? traceId = null)
+        : this(jobType, payloadJson, JobScope.ForTenant(tenantId), nextAttemptAt, createdByUserId, expiresAt, traceId)
+    {
+    }
+
+    private BackgroundJob(
+        string jobType,
+        string payloadJson,
+        JobScope scope,
+        DateTime nextAttemptAt,
+        long? createdByUserId,
+        DateTime? expiresAt,
+        string? traceId)
     {
         GuardJobType(jobType);
         Guard.Against.NullOrWhiteSpace(payloadJson);
-        // Every job belongs to a tenant. Zero is the value the tenant context reports when there is
-        // no ambient tenant at all, so a row carrying it belongs to nobody rather than to everybody
-        // — and the tenant filter would hide it from every tenant while showing it to every
-        // background service. Platform-wide work needs its own design, not this sentinel.
-        Guard.Against.NegativeOrZero(tenantId);
+        Guard.Against.Null(scope);
 
         JobType = jobType;
         PayloadJson = payloadJson;
-        TenantId = tenantId;
+        TenantId = JobScopeStorage.ToStorage(scope);
         NextAttemptAt = nextAttemptAt;
         CreatedByUserId = createdByUserId;
         ExpiresAt = expiresAt;
@@ -62,6 +72,18 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         Status = JobStatus.Pending;
         AttemptCount = 0;
     }
+
+    /// <summary>
+    /// Creates a system job, one that belongs to no tenant, eligible to run at <paramref name="nextAttemptAt"/>.
+    /// </summary>
+    public static BackgroundJob ForSystem(
+        string jobType,
+        string payloadJson,
+        DateTime nextAttemptAt,
+        long? createdByUserId = null,
+        DateTime? expiresAt = null,
+        string? traceId = null) =>
+        new(jobType, payloadJson, JobScope.System, nextAttemptAt, createdByUserId, expiresAt, traceId);
 
     /// <summary>
     /// Creates the job <paramref name="request"/> asks for, eligible to run at <paramref name="nextAttemptAt"/>,
@@ -78,7 +100,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
         return new BackgroundJob(
             request.JobType,
             request.PayloadJson,
-            request.TenantId,
+            request.Scope,
             nextAttemptAt,
             request.CreatedByUserId,
             request.ExpiresAt,
@@ -116,8 +138,14 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// <summary>Router key the handler registry resolves against, e.g. <c>SubmissionExport</c>.</summary>
     public string JobType { get; private set; } = null!;
 
-    /// <summary>Owning tenant. Handlers must scope their queries to this explicitly.</summary>
+    /// <summary>
+    /// The stored scope, as <see cref="JobScopeStorage"/> maps it. Read <see cref="Scope"/>; this column exists for the
+    /// tenant filter and the indexes.
+    /// </summary>
     public long TenantId { get; private set; }
+
+    /// <summary>Whose work the job is: a tenant's or the system's. Handlers scope their queries to it explicitly.</summary>
+    public JobScope Scope => JobScopeStorage.FromStorage(TenantId);
 
     public JobStatus Status { get; private set; }
 
@@ -141,7 +169,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     /// </remarks>
     public string? ErrorMessage { get; private set; }
 
-    /// <summary>Requesting user; null for system-enqueued work such as webhook fan-out.</summary>
+    /// <summary>Requesting user; null for work the application enqueues itself, such as webhook fan-out.</summary>
     public long? CreatedByUserId { get; private set; }
 
     /// <summary>When the first attempt was claimed.</summary>
@@ -178,7 +206,7 @@ public class BackgroundJob : BaseEntity, IAggregateRoot, ITenantOwned
     public string? TraceId { get; private set; }
 
     /// <summary>
-    /// The caller's identity for the unit of work, unique within a tenant and job type, or <c>null</c> when
+    /// The caller's identity for the unit of work, unique within a scope and job type, or <c>null</c> when
     /// the caller does not deduplicate. A second enqueue of the same key returns this job instead of creating
     /// another.
     /// </summary>

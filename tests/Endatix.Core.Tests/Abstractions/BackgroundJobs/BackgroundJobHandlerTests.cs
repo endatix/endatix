@@ -27,6 +27,22 @@ public sealed class BackgroundJobHandlerTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_SystemJobWithUnreadablePayload_FailsAsUnreadableInput()
+    {
+        // Arrange — a system job has no tenant, and an unreadable input must still read as unreadable.
+        var handler = new RecordingHandler(NullLogger.Instance);
+        var job = new BackgroundJobContext(1, "Test", JobScope.System, "{", 1);
+
+        // Act
+        var result = await handler.ExecuteAsync(job, CancellationToken.None);
+
+        // Assert
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be("The job's input could not be read (Test).");
+        handler.Received.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithReadablePayload_PassesTypedPayloadToHandler()
     {
         // Arrange

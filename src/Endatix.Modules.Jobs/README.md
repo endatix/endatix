@@ -1,6 +1,6 @@
 # Endatix.Modules.Jobs
 
-Durable background job queue for long-running tenant operations.
+Durable background job queue for long-running tenant and system operations.
 
 >[!TIP]
 >**[Endatix Platform](https://github.com/endatix/endatix)** is an open-source data collection and management library for .NET. It is designed for building secure, scalable, and integrated form-centric applications that work with SurveyJS. Endatix empowers business users with advanced workflows, automation, and meaningful insights.
@@ -25,7 +25,7 @@ The module is registered automatically by `EndatixBuilder.UseDefaults()` — no 
 
 Two stores in one `jobs` schema, with one job each:
 
-- The `BackgroundJobs` table is the **record** of every job: tenant, status, progress, attempts,
+- The `BackgroundJobs` table is the **record** of every job: scope, status, progress, attempts,
   error, trace and retention. It is what `GET jobs/{jobId}` reads, and the only place a job's
   state lives.
 - [Quartz.NET](https://www.quartz-scheduler.net/) 4.7.2, clustered through the same database
@@ -58,7 +58,7 @@ Database schema: `jobs`
 
 | Table | Purpose |
 |-------|---------|
-| `BackgroundJobs` | One row per unit of work: type, payload, tenant, status, progress, retry state |
+| `BackgroundJobs` | One row per unit of work: type, payload, scope, status, progress, retry state |
 | `qrtz_*` | Quartz.NET's clustered job store: durable jobs, triggers, fired triggers, node check-ins, locks |
 
 The schema carries its own `__EFMigrationsHistory`, so job migrations advance independently
@@ -99,8 +99,29 @@ var jobId = await backgroundJobQueue.EnqueueAsync(
     cancellationToken);
 ```
 
+**System jobs.** Work that belongs to no tenant, such as a signup processed before its tenant exists,
+is a system job: pass `JobScope.System` in place of the tenant.
+
+```csharp
+await backgroundJobQueue.EnqueueAsync(
+    BackgroundJobRequest.Create(new SignupPayload(signupId), JobScope.System, dedupKey: $"signup:{signupId}"),
+    cancellationToken);
+```
+
+A tenant job always has a real tenant: `JobScope.ForTenant` (and the `long tenantId` overloads) refuse
+zero or less, so a missing tenant fails the enqueue instead of becoming a system job. `JobScopeStorage` is
+the one place a scope meets the `TenantId` column; a system row stores the value an app-level outbox row
+stores for "no tenant". The tenant filter shows a system job to no tenant, so `GET jobs/{jobId}` answers
+`404` to a tenant asking for one. No endpoint lists or retries jobs, so a system job has no API view; the
+PlatformAdmin-only Quartz dashboard shows its trigger while it waits or retries, and a finished system
+job's row is read in the database.
+
+A system job runs with no ambient tenant, as the relay's inline work does, so the tenant filter is
+permissive: an unscoped query reads every tenant's rows. Its handler scopes its own queries. Filters that
+match nothing for a system job belong to the tenant-scope change that follows.
+
 **Idempotent enqueue.** A request may carry a `DedupKey` naming its unit of work — for a fan-out,
-`{outboxMessageId}:{subscriber}`. It is unique per tenant and job type (a filtered unique index,
+`{outboxMessageId}:{subscriber}`. It is unique per scope and job type (a filtered unique index,
 `IX_BackgroundJobs_DedupKey`), and enqueueing a key that already exists returns the existing job's
 id without a second row or trigger, even when two enqueues race. Requests without a key never
 collide. It names the work, never the attempt: no timestamps or counters in it. On SQL Server a key
@@ -109,7 +130,7 @@ compares; PostgreSQL compares keys as written and takes it. A blank key means no
 
 Use `EnqueueManyAsync` for fan-out — one job per webhook endpoint, say. The batch commits in
 a single transaction, so a partial fan-out cannot deliver to some destinations and silently
-drop the rest. A batch inserts and schedules its keyed jobs ordered by tenant, job type and key, so
+drop the rest. A batch inserts and schedules its keyed jobs ordered by scope, job type and key, so
 for keyed jobs request order is kept neither for their ids nor for the order jobs due at once start
 in; the ids `EnqueueManyAsync` returns still match the requests. On PostgreSQL the order makes two batches that share keys lock them in the same order, so one waits for
 the other instead of deadlocking. On SQL Server the query plan picks the order rows reach an index, so
@@ -160,9 +181,12 @@ Four obligations, each invisible until it hurts in production:
 1. **Return a failure `Result` for deterministic errors; throw only for transient ones.**
    This is the only retry signal there is. Throwing on a permanent error re-runs expensive
    work until the attempt budget is gone.
-2. **Scope every query to the job's `TenantId` explicitly.** Outside a request the ambient
-   tenant filter is permissive, not restrictive — a handler that queries as if it were in a
-   request reads every tenant's data.
+2. **Scope every query of a tenant job to the job's `TenantId` explicitly.** Outside a request the
+   ambient tenant filter is permissive, not restrictive — a handler that queries as if it were in a
+   request reads every tenant's data. A system job (`job.Scope.IsSystem`) has no tenant and the same
+   permissive filter, as the relay's inline work does, so it scopes its own queries too; filters that
+   match nothing for a system job are not built yet. `job.TenantId` throws `JobScopeMismatchException`
+   for a system job, and the runner fails the job at once without a retry.
 3. **Honour the `CancellationToken`**, or the job cannot be cancelled or time-limited.
 4. **Do not hold one `DbContext` for the length of the job.** Open a scope per chunk via
    `IServiceScopeFactory`; a change tracker held for minutes accumulates every row streamed
@@ -498,6 +522,17 @@ job and as that job's subscriptions in one call; see
   events, with the same module feature flags.
 - With the switch on and this module off, the relay pauses rather than lose messages.
 - With the switch on, startup fails while an inline outbox handler has no job for one of its events.
+- Work with no tenant registers with `AddAppLevelOutboxWork<TWork>()`: each app-level row (stored
+  tenant none) becomes a system job, and a row that names a tenant fails the publish, inline or to
+  the job queue. Work whose
+  app-level row names the tenant it belongs to uses `AddOutboxWork<TWork>(appLevelTenant: …)` instead
+  (Reporting's export-format seeding). A system job reads only an app-level row and only for app-level
+  work, and a tenant job only its own tenant's rows, so neither reaches the other's outbox rows.
+
+**Switching existing work to app-level.** A tenant job of work registered with `AddAppLevelOutboxWork`
+fails at once, so before moving existing work there, let its outbox rows and in-flight jobs drain: no
+pending outbox message for its events and no `Pending` or `Retrying` job of its type. Then deploy the
+switch.
 
 Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
 

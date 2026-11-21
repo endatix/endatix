@@ -31,7 +31,7 @@ public sealed class JobQueueIntegrationEventPublisherTests
         // Assert
         await queue.Received(1).EnqueueManyAsync(Arg.Any<IReadOnlyList<BackgroundJobRequest>>(), Arg.Any<CancellationToken>());
         enqueued.Should().NotBeNull();
-        enqueued.Select(request => (request.JobType, request.TenantId, request.DedupKey, request.CreatedByUserId))
+        enqueued.Select(request => (request.JobType, request.Scope.TenantId, request.DedupKey, request.CreatedByUserId))
             .Should().Equal(("S1", 5L, "77:S1", (long?)null), ("S2", 5L, "77:S2", (long?)null));
     }
 
@@ -106,7 +106,7 @@ public sealed class JobQueueIntegrationEventPublisherTests
         await publisher.PublishAsync(new OutboxMessageStub(80, "x.happened", "{}", 0), TestContext.Current.CancellationToken);
 
         // Assert
-        enqueued.Should().ContainSingle().Which.TenantId.Should().Be(31);
+        enqueued.Should().ContainSingle().Which.Scope.TenantId.Should().Be(31);
     }
 
     [Fact]

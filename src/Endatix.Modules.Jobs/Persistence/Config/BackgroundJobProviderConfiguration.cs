@@ -6,7 +6,7 @@ namespace Endatix.Modules.Jobs.Persistence.Config;
 
 /// <summary>
 /// The provider-dependent half of the <see cref="BackgroundJob"/> mapping: JSON storage, the dedup key's
-/// comparison, the tenant check constraint and the dedup index.
+/// comparison, the scope check constraint and the dedup index.
 /// </summary>
 /// <remarks>
 /// The shape is the same on every provider; only the JSON column type, the identifier quoting in the SQL
@@ -18,6 +18,9 @@ internal abstract class BackgroundJobProviderConfiguration : IEntityTypeConfigur
 {
     /// <summary>The unique index behind idempotent enqueue; the queue recognises a collision by this name.</summary>
     public const string DedupKeyIndexName = "IX_BackgroundJobs_DedupKey";
+
+    /// <summary>The check that every row's <c>TenantId</c> names a scope.</summary>
+    public const string TenantCheckConstraintName = "CK_BackgroundJobs_TenantId";
 
     /// <summary>The provider's native JSON column type.</summary>
     protected abstract string JsonColumnType { get; }
@@ -38,12 +41,12 @@ internal abstract class BackgroundJobProviderConfiguration : IEntityTypeConfigur
 
         UseOrdinalComparisonForDedupIdentity(builder);
 
-        // The entity refuses a job without a tenant, but the entity is not the only way a row can
-        // arrive: a migration, a seeder or a hand-written statement all bypass it. A row with tenant
-        // zero would be hidden from every tenant and visible to every background service, so the
-        // rule belongs to the data as well as the code.
+        // The entity stores a real tenant or the system value, but the entity is not the only way a row can
+        // arrive: a migration, a seeder or a hand-written statement all bypass it. A row with any other value would
+        // name no scope, so the rule belongs to the data as well as the code.
+        var tenantId = QuoteIdentifier(nameof(BackgroundJob.TenantId));
         builder.ToTable(table => table.HasCheckConstraint(
-            "CK_BackgroundJobs_TenantId", $"{QuoteIdentifier(nameof(BackgroundJob.TenantId))} > 0"));
+            TenantCheckConstraintName, $"{tenantId} > 0 OR {tenantId} = {JobScopeStorage.SystemTenantId}"));
 
         HasDedupKeyIndex(builder);
     }
