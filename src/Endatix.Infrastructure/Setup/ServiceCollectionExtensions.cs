@@ -117,11 +117,24 @@ public static class ServiceCollectionExtensions
 
     // For a host that adds an email sender or the template settings without Integrations.UseDefaults():
     // the renderer and the composer need a brand. The pack is read when the host starts (DeploymentBrandStartupCheck),
-    // so an invalid pack still stops startup instead of failing every email.
+    // so an invalid pack still stops startup instead of failing every email, and its warnings are logged then.
     private static void AddDeploymentBrandFallback(IServiceCollection services)
     {
-        services.TryAddSingleton(provider => BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>()));
+        services.TryAddSingleton(LoadFallbackBrand);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, DeploymentBrandStartupCheck>());
+    }
+
+    private static DeploymentBrand LoadFallbackBrand(IServiceProvider provider)
+    {
+        List<string> warnings = [];
+        var brand = BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>(), warnings);
+        var logger = provider.GetService<ILogger<BrandPackWarnings>>();
+        foreach (var warning in warnings)
+        {
+            logger?.LogBrandPackFieldIgnored(warning);
+        }
+
+        return brand;
     }
 
     // The sender and the variables are factories over the registered brand, so AddDeploymentBrand may come before
@@ -129,6 +142,8 @@ public static class ServiceCollectionExtensions
     private static void AddEmailIdentity(IServiceCollection services)
     {
         AddDeploymentBrandFallback(services);
+        // The renderer and the composer need the variables, also when the host supplies its own sender.
+        services.TryAddSingleton(provider => EmailVariables.From(provider.GetRequiredService<DeploymentBrand>()));
         if (services.Any(descriptor => descriptor.ServiceType == typeof(DeploymentSender)))
         {
             return;
@@ -143,7 +158,6 @@ public static class ServiceCollectionExtensions
             provider.GetRequiredService<DeploymentBrand>(),
             DeprecatedSmtpSender.Read(provider.GetRequiredService<IOptions<SmtpSettings>>().Value)));
         services.AddHostedService<DeprecatedSmtpSender>();
-        services.AddSingleton(provider => EmailVariables.From(provider.GetRequiredService<DeploymentBrand>()));
     }
 
     private static void AddEmailTemplateRenderer(IServiceCollection services)

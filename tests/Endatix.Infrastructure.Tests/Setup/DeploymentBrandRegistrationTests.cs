@@ -6,6 +6,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Setup;
@@ -159,6 +160,49 @@ public sealed class DeploymentBrandRegistrationTests : IDisposable
         (await start.Should().ThrowAsync<BrandPackException>()).Which.Message.Should().Contain("/name");
     }
 
+    [Fact]
+    public async Task AddEmailSender_OnlyWithAWebSupportLink_LogsTheWarningAtStartup()
+    {
+        // Arrange: a host that calls AddEmailSender and never AddDeploymentBrand.
+        var logs = new RecordingLoggerProvider();
+        var services = new ServiceCollection();
+        services.AddLogging(logging => logging.AddProvider(logs));
+        services.AddSingleton(PackConfiguration("""{ "version": 1, "name": "Example Forms", "links": { "support": "https://forms.example.com/help" } }"""));
+        services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
+        await using var provider = services.BuildServiceProvider();
+
+        // Act
+        foreach (var hostedService in provider.GetServices<IHostedService>())
+        {
+            await hostedService.StartAsync(CancellationToken.None);
+        }
+
+        // Assert
+        provider.GetRequiredService<DeploymentBrand>().SupportAddress.Should().Be("support@endatix.com");
+        logs.Entries.Should().ContainSingle(entry => entry.EventId == 6003)
+            .Which.Message.Should().Contain("/links/support is not a mailto link");
+    }
+
+    [Fact]
+    public void AddEmailSender_HostSuppliesItsOwnSender_StillRegistersTheVariables()
+    {
+        // Arrange: the host registers its own sender before the email sender.
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        var hostSender = new DeploymentSender("host@example.com", "Host Sender", "host@example.com");
+        services.AddSingleton(hostSender);
+
+        // Act
+        services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
+        services.AddEmailTemplateSettings();
+
+        // Assert
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<DeploymentSender>().Should().BeSameAs(hostSender);
+        provider.GetRequiredService<EmailVariables>().ProductName.Should().Be("Endatix");
+        services.Count(descriptor => descriptor.ServiceType == typeof(EmailVariables)).Should().Be(1);
+    }
+
     private IConfiguration PackConfiguration(string pack)
     {
         File.WriteAllText(Path.Combine(_packDirectory, "brand.json"), pack);
@@ -182,5 +226,26 @@ public sealed class DeploymentBrandRegistrationTests : IDisposable
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         using var provider = services.BuildServiceProvider();
         return provider.GetRequiredService<DeploymentBrand>().ProductName;
+    }
+
+    private sealed class RecordingLoggerProvider : ILoggerProvider
+    {
+        public List<(int EventId, string Message)> Entries { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => new RecordingLogger(Entries);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class RecordingLogger(List<(int EventId, string Message)> entries) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+                entries.Add((eventId.Id, formatter(state, exception)));
+        }
     }
 }
