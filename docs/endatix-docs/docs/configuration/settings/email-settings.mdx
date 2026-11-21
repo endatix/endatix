@@ -180,7 +180,7 @@ One sender, for every provider, binds under `Endatix:Integrations:Email:Sender`.
     A bare address, with no display name. When set, every stored-template email sends from it; only a per-template `Endatix:EmailTemplates:*:FromAddress` wins over it (see [sender address resolution](#sender-address-resolution)). Left empty, each template sends from the address its database row stores. On SMTP, it is also the sender of an email without a From address, and `noreply@endatix.com` when empty; Mailgun and SendGrid require such an email to set its own From.
   </Setting>
   <Setting name="Endatix:Integrations:Email:Sender:Name">
-    The From display name of every stored-template email whose address has no name of its own, and on SMTP of an email without a display name. A per-template `FromAddress` written as `Name <address>` keeps its own name. Defaults to the deployment's product name: `Endatix`, or the brand pack's `name` when [white-labeling](/docs/developers/api/feature-flags) is on.
+    The From display name of every stored-template email whose address has no name of its own, and on SMTP of an email without a display name. A per-template `FromAddress` written as `Name <address>` keeps its own name. Defaults to the deployment's product name: `Endatix`, or the [brand pack](/docs/configuration/brand-pack)'s `name` when [white-labeling](/docs/developers/api/feature-flags) is on.
   </Setting>
 </Settings>
 

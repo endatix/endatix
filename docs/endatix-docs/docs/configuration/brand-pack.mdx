@@ -1,23 +1,23 @@
 ---
 title: Brand pack
-description: Mount a brand pack (brand.json plus logo, icon and image files) into the Endatix API and Hub to set the product name, accent color, email sender and support address of a self-hosted deployment.
+description: Mount a brand pack (brand.json plus logo, icon and image files) into the Endatix API and Hub to set the product name, logos, accent color, personas and links of a self-hosted deployment.
 ---
 
 # Brand pack
 
-A brand pack is a folder with a `brand.json` file and the image files it names. Mount the same folder into the Endatix API and Endatix Hub, turn on the `WhiteLabeling` feature flag, and the deployment uses your product name, logos, accent color, email sender and support address instead of the built-in Endatix brand. The same container images serve either brand, with no rebuild.
+A brand pack is a folder with a `brand.json` file and the image files it names. Mount the same folder into the Endatix API and Endatix Hub, turn on the `WhiteLabeling` feature flag, and the deployment uses your product name, logos, accent color, personas and links instead of the built-in Endatix brand. The same container images serve either brand, with no rebuild.
 
-The pack is deployment-wide: every tenant sees the same brand.
+The pack is identity only: it says who the product is and where to reach it, not how email is sent. The email sender is set in the [email settings](/docs/configuration/settings/email-settings#deployment-sender). The pack is deployment-wide: every tenant sees the same brand.
 
 ## Before you start
 
-- **Both apps read the pack.** The API uses the name, website and email fields. The Hub uses the whole pack. Mount it into both, with the flag set to the same value in both.
+- **Both apps read the pack.** The API uses `name`, `links.website` and `links.support` in emails. The Hub uses the whole pack. Mount it into both, with the flag set to the same value in both.
 - **The flag is off by default.** With it off, a mounted pack is ignored and the built-in brand applies.
 - **Check the pack first** with `pnpm brand:validate` (see [Validate a pack](#validate-a-pack)). With the flag on, an invalid pack stops the apps at start.
 
 ## Write `brand.json`
 
-Only `version` and `name` are required. A field you leave out keeps the built-in value.
+Only `version` and `name` are required. In the Hub, a pack never falls back to Endatix's name or links: `name` stands in for `legalName` and the personas, and a link the pack leaves out is hidden. A file the pack leaves out keeps the built-in artwork.
 
 ```json title="brand.json"
 {
@@ -36,12 +36,13 @@ Only `version` and `name` are required. A field you leave out keeps the built-in
       "primary-on-dark": { "$type": "color", "$value": "#4fd1b8" }
     }
   },
-  "links": { "website": "https://example.com" },
-  "email": {
-    "senderName": "Example Forms",
-    "fromAddress": "noreply@example.com",
-    "supportAddress": "help@example.com"
-  }
+  "links": {
+    "website": "https://example.com",
+    "docs": "https://docs.example.com",
+    "support": "mailto:help@example.com"
+  },
+  "personas": { "assistant": "Example Assistant", "bot": "Example Bot" },
+  "poweredBy": false
 }
 ```
 
@@ -54,10 +55,10 @@ The JSON Schema is published at <code>{"https://docs.endatix.com/schemas/brand/1
 Must be `1`.
 </Setting>
 <Setting name="name" note="required">
-The product name, 1 to 60 characters. The Hub shows it in page titles (`Sign in | Example Forms`) and as the app name. The API fills `{{productName}}` with it and uses it as the email sender name when `email.senderName` is not set.
+The product name, 1 to 60 characters. The Hub shows it in page titles (`Sign in | Example Forms`) and as the app name. The API fills `{{productName}}` with it, and it is the email sender name unless the [email settings](/docs/configuration/settings/email-settings#deployment-sender) set one.
 </Setting>
 <Setting name="legalName">
-The company name, up to 120 characters. The Hub uses it as the page publisher in metadata.
+The company name, up to 120 characters. The Hub uses it as the page publisher in metadata. Defaults to `name`.
 </Setting>
 <Setting name="assets.logo">
 The logo, as `{ "light": "<file>", "dark": "<file>" }`. `light` is required; `dark` is optional. Shown on the sign-in pages and in the expanded sidebar. Without it, the Hub keeps the Endatix wordmark.
@@ -75,23 +76,29 @@ The accent color, as a [design token](https://www.designtokens.org/) `{ "$type":
 The accent for dark mode. Without it, the dark accent is derived from `primary`.
 </Setting>
 <Setting name="links.website">
-The product website (`http`, `https` or `mailto`). The API fills `{{websiteUrl}}` with it.
+The product website (`http`, `https` or `mailto`). The Hub links it from the sign-in pages. The API fills `{{websiteUrl}}` with it.
 </Setting>
-<Setting name="email.senderName">
-The display name on the From header of every stored-template email. Defaults to `name`.
+<Setting name="links.docs">
+The documentation link in the Hub's help menu. Without it, the menu hides the entry.
 </Setting>
-<Setting name="email.fromAddress">
-The sender address of every stored email template. A bare address only: `noreply@example.com`, not `Example <noreply@example.com>`. See [Sender address](#sender-address).
+<Setting name="links.support">
+The support link in the Hub's help menu. The API fills `{{supportAddress}}` from it only when it is a `mailto:` link to one address, for example `mailto:help@example.com`. See [Support address](#support-address).
 </Setting>
-<Setting name="email.supportAddress">
-The address people are told to contact. The API fills `{{supportAddress}}` with it.
+<Setting name="personas.assistant">
+The name of the AI assistant in the Hub. Defaults to "`name` AI Assistant".
+</Setting>
+<Setting name="personas.bot">
+The name of the Slack bot in the Hub. Defaults to "`name` Bot".
+</Setting>
+<Setting name="poweredBy">
+Shows (`true`) or hides (`false`) the "Powered by" line at the foot of public status pages, including those of `/share` and `/embed`. It wins over the Hub's [`ENDATIX_SHOW_POWERED_BY`](/docs/developers/hub/environment#public-pages); left out, that variable decides.
 </Setting>
 </Settings>
 
-The schema also accepts `links.docs`, `links.support`, `links.privacy`, `links.terms`, `personas.assistant`, `personas.bot` and `poweredBy`. They are validated, but the current releases do not show them yet. The "Powered by" line on public status pages still follows the Hub's [`ENDATIX_SHOW_POWERED_BY`](/docs/developers/hub/environment#public-pages).
+The schema also accepts `links.privacy` and `links.terms`. They are validated, but the Hub does not show them yet.
 
-:::warning[Set the website and support address]
-In emails, a pack that leaves out `links.website` or `email.supportAddress` falls back to `https://endatix.com` and `support@endatix.com`.
+:::warning[The pack has no email section]
+The sender address and name are not brand fields. Set them in `Endatix:Integrations:Email:Sender` (see [Email settings](/docs/configuration/settings/email-settings#deployment-sender)). The API ignores an `email` section left in an older pack, and the Hub still accepts one.
 :::
 
 ### Files
@@ -112,7 +119,7 @@ pnpm brand:validate ./brand
 
 It runs the same checks the Hub runs at start. On success it prints `Brand pack OK: <name> (<folder>, <n> files)` and exits 0. On failure it prints each problem with its field path and exits 1. It also warns when an accent color has less than 3:1 contrast against the light or dark page background (WCAG 2.x); the pack still applies.
 
-The API checks a few more rules at start, so a pack can pass `brand:validate` and still stop the API: no blank or whitespace-only strings, no control characters in `name` or `email.senderName`, and email addresses that are a bare address (`noreply@example.com`, not `Example <noreply@example.com>`).
+The API checks a few more rules at start, so a pack can pass `brand:validate` and still stop the API: no blank or whitespace-only strings, no control characters in `name`, and a `mailto:` support link to one bare address (`mailto:help@example.com`, not `mailto:Example <help@example.com>`).
 
 ## Deploy with Helm
 
@@ -166,7 +173,7 @@ The API reads its flag only from configuration. When the Hub uses PostHog flags,
 **API.** With the flag on and `ENDATIX_BRAND_DIR` set, the API reads `brand.json` once at start. It checks the fields it uses and refuses to start on an invalid pack, naming every failing field:
 
 ```text
-Brand pack file '/etc/endatix/brand/brand.json' is not valid: /version: must be 1; /email/fromAddress: must be an email address
+Brand pack file '/etc/endatix/brand/brand.json' is not valid: /version: must be 1; /links/support: must be a mailto link to one email address
 ```
 
 A missing file fails with `Brand pack file '<path>' was not found. Set ENDATIX_BRAND_DIR to a folder that holds brand.json.` With the flag off, the API does not read the pack. With the flag on and `ENDATIX_BRAND_DIR` unset, the API uses the built-in brand without an error. A change to the pack needs an API restart.
@@ -179,37 +186,40 @@ While running, the Hub reads the pack again when the folder, `brand.json` or a f
 
 ### Template variables
 
-Every stored email template can use four variables, filled from the brand:
+Every email the API sends can use three variables, filled from the brand. A stored template renders them; a provider template (a SendGrid or Mailgun template id) receives them as dynamic data.
 
 | Variable | Value with a pack | Built-in value |
 | --- | --- | --- |
 | `{{productName}}` | `name` | `Endatix` |
-| `{{supportAddress}}` | `email.supportAddress` | `support@endatix.com` |
+| `{{supportAddress}}` | the address in a `mailto:` `links.support` | `support@endatix.com` |
 | `{{websiteUrl}}` | `links.website` | `https://endatix.com` |
-| `{{senderName}}` | `email.senderName`, else `name` | `Endatix` |
 
-Metadata an email sends with the same key wins over the brand value.
+Metadata an email sends with the same key wins over the brand value. A pack that leaves out `links.website` keeps `https://endatix.com` in emails.
 
-The seeded templates do not use these variables yet: their subjects and bodies still say Endatix. Edit the template rows in the database to use them. The invitation email's headline and sign-in line come from the API and already use the pack's `name`.
+The seeded templates do not use these variables yet: their subjects and bodies still say Endatix. The text the API composes into the verification and invitation emails already uses the pack's `name`.
 
-### Sender address
+### Support address
 
-The From address of a stored template is, in order:
+`{{supportAddress}}` takes the address from `links.support` only when the link is `mailto:` with one address. A web link (`https://...`) or a list of addresses (`mailto:a@example.com,b@example.com`) keeps `support@endatix.com`, and the API logs warning `6003` at start:
 
-1. `Endatix:EmailTemplates:<Template>:FromAddress` in the API configuration, when set
-2. The pack's `email.fromAddress`
-3. The address on the template row
-4. `noreply@endatix.com`
+```text
+Brand pack: /links/support is not a mailto link, so emails use the built-in support address
+```
 
-A per-template `FromAddress` you set in configuration wins over the pack. Remove it to let the pack's address apply. The default `appsettings.json` no longer sets `FromAddress` for `EmailVerification` and `UserInvitation`. See [Email settings](/docs/configuration/settings/email-settings#sender-address-resolution).
+A list logs `Brand pack: /links/support names more than one address, so emails use the built-in support address`.
 
-### Sender name
+### Sender
 
-With a pack, every stored-template email carries `email.senderName` (or `name`) as the From display name, with SMTP, SendGrid and Mailgun alike. Without a pack, SMTP sends its `DefaultFromName`, and SendGrid and Mailgun send the bare address.
+The pack does not set the sender. The From address and name come from the [deployment sender](/docs/configuration/settings/email-settings#deployment-sender), `Endatix:Integrations:Email:Sender:Address` and `Sender:Name`:
+
+- **Address:** the per-template `Endatix:EmailTemplates:<Template>:FromAddress`, then `Sender:Address`, then the address on the template row.
+- **Name:** a display name written in the per-template `FromAddress` (`Ops Team <ops@example.com>`), then `Sender:Name`, then the brand's `name`.
+
+`Endatix:Integrations:Email:SmtpSettings:DefaultFromAddress` and `DefaultFromName` still work as deprecated fallbacks below `Sender:*`, and log warning `6002` at start. See [Email settings](/docs/configuration/settings/email-settings#sender-address-resolution).
 
 ## Limitations
 
-- **Respondent pages** (`/share` and `/embed`) keep the built-in look. Only their page title carries the pack's `name`.
+- **Respondent pages** (`/share` and `/embed`) keep the built-in look. Only their page title and the "Powered by" line follow the pack.
 - **Webhook headers** keep the `X-Endatix-` prefix.
 - **Seeded email copy** still names Endatix until you edit the templates.
 - **One brand per deployment.** Tenants cannot set their own brand.
