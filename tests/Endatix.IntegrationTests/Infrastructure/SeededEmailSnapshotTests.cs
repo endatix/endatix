@@ -70,7 +70,7 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
     }
 
     [Fact]
-    public async Task Seeded_emails_with_a_brand_pack_send_named_after_it_and_name_it_in_composed_copy()
+    public async Task Seeded_emails_with_a_brand_pack_and_a_sender_send_from_it_named_after_the_pack()
     {
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -85,8 +85,8 @@ public sealed class SeededEmailSnapshotTests(DbIntegrationFixture fixture)
             rendered => rendered.Email.FromName == "Example Forms",
             "the sender name defaults to the brand name");
         emails.Should().OnlyContain(
-            rendered => rendered.Email.From == "noreply@endatix.com",
-            "every seeded row names its sender, and the row wins over the deployment sender's address");
+            rendered => rendered.Email.From == "noreply@example.com",
+            "a configured sender address wins over every seeded row's address");
         Email(emails, "user-invitation").HtmlBody
             .Should().Contain("Accept your Example Forms invitation").And.Contain("sign in to Example Forms.");
     }

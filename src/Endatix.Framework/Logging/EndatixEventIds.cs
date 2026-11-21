@@ -298,6 +298,8 @@ public static class EndatixEventIds
         public const int ProviderMessageSent = Ranges.EmailStart;
         /// <summary>The email provider accepted a template message.</summary>
         public const int ProviderTemplateMessageSent = 6001;
+        /// <summary>The host sets the deprecated SMTP sender keys.</summary>
+        public const int DeprecatedSmtpSenderKeys = 6002;
 
         /// <summary>First EventId of this group.</summary>
         public const int RangeStart = Ranges.EmailStart;
@@ -308,7 +310,8 @@ public static class EndatixEventIds
         public static readonly int[] All =
         [
             ProviderMessageSent,
-            ProviderTemplateMessageSent
+            ProviderTemplateMessageSent,
+            DeprecatedSmtpSenderKeys
         ];
     }
 

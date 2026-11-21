@@ -7,6 +7,7 @@ namespace Endatix.Infrastructure.Email;
 /// </summary>
 /// <remarks>
 /// The sender is not an SMTP setting: every provider uses <c>Endatix:Integrations:Email:Sender</c>.
+/// <see cref="DefaultFromAddress"/> and <see cref="DefaultFromName"/> are deprecated and read only below it.
 /// </remarks>
 public class SmtpSettings
 {
@@ -51,4 +52,16 @@ public class SmtpSettings
     /// The password for SMTP authentication (optional).
     /// </summary>
     public string? Password { get; set; }
+
+    /// <summary>
+    /// Deprecated: set <c>Endatix:Integrations:Email:Sender:Address</c>. Read only when that is empty, as the sender
+    /// of an email without a template or a From address; it never wins over a template row.
+    /// </summary>
+    [EmailAddress]
+    public string? DefaultFromAddress { get; set; }
+
+    /// <summary>
+    /// Deprecated: set <c>Endatix:Integrations:Email:Sender:Name</c>. Read only when that is empty.
+    /// </summary>
+    public string? DefaultFromName { get; set; }
 } 

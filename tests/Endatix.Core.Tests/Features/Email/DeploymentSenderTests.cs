@@ -7,27 +7,29 @@ namespace Endatix.Core.Tests.Features.Email;
 
 public sealed class DeploymentSenderTests
 {
+    private static readonly DeploymentBrand PackBrand = DeploymentBrand.BuiltIn with { ProductName = "Example Forms" };
+
     [Fact]
-    public void From_DefaultSettings_SendsAsNoreplyNamedAfterTheBrand()
+    public void From_DefaultSettings_SendsAsNoreplyNamedAfterTheBrandWithNoConfiguredAddress()
     {
         // Act
         var sender = DeploymentSender.From(new EmailSenderSettings(), DeploymentBrand.BuiltIn);
 
         // Assert
-        sender.Should().Be(new DeploymentSender("noreply@endatix.com", "Endatix"));
+        sender.Should().Be(new DeploymentSender("noreply@endatix.com", "Endatix", ConfiguredAddress: null));
     }
 
     [Fact]
-    public void From_ConfiguredSender_UsesItOverTheBrandName()
+    public void From_ConfiguredSender_IsTheConfiguredAddressAndName()
     {
         // Arrange
         var settings = new EmailSenderSettings { Address = "noreply@example.com", Name = "Example Team" };
 
         // Act
-        var sender = DeploymentSender.From(settings, DeploymentBrand.BuiltIn with { ProductName = "Example Forms" });
+        var sender = DeploymentSender.From(settings, PackBrand);
 
         // Assert
-        sender.Should().Be(new DeploymentSender("noreply@example.com", "Example Team"));
+        sender.Should().Be(new DeploymentSender("noreply@example.com", "Example Team", "noreply@example.com"));
     }
 
     [Theory]
@@ -39,9 +41,36 @@ public sealed class DeploymentSenderTests
         var settings = new EmailSenderSettings { Address = address, Name = name };
 
         // Act
-        var sender = DeploymentSender.From(settings, DeploymentBrand.BuiltIn with { ProductName = "Example Forms" });
+        var sender = DeploymentSender.From(settings, PackBrand);
 
         // Assert
-        sender.Should().Be(new DeploymentSender("noreply@endatix.com", "Example Forms"));
+        sender.Should().Be(new DeploymentSender("noreply@endatix.com", "Example Forms", ConfiguredAddress: null));
+    }
+
+    [Fact]
+    public void From_OnlyDeprecatedValues_UsesThemButNeverAsAConfiguredAddress()
+    {
+        // Arrange
+        var legacy = new EmailSenderSettings { Address = "smtp@example.com", Name = "SMTP Team" };
+
+        // Act
+        var sender = DeploymentSender.From(new EmailSenderSettings(), PackBrand, legacy);
+
+        // Assert
+        sender.Should().Be(new DeploymentSender("smtp@example.com", "SMTP Team", ConfiguredAddress: null));
+    }
+
+    [Fact]
+    public void From_SenderAndDeprecatedValues_TheSenderWins()
+    {
+        // Arrange
+        var settings = new EmailSenderSettings { Address = "noreply@example.com", Name = "Example Team" };
+        var legacy = new EmailSenderSettings { Address = "smtp@example.com", Name = "SMTP Team" };
+
+        // Act
+        var sender = DeploymentSender.From(settings, PackBrand, legacy);
+
+        // Assert
+        sender.Should().Be(new DeploymentSender("noreply@example.com", "Example Team", "noreply@example.com"));
     }
 }

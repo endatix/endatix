@@ -43,10 +43,7 @@ public sealed class EmailTemplateRenderer(
             throw new InvalidOperationException($"Email template '{email.TemplateId}' not found in database");
         }
 
-        var fromAddress = EmailTemplateFromAddress.Resolve(
-            emailTemplateSettings.Value,
-            template.Name,
-            template.FromAddress);
+        var fromAddress = EmailTemplateFromAddress.Resolve(emailTemplateSettings.Value, template, sender);
 
         var rendered = template.Render(
             email.To,

@@ -1,4 +1,5 @@
 using Endatix.Core.Configuration;
+using Endatix.Core.Entities;
 
 namespace Endatix.Core.Features.Email;
 
@@ -10,35 +11,30 @@ namespace Endatix.Core.Features.Email;
 /// </summary>
 /// <remarks>
 /// Precedence: explicit <c>Endatix:EmailTemplates:*:FromAddress</c> (customer
-/// override without a DB edit) → database FromAddress → <see cref="DefaultFromAddress"/>.
+/// override without a DB edit) → the deployment sender's configured address
+/// (<c>Endatix:Integrations:Email:Sender:Address</c>) → database FromAddress,
+/// which every row has.
 /// </remarks>
 public static class EmailTemplateFromAddress
 {
     /// <summary>
-    /// Fallback when neither config nor the database row has a sender.
-    /// </summary>
-    public const string DefaultFromAddress = "noreply@endatix.com";
-
-    /// <summary>
     /// Resolves the sender that list and send both use.
     /// </summary>
+    /// <param name="settings">The per-template sender overrides.</param>
+    /// <param name="template">The template row.</param>
+    /// <param name="sender">The deployment sender.</param>
     public static string Resolve(
         EmailTemplateSettings settings,
-        string templateName,
-        string databaseFromAddress)
+        EmailTemplate template,
+        DeploymentSender sender)
     {
-        var configuredFromAddress = GetConfiguredFromAddress(settings, templateName);
+        var configuredFromAddress = GetConfiguredFromAddress(settings, template.Name);
         if (!string.IsNullOrWhiteSpace(configuredFromAddress))
         {
             return configuredFromAddress;
         }
 
-        if (!string.IsNullOrWhiteSpace(databaseFromAddress))
-        {
-            return databaseFromAddress;
-        }
-
-        return DefaultFromAddress;
+        return sender.ConfiguredAddress ?? template.FromAddress;
     }
 
     private static string? GetConfiguredFromAddress(EmailTemplateSettings settings, string templateName)

@@ -39,7 +39,7 @@ public class SendGridEmailSenderTests
                 _templateRepository,
                 Options.Create(new EmailTemplateSettings()),
                 EmailVariables.From(DeploymentBrand.BuiltIn),
-                new DeploymentSender("noreply@endatix.com", "Endatix")));
+                new DeploymentSender("noreply@endatix.com", "Endatix", ConfiguredAddress: null)));
     }
 
     private static EmailWithBody CreateValidEmailWithBody() => new()

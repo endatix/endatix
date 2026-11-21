@@ -13,7 +13,7 @@ namespace Endatix.Infrastructure.Tests.Email;
 
 public partial class SmtpEmailSenderTests
 {
-    private static readonly DeploymentSender Sender = new("deployment@example.com", "Example Team");
+    private static readonly DeploymentSender Sender = new("deployment@example.com", "Example Team", ConfiguredAddress: null);
     private static readonly EmailVariables Variables = EmailVariables.From(DeploymentBrand.BuiltIn);
 
     [Theory]

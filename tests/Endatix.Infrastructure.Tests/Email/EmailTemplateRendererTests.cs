@@ -93,7 +93,7 @@ public class EmailTemplateRendererTests
     }
 
     private static readonly EmailVariables BuiltInVariables = EmailVariables.From(DeploymentBrand.BuiltIn);
-    private static readonly DeploymentSender BuiltInSender = new("noreply@endatix.com", "Endatix");
+    private static readonly DeploymentSender BuiltInSender = new("noreply@endatix.com", "Endatix", ConfiguredAddress: null);
 
     private static readonly EmailVariables PackVariables = new(
         ProductName: "Example Forms",
@@ -101,7 +101,7 @@ public class EmailTemplateRendererTests
         SupportAddress: "help@example.com",
         WebsiteUrl: "https://example.com");
 
-    private static readonly DeploymentSender ConfiguredSender = new("sender@example.com", "Example Forms Team");
+    private static readonly DeploymentSender ConfiguredSender = new("sender@example.com", "Example Forms Team", "sender@example.com");
 
     // Renders BrandedTemplate().
     private static EmailTemplateRenderer RendererFor(
@@ -166,7 +166,7 @@ public class EmailTemplateRendererTests
     }
 
     [Fact]
-    public async Task RenderAsync_DeploymentSender_NamesTheSenderAndKeepsTheRowAddress()
+    public async Task RenderAsync_ConfiguredDeploymentSender_SendsFromItWithItsName()
     {
         // Arrange
         var sut = RendererFor(PackVariables, ConfiguredSender);
@@ -178,11 +178,11 @@ public class EmailTemplateRendererTests
 
         // Assert
         result.FromName.Should().Be("Example Forms Team");
-        result.From.Should().Be("db@example.com", "the template row's address wins over the deployment sender's");
+        result.From.Should().Be("sender@example.com", "a configured sender address wins over the template row");
     }
 
     [Fact]
-    public async Task RenderAsync_OperatorConfiguredFromAddress_WinsOverTheRow()
+    public async Task RenderAsync_OperatorConfiguredFromAddress_WinsOverTheConfiguredSender()
     {
         // Arrange
         var sut = RendererFor(PackVariables, ConfiguredSender, configuredFromAddress: "operator@example.com");

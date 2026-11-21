@@ -94,7 +94,7 @@ public sealed class DeploymentBrandRegistrationTests : IDisposable
 
         // Assert
         using var provider = services.BuildServiceProvider();
-        provider.GetRequiredService<DeploymentSender>().Should().Be(new DeploymentSender("noreply@example.com", "Example Team"));
+        provider.GetRequiredService<DeploymentSender>().Should().Be(new DeploymentSender("noreply@example.com", "Example Team", "noreply@example.com"));
     }
 
     [Theory]

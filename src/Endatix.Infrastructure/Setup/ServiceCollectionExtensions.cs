@@ -128,7 +128,9 @@ public static class ServiceCollectionExtensions
                 .ValidateOnStart();
         services.AddSingleton(provider => DeploymentSender.From(
             provider.GetRequiredService<IOptions<EmailSenderSettings>>().Value,
-            provider.GetRequiredService<DeploymentBrand>()));
+            provider.GetRequiredService<DeploymentBrand>(),
+            DeprecatedSmtpSender.Read(provider.GetRequiredService<IOptions<SmtpSettings>>().Value)));
+        services.AddHostedService<DeprecatedSmtpSender>();
         services.AddSingleton(provider => EmailVariables.From(provider.GetRequiredService<DeploymentBrand>()));
     }
 

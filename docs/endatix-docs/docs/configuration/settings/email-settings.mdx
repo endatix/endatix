@@ -123,6 +123,7 @@ Not to be confused with [mailkit.com](https://www.mailkit.com/), an unrelated em
   * **`CheckCertificateRevocation`**: Whether to check the server's TLS certificate for revocation (OCSP/CRL) during the handshake. Defaults to `false`, since some networks block the endpoints this check needs, which would otherwise cause connections to fail. Set to `true` for stricter certificate validation if your network allows it.
   * **`Username`**: The username for SMTP authentication. If left empty, the connection is made without authentication (a warning is logged).
   * **`Password`**: The password for SMTP authentication.
+  * **`DefaultFromAddress`**, **`DefaultFromName`**: *Deprecated.* Set the [deployment sender](#deployment-sender) instead; these are read only when it is empty.
 
 The sender is not an SMTP setting: set it once in the [deployment sender](#deployment-sender).
 
@@ -158,13 +159,13 @@ One sender serves every provider. It binds under `Endatix:Integrations:Email:Sen
 }
 ```
 
-  * **`Address`**: A bare address, with no display name. Defaults to `noreply@endatix.com`. It sends an email that has no template and no From address, such as a test email sent without one. A template sends from its own address (see [sender address resolution](#sender-address-resolution)), so to change a template's sender, set `Endatix:EmailTemplates:*:FromAddress` (below).
+  * **`Address`**: A bare address, with no display name. When set, every email sends from it, templates included; only a per-template `Endatix:EmailTemplates:*:FromAddress` wins over it (see [sender address resolution](#sender-address-resolution)). Left empty, each template sends from the address its database row stores, and an email with no template and no From address sends from `noreply@endatix.com`.
   * **`Name`**: The From display name on every email. Defaults to the deployment's product name: `Endatix`, or the brand pack's `name` when [white-labeling](/docs/developers/api/feature-flags) is on.
 
 The API does not start when `Address` holds a display name or `Name` holds a control character.
 
-:::warning[Moved from the provider settings]
-`DefaultFromAddress` and `DefaultFromName` under `SmtpSettings` are no longer read. Move them to `Sender:Address` and `Sender:Name`; the API ignores the old keys without an error.
+:::warning[Deprecated: `SmtpSettings:DefaultFromAddress` and `DefaultFromName`]
+Move them to `Sender:Address` and `Sender:Name`. Until you do, the API still reads them, below `Sender:*`, and logs one warning at startup that names the new keys. As before, `DefaultFromAddress` sends only an email with no template and no From address; it never replaces a template row's address.
 :::
 
 ## How to change the sender today
@@ -222,8 +223,8 @@ Each entry has:
 When Endatix sends or lists a template, the from-address is:
 
 1. `FromAddress` from `Endatix:EmailTemplates` for that template, if it is not empty (customer override, no DB edit)
-2. The address stored on the database template (seed today; Hub UI later)
-3. `noreply@endatix.com` only if both are empty
+2. The [deployment sender](#deployment-sender) `Address`, if it is set
+3. The address stored on the database template (seed today; Hub UI later)
 
 The Hub **Email Settings** page shows the same resolved address that send uses.
 

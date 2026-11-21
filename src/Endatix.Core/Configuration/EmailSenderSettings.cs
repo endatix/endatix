@@ -4,21 +4,21 @@ namespace Endatix.Core.Configuration;
 /// The deployment's sender, from <c>Endatix:Integrations:Email:Sender</c>. Every email provider uses it.
 /// </summary>
 /// <remarks>
-/// The address sends an email that has no template and no From address. A template's sender is its own: an
-/// operator's per-template <c>Endatix:EmailTemplates:*:FromAddress</c>, else the address the template row stores
-/// (every row stores one). The name is the From display name of every email; left empty, it is the deployment
-/// brand's product name.
+/// A set address is the sender of every email: it wins over a template row's address, and only an operator's
+/// per-template <c>Endatix:EmailTemplates:*:FromAddress</c> wins over it. Left empty, each template sends from its
+/// row's address. The name is the From display name of every email; left empty, it is the deployment brand's product
+/// name.
 /// </remarks>
 public class EmailSenderSettings
 {
     /// <summary>The configuration section.</summary>
     public const string SectionName = "Endatix:Integrations:Email:Sender";
 
-    /// <summary>The address used when the settings leave it out.</summary>
+    /// <summary>The address of an email without a template or a From address when no sender address is set.</summary>
     public const string DefaultAddress = "noreply@endatix.com";
 
-    /// <summary>The sender address: a bare address, without a display name.</summary>
-    public string Address { get; set; } = DefaultAddress;
+    /// <summary>The sender address: a bare address, without a display name. Empty means none is set.</summary>
+    public string? Address { get; set; }
 
     /// <summary>The From display name. Empty means the deployment brand's product name.</summary>
     public string? Name { get; set; }
