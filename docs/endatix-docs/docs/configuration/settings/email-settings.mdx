@@ -129,6 +129,14 @@ The sender is not an SMTP setting: set it once in the [deployment sender](#deplo
 
 *For implementation details, refer to [`SmtpSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SmtpSettings.cs).*
 
+### Local development: Mailpit
+
+To catch every email locally instead of sending it, start [Mailpit](https://mailpit.axllent.org/) with `docker compose -f docker/docker-compose.mailpit.yml up` and point SMTP at it. Read the messages at `http://localhost:8025` (UI and [REST API](https://mailpit.axllent.org/docs/api-v1/)).
+
+```json
+"SmtpSettings": { "Host": "127.0.0.1", "Port": 1025, "EnableSsl": false }
+```
+
 :::warning[Upgrading from the .NET SmtpClient-based sender]
 Earlier Endatix versions sent SMTP mail using .NET's built-in `System.Net.Mail.SmtpClient`, which Microsoft's own docs [no longer recommend for new development](https://learn.microsoft.com/en-us/dotnet/api/system.net.mail.smtpclient). The MailKit-based sender is a drop-in replacement — no configuration changes are required for the common case of a `Host`/`Port` combination with username/password authentication over STARTTLS. Two behaviors changed:
 
