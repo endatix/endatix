@@ -49,7 +49,7 @@ internal sealed class FanOutHost : IAsyncDisposable
         // Reading the services builds and starts the host, and with it the migrations. The relay and the scheduler are
         // then switched on: this host is the only one on its database, and they are what its tests exercise.
         // A start that fails returns no host to dispose, so it stops the host and drops its database here.
-        return await FailedHostStart.DisposeOnFailureAsync(
+        return await FailedCreation.DisposeOnFailureAsync(
             async () =>
             {
                 await BackgroundWork.Of(factory.Services).StartAsync(cancellationToken);

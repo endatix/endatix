@@ -65,7 +65,7 @@ internal sealed class AcquisitionTestStore : IAsyncDisposable
 
         // The caller gets no store to dispose until this returns one, so a step that fails disposes what the steps
         // before it built, the last first.
-        return await FailedHostStart.DisposeOnFailureAsync(
+        return await FailedCreation.DisposeOnFailureAsync(
             async () =>
             {
                 var configuration = Configuration(provider, database.ConnectionString);

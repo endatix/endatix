@@ -414,7 +414,7 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
 
         // A migration that fails returns no database to dispose, so it is dropped here; a drop that fails too is
         // reported as a test warning, and the migration's failure is the one thrown.
-        return await FailedHostStart.DisposeOnFailureAsync(
+        return await FailedCreation.DisposeOnFailureAsync(
             async () =>
             {
                 await using var context = ContextFor(database);

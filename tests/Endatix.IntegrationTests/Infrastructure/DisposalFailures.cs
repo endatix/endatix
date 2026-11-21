@@ -30,7 +30,10 @@ internal static class DisposalFailures
     /// </summary>
     /// <remarks>
     /// A host that does not stop fails its test. When the drop fails too, the host's failure is the one thrown and the
-    /// drop's is reported, since a throw from the drop would replace it.
+    /// drop's is reported, since a throw from the drop would replace it. A host whose stop timed out goes on stopping
+    /// (<see cref="StopOnceHost"/>) and its database is dropped under it, so whatever of it is still running, such as
+    /// its relay or scheduler, finds the database gone until its stop ends: noise is the price of leaving no database
+    /// behind.
     /// </remarks>
     public static ValueTask DisposeHostThenDatabaseAsync(IAsyncDisposable host, IAsyncDisposable database) =>
         DisposeInOrderAsync(host.DisposeAsync, database.DisposeAsync, DatabaseDrop);

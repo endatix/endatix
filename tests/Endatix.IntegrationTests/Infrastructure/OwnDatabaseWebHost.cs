@@ -33,7 +33,7 @@ internal sealed class OwnDatabaseWebHost : IIntegrationTestHostFixture, IAsyncDi
         var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider);
 
         // Reading the services starts the host; a start that fails disposes the factory and drops the database.
-        return await FailedHostStart.DisposeOnFailureAsync(
+        return await FailedCreation.DisposeOnFailureAsync(
             () => Task.FromResult(new OwnDatabaseWebHost(database, factory)),
             factory.DisposeAsync,
             database.DisposeAsync);

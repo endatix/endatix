@@ -166,7 +166,7 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
             .WithWebHostBuilder(configure);
 
         // Reading the services builds and starts the host, and with it the migrations; the scheduler waits in standby.
-        return await FailedHostStart.DisposeOnFailureAsync(
+        return await FailedCreation.DisposeOnFailureAsync(
             () =>
             {
                 _ = factory.Services;
