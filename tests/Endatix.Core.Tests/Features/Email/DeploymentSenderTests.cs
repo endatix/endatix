@@ -7,7 +7,7 @@ namespace Endatix.Core.Tests.Features.Email;
 
 public sealed class DeploymentSenderTests
 {
-    private static readonly DeploymentBrand PackBrand = DeploymentBrand.BuiltIn with { ProductName = "Example Forms" };
+    private static readonly DeploymentBrand _packBrand = DeploymentBrand.BuiltIn with { ProductName = "Example Forms" };
 
     [Fact]
     public void From_DefaultSettings_SendsAsNoreplyNamedAfterTheBrandWithNoConfiguredAddress()
@@ -26,7 +26,7 @@ public sealed class DeploymentSenderTests
         var settings = new EmailSenderSettings { Address = "noreply@example.com", Name = "Example Team" };
 
         // Act
-        var sender = DeploymentSender.From(settings, PackBrand);
+        var sender = DeploymentSender.From(settings, _packBrand);
 
         // Assert
         sender.Should().Be(new DeploymentSender("noreply@example.com", "Example Team", "noreply@example.com"));
@@ -41,7 +41,7 @@ public sealed class DeploymentSenderTests
         var settings = new EmailSenderSettings { Address = address, Name = name };
 
         // Act
-        var sender = DeploymentSender.From(settings, PackBrand);
+        var sender = DeploymentSender.From(settings, _packBrand);
 
         // Assert
         sender.Should().Be(new DeploymentSender("noreply@endatix.com", "Example Forms", ConfiguredAddress: null));
@@ -54,7 +54,7 @@ public sealed class DeploymentSenderTests
         var legacy = new EmailSenderSettings { Address = "smtp@example.com", Name = "SMTP Team" };
 
         // Act
-        var sender = DeploymentSender.From(new EmailSenderSettings(), PackBrand, legacy);
+        var sender = DeploymentSender.From(new EmailSenderSettings(), _packBrand, legacy);
 
         // Assert
         sender.Should().Be(new DeploymentSender("smtp@example.com", "SMTP Team", ConfiguredAddress: null));
@@ -68,7 +68,7 @@ public sealed class DeploymentSenderTests
         var legacy = new EmailSenderSettings { Address = "smtp@example.com", Name = "SMTP Team" };
 
         // Act
-        var sender = DeploymentSender.From(settings, PackBrand, legacy);
+        var sender = DeploymentSender.From(settings, _packBrand, legacy);
 
         // Assert
         sender.Should().Be(new DeploymentSender("noreply@example.com", "Example Team", "noreply@example.com"));
