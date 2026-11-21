@@ -148,17 +148,19 @@ internal sealed class BrandPackReader
             return null;
         }
 
-        if (!link.StartsWith(MailtoPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            if (CheckLink(path, link) is not null)
-            {
-                _warnings.Add($"{path} is not a mailto link, so emails use the built-in support address");
-            }
+        return link.StartsWith(MailtoPrefix, StringComparison.OrdinalIgnoreCase)
+            ? MailtoAddress(path, link)
+            : WebSupportLink(path, link);
+    }
 
-            return null;
+    private string? WebSupportLink(string path, string link)
+    {
+        if (CheckLink(path, link) is not null)
+        {
+            _warnings.Add($"{path} is not a mailto link, so emails use the built-in support address");
         }
 
-        return MailtoAddress(path, link);
+        return null;
     }
 
     private string? MailtoAddress(string path, string link)
