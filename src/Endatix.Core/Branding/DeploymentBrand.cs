@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Endatix.Core.Branding;
 
 /// <summary>
@@ -17,6 +19,7 @@ namespace Endatix.Core.Branding;
 /// The address people are told to contact: the pack's <c>links.support</c> when that is a <c>mailto:</c> link,
 /// otherwise the built-in address.
 /// </param>
+[Experimental("ENDATIX0003")]
 public sealed record DeploymentBrand(
     string ProductName,
     string AppName,

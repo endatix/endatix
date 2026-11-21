@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Email;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Setup;
@@ -133,6 +134,29 @@ public sealed class DeploymentBrandRegistrationTests : IDisposable
 
         // Assert
         register.Should().Throw<BrandPackException>().Which.Message.Should().Contain("/name");
+    }
+
+    [Fact]
+    public async Task AddEmailSender_OnlyWithAnInvalidPackAndTheFlagOn_StopsStartup()
+    {
+        // Arrange: a host that calls AddEmailSender and never AddDeploymentBrand.
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(PackConfiguration("""{ "version": 1 }"""));
+        services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
+        await using var provider = services.BuildServiceProvider();
+
+        // Act: start the hosted services the way the host does.
+        var start = async () =>
+        {
+            foreach (var hostedService in provider.GetServices<IHostedService>())
+            {
+                await hostedService.StartAsync(CancellationToken.None);
+            }
+        };
+
+        // Assert
+        (await start.Should().ThrowAsync<BrandPackException>()).Which.Message.Should().Contain("/name");
     }
 
     private IConfiguration PackConfiguration(string pack)

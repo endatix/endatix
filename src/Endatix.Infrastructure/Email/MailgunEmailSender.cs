@@ -8,7 +8,6 @@ using Endatix.Core.Features.Email;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MimeKit;
 
 namespace Endatix.Infrastructure.Email;
 
@@ -149,7 +148,7 @@ public class MailgunEmailSender(
     private static string FromHeader(EmailWithBody email) =>
         string.IsNullOrWhiteSpace(email.FromName)
             ? email.From!
-            : new MailboxAddress(email.FromName, email.From!).ToString();
+            : FromMailbox.Create(email.From!, email.FromName).ToString();
 
     private HttpClient CreateAuthorizedClient()
     {

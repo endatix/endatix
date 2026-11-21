@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Endatix.Infrastructure.Branding;
 
 /// <summary>
 /// A mounted brand pack that cannot be used. Thrown at startup so the API does not run with a half-applied brand.
 /// </summary>
+[Experimental("ENDATIX0003")]
 public sealed class BrandPackException : Exception
 {
     /// <summary>Creates the exception with a message that names the file and every failing field path.</summary>

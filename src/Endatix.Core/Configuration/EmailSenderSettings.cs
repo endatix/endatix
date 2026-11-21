@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Endatix.Core.Configuration;
 
 /// <summary>
@@ -9,6 +11,7 @@ namespace Endatix.Core.Configuration;
 /// row's address; only an operator's per-template <c>Endatix:EmailTemplates:*:FromAddress</c> wins over it. Left
 /// empty, each template sends from its row's address. The name defaults to the deployment brand's product name.
 /// </remarks>
+[Experimental("ENDATIX0004")]
 public class EmailSenderSettings
 {
     /// <summary>The configuration section.</summary>

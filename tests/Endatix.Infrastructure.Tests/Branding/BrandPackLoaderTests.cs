@@ -201,6 +201,33 @@ public sealed class BrandPackLoaderTests : IDisposable
     }
 
     [Fact]
+    public void Load_NameOf60SupplementaryCharacters_LoadsBecauseTheLimitCountsCodePoints()
+    {
+        // Arrange: each emoji is one code point and two UTF-16 units.
+        var name = Emoji(60);
+        File.WriteAllText(Path.Combine(_packDirectory, "brand.json"), $$"""{ "version": 1, "name": "{{name}}" }""");
+
+        // Act
+        var brand = BrandPackLoader.Load(Configuration(flag: "true"));
+
+        // Assert
+        brand.ProductName.Should().Be(name);
+    }
+
+    [Fact]
+    public void Load_NameOf61SupplementaryCharacters_ThrowsNamingTheLimit()
+    {
+        // Arrange
+        File.WriteAllText(Path.Combine(_packDirectory, "brand.json"), $$"""{ "version": 1, "name": "{{Emoji(61)}}" }""");
+
+        // Act
+        var load = () => BrandPackLoader.Load(Configuration(flag: "true"));
+
+        // Assert
+        load.Should().Throw<BrandPackException>().Which.Message.Should().Contain("/name: must be at most 60 characters");
+    }
+
+    [Fact]
     public void Load_MailtoListOfAddresses_KeepsTheBuiltInSupportAddressAndWarns()
     {
         // Arrange
@@ -271,6 +298,8 @@ public sealed class BrandPackLoaderTests : IDisposable
         // Assert
         load.Should().Throw<BrandPackException>().Which.Message.Should().Contain("not valid JSON");
     }
+
+    private static string Emoji(int count) => string.Concat(Enumerable.Repeat("\U0001F600", count));
 
     private void UsePackFixture(string fixture) =>
         File.Copy(FixturePath(fixture), Path.Combine(_packDirectory, "brand.json"));

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 
@@ -12,6 +13,7 @@ namespace Endatix.Core.Features.Email;
 /// <c>Endatix:Integrations:Email:Sender:Address</c> when it is set. It wins over a template row's address. Null when
 /// unset, so each template sends from its row.
 /// </param>
+[Experimental("ENDATIX0004")]
 public sealed record DeploymentSender(string Address, string Name, string? ConfiguredAddress)
 {
     /// <summary>

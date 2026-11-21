@@ -76,6 +76,40 @@ public partial class SmtpEmailSenderTests
         sentAddress.Should().Be("deployment@example.com");
     }
 
+    [Theory]
+    [InlineData(null, "Operator Team")]
+    [InlineData("Example Forms", "Example Forms")]
+    public async Task SendEmailWithBody_FromWithADisplayName_KeepsTheAddressAndNamesIt(string? fromName, string expectedName)
+    {
+        // Arrange: an operator FromAddress may already carry a display name.
+        var transport = Substitute.For<IMailTransport>();
+        string? sentName = null;
+        string? sentAddress = null;
+        transport.SendAsync(Arg.Do<MimeMessage>(msg =>
+        {
+            var sender = msg.From.Mailboxes.Single();
+            sentName = sender.Name;
+            sentAddress = sender.Address;
+        }), Arg.Any<CancellationToken>()).Returns("250 OK");
+        var sut = SmtpSenderWith(transport);
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "Operator Team <sender@example.com>",
+            FromName = fromName,
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        sentAddress.Should().Be("sender@example.com");
+        sentName.Should().Be(expectedName);
+    }
+
     private static TestableSmtpEmailSender SmtpSenderWith(IMailTransport transport) => new(
         Substitute.For<ILogger<SmtpEmailSender>>(),
         Options.Create(new SmtpSettings { Host = "smtp.example.com" }),

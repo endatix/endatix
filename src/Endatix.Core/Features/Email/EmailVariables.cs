@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Branding;
 
 namespace Endatix.Core.Features.Email;
@@ -11,6 +12,7 @@ namespace Endatix.Core.Features.Email;
 /// <param name="AppName">The name of the app people sign in to, used in composed copy.</param>
 /// <param name="SupportAddress">The address people are told to contact (<c>{{supportAddress}}</c>).</param>
 /// <param name="WebsiteUrl">The product website (<c>{{websiteUrl}}</c>).</param>
+[Experimental("ENDATIX0004")]
 public sealed record EmailVariables(string ProductName, string AppName, string SupportAddress, string WebsiteUrl)
 {
     /// <summary>The variables the deployment brand contributes.</summary>

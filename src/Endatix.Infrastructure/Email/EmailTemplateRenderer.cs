@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Ardalis.GuardClauses;
 using Endatix.Core;
 using Endatix.Core.Configuration;
@@ -60,6 +61,7 @@ public sealed class EmailTemplateRenderer(
     /// </summary>
     /// <param name="email">The email sent with a provider template.</param>
     /// <returns>The variables merged with the email's metadata.</returns>
+    [Experimental("ENDATIX0004")]
     public Dictionary<string, object> ProviderTemplateData(EmailWithTemplate email)
     {
         Guard.Against.Null(email);

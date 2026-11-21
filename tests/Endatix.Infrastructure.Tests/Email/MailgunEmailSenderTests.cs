@@ -465,4 +465,26 @@ public class MailgunEmailSenderTests
         var form = ParseFormContent(_handler.RequestContent!);
         form["from"].Should().Be(expectedFrom);
     }
+
+    [Fact]
+    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_SendsTheAddressNamedByFromName()
+    {
+        // Arrange: an operator FromAddress may already carry a display name.
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "Operator Team <sender@example.com>",
+            FromName = "Example Forms",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        var form = ParseFormContent(_handler.RequestContent!);
+        form["from"].Should().Be("\"Example Forms\" <sender@example.com>");
+    }
 }

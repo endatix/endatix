@@ -1,4 +1,5 @@
-﻿using Endatix.Core.Abstractions;
+﻿using System.Diagnostics.CodeAnalysis;
+using Endatix.Core.Abstractions;
 
 namespace Endatix.Core.Features.Email;
 
@@ -30,5 +31,6 @@ public class EmailWithBody : BaseEmailModel
     /// The display name on the From header. A rendered template sets the deployment sender's name. Null leaves
     /// each provider's own behaviour: SMTP sends the deployment sender's name, Mailgun and SendGrid the bare address.
     /// </summary>
+    [Experimental("ENDATIX0004")]
     public string? FromName { get; set; }
 }

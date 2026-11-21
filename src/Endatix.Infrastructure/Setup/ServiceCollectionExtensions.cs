@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.RateLimiting;
 using Endatix.Core;
 using Endatix.Core.Abstractions;
@@ -21,6 +22,7 @@ using Endatix.Infrastructure.Setup;
 using Endatix.Infrastructure.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -102,6 +104,7 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection to configure.</param>
     /// <param name="configuration">The host configuration holding the flag and <c>ENDATIX_BRAND_DIR</c>.</param>
     /// <returns>The configured service collection.</returns>
+    [Experimental("ENDATIX0003")]
     public static IServiceCollection AddDeploymentBrand(this IServiceCollection services, IConfiguration configuration)
     {
         // Replace, not TryAdd: an email sender added first leaves a lazy fallback that must not win.
@@ -113,9 +116,13 @@ public static class ServiceCollectionExtensions
     }
 
     // For a host that adds an email sender or the template settings without Integrations.UseDefaults():
-    // the renderer and the composer need a brand. Here the pack is read on first use, not at startup.
-    private static void AddDeploymentBrandFallback(IServiceCollection services) =>
+    // the renderer and the composer need a brand. The pack is read when the host starts (DeploymentBrandStartupCheck),
+    // so an invalid pack still stops startup instead of failing every email.
+    private static void AddDeploymentBrandFallback(IServiceCollection services)
+    {
         services.TryAddSingleton(provider => BrandPackLoader.Load(provider.GetRequiredService<IConfiguration>()));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, DeploymentBrandStartupCheck>());
+    }
 
     // The sender and the variables are factories over the registered brand, so AddDeploymentBrand may come before
     // or after them.

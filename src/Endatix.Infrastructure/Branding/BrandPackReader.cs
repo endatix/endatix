@@ -104,7 +104,8 @@ internal sealed class BrandPackReader
             return Fail(path, "must not contain control characters");
         }
 
-        return value?.Length > maxLength
+        // Characters as the schema counts them: code points, so an emoji is one, not two UTF-16 units.
+        return value?.EnumerateRunes().Count() > maxLength
             ? Fail(path, $"must be at most {maxLength} characters")
             : value;
     }

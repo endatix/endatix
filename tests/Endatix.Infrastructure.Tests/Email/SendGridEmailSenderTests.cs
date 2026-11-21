@@ -380,4 +380,29 @@ public class SendGridEmailSenderTests
             Arg.Is<SendGridMessage>(msg => msg.From.Name == null),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task SendEmailWithBody_FromWithADisplayNameAndAFromName_SendsTheAddressNamedByFromName()
+    {
+        // Arrange: an operator FromAddress may already carry a display name.
+        _sendGridClient.SendEmailAsync(Arg.Any<SendGridMessage>(), Arg.Any<CancellationToken>())
+            .Returns(CreateSuccessResponse());
+        var email = new EmailWithBody
+        {
+            To = "recipient@example.com",
+            From = "Operator Team <sender@example.com>",
+            FromName = "Example Forms",
+            Subject = "Test Subject",
+            PlainTextBody = "Hello World",
+            HtmlBody = "<html>Hello World</html>"
+        };
+
+        // Act
+        await _sut.SendEmailAsync(email, CancellationToken.None);
+
+        // Assert
+        await _sendGridClient.Received(1).SendEmailAsync(
+            Arg.Is<SendGridMessage>(msg => msg.From.Email == "sender@example.com" && msg.From.Name == "Example Forms"),
+            Arg.Any<CancellationToken>());
+    }
 }

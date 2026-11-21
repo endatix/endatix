@@ -65,10 +65,9 @@ public class SendGridEmailSender(
         Guard.Against.NullOrWhiteSpace(email.From);
         Guard.Against.NullOrWhiteSpace(email.Subject);
 
-        var fromEmail = new EmailAddress(email.From, email.FromName);
         var toEmail = new EmailAddress(email.To);
         var msg = MailHelper.CreateSingleEmail(
-            fromEmail,
+            FromEmail(email),
             toEmail,
             email.Subject,
             email.PlainTextBody,
@@ -81,6 +80,13 @@ public class SendGridEmailSender(
 
         var responseBody = await ProviderResponse.ReadAcceptedBodyForLogAsync(ProviderName, response.StatusCode, response.Body);
         _logger.LogEmailSent(ProviderName, response.StatusCode, responseBody);
+    }
+
+    // Called after the From guard, so the address is set. The From may already carry a display name.
+    private static EmailAddress FromEmail(EmailWithBody email)
+    {
+        var sender = FromMailbox.Create(email.From!, email.FromName);
+        return new EmailAddress(sender.Address, string.IsNullOrEmpty(sender.Name) ? null : sender.Name);
     }
 
     /// <inheritdoc />

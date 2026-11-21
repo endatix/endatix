@@ -210,7 +210,7 @@ public class SmtpEmailSender : IEmailSender, IHasConfigSection<SmtpSettings>, IP
         var fromAddress = string.IsNullOrEmpty(email.From) ? _sender.Address : email.From;
 
         var mimeMessage = new MimeMessage();
-        mimeMessage.From.Add(new MailboxAddress(email.FromName ?? _sender.Name, fromAddress));
+        mimeMessage.From.Add(FromMailbox.Create(fromAddress, email.FromName, _sender.Name));
         // AddRange(InternetAddressList.Parse(...)), not MailboxAddress.Parse — the latter accepts
         // exactly one mailbox and throws on a comma-separated list, which the old MailMessage.To.Add
         // string contract allowed.
