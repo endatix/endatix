@@ -157,14 +157,20 @@ internal sealed record CopyDefinition(
                 var inside = hiding.Inside(element, HasVisibleIfNoted(element));
                 if (!SurveyJsElementType.IsNonData(element.GetSurveyJsType()) && element.GetSurveyJsName() is { } name)
                 {
-                    Counts[name] = Counts.GetValueOrDefault(name) + 1;
-                    Note(AlwaysHidden, name, inside.Always);
-                    Note(UnderVisibleIf, name, hiding.ByVisibleIf);
-                    Note(ShowingOther, name, ChoiceSet.ShowsOther(element));
+                    NoteQuestion(element, name, new Hiding(inside.Always, hiding.ByVisibleIf));
                 }
 
                 Visit(element, inside);
             }
+        }
+
+        // Always is the question's own or an enclosing static visible: false; ByVisibleIf an enclosing visibleIf only.
+        private void NoteQuestion(JsonElement question, string name, Hiding hidden)
+        {
+            Counts[name] = Counts.GetValueOrDefault(name) + 1;
+            Note(AlwaysHidden, name, hidden.Always);
+            Note(UnderVisibleIf, name, hidden.ByVisibleIf);
+            Note(ShowingOther, name, ChoiceSet.ShowsOther(question));
         }
 
         private bool HasVisibleIfNoted(JsonElement element)
