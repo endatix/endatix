@@ -6,7 +6,7 @@ namespace Endatix.Core.Tests.Features.Email;
 
 public sealed class EmailVariablesTests
 {
-    private static readonly DeploymentBrand ExampleBrand = new(
+    private static readonly DeploymentBrand _exampleBrand = new(
         ProductName: "Example Forms",
         AppName: "Example Forms",
         AssistantName: "Example Assistant",
@@ -32,7 +32,7 @@ public sealed class EmailVariablesTests
     public void From_PackBrand_TakesItsIdentity()
     {
         // Act
-        var variables = EmailVariables.From(ExampleBrand);
+        var variables = EmailVariables.From(_exampleBrand);
 
         // Assert
         variables.Should().Be(new EmailVariables("Example Forms", "Example Forms", "help@example.com", "https://example.com"));
@@ -42,7 +42,7 @@ public sealed class EmailVariablesTests
     public void ForTemplate_MetadataClash_TheMetadataWinsAsText()
     {
         // Arrange
-        var variables = EmailVariables.From(ExampleBrand);
+        var variables = EmailVariables.From(_exampleBrand);
 
         // Act
         var merged = variables.ForTemplate(new Dictionary<string, object> { ["productName"] = "Override", ["count"] = 3 });
@@ -55,7 +55,7 @@ public sealed class EmailVariablesTests
     public void ForProvider_MetadataClash_TheMetadataWinsAndKeepsItsType()
     {
         // Arrange
-        var variables = EmailVariables.From(ExampleBrand);
+        var variables = EmailVariables.From(_exampleBrand);
         var nested = new { plan = "pro" };
 
         // Act
