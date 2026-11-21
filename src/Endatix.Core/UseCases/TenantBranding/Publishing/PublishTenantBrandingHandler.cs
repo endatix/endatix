@@ -14,7 +14,8 @@ namespace Endatix.Core.UseCases.TenantBranding.Publishing;
 internal sealed class PublishTenantBrandingHandler(
     IRepository<Entities.TenantBranding> repository,
     ITenantContext tenantContext,
-    ITenantEntitlements entitlements)
+    ITenantEntitlements entitlements,
+    IDateTimeProvider dateTimeProvider)
     : ICommandHandler<PublishTenantBrandingCommand, Result<TenantBrandingDto>>
 {
     /// <inheritdoc/>
@@ -32,7 +33,7 @@ internal sealed class PublishTenantBrandingHandler(
             return Result.Invalid(value.ValidationErrors);
         }
 
-        var now = DateTime.UtcNow;
+        var now = dateTimeProvider.Now.UtcDateTime;
         return await new TenantBrandingWriter(repository, tenantId).WriteAsync(
             branding => branding.Publish(value.Value, request.ExpectedRevision, now),
             cancellationToken);

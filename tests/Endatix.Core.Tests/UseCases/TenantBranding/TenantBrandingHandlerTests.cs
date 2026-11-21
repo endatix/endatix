@@ -16,9 +16,13 @@ public sealed class TenantBrandingHandlerTests
     private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
     private const string GREEN = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
 
+    private static readonly DateTimeOffset PublishTime = new(2026, 11, 21, 12, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset RollbackTime = PublishTime.AddHours(1);
+
     private readonly IRepository<TenantBrandingEntity> _repository = Substitute.For<IRepository<TenantBrandingEntity>>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
     private readonly ITenantEntitlements _entitlements = Substitute.For<ITenantEntitlements>();
+    private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
     private readonly PublishTenantBrandingHandler _publish;
     private readonly RollbackTenantBrandingHandler _rollback;
 
@@ -26,8 +30,9 @@ public sealed class TenantBrandingHandlerTests
     {
         _tenantContext.TenantId.Returns(TENANT_ID);
         _entitlements.IsEntitledAsync(TENANT_ID, EntitlementNames.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
-        _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements);
-        _rollback = new RollbackTenantBrandingHandler(_repository, _tenantContext, _entitlements);
+        _dateTimeProvider.Now.Returns(PublishTime);
+        _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements, _dateTimeProvider);
+        _rollback = new RollbackTenantBrandingHandler(_repository, _tenantContext, _entitlements, _dateTimeProvider);
     }
 
     [Fact]
@@ -98,7 +103,7 @@ public sealed class TenantBrandingHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Revision.Should().Be(1);
-        result.Value.PublishedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+        result.Value.PublishedAt.Should().Be(PublishTime.UtcDateTime);
         await _repository.Received(1).AddAsync(
             Arg.Is<TenantBrandingEntity>(branding => branding.TenantId == TENANT_ID && branding.Revision == 1),
             Arg.Any<CancellationToken>());
@@ -175,6 +180,7 @@ public sealed class TenantBrandingHandlerTests
         await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), TestContext.Current.CancellationToken);
         await _publish.Handle(new PublishTenantBrandingCommand(GREEN, 1), TestContext.Current.CancellationToken);
         _repository.ClearReceivedCalls();
+        _dateTimeProvider.Now.Returns(RollbackTime);
 
         // Act
         var result = await _rollback.Handle(new RollbackTenantBrandingCommand(2), TestContext.Current.CancellationToken);
@@ -182,6 +188,7 @@ public sealed class TenantBrandingHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Revision.Should().Be(3);
+        result.Value.PublishedAt.Should().Be(RollbackTime.UtcDateTime);
         result.Value.PublishedJson.Should().Be(branding.PublishedJson).And.Contain("#0052d1");
         await _repository.Received(1).UpdateAsync(branding, Arg.Any<CancellationToken>());
     }

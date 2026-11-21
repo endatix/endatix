@@ -12,7 +12,8 @@ namespace Endatix.Core.UseCases.TenantBranding.Rollback;
 internal sealed class RollbackTenantBrandingHandler(
     IRepository<Entities.TenantBranding> repository,
     ITenantContext tenantContext,
-    ITenantEntitlements entitlements)
+    ITenantEntitlements entitlements,
+    IDateTimeProvider dateTimeProvider)
     : ICommandHandler<RollbackTenantBrandingCommand, Result<TenantBrandingDto>>
 {
     /// <inheritdoc/>
@@ -24,7 +25,7 @@ internal sealed class RollbackTenantBrandingHandler(
             return refusal;
         }
 
-        var now = DateTime.UtcNow;
+        var now = dateTimeProvider.Now.UtcDateTime;
         return await new TenantBrandingWriter(repository, tenantId).WriteAsync(
             branding => branding.Rollback(request.ExpectedRevision, now),
             cancellationToken);
