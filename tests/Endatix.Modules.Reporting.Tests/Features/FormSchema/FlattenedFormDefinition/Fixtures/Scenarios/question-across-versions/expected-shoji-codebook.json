@@ -1,0 +1,275 @@
+{
+  "element": "shoji:entity",
+  "body": {
+    "name": "Form export",
+    "description": "Shoji codebook metadata",
+    "table": {
+      "element": "crunch:table",
+      "metadata": {
+        "FormId": {
+          "type": "numeric",
+          "alias": "FormId",
+          "name": "Form ID",
+          "description": ""
+        },
+        "Id": {
+          "type": "numeric",
+          "alias": "Id",
+          "name": "Submission ID",
+          "description": ""
+        },
+        "IsComplete": {
+          "type": "categorical",
+          "alias": "IsComplete",
+          "name": "Is Complete",
+          "description": "",
+          "categories": [
+            {
+              "name": "False",
+              "id": 0,
+              "numeric_value": 0,
+              "missing": false
+            },
+            {
+              "name": "True",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            }
+          ]
+        },
+        "CollectionStatus": {
+          "type": "text",
+          "alias": "CollectionStatus",
+          "name": "Collection Status",
+          "description": ""
+        },
+        "CreatedAt": {
+          "type": "datetime",
+          "alias": "CreatedAt",
+          "name": "Created At",
+          "description": "",
+          "resolution": "s"
+        },
+        "ModifiedAt": {
+          "type": "datetime",
+          "alias": "ModifiedAt",
+          "name": "Modified At",
+          "description": "",
+          "resolution": "s"
+        },
+        "StartedAt": {
+          "type": "datetime",
+          "alias": "StartedAt",
+          "name": "Started At",
+          "description": "",
+          "resolution": "s"
+        },
+        "CompletedAt": {
+          "type": "datetime",
+          "alias": "CompletedAt",
+          "name": "Completed At",
+          "description": "",
+          "resolution": "s"
+        },
+        "DurationSeconds": {
+          "type": "numeric",
+          "alias": "DurationSeconds",
+          "name": "Duration Seconds",
+          "description": ""
+        },
+        "SubmitterId": {
+          "type": "numeric",
+          "alias": "SubmitterId",
+          "name": "Submitter ID",
+          "description": ""
+        },
+        "SubmitterDisplayId": {
+          "type": "text",
+          "alias": "SubmitterDisplayId",
+          "name": "Submitter Display ID",
+          "description": ""
+        },
+        "channels": {
+          "type": "multiple_response",
+          "alias": "channels",
+          "name": "Where did you hear about us?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "channels--A",
+              "name": "Radio"
+            },
+            {
+              "alias": "channels--B",
+              "name": "Friends"
+            }
+          ]
+        },
+        "newPerks": {
+          "type": "multiple_response",
+          "alias": "newPerks",
+          "name": "Which new perks would you use?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "newPerks--1",
+              "name": "Loyalty points"
+            },
+            {
+              "alias": "newPerks--2",
+              "name": "Same-day pickup"
+            },
+            {
+              "alias": "newPerks--other",
+              "name": "Other"
+            },
+            {
+              "alias": "newPerks--none",
+              "name": "None"
+            }
+          ]
+        },
+        "oldPerks": {
+          "type": "multiple_response",
+          "alias": "oldPerks",
+          "name": "Which perks did you use?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "oldPerks--1",
+              "name": "Free delivery"
+            },
+            {
+              "alias": "oldPerks--2",
+              "name": "Gift wrap"
+            }
+          ]
+        },
+        "topics": {
+          "type": "multiple_response",
+          "alias": "topics",
+          "name": "Which topics interest you?",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "topics--P",
+              "name": "Prices"
+            },
+            {
+              "alias": "topics--S",
+              "name": "Service"
+            }
+          ]
+        },
+        "customer": {
+          "type": "text",
+          "alias": "customer",
+          "name": "Your name",
+          "description": ""
+        },
+        "newPerks--other_text": {
+          "type": "text",
+          "alias": "newPerks--other_text",
+          "name": "Which new perks would you use? -- Other",
+          "description": ""
+        }
+      },
+      "order": [
+        {
+          "group": "Meta-data",
+          "entities": [
+            "Id",
+            "IsComplete",
+            "CollectionStatus",
+            "CreatedAt",
+            "ModifiedAt",
+            "StartedAt",
+            "CompletedAt",
+            "DurationSeconds",
+            "SubmitterId",
+            "SubmitterDisplayId"
+          ]
+        },
+        {
+          "group": "Questions",
+          "entities": [
+            "customer",
+            "channels",
+            "topics",
+            "oldPerks",
+            "newPerks",
+            "newPerks--other_text"
+          ]
+        }
+      ],
+      "hidden": [
+        "FormId"
+      ]
+    }
+  }
+}

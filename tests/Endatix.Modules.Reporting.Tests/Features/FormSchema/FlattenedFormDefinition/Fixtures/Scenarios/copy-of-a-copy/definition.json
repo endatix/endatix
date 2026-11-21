@@ -1,0 +1,90 @@
+{
+  "title": "Copy of a copy",
+  "pages": [
+    {
+      "name": "awareness",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "brands",
+          "title": "Which brands have you bought?",
+          "choices": [
+            {
+              "value": "1",
+              "text": "Brand A"
+            },
+            {
+              "value": "2",
+              "text": "Brand B"
+            },
+            {
+              "value": "3",
+              "text": "Brand C"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "aware",
+          "title": "Which of these brands do you know well?",
+          "choicesFromQuestion": "brands",
+          "choicesFromQuestionMode": "selected"
+        },
+        {
+          "type": "checkbox",
+          "name": "pickTop",
+          "title": "Which of these brands would you recommend?",
+          "choicesFromQuestion": "aware",
+          "choicesFromQuestionMode": "selected",
+          "showNoneItem": true
+        }
+      ]
+    },
+    {
+      "name": "loop",
+      "elements": [
+        {
+          "type": "paneldynamic",
+          "name": "brandLoop",
+          "loopSource": [
+            "brands"
+          ],
+          "templateElements": [
+            {
+              "type": "checkbox",
+              "name": "pick",
+              "title": "Which brands do you compare with {panel.itemText}?",
+              "choicesFromQuestion": "aware",
+              "choicesFromQuestionMode": "selected",
+              "showNoneItem": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "shortlist",
+      "elements": [
+        {
+          "type": "checkbox",
+          "name": "shortlist",
+          "title": "Pick up to two brands to shortlist",
+          "edxCarryForwardEnabled": true,
+          "edxCarryForwardSources": [
+            "brands"
+          ],
+          "edxCarryForwardMode": "all",
+          "edxCarryForwardMaxChoices": 2
+        },
+        {
+          "type": "checkbox",
+          "name": "fromShortlist",
+          "title": "Which of the shortlisted brands would you buy again?",
+          "choicesFromQuestion": "shortlist",
+          "choicesFromQuestionMode": "all",
+          "showNoneItem": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,question1__item1,question1__item2,question1__item3,question1__other,question1__other_text,question2__item1,question2__item2,question2__item3,question2__other,question2__other_text,question3__item1,question3__item2,question3__item3,question3__other,question3__other_text
+100,1,true,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,N/A,N/A,N/A,N/A,N/A,0,1,0,1,Typed for question1,0,1,0,1,Typed for question2,0,1,0,1,Typed for question3

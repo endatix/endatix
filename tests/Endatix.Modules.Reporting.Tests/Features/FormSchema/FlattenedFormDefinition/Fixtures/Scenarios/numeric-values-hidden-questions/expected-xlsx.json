@@ -1,0 +1,62 @@
+{
+  "Submissions": [
+    [
+      "s:FormId",
+      "s:Id",
+      "s:IsComplete",
+      "s:CollectionStatus",
+      "s:CreatedAt",
+      "s:ModifiedAt",
+      "s:StartedAt",
+      "s:CompletedAt",
+      "s:DurationSeconds",
+      "s:SubmitterId",
+      "s:SubmitterDisplayId",
+      "s:visits",
+      "s:photoFront",
+      "s:photoBack",
+      "s:reasons__1",
+      "s:reasons__2",
+      "s:reasons__3",
+      "s:reasons__other",
+      "s:reasons__other_text",
+      "s:brandUsed",
+      "s:brandStore",
+      "s:brandStore__other_text",
+      "s:brandSwitch",
+      "s:brandSwitch__other_text"
+    ],
+    [
+      "s:100",
+      "s:1",
+      "b:1",
+      "s:complete",
+      "n@1:46309.416666666664",
+      "n@1:46309.416666666664",
+      "s:N/A",
+      "s:N/A",
+      "s:N/A",
+      "s:N/A",
+      "s:N/A",
+      "n:1",
+      "s:",
+      "s:",
+      "n:0",
+      "n:1",
+      "n:0",
+      "n:1",
+      "s:Opening hours",
+      "n:3",
+      "s:other",
+      "s:Market stall",
+      "s:",
+      "s:"
+    ]
+  ],
+  "styles": {
+    "1": {
+      "numFmtId": 164,
+      "formatCode": "yyyy-mm-dd hh:mm:ss"
+    }
+  }
+}

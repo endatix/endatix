@@ -60,27 +60,32 @@ internal sealed class ChoiceCatalogs
     /// <summary>
     /// The codebook's catalogs for flattening one submission. <paramref name="submissionComplete"/> lets a rule that
     /// holds only for a completed submission (<see cref="CopyVisibility.WhenComplete"/>) apply.
+    /// <paramref name="submittedDefinitionJson"/> is the form definition the submission was made on; a question it does
+    /// not have was never shown (#1758). Null when unknown.
     /// </summary>
-    public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false)
+    public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false, string? submittedDefinitionJson = null)
     {
-        if (string.IsNullOrWhiteSpace(codebookJson))
-        {
-            return Empty;
-        }
-
-        using var document = JsonDocument.Parse(codebookJson);
-        if (document.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
+        // Only a complete submission infers a 0 for an unanswered question, so only it needs its definition's names.
+        var submittedQuestions = submissionComplete ? CopyDefinition.QuestionNamesIn(submittedDefinitionJson) : null;
+        using var document = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonDocument.Parse(codebookJson);
+        if (document?.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
         {
-            return Empty;
+            return EmptyFor(submissionComplete, submittedQuestions);
         }
 
         return new ChoiceCatalogs(
             ReadEach(catalogs, SelectChoices.FromCatalog),
             CopiesIn(document.RootElement, catalogs),
             ReadEach(catalogs, CopyVisibility.Read))
-        { SubmissionComplete = submissionComplete };
+        { SubmissionComplete = submissionComplete, SubmittedQuestions = submittedQuestions };
     }
+
+    // No catalogs, but the submission's completion still decides whether an unanswered select is 0.
+    private static ChoiceCatalogs EmptyFor(bool submissionComplete, IReadOnlySet<string>? submittedQuestions) =>
+        submissionComplete
+            ? new(Empty._selects, Empty._copies, Empty._visibility) { SubmissionComplete = true, SubmittedQuestions = submittedQuestions }
+            : Empty;
 
     // Every catalog that reads as a T, by question name.
     private static Dictionary<string, T> ReadEach<T>(JsonElement catalogs, Func<JsonElement, T?> read)
@@ -92,6 +97,9 @@ internal sealed class ChoiceCatalogs
 
     /// <summary>Whether the submission being flattened is completed.</summary>
     public bool SubmissionComplete { get; private init; }
+
+    // The question names of the definition the submission was made on; null when unknown.
+    private IReadOnlySet<string>? SubmittedQuestions { get; init; }
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
     public bool IsSelect(string question) => _selects.ContainsKey(question);
@@ -106,13 +114,18 @@ internal sealed class ChoiceCatalogs
     /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
     public bool Copies(string question) => _copies.Contains(question);
 
+    /// <summary>The copy's stored <see cref="CopyVisibility"/>; null when it has none.</summary>
+    public CopyVisibility? VisibilityOf(string question) => _visibility.GetValueOrDefault(question);
+
     /// <summary>The question's select choices; null when it is not a base select.</summary>
     public SelectChoices? SelectOrNull(string question) => _selects.GetValueOrDefault(question);
 
     /// <summary>
     /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
-    /// with its own choices shows every one, so the rest are 0. A copy that has no answer shows nothing provably, so the
-    /// rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
+    /// with its own choices shows every one, so the rest are 0 when it is answered, or when a complete submission left it
+    /// unanswered, nothing could hide it (<see cref="SelectChoices.CanBeHidden"/>) and the submission's form version has
+    /// it; otherwise they are empty. A copy
+    /// that has no answer shows nothing provably, so the rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
     /// None, ...) and the copied choices the rule rebuilds from the sources' answers. Every other cell is empty.
     /// </summary>
     public IndicatorCell Indicator(AnswerScope scope, string question, string choiceValue)
@@ -124,13 +137,17 @@ internal sealed class ChoiceCatalogs
 
         if (!_copies.Contains(question))
         {
-            return IndicatorCell.ShownNotPicked;
+            return scope.OwnAnswers(question) || (SubmissionComplete && !For(question).CanBeHidden && WasSubmittedWith(question))
+                ? IndicatorCell.ShownNotPicked
+                : IndicatorCell.Empty;
         }
 
         return scope.OwnAnswers(question) && AnsweredCopyShows(scope, question, choiceValue)
             ? IndicatorCell.ShownNotPicked
             : IndicatorCell.Empty;
     }
+
+    private bool WasSubmittedWith(string question) => SubmittedQuestions?.Contains(question) ?? true;
 
     // The copy's own special items are always on its list, but only an exact rule that holds for this submission proves
     // which definition's list, and that the copy was shown.
@@ -173,6 +190,21 @@ internal sealed class SelectChoices
 
     public OtherStorage? OtherStorage { get; private init; }
 
+    /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
+    public bool CanBeHidden { get; private init; }
+
+    private static bool CanBeHiddenIn(JsonElement catalog) =>
+        catalog.ValueKind == JsonValueKind.Object && catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.CanBeHidden);
+
+    /// <summary>MERGE: <c>canBeHidden</c> once either definition's catalog has it.</summary>
+    internal static void MergeCanBeHidden(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
+    {
+        if (CanBeHiddenIn(existingCatalog) || CanBeHiddenIn(currentCatalog))
+        {
+            writer.WriteBoolean(FormSchemaCodebookPropertyNames.CanBeHidden, true);
+        }
+    }
+
     /// <summary>The kind of the catalog choice with this value; null when the catalog has none.</summary>
     public ChoiceKind? KindOf(string value) =>
         Choices.FirstOrDefault(choice => choice.Value == value) is { Value: not null } found ? found.Kind : null;
@@ -193,6 +225,7 @@ internal sealed class SelectChoices
         {
             Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
+            CanBeHidden = CanBeHiddenIn(catalog),
         };
         select._values.UnionWith(choices.Select(choice => choice.Value));
         return select;

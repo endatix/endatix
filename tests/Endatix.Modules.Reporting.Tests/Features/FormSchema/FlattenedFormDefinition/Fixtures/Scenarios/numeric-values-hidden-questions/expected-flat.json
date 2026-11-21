@@ -1,0 +1,15 @@
+{
+  "visits": 1,
+  "photoFront": null,
+  "photoBack": null,
+  "reasons__1": 0,
+  "reasons__2": 1,
+  "reasons__3": 0,
+  "reasons__other": 1,
+  "reasons__other_text": "Opening hours",
+  "brandUsed": 3,
+  "brandStore": "other",
+  "brandStore__other_text": "Market stall",
+  "brandSwitch": null,
+  "brandSwitch__other_text": null
+}

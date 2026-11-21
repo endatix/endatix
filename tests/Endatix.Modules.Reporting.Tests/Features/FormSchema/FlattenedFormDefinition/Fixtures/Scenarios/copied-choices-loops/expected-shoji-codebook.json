@@ -1741,12 +1741,12 @@
               "name": "Local"
             },
             {
-              "alias": "traitsLoop--1--traits--none",
-              "name": "None"
-            },
-            {
               "alias": "traitsLoop--1--traits--other",
               "name": "Other"
+            },
+            {
+              "alias": "traitsLoop--1--traits--none",
+              "name": "None"
             }
           ]
         },
@@ -1785,12 +1785,12 @@
               "name": "Local"
             },
             {
-              "alias": "traitsLoop--2--traits--none",
-              "name": "None"
-            },
-            {
               "alias": "traitsLoop--2--traits--other",
               "name": "Other"
+            },
+            {
+              "alias": "traitsLoop--2--traits--none",
+              "name": "None"
             }
           ]
         },
@@ -1829,12 +1829,12 @@
               "name": "Local"
             },
             {
-              "alias": "traitsLoop--3--traits--none",
-              "name": "None"
-            },
-            {
               "alias": "traitsLoop--3--traits--other",
               "name": "Other"
+            },
+            {
+              "alias": "traitsLoop--3--traits--none",
+              "name": "None"
             }
           ]
         },

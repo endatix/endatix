@@ -10,7 +10,15 @@
           "choices": [
             { "value": "1", "text": "Brand 1" },
             { "value": "2", "text": "Brand 2" },
-            { "value": "3", "text": "Brand 3" }
+            { "value": "3", "text": "Brand 3" },
+            { "value": "4", "text": "Brand 4" },
+            { "value": "5", "text": "Brand 5" },
+            { "value": "6", "text": "Brand 6" },
+            { "value": "7", "text": "Brand 7" },
+            { "value": "8", "text": "Brand 8" },
+            { "value": "9", "text": "Brand 9" },
+            { "value": "10", "text": "Brand 10" },
+            { "value": "11", "text": "Brand 11" }
           ]
         },
         {
@@ -33,6 +41,24 @@
               "choices": [
                 { "value": "1", "text": "Yes" },
                 { "value": "2", "text": "No" }
+              ]
+            },
+            {
+              "type": "checkbox",
+              "name": "reasons",
+              "title": "Why would you buy {panel.itemText}?",
+              "choices": [
+                { "value": "2", "text": "Reason 2" },
+                { "value": "10", "text": "Reason 10" },
+                { "value": "1", "text": "Reason 1" },
+                { "value": "11", "text": "Reason 11" },
+                { "value": "3", "text": "Reason 3" },
+                { "value": "4", "text": "Reason 4" },
+                { "value": "5", "text": "Reason 5" },
+                { "value": "6", "text": "Reason 6" },
+                { "value": "7", "text": "Reason 7" },
+                { "value": "8", "text": "Reason 8" },
+                { "value": "9", "text": "Reason 9" }
               ]
             }
           ]
