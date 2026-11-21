@@ -18,7 +18,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -902,6 +902,32 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.ToTable("Tenants", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.TenantBranding", b =>
+                {
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DraftJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("PreviousJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PublishedJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("TenantBrandings", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>
                 {
                     b.Property<long>("TenantId")
@@ -1230,6 +1256,15 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.TenantBranding", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", null)
+                        .WithOne()
+                        .HasForeignKey("Endatix.Core.Entities.TenantBranding", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>

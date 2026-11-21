@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
@@ -65,6 +66,10 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
 
+    /// <summary>Each tenant's own branding, one row per tenant.</summary>
+    [Experimental("ENDATIX0002")]
+    public DbSet<TenantBranding> TenantBranding { get; set; }
+
     public DbSet<DataList> DataLists { get; set; }
 
     public DbSet<DataListItem> DataListItems { get; set; }
@@ -117,17 +122,10 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return base.SaveChanges();
         }
-        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        catch (Exception exception) when (TranslateSaveFailure(exception) is { } translated)
         {
-            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
-        }
-        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
-        {
-            throw DatabaseDeadlocks.Victim(exception);
-        }
-        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
-        {
-            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+            DetachRefusedBranding(exception);
+            throw translated;
         }
     }
 
@@ -139,19 +137,25 @@ public class AppDbContext : DbContext, ITenantDbContext
             ProcessEntities();
             return await base.SaveChangesAsync(true, cancellationToken);
         }
-        catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
+        catch (Exception exception) when (TranslateSaveFailure(exception) is { } translated)
         {
-            throw new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrencyException);
-        }
-        catch (Exception exception) when (DatabaseDeadlocks.IsVictim(exception))
-        {
-            throw DatabaseDeadlocks.Victim(exception);
-        }
-        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
-        {
-            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+            DetachRefusedBranding(exception);
+            throw translated;
         }
     }
+
+    /// <summary>The domain exception a failed save stands for, or null to let the provider's exception through.</summary>
+    private static Exception? TranslateSaveFailure(Exception exception) => exception switch
+    {
+        DbUpdateConcurrencyException concurrency when IsSubmissionDeletedMeanwhile(concurrency) =>
+            new SubmissionDeletedException("The submission was deleted while it was being saved.", concurrency),
+        DbUpdateException update when IsTenantBrandingConflict(update) =>
+            new TenantBrandingConflictException("Another write changed the tenant's branding first.", update),
+        _ when DatabaseDeadlocks.IsVictim(exception) => DatabaseDeadlocks.Victim(exception),
+        DbUpdateException update when IsDuplicateSubmissionConstraintViolation(update) =>
+            new DuplicateSubmissionException("A submission already exists for this user and form.", update),
+        _ => null,
+    };
 
     /// <summary>
     /// <see cref="BaseEntity.IsDeleted"/> is a concurrency token on <see cref="Submission"/>, so a tracked save of a submission deleted since it
@@ -159,6 +163,45 @@ public class AppDbContext : DbContext, ITenantDbContext
     /// </summary>
     private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>
         concurrencyException.Entries.Any(entry => entry.Entity is Submission);
+
+    /// <summary>
+    /// <see cref="Core.Entities.TenantBranding.Revision"/> is a concurrency token, and the tenant id is the key: a save that
+    /// matches no row, or inserts a tenant's first row after another request did, lost a race with another write.
+    /// </summary>
+    private static bool IsTenantBrandingConflict(DbUpdateException updateException) =>
+        updateException.Entries.Count > 0
+        && updateException.Entries.All(entry => entry.Entity is TenantBranding)
+        && (updateException is DbUpdateConcurrencyException || IsUniqueViolation(updateException));
+
+    /// <summary>
+    /// A refused branding write leaves nothing tracked, so a later save in the same scope does not replay the stale update
+    /// or the losing insert (ARCHITECTURE.md, transaction locks, item 8).
+    /// </summary>
+    private static void DetachRefusedBranding(Exception exception)
+    {
+        if (exception is not DbUpdateException update || !IsTenantBrandingConflict(update))
+        {
+            return;
+        }
+
+        foreach (var entry in update.Entries)
+        {
+            entry.State = EntityState.Detached;
+        }
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException updateException)
+    {
+        for (var current = updateException.InnerException; current is not null; current = current.InnerException)
+        {
+            if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
     {
