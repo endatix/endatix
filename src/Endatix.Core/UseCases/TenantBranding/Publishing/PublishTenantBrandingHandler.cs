@@ -27,6 +27,11 @@ internal sealed class PublishTenantBrandingHandler(
             return refusal;
         }
 
+        if (request.OverrideJson is null)
+        {
+            return Result.Invalid(new ValidationError("", "Is required.", BrandOverrideProblems.REQUIRED, ValidationSeverity.Error));
+        }
+
         var value = BrandOverride.Parse(request.OverrideJson, tenantId);
         if (!value.IsSuccess)
         {

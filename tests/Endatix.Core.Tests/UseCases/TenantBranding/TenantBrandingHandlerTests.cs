@@ -92,6 +92,20 @@ public sealed class TenantBrandingHandlerTests
     }
 
     [Fact]
+    public async Task Publish_NullOverride_IsRequiredAndReadsNothing()
+    {
+        // Act
+        var result = await _publish.Handle(new PublishTenantBrandingCommand(null!, 0), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        var error = result.ValidationErrors.Should().ContainSingle().Subject;
+        error.ErrorCode.Should().Be(BrandOverrideProblems.REQUIRED);
+        error.Identifier.Should().BeEmpty();
+        await _repository.DidNotReceive().FirstOrDefaultAsync(Arg.Any<TenantBrandingByTenantIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Publish_FirstTime_AddsTheRow()
     {
         // Arrange
