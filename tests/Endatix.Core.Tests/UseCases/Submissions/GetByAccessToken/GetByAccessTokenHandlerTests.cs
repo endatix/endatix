@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -13,13 +14,14 @@ public class GetByAccessTokenHandlerTests
     private readonly IRepository<Submission> _submissionRepository;
     private readonly ISubmissionAccessTokenService _tokenService;
     private readonly IRepository<Theme> _themeRepository = Substitute.For<IRepository<Theme>>();
+    private readonly IFormSettingsRepository _formSettings = Substitute.For<IFormSettingsRepository>();
     private readonly GetByAccessTokenHandler _handler;
 
     public GetByAccessTokenHandlerTests()
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
-        _handler = new GetByAccessTokenHandler(_submissionRepository, _themeRepository, _tokenService);
+        _handler = new GetByAccessTokenHandler(_submissionRepository, _themeRepository, _formSettings, _tokenService);
     }
 
     private static Submission CreateSubmissionWithForm(long formId, long formDefinitionId, bool isFormEnabled = true)
@@ -37,14 +39,17 @@ public class GetByAccessTokenHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PdfUsesFormTheme_LoadsTheFormTheme()
+    public async Task Handle_PdfSettingsUseTheTheme_LoadsTheFormTheme()
     {
         // Arrange
         const string token = "valid.token.r.signature";
         var theme = new Theme(SampleData.TENANT_ID, "Theme", jsonData: "{}") { Id = 7 };
         var submission = CreateSubmissionWithForm(123L, 1L);
+        submission.Form.Id = 123L;
         submission.Form.SetTheme(theme);
-        submission.Form.SetPdfUsesFormTheme(true);
+        var settings = new Core.Entities.FormSettings(submission.Form.TenantId, submission.Form.Id);
+        settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = true } }, 0, DateTime.UtcNow);
+        _formSettings.ReadAsync(submission.Form.TenantId, submission.Form.Id, Arg.Any<CancellationToken>()).Returns(settings);
         typeof(Form).GetProperty(nameof(Form.Theme))!.SetValue(submission.Form, null); // loaded without its theme
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())

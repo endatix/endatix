@@ -78,12 +78,6 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     public string? Metadata { get; set; }
 
     /// <summary>
-    /// Whether the form's submission PDFs use its theme. Off by default, so a form's PDFs keep the default look
-    /// until its owner opts in; submission details return the theme only when this is on.
-    /// </summary>
-    public bool PdfUsesFormTheme { get; private set; }
-
-    /// <summary>
     /// Monotonic aggregate revision, bumped on each business mutation. Distinct from form-definition
     /// versioning (<see cref="FormDefinitions"/>): it advances on every state change (rename, enable
     /// toggle, folder move, …), not only schema edits. Carried in integration event payloads so an
@@ -184,9 +178,6 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         Theme = theme;
         ThemeId = theme?.Id;
     }
-
-    /// <summary>Sets <see cref="PdfUsesFormTheme"/>. <see cref="UpdateDetails"/> raises the <c>form.updated</c> event.</summary>
-    public void SetPdfUsesFormTheme(bool enabled) => PdfUsesFormTheme = enabled;
 
     /// <summary>Advances the aggregate revision. Call from domain mutations that raise integration events.</summary>
     public void IncrementRevision() => Revision++;

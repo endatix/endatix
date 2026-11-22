@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -6,9 +7,9 @@ using Endatix.IntegrationTests.Shared;
 namespace Endatix.IntegrationTests;
 
 /// <summary>
-/// A form's "use the form's theme on its PDFs" setting: set through the form PATCH, and submission details
-/// (by id and by share-link access token) return the theme only while it is on. The forms are private, so the
-/// share-link path is the only way an anonymous PDF renderer can get the theme.
+/// A form's PDF settings: set through <c>forms/{id}/settings</c> (If-Match on the version), and submission details (by id
+/// and by share-link access token) return the theme only while they use it. The forms are private, so the share-link
+/// path is the only way an anonymous PDF renderer can get the theme. Loading the form's definition reads no settings.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -18,9 +19,11 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
     private const string THEME_JSON = """{"cssVariables":{"--sjs-primary-backcolor":"#123456"}}""";
     private const string FORM_JSON = """{"pages":[{"name":"page1","elements":[{"type":"text","name":"q1"}]}]}""";
     private static readonly string[] _viewOnly = ["view"];
+    private static readonly object _themeOn = new { pdf = new { usesFormTheme = true } };
+    private static readonly object _themeOff = new { pdf = new { usesFormTheme = false } };
 
     [Fact]
-    public async Task Setting_on_returns_the_theme_by_id_and_by_access_token()
+    public async Task Settings_on_return_the_theme_by_id_and_by_access_token()
     {
         var ct = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
@@ -28,8 +31,9 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
         var (formId, storedTheme) = await CreatePrivateFormWithThemeAsync(admin);
 
-        var form = await PatchFormAsync(admin, formId, new { pdfUsesFormTheme = true });
-        Assert.True(form.GetProperty("pdfUsesFormTheme").GetBoolean());
+        using var saved = await PatchSettingsAsync(admin, formId, _themeOn, "\"0\"");
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.Equal("\"1\"", saved.Headers.ETag?.Tag);
         var submissionId = await CreateSubmissionAsync(admin, formId);
 
         var byId = await GetDefinitionAsync(admin, $"/api/forms/{formId}/submissions/{submissionId}");
@@ -40,17 +44,17 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
 
         foreach (var definition in new[] { byId, byToken })
         {
-            Assert.True(definition.GetProperty("pdfUsesFormTheme").GetBoolean());
+            Assert.False(definition.TryGetProperty("pdfUsesFormTheme", out _));
             Assert.True(JsonNode.DeepEquals(
                 JsonNode.Parse(storedTheme), JsonNode.Parse(definition.GetProperty("themeModel").GetString()!)));
         }
 
         var active = await GetJsonAsync(admin, $"/api/forms/{formId}/definition");
-        Assert.True(active.GetProperty("pdfUsesFormTheme").GetBoolean());
+        Assert.False(active.TryGetProperty("pdfUsesFormTheme", out _));
     }
 
     [Fact]
-    public async Task Setting_off_returns_no_theme()
+    public async Task Settings_off_return_no_theme()
     {
         var ct = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
@@ -67,9 +71,56 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
 
         foreach (var definition in new[] { byId, byToken })
         {
-            Assert.False(definition.GetProperty("pdfUsesFormTheme").GetBoolean());
             Assert.Equal(JsonValueKind.Null, definition.GetProperty("themeModel").ValueKind);
         }
+    }
+
+    [Fact]
+    public async Task Settings_writes_name_the_version_they_read()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        var (formId, _) = await CreatePrivateFormWithThemeAsync(admin);
+
+        // A form with no settings has every section at its defaults, at version 0.
+        using var read = await admin.GetAsync($"/api/forms/{formId}/settings", ct);
+        Assert.Equal("\"0\"", read.Headers.ETag?.Tag);
+        var defaults = await ReadJsonAsync(read);
+        Assert.Equal("0", defaults.GetProperty("version").ToString());
+        Assert.False(defaults.GetProperty("pdf").GetProperty("usesFormTheme").GetBoolean());
+
+        using var missing = await PatchSettingsAsync(admin, formId, _themeOn, ifMatch: null);
+        Assert.Equal(HttpStatusCode.PreconditionRequired, missing.StatusCode);
+        using var empty = await PatchSettingsAsync(admin, formId, new { }, "\"0\"");
+        Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
+
+        using var first = await PatchSettingsAsync(admin, formId, _themeOn, "\"0\"");
+        using var retry = await PatchSettingsAsync(admin, formId, _themeOn, "\"0\"");
+        Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+        Assert.Equal("1", (await ReadJsonAsync(retry)).GetProperty("version").ToString());
+
+        using var stale = await PatchSettingsAsync(admin, formId, _themeOff, "\"0\"");
+        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+        Assert.Equal("\"1\"", stale.Headers.ETag?.Tag);
+
+        using var missingForm = await admin.GetAsync("/api/forms/999999999/settings", ct);
+        Assert.Equal(HttpStatusCode.NotFound, missingForm.StatusCode);
+    }
+
+    private static async Task<HttpResponseMessage> PatchSettingsAsync(HttpClient admin, string formId, object body, string? ifMatch)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, $"/api/forms/{formId}/settings")
+        {
+            Content = JsonContent.Create(body),
+        };
+        if (ifMatch is not null)
+        {
+            request.Headers.TryAddWithoutValidation("If-Match", ifMatch);
+        }
+
+        return await admin.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     /// <returns>The form id, and the theme JSON as the API stored it (it normalizes what it is sent, and PostgreSQL reorders its keys).</returns>
@@ -93,7 +144,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
 
         var form = await PatchFormAsync(admin, formId, new { themeId = long.Parse(themeId) });
         Assert.False(form.GetProperty("isPublic").GetBoolean());
-        Assert.False(form.GetProperty("pdfUsesFormTheme").GetBoolean());
+        Assert.False(form.TryGetProperty("pdfUsesFormTheme", out _));
         return (formId, storedTheme);
     }
 

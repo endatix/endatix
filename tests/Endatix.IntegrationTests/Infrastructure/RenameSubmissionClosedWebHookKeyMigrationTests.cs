@@ -40,9 +40,8 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         var migrationDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var migrator = migrationDb.GetService<IMigrator>();
         var (previous, rename) = MigrationIds(migrationDb);
-        var rows = await CreateRowsAsync();
         await migrator.MigrateAsync(previous, Cancellation);
-        var seeded = await StoreRetiredKeysAsync(rows);
+        var seeded = await SeedAsync();
 
         // Act
         await migrator.MigrateAsync(rename, Cancellation);
@@ -77,9 +76,8 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         var migrationDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var migrator = migrationDb.GetService<IMigrator>();
         var (previous, rename) = MigrationIds(migrationDb);
-        var formId = await CreateFormAsync();
         await migrator.MigrateAsync(previous, Cancellation);
-        await StoreFormAsync(formId, stored);
+        var formId = await SeedFormAsync(stored);
 
         // Act
         await migrator.MigrateAsync(rename, Cancellation);
@@ -92,9 +90,7 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         WebHookConfiguration.RetiredKeyError(migrated.ToJsonString()).Should().BeNull();
     }
 
-    // Rows are created through EF on the latest schema, before the database steps down: the current model writes
-    // every column it maps, including ones added after the migration under test.
-    private async Task<long> CreateFormAsync()
+    private async Task<long> SeedFormAsync(string stored)
     {
         await using var db = CreateAppDbContext();
         db.Set<Tenant>().Add(new Tenant("webhook-key-rename", "tnntwk91") { Id = TenantId });
@@ -102,13 +98,8 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "stored"));
         db.Forms.Add(form);
         await db.SaveChangesAsync(Cancellation);
+        await StoreAsync(db.Forms.Where(candidate => candidate.Id == form.Id), stored);
         return form.Id;
-    }
-
-    private async Task StoreFormAsync(long formId, string stored)
-    {
-        await using var db = CreateAppDbContext();
-        await StoreAsync(db.Forms.Where(candidate => candidate.Id == formId), stored);
     }
 
     private async Task<string?> ReadFormAsync(long formId)
@@ -156,7 +147,8 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
     private static WebHookEventConfig ScreenOut() =>
         new() { IsEnabled = true, WebHookEndpoints = [new WebHookEndpointConfig { Url = ScreenOutUrl }] };
 
-    private async Task<SeededRows> CreateRowsAsync()
+    // The entities refuse the retired key now, so the rows an older version stored are written as data.
+    private async Task<SeededRows> SeedAsync()
     {
         await using var db = CreateAppDbContext();
         db.Set<Tenant>().Add(new Tenant("webhook-key-rename", "tnntwk91") { Id = TenantId });
@@ -167,18 +159,11 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         var noWebHooks = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "no-webhooks"));
         db.Forms.AddRange(oldKey, bothKeys, noWebHooks);
         await db.SaveChangesAsync(Cancellation);
-        return new SeededRows(oldKey.Id, bothKeys.Id, noWebHooks.Id);
-    }
-
-    // The entities refuse the retired key now, so the settings an older version stored are written as data.
-    private async Task<SeededRows> StoreRetiredKeysAsync(SeededRows rows)
-    {
-        await using var db = CreateAppDbContext();
-        await StoreAsync(db.Forms.Where(form => form.Id == rows.OldKey), Settings(OldKey));
-        await StoreAsync(db.Forms.Where(form => form.Id == rows.BothKeys), Settings(OldKey, NewKey));
+        await StoreAsync(db.Forms.Where(form => form.Id == oldKey.Id), Settings(OldKey));
+        await StoreAsync(db.Forms.Where(form => form.Id == bothKeys.Id), Settings(OldKey, NewKey));
         await db.Set<TenantSettings>().Where(settings => settings.TenantId == TenantId)
             .ExecuteUpdateAsync(update => update.SetProperty(settings => settings.WebHookSettingsJson, Settings(OldKey)), Cancellation);
-        return rows;
+        return new SeededRows(oldKey.Id, bothKeys.Id, noWebHooks.Id);
     }
 
     private static Task<int> StoreAsync(IQueryable<Form> forms, string json) =>
@@ -189,7 +174,6 @@ public sealed class RenameSubmissionClosedWebHookKeyMigrationTests(DbIntegration
         await using var db = CreateAppDbContext();
         var forms = await db.Forms.IgnoreQueryFilters().AsNoTracking()
             .Where(form => form.TenantId == TenantId)
-            .Select(form => new { form.Id, form.WebHookSettingsJson })
             .ToDictionaryAsync(form => form.Id, form => form.WebHookSettingsJson, Cancellation);
         var tenant = await db.Set<TenantSettings>().IgnoreQueryFilters().AsNoTracking()
             .Where(settings => settings.TenantId == TenantId)

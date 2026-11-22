@@ -340,11 +340,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<bool>("PdfUsesFormTheme")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
-
                     b.Property<long>("Revision")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -476,6 +471,29 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("FormDependencies", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>
+                {
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PdfJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("FormId");
+
+                    b.ToTable("FormSettings", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormTemplate", b =>
@@ -1175,6 +1193,15 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Navigation("Form");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Form", null)
+                        .WithOne()
+                        .HasForeignKey("Endatix.Core.Entities.FormSettings", "FormId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormTemplate", b =>

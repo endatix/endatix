@@ -57,12 +57,6 @@ public class FormDefinitionModel
     public bool LimitOnePerUser { get; set; }
 
     /// <summary>
-    /// Indicates whether the form's submission PDFs use its theme. Set only on the active-definition response and on
-    /// submission details, where <see cref="ThemeModel"/> is returned only when this is on; <c>null</c> elsewhere.
-    /// </summary>
-    public bool? PdfUsesFormTheme { get; set; }
-
-    /// <summary>
     /// Optional form-level metadata payload.
     /// </summary>
     public string? Metadata { get; set; }

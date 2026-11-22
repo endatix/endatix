@@ -23,7 +23,6 @@ public static class FormProjections
         IsPublic = form.IsPublic,
         LimitOnePerUser = form.LimitOnePerUser,
         SubmissionTokenExpiryHours = form.SubmissionTokenExpiryHours,
-        PdfUsesFormTheme = form.PdfUsesFormTheme,
         Metadata = form.Metadata,
         ThemeId = form.ThemeId.HasValue ? form.ThemeId.Value.ToString() : null,
         ActiveDefinitionId = form.ActiveDefinitionId.HasValue ? form.ActiveDefinitionId.Value.ToString() : null,

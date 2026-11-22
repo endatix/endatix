@@ -41,11 +41,6 @@ public class ActiveDefinitionDto
     public bool LimitOnePerUser { get; init; }
 
     /// <summary>
-    /// Indicates whether the form's submission PDFs use its theme.
-    /// </summary>
-    public bool PdfUsesFormTheme { get; init; }
-
-    /// <summary>
     /// Indicates whether this form definition is in draft status.
     /// </summary>
     public bool IsDraft { get; set; }

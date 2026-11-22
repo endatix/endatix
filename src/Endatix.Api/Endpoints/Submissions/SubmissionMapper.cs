@@ -58,8 +58,8 @@ public static class SubmissionMapper
     };
 
     /// <summary>
-    /// Maps a submission with its definition and form to submission details. The form theme is returned only when
-    /// the form's <c>PdfUsesFormTheme</c> is on; the GetById and GetByAccessToken handlers load it only then.
+    /// Maps a submission with its definition and form to submission details. The form theme is returned when it is
+    /// loaded: the GetById and GetByAccessToken handlers load it only when the form's PDF settings use it.
     /// </summary>
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)
     {
@@ -73,8 +73,7 @@ public static class SubmissionMapper
                 JsonData = submission.FormDefinition.JsonData,
                 CreatedAt = submission.FormDefinition.CreatedAt,
                 ModifiedAt = submission.FormDefinition.ModifiedAt,
-                PdfUsesFormTheme = submission.Form?.PdfUsesFormTheme ?? false,
-                ThemeModel = submission.Form is { PdfUsesFormTheme: true } ? submission.Form.Theme?.JsonData : null
+                ThemeModel = submission.Form?.Theme?.JsonData
             };
         }
 

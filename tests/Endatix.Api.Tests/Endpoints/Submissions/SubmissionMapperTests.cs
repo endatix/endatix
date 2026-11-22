@@ -42,42 +42,28 @@ public sealed class SubmissionMapperTests
     }
 
     [Fact]
-    public void MapToSubmissionDetails_FlagOnWithTheme_ReturnsThemeModel()
+    public void MapToSubmissionDetails_LoadedTheme_IsTheThemeModel()
     {
-        var submission = SubmissionWithForm(pdfUsesFormTheme: true, themeJson: "{\"cssVariables\":{}}");
+        var submission = SubmissionWithForm(themeJson: "{\"cssVariables\":{}}");
 
         var model = SubmissionMapper.MapToSubmissionDetails(submission);
 
-        model.FormDefinition!.PdfUsesFormTheme.Should().BeTrue();
-        model.FormDefinition.ThemeModel.Should().Be("{\"cssVariables\":{}}");
+        model.FormDefinition!.ThemeModel.Should().Be("{\"cssVariables\":{}}");
     }
 
     [Fact]
-    public void MapToSubmissionDetails_FlagOnWithoutTheme_ReturnsNoThemeModel()
+    public void MapToSubmissionDetails_NoThemeLoaded_HasNoThemeModel()
     {
-        var submission = SubmissionWithForm(pdfUsesFormTheme: true, themeJson: null);
+        var submission = SubmissionWithForm(themeJson: null);
 
         var model = SubmissionMapper.MapToSubmissionDetails(submission);
 
-        model.FormDefinition!.PdfUsesFormTheme.Should().BeTrue();
-        model.FormDefinition.ThemeModel.Should().BeNull();
+        model.FormDefinition!.ThemeModel.Should().BeNull();
     }
 
-    [Fact]
-    public void MapToSubmissionDetails_FlagOff_HidesTheLoadedTheme()
-    {
-        var submission = SubmissionWithForm(pdfUsesFormTheme: false, themeJson: "{\"cssVariables\":{}}");
-
-        var model = SubmissionMapper.MapToSubmissionDetails(submission);
-
-        model.FormDefinition!.PdfUsesFormTheme.Should().BeFalse();
-        model.FormDefinition.ThemeModel.Should().BeNull();
-    }
-
-    private static Submission SubmissionWithForm(bool pdfUsesFormTheme, string? themeJson)
+    private static Submission SubmissionWithForm(string? themeJson)
     {
         var form = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Form"));
-        form.SetPdfUsesFormTheme(pdfUsesFormTheme);
         if (themeJson is not null)
         {
             form.SetTheme(new Theme(1, "Theme", jsonData: themeJson) { Id = 5 });

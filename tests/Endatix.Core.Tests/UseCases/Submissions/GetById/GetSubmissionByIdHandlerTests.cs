@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -10,12 +11,13 @@ public class GetSubmissionByIdHandlerTests
 {
     private readonly IRepository<Submission> _submissionsRepository;
     private readonly IRepository<Theme> _themeRepository = Substitute.For<IRepository<Theme>>();
+    private readonly IFormSettingsRepository _formSettings = Substitute.For<IFormSettingsRepository>();
     private readonly GetByIdHandler _handler;
 
     public GetSubmissionByIdHandlerTests()
     {
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
-        _handler = new GetByIdHandler(_submissionsRepository, _themeRepository);
+        _handler = new GetByIdHandler(_submissionsRepository, _themeRepository, _formSettings);
     }
 
     [Fact]
@@ -38,48 +40,71 @@ public class GetSubmissionByIdHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PdfUsesFormTheme_LoadsTheFormTheme()
+    public async Task Handle_PdfSettingsUseTheTheme_LoadsTheFormTheme()
     {
         // Arrange
         var theme = new Theme(SampleData.TENANT_ID, "Theme", jsonData: "{}") { Id = 7 };
-        var submission = SubmissionOfFormWithTheme(theme.Id, pdfUsesFormTheme: true);
-        _submissionsRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
-            .Returns(submission);
+        var submission = SubmissionOfFormWithTheme(theme.Id);
+        PdfSettingsOf(submission.Form, usesFormTheme: true);
         _themeRepository.GetByIdAsync(theme.Id, Arg.Any<CancellationToken>()).Returns(theme);
 
         // Act
-        var result = await _handler.Handle(new GetByIdQuery(1, 1), CancellationToken.None);
+        var result = await _handler.Handle(new GetByIdQuery(1, 1), TestContext.Current.CancellationToken);
 
         // Assert
         result.Value.Form.Theme.Should().BeSameAs(theme);
     }
 
     [Fact]
-    public async Task Handle_PdfUsesFormThemeOff_DoesNotReadTheTheme()
+    public async Task Handle_PdfSettingsDontUseTheTheme_DoesNotReadTheTheme()
     {
         // Arrange
-        var submission = SubmissionOfFormWithTheme(themeId: 7, pdfUsesFormTheme: false);
-        _submissionsRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
-            .Returns(submission);
+        var submission = SubmissionOfFormWithTheme(themeId: 7);
+        PdfSettingsOf(submission.Form, usesFormTheme: false);
 
         // Act
-        var result = await _handler.Handle(new GetByIdQuery(1, 1), CancellationToken.None);
+        var result = await _handler.Handle(new GetByIdQuery(1, 1), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _themeRepository.DidNotReceiveWithAnyArgs().GetByIdAsync(default(long), TestContext.Current.CancellationToken);
     }
 
-    private static Submission SubmissionOfFormWithTheme(long themeId, bool pdfUsesFormTheme)
+    [Fact]
+    public async Task Handle_FormWithoutATheme_DoesNotReadTheSettings()
     {
-        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
-        form.SetTheme(new Theme(SampleData.TENANT_ID, "Stored") { Id = themeId });
-        form.SetPdfUsesFormTheme(pdfUsesFormTheme);
-        var unloaded = typeof(Form).GetProperty(nameof(Form.Theme))!;
-        unloaded.SetValue(form, null); // the submission query loads the form without its theme
+        // Arrange
+        var submission = SubmissionOfFormWithTheme(themeId: null);
+
+        // Act
+        var result = await _handler.Handle(new GetByIdQuery(1, 1), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        await _formSettings.DidNotReceiveWithAnyArgs().ReadAsync(default, default, TestContext.Current.CancellationToken);
+    }
+
+    private void PdfSettingsOf(Form form, bool usesFormTheme)
+    {
+        var settings = new Core.Entities.FormSettings(form.TenantId, form.Id);
+        settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = usesFormTheme } }, 0, DateTime.UtcNow);
+        _formSettings.ReadAsync(form.TenantId, form.Id, Arg.Any<CancellationToken>()).Returns(settings);
+    }
+
+    private Submission SubmissionOfFormWithTheme(long? themeId)
+    {
+        var form = Form.Create(1, new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form", IsEnabled: true));
+        if (themeId is { } id)
+        {
+            form.SetTheme(new Theme(SampleData.TENANT_ID, "Stored") { Id = id });
+            typeof(Form).GetProperty(nameof(Form.Theme))!.SetValue(form, null); // the submission query loads the form without its theme
+        }
+
         var submission = Submission.Create(new SubmissionCreateArgs(
             TenantId: SampleData.TENANT_ID, FormId: 1, FormDefinitionId: 1, JsonData: "{}"));
         typeof(Submission).GetProperty(nameof(Submission.Form))!.SetValue(submission, form);
+        _submissionsRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
         return submission;
     }
 
