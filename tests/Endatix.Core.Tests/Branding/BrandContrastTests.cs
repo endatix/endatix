@@ -21,6 +21,10 @@ public sealed class BrandContrastTests
     [InlineData("hsla(216deg, 100%, 41%)", "#0054d1")]
     [InlineData("oklch(0.5 0.2 260)", "#0559d2")]
     [InlineData("oklch(70% 40% 30deg)", "#f17260")]
+    [InlineData("OKLCH(0.5 0.2 260)", "#0559d2")]
+    [InlineData("HSL(216DEG, 100%, 41%)", "#0054d1")]
+    [InlineData(" \t\n\r\fhsl(216 100% 41%)\n", "#0054d1")]
+    [InlineData("hsl(216\t100%\n41%)", "#0054d1")]
     public void Parse_EachSyntaxTheHubReads_GivesTheHubsColour(string input, string expectedHex)
     {
         // Act
@@ -41,6 +45,29 @@ public sealed class BrandContrastTests
     [InlineData("rgba(1,2,3,0.5)")]
     [InlineData("rgb(\u0661\u0662 20 30)")]
     public void Parse_WhatTheHubRejects_IsNull(string input)
+    {
+        // Act
+        var color = BrandColor.Parse(input);
+
+        // Assert
+        color.Should().BeNull();
+    }
+
+    /// <summary>
+    /// CSS whitespace and function names are ASCII. .NET counts U+0085 as whitespace and folds the Kelvin sign (U+212A) to
+    /// <c>k</c> and the long s (U+017F) to <c>s</c>; JavaScript counts U+FEFF as whitespace. Both sides refuse all of them.
+    /// </summary>
+    [Theory]
+    [InlineData("\u0085hsl(216 100% 41%)")]
+    [InlineData("hsl(216 100% 41%)\u0085")]
+    [InlineData("hsl(216\u0085100%\u008541%)")]
+    [InlineData("hsl(\u0085216, 100%, 41%)")]
+    [InlineData("﻿hsl(216 100% 41%)")]
+    [InlineData("hsl(216﻿100%﻿41%)")]
+    [InlineData("oKlch(0.6 0.1 250)")]
+    [InlineData("hſl(216 100% 41%)")]
+    [InlineData("hſl(216, 100%, 41%)")]
+    public void Parse_NonAsciiWhitespaceOrCaseFolding_IsNull(string input)
     {
         // Act
         var color = BrandColor.Parse(input);
