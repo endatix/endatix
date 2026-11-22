@@ -20,7 +20,6 @@ internal static partial class BrandColor
     private const string ARG = "(" + NUMBER + ")(%|deg)?";
     /// <summary>CSS whitespace, ASCII only: .NET <c>\s</c> also matches U+0085, JavaScript's also U+FEFF.</summary>
     private const string WS = @"[ \t\n\r\f]";
-    private static readonly char[] _whitespace = [' ', '\t', '\n', '\r', '\f'];
     private const double OKLCH_CHROMA_PER_PERCENT = 0.4 / 100;
     private const double GAMUT_EPSILON = 1e-4;
     private const int GAMUT_SEARCH_STEPS = 24;
@@ -35,6 +34,9 @@ internal static partial class BrandColor
     /// <summary>All spaces: <c>rgb()</c>, <c>hsl()</c> and <c>oklch()</c>; CSS has no <c>oklcha()</c>. Matched against <see cref="ToAsciiLower"/>.</summary>
     [GeneratedRegex(@"^(rgb|hsl|oklch(?!a))a?\(" + WS + "*" + ARG + WS + "+" + ARG + WS + "+" + ARG + WS + @"*\)$")]
     private static partial Regex SpaceArgs();
+
+    /// <summary>The characters of <see cref="WS"/>.</summary>
+    private static readonly char[] _whitespace = [' ', '\t', '\n', '\r', '\f'];
 
     /// <summary>The regex groups of the three arguments; each unit is the next group.</summary>
     private static readonly int[] _argumentGroups = [2, 4, 6];
