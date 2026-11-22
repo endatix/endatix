@@ -15,7 +15,7 @@ internal static class BrandPackSchema
     /// SHA-256 (lower-case hex) of <c>brand.schema.json</c>'s UTF-8 bytes with LF line endings. A schema change
     /// copies the Hub's file and updates this value in the same change.
     /// </summary>
-    internal const string Sha256 = "e37bad9acb0ddcbaf61b1faec7fe64dea30360a97c5c29aa117950be95dee84b";
+    internal const string Sha256 = "8f145b52c77d19fb41ba39506eb342dcaa99239bd1a26c320ee66a378164d92b";
 
     internal static string ReadText()
     {

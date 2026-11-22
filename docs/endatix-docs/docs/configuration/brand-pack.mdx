@@ -70,10 +70,10 @@ The square icon: the browser tab icon and the collapsed sidebar. Without it, the
 The social preview image for pages that have a description.
 </Setting>
 <Setting name="tokens.color.primary">
-The accent color, as a [design token](https://www.designtokens.org/) `{ "$type": "color", "$value": "<color>" }`. Hex, `rgb()`, `hsl()` or `oklch()`. The Hub derives its buttons, focus rings, sidebar ring and chart colors from it, for light and dark mode. Survey Creator follows. Text on the accent always gets at least 4.5:1 contrast.
+The accent color, as a [design token](https://www.designtokens.org/) `{ "$type": "color", "$value": "<color>" }`. Hex, `rgb()`, `hsl()` or `oklch()`, up to 64 characters. The Hub derives its buttons, focus rings, sidebar ring and chart colors from it, for light and dark mode. Survey Creator follows. Text on the accent always gets at least 4.5:1 contrast.
 </Setting>
 <Setting name="tokens.color.primary-on-dark">
-The accent for dark mode. Without it, the dark accent is derived from `primary`.
+The accent for dark mode, in the same format and with the same limit as `primary`. Without it, the dark accent is derived from `primary`.
 </Setting>
 <Setting name="links.website">
 The product website (`http`, `https` or `mailto`). The Hub links it from the sign-in pages. The API fills `{{websiteUrl}}` with it.

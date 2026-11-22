@@ -23,6 +23,17 @@ public sealed class BrandOverrideSchemaTests
     }
 
     [Fact]
+    public void ColorMaxLength_IsThePackSchemasColorTokenMaxLength()
+    {
+        // Act
+        var maxLength = _schema.GetProperty("$defs").GetProperty("colorToken").GetProperty("properties")
+            .GetProperty("$value").GetProperty("maxLength").GetInt32();
+
+        // Assert
+        maxLength.Should().Be(BrandOverrideReader.COLOR_MAX_LENGTH);
+    }
+
+    [Fact]
     public void OverrideFields_AreFieldsOfThePackSchema()
     {
         // Arrange
