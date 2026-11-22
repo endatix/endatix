@@ -31,9 +31,15 @@ internal sealed class TenantBrandingRepository(
             .FirstOrDefaultAsync(version => version.TenantId == tenantId && version.Number == number, cancellationToken);
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The anonymous public read calls this with the tenant its slug names, and caches the answer for every caller. A
+    /// signed-in caller's token still sets the ambient tenant, so the tenant filter would hide another tenant's brand;
+    /// the <paramref name="tenantId"/> condition is the isolation here.
+    /// </remarks>
     public Task<string?> FindPublishedJsonAsync(long tenantId, CancellationToken cancellationToken) =>
         dbContext.TenantBrandings
             .AsNoTracking()
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
             .Where(branding => branding.TenantId == tenantId)
             .Select(branding => branding.PublishedJson)
             .FirstOrDefaultAsync(cancellationToken);

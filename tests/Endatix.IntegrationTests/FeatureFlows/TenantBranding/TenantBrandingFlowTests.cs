@@ -213,6 +213,64 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
             .Should().Be(JsonValueKind.Null);
     }
 
+    [Fact]
+    public async Task A_signed_in_reader_from_another_tenant_reads_and_caches_the_brand_of_the_slug()
+    {
+        // Arrange - tenant A publishes; nothing has read A's public tenant yet, so the cache is cold
+        await using BrandingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword }, Cancellation);
+        using var adminA = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 0, cancellationToken: Cancellation);
+        using var adminB = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: Cancellation);
+        using var anonymous = world.AnonymousClient();
+        var slugA = await ShortUrlAsync(world, tenantIndex: 0);
+        using var published = await SendAsync(adminA, Publish(BLUE), "\"0\"");
+
+        // Act - B's token on A's slug fills the cache that the anonymous reader then hits
+        var signedInAccent = await PublicAccentAsync(adminB, slugA);
+        var anonymousAccent = await PublicAccentAsync(anonymous, slugA);
+
+        // Assert
+        published.StatusCode.Should().Be(HttpStatusCode.OK);
+        signedInAccent.Should().Be("#0052d1");
+        anonymousAccent.Should().Be("#0052d1");
+    }
+
+    [Fact]
+    public async Task Each_tenant_reads_and_writes_only_its_own_branding()
+    {
+        // Arrange - A has two versions, B one
+        await using BrandingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword }, Cancellation);
+        using var adminA = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 0, cancellationToken: Cancellation);
+        using var adminB = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: Cancellation);
+        using var anonymous = world.AnonymousClient();
+        using var blueA = await SendAsync(adminA, Publish(BLUE), "\"0\"");
+        using var greenA = await SendAsync(adminA, Publish(GREEN), blueA.Headers.ETag!.Tag);
+        var slugB = await ShortUrlAsync(world, tenantIndex: 1);
+        var emptyB = await PublicTenantAsync(anonymous, slugB);
+
+        // Act
+        using var readB = await adminB.GetAsync(BrandingRoute, Cancellation);
+        using var historyB = await adminB.GetAsync(VersionsRoute, Cancellation);
+        using var restoreB = await SendAsync(adminB, Post(RestoreRoute, new { number = 2 }), "\"0\"");
+        using var blueB = await SendAsync(adminB, Publish(BLUE), "\"0\"");
+        var publicB = await PublicAccentAsync(anonymous, slugB);
+        using var blueAgainA = await SendAsync(adminA, Publish(BLUE), greenA.Headers.ETag!.Tag);
+        var publicBAfterA = await PublicAccentAsync(anonymous, slugB);
+
+        // Assert - B starts at "0" with no history; A's numbers do not exist for B; A's writes leave B's brand
+        greenA.Headers.ETag!.Tag.Should().Be("\"2\"");
+        emptyB.GetProperty("branding").ValueKind.Should().Be(JsonValueKind.Null);
+        readB.Headers.ETag!.Tag.Should().Be("\"0\"");
+        (await ReadAsync(readB)).GetProperty("published").ValueKind.Should().Be(JsonValueKind.Null);
+        (await ReadAsync(historyB)).GetProperty("items").GetArrayLength().Should().Be(0);
+        (await ProblemCodeAsync(restoreB)).Should().Be("unknown_version");
+        blueB.Headers.ETag!.Tag.Should().Be("\"1\"");
+        publicB.Should().Be("#0052d1");
+        blueAgainA.Headers.ETag!.Tag.Should().Be("\"3\"");
+        publicBAfterA.Should().Be("#0052d1");
+    }
+
     // Seeds a tenant on a host with the flag on and the entitlement, and publishes BLUE as version 1.
     private async Task<IntegrationTestWorld> PublishBlueAsync()
     {
@@ -265,22 +323,22 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         return (await ReadAsync(response)).GetProperty("problems")[0].GetProperty("code").GetString();
     }
 
-    private static async Task<string?> PublicAccentAsync(HttpClient anonymous, string slug) =>
-        (await PublicTenantAsync(anonymous, slug))
+    private static async Task<string?> PublicAccentAsync(HttpClient client, string slug) =>
+        (await PublicTenantAsync(client, slug))
             .GetProperty("branding").GetProperty("tokens").GetProperty("color").GetProperty("primary")
             .GetProperty("$value").GetString();
 
-    private static async Task<JsonElement> PublicTenantAsync(HttpClient anonymous, string slug)
+    private static async Task<JsonElement> PublicTenantAsync(HttpClient client, string slug)
     {
-        using var response = await anonymous.GetAsync($"/api/public/tenants/{slug}", Cancellation);
+        using var response = await client.GetAsync($"/api/public/tenants/{slug}", Cancellation);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         return await ReadAsync(response);
     }
 
-    private static async Task<string> ShortUrlAsync(IntegrationTestWorld world)
+    private static async Task<string> ShortUrlAsync(IntegrationTestWorld world, int tenantIndex = 0)
     {
         using var platformAdmin = await world.AsAsync(TestPersona.PlatformAdmin, cancellationToken: Cancellation);
-        using var response = await platformAdmin.GetAsync($"/api/admin/tenants/{world.Tenants[0].Id}", Cancellation);
+        using var response = await platformAdmin.GetAsync($"/api/admin/tenants/{world.Tenants[tenantIndex].Id}", Cancellation);
         return (await ReadAsync(response)).GetProperty("shortUrl").GetString()!;
     }
 
