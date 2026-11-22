@@ -27,7 +27,7 @@ public sealed class PublishTenantBranding(
     : TenantBrandingWriteEndpoint<PublishTenantBrandingRequest>(mediator, publicTenantCache, userContext)
 {
     // The brand override refuses more than 4,096 characters (too_large); a UTF-8 character is at most 4 bytes, so a
-    // body this size still gets that answer instead of the server's 413.
+    // body this size still gets that answer, and a larger one is 413 (RequestBodyTooLargeFilter).
     private const long MAX_BODY_BYTES = 16 * 1024 + 4;
 
     /// <inheritdoc/>
@@ -39,10 +39,14 @@ public sealed class PublishTenantBranding(
         "it live. Publishing the brand that is already live changes nothing.");
 
     /// <inheritdoc/>
-    protected override void ConfigureBody() =>
+    protected override void ConfigureBody()
+    {
         Description(builder => builder
             .Accepts<object>("application/json")
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .WithMetadata(new RequestSizeLimitAttribute(MAX_BODY_BYTES)));
+        Options(builder => builder.AddEndpointFilter<RequestBodyTooLargeFilter>());
+    }
 
     /// <inheritdoc/>
     protected override IRequest<Result<TenantBrandingDto>> Command(
