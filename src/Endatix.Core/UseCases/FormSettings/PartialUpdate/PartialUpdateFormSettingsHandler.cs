@@ -39,13 +39,18 @@ internal sealed class PartialUpdateFormSettingsHandler(
             return applied.ToErrorResult<FormSettingsDto>();
         }
 
-        if (!applied.Value || await repository.SaveOrConcedeAsync(settings, cancellationToken))
-        {
-            return FormSettingsDto.From(settings);
-        }
+        return !applied.Value || await repository.SaveOrConcedeAsync(settings, cancellationToken)
+            ? FormSettingsDto.From(settings)
+            : await AfterLostRaceAsync(form, request, cancellationToken);
+    }
 
-        // Another write won the race. When it stored this very value (a retried or doubled request), the write is a
-        // no-op like any other; otherwise it is a conflict.
+    // Another write won the race. When it stored this very value (a retried or doubled request), the write is a no-op
+    // like any other; otherwise it is a conflict.
+    private async Task<Result<FormSettingsDto>> AfterLostRaceAsync(
+        Form form,
+        PartialUpdateFormSettingsCommand request,
+        CancellationToken cancellationToken)
+    {
         var winner = await repository.FindAsync(form.Id, cancellationToken);
         return winner is not null && Apply(winner, request) is { IsSuccess: true, Value: false }
             ? FormSettingsDto.From(winner)

@@ -63,11 +63,13 @@ public sealed class PartialUpdate(IMediator mediator)
 
         var change = new FormSettingsChange { Pdf = req.Pdf?.ToSection() };
         var result = await mediator.Send(new PartialUpdateFormSettingsCommand(req.FormId, expectedVersion, change), ct);
-        if (result.Status == ResultStatus.Conflict)
-        {
-            return await StaleAsync(req.FormId, result, ct);
-        }
+        return result.Status == ResultStatus.Conflict
+            ? await StaleAsync(req.FormId, result, ct)
+            : Saved(result);
+    }
 
+    private Results<Ok<FormSettingsModel>, ProblemHttpResult> Saved(Result<FormSettingsDto> result)
+    {
         if (!result.IsSuccess)
         {
             return result.ToProblem();

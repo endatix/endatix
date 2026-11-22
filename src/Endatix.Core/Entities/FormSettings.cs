@@ -22,9 +22,6 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     /// <summary>The <see cref="Version"/> a write names when the form has no settings row yet.</summary>
     public const long UNSAVED_VERSION = 0;
 
-    private string? _pdfJson;
-    private PdfSettings? _pdf;
-
     private FormSettings() { } // For EF Core
 
     /// <summary>Starts a form's settings with every section at its defaults, at <see cref="UNSAVED_VERSION"/>.</summary>
@@ -49,19 +46,11 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     public DateTime? ModifiedAt { get; private set; }
 
     /// <summary>The PDF section as stored; null means its defaults.</summary>
-    public string? PdfJson
-    {
-        get => _pdfJson;
-        private set
-        {
-            _pdfJson = value;
-            _pdf = null;
-        }
-    }
+    public string? PdfJson { get; private set; }
 
     /// <summary>The PDF section, with defaults for anything not stored.</summary>
     [NotMapped]
-    public PdfSettings Pdf => _pdf ??= FormSettingsJson.Read<PdfSettings>(PdfJson);
+    public PdfSettings Pdf => FormSettingsJson.Read<PdfSettings>(PdfJson);
 
     /// <summary>Replaces each section <paramref name="change"/> names whose value differs from the stored one.</summary>
     /// <param name="change">The sections to replace, each whole; a null section is left alone.</param>
