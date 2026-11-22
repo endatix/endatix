@@ -12,7 +12,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
   | ID | Feature | Types |
   | --- | --- | --- |
   | `ENDATIX0001` | Tenant entitlements | `ITenantEntitlements`, `EntitlementNames`, `TenantEntitlementsServiceCollectionExtensions` |
-  | `ENDATIX0002` | Tenant branding | `TenantBranding`, `TenantBrandingVersion`, `ITenantBrandingRepository`, `AppDbContext.TenantBrandings`, `AppDbContext.TenantBrandingVersions`, `PublishTenantBrandingCommand`, `RestoreTenantBrandingCommand`, `RollbackTenantBrandingCommand`, `TenantBrandingDto` |
+  | `ENDATIX0002` | Tenant branding | `TenantBranding`, `TenantBrandingVersion`, `ITenantBrandingRepository`, `AppDbContext.TenantBrandings`, `AppDbContext.TenantBrandingVersions`, `PublishTenantBrandingCommand`, `RestoreTenantBrandingCommand`, `RollbackTenantBrandingCommand`, `TenantBrandingDto`, `GetTenantBrandingQuery`, `TenantBrandingReadDto`, `ListTenantBrandingVersionsQuery`, `TenantBrandingVersionDto`, the `Endpoints/TenantBranding` endpoints, requests and models |
   | `ENDATIX0003` | Deployment brand | `DeploymentBrand`, `BrandPackException`, `AddDeploymentBrand` |
   | `ENDATIX0004` | Email sender and variables | `EmailVariables`, `DeploymentSender`, `EmailSenderSettings`, `EmailWithBody.FromName`, `EmailTemplateRenderer.ProviderTemplateData` |
 

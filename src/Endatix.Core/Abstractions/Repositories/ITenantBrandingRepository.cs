@@ -21,6 +21,15 @@ public interface ITenantBrandingRepository
     /// <summary>One of the tenant's versions, read only; null when it has no version with that number.</summary>
     Task<TenantBrandingVersion?> FindVersionAsync(long tenantId, long number, CancellationToken cancellationToken);
 
+    /// <summary>The live version's JSON, read only; null when the deployment brand applies.</summary>
+    Task<string?> FindPublishedJsonAsync(long tenantId, CancellationToken cancellationToken);
+
+    /// <summary>How many versions the tenant has.</summary>
+    Task<int> CountVersionsAsync(long tenantId, CancellationToken cancellationToken);
+
+    /// <summary>A page of the tenant's versions, newest first, read only.</summary>
+    Task<IReadOnlyList<TenantBrandingVersion>> ListVersionsAsync(long tenantId, int skip, int take, CancellationToken cancellationToken);
+
     /// <summary>
     /// Saves <paramref name="branding"/> (adding it when it is new) and its new <paramref name="version"/> in one save.
     /// </summary>

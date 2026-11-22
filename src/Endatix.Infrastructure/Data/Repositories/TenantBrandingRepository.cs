@@ -30,6 +30,32 @@ internal sealed class TenantBrandingRepository(
             .FirstOrDefaultAsync(version => version.TenantId == tenantId && version.Number == number, cancellationToken);
 
     /// <inheritdoc />
+    public Task<string?> FindPublishedJsonAsync(long tenantId, CancellationToken cancellationToken) =>
+        dbContext.TenantBrandings
+            .AsNoTracking()
+            .Where(branding => branding.TenantId == tenantId)
+            .Select(branding => branding.PublishedJson)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> CountVersionsAsync(long tenantId, CancellationToken cancellationToken) =>
+        dbContext.TenantBrandingVersions.CountAsync(version => version.TenantId == tenantId, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<TenantBrandingVersion>> ListVersionsAsync(
+        long tenantId,
+        int skip,
+        int take,
+        CancellationToken cancellationToken) =>
+        await dbContext.TenantBrandingVersions
+            .AsNoTracking()
+            .Where(version => version.TenantId == tenantId)
+            .OrderByDescending(version => version.Number)
+            .Skip(skip)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc />
     public async Task<bool> SaveOrConcedeAsync(TenantBranding branding, TenantBrandingVersion version, CancellationToken cancellationToken)
     {
         if (dbContext.Entry(branding).State == EntityState.Detached)

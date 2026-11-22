@@ -1,3 +1,5 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -13,13 +15,15 @@ public class GetPublicTenantHandlerTests
 
     private readonly IRepository<CoreEntities.Tenant> _tenantRepository;
     private readonly IRepository<CoreEntities.TenantSettings> _tenantSettingsRepository;
+    private readonly ITenantBrandingRepository _brandingRepository = Substitute.For<ITenantBrandingRepository>();
+    private readonly ITenantEntitlements _entitlements = Substitute.For<ITenantEntitlements>();
     private readonly GetPublicTenantHandler _sut;
 
     public GetPublicTenantHandlerTests()
     {
         _tenantRepository = Substitute.For<IRepository<CoreEntities.Tenant>>();
         _tenantSettingsRepository = Substitute.For<IRepository<CoreEntities.TenantSettings>>();
-        _sut = new GetPublicTenantHandler(_tenantRepository, _tenantSettingsRepository);
+        _sut = new GetPublicTenantHandler(_tenantRepository, _tenantSettingsRepository, _brandingRepository, _entitlements);
     }
 
     [Theory]
@@ -92,4 +96,41 @@ public class GetPublicTenantHandlerTests
         result.Value.AllowedAuthProviders.Should().BeEquivalentTo(["google", "endatix"]);
         result.Value.GetType().GetProperty("Id").Should().BeNull();
     }
+
+    [Fact]
+    public async Task Handle_EntitledTenantWithPublishedBranding_ReturnsTheBrand()
+    {
+        // Arrange
+        const string brand = """{"version":1}""";
+        GivenTenant();
+        _entitlements.IsEntitledAsync(TenantId, EntitlementNames.BRANDING, Arg.Any<CancellationToken>()).Returns(true);
+        _brandingRepository.FindPublishedJsonAsync(TenantId, Arg.Any<CancellationToken>()).Returns(brand);
+
+        // Act
+        var result = await _sut.Handle(new GetPublicTenantQuery(Slug), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Value.BrandingJson.Should().Be(brand);
+    }
+
+    [Fact]
+    public async Task Handle_TenantNotEntitled_ReturnsNoBrandAndReadsNone()
+    {
+        // Arrange
+        GivenTenant();
+        _entitlements.IsEntitledAsync(TenantId, EntitlementNames.BRANDING, Arg.Any<CancellationToken>()).Returns(false);
+        _brandingRepository.FindPublishedJsonAsync(TenantId, Arg.Any<CancellationToken>()).Returns("""{"version":1}""");
+
+        // Act
+        var result = await _sut.Handle(new GetPublicTenantQuery(Slug), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Value.BrandingJson.Should().BeNull();
+        await _brandingRepository.DidNotReceive().FindPublishedJsonAsync(Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    private void GivenTenant() =>
+        _tenantRepository
+            .SingleOrDefaultAsync(Arg.Any<TenantSpecifications.LiveByShortUrlSpec>(), Arg.Any<CancellationToken>())
+            .Returns(new CoreEntities.Tenant("Acme", Slug, "Primary") { Id = TenantId });
 }
