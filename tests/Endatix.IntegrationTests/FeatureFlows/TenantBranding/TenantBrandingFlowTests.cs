@@ -18,6 +18,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
 {
     private const string SeedPassword = "Password123!";
     private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
+    private const string RED = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#b91c1c"}}}}""";
     private const string GREEN = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
 
     private const string BrandingRoute = "/api/tenant-branding";
@@ -254,11 +255,14 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         using var historyB = await adminB.GetAsync(VersionsRoute, Cancellation);
         using var restoreB = await SendAsync(adminB, Post(RestoreRoute, new { number = 2 }), "\"0\"");
         using var blueB = await SendAsync(adminB, Publish(BLUE), "\"0\"");
-        var publicB = await PublicAccentAsync(anonymous, slugB);
         using var blueAgainA = await SendAsync(adminA, Publish(BLUE), greenA.Headers.ETag!.Tag);
-        var publicBAfterA = await PublicAccentAsync(anonymous, slugB);
+        using var redA = await SendAsync(adminA, Publish(RED), blueAgainA.Headers.ETag!.Tag);
 
-        // Assert - B starts at "0" with no history; A's numbers do not exist for B; A's writes leave B's brand
+        // B's own publish evicted its public entry and nothing has read it since, so both reads come from the database
+        var publicBAfterA = await PublicAccentAsync(anonymous, slugB);
+        using var readBAfterA = await adminB.GetAsync(BrandingRoute, Cancellation);
+
+        // Assert - B starts at "0" with no history; A's numbers do not exist for B; A's red leaves B's blue
         greenA.Headers.ETag!.Tag.Should().Be("\"2\"");
         emptyB.GetProperty("branding").ValueKind.Should().Be(JsonValueKind.Null);
         readB.Headers.ETag!.Tag.Should().Be("\"0\"");
@@ -266,9 +270,10 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         (await ReadAsync(historyB)).GetProperty("items").GetArrayLength().Should().Be(0);
         (await ProblemCodeAsync(restoreB)).Should().Be("unknown_version");
         blueB.Headers.ETag!.Tag.Should().Be("\"1\"");
-        publicB.Should().Be("#0052d1");
-        blueAgainA.Headers.ETag!.Tag.Should().Be("\"3\"");
+        redA.Headers.ETag!.Tag.Should().Be("\"4\"");
         publicBAfterA.Should().Be("#0052d1");
+        AccentOf((await ReadAsync(readBAfterA)).GetProperty("published")).Should().Be("#0052d1");
+        readBAfterA.Headers.ETag!.Tag.Should().Be("\"1\"");
     }
 
     // Seeds a tenant on a host with the flag on and the entitlement, and publishes BLUE as version 1.
@@ -324,8 +329,10 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     private static async Task<string?> PublicAccentAsync(HttpClient client, string slug) =>
-        (await PublicTenantAsync(client, slug))
-            .GetProperty("branding").GetProperty("tokens").GetProperty("color").GetProperty("primary")
+        AccentOf((await PublicTenantAsync(client, slug)).GetProperty("branding"));
+
+    private static string? AccentOf(JsonElement brand) =>
+        brand.GetProperty("tokens").GetProperty("color").GetProperty("primary")
             .GetProperty("$value").GetString();
 
     private static async Task<JsonElement> PublicTenantAsync(HttpClient client, string slug)
