@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Endatix.Api.Common;
 
 /// <summary>
-/// The <c>ETag</c> and <c>If-Match</c> headers of a versioned write (the pattern pending ADR 0006, versioning-1.md §2):
-/// one strong tag holding the row's <c>Version</c>, <c>"3"</c>, and <c>"0"</c> before the first write.
+/// The <c>ETag</c> and <c>If-Match</c> headers of a versioned write (the If-Match row of the ARCHITECTURE.md decision
+/// log, endatix#1691): one strong tag holding the row's <c>Version</c>, <c>"3"</c>, and <c>"0"</c> before the first write.
 /// </summary>
 /// <remarks>
 /// A write requires <c>If-Match</c>: missing is 428, a value that is not one strong tag is 400 (<see cref="ReadIfMatch"/>),

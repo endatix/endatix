@@ -109,7 +109,7 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
         return TypedResults.Ok(TenantBrandingModel.MapWrite(branding));
     }
 
-    // A stale write names the current version, so the client can read it and retry (pending ADR 0006, versioning-1.md §2).
+    // A stale write names the current version, so the client can read it and retry (ARCHITECTURE.md, If-Match row).
     private async Task<ProblemHttpResult> StaleAsync(Result<TenantBrandingDto> result, CancellationToken ct)
     {
         var problem = TenantBrandingHttp.Problem(StatusCodes.Status412PreconditionFailed, "Precondition failed",
