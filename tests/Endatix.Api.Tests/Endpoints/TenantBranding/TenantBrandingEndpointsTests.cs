@@ -4,6 +4,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Get;
+using Endatix.Core.UseCases.TenantBranding.History;
 using Endatix.Core.UseCases.TenantBranding.Publishing;
 using Endatix.Core.UseCases.TenantBranding.Restoring;
 using Endatix.Infrastructure.Caching;
@@ -51,6 +52,41 @@ public sealed class TenantBrandingEndpointsTests
         model.PublishedNumber.Should().Be(1);
         model.Version.Should().Be(1);
         endpoint.HttpContext.Response.Headers.ETag.ToString().Should().Be("\"1\"");
+    }
+
+    [Fact]
+    public async Task History_SendsThePagingAndListsTheVersions()
+    {
+        // Arrange
+        var endpoint = Factory.Create<ListTenantBrandingVersions>(_mediator);
+        _mediator.Send(Arg.Any<ListTenantBrandingVersionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(Paged<TenantBrandingVersionDto>.FromPage(2, 1, 2,
+                [new TenantBrandingVersionDto(1, _publishedAt, 7, "publish", null)])));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(new ListTenantBrandingVersionsRequest { Page = 2, PageSize = 1 }, Cancellation);
+
+        // Assert
+        await _mediator.Received(1).Send(new ListTenantBrandingVersionsQuery(2, 1), Arg.Any<CancellationToken>());
+        var page = response.Result.As<Ok<Paged<TenantBrandingVersionModel>>>().Value!;
+        page.TotalRecords.Should().Be(2);
+        page.Items.Should().Equal(new TenantBrandingVersionModel(1, _publishedAt, 7, "publish", null));
+    }
+
+    [Fact]
+    public async Task Get_NoTenant_IsUnauthorizedWithoutAnETag()
+    {
+        // Arrange
+        var endpoint = Factory.Create<GetTenantBranding>(_mediator);
+        _mediator.Send(Arg.Any<GetTenantBrandingQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result<TenantBrandingReadDto>.Unauthorized());
+
+        // Act
+        var response = await endpoint.ExecuteAsync(Cancellation);
+
+        // Assert
+        response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        endpoint.HttpContext.Response.Headers.ETag.Should().BeEmpty();
     }
 
     [Fact]
