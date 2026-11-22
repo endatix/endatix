@@ -97,8 +97,9 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
         TenantBrandingDto branding,
         long expectedVersion)
     {
-        // A write that changed nothing returns the version it was given; the cached read is still right. The write is
-        // committed, so a client that hangs up now must not leave the old brand cached.
+        // A write that changed nothing, named at the current version, keeps the cached read. One that names an older
+        // version also evicts it, which is harmless. The write is committed, so a client that hangs up now must not
+        // leave the old brand cached.
         if (branding.Version != expectedVersion)
         {
             await publicTenantCache.InvalidateCurrentTenantAsync(CancellationToken.None);

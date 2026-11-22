@@ -32,7 +32,7 @@ public sealed class ListTenantBrandingVersions(IMediator mediator)
         {
             s.Summary = "List the tenant's branding versions";
             s.Description = "A paged list (items) of the tenant's branding versions, newest first: number, createdAt, " +
-                "createdBy, source (publish or restore) and restoredFromNumber; ids and numbers are strings. Empty, not " +
+                "createdBy, source (publish, restore or reset) and restoredFromNumber; ids and numbers are strings. Empty, not " +
                 "403, when the tenant's plan does not include branding, as every read shows no brand then.";
             s.Responses[200] = "The versions.";
             s.Responses[400] = $"Page below 1, or page size outside 1..{PagedRequestLimits.MAX_PAGE_SIZE}.";

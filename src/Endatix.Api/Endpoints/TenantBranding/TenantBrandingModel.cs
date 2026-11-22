@@ -40,7 +40,8 @@ public sealed record TenantBrandingModel(
 /// <param name="CreatedAt">When it was published.</param>
 /// <param name="CreatedBy">The user who published it; null when not known.</param>
 /// <param name="Source"><c>publish</c>, <c>restore</c> or <c>reset</c>.</param>
-/// <param name="RestoredFromNumber">For a restore, the version it copies; otherwise null.</param>
+/// <param name="RestoredFromNumber">For a restore, or a reset made by restoring one, the version it copies; otherwise
+/// null.</param>
 [Experimental("ENDATIX0002")]
 public sealed record TenantBrandingVersionModel(
     long Number,

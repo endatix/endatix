@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.TenantBranding;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
-public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SEED_PASSWORD = "Password123!";
     private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
@@ -82,64 +82,6 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         items[0].GetProperty("restoredFromNumber").GetString().Should().Be("2");
         items[0].GetProperty("createdBy").GetString().Should().Be(world.Tenants[0].Admin.Id.ToString());
         oversizedPage.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task A_reset_shows_the_deployment_brand_and_a_second_one_changes_nothing()
-    {
-        // Arrange
-        await using BrandingWebHost host = new(fixture);
-        var (world, admin) = await TenantAdminAsync(host);
-        using var anonymous = world.AnonymousClient();
-        var slug = await ShortUrlAsync(world);
-        using var nothingToReset = await SendAsync(admin, Post(RESET_ROUTE), "\"0\"");
-        using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
-        var blueAccent = await PublicAccentAsync(anonymous, slug);
-
-        // Act - a reset has no body
-        using var reset = await SendAsync(admin, Post(RESET_ROUTE), blue.Headers.ETag!.Tag);
-        var afterReset = (await PublicTenantAsync(anonymous, slug)).GetProperty("branding");
-        using var resetAgain = await SendAsync(admin, Post(RESET_ROUTE), "\"1\"");
-
-        // Assert - the first reset has nothing to turn off; the second names a stale version and still succeeds
-        nothingToReset.Headers.ETag!.Tag.Should().Be("\"0\"");
-        blueAccent.Should().Be("#0052d1");
-        reset.Headers.ETag!.Tag.Should().Be("\"2\"");
-        var resetRead = await ReadAsync(reset);
-        resetRead.GetProperty("published").ValueKind.Should().Be(JsonValueKind.Null);
-        resetRead.GetProperty("publishedNumber").GetString().Should().Be("2");
-        afterReset.ValueKind.Should().Be(JsonValueKind.Null);
-        resetAgain.StatusCode.Should().Be(HttpStatusCode.OK);
-        resetAgain.Headers.ETag!.Tag.Should().Be("\"2\"");
-    }
-
-    [Fact]
-    public async Task A_rollback_after_a_reset_brings_the_brand_back_and_the_history_lists_the_reset()
-    {
-        // Arrange
-        await using BrandingWebHost host = new(fixture);
-        var (world, admin) = await TenantAdminAsync(host);
-        using var anonymous = world.AnonymousClient();
-        var slug = await ShortUrlAsync(world);
-        using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
-        using var reset = await SendAsync(admin, Post(RESET_ROUTE), blue.Headers.ETag!.Tag);
-
-        // Act
-        using var rolledBack = await SendAsync(admin, Post(ROLLBACK_ROUTE), reset.Headers.ETag!.Tag);
-        var rolledBackAccent = await PublicAccentAsync(anonymous, slug);
-        using var resetAgain = await SendAsync(admin, Post(RESET_ROUTE), rolledBack.Headers.ETag!.Tag);
-        using var green = await SendAsync(admin, Publish(GREEN), resetAgain.Headers.ETag!.Tag);
-        using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
-
-        // Assert
-        rolledBackAccent.Should().Be("#0052d1");
-        green.Headers.ETag!.Tag.Should().Be("\"5\"");
-        (await PublicAccentAsync(anonymous, slug)).Should().Be("#16a34a");
-        var items = (await ReadAsync(history)).GetProperty("items").EnumerateArray().ToList();
-        items.Select(item => $"{item.GetProperty("number").GetString()}:{item.GetProperty("source").GetString()}")
-            .Should().Equal("5:publish", "4:reset", "3:restore", "2:reset", "1:publish");
-        items[3].GetProperty("createdBy").GetString().Should().Be(world.Tenants[0].Admin.Id.ToString());
-        items[3].GetProperty("createdAt").GetDateTime().Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(5));
     }
 
     [Fact]
@@ -244,11 +186,13 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         // Act
         using var read = await creator.GetAsync(BRANDING_ROUTE, Cancellation);
         using var publish = await SendAsync(creator, Publish(BLUE), "\"0\"");
+        using var reset = await SendAsync(creator, Post(RESET_ROUTE), "\"0\"");
         using var history = await creator.GetAsync(VERSIONS_ROUTE, Cancellation);
 
         // Assert
         read.StatusCode.Should().Be(HttpStatusCode.OK);
         publish.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        reset.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         history.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 

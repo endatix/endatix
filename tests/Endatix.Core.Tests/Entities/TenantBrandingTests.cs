@@ -434,7 +434,7 @@ public sealed class TenantBrandingTests
             Number = 4L,
             Json = TenantBranding.DEPLOYMENT_BRAND_JSON,
             reset.ContentHash,
-            Source = ContentVersionSources.RESTORE,
+            Source = ContentVersionSources.RESET,
             RestoredFromNumber = (long?)2,
         });
         branding.PublishedJson.Should().BeNull();

@@ -120,7 +120,8 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
             : Refused(BrandOverrideProblems.UNKNOWN_VERSION, $"There is no branding version {number}.");
     }
 
-    /// <summary>Publishes a copy of <paramref name="source"/> as a new version; a copy of a reset shows the deployment brand.</summary>
+    /// <summary>Publishes a copy of <paramref name="source"/> as a new version; a copy of a reset is a reset again
+    /// (<see cref="ContentVersionSources.RESET"/>, with <see cref="TenantBrandingVersion.RestoredFromNumber"/> set).</summary>
     /// <param name="source">An earlier version of this tenant's branding.</param>
     /// <param name="expectedVersion">The <see cref="Version"/> the caller read, so a retried rollback is refused instead
     /// of undoing itself. Not checked when <paramref name="source"/>'s content is already live.</param>
@@ -138,13 +139,17 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
 
         return expectedVersion != Version
             ? StaleVersion()
-            : Append(new(CanonicalBrandJson.Write(source.Json), source.ContentHash, ContentVersionSources.RESTORE, source.Number), stamp);
+            : Append(new(CanonicalBrandJson.Write(source.Json), source.ContentHash, RestoreSource(source.ContentHash), source.Number), stamp);
     }
 
     // The cache may come back with its keys reordered (jsonb), so its hash is taken in canonical form. With no cache the
     // deployment brand is live, before the first publish as after a reset.
     private bool IsLive(string contentHash) => contentHash ==
         (PublishedJson is null ? _deploymentBrandHash : CanonicalContentHash.Of(CanonicalBrandJson.Write(PublishedJson)));
+
+    // A copy of a reset is a reset, so the history says which versions show the deployment brand.
+    private static string RestoreSource(string contentHash) =>
+        contentHash == _deploymentBrandHash ? ContentVersionSources.RESET : ContentVersionSources.RESTORE;
 
     private TenantBrandingVersion Append(Content content, ContentVersionStamp stamp)
     {
