@@ -206,7 +206,7 @@ public sealed class TenantBrandingTests
         branding.Publish(_green, 1, _stamp);
 
         // Act
-        var target = branding.RestoreTarget(null, 2);
+        var target = branding.RestoreTarget(null);
 
         // Assert
         target.Value.Should().Be(1);
@@ -220,9 +220,9 @@ public sealed class TenantBrandingTests
         var history = new List<TenantBrandingVersion> { branding.Publish(_blue, 0, _stamp).Value!, branding.Publish(_green, 1, _stamp).Value! };
 
         // Act
-        history.Add(branding.Restore(history[(int)branding.RestoreTarget(null, 2).Value - 1], 2, _stamp).Value!);
+        history.Add(branding.Restore(history[(int)branding.RestoreTarget(null).Value - 1], 2, _stamp).Value!);
         var afterFirst = branding.PublishedJson;
-        history.Add(branding.Restore(history[(int)branding.RestoreTarget(null, 3).Value - 1], 3, _stamp).Value!);
+        history.Add(branding.Restore(history[(int)branding.RestoreTarget(null).Value - 1], 3, _stamp).Value!);
 
         // Assert
         afterFirst.Should().Be(_blue.CanonicalJson);
@@ -233,19 +233,21 @@ public sealed class TenantBrandingTests
     }
 
     [Fact]
-    public void RestoreTarget_Retried_IsRefusedInsteadOfUndoingItself()
+    public void Rollback_Retried_IsRefusedInsteadOfUndoingItself()
     {
         // Arrange
         var branding = new TenantBranding(TENANT_ID);
         var first = branding.Publish(_blue, 0, _stamp).Value!;
-        branding.Publish(_green, 1, _stamp);
+        var second = branding.Publish(_green, 1, _stamp).Value!;
         branding.Restore(first, 2, _stamp);
 
-        // Act
-        var retry = branding.RestoreTarget(null, 2);
+        // Act: the retry's target is now the version before the restored one
+        var retry = branding.Restore(second, 2, _stamp);
 
         // Assert
+        branding.RestoreTarget(null).Value.Should().Be(second.Number);
         retry.Status.Should().Be(ResultStatus.Conflict);
+        branding.PublishedJson.Should().Be(_blue.CanonicalJson);
     }
 
     [Theory]
@@ -261,7 +263,7 @@ public sealed class TenantBrandingTests
         }
 
         // Act
-        var result = branding.RestoreTarget(null, published);
+        var result = branding.RestoreTarget(null);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
@@ -279,7 +281,7 @@ public sealed class TenantBrandingTests
         branding.Publish(_green, 1, _stamp);
 
         // Act
-        var result = branding.RestoreTarget(number, 2);
+        var result = branding.RestoreTarget(number);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);
@@ -295,8 +297,8 @@ public sealed class TenantBrandingTests
         branding.Publish(_green, 1, _stamp);
 
         // Act & Assert
-        branding.RestoreTarget(2, 2).Value.Should().Be(2);
-        branding.RestoreTarget(1, 2).Value.Should().Be(1);
+        branding.RestoreTarget(2).Value.Should().Be(2);
+        branding.RestoreTarget(1).Value.Should().Be(1);
     }
 
     private static BrandOverride Accent(string hex, long tenantId = TENANT_ID) =>

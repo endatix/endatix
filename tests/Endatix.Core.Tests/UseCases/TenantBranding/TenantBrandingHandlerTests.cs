@@ -235,6 +235,47 @@ public sealed class TenantBrandingHandlerTests
     }
 
     [Fact]
+    public async Task Restore_Retried_WithAStaleVersion_ChangesNothing()
+    {
+        // Arrange: restoring version 1 made it live at version 3; the retry still names version 2
+        var branding = Stored(new TenantBrandingEntity(TENANT_ID));
+        await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), Cancellation);
+        await _publish.Handle(new PublishTenantBrandingCommand(GREEN, 1), Cancellation);
+        await _restore.Handle(new RestoreTenantBrandingCommand(1, 2), Cancellation);
+        _repository.ClearReceivedCalls();
+
+        // Act
+        var result = await _restore.Handle(new RestoreTenantBrandingCommand(1, 2), Cancellation);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Version.Should().Be(3);
+        result.Value.PublishedNumber.Should().Be(3);
+        branding.Version.Should().Be(3);
+        await _repository.DidNotReceive().SaveOrConcedeAsync(
+            Arg.Any<TenantBrandingEntity>(), Arg.Any<TenantBrandingVersion>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Restore_StaleVersion_WhenTheContentIsNotLive_IsAConflict()
+    {
+        // Arrange
+        var branding = Stored(new TenantBrandingEntity(TENANT_ID));
+        await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), Cancellation);
+        await _publish.Handle(new PublishTenantBrandingCommand(GREEN, 1), Cancellation);
+        _repository.ClearReceivedCalls();
+
+        // Act
+        var result = await _restore.Handle(new RestoreTenantBrandingCommand(1, 1), Cancellation);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        branding.Version.Should().Be(2);
+        await _repository.DidNotReceive().SaveOrConcedeAsync(
+            Arg.Any<TenantBrandingEntity>(), Arg.Any<TenantBrandingVersion>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Restore_ANumberNotInTheHistory_IsInvalidAndSavesNothing()
     {
         // Arrange

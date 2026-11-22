@@ -73,16 +73,13 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
     /// The number a restore publishes again: <paramref name="number"/>, or for a rollback (null) the version before the
     /// live one.
     /// </summary>
-    /// <returns>The number; <see cref="ResultStatus.Conflict"/> when <paramref name="expectedVersion"/> is stale;
-    /// <see cref="ResultStatus.Invalid"/> when there is no such version (<see cref="BrandOverrideProblems.UNKNOWN_VERSION"/>)
-    /// or nothing before the live one (<see cref="BrandOverrideProblems.NO_PREVIOUS_VERSION"/>).</returns>
-    internal Result<long> RestoreTarget(long? number, long expectedVersion)
+    /// <remarks>It does not check the caller's version: <see cref="Restore"/> does, after it has seen whether the
+    /// target's content is already live.</remarks>
+    /// <returns>The number; <see cref="ResultStatus.Invalid"/> when there is no such version
+    /// (<see cref="BrandOverrideProblems.UNKNOWN_VERSION"/>) or nothing before the live one
+    /// (<see cref="BrandOverrideProblems.NO_PREVIOUS_VERSION"/>).</returns>
+    internal Result<long> RestoreTarget(long? number)
     {
-        if (expectedVersion != Version)
-        {
-            return StaleVersion();
-        }
-
         var live = PublishedNumber ?? 0;
         if (number is null)
         {
@@ -99,7 +96,7 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
     /// <summary>Publishes a copy of <paramref name="source"/> as a new version.</summary>
     /// <param name="source">An earlier version of this tenant's branding.</param>
     /// <param name="expectedVersion">The <see cref="Version"/> the caller read, so a retried rollback is refused instead
-    /// of undoing itself.</param>
+    /// of undoing itself. Not checked when <paramref name="source"/>'s content is already live.</param>
     /// <param name="stamp">When, and by whom.</param>
     /// <returns>The version to save; null when <paramref name="source"/>'s content is already live;
     /// <see cref="ResultStatus.Conflict"/> when <paramref name="expectedVersion"/> is stale.</returns>

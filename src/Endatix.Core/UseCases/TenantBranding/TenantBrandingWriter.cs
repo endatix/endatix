@@ -40,7 +40,7 @@ internal sealed class TenantBrandingWriter(ITenantBrandingRepository repository,
     internal Task<Result<TenantBrandingDto>> RestoreAsync(long? number, long expectedVersion, CancellationToken cancellationToken) =>
         WriteAsync(async branding =>
         {
-            var target = branding.RestoreTarget(number, expectedVersion);
+            var target = branding.RestoreTarget(number);
             if (!target.IsSuccess)
             {
                 return target.ToErrorResult<TenantBrandingVersion?>();
