@@ -8,7 +8,7 @@ namespace Endatix.Core.Branding;
 /// <remarks>Clients match on these values, so they must not change.</remarks>
 internal static class BrandOverrideProblems
 {
-    /// <summary>The text is not JSON, or an object repeats a key.</summary>
+    /// <summary>The text is not JSON, an object repeats a key, or a string or key has an unpaired UTF-16 surrogate.</summary>
     public const string INVALID_JSON = "invalid_json";
 
     /// <summary>The text is longer than <see cref="BrandOverride.MAX_JSON_LENGTH"/> characters.</summary>

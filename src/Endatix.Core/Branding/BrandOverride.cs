@@ -74,13 +74,47 @@ internal sealed class BrandOverride
             return (null, RefusedWhole(BrandOverrideProblems.TOO_LARGE, $"Must be at most {MAX_JSON_LENGTH} characters."));
         }
 
+        JsonDocument? document = null;
         try
         {
-            return (JsonDocument.Parse(json, CanonicalBrandJson.Options), null);
+            document = JsonDocument.Parse(json, CanonicalBrandJson.Options);
+            ReadEveryString(document.RootElement);
+            return (document, null);
         }
-        catch (JsonException)
+        catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException)
         {
-            return (null, RefusedWhole(BrandOverrideProblems.INVALID_JSON, "Is not valid JSON, or repeats a key."));
+            document?.Dispose();
+            return (null, RefusedWhole(BrandOverrideProblems.INVALID_JSON, "Is not valid JSON, repeats a key, or has an unpaired UTF-16 surrogate."));
+        }
+    }
+
+    /// <summary>
+    /// The parse accepts an unpaired surrogate escape (<c>"\uD800"</c>), but reading that string or property name throws
+    /// <see cref="InvalidOperationException"/>; reading every one here makes the text invalid before any check reads it.
+    /// A raw unpaired surrogate already fails the parse with <see cref="ArgumentException"/>.
+    /// </summary>
+    private static void ReadEveryString(JsonElement element)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    _ = property.Name;
+                    ReadEveryString(property.Value);
+                }
+
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    ReadEveryString(item);
+                }
+
+                break;
+            case JsonValueKind.String:
+                _ = element.GetString();
+                break;
         }
     }
 

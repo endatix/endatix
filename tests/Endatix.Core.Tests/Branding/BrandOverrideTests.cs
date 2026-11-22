@@ -276,6 +276,32 @@ public sealed class BrandOverrideTests
         ShouldHaveOnly(result, "/assets/icon", BrandOverrideProblems.INVALID_ASSET_KEY);
     }
 
+    [Theory]
+    [InlineData("""{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"\uD800"}}}}""")]
+    [InlineData("""{"version":1,"tokens":{"color":{"primary":{"$type":"\uDC00","$value":"#0052d1"}}}}""")]
+    [InlineData("""{"version":1,"assets":{"icon":"t/42/brand/\uD800.png"}}""")]
+    [InlineData("""{"version":1,"\uD800":1}""")]
+    [InlineData("""{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1","\uDC00x":1}}}}""")]
+    [InlineData("""{"version":1,"extra":["\uD800"]}""")]
+    public void Parse_UnpairedSurrogateEscape_IsInvalidJson(string json)
+    {
+        // Act
+        var result = BrandOverride.Parse(json, TENANT_ID);
+
+        // Assert
+        ShouldHaveOnly(result, "", BrandOverrideProblems.INVALID_JSON);
+    }
+
+    [Fact]
+    public void Parse_UnpairedSurrogateCharacter_IsInvalidJson()
+    {
+        // Act
+        var result = BrandOverride.Parse("{\"version\":1,\"assets\":{\"icon\":\"t/42/brand/\uD800.png\"}}", TENANT_ID);
+
+        // Assert
+        ShouldHaveOnly(result, "", BrandOverrideProblems.INVALID_JSON);
+    }
+
     private static ValidationError ShouldHaveOnly(Result<BrandOverride> result, string path, string code)
     {
         result.Status.Should().Be(ResultStatus.Invalid);
