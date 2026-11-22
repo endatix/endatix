@@ -11,8 +11,9 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Endatix.Api.Endpoints.TenantBranding;
 
 /// <summary>
-/// Reads the current tenant's branding: whether the tenant may brand, the live brand, and the version to write from.
-/// Every signed-in Hub user reads it, since the Hub shows the brand to all of them.
+/// Reads the current tenant's branding: whether its plan includes branding, the live brand, and the version to write
+/// from. Any signed-in Hub user of the tenant may read it, since the Hub shows the brand to all of them; only writes
+/// need <c>tenant.settings.manage</c>.
 /// </summary>
 [Experimental("ENDATIX0002")]
 public sealed class GetTenantBranding(IMediator mediator)

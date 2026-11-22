@@ -6,37 +6,27 @@ using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Get;
 using Endatix.Core.UseCases.TenantBranding.Publishing;
 using Endatix.Core.UseCases.TenantBranding.Restoring;
-using Endatix.Core.UseCases.Tenants;
-using Endatix.Core.UseCases.Tenants.GetById;
 using Endatix.Infrastructure.Caching;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Tests.Endpoints.TenantBranding;
 
 public sealed class TenantBrandingEndpointsTests
 {
-    private const long TENANT_ID = 42;
-    private const string SHORT_URL = "xk9mp2qr";
     private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
 
     private static readonly DateTime _publishedAt = new(2026, 11, 21, 12, 0, 0, DateTimeKind.Utc);
 
     private readonly IMediator _mediator = Substitute.For<IMediator>();
-    private readonly HybridCache _cache = CreateCache();
-    private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
+    private readonly IPublicTenantCacheInvalidator _publicTenantCache = Substitute.For<IPublicTenantCacheInvalidator>();
     private readonly IUserContext _userContext = Substitute.For<IUserContext>();
 
     public TenantBrandingEndpointsTests()
     {
-        _tenantContext.TenantId.Returns(TENANT_ID);
         _userContext.GetCurrentUserId().Returns("7");
-        _mediator.Send(Arg.Is<GetTenantByIdQuery>(query => query.TenantId == TENANT_ID), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new TenantDto { Id = TENANT_ID, Name = "Acme", ShortUrl = SHORT_URL }));
     }
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -67,10 +57,10 @@ public sealed class TenantBrandingEndpointsTests
     public async Task Publish_WithoutIfMatch_IsPreconditionRequiredAndSendsNothing()
     {
         // Arrange
-        var endpoint = CreateWrite<PublishTenantBranding>();
+        var endpoint = CreateWrite<PublishTenantBranding>(ifMatch: null);
 
         // Act
-        var response = await endpoint.ExecuteAsync(new PublishTenantBrandingRequest { Override = Json(BLUE) }, Cancellation);
+        var response = await endpoint.ExecuteAsync(Body(BLUE), Cancellation);
 
         // Assert
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status428PreconditionRequired);
@@ -80,16 +70,15 @@ public sealed class TenantBrandingEndpointsTests
     [Theory]
     [InlineData("W/\"1\"")]
     [InlineData("*")]
+    [InlineData("\"1\", \"2\"")]
     [InlineData("\"one\"")]
     public async Task Publish_WithAnUnusableIfMatch_IsBadRequest(string ifMatch)
     {
         // Arrange
-        var endpoint = CreateWrite<PublishTenantBranding>();
+        var endpoint = CreateWrite<PublishTenantBranding>(ifMatch);
 
         // Act
-        var response = await endpoint.ExecuteAsync(
-            new PublishTenantBrandingRequest { IfMatch = ifMatch, Override = Json(BLUE) },
-            Cancellation);
+        var response = await endpoint.ExecuteAsync(Body(BLUE), Cancellation);
 
         // Assert
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status400BadRequest);
@@ -97,62 +86,72 @@ public sealed class TenantBrandingEndpointsTests
     }
 
     [Fact]
-    public async Task Publish_SendsTheVersionTheBodyAndTheCaller_AndEvictsThePublicRead()
+    public async Task Publish_SendsTheBodyTheVersionAndTheCaller_AndEvictsThePublicRead()
     {
         // Arrange
-        var endpoint = CreateWrite<PublishTenantBranding>();
+        var endpoint = CreateWrite<PublishTenantBranding>("\"3\"");
         _mediator.Send(Arg.Any<PublishTenantBrandingCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new TenantBrandingDto(BLUE, 4, 4, _publishedAt)));
-        await PrimePublicReadAsync();
 
         // Act
-        var response = await endpoint.ExecuteAsync(
-            new PublishTenantBrandingRequest { IfMatch = "\"3\"", Override = Json(BLUE) },
-            Cancellation);
+        var response = await endpoint.ExecuteAsync(Body(BLUE), Cancellation);
 
         // Assert
-        await _mediator.Received(1).Send(
-            Arg.Is<PublishTenantBrandingCommand>(command =>
-                command.ExpectedVersion == 3 && command.UserId == 7 && command.OverrideJson.Contains("#0052d1")),
-            Arg.Any<CancellationToken>());
+        await _mediator.Received(1).Send(new PublishTenantBrandingCommand(BLUE, 3, 7), Arg.Any<CancellationToken>());
         response.Result.As<Ok<TenantBrandingModel>>().Value!.Version.Should().Be(4);
         endpoint.HttpContext.Response.Headers.ETag.ToString().Should().Be("\"4\"");
-        (await PublicReadIsCachedAsync()).Should().BeFalse();
+        await _publicTenantCache.Received(1).InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task Publish_StaleVersion_IsPreconditionFailed()
+    public async Task Publish_OfTheLiveBrand_KeepsThePublicRead()
     {
         // Arrange
-        var endpoint = CreateWrite<PublishTenantBranding>();
+        var endpoint = CreateWrite<PublishTenantBranding>("\"4\"");
         _mediator.Send(Arg.Any<PublishTenantBrandingCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result<TenantBrandingDto>.Conflict("The branding changed since it was read; it is now at version 5."));
+            .Returns(Result.Success(new TenantBrandingDto(BLUE, 4, 4, _publishedAt)));
 
         // Act
-        var response = await endpoint.ExecuteAsync(
-            new PublishTenantBrandingRequest { IfMatch = "\"3\"", Override = Json(BLUE) },
-            Cancellation);
+        var response = await endpoint.ExecuteAsync(Body(BLUE), Cancellation);
+
+        // Assert
+        response.Result.As<Ok<TenantBrandingModel>>().Value!.Version.Should().Be(4);
+        await _publicTenantCache.DidNotReceive().InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Publish_StaleVersion_IsPreconditionFailedWithTheCurrentVersion()
+    {
+        // Arrange
+        var endpoint = CreateWrite<PublishTenantBranding>("\"3\"");
+        _mediator.Send(Arg.Any<PublishTenantBrandingCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<TenantBrandingDto>.Conflict("The branding changed since it was read; it is now at version 5."));
+        _mediator.Send(Arg.Any<GetTenantBrandingQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TenantBrandingReadDto(true, new TenantBrandingDto(BLUE, 5, 5, _publishedAt))));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(Body(BLUE), Cancellation);
 
         // Assert
         var problem = response.Result.As<ProblemHttpResult>();
         problem.StatusCode.Should().Be(StatusCodes.Status412PreconditionFailed);
-        problem.ProblemDetails.Detail.Should().Contain("version 5");
+        problem.ProblemDetails.Extensions["version"].Should().Be("5");
+        endpoint.HttpContext.Response.Headers.ETag.ToString().Should().Be("\"5\"");
+        await _publicTenantCache.DidNotReceive().InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Publish_InvalidOverride_ListsEachProblemWithItsPathAndCode()
     {
         // Arrange
-        var endpoint = CreateWrite<PublishTenantBranding>();
+        var endpoint = CreateWrite<PublishTenantBranding>("\"0\"");
         _mediator.Send(Arg.Any<PublishTenantBrandingCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantBrandingDto>.Invalid(
                 new ValidationError("/tokens/color/primary", "Too little contrast.", "low_contrast", ValidationSeverity.Error),
-                new ValidationError("/extra", "Unknown field.", "unknown_field", ValidationSeverity.Error)));
+                new ValidationError("", "Is not valid JSON.", "invalid_json", ValidationSeverity.Error)));
 
         // Act
-        var response = await endpoint.ExecuteAsync(
-            new PublishTenantBrandingRequest { IfMatch = "\"0\"", Override = Json(BLUE) },
-            Cancellation);
+        var response = await endpoint.ExecuteAsync(Body("{"), Cancellation);
 
         // Assert
         var problem = response.Result.As<ProblemHttpResult>();
@@ -160,7 +159,7 @@ public sealed class TenantBrandingEndpointsTests
         problem.ProblemDetails.Extensions["problems"].Should().BeEquivalentTo(new[]
         {
             new BrandingProblem("/tokens/color/primary", "low_contrast", "Too little contrast."),
-            new BrandingProblem("/extra", "unknown_field", "Unknown field."),
+            new BrandingProblem("", "invalid_json", "Is not valid JSON."),
         });
     }
 
@@ -168,54 +167,46 @@ public sealed class TenantBrandingEndpointsTests
     public async Task Publish_Refused_KeepsThePublicRead()
     {
         // Arrange
-        var endpoint = CreateWrite<PublishTenantBranding>();
+        var endpoint = CreateWrite<PublishTenantBranding>("\"0\"");
         _mediator.Send(Arg.Any<PublishTenantBrandingCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantBrandingDto>.Forbidden("The tenant's plan does not include branding."));
-        await PrimePublicReadAsync();
 
         // Act
-        var response = await endpoint.ExecuteAsync(
-            new PublishTenantBrandingRequest { IfMatch = "\"0\"", Override = Json(BLUE) },
-            Cancellation);
+        var response = await endpoint.ExecuteAsync(Body(BLUE), Cancellation);
 
         // Assert
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        (await PublicReadIsCachedAsync()).Should().BeTrue();
+        await _publicTenantCache.DidNotReceive().InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Restore_NamesTheNumberAndTheVersion_AndEvictsThePublicRead()
     {
         // Arrange
-        var endpoint = CreateWrite<RestoreTenantBranding>();
+        var endpoint = CreateWrite<RestoreTenantBranding>("2");
         _mediator.Send(Arg.Any<RestoreTenantBrandingCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new TenantBrandingDto(BLUE, 3, 3, _publishedAt)));
-        await PrimePublicReadAsync();
 
         // Act
-        var response = await endpoint.ExecuteAsync(
-            new RestoreTenantBrandingRequest { IfMatch = "2", Number = 1 },
-            Cancellation);
+        var response = await endpoint.ExecuteAsync(new RestoreTenantBrandingRequest { Number = 1 }, Cancellation);
 
         // Assert
         await _mediator.Received(1).Send(new RestoreTenantBrandingCommand(1, 2, 7), Arg.Any<CancellationToken>());
         response.Result.As<Ok<TenantBrandingModel>>().Value!.PublishedNumber.Should().Be(3);
-        (await PublicReadIsCachedAsync()).Should().BeFalse();
+        await _publicTenantCache.Received(1).InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Restore_UnknownNumber_IsBadRequestWithTheDomainCode()
     {
         // Arrange
-        var endpoint = CreateWrite<RestoreTenantBranding>();
+        var endpoint = CreateWrite<RestoreTenantBranding>("\"2\"");
         _mediator.Send(Arg.Any<RestoreTenantBrandingCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TenantBrandingDto>.Invalid(
                 new ValidationError("", "There is no branding version 9.", "unknown_version", ValidationSeverity.Error)));
 
         // Act
-        var response = await endpoint.ExecuteAsync(
-            new RestoreTenantBrandingRequest { IfMatch = "\"2\"", Number = 9 },
-            Cancellation);
+        var response = await endpoint.ExecuteAsync(new RestoreTenantBrandingRequest { Number = 9 }, Cancellation);
 
         // Assert
         var problem = response.Result.As<ProblemHttpResult>();
@@ -230,36 +221,30 @@ public sealed class TenantBrandingEndpointsTests
     public async Task Rollback_SendsTheVersion()
     {
         // Arrange
-        var endpoint = CreateWrite<RollbackTenantBranding>();
+        var endpoint = CreateWrite<RollbackTenantBranding>("\"2\"");
         _mediator.Send(Arg.Any<RollbackTenantBrandingCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new TenantBrandingDto(BLUE, 3, 3, _publishedAt)));
 
         // Act
-        var response = await endpoint.ExecuteAsync(new RollbackTenantBrandingRequest { IfMatch = "\"2\"" }, Cancellation);
+        var response = await endpoint.ExecuteAsync(EmptyRequest.Instance, Cancellation);
 
         // Assert
         await _mediator.Received(1).Send(new RollbackTenantBrandingCommand(2, 7), Arg.Any<CancellationToken>());
         response.Result.As<Ok<TenantBrandingModel>>().Value!.Version.Should().Be(3);
     }
 
-    private TEndpoint CreateWrite<TEndpoint>() where TEndpoint : class, IEndpoint =>
-        Factory.Create<TEndpoint>(_mediator, _cache, _tenantContext, _userContext);
+    private TEndpoint CreateWrite<TEndpoint>(string? ifMatch) where TEndpoint : class, IEndpoint =>
+        Factory.Create<TEndpoint>(
+            context =>
+            {
+                if (ifMatch is not null)
+                {
+                    context.Request.Headers.IfMatch = ifMatch;
+                }
+            },
+            _mediator,
+            _publicTenantCache,
+            _userContext);
 
-    private static JsonElement Json(string json) => JsonDocument.Parse(json).RootElement.Clone();
-
-    private Task PrimePublicReadAsync() =>
-        _cache.SetAsync(PublicTenantCacheKeys.Entry(SHORT_URL), "cached", cancellationToken: Cancellation).AsTask();
-
-    private async Task<bool> PublicReadIsCachedAsync() =>
-        await _cache.GetOrCreateAsync(
-            PublicTenantCacheKeys.Entry(SHORT_URL),
-            _ => ValueTask.FromResult("fresh"),
-            cancellationToken: Cancellation) == "cached";
-
-    private static HybridCache CreateCache()
-    {
-        var services = new ServiceCollection();
-        services.AddHybridCache();
-        return services.BuildServiceProvider().GetRequiredService<HybridCache>();
-    }
+    private static PublishTenantBrandingRequest Body(string json) => new() { Content = json };
 }

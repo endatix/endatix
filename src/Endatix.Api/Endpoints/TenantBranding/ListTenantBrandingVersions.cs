@@ -3,10 +3,12 @@ using Endatix.Api.Common;
 using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding.History;
 using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -30,9 +32,10 @@ public sealed class ListTenantBrandingVersions(IMediator mediator)
         {
             s.Summary = "List the tenant's branding versions";
             s.Description = "A paged list (items) of the tenant's branding versions, newest first: number, createdAt, " +
-                "createdBy, source (publish or restore) and restoredFromNumber. Empty when the tenant is not entitled.";
+                "createdBy, source (publish or restore) and restoredFromNumber; ids and numbers are strings. Empty, not " +
+                "403, when the tenant's plan does not include branding, as every read shows no brand then.";
             s.Responses[200] = "The versions.";
-            s.Responses[400] = "Invalid paging.";
+            s.Responses[400] = "Invalid page or page size.";
             s.Responses[404] = "White-labeling is not enabled on this deployment.";
         });
         Description(builder => builder

@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Branding;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Get;
@@ -93,7 +94,8 @@ public sealed class TenantBrandingReadHandlerTests
         // Arrange
         TenantBrandingVersion[] newestFirst = [Version(3, restoredFrom: 1), Version(2)];
         _repository.CountVersionsAsync(TENANT_ID, Arg.Any<CancellationToken>()).Returns(3);
-        _repository.ListVersionsAsync(TENANT_ID, 0, 2, Arg.Any<CancellationToken>()).Returns(newestFirst);
+        _repository.ListVersionsAsync(TENANT_ID, Arg.Is<ResolvedPage>(page => page.Skip == 0 && page.PageSize == 2), Arg.Any<CancellationToken>())
+            .Returns(newestFirst);
 
         // Act
         var result = await HistoryHandler().Handle(new ListTenantBrandingVersionsQuery(1, 2), Cancellation);

@@ -19,8 +19,9 @@ namespace Endatix.Api.Endpoints.Public.Tenants;
 /// Unauthenticated tenant discovery by opaque public id. Rate-limited; 404s are not cached.
 /// </summary>
 /// <remarks>
-/// The tenant's published branding is cached with the rest and evicted by the branding writes. The <c>WhiteLabeling</c>
-/// flag is applied after the cache, so turning it off hides every brand at once.
+/// The tenant's published branding is cached with the rest. A branding write evicts the shared entry and this node's;
+/// another node's copy, and a change of the tenant's entitlement, show within <see cref="PublicTenantCacheKeys.Ttl"/>.
+/// The <c>WhiteLabeling</c> flag is applied after the cache, so turning it off hides every brand at once.
 /// </remarks>
 public sealed class GetBySlug(IMediator mediator, HybridCache cache, IFeatureGate featureGate)
     : Endpoint<GetPublicTenantRequest, Results<Ok<PublicTenantModel>, ProblemHttpResult>>
@@ -60,7 +61,15 @@ public sealed class GetBySlug(IMediator mediator, HybridCache cache, IFeatureGat
                 .SetTypedResults<Ok<PublicTenantModel>, ProblemHttpResult>();
         }
 
-        var result = await cache.GetOrCreateResultAsync(
+        var result = await ReadCachedAsync(normalizedSlug, ct);
+        var showBranding = result.IsSuccess && await featureGate.IsEnabledAsync(FeatureFlags.WhiteLabeling, ct);
+        return TypedResultsBuilder
+            .MapResult(result, tenant => PublicTenantModel.Map(tenant, showBranding))
+            .SetTypedResults<Ok<PublicTenantModel>, ProblemHttpResult>();
+    }
+
+    private Task<Result<PublicTenantDto>> ReadCachedAsync(string normalizedSlug, CancellationToken ct) =>
+        cache.GetOrCreateResultAsync(
             PublicTenantCacheKeys.Entry(normalizedSlug),
             token => mediator.Send(new GetPublicTenantQuery(normalizedSlug), token),
             new HybridCacheEntryOptions
@@ -70,13 +79,6 @@ public sealed class GetBySlug(IMediator mediator, HybridCache cache, IFeatureGat
             },
             PublicTenantCacheKeys.TagsFor(normalizedSlug),
             ct);
-
-        var showBranding = result.IsSuccess
-            && await featureGate.IsEnabledAsync(FeatureFlags.WhiteLabeling, ct);
-        return TypedResultsBuilder
-            .MapResult(result, tenant => PublicTenantModel.Map(tenant, showBranding))
-            .SetTypedResults<Ok<PublicTenantModel>, ProblemHttpResult>();
-    }
 }
 
 /// <summary>
@@ -115,9 +117,8 @@ public sealed record PublicTenantModel(
     IReadOnlyList<string> AllowedAuthProviders,
     JsonElement? Branding = null)
 {
-    public static PublicTenantModel Map(PublicTenantDto tenant) => Map(tenant, showBranding: true);
-
-    internal static PublicTenantModel Map(PublicTenantDto tenant, bool showBranding) =>
+    /// <summary>Maps the cached tenant; the brand only when <paramref name="showBranding"/> (the WhiteLabeling flag).</summary>
+    public static PublicTenantModel Map(PublicTenantDto tenant, bool showBranding) =>
         new(
             tenant.Slug,
             tenant.Name,

@@ -26,4 +26,8 @@ public sealed record TenantBrandingVersionDto(
     DateTime CreatedAt,
     long? CreatedBy,
     string Source,
-    long? RestoredFromNumber);
+    long? RestoredFromNumber)
+{
+    internal static TenantBrandingVersionDto From(Entities.TenantBrandingVersion version) =>
+        new(version.Number, version.CreatedAt, version.CreatedBy, version.Source, version.RestoredFromNumber);
+}

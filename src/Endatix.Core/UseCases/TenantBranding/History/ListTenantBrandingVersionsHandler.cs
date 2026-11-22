@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
@@ -30,17 +31,9 @@ internal sealed class ListTenantBrandingVersionsHandler(
         var entitled = await entitlements.IsEntitledAsync(tenantId, EntitlementNames.BRANDING, cancellationToken);
         var total = entitled ? await repository.CountVersionsAsync(tenantId, cancellationToken) : 0;
         var page = new PageRequest(request.Page, request.PageSize).ForTotal(total);
-        if (total == 0)
-        {
-            return page.ToPaged<TenantBrandingVersionDto>([]);
-        }
-
-        var versions = await repository.ListVersionsAsync(tenantId, page.Skip, page.PageSize, cancellationToken);
-        return page.ToPaged<TenantBrandingVersionDto>([.. versions.Select(version => new TenantBrandingVersionDto(
-            version.Number,
-            version.CreatedAt,
-            version.CreatedBy,
-            version.Source,
-            version.RestoredFromNumber))]);
+        IReadOnlyList<TenantBrandingVersion> versions = total == 0
+            ? []
+            : await repository.ListVersionsAsync(tenantId, page, cancellationToken);
+        return page.ToPaged<TenantBrandingVersionDto>([.. versions.Select(TenantBrandingVersionDto.From)]);
     }
 }

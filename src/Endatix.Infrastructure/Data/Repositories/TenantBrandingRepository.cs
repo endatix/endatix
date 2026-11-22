@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Data.Repositories;
@@ -44,15 +45,14 @@ internal sealed class TenantBrandingRepository(
     /// <inheritdoc />
     public async Task<IReadOnlyList<TenantBrandingVersion>> ListVersionsAsync(
         long tenantId,
-        int skip,
-        int take,
+        ResolvedPage page,
         CancellationToken cancellationToken) =>
         await dbContext.TenantBrandingVersions
             .AsNoTracking()
             .Where(version => version.TenantId == tenantId)
             .OrderByDescending(version => version.Number)
-            .Skip(skip)
-            .Take(take)
+            .Skip(page.Skip)
+            .Take(page.PageSize)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc />

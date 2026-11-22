@@ -6,11 +6,12 @@ using Endatix.Core.UseCases.TenantBranding.History;
 
 namespace Endatix.Api.Endpoints.TenantBranding;
 
-/// <summary>A tenant's branding, as the admin read and every write return it.</summary>
+/// <summary>A tenant's branding, as <c>GET tenant-branding</c> and every write return it. Numbers are JSON strings.</summary>
 /// <param name="Entitled">Whether the tenant's plan includes branding. When false, <paramref name="Published"/> is null.</param>
 /// <param name="Published">The live brand override as a JSON object; null when the deployment brand applies.</param>
 /// <param name="PublishedNumber">The live version's number; null when nothing is published.</param>
-/// <param name="Version">The version the next write names in <c>If-Match</c>; also the response's <c>ETag</c>.</param>
+/// <param name="Version">The version the next write names in <c>If-Match</c>; also the response's <c>ETag</c>. A JSON
+/// string, as every long is on the wire.</param>
 /// <param name="PublishedAt">When the live version was published.</param>
 [Experimental("ENDATIX0002")]
 public sealed record TenantBrandingModel(

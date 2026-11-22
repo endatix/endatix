@@ -1,64 +1,67 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using Endatix.Api.Common;
 using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
-using Endatix.Core.UseCases.Tenants.GetById;
+using Endatix.Core.UseCases.TenantBranding.Get;
 using Endatix.Framework.FeatureFlags;
 using Endatix.Infrastructure.Caching;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Api.Endpoints.TenantBranding;
 
-/// <summary>A branding write: it names the version it read in <c>If-Match</c> (ADR 0002).</summary>
-[Experimental("ENDATIX0002")]
-public interface ITenantBrandingWriteRequest
-{
-    /// <summary>The <c>If-Match</c> header: the quoted <see cref="TenantBrandingModel.Version"/> the client read.</summary>
-    string? IfMatch { get; }
-}
-
 /// <summary>
-/// The steps every branding write shares: read the <c>If-Match</c> version, send the command, then on success evict the
-/// tenant's cached public read and return the new <c>ETag</c>. A stale version is 412; a missing one is 428.
+/// The steps every branding write shares. It names the version it read in <c>If-Match</c> (ADR 0002): 428 when that is
+/// missing, 400 when it is not one version, 412 with the current version when it is stale. On success the tenant's
+/// cached public read is evicted and the new version is the <c>ETag</c>.
 /// </summary>
 /// <remarks>
-/// Every <see cref="ResultStatus.Conflict"/> the branding commands return is a stale version or a lost race, so all of
-/// them are 412 here, not the 409 a conflict is elsewhere.
+/// <see cref="Configure"/> is sealed, so every write carries the permission and the feature flag. Every
+/// <see cref="ResultStatus.Conflict"/> the branding commands return is a stale version or a lost race, so all of them are
+/// 412 here; the shared <c>ToProblem</c> keeps a conflict as 409.
 /// </remarks>
 [Experimental("ENDATIX0002")]
 public abstract class TenantBrandingWriteEndpoint<TRequest>(
     IMediator mediator,
-    HybridCache cache,
-    ITenantContext tenantContext,
+    IPublicTenantCacheInvalidator publicTenantCache,
     IUserContext userContext)
     : Endpoint<TRequest, Results<Ok<TenantBrandingModel>, ProblemHttpResult>>
-    where TRequest : ITenantBrandingWriteRequest, new()
+    where TRequest : notnull
 {
+    /// <summary>The verb and route, and what the write does.</summary>
+    protected abstract WriteRoute Route { get; }
+
     /// <summary>The command this write sends, given the version the client read and the caller's user id.</summary>
     protected abstract IRequest<Result<TenantBrandingDto>> Command(TRequest request, long expectedVersion, long? userId);
 
-    /// <summary>The permission, the feature flag, and the responses every branding write shares.</summary>
-    protected void ConfigureWrite(string summary, string description)
+    /// <summary>Extra configuration a write needs, such as how its body binds.</summary>
+    protected virtual void ConfigureBody() { }
+
+    /// <inheritdoc/>
+    public sealed override void Configure()
     {
+        Verbs(Route.Verb);
+        Routes(Route.Path);
         Permissions(Actions.Tenant.ManageSettings);
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.WhiteLabeling);
+        ConfigureBody();
         Summary(s =>
         {
-            s.Summary = summary;
-            s.Description = description;
+            s.Summary = Route.Summary;
+            s.Description = Route.Description;
             s.Responses[200] = "The tenant's branding after the write. The ETag header holds the new version.";
-            s.Responses[400] = "Invalid request; problems lists each one as {path, code, detail}.";
+            s.Responses[400] = "Invalid request or If-Match; problems lists each refusal as {path, code, detail}.";
             s.Responses[403] = "The caller may not manage tenant settings, or the tenant's plan does not include branding.";
             s.Responses[404] = "White-labeling is not enabled on this deployment.";
-            s.Responses[412] = "If-Match names a version that is no longer current; read the branding again.";
+            s.Responses[412] = "If-Match names a version that is no longer current; the ETag header and version hold the " +
+                "current one. A write whose content is already live succeeds whatever If-Match names.";
             s.Responses[428] = "If-Match is missing.";
         });
         Description(builder => builder
@@ -73,78 +76,91 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
     /// <inheritdoc/>
     public override async Task<Results<Ok<TenantBrandingModel>, ProblemHttpResult>> ExecuteAsync(TRequest req, CancellationToken ct)
     {
-        if (TenantBrandingHttp.IfMatchProblem(req.IfMatch, out var expectedVersion) is { } problem)
+        if (IfMatchProblem(out var expectedVersion) is { } refused)
         {
-            return problem;
+            return refused;
         }
 
         var result = await mediator.Send(Command(req, expectedVersion, CallerId()), ct);
-        if (!result.IsSuccess)
+        if (result.Status == ResultStatus.Conflict)
         {
-            return TenantBrandingHttp.ToProblem(result);
+            return await StaleAsync(result, ct);
         }
 
-        await EvictPublicReadAsync(ct);
-        TenantBrandingHttp.SetETag(HttpContext, result.Value.Version);
-        return TypedResults.Ok(TenantBrandingModel.MapWrite(result.Value));
+        return result.IsSuccess
+            ? await SavedAsync(result.Value, expectedVersion, ct)
+            : TenantBrandingHttp.ToProblem(result);
+    }
+
+    private async Task<Results<Ok<TenantBrandingModel>, ProblemHttpResult>> SavedAsync(
+        TenantBrandingDto branding,
+        long expectedVersion,
+        CancellationToken ct)
+    {
+        // A write that changed nothing returns the version it was given; the cached read is still right.
+        if (branding.Version != expectedVersion)
+        {
+            await publicTenantCache.InvalidateCurrentTenantAsync(ct);
+        }
+
+        TenantBrandingHttp.SetETag(HttpContext, branding.Version);
+        return TypedResults.Ok(TenantBrandingModel.MapWrite(branding));
+    }
+
+    // Missing is 428 here, not a validator's 400.
+    private ProblemHttpResult? IfMatchProblem(out long expectedVersion)
+    {
+        var ifMatch = HttpContext.Request.Headers.IfMatch.ToString();
+        if (string.IsNullOrWhiteSpace(ifMatch))
+        {
+            expectedVersion = 0;
+            return TenantBrandingHttp.Problem(StatusCodes.Status428PreconditionRequired, "Precondition required",
+                "Send If-Match with the version you read, in quotes; \"0\" before the first publish.");
+        }
+
+        return EntityTagHeader.TryParse(ifMatch, out expectedVersion)
+            ? null
+            : TenantBrandingHttp.Problem(StatusCodes.Status400BadRequest, Api.Infrastructure.ResultExtensions.ResultTitles.BAD_REQUEST,
+                "If-Match must hold one strong version tag, such as \"3\"; weak tags, * and lists are not accepted.");
+    }
+
+    // ADR 0002: a stale write returns the current state, so the client can retry without reading first.
+    private async Task<ProblemHttpResult> StaleAsync(Result<TenantBrandingDto> result, CancellationToken ct)
+    {
+        var problem = TenantBrandingHttp.Problem(StatusCodes.Status412PreconditionFailed, "Precondition failed",
+            string.Join('\n', result.Errors));
+        var current = await mediator.Send(new GetTenantBrandingQuery(), ct);
+        if (current.IsSuccess)
+        {
+            var version = current.Value.Branding.Version;
+            TenantBrandingHttp.SetETag(HttpContext, version);
+            problem.ProblemDetails.Extensions["version"] = version.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return problem;
     }
 
     private long? CallerId() =>
         long.TryParse(userContext.GetCurrentUserId(), NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
 
-    // The public read is cached by short URL, which the write does not know, so it asks for it.
-    private async Task EvictPublicReadAsync(CancellationToken ct)
-    {
-        var tenant = await mediator.Send(new GetTenantByIdQuery(tenantContext.TenantId), ct);
-        if (tenant.IsSuccess)
-        {
-            await cache.RemoveAsync(PublicTenantCacheKeys.Entry(tenant.Value.ShortUrl), ct);
-        }
-    }
+    /// <summary>A branding write's verb and route, and the text its OpenAPI entry shows.</summary>
+    /// <param name="Verb">The HTTP verb.</param>
+    /// <param name="Path">The route, under the API prefix.</param>
+    /// <param name="Summary">The OpenAPI summary.</param>
+    /// <param name="Description">The OpenAPI description.</param>
+    protected sealed record WriteRoute(Http Verb, string Path, string Summary, string Description);
 }
 
-/// <summary>The HTTP shapes branding shares: the <c>If-Match</c> version, the <c>ETag</c>, and the problem list.</summary>
+/// <summary>The HTTP shapes branding shares: the <c>ETag</c> and the problem list.</summary>
 internal static class TenantBrandingHttp
 {
-    internal const string PROBLEMS_KEY = "problems";
-
-    /// <summary>
-    /// Reads <c>If-Match: "&lt;version&gt;"</c> (the quotes may be left out). Null when it holds one version; otherwise
-    /// 428 when it is missing and 400 when it is a weak tag, <c>*</c>, a list, or not a number.
-    /// </summary>
-    internal static ProblemHttpResult? IfMatchProblem(string? ifMatch, out long expectedVersion)
-    {
-        expectedVersion = 0;
-        if (string.IsNullOrWhiteSpace(ifMatch))
-        {
-            return Problem(StatusCodes.Status428PreconditionRequired, "Precondition required",
-                "Send If-Match with the version you read, in quotes; \"0\" before the first publish.");
-        }
-
-        var value = ifMatch.Trim();
-        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
-        {
-            value = value[1..^1];
-        }
-
-        return long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out expectedVersion)
-            ? null
-            : Problem(StatusCodes.Status400BadRequest, Infrastructure.ResultExtensions.ResultTitles.BAD_REQUEST,
-                "If-Match must hold one version number in quotes, such as \"3\".");
-    }
-
-    /// <summary>A refused branding write: a conflict is 412, an invalid request lists its problems.</summary>
+    /// <summary>A refused branding request; an invalid one lists its problems as <c>{path, code, detail}</c>.</summary>
     internal static ProblemHttpResult ToProblem(Core.Infrastructure.Result.IResult result)
     {
-        if (result.Status == ResultStatus.Conflict)
-        {
-            return Problem(StatusCodes.Status412PreconditionFailed, "Precondition failed", string.Join('\n', result.Errors));
-        }
-
         var problem = result.ToProblem();
         if (result.IsInvalid())
         {
-            problem.ProblemDetails.Extensions[PROBLEMS_KEY] = result.ValidationErrors
+            problem.ProblemDetails.Extensions["problems"] = result.ValidationErrors
                 .Select(error => new BrandingProblem(error.Identifier ?? "", error.ErrorCode ?? "", error.ErrorMessage))
                 .ToArray();
         }
@@ -153,8 +169,8 @@ internal static class TenantBrandingHttp
     }
 
     internal static void SetETag(HttpContext httpContext, long version) =>
-        httpContext.Response.Headers.ETag = $"\"{version.ToString(CultureInfo.InvariantCulture)}\"";
+        httpContext.Response.Headers.ETag = EntityTagHeader.Format(version);
 
-    private static ProblemHttpResult Problem(int status, string title, string detail) =>
+    internal static ProblemHttpResult Problem(int status, string title, string detail) =>
         TypedResults.Problem(EndatixProblemDetails.Create(status, title, detail));
 }

@@ -3,9 +3,9 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Restoring;
+using Endatix.Infrastructure.Caching;
 using FastEndpoints;
 using MediatR;
-using Microsoft.Extensions.Caching.Hybrid;
 
 namespace Endatix.Api.Endpoints.TenantBranding;
 
@@ -15,34 +15,19 @@ namespace Endatix.Api.Endpoints.TenantBranding;
 [Experimental("ENDATIX0002")]
 public sealed class RollbackTenantBranding(
     IMediator mediator,
-    HybridCache cache,
-    ITenantContext tenantContext,
+    IPublicTenantCacheInvalidator publicTenantCache,
     IUserContext userContext)
-    : TenantBrandingWriteEndpoint<RollbackTenantBrandingRequest>(mediator, cache, tenantContext, userContext)
+    : TenantBrandingWriteEndpoint<EmptyRequest>(mediator, publicTenantCache, userContext)
 {
     /// <inheritdoc/>
-    public override void Configure()
-    {
-        Post("tenant-branding/rollback");
-        ConfigureWrite(
-            "Roll back the tenant's branding",
-            "Restores the version before the live one, as a new version; two rollbacks toggle between the last two. " +
-            "With nothing before the live version it is 400 with the code no_previous_version.");
-    }
+    protected override WriteRoute Route { get; } = new(
+        Http.POST,
+        "tenant-branding/rollback",
+        "Roll back the tenant's branding",
+        "Restores the version before the live one as a new version, with no body; two rollbacks toggle between the " +
+        "last two. With nothing before the live version it is 400 with the code no_previous_version.");
 
     /// <inheritdoc/>
-    protected override IRequest<Result<TenantBrandingDto>> Command(
-        RollbackTenantBrandingRequest request,
-        long expectedVersion,
-        long? userId) =>
+    protected override IRequest<Result<TenantBrandingDto>> Command(EmptyRequest request, long expectedVersion, long? userId) =>
         new RollbackTenantBrandingCommand(expectedVersion, userId);
-}
-
-/// <summary>Request to roll back the tenant's branding.</summary>
-[Experimental("ENDATIX0002")]
-public sealed class RollbackTenantBrandingRequest : ITenantBrandingWriteRequest
-{
-    /// <inheritdoc/>
-    [FromHeader("If-Match", isRequired: false)]
-    public string? IfMatch { get; init; }
 }

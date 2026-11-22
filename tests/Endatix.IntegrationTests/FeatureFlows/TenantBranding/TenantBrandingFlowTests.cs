@@ -20,50 +20,58 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
     private const string GREEN = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
 
-    private static readonly Uri BrandingRoute = new("/api/tenant-branding", UriKind.Relative);
-    private static readonly Uri PublishRoute = new("/api/tenant-branding/published", UriKind.Relative);
-    private static readonly Uri RestoreRoute = new("/api/tenant-branding/restore", UriKind.Relative);
-    private static readonly Uri RollbackRoute = new("/api/tenant-branding/rollback", UriKind.Relative);
-    private static readonly Uri VersionsRoute = new("/api/tenant-branding/versions", UriKind.Relative);
+    private const string BrandingRoute = "/api/tenant-branding";
+    private const string PublishRoute = "/api/tenant-branding/published";
+    private const string RestoreRoute = "/api/tenant-branding/restore";
+    private const string RollbackRoute = "/api/tenant-branding/rollback";
+    private const string VersionsRoute = "/api/tenant-branding/versions";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task An_admin_publishes_rolls_back_and_restores_and_the_public_read_follows()
+    public async Task An_admin_publishes_and_the_public_read_shows_the_live_brand_at_once()
     {
         // Arrange
         await using BrandingWebHost host = new(fixture);
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
-        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
+        var (world, admin) = await TenantAdminAsync(host);
         using var anonymous = world.AnonymousClient();
         var slug = await ShortUrlAsync(world);
-
-        // Act - read before anything is published, then publish twice
         using var initial = await admin.GetAsync(BrandingRoute, Cancellation);
-        var initialTag = initial.Headers.ETag!.Tag;
-        using var blue = await PublishAsync(admin, BLUE, initialTag);
-        using var green = await PublishAsync(admin, GREEN, blue.Headers.ETag!.Tag);
 
-        // Assert - first publish names "0"; the public read shows the live brand at once (the write evicts its cache)
-        initial.StatusCode.Should().Be(HttpStatusCode.OK);
-        initialTag.Should().Be("\"0\"");
+        // Act
+        using var blue = await SendAsync(admin, Publish(BLUE), initial.Headers.ETag!.Tag);
+        var blueAccent = await PublicAccentAsync(anonymous, slug);
+        using var green = await SendAsync(admin, Publish(GREEN), blue.Headers.ETag!.Tag);
+
+        // Assert - the first publish names "0"; each write evicts the cached public read
+        initial.Headers.ETag.Tag.Should().Be("\"0\"");
         blue.StatusCode.Should().Be(HttpStatusCode.OK);
-        green.StatusCode.Should().Be(HttpStatusCode.OK);
+        blueAccent.Should().Be("#0052d1");
+        green.Headers.ETag!.Tag.Should().Be("\"2\"");
         (await PublicAccentAsync(anonymous, slug)).Should().Be("#16a34a");
+    }
 
-        // Act - roll back to blue, then restore green by number
-        using var rolledBack = await PostAsync(admin, RollbackRoute, null, green.Headers.ETag!.Tag);
-        (await PublicAccentAsync(anonymous, slug)).Should().Be("#0052d1");
-        using var restored = await PostAsync(admin, RestoreRoute, new { number = 2 }, rolledBack.Headers.ETag!.Tag);
+    [Fact]
+    public async Task Rollback_and_restore_append_versions_the_history_lists()
+    {
+        // Arrange
+        await using BrandingWebHost host = new(fixture);
+        var (world, admin) = await TenantAdminAsync(host);
+        using var anonymous = world.AnonymousClient();
+        using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
+        using var green = await SendAsync(admin, Publish(GREEN), blue.Headers.ETag!.Tag);
 
-        // Assert - every change is a new version; the history names its source
-        restored.StatusCode.Should().Be(HttpStatusCode.OK);
-        var model = await ReadAsync(restored);
-        model.GetProperty("publishedNumber").GetString().Should().Be("4");
-        model.GetProperty("published").ValueKind.Should().Be(JsonValueKind.Object);
-        (await PublicAccentAsync(anonymous, slug)).Should().Be("#16a34a");
-
+        // Act - a rollback has no body
+        using var rolledBack = await SendAsync(admin, Post(RollbackRoute), green.Headers.ETag!.Tag);
+        var rolledBackAccent = await PublicAccentAsync(anonymous, await ShortUrlAsync(world));
+        using var restored = await SendAsync(admin, Post(RestoreRoute, new { number = 2 }), rolledBack.Headers.ETag!.Tag);
         using var history = await admin.GetAsync(VersionsRoute, Cancellation);
+
+        // Assert
+        rolledBack.StatusCode.Should().Be(HttpStatusCode.OK);
+        rolledBackAccent.Should().Be("#0052d1");
+        restored.Headers.ETag!.Tag.Should().Be("\"4\"");
+        (await ReadAsync(restored)).GetProperty("published").ValueKind.Should().Be(JsonValueKind.Object);
         var items = (await ReadAsync(history)).GetProperty("items").EnumerateArray().ToList();
         items.Select(item => item.GetProperty("number").GetString()).Should().Equal("4", "3", "2", "1");
         items[0].GetProperty("source").GetString().Should().Be("restore");
@@ -72,43 +80,66 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
-    public async Task A_stale_or_missing_If_Match_is_refused()
+    public async Task A_stale_If_Match_is_refused_with_the_current_version_on_every_write()
     {
         // Arrange
         await using BrandingWebHost host = new(fixture);
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
-        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
-        using var first = await PublishAsync(admin, BLUE, "\"0\"");
+        var (_, admin) = await TenantAdminAsync(host);
+        using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
+        using var green = await SendAsync(admin, Publish(GREEN), blue.Headers.ETag!.Tag);
 
         // Act
-        using var stale = await PublishAsync(admin, GREEN, "\"0\"");
-        using var missing = await PublishAsync(admin, GREEN, null);
+        using var publish = await SendAsync(admin, Publish(BLUE), "\"1\"");
+        using var restore = await SendAsync(admin, Post(RestoreRoute, new { number = 1 }), "\"1\"");
+        using var rollback = await SendAsync(admin, Post(RollbackRoute), "\"1\"");
+        using var missing = await SendAsync(admin, Publish(BLUE), null);
 
         // Assert
-        first.StatusCode.Should().Be(HttpStatusCode.OK);
-        stale.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+        foreach (var stale in new[] { publish, restore, rollback })
+        {
+            stale.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
+            stale.Headers.ETag!.Tag.Should().Be("\"2\"");
+            (await ReadAsync(stale)).GetProperty("version").GetString().Should().Be("2");
+        }
+
         missing.StatusCode.Should().Be((HttpStatusCode)428);
     }
 
-    [Fact]
-    public async Task An_invalid_override_lists_its_problems()
+    [Theory]
+    [InlineData("""{"version":1,"extra":true}""", "/extra", "unknown_field")]
+    [InlineData("""{"version":1""", "", "invalid_json")]
+    [InlineData("", "", "invalid_json")]
+    public async Task An_unusable_override_lists_its_problems(string body, string path, string code)
     {
         // Arrange
         await using BrandingWebHost host = new(fixture);
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
-        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
+        var (_, admin) = await TenantAdminAsync(host);
 
         // Act
-        using var response = await PublishAsync(admin, """{"version":1,"extra":true}""", "\"0\"");
-        using var unknown = await PostAsync(admin, RestoreRoute, new { number = 9 }, "\"0\"");
+        using var response = await SendAsync(admin, Publish(body), "\"0\"");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var problem = (await ReadAsync(response)).GetProperty("problems")[0];
-        problem.GetProperty("path").GetString().Should().Be("/extra");
-        problem.GetProperty("code").GetString().Should().Be("unknown_field");
-        unknown.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await ReadAsync(unknown)).GetProperty("problems")[0].GetProperty("code").GetString().Should().Be("unknown_version");
+        problem.GetProperty("path").GetString().Should().Be(path);
+        problem.GetProperty("code").GetString().Should().Be(code);
+    }
+
+    [Fact]
+    public async Task Restore_and_rollback_name_what_they_cannot_find()
+    {
+        // Arrange
+        await using BrandingWebHost host = new(fixture);
+        var (_, admin) = await TenantAdminAsync(host);
+        using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
+
+        // Act
+        using var unknown = await SendAsync(admin, Post(RestoreRoute, new { number = 9 }), "\"1\"");
+        using var noPrevious = await SendAsync(admin, Post(RollbackRoute), "\"1\"");
+
+        // Assert
+        (await ProblemCodeAsync(unknown)).Should().Be("unknown_version");
+        (await ProblemCodeAsync(noPrevious)).Should().Be("no_previous_version");
     }
 
     [Fact]
@@ -121,7 +152,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
 
         // Act
         using var read = await creator.GetAsync(BrandingRoute, Cancellation);
-        using var publish = await PublishAsync(creator, BLUE, "\"0\"");
+        using var publish = await SendAsync(creator, Publish(BLUE), "\"0\"");
         using var history = await creator.GetAsync(VersionsRoute, Cancellation);
 
         // Assert
@@ -134,14 +165,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     public async Task A_tenant_without_the_entitlement_is_refused_and_reads_no_brand()
     {
         // Arrange - publish while entitled, then lose the entitlement
-        IntegrationTestWorld seeded;
-        await using (BrandingWebHost entitledHost = new(fixture))
-        {
-            seeded = await entitledHost.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
-            using var entitledAdmin = await seeded.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
-            (await PublishAsync(entitledAdmin, BLUE, "\"0\"")).StatusCode.Should().Be(HttpStatusCode.OK);
-        }
-
+        var seeded = await PublishBlueAsync();
         await using BrandingWebHost host = new(fixture, entitled: false);
         var world = On(host, seeded);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
@@ -149,7 +173,8 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
 
         // Act
         using var read = await admin.GetAsync(BrandingRoute, Cancellation);
-        using var publish = await PublishAsync(admin, GREEN, read.Headers.ETag!.Tag);
+        using var publish = await SendAsync(admin, Publish(GREEN), read.Headers.ETag!.Tag);
+        using var history = await admin.GetAsync(VersionsRoute, Cancellation);
         var publicRead = await PublicTenantAsync(anonymous, await ShortUrlAsync(world));
 
         // Assert
@@ -157,34 +182,55 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         model.GetProperty("entitled").GetBoolean().Should().BeFalse();
         model.GetProperty("published").ValueKind.Should().Be(JsonValueKind.Null);
         publish.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadAsync(history)).GetProperty("items").GetArrayLength().Should().Be(0);
         publicRead.GetProperty("branding").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     [Fact]
-    public async Task With_white_labeling_off_the_endpoints_are_not_found_and_the_public_read_has_no_brand()
+    public async Task With_white_labeling_off_every_route_is_not_found_and_the_public_read_has_no_brand()
     {
-        // Arrange - publish on a host with the flag on, then read on the shared host, where it is off
-        IntegrationTestWorld world;
-        await using (BrandingWebHost host = new(fixture))
-        {
-            world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
-            using var brandingAdmin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
-            (await PublishAsync(brandingAdmin, BLUE, "\"0\"")).StatusCode.Should().Be(HttpStatusCode.OK);
-        }
-
-        var offWorld = On(fixture, world);
-        using var admin = await offWorld.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
-        using var anonymous = offWorld.AnonymousClient();
+        // Arrange - publish on a host with the flag on, then use the shared host, where it is off
+        var world = On(fixture, await PublishBlueAsync());
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation);
+        using var anonymous = world.AnonymousClient();
 
         // Act
-        using var read = await admin.GetAsync(BrandingRoute, Cancellation);
-        using var publish = await PublishAsync(admin, GREEN, "\"1\"");
-        var publicRead = await PublicTenantAsync(anonymous, await ShortUrlAsync(offWorld));
+        HttpRequestMessage[] requests =
+        [
+            new(HttpMethod.Get, BrandingRoute), new(HttpMethod.Get, VersionsRoute), Publish(GREEN),
+            Post(RestoreRoute, new { number = 1 }), Post(RollbackRoute),
+        ];
+        var statuses = new List<HttpStatusCode>();
+        foreach (var request in requests)
+        {
+            using var response = await SendAsync(admin, request, "\"1\"");
+            statuses.Add(response.StatusCode);
+        }
 
         // Assert
-        read.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        publish.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        publicRead.GetProperty("branding").ValueKind.Should().Be(JsonValueKind.Null);
+        statuses.Should().AllBeEquivalentTo(HttpStatusCode.NotFound);
+        (await PublicTenantAsync(anonymous, await ShortUrlAsync(world))).GetProperty("branding").ValueKind
+            .Should().Be(JsonValueKind.Null);
+    }
+
+    // Seeds a tenant on a host with the flag on and the entitlement, and publishes BLUE as version 1.
+    private async Task<IntegrationTestWorld> PublishBlueAsync()
+    {
+        await using BrandingWebHost host = new(fixture);
+        var (world, admin) = await TenantAdminAsync(host);
+        using (admin)
+        {
+            using var published = await SendAsync(admin, Publish(BLUE), "\"0\"");
+            published.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        return world;
+    }
+
+    private static async Task<(IntegrationTestWorld World, HttpClient Admin)> TenantAdminAsync(IIntegrationTestHostFixture host)
+    {
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
+        return (world, await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation));
     }
 
     // The same seeded tenant, users and passwords, reached through another host on the same database.
@@ -197,29 +243,26 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         Options = world.Options,
     };
 
-    private static Task<HttpResponseMessage> PublishAsync(HttpClient client, string json, string? ifMatch)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Put, PublishRoute)
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json"),
-        };
-        AddIfMatch(request, ifMatch);
-        return client.SendAsync(request, Cancellation);
-    }
+    private static HttpRequestMessage Publish(string json) =>
+        new(HttpMethod.Put, PublishRoute) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
-    private static Task<HttpResponseMessage> PostAsync(HttpClient client, Uri route, object? body, string ifMatch)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, route) { Content = JsonContent.Create(body ?? new { }) };
-        AddIfMatch(request, ifMatch);
-        return client.SendAsync(request, Cancellation);
-    }
+    private static HttpRequestMessage Post(string route, object? body = null) =>
+        new(HttpMethod.Post, route) { Content = body is null ? null : JsonContent.Create(body) };
 
-    private static void AddIfMatch(HttpRequestMessage request, string? ifMatch)
+    private static Task<HttpResponseMessage> SendAsync(HttpClient client, HttpRequestMessage request, string? ifMatch)
     {
         if (ifMatch is not null)
         {
             request.Headers.IfMatch.Add(EntityTagHeaderValue.Parse(ifMatch));
         }
+
+        return client.SendAsync(request, Cancellation);
+    }
+
+    private static async Task<string?> ProblemCodeAsync(HttpResponseMessage response)
+    {
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        return (await ReadAsync(response)).GetProperty("problems")[0].GetProperty("code").GetString();
     }
 
     private static async Task<string?> PublicAccentAsync(HttpClient anonymous, string slug) =>
@@ -229,7 +272,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
 
     private static async Task<JsonElement> PublicTenantAsync(HttpClient anonymous, string slug)
     {
-        using var response = await anonymous.GetAsync(new Uri($"/api/public/tenants/{slug}", UriKind.Relative), Cancellation);
+        using var response = await anonymous.GetAsync($"/api/public/tenants/{slug}", Cancellation);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         return await ReadAsync(response);
     }
@@ -237,9 +280,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     private static async Task<string> ShortUrlAsync(IntegrationTestWorld world)
     {
         using var platformAdmin = await world.AsAsync(TestPersona.PlatformAdmin, cancellationToken: Cancellation);
-        using var response = await platformAdmin.GetAsync(
-            new Uri($"/api/admin/tenants/{world.Tenants[0].Id}", UriKind.Relative),
-            Cancellation);
+        using var response = await platformAdmin.GetAsync($"/api/admin/tenants/{world.Tenants[0].Id}", Cancellation);
         return (await ReadAsync(response)).GetProperty("shortUrl").GetString()!;
     }
 

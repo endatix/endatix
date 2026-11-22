@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 
 namespace Endatix.Core.Abstractions.Repositories;
 
@@ -28,7 +29,7 @@ public interface ITenantBrandingRepository
     Task<int> CountVersionsAsync(long tenantId, CancellationToken cancellationToken);
 
     /// <summary>A page of the tenant's versions, newest first, read only.</summary>
-    Task<IReadOnlyList<TenantBrandingVersion>> ListVersionsAsync(long tenantId, int skip, int take, CancellationToken cancellationToken);
+    Task<IReadOnlyList<TenantBrandingVersion>> ListVersionsAsync(long tenantId, ResolvedPage page, CancellationToken cancellationToken);
 
     /// <summary>
     /// Saves <paramref name="branding"/> (adding it when it is new) and its new <paramref name="version"/> in one save.
