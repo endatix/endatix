@@ -31,7 +31,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
         var (formId, storedTheme) = await CreatePrivateFormWithThemeAsync(admin);
 
-        using var saved = await PatchSettingsAsync(admin, formId, _themeOn, "\"0\"");
+        using var saved = await PatchSettingsAsync(admin, formId, (_themeOn, "\"0\""));
         Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
         Assert.Equal("\"1\"", saved.Headers.ETag?.Tag);
         var submissionId = await CreateSubmissionAsync(admin, formId);
@@ -91,17 +91,17 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         Assert.Equal("0", defaults.GetProperty("version").ToString());
         Assert.False(defaults.GetProperty("pdf").GetProperty("usesFormTheme").GetBoolean());
 
-        using var missing = await PatchSettingsAsync(admin, formId, _themeOn, ifMatch: null);
+        using var missing = await PatchSettingsAsync(admin, formId, (_themeOn, null));
         Assert.Equal(HttpStatusCode.PreconditionRequired, missing.StatusCode);
-        using var empty = await PatchSettingsAsync(admin, formId, new { }, "\"0\"");
+        using var empty = await PatchSettingsAsync(admin, formId, (new { }, "\"0\""));
         Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
 
-        using var first = await PatchSettingsAsync(admin, formId, _themeOn, "\"0\"");
-        using var retry = await PatchSettingsAsync(admin, formId, _themeOn, "\"0\"");
+        using var first = await PatchSettingsAsync(admin, formId, (_themeOn, "\"0\""));
+        using var retry = await PatchSettingsAsync(admin, formId, (_themeOn, "\"0\""));
         Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
         Assert.Equal("1", (await ReadJsonAsync(retry)).GetProperty("version").ToString());
 
-        using var stale = await PatchSettingsAsync(admin, formId, _themeOff, "\"0\"");
+        using var stale = await PatchSettingsAsync(admin, formId, (_themeOff, "\"0\""));
         Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
         Assert.Equal("\"1\"", stale.Headers.ETag?.Tag);
 
@@ -109,8 +109,9 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         Assert.Equal(HttpStatusCode.NotFound, missingForm.StatusCode);
     }
 
-    private static async Task<HttpResponseMessage> PatchSettingsAsync(HttpClient admin, string formId, object body, string? ifMatch)
+    private static async Task<HttpResponseMessage> PatchSettingsAsync(HttpClient admin, string formId, (object Body, string? IfMatch) patch)
     {
+        var (body, ifMatch) = patch;
         using var request = new HttpRequestMessage(HttpMethod.Patch, $"/api/forms/{formId}/settings")
         {
             Content = JsonContent.Create(body),

@@ -80,6 +80,19 @@ public sealed class FormSettingsHandlerTests
     }
 
     [Fact]
+    public async Task Update_NoSectionOnAMissingRow_InsertsNothing()
+    {
+        StoredForm();
+
+        var result = await UpdateHandler().Handle(
+            new PartialUpdateFormSettingsCommand(FORM_ID, 0, new FormSettingsChange()),
+            TestContext.Current.CancellationToken);
+
+        result.Value.Version.Should().Be(0);
+        await _settings.DidNotReceiveWithAnyArgs().SaveOrConcedeAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task Update_AConcededSave_IsAConflict()
     {
         StoredForm();

@@ -33,8 +33,8 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         var (tenantId, formId) = await InsertFormAsync();
 
         // Act
-        var first = await UpdateAsync(tenantId, formId, _themeOn, 0);
-        var retry = await UpdateAsync(tenantId, formId, _themeOn, 0);
+        var first = await UpdateAsync((tenantId, formId), _themeOn, 0);
+        var retry = await UpdateAsync((tenantId, formId), _themeOn, 0);
 
         // Assert
         first.Value.Version.Should().Be(1);
@@ -53,7 +53,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     {
         // Arrange
         var (tenantId, formId) = await InsertFormAsync();
-        await UpdateAsync(tenantId, formId, _themeOff, 0);
+        await UpdateAsync((tenantId, formId), _themeOff, 0);
         await using (var db = CreateDb(tenantId))
         {
             await db.FormSettings.Where(settings => settings.FormId == formId)
@@ -75,7 +75,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         await using var slowDb = CreateDb(tenantId);
         var slow = new FormSettings(tenantId, formId);
         slow.Apply(_themeOff, 0, DateTime.UtcNow);
-        await UpdateAsync(tenantId, formId, _themeOn, 0);
+        await UpdateAsync((tenantId, formId), _themeOn, 0);
 
         // Act
         var saved = await Repository(slowDb).SaveOrConcedeAsync(slow, Cancellation);
@@ -91,10 +91,10 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     {
         // Arrange: two requests load version 1 (theme on); one turns the theme off and saves first
         var (tenantId, formId) = await InsertFormAsync();
-        await UpdateAsync(tenantId, formId, _themeOn, 0);
+        await UpdateAsync((tenantId, formId), _themeOn, 0);
         await using var slowDb = CreateDb(tenantId);
         var slow = (await Repository(slowDb).FindAsync(formId, Cancellation))!;
-        await UpdateAsync(tenantId, formId, _themeOff, 1);
+        await UpdateAsync((tenantId, formId), _themeOff, 1);
         slow.Apply(_themeOff, 1, DateTime.UtcNow).Value.Should().BeTrue("the slow copy still holds version 1, theme on");
 
         // Act
@@ -113,7 +113,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     {
         // Arrange
         var (tenantId, formId) = await InsertFormAsync();
-        await UpdateAsync(tenantId, formId, _themeOn, 0);
+        await UpdateAsync((tenantId, formId), _themeOn, 0);
         var otherTenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
         await using var otherDb = CreateDb(otherTenantId);
 
@@ -137,8 +137,9 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         return (tenantId, form.Id);
     }
 
-    private async Task<Result<FormSettingsDto>> UpdateAsync(long tenantId, long formId, FormSettingsChange change, long version)
+    private async Task<Result<FormSettingsDto>> UpdateAsync((long TenantId, long FormId) form, FormSettingsChange change, long version)
     {
+        var (tenantId, formId) = form;
         await using var db = CreateDb(tenantId);
         return await new PartialUpdateFormSettingsHandler(new EfRepository<Form>(db, new EndatixSpecificationEvaluator([])), Repository(db), new DateTimeProvider())
             .Handle(new PartialUpdateFormSettingsCommand(formId, version, change), Cancellation);

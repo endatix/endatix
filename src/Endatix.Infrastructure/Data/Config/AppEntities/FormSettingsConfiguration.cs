@@ -25,9 +25,6 @@ internal sealed class FormSettingsConfiguration : IEntityTypeConfiguration<FormS
         builder.Property(settings => settings.Version)
             .IsConcurrencyToken();
 
-        builder.Property(settings => settings.PdfJson)
-            .IsRequired(false);
-
         builder.HasOne<Form>()
             .WithOne()
             .HasForeignKey<FormSettings>(settings => settings.FormId)

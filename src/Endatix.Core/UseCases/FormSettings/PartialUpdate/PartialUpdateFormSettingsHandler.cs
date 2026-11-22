@@ -21,11 +21,16 @@ internal sealed class PartialUpdateFormSettingsHandler(
     public async Task<Result<FormSettingsDto>> Handle(PartialUpdateFormSettingsCommand request, CancellationToken cancellationToken)
     {
         var form = await forms.GetByIdAsync(request.FormId, cancellationToken);
-        if (form is null)
-        {
-            return Result.NotFound("Form not found.");
-        }
+        return form is null
+            ? Result.NotFound("Form not found.")
+            : await ApplyAsync(form, request, cancellationToken);
+    }
 
+    private async Task<Result<FormSettingsDto>> ApplyAsync(
+        Form form,
+        PartialUpdateFormSettingsCommand request,
+        CancellationToken cancellationToken)
+    {
         var settings = await repository.FindAsync(form.Id, cancellationToken)
             ?? new Entities.FormSettings(form.TenantId, form.Id);
         var applied = settings.Apply(request.Change, request.ExpectedVersion, dateTimeProvider.Now.UtcDateTime);

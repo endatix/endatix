@@ -1,6 +1,5 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -14,8 +13,7 @@ namespace Endatix.Core.UseCases.Submissions.GetById;
 /// </summary>
 public class GetByIdHandler(
     IRepository<Submission> repository,
-    IRepository<Theme> themeRepository,
-    IFormSettingsRepository formSettings) : IQueryHandler<GetByIdQuery, Result<Submission>>
+    SubmissionFormTheme formTheme) : IQueryHandler<GetByIdQuery, Result<Submission>>
 {
     public async Task<Result<Submission>> Handle(GetByIdQuery request, CancellationToken cancellationToken)
     {
@@ -27,7 +25,7 @@ public class GetByIdHandler(
             return Result.NotFound("Submission not found");
         }
 
-        await SubmissionFormTheme.LoadAsync(submission, formSettings, themeRepository, cancellationToken);
+        await formTheme.LoadAsync(submission, cancellationToken);
         return Result.Success(submission);
     }
 }

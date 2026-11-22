@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.GetById;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetById;
@@ -17,7 +18,7 @@ public class GetSubmissionByIdHandlerTests
     public GetSubmissionByIdHandlerTests()
     {
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
-        _handler = new GetByIdHandler(_submissionsRepository, _themeRepository, _formSettings);
+        _handler = new GetByIdHandler(_submissionsRepository, new SubmissionFormTheme(_formSettings, _themeRepository));
     }
 
     [Fact]

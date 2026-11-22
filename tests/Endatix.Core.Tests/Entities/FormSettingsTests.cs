@@ -29,6 +29,18 @@ public sealed class FormSettingsTests
         settings.Pdf.UsesFormTheme.Should().Be(stored.Contains("true", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("""{"usesFormTheme":"yes"}""")]
+    [InlineData("not json")]
+    public void Pdf_UnreadableStoredJson_ReadsAsTheDefaultsAndAWriteReplacesIt(string stored)
+    {
+        var settings = Stored(stored);
+
+        settings.Pdf.Should().Be(new PdfSettings());
+        settings.Apply(_themeOn, 0, _at).Value.Should().BeTrue();
+        settings.Pdf.UsesFormTheme.Should().BeTrue();
+    }
+
     [Fact]
     public void Apply_ANewValue_ReplacesTheSectionAndBumpsTheVersion()
     {

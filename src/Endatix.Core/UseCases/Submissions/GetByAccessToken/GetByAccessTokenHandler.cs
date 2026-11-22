@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -13,8 +12,7 @@ namespace Endatix.Core.UseCases.Submissions.GetByAccessToken;
 /// </summary>
 public class GetByAccessTokenHandler(
     IRepository<Submission> submissionRepository,
-    IRepository<Theme> themeRepository,
-    IFormSettingsRepository formSettings,
+    SubmissionFormTheme formTheme,
     ISubmissionAccessTokenService tokenService
     ) : IQueryHandler<GetByAccessTokenQuery, Result<Submission>>
 {
@@ -48,7 +46,7 @@ public class GetByAccessTokenHandler(
             return Result.NotFound("Form not found");
         }
 
-        await SubmissionFormTheme.LoadAsync(submission, formSettings, themeRepository, cancellationToken);
+        await formTheme.LoadAsync(submission, cancellationToken);
         return Result.Success(submission);
     }
 }
