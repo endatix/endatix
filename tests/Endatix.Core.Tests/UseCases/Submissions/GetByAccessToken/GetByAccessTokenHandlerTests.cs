@@ -7,6 +7,7 @@ using Endatix.Core.Specifications;
 using Endatix.Core.Tests;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.GetByAccessToken;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetByAccessToken;
 
@@ -22,7 +23,7 @@ public class GetByAccessTokenHandlerTests
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
-        _handler = new GetByAccessTokenHandler(_submissionRepository, new SubmissionFormTheme(_formSettings, _themeRepository), _tokenService);
+        _handler = new GetByAccessTokenHandler(_submissionRepository, new SubmissionFormTheme(_formSettings, _themeRepository, NullLogger<SubmissionFormTheme>.Instance), _tokenService);
     }
 
     private static Submission CreateSubmissionWithForm(long formId, long formDefinitionId, bool isFormEnabled = true)

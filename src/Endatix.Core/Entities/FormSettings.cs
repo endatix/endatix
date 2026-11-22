@@ -52,6 +52,15 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     [NotMapped]
     public PdfSettings Pdf => FormSettingsJson.Read<PdfSettings>(PdfJson);
 
+    /// <summary>The sections whose stored JSON cannot be read, so they read as their defaults; named as on the wire.</summary>
+    internal IEnumerable<string> UnreadableSections()
+    {
+        if (!FormSettingsJson.IsReadable<PdfSettings>(PdfJson))
+        {
+            yield return "pdf";
+        }
+    }
+
     /// <summary>Replaces each section <paramref name="change"/> names whose value differs from the stored one.</summary>
     /// <param name="change">The sections to replace, each whole; a null section is left alone.</param>
     /// <param name="expectedVersion">The <see cref="Version"/> the caller read.</param>

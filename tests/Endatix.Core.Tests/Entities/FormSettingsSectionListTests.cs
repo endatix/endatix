@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.FormSettings;
 
@@ -6,7 +7,8 @@ namespace Endatix.Core.Tests.Entities;
 
 /// <summary>
 /// A new section is a <c>*Json</c> column on <see cref="FormSettings"/>. Each one must also be in the change, in the
-/// DTO, and in <see cref="FormSettings.Apply"/>, or a write would silently drop it.
+/// DTO, in <see cref="FormSettings.Apply"/> and in <see cref="FormSettings.UnreadableSections"/>, or a write would
+/// silently drop it or an unreadable value would go unlogged.
 /// </summary>
 public sealed class FormSettingsSectionListTests
 {
@@ -31,6 +33,16 @@ public sealed class FormSettingsSectionListTests
 
         settings.Apply(change, FormSettings.UNSAVED_VERSION, DateTime.UtcNow).Value.Should().BeTrue();
         typeof(FormSettings).GetProperty(section + "Json")!.GetValue(settings).Should().NotBeNull();
+    }
+
+    [Theory]
+    [MemberData(nameof(Sections))]
+    public void UnreadableSections_WithThatSectionUnreadable_NamesIt(string section)
+    {
+        var settings = new FormSettings(1, 2);
+        typeof(FormSettings).GetProperty(section + "Json")!.SetValue(settings, "[]");
+
+        settings.UnreadableSections().Should().Equal(JsonNamingPolicy.CamelCase.ConvertName(section));
     }
 }
 

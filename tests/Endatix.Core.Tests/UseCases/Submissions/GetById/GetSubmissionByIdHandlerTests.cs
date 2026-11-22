@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.GetById;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetById;
 
@@ -13,12 +14,13 @@ public class GetSubmissionByIdHandlerTests
     private readonly IRepository<Submission> _submissionsRepository;
     private readonly IRepository<Theme> _themeRepository = Substitute.For<IRepository<Theme>>();
     private readonly IFormSettingsRepository _formSettings = Substitute.For<IFormSettingsRepository>();
+    private readonly ILogger<SubmissionFormTheme> _logger = Substitute.For<ILogger<SubmissionFormTheme>>();
     private readonly GetByIdHandler _handler;
 
     public GetSubmissionByIdHandlerTests()
     {
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
-        _handler = new GetByIdHandler(_submissionsRepository, new SubmissionFormTheme(_formSettings, _themeRepository));
+        _handler = new GetByIdHandler(_submissionsRepository, new SubmissionFormTheme(_formSettings, _themeRepository, _logger));
     }
 
     [Fact]
@@ -83,6 +85,30 @@ public class GetSubmissionByIdHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         await _formSettings.DidNotReceiveWithAnyArgs().ReadAsync(default, default, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Handle_UnreadableStoredPdfSettings_LogsAWarningAndLoadsNoTheme()
+    {
+        // Arrange
+        _logger.IsEnabled(LogLevel.Warning).Returns(true);
+        var submission = SubmissionOfFormWithTheme(themeId: 7);
+        var settings = new Core.Entities.FormSettings(submission.Form.TenantId, submission.Form.Id);
+        typeof(Core.Entities.FormSettings).GetProperty(nameof(Core.Entities.FormSettings.PdfJson))!.SetValue(settings, "[]");
+        _formSettings.ReadAsync(submission.Form.TenantId, submission.Form.Id, Arg.Any<CancellationToken>()).Returns(settings);
+
+        // Act
+        var result = await _handler.Handle(new GetByIdQuery(1, 1), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Value.Form.Theme.Should().BeNull();
+        await _themeRepository.DidNotReceiveWithAnyArgs().GetByIdAsync(default(long), TestContext.Current.CancellationToken);
+        var logCall = _logger.ReceivedCalls().Should().ContainSingle(call => call.GetMethodInfo().Name == nameof(ILogger.Log))
+            .Subject.GetArguments();
+        logCall[0].Should().Be(LogLevel.Warning);
+        var message = logCall[2]!.ToString();
+        message.Should().Contain(submission.Form.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)).And.Contain("pdf");
+        message.Should().NotContain("[]");
     }
 
     private void PdfSettingsOf(Form form, bool usesFormTheme)

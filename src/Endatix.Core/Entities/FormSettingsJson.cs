@@ -16,20 +16,27 @@ internal static class FormSettingsJson
     private static readonly JsonSerializerOptions _options = new(JsonSerializerDefaults.Web);
 
     /// <summary>The section stored in <paramref name="json"/>; its defaults when nothing readable is stored.</summary>
-    public static T Read<T>(string? json) where T : class, new()
+    public static T Read<T>(string? json) where T : class, new() => TryRead<T>(json, out var section) ? section : new T();
+
+    /// <summary>Whether <paramref name="json"/> is missing or holds a section this can read.</summary>
+    public static bool IsReadable<T>(string? json) where T : class, new() => TryRead<T>(json, out _);
+
+    private static bool TryRead<T>(string? json, out T section) where T : class, new()
     {
+        section = new T();
         if (string.IsNullOrWhiteSpace(json))
         {
-            return new T();
+            return true;
         }
 
         try
         {
-            return JsonSerializer.Deserialize<T>(json, _options) ?? new T();
+            section = JsonSerializer.Deserialize<T>(json, _options) ?? section;
+            return true;
         }
         catch (JsonException)
         {
-            return new T();
+            return false;
         }
     }
 
