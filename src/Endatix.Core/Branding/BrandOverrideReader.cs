@@ -14,7 +14,10 @@ internal sealed partial class BrandOverrideReader
     internal const int SUPPORTED_VERSION = 1;
     internal const int ASSET_KEY_MAX_LENGTH = 256;
 
-    /// <summary>Longer than any colour the Hub writes, so the colour patterns never scan long runs of spaces or digits.</summary>
+    /// <summary>
+    /// Longer than any colour the Hub writes, so the colour patterns never scan long runs of spaces or digits. The brand
+    /// pack schema's colour token <c>maxLength</c> must match it; <c>BrandOverrideSchemaTests</c> pins the two together.
+    /// </summary>
     internal const int COLOR_MAX_LENGTH = 64;
 
     /// <summary>Unknown fields reported, at most; the rest are left out of the problem list.</summary>
