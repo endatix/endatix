@@ -86,11 +86,10 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     /// <summary>Replaces each section <paramref name="change"/> names whose value differs from what readers see.</summary>
     /// <param name="change">The sections to replace, each whole; a null section is left alone.</param>
     /// <param name="form">The form these settings belong to; its webhook settings are written with the section.</param>
-    /// <param name="expectedVersion">The <see cref="Version"/> the caller read.</param>
-    /// <param name="at">When the change is made.</param>
+    /// <param name="write">The <see cref="Version"/> the caller read, and when the change is made.</param>
     /// <returns>True when a section changed (the version goes up); false when every named section already holds its
-    /// value, whatever <paramref name="expectedVersion"/> is; <see cref="ResultStatus.Conflict"/> when a section differs
-    /// and <paramref name="expectedVersion"/> is stale.</returns>
+    /// value, whatever version the write names; <see cref="ResultStatus.Conflict"/> when a section differs and the
+    /// named version is stale.</returns>
     /// <remarks>
     /// The PDF section is compared with the stored JSON, not the resolved section, so a value equal to today's default is
     /// still recorded when it was never stored. The webhooks section is compared with what <see cref="WebHooksOf"/>
@@ -99,30 +98,24 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     /// so the column follows even when the section's stored text does not change.
     /// </remarks>
     /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
-    internal Result<bool> Apply(FormSettingsChange change, Form form, long expectedVersion, DateTime at)
+    internal Result<bool> Apply(FormSettingsChange change, Form form, FormSettingsWrite write)
     {
         Guard.Against.Null(change);
-        EnsureOwnForm(form);
-        var pdfJson = Changed(change.Pdf, PdfJson);
         var webHooksJson = Changed(change.WebHooks, ReadersWebHooksJson(form));
+        var pdfJson = Changed(change.Pdf, PdfJson);
         if (pdfJson is null && webHooksJson is null)
         {
             return false;
         }
 
-        if (expectedVersion != Version)
+        if (write.ExpectedVersion != Version)
         {
             return Result.Conflict($"The form settings changed since they were read; they are now at version {Version}.");
         }
 
         PdfJson = pdfJson ?? PdfJson;
-        if (webHooksJson is not null)
-        {
-            WebHooksJson = webHooksJson;
-            form.UpdateWebHookSettings(change.WebHooks);
-        }
-
-        Touch(at);
+        ReplaceWebHooks(form, webHooksJson, change.WebHooks);
+        Touch(write.At);
         return true;
     }
 
@@ -167,10 +160,25 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
             : FormSettingsJson.Read<WebHookConfiguration>(form.WebHookSettingsJson);
     }
 
+    // The section and the form's column together, so the previous release reads the same settings.
+    private void ReplaceWebHooks(Form form, string? webHooksJson, WebHookConfiguration? webHooks)
+    {
+        if (webHooksJson is null)
+        {
+            return;
+        }
+
+        WebHooksJson = webHooksJson;
+        form.UpdateWebHookSettings(webHooks);
+    }
+
     // What readers see, as JSON to compare with: the column, or null when it is empty (the tenant's apply). When the
     // section holds the same settings, comparing with the column gives the same answer as comparing with the section.
-    private static string? ReadersWebHooksJson(Form form) =>
-        string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
+    private string? ReadersWebHooksJson(Form form)
+    {
+        EnsureOwnForm(form);
+        return string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
+    }
 
     private void EnsureOwnForm(Form form)
     {
@@ -196,6 +204,12 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         return FormSettingsJson.SameSection<T>(json, stored) ? null : json;
     }
 }
+
+/// <summary>The <see cref="FormSettings.Version"/> a form settings write names, and when it is made.</summary>
+/// <param name="ExpectedVersion">The version the caller read.</param>
+/// <param name="At">When the change is made.</param>
+[Experimental("ENDATIX0005")]
+internal readonly record struct FormSettingsWrite(long ExpectedVersion, DateTime At);
 
 /// <summary>The sections a form settings write replaces; a null section is left as it is.</summary>
 [Experimental("ENDATIX0005")]

@@ -75,7 +75,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         await using var slowDb = CreateDb(tenantId);
         var slowForm = Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "slow"));
         var slow = FormSettings.For(slowForm);
-        slow.Apply(_themeOff, slowForm, 0, DateTime.UtcNow);
+        slow.Apply(_themeOff, slowForm, new(0, DateTime.UtcNow));
         await UpdateAsync((tenantId, formId), _themeOn, 0);
 
         // Act
@@ -115,7 +115,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         var slowForm = Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "slow"));
         var slow = (await Repository(slowDb).FindAsync(formId, Cancellation))!;
         await UpdateAsync((tenantId, formId), _themeOff, 1);
-        slow.Apply(_themeOff, slowForm, 1, DateTime.UtcNow).Value.Should().BeTrue("the slow copy still holds version 1, theme on");
+        slow.Apply(_themeOff, slowForm, new(1, DateTime.UtcNow)).Value.Should().BeTrue("the slow copy still holds version 1, theme on");
 
         // Act
         var saved = await Repository(slowDb).SaveOrConcedeAsync(slow, Cancellation);

@@ -38,7 +38,7 @@ public sealed class FormSettingsTests
         var settings = Stored(stored);
 
         settings.Pdf.Should().Be(new PdfSettings());
-        settings.Apply(_themeOn, _form, 0, _at).Value.Should().BeTrue();
+        settings.Apply(_themeOn, _form, new(0, _at)).Value.Should().BeTrue();
         settings.Pdf.UsesFormTheme.Should().BeTrue();
     }
 
@@ -47,7 +47,7 @@ public sealed class FormSettingsTests
     {
         var settings = NewSettings();
 
-        var applied = settings.Apply(_themeOn, _form, FormSettings.UNSAVED_VERSION, _at);
+        var applied = settings.Apply(_themeOn, _form, new(FormSettings.UNSAVED_VERSION, _at));
 
         applied.Value.Should().BeTrue();
         settings.Version.Should().Be(1);
@@ -60,9 +60,9 @@ public sealed class FormSettingsTests
     public void Apply_TheStoredValueAgain_IsANoOpWhateverTheVersion()
     {
         var settings = NewSettings();
-        settings.Apply(_themeOn, _form, 0, _at);
+        settings.Apply(_themeOn, _form, new(0, _at));
 
-        var retry = settings.Apply(_themeOn, _form, expectedVersion: 0, _at.AddMinutes(1));
+        var retry = settings.Apply(_themeOn, _form, new(0, _at.AddMinutes(1)));
 
         retry.IsSuccess.Should().BeTrue();
         retry.Value.Should().BeFalse();
@@ -76,7 +76,7 @@ public sealed class FormSettingsTests
         // jsonb gives the value back with its own spacing and key order.
         var settings = Stored("""{"usesFormTheme": true}""");
 
-        var applied = settings.Apply(_themeOn, _form, 0, _at);
+        var applied = settings.Apply(_themeOn, _form, new(0, _at));
 
         applied.Value.Should().BeFalse();
     }
@@ -85,9 +85,9 @@ public sealed class FormSettingsTests
     public void Apply_ADifferentValueFromAStaleVersion_IsAConflict()
     {
         var settings = NewSettings();
-        settings.Apply(_themeOn, _form, 0, _at);
+        settings.Apply(_themeOn, _form, new(0, _at));
 
-        var stale = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, expectedVersion: 0, _at);
+        var stale = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, new(0, _at));
 
         stale.Status.Should().Be(ResultStatus.Conflict);
         settings.Version.Should().Be(1);
@@ -99,7 +99,7 @@ public sealed class FormSettingsTests
     {
         var settings = NewSettings();
 
-        var applied = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, 0, _at);
+        var applied = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, new(0, _at));
 
         applied.Value.Should().BeTrue();
         settings.PdfJson.Should().Be("""{"usesFormTheme":false}""");
@@ -110,7 +110,7 @@ public sealed class FormSettingsTests
     {
         var settings = NewSettings();
 
-        settings.Apply(new FormSettingsChange(), _form, 0, _at).Value.Should().BeFalse();
+        settings.Apply(new FormSettingsChange(), _form, new(0, _at)).Value.Should().BeFalse();
         settings.Version.Should().Be(FormSettings.UNSAVED_VERSION);
     }
 

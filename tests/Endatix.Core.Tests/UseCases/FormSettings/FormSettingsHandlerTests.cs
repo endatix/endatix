@@ -71,7 +71,7 @@ public sealed class FormSettingsHandlerTests
     {
         StoredForm();
         var stored = Core.Entities.FormSettings.For(_form);
-        stored.Apply(_themeOn, _form, 0, DateTime.UtcNow);
+        stored.Apply(_themeOn, _form, new(0, DateTime.UtcNow));
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(stored);
 
         var result = await UpdateHandler().Handle(Command(0), TestContext.Current.CancellationToken);
@@ -109,7 +109,7 @@ public sealed class FormSettingsHandlerTests
     {
         StoredForm();
         var winner = Core.Entities.FormSettings.For(_form);
-        winner.Apply(_themeOn, _form, 0, DateTime.UtcNow);
+        winner.Apply(_themeOn, _form, new(0, DateTime.UtcNow));
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(null, winner);
         _settings.SaveOrConcedeAsync(Arg.Any<Core.Entities.FormSettings>(), Arg.Any<CancellationToken>()).Returns(false);
 
@@ -124,7 +124,7 @@ public sealed class FormSettingsHandlerTests
     {
         StoredForm();
         var winner = Core.Entities.FormSettings.For(_form);
-        winner.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, 0, DateTime.UtcNow);
+        winner.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, new(0, DateTime.UtcNow));
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(null, winner);
         _settings.SaveOrConcedeAsync(Arg.Any<Core.Entities.FormSettings>(), Arg.Any<CancellationToken>()).Returns(false);
 
@@ -138,7 +138,7 @@ public sealed class FormSettingsHandlerTests
     {
         StoredForm();
         var stored = Core.Entities.FormSettings.For(_form);
-        stored.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, 0, DateTime.UtcNow);
+        stored.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, new(0, DateTime.UtcNow));
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(stored);
 
         var result = await UpdateHandler().Handle(Command(0), TestContext.Current.CancellationToken);

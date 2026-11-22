@@ -8,6 +8,7 @@ namespace Endatix.Core.Exceptions;
 /// (endatix/endatix#1784), so a form save can lose this race to another form save or to a settings write.</remarks>
 public sealed class FormSettingsChangedException : Exception
 {
+    /// <summary>Reports the lost race, with the provider's error as <paramref name="innerException"/>.</summary>
     public FormSettingsChangedException(string message, Exception? innerException = null)
         : base(message, innerException)
     {

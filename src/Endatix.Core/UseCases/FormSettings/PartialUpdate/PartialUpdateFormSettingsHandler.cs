@@ -60,5 +60,5 @@ internal sealed class PartialUpdateFormSettingsHandler(
     }
 
     private Result<bool> Apply(Entities.FormSettings settings, Form form, PartialUpdateFormSettingsCommand request) =>
-        settings.Apply(request.Change, form, request.ExpectedVersion, dateTimeProvider.Now.UtcDateTime);
+        settings.Apply(request.Change, form, new(request.ExpectedVersion, dateTimeProvider.Now.UtcDateTime));
 }

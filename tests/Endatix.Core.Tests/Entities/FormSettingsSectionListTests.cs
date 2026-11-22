@@ -32,7 +32,7 @@ public sealed class FormSettingsSectionListTests
         var form = Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form"));
         var settings = FormSettings.For(form);
 
-        settings.Apply(change, form, FormSettings.UNSAVED_VERSION, DateTime.UtcNow).Value.Should().BeTrue();
+        settings.Apply(change, form, new(FormSettings.UNSAVED_VERSION, DateTime.UtcNow)).Value.Should().BeTrue();
         typeof(FormSettings).GetProperty(section + "Json")!.GetValue(settings).Should().NotBeNull();
     }
 

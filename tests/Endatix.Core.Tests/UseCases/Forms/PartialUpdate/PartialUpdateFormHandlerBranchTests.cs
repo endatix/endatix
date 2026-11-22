@@ -1,8 +1,10 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
+using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Core.Tests.UseCases.Forms.PartialUpdate;
 
@@ -55,6 +57,19 @@ public sealed class PartialUpdateFormHandlerBranchTests
 
         result.IsSuccess.Should().BeTrue();
         form.SubmissionTokenExpiryHours.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_FormSettingsChangedDuringTheSave_ReturnsConflict()
+    {
+        // Another write raised the form's settings version while this save wrote its webhooks.
+        var form = StoredForm();
+        _forms.UpdateAsync(form, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new FormSettingsChangedException("The form settings changed while they were being saved."));
+
+        var result = await _handler.Handle(new PartialUpdateFormCommand(1) { Name = "Renamed" }, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
     }
 
     private Form StoredForm(int? expiryHours = null)

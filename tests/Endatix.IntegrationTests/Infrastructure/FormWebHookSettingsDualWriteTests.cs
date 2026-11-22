@@ -127,7 +127,7 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
         var slowForm = await slowDb.Forms.SingleAsync(form => form.Id == formId, Cancellation);
         var slow = (await Repository(slowDb).FindAsync(formId, Cancellation))!;
         await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(OTHER_HOOK_URL) }, 1);
-        slow.Apply(new FormSettingsChange { WebHooks = new WebHookConfiguration() }, slowForm, 1, DateTime.UtcNow).Value.Should().BeTrue();
+        slow.Apply(new FormSettingsChange { WebHooks = new WebHookConfiguration() }, slowForm, new(1, DateTime.UtcNow)).Value.Should().BeTrue();
 
         // Act
         var saved = await Repository(slowDb).SaveOrConcedeAsync(slow, Cancellation);

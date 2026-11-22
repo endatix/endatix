@@ -20,6 +20,7 @@ namespace Endatix.Infrastructure.Data;
 public class AppDbContext : DbContext, ITenantDbContext
 {
     private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
+    private const string FORM_SETTINGS_KEY_NAME = "PK_FormSettings";
 
     // Null only through the protected constructor: GetTenantId falls back to 0 and no outbox
     // messages are captured.
@@ -138,13 +139,9 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw DatabaseDeadlocks.Victim(exception);
         }
-        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
+        catch (DbUpdateException dbUpdateException) when (Translated(dbUpdateException) is { } translated)
         {
-            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
-        }
-        catch (DbUpdateException dbUpdateException) when (IsFormSettingsLostRace(dbUpdateException))
-        {
-            throw new FormSettingsChangedException("The form settings changed while they were being saved.", dbUpdateException);
+            throw translated;
         }
     }
 
@@ -164,13 +161,9 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw DatabaseDeadlocks.Victim(exception);
         }
-        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
+        catch (DbUpdateException dbUpdateException) when (Translated(dbUpdateException) is { } translated)
         {
-            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
-        }
-        catch (DbUpdateException dbUpdateException) when (IsFormSettingsLostRace(dbUpdateException))
-        {
-            throw new FormSettingsChangedException("The form settings changed while they were being saved.", dbUpdateException);
+            throw translated;
         }
     }
 
@@ -181,39 +174,37 @@ public class AppDbContext : DbContext, ITenantDbContext
     private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>
         concurrencyException.Entries.Any(entry => entry.Entity is Submission);
 
+    // The Core exception a refused save means to its caller, or null when it is not one the writers handle.
+    private static Exception? Translated(DbUpdateException dbUpdateException)
+    {
+        if (IsUniqueViolationOf(dbUpdateException, DUPLICATE_SUBMISSION_CONSTRAINT_NAME))
+        {
+            return new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
+        }
+
+        return IsFormSettingsLostRace(dbUpdateException)
+            ? new FormSettingsChangedException("The form settings changed while they were being saved.", dbUpdateException)
+            : null;
+    }
+
     /// <summary>
     /// <see cref="FormSettings.Version"/> is a concurrency token and <see cref="FormSettings.FormId"/> the key, so a save
     /// that wrote a form's settings from a version another write has raised matches no row, and a second first row is a
-    /// unique violation. A form save writes them too (<see cref="FormWebHookSettingsMirror"/>).
+    /// unique violation of the key. A form save writes them too (<see cref="FormWebHookSettingsMirror"/>).
     /// </summary>
     private static bool IsFormSettingsLostRace(DbUpdateException dbUpdateException) =>
-        dbUpdateException.Entries.Any(entry => entry.Entity is FormSettings)
-        && (dbUpdateException is DbUpdateConcurrencyException || IsUniqueViolation(dbUpdateException));
+        dbUpdateException is DbUpdateConcurrencyException concurrencyException
+            ? concurrencyException.Entries.Any(entry => entry.Entity is FormSettings)
+            : IsUniqueViolationOf(dbUpdateException, FORM_SETTINGS_KEY_NAME);
 
-    private static bool IsUniqueViolation(DbUpdateException dbUpdateException)
+    private static bool IsUniqueViolationOf(DbUpdateException dbUpdateException, string constraintName)
     {
         for (var current = dbUpdateException.InnerException; current is not null; current = current.InnerException)
         {
             if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
             {
-                return true;
+                return ContainsConstraintName(current, constraintName);
             }
-        }
-
-        return false;
-    }
-
-    private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
-    {
-        var current = dbUpdateException.InnerException;
-        while (current is not null)
-        {
-            if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
-            {
-                return ContainsSubmissionConstraintName(current);
-            }
-
-            current = current.InnerException;
         }
 
         return false;
@@ -246,15 +237,15 @@ public class AppDbContext : DbContext, ITenantDbContext
         return sqlErrorNumber is 2601 or 2627;
     }
 
-    private static bool ContainsSubmissionConstraintName(Exception exception)
+    private static bool ContainsConstraintName(Exception exception, string name)
     {
         var constraintName = exception.GetType().GetProperty("ConstraintName")?.GetValue(exception) as string;
         if (!string.IsNullOrWhiteSpace(constraintName))
         {
-            return string.Equals(constraintName, DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
+            return string.Equals(constraintName, name, StringComparison.Ordinal);
         }
 
-        return exception.Message.Contains(DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
+        return exception.Message.Contains(name, StringComparison.Ordinal);
     }
 
     private void ProcessEntities()

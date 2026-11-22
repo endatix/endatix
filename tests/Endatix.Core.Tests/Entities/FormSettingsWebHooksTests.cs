@@ -52,9 +52,9 @@ public sealed class FormSettingsWebHooksTests
         // A section holding a dictionary: equal content is never equal by reference, so Apply compares JSON.
         var form = NewForm();
         var settings = FormSettings.For(form);
-        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(FormSettings.UNSAVED_VERSION, _at));
 
-        var retry = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+        var retry = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(FormSettings.UNSAVED_VERSION, _at));
 
         retry.IsSuccess.Should().BeTrue();
         retry.Value.Should().BeFalse();
@@ -68,7 +68,7 @@ public sealed class FormSettingsWebHooksTests
         var settings = FormSettings.For(form);
         var change = new FormSettingsChange { WebHooks = Config(), Pdf = new PdfSettings { UsesFormTheme = true } };
 
-        settings.Apply(change, form, FormSettings.UNSAVED_VERSION, _at).Value.Should().BeTrue();
+        settings.Apply(change, form, new(FormSettings.UNSAVED_VERSION, _at)).Value.Should().BeTrue();
 
         settings.Version.Should().Be(1);
         settings.Pdf.UsesFormTheme.Should().BeTrue();
@@ -81,7 +81,7 @@ public sealed class FormSettingsWebHooksTests
         var form = NewForm();
         var settings = FormSettings.For(form);
 
-        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(FormSettings.UNSAVED_VERSION, _at));
 
         form.WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(HOOK_URL);
     }
@@ -94,7 +94,7 @@ public sealed class FormSettingsWebHooksTests
         form.UpdateWebHookSettings(Config(NEWER_HOOK_URL));
         var settings = Stored(CamelCase(Config()));
 
-        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(FormSettings.UNSAVED_VERSION, _at));
 
         applied.Value.Should().BeTrue();
         settings.Version.Should().Be(1);
@@ -108,7 +108,7 @@ public sealed class FormSettingsWebHooksTests
         var form = NewForm();
         var settings = Stored(CamelCase(Config()));
 
-        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(FormSettings.UNSAVED_VERSION, _at));
 
         applied.Value.Should().BeTrue();
         form.WebHookSettings.Events.Should().ContainKey("SubmissionCompleted");
@@ -121,7 +121,7 @@ public sealed class FormSettingsWebHooksTests
         form.UpdateWebHookSettings(Config(NEWER_HOOK_URL));
         var settings = Stored(CamelCase(Config()));
 
-        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, 7, _at);
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(7, _at));
 
         applied.Status.Should().Be(ResultStatus.Conflict);
         settings.Version.Should().Be(FormSettings.UNSAVED_VERSION);
@@ -136,7 +136,7 @@ public sealed class FormSettingsWebHooksTests
         form.UpdateWebHookSettings(Config(NEWER_HOOK_URL));
         var settings = Stored(CamelCase(Config()));
 
-        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config(NEWER_HOOK_URL) }, form, 7, _at);
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config(NEWER_HOOK_URL) }, form, new(7, _at));
 
         applied.IsSuccess.Should().BeTrue();
         applied.Value.Should().BeFalse();
@@ -146,7 +146,7 @@ public sealed class FormSettingsWebHooksTests
     [Fact]
     public void Apply_ToAnotherForm_Throws()
     {
-        var apply = () => NewSettings().Apply(new FormSettingsChange { WebHooks = Config() }, Form.Create(3, new FormCreateArgs(TenantId: 1, Name: "Other")), 0, _at);
+        var apply = () => NewSettings().Apply(new FormSettingsChange { WebHooks = Config() }, Form.Create(3, new FormCreateArgs(TenantId: 1, Name: "Other")), new(0, _at));
 
         apply.Should().Throw<ArgumentException>();
     }
@@ -225,7 +225,7 @@ public sealed class FormSettingsWebHooksTests
         form.UpdateWebHookSettings(Config());
         var settings = Stored(STORED_BY_FORM);
 
-        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, 7, _at);
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(7, _at));
 
         applied.IsSuccess.Should().BeTrue();
         applied.Value.Should().BeFalse();
@@ -238,7 +238,7 @@ public sealed class FormSettingsWebHooksTests
         // A settings write stored camelCase and wrote the column in Pascal case; a later form save copies it back.
         var form = NewForm();
         var settings = FormSettings.For(form);
-        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, new(FormSettings.UNSAVED_VERSION, _at));
         form.UpdateWebHookSettings(Config());
 
         settings.CopyWebHooksFrom(form, _at.AddMinutes(1)).Should().BeFalse();
