@@ -117,6 +117,8 @@ public sealed partial class TenantBrandingFlowTests(EndatixIntegrationWebHostFix
     [InlineData("""{"version":1,"extra":true}""", "/extra", "unknown_field")]
     [InlineData("""{"version":1""", "", "invalid_json")]
     [InlineData("", "", "invalid_json")]
+    [InlineData("""{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"o\u212Alch(0.5 0.2 260)"}}}}""", "/tokens/color/primary/$value", "invalid_color")]
+    [InlineData("""{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"hsl(216\u0085100%\u008541%)"}}}}""", "/tokens/color/primary/$value", "invalid_color")]
     public async Task An_unusable_override_lists_its_problems(string body, string path, string code)
     {
         // Arrange
