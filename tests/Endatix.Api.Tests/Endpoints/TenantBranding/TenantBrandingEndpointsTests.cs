@@ -104,6 +104,7 @@ public sealed class TenantBrandingEndpointsTests
     }
 
     [Theory]
+    [InlineData("1")]
     [InlineData("W/\"1\"")]
     [InlineData("*")]
     [InlineData("\"1\", \"2\"")]
@@ -137,6 +138,27 @@ public sealed class TenantBrandingEndpointsTests
         response.Result.As<Ok<TenantBrandingModel>>().Value!.Version.Should().Be(4);
         endpoint.HttpContext.Response.Headers.ETag.ToString().Should().Be("\"4\"");
         await _publicTenantCache.Received(1).InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Publish_EvictsThePublicRead_WhenTheClientHangsUpAfterTheCommit()
+    {
+        // Arrange - the request is aborted once the command has committed
+        using var aborted = new CancellationTokenSource();
+        var endpoint = CreateWrite<PublishTenantBranding>("\"3\"");
+        _mediator.Send(Arg.Any<PublishTenantBrandingCommand>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                aborted.Cancel();
+                return Result.Success(new TenantBrandingDto(BLUE, 4, 4, _publishedAt));
+            });
+
+        // Act
+        await endpoint.ExecuteAsync(Body(BLUE), aborted.Token);
+
+        // Assert
+        await _publicTenantCache.Received(1).InvalidateCurrentTenantAsync(
+            Arg.Is<CancellationToken>(token => !token.IsCancellationRequested));
     }
 
     [Fact]
@@ -219,7 +241,7 @@ public sealed class TenantBrandingEndpointsTests
     public async Task Restore_NamesTheNumberAndTheVersion_AndEvictsThePublicRead()
     {
         // Arrange
-        var endpoint = CreateWrite<RestoreTenantBranding>("2");
+        var endpoint = CreateWrite<RestoreTenantBranding>("\"2\"");
         _mediator.Send(Arg.Any<RestoreTenantBrandingCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new TenantBrandingDto(BLUE, 3, 3, _publishedAt)));
 

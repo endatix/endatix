@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Endatix.Api.Common;
 using Endatix.Api.Common.FeatureFlags;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.TenantBranding.Get;
@@ -48,7 +49,7 @@ public sealed class GetTenantBranding(IMediator mediator)
             return TenantBrandingHttp.ToProblem(result);
         }
 
-        TenantBrandingHttp.SetETag(HttpContext, result.Value.Branding.Version);
+        EntityTagHeader.SetETag(HttpContext.Response, result.Value.Branding.Version);
         return TypedResults.Ok(TenantBrandingModel.Map(result.Value));
     }
 }

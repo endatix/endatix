@@ -18,8 +18,9 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Endatix.Api.Endpoints.TenantBranding;
 
 /// <summary>
-/// The steps every branding write shares. It names the version it read in <c>If-Match</c> (ADR 0002): 428 when that is
-/// missing, 400 when it is not one version, 412 with the current version when it is stale. On success the tenant's
+/// The steps every branding write shares. It names the version it read in <c>If-Match</c> (<see cref="EntityTagHeader"/>,
+/// the pattern pending ADR 0006): 428 when that is missing, 400 when it is not one strong tag, 412 with the current
+/// version when it is stale. On success the tenant's
 /// cached public read is evicted and the new version is the <c>ETag</c>.
 /// </summary>
 /// <remarks>
@@ -76,7 +77,7 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
     /// <inheritdoc/>
     public override async Task<Results<Ok<TenantBrandingModel>, ProblemHttpResult>> ExecuteAsync(TRequest req, CancellationToken ct)
     {
-        if (IfMatchProblem(out var expectedVersion) is { } refused)
+        if (EntityTagHeader.ReadIfMatch(HttpContext.Request.Headers.IfMatch.ToString(), out var expectedVersion) is { } refused)
         {
             return refused;
         }
@@ -88,43 +89,26 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
         }
 
         return result.IsSuccess
-            ? await SavedAsync(result.Value, expectedVersion, ct)
+            ? await SavedAsync(result.Value, expectedVersion)
             : TenantBrandingHttp.ToProblem(result);
     }
 
     private async Task<Results<Ok<TenantBrandingModel>, ProblemHttpResult>> SavedAsync(
         TenantBrandingDto branding,
-        long expectedVersion,
-        CancellationToken ct)
+        long expectedVersion)
     {
-        // A write that changed nothing returns the version it was given; the cached read is still right.
+        // A write that changed nothing returns the version it was given; the cached read is still right. The write is
+        // committed, so a client that hangs up now must not leave the old brand cached.
         if (branding.Version != expectedVersion)
         {
-            await publicTenantCache.InvalidateCurrentTenantAsync(ct);
+            await publicTenantCache.InvalidateCurrentTenantAsync(CancellationToken.None);
         }
 
-        TenantBrandingHttp.SetETag(HttpContext, branding.Version);
+        EntityTagHeader.SetETag(HttpContext.Response, branding.Version);
         return TypedResults.Ok(TenantBrandingModel.MapWrite(branding));
     }
 
-    // Missing is 428 here, not a validator's 400.
-    private ProblemHttpResult? IfMatchProblem(out long expectedVersion)
-    {
-        var ifMatch = HttpContext.Request.Headers.IfMatch.ToString();
-        if (string.IsNullOrWhiteSpace(ifMatch))
-        {
-            expectedVersion = 0;
-            return TenantBrandingHttp.Problem(StatusCodes.Status428PreconditionRequired, "Precondition required",
-                "Send If-Match with the version you read, in quotes; \"0\" before the first publish.");
-        }
-
-        return EntityTagHeader.TryParse(ifMatch, out expectedVersion)
-            ? null
-            : TenantBrandingHttp.Problem(StatusCodes.Status400BadRequest, Api.Infrastructure.ResultExtensions.ResultTitles.BAD_REQUEST,
-                "If-Match must hold one strong version tag, such as \"3\"; weak tags, * and lists are not accepted.");
-    }
-
-    // ADR 0002: a stale write returns the current state, so the client can retry without reading first.
+    // A stale write names the current version, so the client can read it and retry (pending ADR 0006, versioning-1.md §2).
     private async Task<ProblemHttpResult> StaleAsync(Result<TenantBrandingDto> result, CancellationToken ct)
     {
         var problem = TenantBrandingHttp.Problem(StatusCodes.Status412PreconditionFailed, "Precondition failed",
@@ -133,7 +117,7 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
         if (current.IsSuccess)
         {
             var version = current.Value.Branding.Version;
-            TenantBrandingHttp.SetETag(HttpContext, version);
+            EntityTagHeader.SetETag(HttpContext.Response, version);
             problem.ProblemDetails.Extensions["version"] = version.ToString(CultureInfo.InvariantCulture);
         }
 
@@ -167,9 +151,6 @@ internal static class TenantBrandingHttp
 
         return problem;
     }
-
-    internal static void SetETag(HttpContext httpContext, long version) =>
-        httpContext.Response.Headers.ETag = EntityTagHeader.Format(version);
 
     internal static ProblemHttpResult Problem(int status, string title, string detail) =>
         TypedResults.Problem(EndatixProblemDetails.Create(status, title, detail));
