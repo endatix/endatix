@@ -50,4 +50,27 @@ public class JobScopeTests
         // Assert
         scope.IsSystem.Should().BeFalse();
     }
+
+    [Fact]
+    public void System_IsEqualToItselfAndNotToATenant()
+    {
+        // Arrange
+        // Act
+        var scope = JobScope.System;
+
+        // Assert
+        scope.Should().Be(JobScope.System);
+        scope.Should().NotBe(JobScope.ForTenant(7));
+    }
+
+    [Fact]
+    public void ToString_NamesTheScope()
+    {
+        // Arrange
+        // Act
+        var printed = (System: JobScope.System.ToString(), Tenant: JobScope.ForTenant(5).ToString());
+
+        // Assert
+        printed.Should().Be(("System", "Tenant 5"));
+    }
 }

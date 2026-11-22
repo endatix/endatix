@@ -534,6 +534,10 @@ fails at once, so before moving existing work there, let its outbox rows and in-
 pending outbox message for its events and no `Pending` or `Retrying` job of its type. Then deploy the
 switch.
 
+In a rolling deploy, draining is not enough. A node of the previous version has no system scope, so it must not
+run while a new node enqueues system jobs. Upgrade every node first. Register `AddAppLevelOutboxWork` in a later
+deploy. Or keep producers and workers stopped until every node runs the new version.
+
 Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
 
 ## Configuration

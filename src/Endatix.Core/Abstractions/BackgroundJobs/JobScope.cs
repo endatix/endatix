@@ -14,46 +14,34 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// tenant to a sentinel.
 /// </para>
 /// </remarks>
-public abstract record JobScope
+public sealed record JobScope
 {
-    private JobScope()
+    private readonly long? _tenantId;
+
+    private JobScope(long? tenantId)
     {
+        _tenantId = tenantId;
     }
 
     /// <summary>The scope of work that belongs to no tenant.</summary>
-    public static JobScope System { get; } = new SystemScope();
+    public static JobScope System { get; } = new(tenantId: null);
 
     /// <summary>The scope of <paramref name="tenantId"/>'s work.</summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="tenantId"/> is zero or negative.</exception>
-    public static JobScope ForTenant(long tenantId) => new TenantScope(tenantId);
+    public static JobScope ForTenant(long tenantId)
+    {
+        // Zero is what the tenant context reports when there is no tenant at all, so a job carrying it would belong
+        // to nobody. Work that belongs to no tenant is a system job, named as one.
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tenantId);
+        return new JobScope(tenantId);
+    }
 
     /// <summary>The owning tenant, or <see langword="null"/> for a system job.</summary>
-    public abstract long? TenantId { get; }
+    public long? TenantId => _tenantId;
 
     /// <summary>Whether this is <see cref="System"/>.</summary>
-    public bool IsSystem => TenantId is null;
+    public bool IsSystem => _tenantId is null;
 
-    private sealed record SystemScope : JobScope
-    {
-        public override long? TenantId => null;
-
-        public override string ToString() => "System";
-    }
-
-    private sealed record TenantScope : JobScope
-    {
-        public TenantScope(long tenantId)
-        {
-            // Zero is what the tenant context reports when there is no tenant at all, so a job carrying it would
-            // belong to nobody. Work that belongs to no tenant is a system job, named as one.
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tenantId);
-            Id = tenantId;
-        }
-
-        private long Id { get; }
-
-        public override long? TenantId => Id;
-
-        public override string ToString() => $"Tenant {Id}";
-    }
+    /// <inheritdoc />
+    public override string ToString() => _tenantId is { } tenantId ? $"Tenant {tenantId}" : "System";
 }

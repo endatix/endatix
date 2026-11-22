@@ -24,8 +24,9 @@ namespace Endatix.Modules.Jobs.Persistence.Migrations.SqlServer
 
         /// <inheritdoc />
         /// <remarks>
-        /// Fails while system jobs exist, since they store tenant 0. Delete those rows first; they hold only state, and
-        /// the outbox rows they processed remain.
+        /// Fails while system jobs exist, since they store tenant 0. Stop producers and workers first and let system
+        /// jobs drain, until no system job is Pending or Retrying. Then delete the terminal system rows. An unfinished
+        /// system job whose outbox row is already sent is the only record of that work, so deleting it loses the work.
         /// </remarks>
         protected override void Down(MigrationBuilder migrationBuilder)
         {

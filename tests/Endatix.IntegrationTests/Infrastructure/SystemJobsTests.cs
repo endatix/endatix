@@ -44,10 +44,15 @@ public sealed class SystemJobsTests(DbIntegrationFixture fixture)
                 ct) == 1,
             TimeSpan.FromSeconds(30),
             ct);
+        // The relay marks the row sent in its own write after enqueueing, so the job can complete first.
+        var sent = await JobsTestWait.UntilAsync(
+            async () => (await host.ReadMessageAsync(951, ct)).Status == SENT,
+            TimeSpan.FromSeconds(30),
+            ct);
 
         // Assert — the work ran once in the job and read an app-level repository there.
         completed.Should().BeTrue();
-        (await host.ReadMessageAsync(951, ct)).Status.Should().Be(SENT);
+        sent.Should().BeTrue();
         recorder.Runs.Should().Be(1);
         recorder.TenantsSeen.Should().Be(await host.Database.CountAsync("""SELECT count(*) FROM "Tenants" """, ct));
     }
