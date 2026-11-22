@@ -9,7 +9,8 @@ namespace Endatix.Api.Endpoints.TenantBranding;
 /// <summary>A tenant's branding, as <c>GET tenant-branding</c> and every write return it. Numbers are JSON strings.</summary>
 /// <param name="Entitled">Whether the tenant's plan includes branding. When false, <paramref name="Published"/> is null.</param>
 /// <param name="Published">The live brand override as a JSON object; null when the deployment brand applies.</param>
-/// <param name="PublishedNumber">The live version's number; null when nothing is published.</param>
+/// <param name="PublishedNumber">The live version's number; null when nothing is published. After a reset it is the
+/// reset's number, with <paramref name="Published"/> null.</param>
 /// <param name="Version">The version the next write names in <c>If-Match</c>; also the response's <c>ETag</c>. A JSON
 /// string, as every long is on the wire.</param>
 /// <param name="PublishedAt">When the live version was published.</param>
@@ -38,8 +39,9 @@ public sealed record TenantBrandingModel(
 /// <param name="Number">The version's number, 1..n per tenant.</param>
 /// <param name="CreatedAt">When it was published.</param>
 /// <param name="CreatedBy">The user who published it; null when not known.</param>
-/// <param name="Source"><c>publish</c> or <c>restore</c>.</param>
-/// <param name="RestoredFromNumber">For a restore, the version it copies; otherwise null.</param>
+/// <param name="Source"><c>publish</c>, <c>restore</c> or <c>reset</c>.</param>
+/// <param name="RestoredFromNumber">For a restore, or a reset made by restoring one, the version it copies; otherwise
+/// null.</param>
 [Experimental("ENDATIX0002")]
 public sealed record TenantBrandingVersionModel(
     long Number,

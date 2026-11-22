@@ -52,6 +52,10 @@ internal sealed class TenantBrandingWriter(ITenantBrandingRepository repository,
                 : branding.Restore(source, expectedVersion, stamp);
         }, cancellationToken);
 
+    /// <summary>Shows the deployment brand again, as a new version.</summary>
+    internal Task<Result<TenantBrandingDto>> ResetAsync(long expectedVersion, CancellationToken cancellationToken) =>
+        WriteAsync(branding => Task.FromResult(branding.Reset(expectedVersion, stamp)), cancellationToken);
+
     private async Task<Result<TenantBrandingDto>> WriteAsync(
         Func<Entities.TenantBranding, Task<Result<TenantBrandingVersion?>>> change,
         CancellationToken cancellationToken)

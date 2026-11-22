@@ -28,6 +28,6 @@ internal interface IContentVersion
     /// <summary>How it was made: one of <see cref="ContentVersionSources"/>.</summary>
     string Source { get; }
 
-    /// <summary>The number of the version it copies, for a restore; otherwise null.</summary>
+    /// <summary>The number of the version it copies, for a restore (or a reset made by restoring one); otherwise null.</summary>
     long? RestoredFromNumber { get; }
 }

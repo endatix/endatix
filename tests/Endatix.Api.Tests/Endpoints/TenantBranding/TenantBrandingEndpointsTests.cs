@@ -309,6 +309,75 @@ public sealed class TenantBrandingEndpointsTests
         response.Result.As<Ok<TenantBrandingModel>>().Value!.Version.Should().Be(3);
     }
 
+    [Fact]
+    public async Task Reset_SendsTheVersionAndTheCaller_AndEvictsThePublicRead()
+    {
+        // Arrange
+        var endpoint = CreateWrite<ResetTenantBranding>("\"2\"");
+        _mediator.Send(Arg.Any<ResetTenantBrandingCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TenantBrandingDto(null, 3, 3, _publishedAt)));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(EmptyRequest.Instance, Cancellation);
+
+        // Assert
+        await _mediator.Received(1).Send(new ResetTenantBrandingCommand(2, 7), Arg.Any<CancellationToken>());
+        var model = response.Result.As<Ok<TenantBrandingModel>>().Value!;
+        model.Published.Should().BeNull();
+        model.PublishedNumber.Should().Be(3);
+        endpoint.HttpContext.Response.Headers.ETag.ToString().Should().Be("\"3\"");
+        await _publicTenantCache.Received(1).InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Reset_WithNoCustomBrandLive_KeepsThePublicRead()
+    {
+        // Arrange
+        var endpoint = CreateWrite<ResetTenantBranding>("\"0\"");
+        _mediator.Send(Arg.Any<ResetTenantBrandingCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TenantBrandingDto(null, null, 0, null)));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(EmptyRequest.Instance, Cancellation);
+
+        // Assert
+        response.Result.Should().BeOfType<Ok<TenantBrandingModel>>();
+        await _publicTenantCache.DidNotReceive().InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Reset_WithoutIfMatch_IsPreconditionRequiredAndSendsNothing()
+    {
+        // Arrange
+        var endpoint = CreateWrite<ResetTenantBranding>(null);
+
+        // Act
+        var response = await endpoint.ExecuteAsync(EmptyRequest.Instance, Cancellation);
+
+        // Assert
+        response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status428PreconditionRequired);
+        await _mediator.DidNotReceive().Send(Arg.Any<ResetTenantBrandingCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Reset_StaleVersion_IsPreconditionFailed()
+    {
+        // Arrange
+        var endpoint = CreateWrite<ResetTenantBranding>("\"1\"");
+        _mediator.Send(Arg.Any<ResetTenantBrandingCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<TenantBrandingDto>.Conflict("The branding changed since it was read; it is now at version 2."));
+        _mediator.Send(Arg.Any<GetTenantBrandingQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TenantBrandingReadDto(true, new TenantBrandingDto(BLUE, 2, 2, _publishedAt))));
+
+        // Act
+        var response = await endpoint.ExecuteAsync(EmptyRequest.Instance, Cancellation);
+
+        // Assert
+        response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status412PreconditionFailed);
+        endpoint.HttpContext.Response.Headers.ETag.ToString().Should().Be("\"2\"");
+        await _publicTenantCache.DidNotReceive().InvalidateCurrentTenantAsync(Arg.Any<CancellationToken>());
+    }
+
     private TEndpoint CreateWrite<TEndpoint>(string? ifMatch) where TEndpoint : class, IEndpoint =>
         Factory.Create<TEndpoint>(
             context =>

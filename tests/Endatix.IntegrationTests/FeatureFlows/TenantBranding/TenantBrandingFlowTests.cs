@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.TenantBranding;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
-public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SEED_PASSWORD = "Password123!";
     private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
@@ -26,6 +26,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     private const string PUBLISH_ROUTE = "/api/tenant-branding/published";
     private const string RESTORE_ROUTE = "/api/tenant-branding/restore";
     private const string ROLLBACK_ROUTE = "/api/tenant-branding/rollback";
+    private const string RESET_ROUTE = "/api/tenant-branding/reset";
     private const string VERSIONS_ROUTE = "/api/tenant-branding/versions";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -96,10 +97,12 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         using var publish = await SendAsync(admin, Publish(BLUE), "\"1\"");
         using var restore = await SendAsync(admin, Post(RESTORE_ROUTE, new { number = 1 }), "\"1\"");
         using var rollback = await SendAsync(admin, Post(ROLLBACK_ROUTE), "\"1\"");
+        using var reset = await SendAsync(admin, Post(RESET_ROUTE), "\"1\"");
         using var missing = await SendAsync(admin, Publish(BLUE), null);
+        using var missingOnReset = await SendAsync(admin, Post(RESET_ROUTE), null);
 
         // Assert
-        foreach (var stale in new[] { publish, restore, rollback })
+        foreach (var stale in new[] { publish, restore, rollback, reset })
         {
             stale.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
             stale.Headers.ETag!.Tag.Should().Be("\"2\"");
@@ -107,6 +110,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         }
 
         missing.StatusCode.Should().Be((HttpStatusCode)428);
+        missingOnReset.StatusCode.Should().Be((HttpStatusCode)428);
     }
 
     [Theory]
@@ -182,11 +186,13 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         // Act
         using var read = await creator.GetAsync(BRANDING_ROUTE, Cancellation);
         using var publish = await SendAsync(creator, Publish(BLUE), "\"0\"");
+        using var reset = await SendAsync(creator, Post(RESET_ROUTE), "\"0\"");
         using var history = await creator.GetAsync(VERSIONS_ROUTE, Cancellation);
 
         // Assert
         read.StatusCode.Should().Be(HttpStatusCode.OK);
         publish.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        reset.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         history.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
@@ -227,7 +233,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         HttpRequestMessage[] requests =
         [
             new(HttpMethod.Get, BRANDING_ROUTE), new(HttpMethod.Get, VERSIONS_ROUTE), Publish(GREEN),
-            Post(RESTORE_ROUTE, new { number = 1 }), Post(ROLLBACK_ROUTE),
+            Post(RESTORE_ROUTE, new { number = 1 }), Post(ROLLBACK_ROUTE), Post(RESET_ROUTE),
         ];
         var statuses = new List<HttpStatusCode>();
         foreach (var request in requests)
