@@ -17,4 +17,11 @@ namespace Endatix.Core.UseCases.TenantBranding.Publishing;
 /// <param name="UserId">The user publishing, recorded on the version; null when not known.</param>
 [Experimental("ENDATIX0002")]
 public sealed record PublishTenantBrandingCommand(string OverrideJson, long ExpectedVersion, long? UserId = null)
-    : ICommand<Result<TenantBrandingDto>>;
+    : ICommand<Result<TenantBrandingDto>>
+{
+    /// <summary>
+    /// The longest <see cref="OverrideJson"/> the command reads, in characters; a longer one is refused as
+    /// <c>too_large</c>. A caller reading the override from a stream needs no more than one character past it.
+    /// </summary>
+    public const int MAX_OVERRIDE_LENGTH = Branding.BrandOverride.MAX_JSON_LENGTH;
+}

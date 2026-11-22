@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Paging;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Data.Repositories;
@@ -28,6 +29,37 @@ internal sealed class TenantBrandingRepository(
         dbContext.TenantBrandingVersions
             .AsNoTracking()
             .FirstOrDefaultAsync(version => version.TenantId == tenantId && version.Number == number, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The anonymous public read calls this with the tenant its slug names, and caches the answer for every caller. A
+    /// signed-in caller's token still sets the ambient tenant, so the tenant filter would hide another tenant's brand;
+    /// the <paramref name="tenantId"/> condition is the isolation here.
+    /// </remarks>
+    public Task<string?> FindPublishedJsonAsync(long tenantId, CancellationToken cancellationToken) =>
+        dbContext.TenantBrandings
+            .AsNoTracking()
+            .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .Where(branding => branding.TenantId == tenantId)
+            .Select(branding => branding.PublishedJson)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    /// <inheritdoc />
+    public Task<int> CountVersionsAsync(long tenantId, CancellationToken cancellationToken) =>
+        dbContext.TenantBrandingVersions.CountAsync(version => version.TenantId == tenantId, cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<TenantBrandingVersion>> ListVersionsAsync(
+        long tenantId,
+        ResolvedPage page,
+        CancellationToken cancellationToken) =>
+        await dbContext.TenantBrandingVersions
+            .AsNoTracking()
+            .Where(version => version.TenantId == tenantId)
+            .OrderByDescending(version => version.Number)
+            .Skip(page.Skip)
+            .Take(page.PageSize)
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc />
     public async Task<bool> SaveOrConcedeAsync(TenantBranding branding, TenantBrandingVersion version, CancellationToken cancellationToken)
