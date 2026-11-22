@@ -55,18 +55,18 @@ public sealed class BrandContrastTests
 
     /// <summary>
     /// CSS whitespace and function names are ASCII. .NET counts U+0085 as whitespace and folds the Kelvin sign (U+212A) to
-    /// <c>k</c> and the long s (U+017F) to <c>s</c>; JavaScript counts U+FEFF as whitespace. Both sides refuse all of them.
+    /// <c>k</c> and the long s (U+017F) to <c>s</c>; JavaScript counts U+FEFF as whitespace. The API refuses all of them, as CSS does.
     /// </summary>
     [Theory]
     [InlineData("\u0085hsl(216 100% 41%)")]
     [InlineData("hsl(216 100% 41%)\u0085")]
     [InlineData("hsl(216\u0085100%\u008541%)")]
     [InlineData("hsl(\u0085216, 100%, 41%)")]
-    [InlineData("﻿hsl(216 100% 41%)")]
-    [InlineData("hsl(216﻿100%﻿41%)")]
-    [InlineData("oKlch(0.6 0.1 250)")]
-    [InlineData("hſl(216 100% 41%)")]
-    [InlineData("hſl(216, 100%, 41%)")]
+    [InlineData("\uFEFFhsl(216 100% 41%)")]
+    [InlineData("hsl(216\uFEFF100%\uFEFF41%)")]
+    [InlineData("o\u212Alch(0.6 0.1 250)")]
+    [InlineData("h\u017Fl(216 100% 41%)")]
+    [InlineData("h\u017Fl(216, 100%, 41%)")]
     public void Parse_NonAsciiWhitespaceOrCaseFolding_IsNull(string input)
     {
         // Act
