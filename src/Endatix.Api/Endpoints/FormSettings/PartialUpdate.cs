@@ -18,8 +18,9 @@ namespace Endatix.Api.Endpoints.FormSettings;
 
 /// <summary>
 /// Replaces the sections of a form's settings that the body names, each whole. It names the version it read in
-/// <c>If-Match</c> (ADR 0002): 428 when that is missing, 400 when it is not one version, 412 with the current version
-/// when it is stale. A body that matches what is stored changes nothing, whatever <c>If-Match</c> names.
+/// <c>If-Match</c> (the pattern pending ADR 0006): 428 when that is missing, 400 when it is not one version, 412 with
+/// the current version when it is stale. A body that matches what is stored changes nothing, whatever <c>If-Match</c>
+/// names.
 /// </summary>
 [Experimental("ENDATIX0005")]
 public sealed class PartialUpdate(IMediator mediator)
@@ -61,8 +62,7 @@ public sealed class PartialUpdate(IMediator mediator)
             return refused;
         }
 
-        var change = new FormSettingsChange { Pdf = req.Pdf?.ToSection() };
-        var result = await mediator.Send(new PartialUpdateFormSettingsCommand(req.FormId, expectedVersion, change), ct);
+        var result = await mediator.Send(new PartialUpdateFormSettingsCommand(req.FormId, expectedVersion, req.ToChange()), ct);
         return result.Status == ResultStatus.Conflict
             ? await StaleAsync(req.FormId, result, ct)
             : Saved(result);
@@ -79,7 +79,7 @@ public sealed class PartialUpdate(IMediator mediator)
         return TypedResults.Ok(FormSettingsModel.Map(result.Value));
     }
 
-    // ADR 0002: a stale write returns the current version, so the client can retry without reading first. Every
+    // A stale write returns the current version, so the client can retry without reading first. Every
     // conflict here is a stale version or a lost race; the shared ToProblem keeps a conflict as 409.
     private async Task<ProblemHttpResult> StaleAsync(long formId, Result<FormSettingsDto> result, CancellationToken ct)
     {
@@ -105,6 +105,9 @@ public sealed class PartialUpdateFormSettingsRequest
 
     /// <summary>The PDF section, replaced whole.</summary>
     public PdfSettingsModel? Pdf { get; set; }
+
+    /// <summary>The sections this request names, for the write.</summary>
+    internal FormSettingsChange ToChange() => new() { Pdf = Pdf?.ToSection() };
 }
 
 /// <summary>Validation rules for <see cref="PartialUpdateFormSettingsRequest"/>.</summary>
