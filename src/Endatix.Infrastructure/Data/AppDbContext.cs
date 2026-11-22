@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
@@ -141,7 +142,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         }
         catch (DbUpdateException dbUpdateException) when (Translated(dbUpdateException) is { } translated)
         {
-            throw translated;
+            throw Refused(translated);
         }
     }
 
@@ -163,7 +164,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         }
         catch (DbUpdateException dbUpdateException) when (Translated(dbUpdateException) is { } translated)
         {
-            throw translated;
+            throw Refused(translated);
         }
     }
 
@@ -175,7 +176,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         concurrencyException.Entries.Any(entry => entry.Entity is Submission);
 
     // The Core exception a refused save means to its caller, or null when it is not one the writers handle.
-    private static Exception? Translated(DbUpdateException dbUpdateException)
+    internal static Exception? Translated(DbUpdateException dbUpdateException)
     {
         if (IsUniqueViolationOf(dbUpdateException, DUPLICATE_SUBMISSION_CONSTRAINT_NAME))
         {
@@ -186,6 +187,27 @@ public class AppDbContext : DbContext, ITenantDbContext
             ? new FormSettingsChangedException("The form settings changed while they were being saved.", dbUpdateException)
             : null;
     }
+
+    /// <summary>
+    /// Stops tracking the changes of a save that lost a race on a form's settings, so a later save in the same scope does
+    /// not replay them (ARCHITECTURE.md, transaction locks, item 8): the form and settings it wrote, and the outbox rows
+    /// captured with them. The whole save rolled back, so none of them was stored.
+    /// </summary>
+    internal Exception Refused(Exception translated)
+    {
+        if (translated is FormSettingsChangedException)
+        {
+            foreach (var entry in ChangeTracker.Entries().Where(IsPending).ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
+        }
+
+        return translated;
+    }
+
+    private static bool IsPending(EntityEntry entry) =>
+        entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted;
 
     /// <summary>
     /// <see cref="FormSettings.Version"/> is a concurrency token and <see cref="FormSettings.FormId"/> the key, so a save

@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Identity;
 using Endatix.Persistence.PostgreSql.Querying;
 using Endatix.Persistence.SqlServer.Querying;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -12,7 +13,7 @@ namespace Endatix.Infrastructure.Tests.Features.Outbox;
 
 /// <summary>
 /// Builds <see cref="AppDbContext" /> / <see cref="AppIdentityDbContext" /> for EF model/metadata
-/// inspection without opening a connection.
+/// inspection without opening a connection. An interceptor can stand in for the database at save time.
 /// </summary>
 internal static class AppDbContextModelInspectionFactory
 {
@@ -22,7 +23,8 @@ internal static class AppDbContextModelInspectionFactory
     private const string SqlServerAppMigrationsNamespace = "Endatix.Persistence.SqlServer.Migrations.AppEntities";
 
     internal static AppDbContext CreatePostgreSqlAppDbContext(
-        ITenantContext? tenantContext = null)
+        ITenantContext? tenantContext = null,
+        IInterceptor? interceptor = null)
     {
         var resolvedTenantContext = tenantContext ?? Substitute.For<ITenantContext>();
 
@@ -38,6 +40,10 @@ internal static class AppDbContextModelInspectionFactory
         ModuleDbContextExtensions.ConfigureProviderScopedMigrations(
             optionsBuilder,
             PostgresAppMigrationsNamespace);
+        if (interceptor is not null)
+        {
+            optionsBuilder.AddInterceptors(interceptor);
+        }
 
         return new AppDbContext(
             optionsBuilder.Options,

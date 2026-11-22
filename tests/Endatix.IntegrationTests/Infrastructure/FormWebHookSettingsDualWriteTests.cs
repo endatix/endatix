@@ -276,6 +276,10 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
 
         // Assert
         saved.Status.Should().Be(ResultStatus.Conflict);
+        slowDb.ChangeTracker.Entries().Should().NotContain(
+            entry => entry.State != EntityState.Unchanged,
+            "the refused form, settings and outbox rows must not be replayed by a later save");
+        (await slowDb.SaveChangesAsync(Cancellation)).Should().Be(0);
         (await ReadFormAsync(tenantId, formId)).WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url
             .Should().Be(OTHER_HOOK_URL, "the whole losing save rolled back");
         var stored = await ReadSettingsAsync(tenantId, formId);

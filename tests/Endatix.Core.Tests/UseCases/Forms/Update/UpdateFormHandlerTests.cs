@@ -390,6 +390,6 @@ public class UpdateFormHandlerTests
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
-        await _mediator.DidNotReceive().Publish(Arg.Any<FormUpdatedEvent>(), Arg.Any<CancellationToken>());
+        _mediator.ReceivedCalls().Should().BeEmpty("nothing is published for a save that rolled back");
     }
 }
