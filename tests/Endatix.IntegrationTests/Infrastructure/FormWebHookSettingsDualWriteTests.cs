@@ -295,10 +295,10 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
         slowForm.UpdateWebHookSettings(Config(THIRD_HOOK_URL));
 
         // Act
-        var saved = await forms.TryUpdateAsync(slowForm, Cancellation);
+        var saved = await Repository(slowDb).UpdateFormOrConcedeAsync(slowForm, Cancellation);
 
         // Assert
-        saved.Status.Should().Be(ResultStatus.Conflict);
+        saved.Should().BeFalse("the form save lost the race on its settings");
         slowDb.ChangeTracker.Entries().Should().NotContain(
             entry => entry.State != EntityState.Unchanged,
             "the refused form and settings changes must not be replayed by a later save");
@@ -366,7 +366,8 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
         },
     };
 
-    private static FormSettingsRepository Repository(AppDbContext db) => new(db);
+    private static FormSettingsRepository Repository(AppDbContext db) =>
+        new(db, new EfRepository<Form>(db, new EndatixSpecificationEvaluator([])), new UniqueConstraintViolationChecker());
 
     private AppDbContext CreateDb(long tenantId)
     {

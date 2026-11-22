@@ -1,6 +1,7 @@
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Tests.Features.Outbox;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Endatix.Infrastructure.Tests.Data;
 
@@ -74,6 +75,7 @@ public sealed class FormWebHookSettingsMirrorTests : IDisposable
         await FormWebHookSettingsMirror.ApplyAsync(_context, _at, TestContext.Current.CancellationToken);
 
         form.WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(OTHER_HOOK_URL);
+        form.ModifiedAt.Should().Be(_at, "the context stamped its save before the mirror ran");
     }
 
     [Fact]
@@ -89,6 +91,31 @@ public sealed class FormWebHookSettingsMirrorTests : IDisposable
         FormWebHookSettingsMirror.Apply(_context, _at);
 
         form.WebHookSettings.Events.Should().ContainKey("SubmissionCompleted");
+        form.ModifiedAt.Should().Be(_at);
+    }
+
+    [Fact]
+    public void Apply_ANewSectionForANewForm_LeavesTheFormUnstamped()
+    {
+        // An insert gets CreatedAt only, as the context stamps one.
+        var form = NewForm(null);
+        _context.Add(form);
+        var copy = Form.Create(form.Id, new FormCreateArgs(TenantId: form.TenantId, Name: "copy"));
+        var settings = FormSettings.For(form);
+        settings.Apply(new FormSettingsChange { WebHooks = Config(HOOK_URL) }, copy, new FormSettingsWrite(FormSettings.UNSAVED_VERSION, _at));
+        _context.Add(settings);
+
+        FormWebHookSettingsMirror.Apply(_context, _at);
+
+        form.WebHookSettings.Events.Should().ContainKey("SubmissionCompleted");
+        form.ModifiedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void SaveChanges_IsRunByTheContextItself()
+    {
+        _context.GetService<IDbContextOptions>().Extensions.OfType<CoreOptionsExtension>().Single().Interceptors
+            .Should().Contain(FormWebHookSettingsMirror.Instance);
     }
 
     public void Dispose() => _context.Dispose();

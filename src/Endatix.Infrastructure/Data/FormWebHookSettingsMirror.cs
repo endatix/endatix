@@ -1,5 +1,6 @@
 using Endatix.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Endatix.Infrastructure.Data;
 
@@ -7,7 +8,8 @@ namespace Endatix.Infrastructure.Data;
 /// Keeps a form's two copies of its webhook settings the same within one save: <c>Forms.WebHookSettingsJson</c>, which
 /// the previous release reads, and the <see cref="FormSettings.WebHooksJson"/> section, which this release reads. A
 /// write to either is copied to the other before the save, so both go in one transaction whichever endpoint wrote them,
-/// and a rolling deploy or a rollback loses nothing. Delete it with the column (endatix/endatix#1784).
+/// and a rolling deploy or a rollback loses nothing. <see cref="AppDbContext"/> registers it, so every save runs it.
+/// Delete it with the column (endatix/endatix#1784).
 /// </summary>
 /// <remarks>
 /// A form whose column changed copies the column into its section, as stored (the copy the migration made). A settings
@@ -15,13 +17,45 @@ namespace Endatix.Infrastructure.Data;
 /// equal; a section changed while its form is not tracked in this save is written to the stored form through
 /// <see cref="Form.UpdateWebHookSettings"/>, in the shape the previous release reads. A form changed in the same save
 /// wins over its section. Either copy raises the settings' <see cref="FormSettings.Version"/>, so a form save can lose
-/// to another write of the same form's settings; <see cref="AppDbContext"/> reports that as
-/// <c>FormSettingsChangedException</c>. A write this cannot see (an older
-/// instance's, or a raw update) leaves the two apart, and readers then take the column
+/// to another write of the same form's settings; the writer concedes it (<c>FormSettingsRepository</c>). It runs after
+/// the context's own save-time work, so it stamps <c>ModifiedAt</c> on a form it writes itself. A write this cannot see
+/// (an older instance's, or a raw update) leaves the two apart, and readers then take the column
 /// (<see cref="FormSettings.WebHooksOf"/>).
 /// </remarks>
-internal static class FormWebHookSettingsMirror
+internal sealed class FormWebHookSettingsMirror : SaveChangesInterceptor
 {
+    public static readonly FormWebHookSettingsMirror Instance = new();
+
+    /// <summary>Stateless; one shared instance serves every context.</summary>
+    private FormWebHookSettingsMirror()
+    {
+    }
+
+    /// <inheritdoc/>
+    public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
+    {
+        if (eventData.Context is AppDbContext db)
+        {
+            Apply(db, DateTime.UtcNow);
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default)
+    {
+        if (eventData.Context is AppDbContext db)
+        {
+            await ApplyAsync(db, DateTime.UtcNow, cancellationToken);
+        }
+
+        return result;
+    }
+
     /// <summary>Copies each changed side to the other in <paramref name="db"/>'s tracked changes.</summary>
     public static void Apply(AppDbContext db, DateTime at)
     {
@@ -37,6 +71,8 @@ internal static class FormWebHookSettingsMirror
             var form = TrackedForm(db, settings.FormId) ?? StoredForm(db, settings.FormId).FirstOrDefault();
             form?.UpdateWebHookSettings(settings.WebHooks);
         }
+
+        StampWrittenForms(db, sections, at);
     }
 
     /// <inheritdoc cref="Apply"/>
@@ -56,6 +92,19 @@ internal static class FormWebHookSettingsMirror
             var form = TrackedForm(db, settings.FormId)
                 ?? await StoredForm(db, settings.FormId).FirstOrDefaultAsync(cancellationToken);
             form?.UpdateWebHookSettings(settings.WebHooks);
+        }
+
+        StampWrittenForms(db, sections, at);
+    }
+
+    // The context stamped ModifiedAt on its save before this ran, so a saved form whose column a section was written to
+    // is stamped here, as the context stamps an update.
+    private static void StampWrittenForms(AppDbContext db, List<FormSettings> sections, DateTime at)
+    {
+        foreach (var form in db.ChangeTracker.Entries<Form>().Where(entry => entry.State == EntityState.Modified
+            && sections.Exists(settings => settings.FormId == entry.Entity.Id)))
+        {
+            form.Property(changed => changed.ModifiedAt).CurrentValue = at;
         }
     }
 

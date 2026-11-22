@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Folders;
+using Endatix.Core.UseCases.Forms.Update;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.PartialUpdate;
@@ -14,6 +15,7 @@ namespace Endatix.Core.UseCases.Forms.PartialUpdate;
 /// </summary>
 public class PartialUpdateFormHandler(
     IRepository<Form> repository,
+    IFormSettingsRepository formSettings,
     IRepository<Theme> themeRepository,
     IRepository<Submission> submissionRepository,
     IMediator mediator,
@@ -67,10 +69,9 @@ public class PartialUpdateFormHandler(
             requestedLimitOnePerUser,
             request.Metadata ?? form.Metadata,
             ResolveExpiry(form, request));
-        var saved = await repository.TryUpdateAsync(form, cancellationToken);
-        if (!saved.IsSuccess)
+        if (!await formSettings.UpdateFormOrConcedeAsync(form, cancellationToken))
         {
-            return saved.ToErrorResult<Form>();
+            return Result.Conflict(UpdateFormHandler.SETTINGS_CHANGED_MESSAGE);
         }
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows

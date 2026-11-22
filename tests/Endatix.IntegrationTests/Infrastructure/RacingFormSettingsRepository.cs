@@ -18,4 +18,7 @@ internal sealed class RacingFormSettingsRepository(FormSettingsRepository inner,
         await otherWrite();
         return await inner.SaveOrConcedeAsync(settings, cancellationToken);
     }
+
+    public Task<bool> UpdateFormOrConcedeAsync(Form form, CancellationToken cancellationToken) =>
+        inner.UpdateFormOrConcedeAsync(form, cancellationToken);
 }

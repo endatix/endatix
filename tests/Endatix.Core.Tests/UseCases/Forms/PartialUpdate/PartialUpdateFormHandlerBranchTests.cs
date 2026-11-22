@@ -1,16 +1,16 @@
 using Endatix.Core.Entities;
-using Endatix.Core.Exceptions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
-using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Core.Tests.UseCases.Forms.PartialUpdate;
 
 public sealed class PartialUpdateFormHandlerBranchTests
 {
     private readonly IRepository<Form> _forms = Substitute.For<IRepository<Form>>();
+    private readonly IFormSettingsRepository _formSettings = FormSettingsRepositoryStub.Saving();
     private readonly IRepository<Theme> _themes = Substitute.For<IRepository<Theme>>();
     private readonly IMediator _mediator = Substitute.For<IMediator>();
     private readonly PartialUpdateFormHandler _handler;
@@ -18,6 +18,7 @@ public sealed class PartialUpdateFormHandlerBranchTests
     public PartialUpdateFormHandlerBranchTests() =>
         _handler = new PartialUpdateFormHandler(
             _forms,
+            _formSettings,
             _themes,
             Substitute.For<IRepository<Submission>>(),
             _mediator,
@@ -65,8 +66,7 @@ public sealed class PartialUpdateFormHandlerBranchTests
     {
         // Another write raised the form's settings version while this save wrote its webhooks.
         var form = StoredForm();
-        _forms.UpdateAsync(form, Arg.Any<CancellationToken>())
-            .ThrowsAsync(new FormSettingsChangedException("The form settings changed while they were being saved."));
+        _formSettings.UpdateFormOrConcedeAsync(form, Arg.Any<CancellationToken>()).Returns(false);
 
         var result = await _handler.Handle(new PartialUpdateFormCommand(1) { Name = "Renamed" }, CancellationToken.None);
 

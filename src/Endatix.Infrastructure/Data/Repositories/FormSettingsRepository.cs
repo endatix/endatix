@@ -1,7 +1,9 @@
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Exceptions;
+using Endatix.Core.Infrastructure.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Endatix.Infrastructure.Data.Repositories;
 
@@ -12,10 +14,16 @@ namespace Endatix.Infrastructure.Data.Repositories;
 /// <remarks>
 /// Two writes made from the same version must not both win. The database decides, not a lock: the
 /// <see cref="FormSettings.Version"/> concurrency token makes an update from an older version change no row, and the
-/// key refuses a second first row. <see cref="AppDbContext"/> reports either as <see cref="FormSettingsChangedException"/>.
+/// key refuses a second first row. A form save writes the settings too (<see cref="FormWebHookSettingsMirror"/>), so it
+/// can lose the same race.
 /// </remarks>
-internal sealed class FormSettingsRepository(AppDbContext dbContext) : IFormSettingsRepository
+internal sealed class FormSettingsRepository(
+    AppDbContext dbContext,
+    IRepository<Form> forms,
+    IUniqueConstraintViolationChecker uniqueViolationChecker) : IFormSettingsRepository
 {
+    private const string FORM_SETTINGS_KEY_NAME = "PK_FormSettings";
+
     /// <inheritdoc />
     public async Task<FormSettings> ReadAsync(Form form, CancellationToken cancellationToken) =>
         await dbContext.FormSettings
@@ -29,35 +37,59 @@ internal sealed class FormSettingsRepository(AppDbContext dbContext) : IFormSett
             .FirstOrDefaultAsync(settings => settings.FormId == formId, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<bool> SaveOrConcedeAsync(FormSettings settings, CancellationToken cancellationToken)
+    public Task<bool> SaveOrConcedeAsync(FormSettings settings, CancellationToken cancellationToken)
     {
         if (dbContext.Entry(settings).State == EntityState.Detached)
         {
             dbContext.Add(settings);
         }
 
+        return ConcedeLostRaceAsync(settings.FormId, () => dbContext.SaveChangesAsync(cancellationToken));
+    }
+
+    /// <inheritdoc />
+    public Task<bool> UpdateFormOrConcedeAsync(Form form, CancellationToken cancellationToken) =>
+        ConcedeLostRaceAsync(form.Id, () => forms.UpdateAsync(form, cancellationToken));
+
+    private async Task<bool> ConcedeLostRaceAsync(long formId, Func<Task> save)
+    {
         try
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            await save();
             return true;
         }
-        catch (FormSettingsChangedException)
+        catch (DbUpdateException exception) when (IsLostRace(exception))
         {
-            // A refused write leaves nothing tracked, so a later save in the same scope does not replay it
-            // (ARCHITECTURE.md, transaction locks, item 8).
-            DetachRefused(settings);
+            DetachRefused(formId);
             return false;
         }
     }
 
-    // The save also wrote the form's webhooks column (FormWebHookSettingsMirror), so the refused change leaves the form
-    // too; that part goes with the column (endatix/endatix#1784).
-    private void DetachRefused(FormSettings settings)
+    // A stale Version matches no row; a second first row is a unique violation of the key.
+    private bool IsLostRace(DbUpdateException exception) =>
+        exception is DbUpdateConcurrencyException concurrency
+            ? concurrency.Entries.Any(entry => entry.Entity is FormSettings)
+            : uniqueViolationChecker.AnalyzeUniqueConstraint(exception) is { IsUniqueConstraintViolation: true } violation
+              && string.Equals(violation.ConstraintName, FORM_SETTINGS_KEY_NAME, StringComparison.Ordinal);
+
+    // The whole save rolled back, so none of its pending changes was stored: the settings, the form whose webhooks
+    // column it wrote, and the outbox rows captured with them. A refused write leaves nothing tracked, so a later save
+    // in the same scope does not replay it (ARCHITECTURE.md, transaction locks, item 8). The form goes even when it is
+    // unchanged, so the caller reads the winner's form again.
+    private void DetachRefused(long formId)
     {
-        dbContext.Entry(settings).State = EntityState.Detached;
-        if (dbContext.Forms.Local.FirstOrDefault(form => form.Id == settings.FormId) is { } form)
+        var refused = dbContext.ChangeTracker.Entries().Where(IsPending).ToList();
+        if (dbContext.Forms.Local.FirstOrDefault(form => form.Id == formId) is { } trackedForm)
         {
-            dbContext.Entry(form).State = EntityState.Detached;
+            refused.Add(dbContext.Entry(trackedForm));
+        }
+
+        foreach (var entry in refused)
+        {
+            entry.State = EntityState.Detached;
         }
     }
+
+    private static bool IsPending(EntityEntry entry) =>
+        entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted;
 }

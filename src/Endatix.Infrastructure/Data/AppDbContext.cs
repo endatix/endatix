@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
@@ -21,7 +20,6 @@ namespace Endatix.Infrastructure.Data;
 public class AppDbContext : DbContext, ITenantDbContext
 {
     private const string DUPLICATE_SUBMISSION_CONSTRAINT_NAME = "UX_Submissions_RestrictionKey";
-    private const string FORM_SETTINGS_KEY_NAME = "PK_FormSettings";
 
     // Null only through the protected constructor: GetTenantId falls back to 0 and no outbox
     // messages are captured.
@@ -125,6 +123,10 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
+    /// <inheritdoc/>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
+        optionsBuilder.AddInterceptors(FormWebHookSettingsMirror.Instance);
+
     public override int SaveChanges()
     {
         try
@@ -140,9 +142,9 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw DatabaseDeadlocks.Victim(exception);
         }
-        catch (DbUpdateException dbUpdateException) when (Translated(dbUpdateException) is { } translated)
+        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
-            throw Refused(translated);
+            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
         }
     }
 
@@ -151,7 +153,7 @@ public class AppDbContext : DbContext, ITenantDbContext
     {
         try
         {
-            await ProcessEntitiesAsync(cancellationToken);
+            ProcessEntities();
             return await base.SaveChangesAsync(true, cancellationToken);
         }
         catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
@@ -162,9 +164,9 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw DatabaseDeadlocks.Victim(exception);
         }
-        catch (DbUpdateException dbUpdateException) when (Translated(dbUpdateException) is { } translated)
+        catch (DbUpdateException dbUpdateException) when (IsDuplicateSubmissionConstraintViolation(dbUpdateException))
         {
-            throw Refused(translated);
+            throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
         }
     }
 
@@ -175,58 +177,17 @@ public class AppDbContext : DbContext, ITenantDbContext
     private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>
         concurrencyException.Entries.Any(entry => entry.Entity is Submission);
 
-    // The Core exception a refused save means to its caller, or null when it is not one the writers handle.
-    internal static Exception? Translated(DbUpdateException dbUpdateException)
+    private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
     {
-        if (IsUniqueViolationOf(dbUpdateException, DUPLICATE_SUBMISSION_CONSTRAINT_NAME))
-        {
-            return new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
-        }
-
-        return IsFormSettingsLostRace(dbUpdateException)
-            ? new FormSettingsChangedException("The form settings changed while they were being saved.", dbUpdateException)
-            : null;
-    }
-
-    /// <summary>
-    /// Stops tracking the changes of a save that lost a race on a form's settings, so a later save in the same scope does
-    /// not replay them (ARCHITECTURE.md, transaction locks, item 8): the form and settings it wrote, and the outbox rows
-    /// captured with them. The whole save rolled back, so none of them was stored.
-    /// </summary>
-    internal Exception Refused(Exception translated)
-    {
-        if (translated is FormSettingsChangedException)
-        {
-            foreach (var entry in ChangeTracker.Entries().Where(IsPending).ToList())
-            {
-                entry.State = EntityState.Detached;
-            }
-        }
-
-        return translated;
-    }
-
-    private static bool IsPending(EntityEntry entry) =>
-        entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted;
-
-    /// <summary>
-    /// <see cref="FormSettings.Version"/> is a concurrency token and <see cref="FormSettings.FormId"/> the key, so a save
-    /// that wrote a form's settings from a version another write has raised matches no row, and a second first row is a
-    /// unique violation of the key. A form save writes them too (<see cref="FormWebHookSettingsMirror"/>).
-    /// </summary>
-    private static bool IsFormSettingsLostRace(DbUpdateException dbUpdateException) =>
-        dbUpdateException is DbUpdateConcurrencyException concurrencyException
-            ? concurrencyException.Entries.Any(entry => entry.Entity is FormSettings)
-            : IsUniqueViolationOf(dbUpdateException, FORM_SETTINGS_KEY_NAME);
-
-    private static bool IsUniqueViolationOf(DbUpdateException dbUpdateException, string constraintName)
-    {
-        for (var current = dbUpdateException.InnerException; current is not null; current = current.InnerException)
+        var current = dbUpdateException.InnerException;
+        while (current is not null)
         {
             if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
             {
-                return ContainsConstraintName(current, constraintName);
+                return ContainsSubmissionConstraintName(current);
             }
+
+            current = current.InnerException;
         }
 
         return false;
@@ -259,30 +220,18 @@ public class AppDbContext : DbContext, ITenantDbContext
         return sqlErrorNumber is 2601 or 2627;
     }
 
-    private static bool ContainsConstraintName(Exception exception, string name)
+    private static bool ContainsSubmissionConstraintName(Exception exception)
     {
         var constraintName = exception.GetType().GetProperty("ConstraintName")?.GetValue(exception) as string;
         if (!string.IsNullOrWhiteSpace(constraintName))
         {
-            return string.Equals(constraintName, name, StringComparison.Ordinal);
+            return string.Equals(constraintName, DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
         }
 
-        return exception.Message.Contains(name, StringComparison.Ordinal);
+        return exception.Message.Contains(DUPLICATE_SUBMISSION_CONSTRAINT_NAME, StringComparison.Ordinal);
     }
 
     private void ProcessEntities()
-    {
-        FormWebHookSettingsMirror.Apply(this, DateTime.UtcNow);
-        ApplyDefaultsAndCaptureEvents();
-    }
-
-    private async Task ProcessEntitiesAsync(CancellationToken cancellationToken)
-    {
-        await FormWebHookSettingsMirror.ApplyAsync(this, DateTime.UtcNow, cancellationToken);
-        ApplyDefaultsAndCaptureEvents();
-    }
-
-    private void ApplyDefaultsAndCaptureEvents()
     {
         ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
         CaptureIntegrationEvents();

@@ -14,6 +14,7 @@ namespace Endatix.Core.UseCases.Forms.Update;
 /// </summary>
 public class UpdateFormHandler(
     IRepository<Form> repository,
+    IFormSettingsRepository formSettings,
     IRepository<Submission> submissionRepository,
     IMediator mediator,
     FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<UpdateFormCommand, Result<Form>>
@@ -21,6 +22,9 @@ public class UpdateFormHandler(
     private const string ENABLE_CONFLICT_MESSAGE = "Cannot enable single submission gate because this form already has duplicate submissions.";
     private const string DISABLE_CONFLICT_MESSAGE = "Single submission gate cannot be disabled after it has been enabled.";
     private const string PUBLIC_CONFLICT_MESSAGE = "A single-submission form cannot be made public.";
+
+    // A save that changes the form's webhooks writes its settings too (IFormSettingsRepository.UpdateFormOrConcedeAsync).
+    internal const string SETTINGS_CHANGED_MESSAGE = "The form's settings changed while the form was being saved; read the form again and retry.";
 
     /// <inheritdoc />
     public async Task<Result<Form>> Handle(UpdateFormCommand request, CancellationToken cancellationToken)
@@ -65,10 +69,9 @@ public class UpdateFormHandler(
                 form.SubmissionTokenExpiryHours,
                 request.SubmissionTokenExpiryHours,
                 request.ClearSubmissionTokenExpiryHours));
-        var saved = await repository.TryUpdateAsync(form, cancellationToken);
-        if (!saved.IsSuccess)
+        if (!await formSettings.UpdateFormOrConcedeAsync(form, cancellationToken))
         {
-            return saved.ToErrorResult<Form>();
+            return Result.Conflict(SETTINGS_CHANGED_MESSAGE);
         }
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows

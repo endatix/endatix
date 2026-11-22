@@ -187,7 +187,8 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         return await Repository(db).ReadAsync(Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "read")), Cancellation);
     }
 
-    private static FormSettingsRepository Repository(AppDbContext db) => new(db);
+    private static FormSettingsRepository Repository(AppDbContext db) =>
+        new(db, new EfRepository<Form>(db, new EndatixSpecificationEvaluator([])), new UniqueConstraintViolationChecker());
 
     private AppDbContext CreateDb(long tenantId)
     {
