@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Endatix.Infrastructure.Caching;
 
 /// <summary>
 /// Evicts a tenant's cached public read (<c>GET public/tenants/{slug}</c>) after a write that changes what it returns.
 /// </summary>
+[Experimental("ENDATIX0002")]
 public interface IPublicTenantCacheInvalidator
 {
     /// <summary>
