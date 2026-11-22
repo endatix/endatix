@@ -55,7 +55,8 @@ public sealed class PartialUpdate(IMediator mediator)
         PartialUpdateFormSettingsRequest req,
         CancellationToken ct)
     {
-        if (IfMatchProblem(out var expectedVersion) is { } refused)
+        // Missing is 428 here, not a validator's 400.
+        if (EntityTagHeader.ReadIfMatch(HttpContext.Request.Headers.IfMatch.ToString(), out var expectedVersion) is { } refused)
         {
             return refused;
         }
@@ -72,44 +73,25 @@ public sealed class PartialUpdate(IMediator mediator)
             return result.ToProblem();
         }
 
-        HttpContext.Response.Headers.ETag = EntityTagHeader.Format(result.Value.Version);
+        EntityTagHeader.SetETag(HttpContext.Response, result.Value.Version);
         return TypedResults.Ok(FormSettingsModel.Map(result.Value));
-    }
-
-    // Missing is 428 here, not a validator's 400.
-    private ProblemHttpResult? IfMatchProblem(out long expectedVersion)
-    {
-        var ifMatch = HttpContext.Request.Headers.IfMatch.ToString();
-        if (string.IsNullOrWhiteSpace(ifMatch))
-        {
-            expectedVersion = 0;
-            return Problem(StatusCodes.Status428PreconditionRequired, "Precondition required",
-                "Send If-Match with the version you read, in quotes; \"0\" before the first write.");
-        }
-
-        return EntityTagHeader.TryParse(ifMatch, out expectedVersion)
-            ? null
-            : Problem(StatusCodes.Status400BadRequest, Infrastructure.ResultExtensions.ResultTitles.BAD_REQUEST,
-                "If-Match must hold one strong version tag, such as \"3\"; weak tags, * and lists are not accepted.");
     }
 
     // ADR 0002: a stale write returns the current version, so the client can retry without reading first. Every
     // conflict here is a stale version or a lost race; the shared ToProblem keeps a conflict as 409.
     private async Task<ProblemHttpResult> StaleAsync(long formId, Result<FormSettingsDto> result, CancellationToken ct)
     {
-        var problem = Problem(StatusCodes.Status412PreconditionFailed, "Precondition failed", string.Join('\n', result.Errors));
+        var problem = TypedResults.Problem(EndatixProblemDetails.Create(
+            StatusCodes.Status412PreconditionFailed, "Precondition failed", string.Join('\n', result.Errors)));
         var current = await mediator.Send(new GetFormSettingsQuery(formId), ct);
         if (current.IsSuccess)
         {
-            HttpContext.Response.Headers.ETag = EntityTagHeader.Format(current.Value.Version);
+            EntityTagHeader.SetETag(HttpContext.Response, current.Value.Version);
             problem.ProblemDetails.Extensions["version"] = current.Value.Version.ToString(CultureInfo.InvariantCulture);
         }
 
         return problem;
     }
-
-    private static ProblemHttpResult Problem(int status, string title, string detail) =>
-        TypedResults.Problem(EndatixProblemDetails.Create(status, title, detail));
 }
 
 /// <summary>Request to change a form's settings: the sections to replace. A section left out keeps its value.</summary>

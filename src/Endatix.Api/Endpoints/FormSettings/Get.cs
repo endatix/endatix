@@ -43,7 +43,7 @@ public sealed class Get(IMediator mediator) : Endpoint<GetFormSettingsRequest, R
             return result.ToProblem();
         }
 
-        HttpContext.Response.Headers.ETag = EntityTagHeader.Format(result.Value.Version);
+        EntityTagHeader.SetETag(HttpContext.Response, result.Value.Version);
         return TypedResults.Ok(FormSettingsModel.Map(result.Value));
     }
 }
