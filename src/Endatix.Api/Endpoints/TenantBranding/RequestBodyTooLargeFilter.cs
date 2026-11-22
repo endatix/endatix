@@ -14,7 +14,16 @@ internal sealed class RequestBodyTooLargeFilter : IEndpointFilter
     {
         try
         {
-            return await next(context);
+            // FastEndpoints' handler binds and writes the response itself and hands back that work as a Task, which
+            // the route would await after this filter; await it here so the bind's exception is caught.
+            var result = await next(context);
+            if (result is Task work)
+            {
+                await work;
+                return Results.Empty;
+            }
+
+            return result;
         }
         catch (BadHttpRequestException exception) when (exception.StatusCode == StatusCodes.Status413PayloadTooLarge)
         {

@@ -22,6 +22,23 @@ public class RequestBodyTooLargeFilterTests
     }
 
     [Fact]
+    public async Task InvokeAsync_WhenTheHandlersWorkFailsOverTheLimit_IsPayloadTooLarge()
+    {
+        // Arrange - FastEndpoints hands back its bind-and-write work as a Task
+        static async Task BindAsync()
+        {
+            await Task.Yield();
+            throw new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge);
+        }
+
+        // Act
+        var result = await _filter.InvokeAsync(_context, _ => ValueTask.FromResult<object?>(BindAsync()));
+
+        // Assert
+        result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+    }
+
+    [Fact]
     public async Task InvokeAsync_WithAnyOtherBadRequest_Rethrows()
     {
         // Act
