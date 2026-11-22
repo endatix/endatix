@@ -60,12 +60,26 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     [NotMapped]
     public PdfSettings Pdf => FormSettingsJson.Read<PdfSettings>(PdfJson);
 
+    /// <summary>The form's own webhook settings as stored; null means the form has none, so its tenant's apply.</summary>
+    /// <remarks>Copied from <c>Forms.WebHookSettingsJson</c> as it was stored, so property names and event keys may be in
+    /// any case. Readers match both in any case.</remarks>
+    public string? WebHooksJson { get; private set; }
+
+    /// <summary>The form's own webhook settings; no events when none are stored.</summary>
+    [NotMapped]
+    public WebHookConfiguration WebHooks => FormSettingsJson.Read<WebHookConfiguration>(WebHooksJson);
+
     /// <summary>The sections whose stored JSON cannot be read, so they read as their defaults; named as on the wire.</summary>
     internal IEnumerable<string> UnreadableSections()
     {
         if (!FormSettingsJson.IsReadable<PdfSettings>(PdfJson))
         {
             yield return "pdf";
+        }
+
+        if (!FormSettingsJson.IsReadable<WebHookConfiguration>(WebHooksJson))
+        {
+            yield return "webHooks";
         }
     }
 
@@ -82,7 +96,8 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     {
         Guard.Against.Null(change);
         var pdfJson = Changed(change.Pdf, PdfJson);
-        if (pdfJson is null)
+        var webHooksJson = Changed(change.WebHooks, WebHooksJson);
+        if (pdfJson is null && webHooksJson is null)
         {
             return false;
         }
@@ -92,10 +107,38 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
             return Result.Conflict($"The form settings changed since they were read; they are now at version {Version}.");
         }
 
-        PdfJson = pdfJson;
+        PdfJson = pdfJson ?? PdfJson;
+        WebHooksJson = webHooksJson ?? WebHooksJson;
+        Touch(at);
+        return true;
+    }
+
+    /// <summary>
+    /// Copies <paramref name="form"/>'s webhook settings, as stored on the form, into <see cref="WebHooksJson"/>: null
+    /// when the form has none. Only for the release that writes both places, until <c>Forms.WebHookSettingsJson</c> is
+    /// dropped (endatix/endatix#1784).
+    /// </summary>
+    /// <returns>True when the section changed (the version goes up); false when it already holds the same content.</returns>
+    /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
+    public bool CopyWebHooksFrom(Form form, DateTime at)
+    {
+        Guard.Against.Null(form);
+        Guard.Against.InvalidInput(form, nameof(form), candidate => candidate.Id == FormId, "The form is not the one these settings belong to.");
+        var stored = string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
+        if (stored is null ? WebHooksJson is null : FormSettingsJson.SameContent(stored, WebHooksJson))
+        {
+            return false;
+        }
+
+        WebHooksJson = stored;
+        Touch(at);
+        return true;
+    }
+
+    private void Touch(DateTime at)
+    {
         ModifiedAt = at;
         Version++;
-        return true;
     }
 
     // The new canonical JSON when the section is named and differs from what is stored; otherwise null.
@@ -117,6 +160,9 @@ public sealed record FormSettingsChange
 {
     /// <summary>The PDF section, replaced whole.</summary>
     public PdfSettings? Pdf { get; init; }
+
+    /// <summary>The form's own webhook settings, replaced whole.</summary>
+    public WebHookConfiguration? WebHooks { get; init; }
 }
 
 /// <summary>How a form's submission PDFs look. The C# defaults are the product defaults.</summary>

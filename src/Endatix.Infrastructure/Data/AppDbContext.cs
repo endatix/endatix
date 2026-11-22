@@ -149,7 +149,7 @@ public class AppDbContext : DbContext, ITenantDbContext
     {
         try
         {
-            ProcessEntities();
+            await ProcessEntitiesAsync(cancellationToken);
             return await base.SaveChangesAsync(true, cancellationToken);
         }
         catch (DbUpdateConcurrencyException concurrencyException) when (IsSubmissionDeletedMeanwhile(concurrencyException))
@@ -228,6 +228,18 @@ public class AppDbContext : DbContext, ITenantDbContext
     }
 
     private void ProcessEntities()
+    {
+        FormWebHookSettingsMirror.Apply(this, DateTime.UtcNow);
+        ApplyDefaultsAndCaptureEvents();
+    }
+
+    private async Task ProcessEntitiesAsync(CancellationToken cancellationToken)
+    {
+        await FormWebHookSettingsMirror.ApplyAsync(this, DateTime.UtcNow, cancellationToken);
+        ApplyDefaultsAndCaptureEvents();
+    }
+
+    private void ApplyDefaultsAndCaptureEvents()
     {
         ChangeTracker.ApplyEndatixEntityDefaults(DateTime.UtcNow);
         CaptureIntegrationEvents();

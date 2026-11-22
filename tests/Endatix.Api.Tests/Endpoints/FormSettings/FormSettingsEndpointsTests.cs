@@ -26,7 +26,7 @@ public sealed class FormSettingsEndpointsTests
         // Arrange
         var endpoint = Factory.Create<Get>(_mediator);
         _mediator.Send(new GetFormSettingsQuery(FORM_ID), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new FormSettingsDto(3, new PdfSettings { UsesFormTheme = true })));
+            .Returns(Result.Success(new FormSettingsDto(3, new PdfSettings { UsesFormTheme = true }, new WebHookConfiguration())));
 
         // Act
         var response = await endpoint.ExecuteAsync(new GetFormSettingsRequest { FormId = FORM_ID }, Cancellation);
@@ -85,7 +85,7 @@ public sealed class FormSettingsEndpointsTests
         // Arrange
         var endpoint = PartialUpdateEndpoint("\"2\"");
         _mediator.Send(Arg.Any<PartialUpdateFormSettingsCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new FormSettingsDto(3, new PdfSettings { UsesFormTheme = true })));
+            .Returns(Result.Success(new FormSettingsDto(3, new PdfSettings { UsesFormTheme = true }, new WebHookConfiguration())));
 
         // Act
         var response = await endpoint.ExecuteAsync(ThemeOn(), Cancellation);
@@ -107,7 +107,7 @@ public sealed class FormSettingsEndpointsTests
         _mediator.Send(Arg.Any<PartialUpdateFormSettingsCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<FormSettingsDto>.Conflict("The form settings changed since they were read."));
         _mediator.Send(new GetFormSettingsQuery(FORM_ID), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new FormSettingsDto(1, new PdfSettings())));
+            .Returns(Result.Success(new FormSettingsDto(1, new PdfSettings(), new WebHookConfiguration())));
 
         // Act
         var response = await endpoint.ExecuteAsync(ThemeOn(), Cancellation);

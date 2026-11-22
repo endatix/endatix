@@ -213,7 +213,7 @@ public static class ServiceCollectionExtensions
                .BindConfiguration("Endatix:WebHooks")
                .ValidateDataAnnotations();
         services.AddSingleton<IBackgroundTasksQueue, BackgroundTasksQueue>();
-        services.AddScoped<WebHookEventConfigReader>();
+        AddWebHookConfigReaders(services);
         services.AddScoped(typeof(IWebHookService), typeof(BackgroundTaskWebHookService));
         services.AddHostedService<WebHookBackgroundWorker>();
         // Registered with Add, not TryAdd, so it wins over the public-only default a guarded client registers first.
@@ -251,6 +251,13 @@ public static class ServiceCollectionExtensions
         AddWebHookJobDelivery(services);
 
         return services;
+    }
+
+    // The one lookup of an event's webhook configuration, and the form side it reads first.
+    private static void AddWebHookConfigReaders(IServiceCollection services)
+    {
+        services.AddScoped<FormWebHookSettingsReader>();
+        services.AddScoped<WebHookEventConfigReader>();
     }
 
     // Eight attempts doubling from 10 seconds keep retrying for about 21 minutes, so an endpoint that is down for a

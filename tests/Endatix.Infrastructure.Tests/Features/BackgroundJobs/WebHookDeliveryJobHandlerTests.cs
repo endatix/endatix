@@ -10,6 +10,7 @@ using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
 using Endatix.Infrastructure.Features.WebHooks;
 using Endatix.Infrastructure.Networking;
+using Endatix.Infrastructure.Tests.Features.WebHooks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -229,7 +230,7 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
         clients.CreateClient(WebHookDeliveryJobHandler.HttpClientName).Returns(_ => new HttpClient(_http, disposeHandler: false));
         return new WebHookDeliveryJobHandler(
             _outbox,
-            new WebHookEventConfigReader(_forms, _tenantSettings, NullLogger<WebHookEventConfigReader>.Instance),
+            new WebHookEventConfigReader(NoStoredFormSettings.Reader(_forms), _tenantSettings, NullLogger<WebHookEventConfigReader>.Instance),
             clients,
             NullLoggerFactory.Instance,
             logger ?? NullLogger<WebHookDeliveryJobHandler>.Instance);

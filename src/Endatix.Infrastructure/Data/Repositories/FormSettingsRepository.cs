@@ -47,8 +47,19 @@ internal sealed class FormSettingsRepository(
         {
             // A refused write leaves nothing tracked, so a later save in the same scope does not replay it
             // (ARCHITECTURE.md, transaction locks, item 8).
-            dbContext.Entry(settings).State = EntityState.Detached;
+            DetachRefused(settings);
             return false;
+        }
+    }
+
+    // The save also wrote the form's webhooks column (FormWebHookSettingsMirror), so the refused change leaves the form
+    // too; that part goes with the column (endatix/endatix#1784).
+    private void DetachRefused(FormSettings settings)
+    {
+        dbContext.Entry(settings).State = EntityState.Detached;
+        if (dbContext.Forms.Local.FirstOrDefault(form => form.Id == settings.FormId) is { } form)
+        {
+            dbContext.Entry(form).State = EntityState.Detached;
         }
     }
 

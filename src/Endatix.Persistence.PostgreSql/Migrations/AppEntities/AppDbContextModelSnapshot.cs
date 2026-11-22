@@ -491,6 +491,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
+                    b.Property<string>("WebHooksJson")
+                        .HasColumnType("jsonb");
+
                     b.HasKey("FormId");
 
                     b.ToTable("FormSettings", (string)null);
