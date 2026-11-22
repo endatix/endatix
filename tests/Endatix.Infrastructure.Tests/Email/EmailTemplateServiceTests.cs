@@ -1,3 +1,4 @@
+using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
@@ -9,6 +10,8 @@ namespace Endatix.Infrastructure.Tests.Email;
 
 public class EmailTemplateServiceTests
 {
+    private static readonly EmailVariables Variables = EmailVariables.From(DeploymentBrand.BuiltIn);
+
     private static IOptions<HubSettings> CreateHubOptions(string? hubUrl = "https://app.example.com") =>
         Options.Create(new HubSettings { HubBaseUrl = hubUrl ?? string.Empty });
 
@@ -28,7 +31,7 @@ public class EmailTemplateServiceTests
         var hubOptions = CreateHubOptions();
 
         // Act
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, Variables);
 
         // Assert
         service.Should().NotBeNull();
@@ -38,7 +41,7 @@ public class EmailTemplateServiceTests
     public void Constructor_WithNullOptions_CreatesInstance()
     {
         // Act
-        var service = new EmailTemplateService(null!, CreateHubOptions());
+        var service = new EmailTemplateService(null!, CreateHubOptions(), Variables);
 
         // Assert
         service.Should().NotBeNull();
@@ -58,7 +61,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions("https://app.example.com");
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, Variables);
 
         var userEmail = "test@example.com";
         var token = "abc123-token";
@@ -95,7 +98,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions("https://app.example.com");
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, Variables);
 
         var userEmail = "test@example.com";
         var token = "abc123-token";
@@ -124,7 +127,7 @@ public class EmailTemplateServiceTests
                 FromAddress = "noreply@example.com"
             }
         };
-        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"));
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"), Variables);
 
         // Act
         var result = service.CreateVerificationEmail("test@example.com", "abc+123/==");
@@ -145,7 +148,7 @@ public class EmailTemplateServiceTests
                 FromAddress = "noreply@example.com"
             }
         };
-        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"));
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions("https://app.example.com"), Variables);
 
         // Act
         var result = service.CreateForgotPasswordEmail("user+invite@example.com", "reset token");
@@ -165,7 +168,7 @@ public class EmailTemplateServiceTests
                 FromAddress = "custom@example.com"
             }
         };
-        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions());
+        var service = new EmailTemplateService(Options.Create(settings), CreateHubOptions(), Variables);
 
         var result = service.CreateForgotPasswordEmail("user@example.com", "reset-token");
 
@@ -187,7 +190,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions(string.Empty);
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, Variables);
 
         var userEmail = "test@example.com";
         var token = "abc123-token";
@@ -218,7 +221,7 @@ public class EmailTemplateServiceTests
         };
         var options = Options.Create(settings);
         var hubOptions = CreateHubOptions(string.Empty);
-        var service = new EmailTemplateService(options, hubOptions);
+        var service = new EmailTemplateService(options, hubOptions, Variables);
 
         var userEmail = "user@test.com";
         var token = "xyz789-token";
@@ -253,7 +256,7 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options, CreateHubOptions());
+        var service = new EmailTemplateService(options, CreateHubOptions(), Variables);
 
         var token = "abc123-token";
 
@@ -285,7 +288,7 @@ public class EmailTemplateServiceTests
             }
         };
         var options = Options.Create(settings);
-        var service = new EmailTemplateService(options, CreateHubOptions());
+        var service = new EmailTemplateService(options, CreateHubOptions(), Variables);
 
         var userEmail = "test@example.com";
 
@@ -296,5 +299,22 @@ public class EmailTemplateServiceTests
         result.Should().NotBeNull();
         result.To.Should().Be("test@example.com");
         result.Metadata["verificationToken"].Should().Be(token);
+    }
+
+    [Fact]
+    public void CreateVerificationAndInvitationEmails_PackBrand_NameThePacksProduct()
+    {
+        // Arrange
+        var variables = Variables with { ProductName = "Example Forms", AppName = "Example Forms" };
+        var service = new EmailTemplateService(Options.Create(new EmailTemplateSettings()), CreateHubOptions(), variables);
+
+        // Act
+        var verification = service.CreateVerificationEmail("user@example.com", "token");
+        var invitation = service.CreateInvitationEmail("user@example.com", "token");
+
+        // Assert
+        verification.Metadata["bodyText"].Should().Be("Verify your email address to activate your Example Forms account.");
+        invitation.Metadata["headline"].Should().Be("Accept your Example Forms invitation");
+        invitation.Metadata["bodyText"].Should().Be("Set your password to activate your account and sign in to Example Forms.");
     }
 }

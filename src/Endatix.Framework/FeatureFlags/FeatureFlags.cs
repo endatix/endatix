@@ -60,4 +60,11 @@ public static class FeatureFlags
     /// Deployment-scoped: PlatformAdmin flows run without a target-tenant evaluation context.
     /// </summary>
     public const string MultiTenancy = "MultiTenancy";
+
+    /// <summary>
+    /// Feature flag key for white-labeling: with it off, a mounted brand pack is ignored and the built-in brand
+    /// applies. Deployment-scoped, read once at startup. The Hub's <c>white-labeling</c> flag is set from the same
+    /// Helm value (<c>whiteLabeling.enabled</c>).
+    /// </summary>
+    public const string WhiteLabeling = "WhiteLabeling";
 }

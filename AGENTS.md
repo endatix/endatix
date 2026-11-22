@@ -12,8 +12,11 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
   | ID | Feature | Types |
   | --- | --- | --- |
   | `ENDATIX0001` | Tenant entitlements | `ITenantEntitlements`, `EntitlementNames`, `TenantEntitlementsServiceCollectionExtensions` |
+  | `ENDATIX0002` | Tenant branding | `TenantBranding`, `TenantBrandingVersion`, `ITenantBrandingRepository`, `AppDbContext.TenantBrandings`, `AppDbContext.TenantBrandingVersions`, `PublishTenantBrandingCommand`, `RestoreTenantBrandingCommand`, `RollbackTenantBrandingCommand`, `TenantBrandingDto` |
+  | `ENDATIX0003` | Deployment brand | `DeploymentBrand`, `BrandPackException`, `AddDeploymentBrand` |
+  | `ENDATIX0004` | Email sender and variables | `EmailVariables`, `DeploymentSender`, `EmailSenderSettings`, `EmailWithBody.FromName`, `EmailTemplateRenderer.ProviderTemplateData` |
 
-  Next free ID: `ENDATIX0002`.
+  Next free ID: `ENDATIX0005`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
 - Before committing C#, the build must add no new diagnostics of any severity on the lines you changed. SonarCloud imports every result in the build's SARIF log, including the info and suggestion ones (CA2012, CA1859, xUnit1045) that `dotnet build` never prints. To see them, run `dotnet build Endatix.slnx --no-incremental -p:ErrorLog=obj/diagnostics.sarif%2Cversion=2.1` and read each project's `obj/diagnostics.sarif` for results on your lines (the Endatix clean-code skill's `diagnostics.py` does this for you). A rule that is noise in tests gets `severity = none` in `.editorconfig`; `suggestion` still reaches Sonar.
@@ -134,7 +137,7 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 
 ## Transactional email
 
-- Compose `EmailWithTemplate` with `To`, `TemplateId` and `Metadata` only. **Do not set `From`** on stored templates: `EmailTemplateRenderer` resolves it (`Endatix:EmailTemplates:*:FromAddress` → template row → default). External templates (`IsExternal = true`) send `From` as-is.
+- Compose `EmailWithTemplate` with `To`, `TemplateId` and `Metadata` only. **Do not set `From`** on stored templates: `EmailTemplateRenderer` resolves it (`Endatix:EmailTemplates:*:FromAddress` → `Endatix:Integrations:Email:Sender:Address` when set → template row → the `DeploymentSender` address when the row is empty, so no provider gets an empty From) and names it with the `DeploymentSender` (`Endatix:Integrations:Email:Sender:Name`, else the deprecated `SmtpSettings:DefaultFromName`, else the brand name). The brand never names a sender address or anything else about sending. Every email can use `{{productName}}`, `{{supportAddress}}` and `{{websiteUrl}}` from `EmailVariables`, which the brand contributes; a stored template renders them, and an external template (`IsExternal = true`) gets them as the provider's dynamic data. Composed metadata names the product through `EmailVariables`, never as "Endatix". A seed row may switch to those variables only one stable release after the release that added them (expand, then contract), so a rolled-back pod never sends a literal placeholder. External templates send `From` as-is.
 - `Metadata` keys match the template's `{{placeholders}}` (`Scripts/Data/*.sql`); a template id with no row throws at render time.
 - Best-effort after a committed write: catch and log a send failure, do not turn it into a 5xx. When nothing was persisted, return `Result.Unavailable` (`ForgotPasswordHandler`).
 

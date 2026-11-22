@@ -1,0 +1,18 @@
+{
+  "description": "WCAG 2.x contrast ratios of each fixture's colour tokens against white and black, rounded to 2 decimals. Every contrast fixture is schema-valid: contrast is checked by the code that applies the colour, not by the schema.",
+  "fixtures": {
+    "valid-full.json": {
+      "primary": { "value": "#0b6b5d", "onWhite": 6.41, "onBlack": 3.28 },
+      "primary-on-dark": { "value": "#4fd1b8", "onWhite": 1.88, "onBlack": 11.14 }
+    },
+    "valid-contrast-aa.json": {
+      "primary": { "value": "#0b5fff", "onWhite": 5.13, "onBlack": 4.10 }
+    },
+    "valid-contrast-aa-boundary.json": {
+      "primary": { "value": "#767676", "onWhite": 4.54, "onBlack": 4.62 }
+    },
+    "valid-contrast-low.json": {
+      "primary": { "value": "#ffd400", "onWhite": 1.43, "onBlack": 14.67 }
+    }
+  }
+}
