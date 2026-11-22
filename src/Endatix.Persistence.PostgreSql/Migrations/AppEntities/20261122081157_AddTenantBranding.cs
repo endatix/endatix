@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
+namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
 {
     /// <inheritdoc />
     public partial class AddTenantBranding : Migration
@@ -18,8 +18,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Version = table.Column<long>(type: "bigint", nullable: false),
                     PublishedNumber = table.Column<long>(type: "bigint", nullable: true),
-                    PublishedJson = table.Column<string>(type: "json", nullable: true),
-                    PublishedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    PublishedJson = table.Column<string>(type: "jsonb", nullable: true),
+                    PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -38,11 +38,11 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 {
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Number = table.Column<long>(type: "bigint", nullable: false),
-                    Json = table.Column<string>(type: "json", nullable: false),
-                    ContentHash = table.Column<string>(type: "nchar(64)", fixedLength: true, maxLength: 64, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Json = table.Column<string>(type: "jsonb", nullable: false),
+                    ContentHash = table.Column<string>(type: "character(64)", unicode: false, fixedLength: true, maxLength: 64, nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     CreatedBy = table.Column<long>(type: "bigint", nullable: true),
-                    Source = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Source = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
                     RestoredFromNumber = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>

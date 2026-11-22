@@ -931,7 +931,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<string>("ContentHash")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nchar(64)")
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
                         .IsFixedLength();
 
                     b.Property<DateTime>("CreatedAt")

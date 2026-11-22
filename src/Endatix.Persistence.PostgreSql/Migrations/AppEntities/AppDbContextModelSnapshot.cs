@@ -936,6 +936,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<string>("ContentHash")
                         .IsRequired()
                         .HasMaxLength(64)
+                        .IsUnicode(false)
                         .HasColumnType("character(64)")
                         .IsFixedLength();
 

@@ -25,6 +25,7 @@ internal sealed class TenantBrandingVersionConfiguration : IEntityTypeConfigurat
         builder.Property(version => version.ContentHash)
             .HasMaxLength(CONTENT_HASH_LENGTH)
             .IsFixedLength()
+            .IsUnicode(false)
             .IsRequired();
 
         builder.Property(version => version.Source)
