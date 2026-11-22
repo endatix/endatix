@@ -98,6 +98,20 @@ public sealed class AppDbContextSaveRefusalTests : IDisposable
     }
 
     [Fact]
+    public void Refused_ALostSettingsRace_StopsTrackingEveryPendingEntryWhateverItsType()
+    {
+        // Not only forms and settings: an outbox row the save added and a row it deleted were not stored either.
+        var outbox = _context.Add(new OutboxMessage("form.updated", "{}", 1, DateTime.UtcNow, 1) { Id = 10 });
+        var deleted = _context.Attach(NewForm(4));
+        deleted.State = EntityState.Deleted;
+
+        _context.Refused(new FormSettingsChangedException("lost"));
+
+        outbox.State.Should().Be(EntityState.Detached);
+        deleted.State.Should().Be(EntityState.Detached);
+    }
+
+    [Fact]
     public void Refused_AnotherRefusal_LeavesTheChangesTracked()
     {
         var changed = NewForm(2);
