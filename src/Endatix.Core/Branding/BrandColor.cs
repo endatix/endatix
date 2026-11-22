@@ -192,7 +192,7 @@ internal static partial class BrandColor
 
     /// <summary>
     /// Lowercases A-Z only. CSS function names and units are ASCII case-insensitive; .NET <c>IgnoreCase</c> would also
-    /// fold the Kelvin sign (U+212A) to <c>k</c> and the long s (U+017F) to <c>s</c>, which the Hub refuses.
+    /// fold the Kelvin sign (U+212A) to <c>k</c>, which the Hub refuses.
     /// </summary>
     private static string ToAsciiLower(string value) =>
         string.Create(value.Length, value, static (span, source) =>
