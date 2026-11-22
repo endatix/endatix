@@ -16,9 +16,10 @@ namespace Endatix.Api.Endpoints.TenantBranding;
 /// </summary>
 /// <remarks>
 /// The body is read as text, not bound as JSON, so the brand override's own parser answers every body (empty, not JSON,
-/// a repeated key) with its problem codes (<c>required</c>, <c>invalid_json</c>, <c>too_large</c>). The body has no
-/// limit of its own below the server's: a request size limit answers 500 here, because the server refuses the body
-/// while FastEndpoints binds it, so the parser's <c>too_large</c> is the bound.
+/// a repeated key) with its problem codes (<c>required</c>, <c>invalid_json</c>, <c>too_large</c>).
+/// <see cref="BoundedBrandOverrideBinder"/> reads at most one character past the parser's bound, so a larger body,
+/// chunked or over the server's own limit, is <c>too_large</c> without being read whole. A request size limit is not
+/// used: the server refuses the body while it is bound, which the exception handler answers with a 500.
 /// </remarks>
 [Experimental("ENDATIX0002")]
 public sealed class PublishTenantBranding(
@@ -36,8 +37,11 @@ public sealed class PublishTenantBranding(
         "it live. Publishing the brand that is already live changes nothing.");
 
     /// <inheritdoc/>
-    protected override void ConfigureBody() =>
+    protected override void ConfigureBody()
+    {
         Description(builder => builder.Accepts<object>("application/json"));
+        RequestBinder(new BoundedBrandOverrideBinder());
+    }
 
     /// <inheritdoc/>
     protected override IRequest<Result<TenantBrandingDto>> Command(
@@ -47,10 +51,12 @@ public sealed class PublishTenantBranding(
         new PublishTenantBrandingCommand(request.Content, expectedVersion, userId);
 }
 
-/// <summary>Request to publish the tenant's branding: the raw body.</summary>
+/// <summary>Request to publish the tenant's branding: the raw body, read by <see cref="BoundedBrandOverrideBinder"/>.</summary>
 [Experimental("ENDATIX0002")]
-public sealed class PublishTenantBrandingRequest : IPlainTextRequest
+public sealed class PublishTenantBrandingRequest
 {
-    /// <summary>The brand override as sent, before it is parsed.</summary>
+    /// <summary>
+    /// The brand override as sent, before it is parsed; cut one character past the parser's bound when longer.
+    /// </summary>
     public string Content { get; set; } = "";
 }
