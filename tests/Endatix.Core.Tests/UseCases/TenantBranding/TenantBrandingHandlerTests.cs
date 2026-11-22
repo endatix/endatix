@@ -5,7 +5,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Publishing;
-using Endatix.Core.UseCases.TenantBranding.Resetting;
 using Endatix.Core.UseCases.TenantBranding.Restoring;
 using Endatix.Core.Versioning;
 using TenantBrandingEntity = Endatix.Core.Entities.TenantBranding;
@@ -29,7 +28,6 @@ public sealed class TenantBrandingHandlerTests
     private readonly Dictionary<long, TenantBrandingVersion> _saved = [];
     private readonly PublishTenantBrandingHandler _publish;
     private readonly RestoreTenantBrandingHandler _restore;
-    private readonly ResetTenantBrandingHandler _reset;
 
     public TenantBrandingHandlerTests()
     {
@@ -47,7 +45,6 @@ public sealed class TenantBrandingHandlerTests
             .Returns(call => _saved.GetValueOrDefault(call.ArgAt<long>(1)));
         _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements, _dateTimeProvider);
         _restore = new RestoreTenantBrandingHandler(_repository, _tenantContext, _entitlements, _dateTimeProvider);
-        _reset = new ResetTenantBrandingHandler(_repository, _tenantContext, _entitlements, _dateTimeProvider);
     }
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -75,7 +72,7 @@ public sealed class TenantBrandingHandlerTests
         // Act
         var rollback = await _restore.Handle(new RollbackTenantBrandingCommand(1), Cancellation);
         var restore = await _restore.Handle(new RestoreTenantBrandingCommand(1, 1), Cancellation);
-        var reset = await _reset.Handle(new ResetTenantBrandingCommand(1), Cancellation);
+        var reset = await _restore.Handle(new ResetTenantBrandingCommand(1), Cancellation);
 
         // Assert
         rollback.Status.Should().Be(ResultStatus.Forbidden);
@@ -92,7 +89,7 @@ public sealed class TenantBrandingHandlerTests
         // Act
         var publish = await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), Cancellation);
         var rollback = await _restore.Handle(new RollbackTenantBrandingCommand(1), Cancellation);
-        var reset = await _reset.Handle(new ResetTenantBrandingCommand(1), Cancellation);
+        var reset = await _restore.Handle(new ResetTenantBrandingCommand(1), Cancellation);
 
         // Assert
         publish.Status.Should().Be(ResultStatus.Unauthorized);
@@ -342,7 +339,7 @@ public sealed class TenantBrandingHandlerTests
         _dateTimeProvider.Now.Returns(_rollbackTime);
 
         // Act
-        var result = await _reset.Handle(new ResetTenantBrandingCommand(1, USER_ID), Cancellation);
+        var result = await _restore.Handle(new ResetTenantBrandingCommand(1, USER_ID), Cancellation);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -361,7 +358,7 @@ public sealed class TenantBrandingHandlerTests
         NothingStored();
 
         // Act
-        var result = await _reset.Handle(new ResetTenantBrandingCommand(0), Cancellation);
+        var result = await _restore.Handle(new ResetTenantBrandingCommand(0), Cancellation);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -379,7 +376,7 @@ public sealed class TenantBrandingHandlerTests
         await _publish.Handle(new PublishTenantBrandingCommand(GREEN, 1), Cancellation);
 
         // Act
-        var result = await _reset.Handle(new ResetTenantBrandingCommand(1), Cancellation);
+        var result = await _restore.Handle(new ResetTenantBrandingCommand(1), Cancellation);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
@@ -391,7 +388,7 @@ public sealed class TenantBrandingHandlerTests
         // Arrange
         Stored(new TenantBrandingEntity(TENANT_ID));
         await _publish.Handle(new PublishTenantBrandingCommand(BLUE, 0), Cancellation);
-        await _reset.Handle(new ResetTenantBrandingCommand(1), Cancellation);
+        await _restore.Handle(new ResetTenantBrandingCommand(1), Cancellation);
 
         // Act
         var result = await _restore.Handle(new RollbackTenantBrandingCommand(2), Cancellation);

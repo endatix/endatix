@@ -85,7 +85,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
-    public async Task A_reset_shows_the_deployment_brand_and_a_rollback_brings_the_brand_back()
+    public async Task A_reset_shows_the_deployment_brand_and_a_second_one_changes_nothing()
     {
         // Arrange
         await using BrandingWebHost host = new(fixture);
@@ -96,21 +96,14 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
         var blueAccent = await PublicAccentAsync(anonymous, slug);
 
-        // Act - a reset has no body; a second one changes nothing
+        // Act - a reset has no body
         using var reset = await SendAsync(admin, Post(RESET_ROUTE), blue.Headers.ETag!.Tag);
         var afterReset = (await PublicTenantAsync(anonymous, slug)).GetProperty("branding");
         using var resetAgain = await SendAsync(admin, Post(RESET_ROUTE), "\"1\"");
-        using var rolledBack = await SendAsync(admin, Post(ROLLBACK_ROUTE), reset.Headers.ETag!.Tag);
-        var rolledBackAccent = await PublicAccentAsync(anonymous, slug);
-        using var resetThenPublished = await SendAsync(admin, Post(RESET_ROUTE), rolledBack.Headers.ETag!.Tag);
-        using var green = await SendAsync(admin, Publish(GREEN), resetThenPublished.Headers.ETag!.Tag);
-        using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
 
-        // Assert
-        nothingToReset.StatusCode.Should().Be(HttpStatusCode.OK);
+        // Assert - the first reset has nothing to turn off; the second names a stale version and still succeeds
         nothingToReset.Headers.ETag!.Tag.Should().Be("\"0\"");
         blueAccent.Should().Be("#0052d1");
-        reset.StatusCode.Should().Be(HttpStatusCode.OK);
         reset.Headers.ETag!.Tag.Should().Be("\"2\"");
         var resetRead = await ReadAsync(reset);
         resetRead.GetProperty("published").ValueKind.Should().Be(JsonValueKind.Null);
@@ -118,6 +111,27 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         afterReset.ValueKind.Should().Be(JsonValueKind.Null);
         resetAgain.StatusCode.Should().Be(HttpStatusCode.OK);
         resetAgain.Headers.ETag!.Tag.Should().Be("\"2\"");
+    }
+
+    [Fact]
+    public async Task A_rollback_after_a_reset_brings_the_brand_back_and_the_history_lists_the_reset()
+    {
+        // Arrange
+        await using BrandingWebHost host = new(fixture);
+        var (world, admin) = await TenantAdminAsync(host);
+        using var anonymous = world.AnonymousClient();
+        var slug = await ShortUrlAsync(world);
+        using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
+        using var reset = await SendAsync(admin, Post(RESET_ROUTE), blue.Headers.ETag!.Tag);
+
+        // Act
+        using var rolledBack = await SendAsync(admin, Post(ROLLBACK_ROUTE), reset.Headers.ETag!.Tag);
+        var rolledBackAccent = await PublicAccentAsync(anonymous, slug);
+        using var resetAgain = await SendAsync(admin, Post(RESET_ROUTE), rolledBack.Headers.ETag!.Tag);
+        using var green = await SendAsync(admin, Publish(GREEN), resetAgain.Headers.ETag!.Tag);
+        using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
+
+        // Assert
         rolledBackAccent.Should().Be("#0052d1");
         green.Headers.ETag!.Tag.Should().Be("\"5\"");
         (await PublicAccentAsync(anonymous, slug)).Should().Be("#16a34a");

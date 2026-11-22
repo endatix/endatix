@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
-using Endatix.Core.UseCases.TenantBranding.Resetting;
+using Endatix.Core.UseCases.TenantBranding.Restoring;
 using Endatix.Infrastructure.Caching;
 using FastEndpoints;
 using MediatR;

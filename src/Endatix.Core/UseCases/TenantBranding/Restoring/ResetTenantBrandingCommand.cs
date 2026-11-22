@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 
-namespace Endatix.Core.UseCases.TenantBranding.Resetting;
+namespace Endatix.Core.UseCases.TenantBranding.Restoring;
 
 /// <summary>
 /// Turns off the current tenant's custom brand, so its pages show the deployment brand again. The reset is a new

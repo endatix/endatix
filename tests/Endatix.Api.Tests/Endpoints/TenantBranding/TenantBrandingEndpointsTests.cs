@@ -7,7 +7,6 @@ using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Get;
 using Endatix.Core.UseCases.TenantBranding.History;
 using Endatix.Core.UseCases.TenantBranding.Publishing;
-using Endatix.Core.UseCases.TenantBranding.Resetting;
 using Endatix.Core.UseCases.TenantBranding.Restoring;
 using Endatix.Infrastructure.Caching;
 using FastEndpoints;
