@@ -8,7 +8,6 @@ using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Endpoints.TenantBranding;
 
@@ -17,7 +16,9 @@ namespace Endatix.Api.Endpoints.TenantBranding;
 /// </summary>
 /// <remarks>
 /// The body is read as text, not bound as JSON, so the brand override's own parser answers every body (empty, not JSON,
-/// a repeated key) with its problem codes (<c>required</c>, <c>invalid_json</c>, <c>too_large</c>).
+/// a repeated key) with its problem codes (<c>required</c>, <c>invalid_json</c>, <c>too_large</c>). The body has no
+/// limit of its own below the server's: a request size limit answers 500 here, because the server refuses the body
+/// while FastEndpoints binds it, so the parser's <c>too_large</c> is the bound.
 /// </remarks>
 [Experimental("ENDATIX0002")]
 public sealed class PublishTenantBranding(
@@ -26,10 +27,6 @@ public sealed class PublishTenantBranding(
     IUserContext userContext)
     : TenantBrandingWriteEndpoint<PublishTenantBrandingRequest>(mediator, publicTenantCache, userContext)
 {
-    // The brand override refuses more than 4,096 characters (too_large); a UTF-8 character is at most 4 bytes, so a
-    // body this size still gets that answer, and a larger one is 413 (RequestBodyTooLargeFilter).
-    private const long MAX_BODY_BYTES = 16 * 1024 + 4;
-
     /// <inheritdoc/>
     protected override WriteRoute Route { get; } = new(
         Http.PUT,
@@ -39,14 +36,8 @@ public sealed class PublishTenantBranding(
         "it live. Publishing the brand that is already live changes nothing.");
 
     /// <inheritdoc/>
-    protected override void ConfigureBody()
-    {
-        Description(builder => builder
-            .Accepts<object>("application/json")
-            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
-            .WithMetadata(new RequestSizeLimitAttribute(MAX_BODY_BYTES)));
-        Options(builder => builder.AddEndpointFilter<RequestBodyTooLargeFilter>());
-    }
+    protected override void ConfigureBody() =>
+        Description(builder => builder.Accepts<object>("application/json"));
 
     /// <inheritdoc/>
     protected override IRequest<Result<TenantBrandingDto>> Command(
