@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Endatix.Core.Entities;
@@ -64,6 +65,14 @@ public class AppDbContext : DbContext, ITenantDbContext
     public DbSet<EmailTemplate> EmailTemplates { get; set; }
 
     public DbSet<TenantSettings> TenantSettings { get; set; }
+
+    /// <summary>Each tenant's own branding, one row per tenant. Declared so the tenant query filter applies.</summary>
+    [Experimental("ENDATIX0002")]
+    public DbSet<TenantBranding> TenantBrandings { get; set; }
+
+    /// <summary>Every published version of each tenant's branding. Declared so the tenant query filter applies.</summary>
+    [Experimental("ENDATIX0002")]
+    public DbSet<TenantBrandingVersion> TenantBrandingVersions { get; set; }
 
     public DbSet<DataList> DataLists { get; set; }
 
