@@ -110,6 +110,7 @@ const sidebars: SidebarsConfig = {
         "configuration/security-configuration",
         "configuration/observability",
         "configuration/bring-your-own-telemetry",
+        "configuration/brand-pack",
         {
           type: "category",
           label: "Settings",

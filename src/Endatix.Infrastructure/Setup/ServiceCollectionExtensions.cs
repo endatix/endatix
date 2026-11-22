@@ -11,6 +11,7 @@ using Endatix.Core.Features.Email;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure;
 using Endatix.Infrastructure.Branding;
+using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Email;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Features.BackgroundJobs;
@@ -44,6 +45,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCoreInfrastructure(this IServiceCollection services)
     {
         services.AddHybridCache();
+        services.AddScoped<IPublicTenantCacheInvalidator, PublicTenantCacheInvalidator>();
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddHttpContextAccessor();
         AddSlackHttpClient(services);

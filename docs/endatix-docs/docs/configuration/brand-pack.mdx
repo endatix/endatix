@@ -1,0 +1,233 @@
+---
+title: Brand pack
+description: Mount a brand pack (brand.json plus logo, icon and image files) into the Endatix API and Hub to set the product name, logos, accent color, personas and links of a self-hosted deployment.
+---
+
+# Brand pack
+
+A brand pack is a folder with a `brand.json` file and the image files it names. Mount the same folder into the Endatix API and Endatix Hub, turn on the `WhiteLabeling` feature flag, and the deployment uses your product name, logos, accent color, personas and links instead of the built-in Endatix brand. The same container images serve either brand, with no rebuild.
+
+The pack is identity only: it says who the product is and where to reach it, not how email is sent. The email sender is set in the [email settings](/docs/configuration/settings/email-settings#deployment-sender). The pack is deployment-wide: every tenant sees the same brand.
+
+## Before you start
+
+- **Both apps read the pack.** The API uses `name`, `links.website` and `links.support` in emails. The Hub uses the whole pack. Mount it into both, with the flag set to the same value in both.
+- **The flag is off by default.** With it off, a mounted pack is ignored and the built-in brand applies.
+- **Check the pack first** with `pnpm brand:validate` (see [Validate a pack](#validate-a-pack)). With the flag on, an invalid pack stops the apps at start.
+
+## Write `brand.json`
+
+Only `version` and `name` are required. In the Hub, a pack never falls back to Endatix's name or links: `name` stands in for `legalName` and the personas, and a link the pack leaves out is hidden. A file the pack leaves out keeps the built-in artwork.
+
+```json title="brand.json"
+{
+  "$schema": "https://docs.endatix.com/schemas/brand/1/brand.schema.json",
+  "version": 1,
+  "name": "Example Forms",
+  "legalName": "Example Ltd.",
+  "assets": {
+    "logo": { "light": "logo-light.svg", "dark": "logo-dark.svg" },
+    "icon": "icon.svg",
+    "ogImage": "og.jpg"
+  },
+  "tokens": {
+    "color": {
+      "primary": { "$type": "color", "$value": "#0b6b5d" },
+      "primary-on-dark": { "$type": "color", "$value": "#4fd1b8" }
+    }
+  },
+  "links": {
+    "website": "https://example.com",
+    "docs": "https://docs.example.com",
+    "support": "mailto:help@example.com"
+  },
+  "personas": { "assistant": "Example Assistant", "bot": "Example Bot" },
+  "poweredBy": false
+}
+```
+
+The JSON Schema is published at <code>{"https://docs.endatix.com/schemas/brand/1/brand.schema.json"}</code>. Point `$schema` at it for completion and checks in your editor. The Hub rejects unknown keys.
+
+### Fields
+
+<Settings>
+<Setting name="version" note="required">
+Must be `1`.
+</Setting>
+<Setting name="name" note="required">
+The product name, 1 to 60 characters. The Hub shows it in page titles (`Sign in | Example Forms`) and as the app name. The API fills `{{productName}}` with it, and it is the email sender name unless the [email settings](/docs/configuration/settings/email-settings#deployment-sender) set one.
+</Setting>
+<Setting name="legalName">
+The company name, up to 120 characters. The Hub uses it as the page publisher in metadata. Defaults to `name`.
+</Setting>
+<Setting name="assets.logo">
+The logo, as `{ "light": "<file>", "dark": "<file>" }`. `light` is required; `dark` is optional. Shown on the sign-in pages and in the expanded sidebar. Without it, the Hub keeps the Endatix wordmark.
+</Setting>
+<Setting name="assets.icon">
+The square icon: the browser tab icon and the collapsed sidebar. Without it, the Hub keeps the Endatix icon.
+</Setting>
+<Setting name="assets.ogImage">
+The social preview image for pages that have a description.
+</Setting>
+<Setting name="tokens.color.primary">
+The accent color, as a [design token](https://www.designtokens.org/) `{ "$type": "color", "$value": "<color>" }`. Hex, `rgb()`, `hsl()` or `oklch()`. The Hub derives its buttons, focus rings, sidebar ring and chart colors from it, for light and dark mode. Survey Creator follows. Text on the accent always gets at least 4.5:1 contrast.
+</Setting>
+<Setting name="tokens.color.primary-on-dark">
+The accent for dark mode. Without it, the dark accent is derived from `primary`.
+</Setting>
+<Setting name="links.website">
+The product website (`http`, `https` or `mailto`). The Hub links it from the sign-in pages. The API fills `{{websiteUrl}}` with it.
+</Setting>
+<Setting name="links.docs">
+The documentation link in the Hub's help menu. Without it, the menu hides the entry.
+</Setting>
+<Setting name="links.support">
+The support link in the Hub's help menu. The API fills `{{supportAddress}}` from it only when it is a `mailto:` link to one address, for example `mailto:help@example.com`. See [Support address](#support-address).
+</Setting>
+<Setting name="personas.assistant">
+The name of the AI assistant in the Hub. Defaults to "`name` AI Assistant".
+</Setting>
+<Setting name="personas.bot">
+The name of the Slack bot in the Hub. Defaults to "`name` Bot".
+</Setting>
+<Setting name="poweredBy">
+Shows (`true`) or hides (`false`) the "Powered by" line at the foot of public status pages, including those of `/share` and `/embed`. It wins over the Hub's [`ENDATIX_SHOW_POWERED_BY`](/docs/developers/hub/environment#public-pages); left out, that variable decides.
+</Setting>
+</Settings>
+
+The schema also accepts `links.privacy` and `links.terms`. They are validated, but the Hub does not show them yet.
+
+:::warning[The pack has no email section]
+The sender address and name are not brand fields. Set them in `Endatix:Integrations:Email:Sender` (see [Email settings](/docs/configuration/settings/email-settings#deployment-sender)). The API ignores an `email` section left in an older pack, and the Hub still accepts one.
+:::
+
+### Files
+
+- Every file `brand.json` names must exist in the folder.
+- Paths are relative to the pack folder. Each segment uses only letters, digits, `.`, `_` and `-`, does not start with `.`, and no path contains `..`.
+- Without `assets.logo.dark`, dark mode uses the `light` file.
+- File types: `.svg`, `.png`, `.jpg`, `.jpeg`, `.webp` or `.ico`.
+- The Hub serves only the files `brand.json` names, without sign-in, under `/brand/<file>`.
+
+## Validate a pack
+
+From an [Endatix Hub](https://github.com/endatix/endatix-hub) checkout, after `pnpm install`:
+
+```bash
+pnpm brand:validate ./brand
+```
+
+It runs the same checks the Hub runs at start. On success it prints `Brand pack OK: <name> (<folder>, <n> files)` and exits 0. On failure it prints each problem with its field path and exits 1. It also warns when an accent color has less than 3:1 contrast against the light or dark page background (WCAG 2.x); the pack still applies.
+
+The API checks a few more rules at start, so a pack can pass `brand:validate` and still stop the API: no blank or whitespace-only `name`, `links.website`, `links.support` or `personas.assistant`, no control characters in `name`, and a `mailto:` support link to one bare address (`mailto:help@example.com`, not `mailto:Example <help@example.com>`).
+
+## Deploy with Helm
+
+Both Helm charts take the same two values: `whiteLabeling.enabled` for the flag and `brandPack` for the mount. Set them to the same values in the API release and the Hub release.
+
+1. Create a ConfigMap from the pack folder, in the namespace of both releases:
+
+   ```bash
+   kubectl create configmap brand-pack --from-file=./brand
+   ```
+
+2. Set the values in both charts:
+
+   ```yaml title="values.yaml"
+   whiteLabeling:
+     enabled: true
+   brandPack:
+     configMap: brand-pack
+     mountPath: /etc/endatix/brand
+   ```
+
+3. Upgrade both releases. The charts mount the ConfigMap read-only at `mountPath` and set `ENDATIX_BRAND_DIR` to it.
+
+A ConfigMap holds at most 1 MiB, and its keys cannot contain `/`, so keep the files flat and small. For subfolders or larger images, use a volume:
+
+- **Hub chart:** set `brandPack.volume` to a volume source, for example `{ persistentVolumeClaim: { claimName: brand-pack } }`, instead of `configMap`. Setting both fails the install with `Set brandPack.configMap or brandPack.volume, not both.`
+- **API chart:** it has no `brandPack.volume`. Mount the volume with `extraVolumes` and `extraVolumeMounts`, and set `ENDATIX_BRAND_DIR` with `extraEnv`.
+
+### Without Helm
+
+Mount the folder into each container and set:
+
+<Settings>
+<Setting name="ENDATIX_BRAND_DIR">
+The pack folder, holding `brand.json`. Both the API and the Hub read it. Unset means the built-in brand.
+</Setting>
+<Setting name="Endatix__FeatureFlags__WhiteLabeling" default="false" note="API">
+`true` turns on the [`WhiteLabeling` flag](/docs/developers/api/feature-flags) in the API.
+</Setting>
+<Setting name="FLAG_WHITE_LABELING" default="false" note="Hub">
+`true` turns on the `white-labeling` flag in the Hub with environment flags. With PostHog flags (`FLAG_PROVIDER=posthog` and a project token), the Hub reads `white-labeling` from PostHog instead. See [Hub feature flags](/docs/developers/hub/environment#feature-flags).
+</Setting>
+</Settings>
+
+:::warning[PostHog flags and the API can disagree]
+The API reads its flag only from configuration. When the Hub uses PostHog flags, keep the PostHog `white-labeling` flag and `whiteLabeling.enabled` in step, or the Hub and the emails show different brands.
+:::
+
+## What happens at start
+
+**API.** With the flag on and `ENDATIX_BRAND_DIR` set, the API reads `brand.json` once at start. It checks the fields it uses and refuses to start on an invalid pack, naming every failing field:
+
+```text
+Brand pack file '/etc/endatix/brand/brand.json' is not valid: /version: must be 1; /links/support: must be a mailto link to one email address
+```
+
+A missing file fails with `Brand pack file '<path>' was not found. Set ENDATIX_BRAND_DIR to a folder that holds brand.json.` With the flag off, the API does not read the pack. With the flag on and `ENDATIX_BRAND_DIR` unset, the API uses the built-in brand without an error. A change to the pack needs an API restart.
+
+**Hub.** With the flag on, an invalid pack stops the Hub at start with the field paths in the error. With environment flags and `FLAG_WHITE_LABELING` not `true`, the problem is only logged and the Hub starts. Under PostHog flags the flag is decided per request, so an invalid pack always stops the Hub: turning the flag off in PostHog does not help. Fix the pack or remove the mount.
+
+While running, the Hub reads the pack again when the folder, `brand.json` or a file it names changes. A change that does not validate is logged, and the last valid `brand.json` keeps serving.
+
+## Emails
+
+### Template variables
+
+Every email the API sends can use three variables, filled from the brand. A stored template renders them; a provider template (a SendGrid or Mailgun template id) receives them as dynamic data.
+
+| Variable | Value with a pack | Built-in value |
+| --- | --- | --- |
+| `{{productName}}` | `name` | `Endatix` |
+| `{{supportAddress}}` | the address in a `mailto:` `links.support` | `support@endatix.com` |
+| `{{websiteUrl}}` | `links.website` | `https://endatix.com` |
+
+Metadata an email sends with the same key wins over the brand value. A pack that leaves out `links.website` keeps `https://endatix.com` in emails, and a pack that leaves out `links.support` keeps `support@endatix.com`, with no warning.
+
+The seeded templates do not use these variables yet: their subjects and bodies still say Endatix. The text the API composes into the verification and invitation emails already uses the pack's `name`.
+
+### Support address
+
+`{{supportAddress}}` takes the address from `links.support` only when the link is `mailto:` with one address. A web link (`https://...`) or a list of addresses (`mailto:a@example.com,b@example.com`) keeps `support@endatix.com`, and the API logs warning `6003` at start:
+
+```text
+Brand pack: /links/support is not a mailto link, so emails use the built-in support address
+```
+
+A list logs `Brand pack: /links/support names more than one address, so emails use the built-in support address`.
+
+### Sender
+
+The pack does not set the sender. The From address and name come from the [deployment sender](/docs/configuration/settings/email-settings#deployment-sender), `Endatix:Integrations:Email:Sender:Address` and `Sender:Name`:
+
+- **Address:** the per-template `Endatix:EmailTemplates:<Template>:FromAddress`, then `Sender:Address`, then the address on the template row.
+- **Name:** a display name written in the per-template `FromAddress` (`Ops Team <ops@example.com>`), then `Sender:Name`, then the brand's `name`.
+
+The deprecated `Endatix:Integrations:Email:SmtpSettings:DefaultFromName` is still read as the name below `Sender:Name`, before the brand's `name`. The deprecated `DefaultFromAddress` is not part of the address order above: it sends only an email with no template and no From address, and never replaces a template row's address. Either one logs warning `6002` at start. See [Email settings](/docs/configuration/settings/email-settings#sender-address-resolution).
+
+## Limitations
+
+- **Respondent pages** (`/share` and `/embed`) keep the built-in look. Only their page title and the "Powered by" line follow the pack.
+- **Webhook headers** keep the `X-Endatix-` prefix.
+- **Seeded email copy** still names Endatix until you edit the templates.
+- **One brand per deployment.** Tenants cannot set their own brand.
+
+## See also
+
+<CardGrid compact>
+  <LinkCard title="Feature flags" href="/docs/developers/api/feature-flags" description="The WhiteLabeling flag and the other deployment flags." />
+  <LinkCard title="Email settings" href="/docs/configuration/settings/email-settings" description="Mail providers, template ids and sender addresses." />
+  <LinkCard title="Hub environment variables" href="/docs/developers/hub/environment" description="Hub runtime configuration, including feature flags." />
+</CardGrid>
