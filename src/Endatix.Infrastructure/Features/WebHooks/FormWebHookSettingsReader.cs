@@ -6,9 +6,8 @@ using Endatix.Core.Specifications;
 namespace Endatix.Infrastructure.Features.WebHooks;
 
 /// <summary>
-/// Reads a form's own webhook configuration: the webhooks section of its settings, or, for a form with no section yet
-/// (one an older instance wrote during a rolling deploy), <c>Forms.WebHookSettingsJson</c> until that column is dropped
-/// (endatix/endatix#1784).
+/// Reads a form's own webhook configuration from its settings: the webhooks section, or <c>Forms.WebHookSettingsJson</c>
+/// when the two differ, until that column is dropped (endatix/endatix#1784; <see cref="FormSettings.WebHooksOf"/>).
 /// </summary>
 public sealed class FormWebHookSettingsReader(IRepository<Form> formRepository, IFormSettingsRepository formSettingsRepository)
 {
@@ -22,17 +21,11 @@ public sealed class FormWebHookSettingsReader(IRepository<Form> formRepository, 
         var form = await formRepository.FirstOrDefaultAsync(
             new FormSpecifications.ByIdForTenant(formId, tenantId),
             cancellationToken);
-        return form is null ? null : ConfigOf(form, await formSettingsRepository.ReadAsync(form, cancellationToken));
-    }
-
-    // Any stored document replaces the tenant's, even one with no events, as the column always did.
-    private static WebHookConfiguration? ConfigOf(Form form, FormSettings settings)
-    {
-        if (settings.WebHooksJson is not null)
+        if (form is null || string.IsNullOrWhiteSpace(form.WebHookSettingsJson))
         {
-            return settings.WebHooks;
+            return null; // no settings read: a form without webhooks of its own sends with its tenant's
         }
 
-        return string.IsNullOrEmpty(form.WebHookSettingsJson) ? null : form.WebHookSettings;
+        return (await formSettingsRepository.ReadAsync(form, cancellationToken)).WebHooksOf(form);
     }
 }

@@ -137,6 +137,73 @@ public sealed class FormSettingsWebHooksTests
         copy.Should().Throw<ArgumentException>();
     }
 
+    [Fact]
+    public void Apply_TheSettingsOfAPascalCaseCopy_IsANoOp()
+    {
+        // The migration copies the column in Pascal case; a settings write stores camelCase. Same settings, no change.
+        var settings = Stored(STORED_BY_FORM);
+
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, 7, _at);
+
+        applied.IsSuccess.Should().BeTrue();
+        applied.Value.Should().BeFalse();
+        settings.WebHooksJson.Should().Be(STORED_BY_FORM);
+    }
+
+    [Fact]
+    public void CopyWebHooksFrom_TheSameSettingsInAnotherCasing_ChangesNothing()
+    {
+        // A settings write stored camelCase and wrote the column in Pascal case; a later form save copies it back.
+        var form = NewForm();
+        var settings = FormSettings.For(form);
+        settings.Apply(new FormSettingsChange { WebHooks = Config() }, FormSettings.UNSAVED_VERSION, _at);
+        form.UpdateWebHookSettings(Config());
+
+        settings.CopyWebHooksFrom(form, _at.AddMinutes(1)).Should().BeFalse();
+
+        settings.Version.Should().Be(1);
+    }
+
+    [Fact]
+    public void WebHooksOf_AFormWithoutWebHooks_IsNullWhateverTheSectionHolds()
+    {
+        // An older instance cleared the form's webhooks after the copy: its tenant's apply.
+        var settings = Stored(STORED_BY_FORM);
+
+        settings.WebHooksOf(NewForm()).Should().BeNull();
+    }
+
+    [Fact]
+    public void WebHooksOf_ASectionThatDiffersFromTheColumn_IsTheColumn()
+    {
+        // An older instance changed the column alone after the copy: the column is the copy every release writes.
+        var form = NewForm();
+        form.UpdateWebHookSettings(Config("https://hooks.example.test/newer"));
+        var settings = Stored(STORED_BY_FORM);
+
+        var webHooks = settings.WebHooksOf(form);
+
+        webHooks!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be("https://hooks.example.test/newer");
+    }
+
+    [Fact]
+    public void WebHooksOf_TheSameSettings_IsTheSection()
+    {
+        var form = NewForm();
+        form.UpdateWebHookSettings(Config());
+        var settings = Stored("""{"events":{"SubmissionCompleted":{"isEnabled":true,"webHookEndpoints":[{"url":"https://hooks.example.test/completed"}]}}}""");
+
+        settings.WebHooksOf(form)!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(HOOK_URL);
+    }
+
+    [Fact]
+    public void WebHooksOf_AnotherForm_Throws()
+    {
+        var read = () => NewSettings().WebHooksOf(Form.Create(3, new FormCreateArgs(TenantId: 1, Name: "Other")));
+
+        read.Should().Throw<ArgumentException>();
+    }
+
     private static Form NewForm() => Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form"));
 
     private static FormSettings NewSettings() => FormSettings.For(NewForm());
@@ -148,11 +215,11 @@ public sealed class FormSettingsWebHooksTests
         return settings;
     }
 
-    private static WebHookConfiguration Config() => new()
+    private static WebHookConfiguration Config(string url = HOOK_URL) => new()
     {
         Events = new Dictionary<string, WebHookEventConfig>
         {
-            ["SubmissionCompleted"] = new() { IsEnabled = true, WebHookEndpoints = [new WebHookEndpointConfig { Url = HOOK_URL }] },
+            ["SubmissionCompleted"] = new() { IsEnabled = true, WebHookEndpoints = [new WebHookEndpointConfig { Url = url }] },
         },
     };
 }

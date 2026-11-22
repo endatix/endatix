@@ -40,7 +40,7 @@ internal sealed class PartialUpdateFormSettingsHandler(
         }
 
         return !applied.Value || await repository.SaveOrConcedeAsync(settings, cancellationToken)
-            ? FormSettingsDto.From(settings)
+            ? FormSettingsDto.From(settings, form)
             : await AfterLostRaceAsync(form, request, cancellationToken);
     }
 
@@ -53,7 +53,7 @@ internal sealed class PartialUpdateFormSettingsHandler(
     {
         var winner = await repository.FindAsync(form.Id, cancellationToken);
         return winner is not null && Apply(winner, request) is { IsSuccess: true, Value: false }
-            ? FormSettingsDto.From(winner)
+            ? FormSettingsDto.From(winner, form)
             : Result.Conflict("The form settings changed while they were being saved; read them again and retry.");
     }
 

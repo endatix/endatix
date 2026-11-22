@@ -14,14 +14,14 @@ public sealed class FormSettingsModel
     /// <summary>How the form's submission PDFs look.</summary>
     public PdfSettingsModel Pdf { get; init; } = new();
 
-    /// <summary>The form's own webhooks, which replace its tenant's; no events when it has none.</summary>
-    public WebHookSettingsModel WebHooks { get; init; } = new();
+    /// <summary>The form's own webhooks, which replace its tenant's; null when the tenant's apply.</summary>
+    public WebHookSettingsModel? WebHooks { get; init; }
 
     internal static FormSettingsModel Map(FormSettingsDto settings) => new()
     {
         Version = settings.Version,
         Pdf = PdfSettingsModel.Map(settings.Pdf),
-        WebHooks = WebHookSettingsModel.Map(settings.WebHooks),
+        WebHooks = settings.WebHooks is { } webHooks ? WebHookSettingsModel.Map(webHooks) : null,
     };
 }
 
@@ -45,9 +45,13 @@ public sealed class WebHookSettingsModel
     /// <summary>Each configured event, keyed by its name.</summary>
     public Dictionary<string, WebHookEventSettingsModel> Events { get; init; } = [];
 
+    // A stored document can hold a JSON null where an object or a list belongs (the form endpoints accept it); it reads
+    // as nothing configured there.
     internal static WebHookSettingsModel Map(WebHookConfiguration webHooks) => new()
     {
-        Events = webHooks.Events.ToDictionary(pair => pair.Key, pair => WebHookEventSettingsModel.Map(pair.Value)),
+        Events = (webHooks.Events ?? [])
+            .Where(pair => pair.Value is not null)
+            .ToDictionary(pair => pair.Key, pair => WebHookEventSettingsModel.Map(pair.Value)),
     };
 
     internal WebHookConfiguration ToSection() => new()
@@ -69,7 +73,7 @@ public sealed class WebHookEventSettingsModel
     internal static WebHookEventSettingsModel Map(WebHookEventConfig config) => new()
     {
         IsEnabled = config.IsEnabled,
-        WebHookEndpoints = [.. config.WebHookEndpoints.Select(WebHookEndpointSettingsModel.Map)],
+        WebHookEndpoints = [.. (config.WebHookEndpoints ?? []).OfType<WebHookEndpointConfig>().Select(WebHookEndpointSettingsModel.Map)],
     };
 
     internal WebHookEventConfig ToSection() => new()
@@ -87,11 +91,11 @@ public sealed class WebHookEndpointSettingsModel
     public string Url { get; init; } = string.Empty;
 
     /// <summary>How the request authenticates; none when null.</summary>
-    public WebHookAuthSettingsModel? Authentication { get; set; }
+    public WebHookAuthSettingsModel? Authentication { get; init; }
 
     internal static WebHookEndpointSettingsModel Map(WebHookEndpointConfig config) => new()
     {
-        Url = config.Url,
+        Url = config.Url ?? string.Empty,
         Authentication = config.Authentication is { } auth ? WebHookAuthSettingsModel.Map(auth) : null,
     };
 

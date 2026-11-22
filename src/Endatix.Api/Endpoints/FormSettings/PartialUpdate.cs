@@ -132,8 +132,9 @@ public sealed class PartialUpdateFormSettingsValidator : Validator<PartialUpdate
     public PartialUpdateFormSettingsValidator(OutboundAddressPolicy outboundAddressPolicy)
     {
         RuleFor(x => x.FormId).GreaterThan(0);
-        RuleFor(x => x)
-            .Must(request => request.Pdf is not null || request.WebHooks is not null)
+        RuleFor(x => x.Pdf)
+            .NotNull()
+            .When(x => x.WebHooks is null)
             .WithMessage("Name at least one section, such as pdf or webHooks.");
         RuleFor(x => x.WebHooks)
             .Must(webHooks => WebHooksError(webHooks!, outboundAddressPolicy) is null)

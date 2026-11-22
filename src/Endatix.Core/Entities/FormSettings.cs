@@ -62,7 +62,7 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
 
     /// <summary>The form's own webhook settings as stored; null means the form has none, so its tenant's apply.</summary>
     /// <remarks>Copied from <c>Forms.WebHookSettingsJson</c> as it was stored, so property names and event keys may be in
-    /// any case. Readers match both in any case.</remarks>
+    /// any case. Readers match both in any case, and go through <see cref="WebHooksOf"/> while the column stays.</remarks>
     public string? WebHooksJson { get; private set; }
 
     /// <summary>The form's own webhook settings; no events when none are stored.</summary>
@@ -125,7 +125,7 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         Guard.Against.Null(form);
         Guard.Against.InvalidInput(form, nameof(form), candidate => candidate.Id == FormId, "The form is not the one these settings belong to.");
         var stored = string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
-        if (stored is null ? WebHooksJson is null : FormSettingsJson.SameContent(stored, WebHooksJson))
+        if (stored is null ? WebHooksJson is null : FormSettingsJson.SameSection<WebHookConfiguration>(stored, WebHooksJson))
         {
             return false;
         }
@@ -135,14 +135,35 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         return true;
     }
 
+    /// <summary>
+    /// The webhook settings <paramref name="form"/> sends with, or null when its tenant's apply. While
+    /// <c>Forms.WebHookSettingsJson</c> stays (until endatix/endatix#1784) it is the copy every release writes, so it wins
+    /// when the two differ: an older instance during a rolling deploy, or a rollback, writes it alone. The section is used
+    /// when it holds the same settings, and the column is read as the section is, in any case.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
+    public WebHookConfiguration? WebHooksOf(Form form)
+    {
+        Guard.Against.Null(form);
+        Guard.Against.InvalidInput(form, nameof(form), candidate => candidate.Id == FormId, "The form is not the one these settings belong to.");
+        if (string.IsNullOrWhiteSpace(form.WebHookSettingsJson))
+        {
+            return null;
+        }
+
+        return FormSettingsJson.SameSection<WebHookConfiguration>(form.WebHookSettingsJson, WebHooksJson)
+            ? WebHooks
+            : FormSettingsJson.Read<WebHookConfiguration>(form.WebHookSettingsJson);
+    }
+
     private void Touch(DateTime at)
     {
         ModifiedAt = at;
         Version++;
     }
 
-    // The new canonical JSON when the section is named and differs from what is stored; otherwise null.
-    private static string? Changed<T>(T? section, string? stored) where T : class
+    // The new canonical JSON when the section is named and differs from what is stored, in any casing; otherwise null.
+    private static string? Changed<T>(T? section, string? stored) where T : class, new()
     {
         if (section is null)
         {
@@ -150,7 +171,7 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         }
 
         var json = FormSettingsJson.Write(section);
-        return FormSettingsJson.SameContent(json, stored) ? null : json;
+        return FormSettingsJson.SameSection<T>(json, stored) ? null : json;
     }
 }
 

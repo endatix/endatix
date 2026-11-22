@@ -54,8 +54,11 @@ public sealed class FormSettingsWebHooksValidatorTests
     public void ToChange_KeepsEveryEndpointField()
     {
         var request = Request("SubmissionCompleted", "https://hooks.example.test/");
-        request.WebHooks!.Events["SubmissionCompleted"].WebHookEndpoints[0].Authentication =
-            new WebHookAuthSettingsModel { Type = "ApiKey", ApiKey = "key", ApiKeyHeader = "X-Key" };
+        request.WebHooks!.Events["SubmissionCompleted"].WebHookEndpoints[0] = new WebHookEndpointSettingsModel
+        {
+            Url = "https://hooks.example.test/",
+            Authentication = new WebHookAuthSettingsModel { Type = "ApiKey", ApiKey = "key", ApiKeyHeader = "X-Key" },
+        };
 
         var endpoint = request.ToChange().WebHooks!.Events["SubmissionCompleted"].WebHookEndpoints.Single();
 

@@ -137,6 +137,50 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
             .Should().Be(OTHER_HOOK_URL);
     }
 
+    [Fact]
+    public async Task A_new_form_saved_synchronously_gets_the_section_too()
+    {
+        // Arrange
+        var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
+        var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: Name(), WebHookSettingsJson: Config(HOOK_URL).Json()));
+
+        // Act
+        await using (var db = CreateDb(tenantId))
+        {
+            db.Forms.Add(form);
+            db.SaveChanges();
+        }
+
+        // Assert
+        (await ReadSettingsAsync(tenantId, form.Id))!.WebHooks.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url
+            .Should().Be(HOOK_URL);
+    }
+
+    [Fact]
+    public async Task A_whole_form_update_after_a_settings_write_leaves_the_settings_version_alone()
+    {
+        // Arrange: the section is stored camelCase and the column Pascal case; a repository update marks every column
+        var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
+        var formId = await InsertFormAsync(tenantId, webHooks: null);
+        await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(HOOK_URL) }, 0);
+
+        // Act
+        await using (var db = CreateDb(tenantId))
+        {
+            var forms = new EfRepository<Form>(db, new EndatixSpecificationEvaluator([]));
+            var form = (await forms.GetByIdAsync(formId, Cancellation))!;
+            await forms.UpdateAsync(form, Cancellation);
+        }
+
+        var again = await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(HOOK_URL) }, 0);
+
+        // Assert
+        (await ReadSettingsAsync(tenantId, formId))!.Version.Should().Be(1);
+        again.IsSuccess.Should().BeTrue("the same settings again are a no-op whatever the version");
+        again.Value.Version.Should().Be(1);
+        again.Value.WebHooks!.Events.Should().ContainKey("SubmissionCompleted");
+    }
+
     private async Task<long> InsertFormAsync(long tenantId, WebHookConfiguration? webHooks)
     {
         await using var db = CreateDb(tenantId);

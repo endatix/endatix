@@ -58,7 +58,7 @@ public sealed class MoveFormWebHookSettingsMigrationTests(DbIntegrationFixture f
     }
 
     [Fact]
-    public async Task Migrate_DownThenUp_KeepsTheFormsColumnAndCopiesAgain()
+    public async Task Migrate_UpDownUp_KeepsTheFormsColumnAndTheAddedRowsAndCopiesAgain()
     {
         // Arrange
         await fixture.Checkpoint.ResetAsync(fixture.ConnectionString, fixture.Provider, Cancellation);
@@ -68,15 +68,26 @@ public sealed class MoveFormWebHookSettingsMigrationTests(DbIntegrationFixture f
         var migrator = scope.ServiceProvider.GetRequiredService<AppDbContext>().GetService<IMigrator>();
         var (previous, move) = MigrationIds(scope.ServiceProvider.GetRequiredService<AppDbContext>());
         var seeded = await SeedAsync();
+        await migrator.MigrateAsync(previous, Cancellation);
+        await migrator.MigrateAsync(move, Cancellation);
 
         // Act
         await migrator.MigrateAsync(previous, Cancellation);
         var column = await ReadFormColumnAsync(seeded.NoRow);
+        var rowsAfterDown = await ReadSettingsRowIdsAsync();
         await migrator.MigrateAsync(move, Cancellation);
 
         // Assert
         JsonNode.DeepEquals(JsonNode.Parse(column!), JsonNode.Parse(PASCAL_CASE)).Should().BeTrue("Down never touches the form");
-        AssertCopied((await ReadSettingsAsync())[seeded.NoRow], PASCAL_CASE, version: 1);
+        rowsAfterDown.Should().Contain(seeded.NoRow, "Down drops the section, not the rows the copy added");
+        AssertCopied((await ReadSettingsAsync())[seeded.NoRow], PASCAL_CASE, version: 2);
+    }
+
+    // Only the key: before the migration the model's WebHooksJson column does not exist.
+    private async Task<List<long>> ReadSettingsRowIdsAsync()
+    {
+        await using var db = CreateAppDbContext();
+        return await db.FormSettings.IgnoreQueryFilters().Select(settings => settings.FormId).ToListAsync(Cancellation);
     }
 
     private static void AssertCopied(FormSettings settings, string expected, long version)
