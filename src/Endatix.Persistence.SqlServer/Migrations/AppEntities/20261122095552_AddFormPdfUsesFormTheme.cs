@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
+namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 {
     /// <inheritdoc />
     public partial class AddFormPdfUsesFormTheme : Migration
@@ -13,7 +13,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
             migrationBuilder.AddColumn<bool>(
                 name: "PdfUsesFormTheme",
                 table: "Forms",
-                type: "boolean",
+                type: "bit",
                 nullable: false,
                 defaultValue: false);
         }
