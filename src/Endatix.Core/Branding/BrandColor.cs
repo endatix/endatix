@@ -18,6 +18,8 @@ internal static partial class BrandColor
     /// <summary>ASCII digits only, as in JavaScript: .NET <c>\d</c> also matches other scripts' digits.</summary>
     private const string NUMBER = @"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)";
     private const string ARG = "(" + NUMBER + ")(%|deg)?";
+    /// <summary>CSS whitespace, ASCII only: .NET <c>\s</c> also matches U+0085, JavaScript's also U+FEFF.</summary>
+    private const string WS = @"[ \t\n\r\f]";
     private const double OKLCH_CHROMA_PER_PERCENT = 0.4 / 100;
     private const double GAMUT_EPSILON = 1e-4;
     private const int GAMUT_SEARCH_STEPS = 24;
@@ -25,13 +27,16 @@ internal static partial class BrandColor
     [GeneratedRegex(@"^#([0-9a-f]{3}|[0-9a-f]{6})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Hex();
 
-    /// <summary>All commas: <c>rgb()</c> and <c>hsl()</c> only.</summary>
-    [GeneratedRegex(@"^(rgb|hsl)a?\(\s*" + ARG + @"\s*,\s*" + ARG + @"\s*,\s*" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>All commas: <c>rgb()</c> and <c>hsl()</c> only. Matched against <see cref="ToAsciiLower"/>.</summary>
+    [GeneratedRegex(@"^(rgb|hsl)a?\(" + WS + "*" + ARG + WS + "*," + WS + "*" + ARG + WS + "*," + WS + "*" + ARG + WS + @"*\)$")]
     private static partial Regex CommaArgs();
 
-    /// <summary>All spaces: <c>rgb()</c>, <c>hsl()</c> and <c>oklch()</c>; CSS has no <c>oklcha()</c>.</summary>
-    [GeneratedRegex(@"^(rgb|hsl|oklch(?!a))a?\(\s*" + ARG + @"\s+" + ARG + @"\s+" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>All spaces: <c>rgb()</c>, <c>hsl()</c> and <c>oklch()</c>; CSS has no <c>oklcha()</c>. Matched against <see cref="ToAsciiLower"/>.</summary>
+    [GeneratedRegex(@"^(rgb|hsl|oklch(?!a))a?\(" + WS + "*" + ARG + WS + "+" + ARG + WS + "+" + ARG + WS + @"*\)$")]
     private static partial Regex SpaceArgs();
+
+    /// <summary>The characters of <see cref="WS"/>.</summary>
+    private static readonly char[] _whitespace = [' ', '\t', '\n', '\r', '\f'];
 
     /// <summary>The regex groups of the three arguments; each unit is the next group.</summary>
     private static readonly int[] _argumentGroups = [2, 4, 6];
@@ -44,15 +49,16 @@ internal static partial class BrandColor
     /// </summary>
     internal static Rgb? Parse(string input)
     {
-        var value = input.Trim();
+        var value = input.Trim(_whitespace);
         var hex = Hex().Match(value);
         if (hex.Success)
         {
             return ParseHex(hex.Groups[1].Value);
         }
 
-        var commas = CommaArgs().Match(value);
-        var match = commas.Success ? commas : SpaceArgs().Match(value);
+        var lower = ToAsciiLower(value);
+        var commas = CommaArgs().Match(lower);
+        var match = commas.Success ? commas : SpaceArgs().Match(lower);
         return match.Success ? FromFunction(match, commas.Success) : null;
     }
 
@@ -131,14 +137,14 @@ internal static partial class BrandColor
         var args = _argumentGroups
             .Select(i => new ColorArg(
                 double.Parse(match.Groups[i].Value, NumberStyles.Float, CultureInfo.InvariantCulture),
-                match.Groups[i + 1].Value.ToLowerInvariant()))
+                match.Groups[i + 1].Value))
             .ToArray();
         if (args.Any(arg => !double.IsFinite(arg.Value)))
         {
             return null;
         }
 
-        return match.Groups[1].Value.ToLowerInvariant() switch
+        return match.Groups[1].Value switch
         {
             "rgb" => RgbFromArgs(args, commas),
             "hsl" => HslFromArgs(args, commas),
@@ -183,6 +189,20 @@ internal static partial class BrandColor
             Math.Max(0, c.Unit == "%" ? c.Value * OKLCH_CHROMA_PER_PERCENT : c.Value),
             h.Value));
     }
+
+    /// <summary>
+    /// Lowercases A-Z only. CSS function names and units are ASCII case-insensitive; .NET <c>IgnoreCase</c> would also
+    /// fold the Kelvin sign (U+212A) to <c>k</c>, which the Hub refuses.
+    /// </summary>
+    private static string ToAsciiLower(string value) =>
+        string.Create(value.Length, value, static (span, source) =>
+        {
+            for (var i = 0; i < source.Length; i++)
+            {
+                var c = source[i];
+                span[i] = c is >= 'A' and <= 'Z' ? (char)(c + ('a' - 'A')) : c;
+            }
+        });
 
     private static Rgb ParseHex(string digits)
     {
