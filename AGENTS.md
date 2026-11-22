@@ -15,7 +15,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
   | `ENDATIX0002` | Tenant branding | `TenantBranding`, `TenantBrandingVersion`, `ITenantBrandingRepository`, `AppDbContext.TenantBrandings`, `AppDbContext.TenantBrandingVersions`, `PublishTenantBrandingCommand`, `RestoreTenantBrandingCommand`, `RollbackTenantBrandingCommand`, `TenantBrandingDto`, `GetTenantBrandingQuery`, `TenantBrandingReadDto`, `ListTenantBrandingVersionsQuery`, `TenantBrandingVersionDto`, `IPublicTenantCacheInvalidator`, the `Endpoints/TenantBranding` endpoints, requests, validators and models |
   | `ENDATIX0003` | Deployment brand | `DeploymentBrand`, `BrandPackException`, `AddDeploymentBrand` |
   | `ENDATIX0004` | Email sender and variables | `EmailVariables`, `DeploymentSender`, `EmailSenderSettings`, `EmailWithBody.FromName`, `EmailTemplateRenderer.ProviderTemplateData` |
-  | `ENDATIX0005` | Form settings | `FormSettings`, `PdfSettings`, `FormSettingsChange`, `IFormSettingsRepository`, `AppDbContext.FormSettings`, `GetFormSettingsQuery`, `PartialUpdateFormSettingsCommand`, `FormSettingsDto`, `SubmissionFormTheme`, `FormSettingsModel`, `PdfSettingsModel`, the `FormSettings` endpoints |
+  | `ENDATIX0005` | Form settings | `FormSettings`, `PdfSettings`, `FormSettingsChange`, `IFormSettingsRepository`, `AppDbContext.FormSettings`, `GetFormSettingsQuery`, `PartialUpdateFormSettingsCommand`, `FormSettingsDto`, `SubmissionFormTheme`, `FormWebHookSettingsReader`, `FormSettingsModel`, `PdfSettingsModel`, the `FormSettings` endpoints |
 
   Next free ID: `ENDATIX0006`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.

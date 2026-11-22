@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -9,6 +10,7 @@ namespace Endatix.Infrastructure.Features.WebHooks;
 /// Reads a form's own webhook configuration from its settings: the webhooks section, or <c>Forms.WebHookSettingsJson</c>
 /// when the two differ, until that column is dropped (endatix/endatix#1784; <see cref="FormSettings.WebHooksOf"/>).
 /// </summary>
+[Experimental("ENDATIX0005")]
 public sealed class FormWebHookSettingsReader(IRepository<Form> formRepository, IFormSettingsRepository formSettingsRepository)
 {
     /// <summary>
