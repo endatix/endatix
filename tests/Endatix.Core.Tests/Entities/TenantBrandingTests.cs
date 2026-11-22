@@ -301,6 +301,163 @@ public sealed class TenantBrandingTests
         branding.RestoreTarget(1).Value.Should().Be(1);
     }
 
+    [Fact]
+    public void Reset_ACustomBrand_AppendsAResetAndShowsTheDeploymentBrand()
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+        branding.Publish(_blue, 0, _stamp);
+
+        // Act
+        var reset = branding.Reset(1, _stamp with { At = _now.AddMinutes(1) }).Value;
+
+        // Assert
+        reset.Should().BeEquivalentTo(new
+        {
+            TenantId = TENANT_ID,
+            Number = 2L,
+            Json = TenantBranding.DEPLOYMENT_BRAND_JSON,
+            CreatedAt = _now.AddMinutes(1),
+            CreatedBy = (long?)USER_ID,
+            Source = ContentVersionSources.RESET,
+            RestoredFromNumber = (long?)null,
+        });
+        branding.PublishedNumber.Should().Be(2);
+        branding.PublishedJson.Should().BeNull();
+        branding.PublishedAt.Should().Be(_now.AddMinutes(1));
+        branding.Version.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    public void Reset_NothingPublished_ChangesNothingWhateverTheVersion(long expectedVersion)
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+
+        // Act
+        var result = branding.Reset(expectedVersion, _stamp);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
+        branding.Version.Should().Be(TenantBranding.UNSAVED_VERSION);
+        branding.PublishedNumber.Should().BeNull();
+    }
+
+    [Fact]
+    public void Reset_Twice_ChangesNothingTheSecondTimeWhateverTheVersion()
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+        branding.Publish(_blue, 0, _stamp);
+        branding.Reset(1, _stamp);
+
+        // Act
+        var result = branding.Reset(1, _stamp);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
+        branding.Version.Should().Be(2);
+        branding.PublishedNumber.Should().Be(2);
+    }
+
+    [Fact]
+    public void Reset_StaleVersion_IsRefused()
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+        branding.Publish(_blue, 0, _stamp);
+        branding.Publish(_green, 1, _stamp);
+
+        // Act
+        var result = branding.Reset(1, _stamp);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        branding.PublishedJson.Should().Be(_green.CanonicalJson);
+        branding.Version.Should().Be(2);
+    }
+
+    [Fact]
+    public void Rollback_AfterAReset_BringsTheBrandBack()
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+        var first = branding.Publish(_blue, 0, _stamp).Value!;
+        branding.Reset(1, _stamp);
+
+        // Act
+        branding.RestoreTarget(null).Value.Should().Be(1);
+        var copy = branding.Restore(first, 2, _stamp).Value;
+
+        // Assert
+        copy!.Number.Should().Be(3);
+        copy.RestoredFromNumber.Should().Be(1);
+        branding.PublishedJson.Should().Be(_blue.CanonicalJson);
+        branding.PublishedNumber.Should().Be(3);
+    }
+
+    [Fact]
+    public void Publish_AfterAReset_AppendsTheNextNumber()
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+        branding.Publish(_blue, 0, _stamp);
+        branding.Reset(1, _stamp);
+
+        // Act
+        var version = branding.Publish(_blue, 2, _stamp).Value;
+
+        // Assert
+        version!.Number.Should().Be(3);
+        branding.PublishedJson.Should().Be(_blue.CanonicalJson);
+    }
+
+    [Fact]
+    public void Restore_AReset_ShowsTheDeploymentBrandAgain()
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+        branding.Publish(_blue, 0, _stamp);
+        var reset = branding.Reset(1, _stamp).Value!;
+        branding.Publish(_green, 2, _stamp);
+
+        // Act
+        var copy = branding.Restore(reset, 3, _stamp).Value;
+
+        // Assert
+        copy.Should().BeEquivalentTo(new
+        {
+            Number = 4L,
+            Json = TenantBranding.DEPLOYMENT_BRAND_JSON,
+            reset.ContentHash,
+            Source = ContentVersionSources.RESTORE,
+            RestoredFromNumber = (long?)2,
+        });
+        branding.PublishedJson.Should().BeNull();
+        branding.PublishedNumber.Should().Be(4);
+    }
+
+    [Fact]
+    public void Restore_AResetWhileTheDeploymentBrandIsLive_ChangesNothing()
+    {
+        // Arrange
+        var branding = new TenantBranding(TENANT_ID);
+        branding.Publish(_blue, 0, _stamp);
+        var reset = branding.Reset(1, _stamp).Value!;
+
+        // Act
+        var result = branding.Restore(reset, 0, _stamp);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeNull();
+        branding.Version.Should().Be(2);
+    }
+
     private static BrandOverride Accent(string hex, long tenantId = TENANT_ID) =>
         BrandOverride.Parse("{\"version\":1,\"tokens\":{\"color\":{\"primary\":{\"$type\":\"color\",\"$value\":\"" + hex + "\"}}}}", tenantId).Value;
 }

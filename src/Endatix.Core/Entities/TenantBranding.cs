@@ -17,13 +17,22 @@ namespace Endatix.Core.Entities;
 /// version before the live one as a new version: two rollbacks toggle, and history never rewinds. <see cref="Version"/>
 /// is the optimistic concurrency token: a write names the version it read and is refused when another write came
 /// first. Publishing (or restoring) the content already live changes nothing, whatever version it names, so a retried
-/// request adds no version.
+/// request adds no version. A reset is a version too: it shows the deployment brand again (<see cref="PublishedJson"/>
+/// null) while <see cref="PublishedNumber"/> points at the reset, so a rollback brings the brand before it back.
 /// </remarks>
 [Experimental("ENDATIX0002")]
 public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
 {
     /// <summary>The <see cref="Version"/> a write names when the tenant has no branding row yet.</summary>
     public const long UNSAVED_VERSION = 0;
+
+    /// <summary>
+    /// The <see cref="TenantBrandingVersion.Json"/> of a reset: no override, so the deployment brand applies. No publish
+    /// can store it, since an override names its <c>version</c>.
+    /// </summary>
+    public const string DEPLOYMENT_BRAND_JSON = "{}";
+
+    private static readonly string _deploymentBrandHash = CanonicalContentHash.Of(DEPLOYMENT_BRAND_JSON);
 
     private TenantBranding() { } // For EF Core
 
@@ -40,13 +49,14 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
     /// <summary>Goes up by one on every change. 1 after the first publish; <see cref="UNSAVED_VERSION"/> before it.</summary>
     public long Version { get; private set; } = UNSAVED_VERSION;
 
-    /// <summary>The live version's <see cref="TenantBrandingVersion.Number"/>, or null when the deployment brand applies.</summary>
+    /// <summary>The live version's <see cref="TenantBrandingVersion.Number"/>, or null when nothing was published yet.
+    /// After a reset it is the reset's number.</summary>
     public long? PublishedNumber { get; private set; }
 
     /// <summary>The live version's JSON, or null when the deployment brand applies.</summary>
     public string? PublishedJson { get; private set; }
 
-    /// <summary>When the live version was published, by a publish or a restore.</summary>
+    /// <summary>When the live version was published, by a publish, a restore or a reset.</summary>
     public DateTime? PublishedAt { get; private set; }
 
     /// <summary>Publishes <paramref name="value"/> as a new version.</summary>
@@ -67,6 +77,23 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
         return expectedVersion != Version
             ? StaleVersion()
             : Append(new(value.CanonicalJson, value.ContentHash, ContentVersionSources.PUBLISH, null), stamp);
+    }
+
+    /// <summary>Shows the deployment brand again, as a new version (<see cref="ContentVersionSources.RESET"/>).</summary>
+    /// <param name="expectedVersion">The <see cref="Version"/> the caller read.</param>
+    /// <param name="stamp">When, and by whom.</param>
+    /// <returns>The version to save; null when the deployment brand already applies (nothing changes);
+    /// <see cref="ResultStatus.Conflict"/> when <paramref name="expectedVersion"/> is stale.</returns>
+    internal Result<TenantBrandingVersion?> Reset(long expectedVersion, ContentVersionStamp stamp)
+    {
+        if (IsLive(_deploymentBrandHash))
+        {
+            return Result<TenantBrandingVersion?>.Success(null);
+        }
+
+        return expectedVersion != Version
+            ? StaleVersion()
+            : Append(new(DEPLOYMENT_BRAND_JSON, _deploymentBrandHash, ContentVersionSources.RESET, null), stamp);
     }
 
     /// <summary>
@@ -93,7 +120,7 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
             : Refused(BrandOverrideProblems.UNKNOWN_VERSION, $"There is no branding version {number}.");
     }
 
-    /// <summary>Publishes a copy of <paramref name="source"/> as a new version.</summary>
+    /// <summary>Publishes a copy of <paramref name="source"/> as a new version; a copy of a reset shows the deployment brand.</summary>
     /// <param name="source">An earlier version of this tenant's branding.</param>
     /// <param name="expectedVersion">The <see cref="Version"/> the caller read, so a retried rollback is refused instead
     /// of undoing itself. Not checked when <paramref name="source"/>'s content is already live.</param>
@@ -114,9 +141,10 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
             : Append(new(CanonicalBrandJson.Write(source.Json), source.ContentHash, ContentVersionSources.RESTORE, source.Number), stamp);
     }
 
-    // The cache may come back with its keys reordered (jsonb), so its hash is taken in canonical form.
-    private bool IsLive(string contentHash) =>
-        PublishedJson is not null && CanonicalContentHash.Of(CanonicalBrandJson.Write(PublishedJson)) == contentHash;
+    // The cache may come back with its keys reordered (jsonb), so its hash is taken in canonical form. With no cache the
+    // deployment brand is live, before the first publish as after a reset.
+    private bool IsLive(string contentHash) => contentHash ==
+        (PublishedJson is null ? _deploymentBrandHash : CanonicalContentHash.Of(CanonicalBrandJson.Write(PublishedJson)));
 
     private TenantBrandingVersion Append(Content content, ContentVersionStamp stamp)
     {
@@ -132,7 +160,7 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
             CreatedBy = stamp.By,
         };
         PublishedNumber = version.Number;
-        PublishedJson = version.Json;
+        PublishedJson = content.Hash == _deploymentBrandHash ? null : version.Json;
         PublishedAt = stamp.At;
         Version++;
         return version;

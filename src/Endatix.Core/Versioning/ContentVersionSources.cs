@@ -11,4 +11,7 @@ internal static class ContentVersionSources
 
     /// <summary>An earlier version was published again, as a copy.</summary>
     public const string RESTORE = "restore";
+
+    /// <summary>The custom content was turned off, so the default applies again (for branding, the deployment brand).</summary>
+    public const string RESET = "reset";
 }

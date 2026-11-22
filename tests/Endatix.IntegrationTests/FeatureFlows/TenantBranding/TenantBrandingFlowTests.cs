@@ -26,6 +26,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     private const string PUBLISH_ROUTE = "/api/tenant-branding/published";
     private const string RESTORE_ROUTE = "/api/tenant-branding/restore";
     private const string ROLLBACK_ROUTE = "/api/tenant-branding/rollback";
+    private const string RESET_ROUTE = "/api/tenant-branding/reset";
     private const string VERSIONS_ROUTE = "/api/tenant-branding/versions";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
@@ -84,6 +85,50 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     }
 
     [Fact]
+    public async Task A_reset_shows_the_deployment_brand_and_a_rollback_brings_the_brand_back()
+    {
+        // Arrange
+        await using BrandingWebHost host = new(fixture);
+        var (world, admin) = await TenantAdminAsync(host);
+        using var anonymous = world.AnonymousClient();
+        var slug = await ShortUrlAsync(world);
+        using var nothingToReset = await SendAsync(admin, Post(RESET_ROUTE), "\"0\"");
+        using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
+        var blueAccent = await PublicAccentAsync(anonymous, slug);
+
+        // Act - a reset has no body; a second one changes nothing
+        using var reset = await SendAsync(admin, Post(RESET_ROUTE), blue.Headers.ETag!.Tag);
+        var afterReset = (await PublicTenantAsync(anonymous, slug)).GetProperty("branding");
+        using var resetAgain = await SendAsync(admin, Post(RESET_ROUTE), "\"1\"");
+        using var rolledBack = await SendAsync(admin, Post(ROLLBACK_ROUTE), reset.Headers.ETag!.Tag);
+        var rolledBackAccent = await PublicAccentAsync(anonymous, slug);
+        using var resetThenPublished = await SendAsync(admin, Post(RESET_ROUTE), rolledBack.Headers.ETag!.Tag);
+        using var green = await SendAsync(admin, Publish(GREEN), resetThenPublished.Headers.ETag!.Tag);
+        using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
+
+        // Assert
+        nothingToReset.StatusCode.Should().Be(HttpStatusCode.OK);
+        nothingToReset.Headers.ETag!.Tag.Should().Be("\"0\"");
+        blueAccent.Should().Be("#0052d1");
+        reset.StatusCode.Should().Be(HttpStatusCode.OK);
+        reset.Headers.ETag!.Tag.Should().Be("\"2\"");
+        var resetRead = await ReadAsync(reset);
+        resetRead.GetProperty("published").ValueKind.Should().Be(JsonValueKind.Null);
+        resetRead.GetProperty("publishedNumber").GetString().Should().Be("2");
+        afterReset.ValueKind.Should().Be(JsonValueKind.Null);
+        resetAgain.StatusCode.Should().Be(HttpStatusCode.OK);
+        resetAgain.Headers.ETag!.Tag.Should().Be("\"2\"");
+        rolledBackAccent.Should().Be("#0052d1");
+        green.Headers.ETag!.Tag.Should().Be("\"5\"");
+        (await PublicAccentAsync(anonymous, slug)).Should().Be("#16a34a");
+        var items = (await ReadAsync(history)).GetProperty("items").EnumerateArray().ToList();
+        items.Select(item => $"{item.GetProperty("number").GetString()}:{item.GetProperty("source").GetString()}")
+            .Should().Equal("5:publish", "4:reset", "3:restore", "2:reset", "1:publish");
+        items[3].GetProperty("createdBy").GetString().Should().Be(world.Tenants[0].Admin.Id.ToString());
+        items[3].GetProperty("createdAt").GetDateTime().Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(5));
+    }
+
+    [Fact]
     public async Task A_stale_If_Match_is_refused_with_the_current_version_on_every_write()
     {
         // Arrange
@@ -96,10 +141,12 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         using var publish = await SendAsync(admin, Publish(BLUE), "\"1\"");
         using var restore = await SendAsync(admin, Post(RESTORE_ROUTE, new { number = 1 }), "\"1\"");
         using var rollback = await SendAsync(admin, Post(ROLLBACK_ROUTE), "\"1\"");
+        using var reset = await SendAsync(admin, Post(RESET_ROUTE), "\"1\"");
         using var missing = await SendAsync(admin, Publish(BLUE), null);
+        using var missingOnReset = await SendAsync(admin, Post(RESET_ROUTE), null);
 
         // Assert
-        foreach (var stale in new[] { publish, restore, rollback })
+        foreach (var stale in new[] { publish, restore, rollback, reset })
         {
             stale.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
             stale.Headers.ETag!.Tag.Should().Be("\"2\"");
@@ -107,6 +154,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         }
 
         missing.StatusCode.Should().Be((HttpStatusCode)428);
+        missingOnReset.StatusCode.Should().Be((HttpStatusCode)428);
     }
 
     [Theory]
@@ -227,7 +275,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         HttpRequestMessage[] requests =
         [
             new(HttpMethod.Get, BRANDING_ROUTE), new(HttpMethod.Get, VERSIONS_ROUTE), Publish(GREEN),
-            Post(RESTORE_ROUTE, new { number = 1 }), Post(ROLLBACK_ROUTE),
+            Post(RESTORE_ROUTE, new { number = 1 }), Post(ROLLBACK_ROUTE), Post(RESET_ROUTE),
         ];
         var statuses = new List<HttpStatusCode>();
         foreach (var request in requests)
