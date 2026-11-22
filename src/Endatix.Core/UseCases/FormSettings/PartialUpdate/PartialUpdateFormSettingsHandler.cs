@@ -32,7 +32,7 @@ internal sealed class PartialUpdateFormSettingsHandler(
         CancellationToken cancellationToken)
     {
         var settings = await repository.FindAsync(form.Id, cancellationToken)
-            ?? new Entities.FormSettings(form.TenantId, form.Id);
+            ?? Entities.FormSettings.For(form);
         var applied = Apply(settings, request);
         if (!applied.IsSuccess)
         {

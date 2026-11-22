@@ -29,7 +29,7 @@ public sealed class FormSettingsSectionListTests
         var property = typeof(FormSettingsChange).GetProperty(section)!;
         var change = new FormSettingsChange();
         property.SetValue(change, Activator.CreateInstance(property.PropertyType));
-        var settings = new FormSettings(1, 2);
+        var settings = FormSettings.For(Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form")));
 
         settings.Apply(change, FormSettings.UNSAVED_VERSION, DateTime.UtcNow).Value.Should().BeTrue();
         typeof(FormSettings).GetProperty(section + "Json")!.GetValue(settings).Should().NotBeNull();
@@ -39,7 +39,7 @@ public sealed class FormSettingsSectionListTests
     [MemberData(nameof(Sections))]
     public void UnreadableSections_WithThatSectionUnreadable_NamesIt(string section)
     {
-        var settings = new FormSettings(1, 2);
+        var settings = FormSettings.For(Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form")));
         typeof(FormSettings).GetProperty(section + "Json")!.SetValue(settings, "[]");
 
         settings.UnreadableSections().Should().Equal(JsonNamingPolicy.CamelCase.ConvertName(section));

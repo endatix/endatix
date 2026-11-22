@@ -25,7 +25,7 @@ public sealed partial class SubmissionFormTheme(
             return;
         }
 
-        var settings = await formSettings.ReadAsync(form.TenantId, form.Id, cancellationToken);
+        var settings = await formSettings.ReadAsync(form, cancellationToken);
         foreach (var section in settings.UnreadableSections())
         {
             LogUnreadableSection(form.Id, section);

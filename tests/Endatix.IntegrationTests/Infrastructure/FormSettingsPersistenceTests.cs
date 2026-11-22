@@ -74,7 +74,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         // Arrange: a request found no row and starts one; another request writes the form's first settings first
         var (tenantId, formId) = await InsertFormAsync();
         await using var slowDb = CreateDb(tenantId);
-        var slow = new FormSettings(tenantId, formId);
+        var slow = FormSettings.For(Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "slow")));
         slow.Apply(_themeOff, 0, DateTime.UtcNow);
         await UpdateAsync((tenantId, formId), _themeOn, 0);
 
@@ -138,12 +138,28 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
 
         // Act
         var found = await Repository(otherDb).FindAsync(formId, Cancellation);
-        var read = await Repository(otherDb).ReadAsync(otherTenantId, formId, Cancellation);
+        var read = await Repository(otherDb).ReadAsync(Form.Create(formId, new FormCreateArgs(TenantId: otherTenantId, Name: "other")), Cancellation);
 
         // Assert
         found.Should().BeNull();
         read.Version.Should().Be(FormSettings.UNSAVED_VERSION);
         read.Pdf.UsesFormTheme.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Deleting_the_form_row_deletes_its_settings()
+    {
+        // Arrange
+        var (tenantId, formId) = await InsertFormAsync();
+        await UpdateAsync((tenantId, formId), _themeOn, 0);
+        await using var db = CreateDb(tenantId);
+
+        // Act: a hard delete of the row, not the soft delete the API does
+        await db.Forms.IgnoreQueryFilters().Where(form => form.Id == formId).ExecuteDeleteAsync(Cancellation);
+
+        // Assert
+        (await db.FormSettings.IgnoreQueryFilters().AnyAsync(settings => settings.FormId == formId, Cancellation))
+            .Should().BeFalse("the settings row lives and dies with its form");
     }
 
     private async Task<(long TenantId, long FormId)> InsertFormAsync()
@@ -167,7 +183,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     private async Task<FormSettings> ReadAsync(long tenantId, long formId)
     {
         await using var db = CreateDb(tenantId);
-        return await Repository(db).ReadAsync(tenantId, formId, Cancellation);
+        return await Repository(db).ReadAsync(Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "read")), Cancellation);
     }
 
     private static FormSettingsRepository Repository(AppDbContext db) => new(db, new UniqueConstraintViolationChecker());
@@ -175,8 +191,8 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     // Lets another write land between this request's read and its save.
     private sealed class RacingRepository(FormSettingsRepository inner, Func<Task> otherWrite) : IFormSettingsRepository
     {
-        public Task<FormSettings> ReadAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
-            inner.ReadAsync(tenantId, formId, cancellationToken);
+        public Task<FormSettings> ReadAsync(Form form, CancellationToken cancellationToken) =>
+            inner.ReadAsync(form, cancellationToken);
 
         public Task<FormSettings?> FindAsync(long formId, CancellationToken cancellationToken) =>
             inner.FindAsync(formId, cancellationToken);

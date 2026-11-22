@@ -29,7 +29,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                         column: x => x.FormId,
                         principalTable: "Forms",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.Cascade);
                 });
         }
 

@@ -13,6 +13,7 @@ public sealed class FormSettingsHandlerTests
     private const long FORM_ID = 42;
     private static readonly FormSettingsChange _themeOn = new() { Pdf = new PdfSettings { UsesFormTheme = true } };
 
+    private readonly Form _form = Form.Create(FORM_ID, new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Form"));
     private readonly IRepository<Form> _forms = Substitute.For<IRepository<Form>>();
     private readonly IFormSettingsRepository _settings = Substitute.For<IFormSettingsRepository>();
     private readonly IDateTimeProvider _clock = Substitute.For<IDateTimeProvider>();
@@ -26,15 +27,15 @@ public sealed class FormSettingsHandlerTests
         var result = await GetHandler().Handle(new GetFormSettingsQuery(FORM_ID), TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.NotFound);
-        await _settings.DidNotReceiveWithAnyArgs().ReadAsync(default, default, TestContext.Current.CancellationToken);
+        await _settings.DidNotReceiveWithAnyArgs().ReadAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
     public async Task Get_NoRow_ReturnsVersionZeroAndDefaults()
     {
         StoredForm();
-        _settings.ReadAsync(SampleData.TENANT_ID, FORM_ID, Arg.Any<CancellationToken>())
-            .Returns(new Core.Entities.FormSettings(SampleData.TENANT_ID, FORM_ID));
+        _settings.ReadAsync(_form, Arg.Any<CancellationToken>())
+            .Returns(Core.Entities.FormSettings.For(_form));
 
         var result = await GetHandler().Handle(new GetFormSettingsQuery(FORM_ID), TestContext.Current.CancellationToken);
 
@@ -69,7 +70,7 @@ public sealed class FormSettingsHandlerTests
     public async Task Update_NoChange_SavesNothing()
     {
         StoredForm();
-        var stored = new Core.Entities.FormSettings(SampleData.TENANT_ID, FORM_ID);
+        var stored = Core.Entities.FormSettings.For(_form);
         stored.Apply(_themeOn, 0, DateTime.UtcNow);
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(stored);
 
@@ -107,7 +108,7 @@ public sealed class FormSettingsHandlerTests
     public async Task Update_LosingARaceToTheSameValue_IsANoOp()
     {
         StoredForm();
-        var winner = new Core.Entities.FormSettings(SampleData.TENANT_ID, FORM_ID);
+        var winner = Core.Entities.FormSettings.For(_form);
         winner.Apply(_themeOn, 0, DateTime.UtcNow);
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(null, winner);
         _settings.SaveOrConcedeAsync(Arg.Any<Core.Entities.FormSettings>(), Arg.Any<CancellationToken>()).Returns(false);
@@ -122,7 +123,7 @@ public sealed class FormSettingsHandlerTests
     public async Task Update_LosingARaceToADifferentValue_IsAConflict()
     {
         StoredForm();
-        var winner = new Core.Entities.FormSettings(SampleData.TENANT_ID, FORM_ID);
+        var winner = Core.Entities.FormSettings.For(_form);
         winner.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, 0, DateTime.UtcNow);
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(null, winner);
         _settings.SaveOrConcedeAsync(Arg.Any<Core.Entities.FormSettings>(), Arg.Any<CancellationToken>()).Returns(false);
@@ -136,7 +137,7 @@ public sealed class FormSettingsHandlerTests
     public async Task Update_AStaleVersion_IsAConflictAndSavesNothing()
     {
         StoredForm();
-        var stored = new Core.Entities.FormSettings(SampleData.TENANT_ID, FORM_ID);
+        var stored = Core.Entities.FormSettings.For(_form);
         stored.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, 0, DateTime.UtcNow);
         _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(stored);
 
@@ -152,9 +153,6 @@ public sealed class FormSettingsHandlerTests
 
     private PartialUpdateFormSettingsHandler UpdateHandler() => new(_forms, _settings, _clock);
 
-    private void StoredForm()
-    {
-        var form = Form.Create(FORM_ID, new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Form"));
-        _forms.GetByIdAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(form);
-    }
+    private void StoredForm() =>
+        _forms.GetByIdAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(_form);
 }

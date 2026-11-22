@@ -19,6 +19,6 @@ internal sealed class GetFormSettingsHandler(IRepository<Form> forms, IFormSetti
             return Result.NotFound("Form not found.");
         }
 
-        return FormSettingsDto.From(await settings.ReadAsync(form.TenantId, form.Id, cancellationToken));
+        return FormSettingsDto.From(await settings.ReadAsync(form, cancellationToken));
     }
 }

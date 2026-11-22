@@ -1200,7 +1200,7 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.Form", null)
                         .WithOne()
                         .HasForeignKey("Endatix.Core.Entities.FormSettings", "FormId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

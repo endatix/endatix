@@ -84,7 +84,7 @@ public class GetSubmissionByIdHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        await _formSettings.DidNotReceiveWithAnyArgs().ReadAsync(default, default, TestContext.Current.CancellationToken);
+        await _formSettings.DidNotReceiveWithAnyArgs().ReadAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -93,9 +93,9 @@ public class GetSubmissionByIdHandlerTests
         // Arrange
         _logger.IsEnabled(LogLevel.Warning).Returns(true);
         var submission = SubmissionOfFormWithTheme(themeId: 7);
-        var settings = new Core.Entities.FormSettings(submission.Form.TenantId, submission.Form.Id);
+        var settings = Core.Entities.FormSettings.For(submission.Form);
         typeof(Core.Entities.FormSettings).GetProperty(nameof(Core.Entities.FormSettings.PdfJson))!.SetValue(settings, "[]");
-        _formSettings.ReadAsync(submission.Form.TenantId, submission.Form.Id, Arg.Any<CancellationToken>()).Returns(settings);
+        _formSettings.ReadAsync(submission.Form, Arg.Any<CancellationToken>()).Returns(settings);
 
         // Act
         var result = await _handler.Handle(new GetByIdQuery(1, 1), TestContext.Current.CancellationToken);
@@ -113,9 +113,9 @@ public class GetSubmissionByIdHandlerTests
 
     private void PdfSettingsOf(Form form, bool usesFormTheme)
     {
-        var settings = new Core.Entities.FormSettings(form.TenantId, form.Id);
+        var settings = Core.Entities.FormSettings.For(form);
         settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = usesFormTheme } }, 0, DateTime.UtcNow);
-        _formSettings.ReadAsync(form.TenantId, form.Id, Arg.Any<CancellationToken>()).Returns(settings);
+        _formSettings.ReadAsync(form, Arg.Any<CancellationToken>()).Returns(settings);
     }
 
     private Submission SubmissionOfFormWithTheme(long? themeId)

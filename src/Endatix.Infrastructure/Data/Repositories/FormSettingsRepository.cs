@@ -19,11 +19,11 @@ internal sealed class FormSettingsRepository(
     IUniqueConstraintViolationChecker uniqueViolationChecker) : IFormSettingsRepository
 {
     /// <inheritdoc />
-    public async Task<FormSettings> ReadAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+    public async Task<FormSettings> ReadAsync(Form form, CancellationToken cancellationToken) =>
         await dbContext.FormSettings
             .AsNoTracking()
-            .FirstOrDefaultAsync(settings => settings.FormId == formId && settings.TenantId == tenantId, cancellationToken)
-        ?? new FormSettings(tenantId, formId);
+            .FirstOrDefaultAsync(settings => settings.FormId == form.Id && settings.TenantId == form.TenantId, cancellationToken)
+        ?? FormSettings.For(form);
 
     /// <inheritdoc />
     public Task<FormSettings?> FindAsync(long formId, CancellationToken cancellationToken) =>

@@ -6,7 +6,8 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 
 /// <summary>
 /// Maps <see cref="FormSettings"/>: the form id as key and foreign key, and <c>Version</c> as the concurrency token. The
-/// form has no navigation to its settings, so loading a form never loads them.
+/// form has no navigation to its settings, so loading a form never loads them. The row has no delete of its own: deleting
+/// the form row deletes it (cascade).
 /// </summary>
 [ApplyConfigurationFor<AppDbContext>()]
 internal sealed class FormSettingsConfiguration : IEntityTypeConfiguration<FormSettings>
@@ -29,6 +30,6 @@ internal sealed class FormSettingsConfiguration : IEntityTypeConfiguration<FormS
             .WithOne()
             .HasForeignKey<FormSettings>(settings => settings.FormId)
             .IsRequired()
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

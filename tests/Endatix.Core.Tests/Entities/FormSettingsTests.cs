@@ -11,7 +11,7 @@ public sealed class FormSettingsTests
     [Fact]
     public void New_HasEverySectionAtItsDefaults()
     {
-        var settings = new FormSettings(1, 2);
+        var settings = NewSettings();
 
         settings.Version.Should().Be(FormSettings.UNSAVED_VERSION);
         settings.PdfJson.Should().BeNull();
@@ -44,7 +44,7 @@ public sealed class FormSettingsTests
     [Fact]
     public void Apply_ANewValue_ReplacesTheSectionAndBumpsTheVersion()
     {
-        var settings = new FormSettings(1, 2);
+        var settings = NewSettings();
 
         var applied = settings.Apply(_themeOn, FormSettings.UNSAVED_VERSION, _at);
 
@@ -58,7 +58,7 @@ public sealed class FormSettingsTests
     [Fact]
     public void Apply_TheStoredValueAgain_IsANoOpWhateverTheVersion()
     {
-        var settings = new FormSettings(1, 2);
+        var settings = NewSettings();
         settings.Apply(_themeOn, 0, _at);
 
         var retry = settings.Apply(_themeOn, expectedVersion: 0, _at.AddMinutes(1));
@@ -83,7 +83,7 @@ public sealed class FormSettingsTests
     [Fact]
     public void Apply_ADifferentValueFromAStaleVersion_IsAConflict()
     {
-        var settings = new FormSettings(1, 2);
+        var settings = NewSettings();
         settings.Apply(_themeOn, 0, _at);
 
         var stale = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, expectedVersion: 0, _at);
@@ -96,7 +96,7 @@ public sealed class FormSettingsTests
     [Fact]
     public void Apply_AnExplicitDefault_IsStored()
     {
-        var settings = new FormSettings(1, 2);
+        var settings = NewSettings();
 
         var applied = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, 0, _at);
 
@@ -107,15 +107,36 @@ public sealed class FormSettingsTests
     [Fact]
     public void Apply_NoSection_ChangesNothing()
     {
-        var settings = new FormSettings(1, 2);
+        var settings = NewSettings();
 
         settings.Apply(new FormSettingsChange(), 0, _at).Value.Should().BeFalse();
         settings.Version.Should().Be(FormSettings.UNSAVED_VERSION);
     }
 
+    [Fact]
+    public void For_TakesTheTenantAndIdFromTheForm()
+    {
+        var settings = FormSettings.For(Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form")));
+
+        settings.TenantId.Should().Be(1);
+        settings.FormId.Should().Be(2);
+    }
+
+    [Fact]
+    public void For_AnUnsavedForm_Throws()
+    {
+        var unsaved = Form.Create(new FormCreateArgs(TenantId: 1, Name: "Form"));
+
+        var start = () => FormSettings.For(unsaved);
+
+        start.Should().Throw<ArgumentException>();
+    }
+
+    private static FormSettings NewSettings() => FormSettings.For(Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form")));
+
     private static FormSettings Stored(string pdfJson)
     {
-        var settings = new FormSettings(1, 2);
+        var settings = NewSettings();
         typeof(FormSettings).GetProperty(nameof(FormSettings.PdfJson))!.SetValue(settings, pdfJson);
         return settings;
     }

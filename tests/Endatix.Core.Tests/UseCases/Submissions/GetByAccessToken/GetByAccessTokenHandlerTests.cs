@@ -49,9 +49,9 @@ public class GetByAccessTokenHandlerTests
         var submission = CreateSubmissionWithForm(123L, 1L);
         submission.Form.Id = 123L;
         submission.Form.SetTheme(theme);
-        var settings = new Core.Entities.FormSettings(submission.Form.TenantId, submission.Form.Id);
+        var settings = Core.Entities.FormSettings.For(submission.Form);
         settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = true } }, 0, DateTime.UtcNow);
-        _formSettings.ReadAsync(submission.Form.TenantId, submission.Form.Id, Arg.Any<CancellationToken>()).Returns(settings);
+        _formSettings.ReadAsync(submission.Form, Arg.Any<CancellationToken>()).Returns(settings);
         typeof(Form).GetProperty(nameof(Form.Theme))!.SetValue(submission.Form, null); // loaded without its theme
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())

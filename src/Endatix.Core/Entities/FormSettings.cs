@@ -24,13 +24,21 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
 
     private FormSettings() { } // For EF Core
 
-    /// <summary>Starts a form's settings with every section at its defaults, at <see cref="UNSAVED_VERSION"/>.</summary>
-    public FormSettings(long tenantId, long formId)
+    private FormSettings(long tenantId, long formId)
     {
         Guard.Against.NegativeOrZero(tenantId);
         Guard.Against.NegativeOrZero(formId);
         TenantId = tenantId;
         FormId = formId;
+    }
+
+    /// <summary>Starts <paramref name="form"/>'s settings with every section at its defaults, at
+    /// <see cref="UNSAVED_VERSION"/>, in the form's tenant. Settings exist only for a form, so a form is the only way to
+    /// start them.</summary>
+    public static FormSettings For(Form form)
+    {
+        Guard.Against.Null(form);
+        return new FormSettings(form.TenantId, form.Id);
     }
 
     /// <summary>The form, and the primary key.</summary>
