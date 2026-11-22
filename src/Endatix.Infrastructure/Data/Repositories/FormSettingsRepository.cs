@@ -22,7 +22,7 @@ internal sealed class FormSettingsRepository(
     public async Task<FormSettings> ReadAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
         await dbContext.FormSettings
             .AsNoTracking()
-            .FirstOrDefaultAsync(settings => settings.FormId == formId, cancellationToken)
+            .FirstOrDefaultAsync(settings => settings.FormId == formId && settings.TenantId == tenantId, cancellationToken)
         ?? new FormSettings(tenantId, formId);
 
     /// <inheritdoc />

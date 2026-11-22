@@ -20,6 +20,17 @@ public sealed class FormSettingsWireSectionsTests
         typeof(PartialUpdateFormSettingsRequest).GetProperty(section).Should().NotBeNull();
     }
 
+    [Theory]
+    [MemberData(nameof(Sections))]
+    public void Validator_AcceptsABodyThatNamesOnlyThatSection(string section)
+    {
+        var request = new PartialUpdateFormSettingsRequest { FormId = 1 };
+        var property = typeof(PartialUpdateFormSettingsRequest).GetProperty(section)!;
+        property.SetValue(request, Activator.CreateInstance(property.PropertyType));
+
+        new PartialUpdateFormSettingsValidator().Validate(request).IsValid.Should().BeTrue();
+    }
+
     [Fact]
     public void Validator_RefusesABodyThatNamesNoSection()
     {

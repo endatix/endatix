@@ -15,7 +15,8 @@ namespace Endatix.Core.Abstractions.Repositories;
 public interface IFormSettingsRepository
 {
     /// <summary>The form's settings, read only; a row at its defaults when none is stored.</summary>
-    /// <remarks>The tenant query filter scopes the read; <paramref name="tenantId"/> only owns the defaults row.</remarks>
+    /// <remarks>Scoped to <paramref name="tenantId"/> as well as by the tenant query filter, which is off for an
+    /// anonymous share-link read.</remarks>
     Task<FormSettings> ReadAsync(long tenantId, long formId, CancellationToken cancellationToken);
 
     /// <summary>The form's settings, tracked for a save; null when none are stored.</summary>

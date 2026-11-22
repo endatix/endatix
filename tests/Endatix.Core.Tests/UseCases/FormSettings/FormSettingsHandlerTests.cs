@@ -104,6 +104,35 @@ public sealed class FormSettingsHandlerTests
     }
 
     [Fact]
+    public async Task Update_LosingARaceToTheSameValue_IsANoOp()
+    {
+        StoredForm();
+        var winner = new Core.Entities.FormSettings(SampleData.TENANT_ID, FORM_ID);
+        winner.Apply(_themeOn, 0, DateTime.UtcNow);
+        _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(null, winner);
+        _settings.SaveOrConcedeAsync(Arg.Any<Core.Entities.FormSettings>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        var result = await UpdateHandler().Handle(Command(0), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Version.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Update_LosingARaceToADifferentValue_IsAConflict()
+    {
+        StoredForm();
+        var winner = new Core.Entities.FormSettings(SampleData.TENANT_ID, FORM_ID);
+        winner.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, 0, DateTime.UtcNow);
+        _settings.FindAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(null, winner);
+        _settings.SaveOrConcedeAsync(Arg.Any<Core.Entities.FormSettings>(), Arg.Any<CancellationToken>()).Returns(false);
+
+        var result = await UpdateHandler().Handle(Command(0), TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+    }
+
+    [Fact]
     public async Task Update_AStaleVersion_IsAConflictAndSavesNothing()
     {
         StoredForm();

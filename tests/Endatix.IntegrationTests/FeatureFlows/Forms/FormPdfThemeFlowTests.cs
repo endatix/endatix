@@ -97,6 +97,8 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
 
         using var first = await PatchSettingsAsync(admin, formId, (_themeOn, "\"0\""));
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal("\"1\"", first.Headers.ETag?.Tag);
         using var retry = await PatchSettingsAsync(admin, formId, (_themeOn, "\"0\""));
         Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
         Assert.Equal("1", (await ReadJsonAsync(retry)).GetProperty("version").ToString());
@@ -104,6 +106,7 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
         using var stale = await PatchSettingsAsync(admin, formId, (_themeOff, "\"0\""));
         Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
         Assert.Equal("\"1\"", stale.Headers.ETag?.Tag);
+        Assert.Equal("1", (await ReadJsonAsync(stale)).GetProperty("version").ToString());
 
         using var missingForm = await admin.GetAsync("/api/forms/999999999/settings", ct);
         Assert.Equal(HttpStatusCode.NotFound, missingForm.StatusCode);

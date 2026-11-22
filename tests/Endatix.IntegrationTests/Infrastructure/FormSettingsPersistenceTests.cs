@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
@@ -87,6 +88,24 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     }
 
     [Fact]
+    public async Task Two_first_writes_of_the_same_value_both_succeed()
+    {
+        // Arrange: a request starts the first row; another request stores the same value first
+        var (tenantId, formId) = await InsertFormAsync();
+        await using var slowDb = CreateDb(tenantId);
+        var slowForms = new EfRepository<Form>(slowDb, new EndatixSpecificationEvaluator([]));
+        var slow = new PartialUpdateFormSettingsHandler(slowForms, new RacingRepository(Repository(slowDb), () => UpdateAsync((tenantId, formId), _themeOn, 0)), new DateTimeProvider());
+
+        // Act
+        var result = await slow.Handle(new PartialUpdateFormSettingsCommand(formId, 0, _themeOn), Cancellation);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Version.Should().Be(1);
+        (await ReadAsync(tenantId, formId)).Version.Should().Be(1);
+    }
+
+    [Fact]
     public async Task A_write_that_read_the_same_version_as_a_saved_one_is_conceded()
     {
         // Arrange: two requests load version 1 (theme on); one turns the theme off and saves first
@@ -152,6 +171,22 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     }
 
     private static FormSettingsRepository Repository(AppDbContext db) => new(db, new UniqueConstraintViolationChecker());
+
+    // Lets another write land between this request's read and its save.
+    private sealed class RacingRepository(FormSettingsRepository inner, Func<Task> otherWrite) : IFormSettingsRepository
+    {
+        public Task<FormSettings> ReadAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+            inner.ReadAsync(tenantId, formId, cancellationToken);
+
+        public Task<FormSettings?> FindAsync(long formId, CancellationToken cancellationToken) =>
+            inner.FindAsync(formId, cancellationToken);
+
+        public async Task<bool> SaveOrConcedeAsync(FormSettings settings, CancellationToken cancellationToken)
+        {
+            await otherWrite();
+            return await inner.SaveOrConcedeAsync(settings, cancellationToken);
+        }
+    }
 
     private AppDbContext CreateDb(long tenantId)
     {

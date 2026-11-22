@@ -33,17 +33,25 @@ internal sealed class PartialUpdateFormSettingsHandler(
     {
         var settings = await repository.FindAsync(form.Id, cancellationToken)
             ?? new Entities.FormSettings(form.TenantId, form.Id);
-        var applied = settings.Apply(request.Change, request.ExpectedVersion, dateTimeProvider.Now.UtcDateTime);
+        var applied = Apply(settings, request);
         if (!applied.IsSuccess)
         {
             return applied.ToErrorResult<FormSettingsDto>();
         }
 
-        if (applied.Value && !await repository.SaveOrConcedeAsync(settings, cancellationToken))
+        if (!applied.Value || await repository.SaveOrConcedeAsync(settings, cancellationToken))
         {
-            return Result.Conflict("The form settings changed while they were being saved; read them again and retry.");
+            return FormSettingsDto.From(settings);
         }
 
-        return FormSettingsDto.From(settings);
+        // Another write won the race. When it stored this very value (a retried or doubled request), the write is a
+        // no-op like any other; otherwise it is a conflict.
+        var winner = await repository.FindAsync(form.Id, cancellationToken);
+        return winner is not null && Apply(winner, request) is { IsSuccess: true, Value: false }
+            ? FormSettingsDto.From(winner)
+            : Result.Conflict("The form settings changed while they were being saved; read them again and retry.");
     }
+
+    private Result<bool> Apply(Entities.FormSettings settings, PartialUpdateFormSettingsCommand request) =>
+        settings.Apply(request.Change, request.ExpectedVersion, dateTimeProvider.Now.UtcDateTime);
 }
