@@ -115,12 +115,12 @@ internal static class FormWebHookSettingsMirror
 
     // By key, so no tenant filter is needed: the form it belongs to is already in this save.
     private static IQueryable<FormSettings> StoredSettings(AppDbContext db, long formId) =>
-        db.FormSettings.IgnoreQueryFilters().Where(candidate => candidate.FormId == formId);
+        db.FormSettings.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant]).Where(candidate => candidate.FormId == formId);
 
     private static Form? TrackedForm(AppDbContext db, long formId) =>
         db.Forms.Local.FirstOrDefault(candidate => candidate.Id == formId);
 
-    // A deleted form keeps its settings row, so it is found too.
+    // A deleted form keeps its settings row, so it is found too; by key, so no tenant filter is needed either.
     private static IQueryable<Form> StoredForm(AppDbContext db, long formId) =>
-        db.Forms.IgnoreQueryFilters().Where(candidate => candidate.Id == formId);
+        db.Forms.IgnoreQueryFilters([EndatixQueryFilterNames.SoftDelete, EndatixQueryFilterNames.Tenant]).Where(candidate => candidate.Id == formId);
 }
