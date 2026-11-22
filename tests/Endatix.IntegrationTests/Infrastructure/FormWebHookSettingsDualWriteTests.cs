@@ -246,6 +246,29 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
     }
 
     [Fact]
+    public async Task A_pdf_write_that_loses_to_the_same_pdf_with_new_webhooks_answers_the_winners_webhooks()
+    {
+        // Arrange: this request read version 1 and changes only its PDF section; another stores the same PDF section
+        // and other webhooks first, so the refused write never touched the form this request has tracked
+        var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
+        var formId = await InsertFormAsync(tenantId, Config(HOOK_URL));
+        var pdf = new PdfSettings { UsesFormTheme = true };
+        await using var slowDb = CreateDb(tenantId);
+        var racing = new RacingFormSettingsRepository(
+            Repository(slowDb),
+            () => UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { Pdf = pdf, WebHooks = Config(OTHER_HOOK_URL) }, 1));
+        var slow = new PartialUpdateFormSettingsHandler(new EfRepository<Form>(slowDb, new EndatixSpecificationEvaluator([])), racing, new DateTimeProvider());
+
+        // Act
+        var result = await slow.Handle(new PartialUpdateFormSettingsCommand(formId, 1, new FormSettingsChange { Pdf = pdf }), Cancellation);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue("the winner stored this very PDF section");
+        result.Value.Version.Should().Be(2);
+        result.Value.WebHooks!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(OTHER_HOOK_URL);
+    }
+
+    [Fact]
     public async Task A_form_save_that_loses_the_race_to_another_form_save_is_a_conflict()
     {
         await AssertFormSaveLosesTo((tenantId, formId) => UpdateFormAsync(tenantId, formId, Config(OTHER_HOOK_URL)));
