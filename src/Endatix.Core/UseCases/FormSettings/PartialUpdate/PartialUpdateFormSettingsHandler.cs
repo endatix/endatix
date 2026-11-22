@@ -33,7 +33,7 @@ internal sealed class PartialUpdateFormSettingsHandler(
     {
         var settings = await repository.FindAsync(form.Id, cancellationToken)
             ?? Entities.FormSettings.For(form);
-        var applied = Apply(settings, request);
+        var applied = Apply(settings, form, request);
         if (!applied.IsSuccess)
         {
             return applied.ToErrorResult<FormSettingsDto>();
@@ -45,18 +45,20 @@ internal sealed class PartialUpdateFormSettingsHandler(
     }
 
     // Another write won the race. When it stored this very value (a retried or doubled request), the write is a no-op
-    // like any other; otherwise it is a conflict.
+    // like any other; otherwise it is a conflict. The refused write changed the form in memory too, so the form is read
+    // again with the winner.
     private async Task<Result<FormSettingsDto>> AfterLostRaceAsync(
-        Form form,
+        Form refused,
         PartialUpdateFormSettingsCommand request,
         CancellationToken cancellationToken)
     {
-        var winner = await repository.FindAsync(form.Id, cancellationToken);
-        return winner is not null && Apply(winner, request) is { IsSuccess: true, Value: false }
+        var form = await forms.GetByIdAsync(refused.Id, cancellationToken);
+        var winner = await repository.FindAsync(refused.Id, cancellationToken);
+        return form is not null && winner is not null && Apply(winner, form, request) is { IsSuccess: true, Value: false }
             ? FormSettingsDto.From(winner, form)
             : Result.Conflict("The form settings changed while they were being saved; read them again and retry.");
     }
 
-    private Result<bool> Apply(Entities.FormSettings settings, PartialUpdateFormSettingsCommand request) =>
-        settings.Apply(request.Change, request.ExpectedVersion, dateTimeProvider.Now.UtcDateTime);
+    private Result<bool> Apply(Entities.FormSettings settings, Form form, PartialUpdateFormSettingsCommand request) =>
+        settings.Apply(request.Change, form, request.ExpectedVersion, dateTimeProvider.Now.UtcDateTime);
 }

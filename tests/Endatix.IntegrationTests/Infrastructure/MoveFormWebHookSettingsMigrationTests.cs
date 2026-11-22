@@ -111,7 +111,7 @@ public sealed class MoveFormWebHookSettingsMigrationTests(DbIntegrationFixture f
         var seeded = new SeededForms(forms[0].Id, forms[1].Id, forms[2].Id, forms[3].Id, forms[4].Id, forms[5].Id);
 
         var withPdf = FormSettings.For(forms[3]);
-        withPdf.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = true } }, FormSettings.UNSAVED_VERSION, DateTime.UtcNow);
+        withPdf.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = true } }, forms[3], FormSettings.UNSAVED_VERSION, DateTime.UtcNow);
         db.FormSettings.Add(withPdf);
         await db.SaveChangesAsync(Cancellation);
 

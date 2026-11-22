@@ -142,6 +142,10 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
         }
+        catch (DbUpdateException dbUpdateException) when (IsFormSettingsLostRace(dbUpdateException))
+        {
+            throw new FormSettingsChangedException("The form settings changed while they were being saved.", dbUpdateException);
+        }
     }
 
     /// <inheritdoc/>
@@ -164,6 +168,10 @@ public class AppDbContext : DbContext, ITenantDbContext
         {
             throw new DuplicateSubmissionException("A submission already exists for this user and form.", dbUpdateException);
         }
+        catch (DbUpdateException dbUpdateException) when (IsFormSettingsLostRace(dbUpdateException))
+        {
+            throw new FormSettingsChangedException("The form settings changed while they were being saved.", dbUpdateException);
+        }
     }
 
     /// <summary>
@@ -172,6 +180,28 @@ public class AppDbContext : DbContext, ITenantDbContext
     /// </summary>
     private static bool IsSubmissionDeletedMeanwhile(DbUpdateConcurrencyException concurrencyException) =>
         concurrencyException.Entries.Any(entry => entry.Entity is Submission);
+
+    /// <summary>
+    /// <see cref="FormSettings.Version"/> is a concurrency token and <see cref="FormSettings.FormId"/> the key, so a save
+    /// that wrote a form's settings from a version another write has raised matches no row, and a second first row is a
+    /// unique violation. A form save writes them too (<see cref="FormWebHookSettingsMirror"/>).
+    /// </summary>
+    private static bool IsFormSettingsLostRace(DbUpdateException dbUpdateException) =>
+        dbUpdateException.Entries.Any(entry => entry.Entity is FormSettings)
+        && (dbUpdateException is DbUpdateConcurrencyException || IsUniqueViolation(dbUpdateException));
+
+    private static bool IsUniqueViolation(DbUpdateException dbUpdateException)
+    {
+        for (var current = dbUpdateException.InnerException; current is not null; current = current.InnerException)
+        {
+            if (IsPostgreSqlUniqueViolation(current) || IsSqlServerDuplicateKeyViolation(current))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static bool IsDuplicateSubmissionConstraintViolation(DbUpdateException dbUpdateException)
     {

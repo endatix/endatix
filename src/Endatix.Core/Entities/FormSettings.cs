@@ -83,20 +83,28 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         }
     }
 
-    /// <summary>Replaces each section <paramref name="change"/> names whose value differs from the stored one.</summary>
+    /// <summary>Replaces each section <paramref name="change"/> names whose value differs from what readers see.</summary>
     /// <param name="change">The sections to replace, each whole; a null section is left alone.</param>
+    /// <param name="form">The form these settings belong to; its webhook settings are written with the section.</param>
     /// <param name="expectedVersion">The <see cref="Version"/> the caller read.</param>
     /// <param name="at">When the change is made.</param>
     /// <returns>True when a section changed (the version goes up); false when every named section already holds its
     /// value, whatever <paramref name="expectedVersion"/> is; <see cref="ResultStatus.Conflict"/> when a section differs
     /// and <paramref name="expectedVersion"/> is stale.</returns>
-    /// <remarks>It compares with the stored JSON, not the resolved section, so a value equal to today's default is still
-    /// recorded when it was never stored.</remarks>
-    internal Result<bool> Apply(FormSettingsChange change, long expectedVersion, DateTime at)
+    /// <remarks>
+    /// The PDF section is compared with the stored JSON, not the resolved section, so a value equal to today's default is
+    /// still recorded when it was never stored. The webhooks section is compared with what <see cref="WebHooksOf"/>
+    /// returns, which is the form's column while it stays (endatix/endatix#1784): when an older instance wrote the column
+    /// alone, a body equal to the stale section still replaces it. A changed webhooks section is written to the form too,
+    /// so the column follows even when the section's stored text does not change.
+    /// </remarks>
+    /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
+    internal Result<bool> Apply(FormSettingsChange change, Form form, long expectedVersion, DateTime at)
     {
         Guard.Against.Null(change);
+        EnsureOwnForm(form);
         var pdfJson = Changed(change.Pdf, PdfJson);
-        var webHooksJson = Changed(change.WebHooks, WebHooksJson);
+        var webHooksJson = Changed(change.WebHooks, ReadersWebHooksJson(form));
         if (pdfJson is null && webHooksJson is null)
         {
             return false;
@@ -108,7 +116,12 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         }
 
         PdfJson = pdfJson ?? PdfJson;
-        WebHooksJson = webHooksJson ?? WebHooksJson;
+        if (webHooksJson is not null)
+        {
+            WebHooksJson = webHooksJson;
+            form.UpdateWebHookSettings(change.WebHooks);
+        }
+
         Touch(at);
         return true;
     }
@@ -122,8 +135,7 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
     public bool CopyWebHooksFrom(Form form, DateTime at)
     {
-        Guard.Against.Null(form);
-        Guard.Against.InvalidInput(form, nameof(form), candidate => candidate.Id == FormId, "The form is not the one these settings belong to.");
+        EnsureOwnForm(form);
         var stored = string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
         if (stored is null ? WebHooksJson is null : FormSettingsJson.SameSection<WebHookConfiguration>(stored, WebHooksJson))
         {
@@ -144,8 +156,7 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
     public WebHookConfiguration? WebHooksOf(Form form)
     {
-        Guard.Against.Null(form);
-        Guard.Against.InvalidInput(form, nameof(form), candidate => candidate.Id == FormId, "The form is not the one these settings belong to.");
+        EnsureOwnForm(form);
         if (string.IsNullOrWhiteSpace(form.WebHookSettingsJson))
         {
             return null;
@@ -154,6 +165,17 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         return FormSettingsJson.SameSection<WebHookConfiguration>(form.WebHookSettingsJson, WebHooksJson)
             ? WebHooks
             : FormSettingsJson.Read<WebHookConfiguration>(form.WebHookSettingsJson);
+    }
+
+    // What readers see, as JSON to compare with: the column, or null when it is empty (the tenant's apply). When the
+    // section holds the same settings, comparing with the column gives the same answer as comparing with the section.
+    private static string? ReadersWebHooksJson(Form form) =>
+        string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
+
+    private void EnsureOwnForm(Form form)
+    {
+        Guard.Against.Null(form);
+        Guard.Against.InvalidInput(form, nameof(form), candidate => candidate.Id == FormId, "The form is not the one these settings belong to.");
     }
 
     private void Touch(DateTime at)

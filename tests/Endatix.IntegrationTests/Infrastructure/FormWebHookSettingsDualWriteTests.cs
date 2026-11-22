@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
@@ -23,6 +24,7 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
 {
     private const string HOOK_URL = "https://hooks.example.test/completed";
     private const string OTHER_HOOK_URL = "https://hooks.example.test/other";
+    private const string THIRD_HOOK_URL = "https://hooks.example.test/third";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -122,10 +124,10 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
         var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
         var formId = await InsertFormAsync(tenantId, Config(HOOK_URL));
         await using var slowDb = CreateDb(tenantId);
-        await slowDb.Forms.SingleAsync(form => form.Id == formId, Cancellation);
+        var slowForm = await slowDb.Forms.SingleAsync(form => form.Id == formId, Cancellation);
         var slow = (await Repository(slowDb).FindAsync(formId, Cancellation))!;
         await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(OTHER_HOOK_URL) }, 1);
-        slow.Apply(new FormSettingsChange { WebHooks = new WebHookConfiguration() }, 1, DateTime.UtcNow).Value.Should().BeTrue();
+        slow.Apply(new FormSettingsChange { WebHooks = new WebHookConfiguration() }, slowForm, 1, DateTime.UtcNow).Value.Should().BeTrue();
 
         // Act
         var saved = await Repository(slowDb).SaveOrConcedeAsync(slow, Cancellation);
@@ -181,6 +183,115 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
         again.Value.WebHooks!.Events.Should().ContainKey("SubmissionCompleted");
     }
 
+    [Fact]
+    public async Task A_settings_write_of_the_stale_section_when_the_column_is_ahead_replaces_it_and_writes_the_column()
+    {
+        // Arrange: a settings write stored version 1; then an older instance wrote the column alone
+        var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
+        var formId = await InsertFormAsync(tenantId, webHooks: null);
+        await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(HOOK_URL) }, 0);
+        await WriteColumnAloneAsync(tenantId, formId, Config(OTHER_HOOK_URL));
+
+        // Act: the section's settings sent back, first from a stale version
+        var stale = await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(HOOK_URL) }, 0);
+        var result = await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(HOOK_URL) }, 1);
+
+        // Assert
+        stale.Status.Should().Be(ResultStatus.Conflict, "readers see the column, so the body is a change and If-Match counts");
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Version.Should().Be(2);
+        result.Value.WebHooks!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(HOOK_URL);
+        (await ReadFormAsync(tenantId, formId)).WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url
+            .Should().Be(HOOK_URL);
+        (await ReadSettingsAsync(tenantId, formId))!.Version.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task A_settings_write_of_the_columns_settings_when_the_column_is_ahead_is_a_no_op()
+    {
+        // Arrange
+        var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
+        var formId = await InsertFormAsync(tenantId, webHooks: null);
+        await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(HOOK_URL) }, 0);
+        await WriteColumnAloneAsync(tenantId, formId, Config(OTHER_HOOK_URL));
+
+        // Act
+        var result = await UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(OTHER_HOOK_URL) }, 0);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue("what readers see, sent back, changes nothing whatever the version");
+        result.Value.Version.Should().Be(1);
+        result.Value.WebHooks!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(OTHER_HOOK_URL);
+    }
+
+    [Fact]
+    public async Task A_webhooks_settings_write_that_loses_the_race_is_a_conflict_and_keeps_the_winners_column()
+    {
+        // Arrange: this request read version 1; another stores other webhooks before it saves
+        var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
+        var formId = await InsertFormAsync(tenantId, Config(HOOK_URL));
+        await using var slowDb = CreateDb(tenantId);
+        var racing = new RacingFormSettingsRepository(
+            Repository(slowDb),
+            () => UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(OTHER_HOOK_URL) }, 1));
+        var slow = new PartialUpdateFormSettingsHandler(new EfRepository<Form>(slowDb, new EndatixSpecificationEvaluator([])), racing, new DateTimeProvider());
+
+        // Act
+        var result = await slow.Handle(new PartialUpdateFormSettingsCommand(formId, 1, new FormSettingsChange { WebHooks = new WebHookConfiguration() }), Cancellation);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        (await ReadFormAsync(tenantId, formId)).WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url
+            .Should().Be(OTHER_HOOK_URL);
+    }
+
+    [Fact]
+    public async Task A_form_save_that_loses_the_race_to_another_form_save_is_a_conflict()
+    {
+        await AssertFormSaveLosesTo((tenantId, formId) => UpdateFormAsync(tenantId, formId, Config(OTHER_HOOK_URL)));
+    }
+
+    [Fact]
+    public async Task A_form_save_that_loses_the_race_to_a_settings_write_is_a_conflict()
+    {
+        await AssertFormSaveLosesTo((tenantId, formId) =>
+            UpdateSettingsAsync((tenantId, formId), new FormSettingsChange { WebHooks = Config(OTHER_HOOK_URL) }, 1));
+    }
+
+    // Two requests read the form and its settings at version 1; the other one changes its webhooks and saves first.
+    private async Task AssertFormSaveLosesTo(Func<long, long, Task> otherWrite)
+    {
+        // Arrange
+        var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
+        var formId = await InsertFormAsync(tenantId, Config(HOOK_URL));
+        await using var slowDb = CreateDb(tenantId);
+        var forms = new EfRepository<Form>(slowDb, new EndatixSpecificationEvaluator([]));
+        var slowForm = (await forms.GetByIdAsync(formId, Cancellation))!;
+        await slowDb.FormSettings.SingleAsync(settings => settings.FormId == formId, Cancellation);
+        await otherWrite(tenantId, formId);
+        slowForm.UpdateWebHookSettings(Config(THIRD_HOOK_URL));
+
+        // Act
+        var saved = await forms.TryUpdateAsync(slowForm, Cancellation);
+
+        // Assert
+        saved.Status.Should().Be(ResultStatus.Conflict);
+        (await ReadFormAsync(tenantId, formId)).WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url
+            .Should().Be(OTHER_HOOK_URL, "the whole losing save rolled back");
+        var stored = await ReadSettingsAsync(tenantId, formId);
+        stored!.Version.Should().Be(2);
+        stored.WebHooks.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(OTHER_HOOK_URL);
+    }
+
+    // An older instance, or a rollback, writes the column without the section.
+    private async Task WriteColumnAloneAsync(long tenantId, long formId, WebHookConfiguration webHooks)
+    {
+        await using var db = CreateDb(tenantId);
+        var json = webHooks.Json();
+        await db.Forms.Where(form => form.Id == formId)
+            .ExecuteUpdateAsync(set => set.SetProperty(form => form.WebHookSettingsJson, json), Cancellation);
+    }
+
     private async Task<long> InsertFormAsync(long tenantId, WebHookConfiguration? webHooks)
     {
         await using var db = CreateDb(tenantId);
@@ -228,7 +339,7 @@ public sealed class FormWebHookSettingsDualWriteTests(EndatixIntegrationWebHostF
         },
     };
 
-    private static FormSettingsRepository Repository(AppDbContext db) => new(db, new UniqueConstraintViolationChecker());
+    private static FormSettingsRepository Repository(AppDbContext db) => new(db);
 
     private AppDbContext CreateDb(long tenantId)
     {

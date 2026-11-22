@@ -10,9 +10,13 @@ namespace Endatix.Infrastructure.Data;
 /// and a rolling deploy or a rollback loses nothing. Delete it with the column (endatix/endatix#1784).
 /// </summary>
 /// <remarks>
-/// A form whose column changed copies the column into its section, as stored (the copy the migration made). A section
-/// a settings write changed is written to the form through <see cref="Form.UpdateWebHookSettings"/>, in the shape the
-/// previous release reads. A form changed in the same save wins over its section. A write this cannot see (an older
+/// A form whose column changed copies the column into its section, as stored (the copy the migration made). A settings
+/// write writes the form it was given itself (<c>FormSettings.Apply</c>), so its section and column arrive here
+/// equal; a section changed while its form is not tracked in this save is written to the stored form through
+/// <see cref="Form.UpdateWebHookSettings"/>, in the shape the previous release reads. A form changed in the same save
+/// wins over its section. Either copy raises the settings' <see cref="FormSettings.Version"/>, so a form save can lose
+/// to another write of the same form's settings; <see cref="AppDbContext"/> reports that as
+/// <c>FormSettingsChangedException</c>. A write this cannot see (an older
 /// instance's, or a raw update) leaves the two apart, and readers then take the column
 /// (<see cref="FormSettings.WebHooksOf"/>).
 /// </remarks>

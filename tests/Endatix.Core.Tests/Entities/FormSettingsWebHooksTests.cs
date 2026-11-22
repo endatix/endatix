@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Tests.Entities;
 
@@ -9,6 +10,7 @@ namespace Endatix.Core.Tests.Entities;
 public sealed class FormSettingsWebHooksTests
 {
     private const string HOOK_URL = "https://hooks.example.test/completed";
+    private const string NEWER_HOOK_URL = "https://hooks.example.test/newer";
 
     // As Form.UpdateWebHookSettings stores it, and as the migration copies it: Pascal case.
     private const string STORED_BY_FORM =
@@ -48,10 +50,11 @@ public sealed class FormSettingsWebHooksTests
     public void Apply_TheSameWebHooksAgain_IsANoOp()
     {
         // A section holding a dictionary: equal content is never equal by reference, so Apply compares JSON.
-        var settings = NewSettings();
-        settings.Apply(new FormSettingsChange { WebHooks = Config() }, FormSettings.UNSAVED_VERSION, _at);
+        var form = NewForm();
+        var settings = FormSettings.For(form);
+        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
 
-        var retry = settings.Apply(new FormSettingsChange { WebHooks = Config() }, FormSettings.UNSAVED_VERSION, _at);
+        var retry = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
 
         retry.IsSuccess.Should().BeTrue();
         retry.Value.Should().BeFalse();
@@ -61,14 +64,91 @@ public sealed class FormSettingsWebHooksTests
     [Fact]
     public void Apply_WebHooksAndPdf_ReplacesBothInOneVersion()
     {
-        var settings = NewSettings();
+        var form = NewForm();
+        var settings = FormSettings.For(form);
         var change = new FormSettingsChange { WebHooks = Config(), Pdf = new PdfSettings { UsesFormTheme = true } };
 
-        settings.Apply(change, FormSettings.UNSAVED_VERSION, _at).Value.Should().BeTrue();
+        settings.Apply(change, form, FormSettings.UNSAVED_VERSION, _at).Value.Should().BeTrue();
 
         settings.Version.Should().Be(1);
         settings.Pdf.UsesFormTheme.Should().BeTrue();
         settings.WebHooks.Events.Should().ContainKey("SubmissionCompleted");
+    }
+
+    [Fact]
+    public void Apply_NewWebHooks_WritesTheFormToo()
+    {
+        var form = NewForm();
+        var settings = FormSettings.For(form);
+
+        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+
+        form.WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(HOOK_URL);
+    }
+
+    [Fact]
+    public void Apply_TheStaleSectionWhenTheColumnIsAhead_ReplacesItAndWritesTheColumn()
+    {
+        // An older instance wrote the column alone; readers see the column, so the section's settings are a change.
+        var form = NewForm();
+        form.UpdateWebHookSettings(Config(NEWER_HOOK_URL));
+        var settings = Stored(CamelCase(Config()));
+
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+
+        applied.Value.Should().BeTrue();
+        settings.Version.Should().Be(1);
+        form.WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(HOOK_URL);
+        settings.WebHooksOf(form)!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(HOOK_URL);
+    }
+
+    [Fact]
+    public void Apply_TheStaleSectionWhenTheColumnWasClearedAlone_ReplacesItAndWritesTheColumn()
+    {
+        var form = NewForm();
+        var settings = Stored(CamelCase(Config()));
+
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
+
+        applied.Value.Should().BeTrue();
+        form.WebHookSettings.Events.Should().ContainKey("SubmissionCompleted");
+    }
+
+    [Fact]
+    public void Apply_TheStaleSectionWhenTheColumnIsAhead_FromAStaleVersion_IsAConflict()
+    {
+        var form = NewForm();
+        form.UpdateWebHookSettings(Config(NEWER_HOOK_URL));
+        var settings = Stored(CamelCase(Config()));
+
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, 7, _at);
+
+        applied.Status.Should().Be(ResultStatus.Conflict);
+        settings.Version.Should().Be(FormSettings.UNSAVED_VERSION);
+        form.WebHookSettings.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(NEWER_HOOK_URL);
+    }
+
+    [Fact]
+    public void Apply_TheColumnsSettingsWhenTheColumnIsAhead_IsANoOpWhateverTheVersion()
+    {
+        // What readers see is sent back: nothing changes, as for any other value equal to what is stored.
+        var form = NewForm();
+        form.UpdateWebHookSettings(Config(NEWER_HOOK_URL));
+        var settings = Stored(CamelCase(Config()));
+
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config(NEWER_HOOK_URL) }, form, 7, _at);
+
+        applied.IsSuccess.Should().BeTrue();
+        applied.Value.Should().BeFalse();
+        settings.Version.Should().Be(FormSettings.UNSAVED_VERSION);
+    }
+
+    [Fact]
+    public void Apply_ToAnotherForm_Throws()
+    {
+        var apply = () => NewSettings().Apply(new FormSettingsChange { WebHooks = Config() }, Form.Create(3, new FormCreateArgs(TenantId: 1, Name: "Other")), 0, _at);
+
+        apply.Should().Throw<ArgumentException>();
     }
 
     [Fact]
@@ -141,9 +221,11 @@ public sealed class FormSettingsWebHooksTests
     public void Apply_TheSettingsOfAPascalCaseCopy_IsANoOp()
     {
         // The migration copies the column in Pascal case; a settings write stores camelCase. Same settings, no change.
+        var form = NewForm();
+        form.UpdateWebHookSettings(Config());
         var settings = Stored(STORED_BY_FORM);
 
-        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, 7, _at);
+        var applied = settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, 7, _at);
 
         applied.IsSuccess.Should().BeTrue();
         applied.Value.Should().BeFalse();
@@ -156,7 +238,7 @@ public sealed class FormSettingsWebHooksTests
         // A settings write stored camelCase and wrote the column in Pascal case; a later form save copies it back.
         var form = NewForm();
         var settings = FormSettings.For(form);
-        settings.Apply(new FormSettingsChange { WebHooks = Config() }, FormSettings.UNSAVED_VERSION, _at);
+        settings.Apply(new FormSettingsChange { WebHooks = Config() }, form, FormSettings.UNSAVED_VERSION, _at);
         form.UpdateWebHookSettings(Config());
 
         settings.CopyWebHooksFrom(form, _at.AddMinutes(1)).Should().BeFalse();
@@ -178,12 +260,12 @@ public sealed class FormSettingsWebHooksTests
     {
         // An older instance changed the column alone after the copy: the column is the copy every release writes.
         var form = NewForm();
-        form.UpdateWebHookSettings(Config("https://hooks.example.test/newer"));
+        form.UpdateWebHookSettings(Config(NEWER_HOOK_URL));
         var settings = Stored(STORED_BY_FORM);
 
         var webHooks = settings.WebHooksOf(form);
 
-        webHooks!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be("https://hooks.example.test/newer");
+        webHooks!.Events["SubmissionCompleted"].WebHookEndpoints.Single().Url.Should().Be(NEWER_HOOK_URL);
     }
 
     [Fact]
@@ -214,6 +296,9 @@ public sealed class FormSettingsWebHooksTests
         typeof(FormSettings).GetProperty(nameof(FormSettings.WebHooksJson))!.SetValue(settings, webHooksJson);
         return settings;
     }
+
+    // As a settings write stores the section.
+    private static string CamelCase(WebHookConfiguration config) => FormSettingsJson.Write(config);
 
     private static WebHookConfiguration Config(string url = HOOK_URL) => new()
     {

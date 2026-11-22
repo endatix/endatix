@@ -1,12 +1,14 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Forms.Update;
 using MediatR;
+using NSubstitute.ExceptionExtensions;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.Forms.Update;
@@ -370,5 +372,24 @@ public class UpdateFormHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(e => e.Contains("locked folders", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Handle_FormSettingsChangedDuringTheSave_ReturnsConflictAndPublishesNothing()
+    {
+        // Arrange: another write raised the form's settings version while this save wrote its webhooks
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, true);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>()).Returns(form);
+        _repository.UpdateAsync(form, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new FormSettingsChangedException("The form settings changed while they were being saved."));
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        await _mediator.DidNotReceive().Publish(Arg.Any<FormUpdatedEvent>(), Arg.Any<CancellationToken>());
     }
 }

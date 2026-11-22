@@ -1,6 +1,6 @@
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Data.Repositories;
@@ -12,11 +12,9 @@ namespace Endatix.Infrastructure.Data.Repositories;
 /// <remarks>
 /// Two writes made from the same version must not both win. The database decides, not a lock: the
 /// <see cref="FormSettings.Version"/> concurrency token makes an update from an older version change no row, and the
-/// key refuses a second first row.
+/// key refuses a second first row. <see cref="AppDbContext"/> reports either as <see cref="FormSettingsChangedException"/>.
 /// </remarks>
-internal sealed class FormSettingsRepository(
-    AppDbContext dbContext,
-    IUniqueConstraintViolationChecker uniqueViolationChecker) : IFormSettingsRepository
+internal sealed class FormSettingsRepository(AppDbContext dbContext) : IFormSettingsRepository
 {
     /// <inheritdoc />
     public async Task<FormSettings> ReadAsync(Form form, CancellationToken cancellationToken) =>
@@ -43,7 +41,7 @@ internal sealed class FormSettingsRepository(
             await dbContext.SaveChangesAsync(cancellationToken);
             return true;
         }
-        catch (DbUpdateException exception) when (IsLostRace(exception))
+        catch (FormSettingsChangedException)
         {
             // A refused write leaves nothing tracked, so a later save in the same scope does not replay it
             // (ARCHITECTURE.md, transaction locks, item 8).
@@ -62,9 +60,4 @@ internal sealed class FormSettingsRepository(
             dbContext.Entry(form).State = EntityState.Detached;
         }
     }
-
-    // A stale Version matches no row; a taken form key is a unique violation.
-    private bool IsLostRace(DbUpdateException exception) =>
-        exception is DbUpdateConcurrencyException
-        || uniqueViolationChecker.AnalyzeUniqueConstraint(exception).IsUniqueConstraintViolation;
 }

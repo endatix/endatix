@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -66,7 +67,11 @@ public class PartialUpdateFormHandler(
             requestedLimitOnePerUser,
             request.Metadata ?? form.Metadata,
             ResolveExpiry(form, request));
-        await repository.UpdateAsync(form, cancellationToken);
+        var saved = await repository.TryUpdateAsync(form, cancellationToken);
+        if (!saved.IsSuccess)
+        {
+            return saved.ToErrorResult<Form>();
+        }
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
         // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no

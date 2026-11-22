@@ -114,7 +114,7 @@ public class GetSubmissionByIdHandlerTests
     private void PdfSettingsOf(Form form, bool usesFormTheme)
     {
         var settings = Core.Entities.FormSettings.For(form);
-        settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = usesFormTheme } }, 0, DateTime.UtcNow);
+        settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = usesFormTheme } }, form, 0, DateTime.UtcNow);
         _formSettings.ReadAsync(form, Arg.Any<CancellationToken>()).Returns(settings);
     }
 
