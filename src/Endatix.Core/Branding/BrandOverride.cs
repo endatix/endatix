@@ -95,27 +95,27 @@ internal sealed class BrandOverride
     /// </summary>
     private static void ReadEveryString(JsonElement element)
     {
-        switch (element.ValueKind)
+        if (element.ValueKind == JsonValueKind.String)
         {
-            case JsonValueKind.Object:
-                foreach (var property in element.EnumerateObject())
-                {
-                    _ = property.Name;
-                    ReadEveryString(property.Value);
-                }
-
-                break;
-            case JsonValueKind.Array:
-                foreach (var item in element.EnumerateArray())
-                {
-                    ReadEveryString(item);
-                }
-
-                break;
-            case JsonValueKind.String:
-                _ = element.GetString();
-                break;
+            _ = element.GetString();
         }
+
+        var children = element.ValueKind switch
+        {
+            JsonValueKind.Object => element.EnumerateObject().Select(ValueAfterReadingName),
+            JsonValueKind.Array => element.EnumerateArray().AsEnumerable(),
+            _ => Enumerable.Empty<JsonElement>(),
+        };
+        foreach (var child in children)
+        {
+            ReadEveryString(child);
+        }
+    }
+
+    private static JsonElement ValueAfterReadingName(JsonProperty property)
+    {
+        _ = property.Name;
+        return property.Value;
     }
 
     private static Result<BrandOverride> RefusedWhole(string code, string detail) =>
