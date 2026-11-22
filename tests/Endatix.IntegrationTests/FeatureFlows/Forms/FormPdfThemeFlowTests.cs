@@ -2,7 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
@@ -110,6 +113,56 @@ public sealed class FormPdfThemeFlowTests(EndatixIntegrationWebHostFixture fixtu
 
         using var missingForm = await admin.GetAsync("/api/forms/999999999/settings", ct);
         Assert.Equal(HttpStatusCode.NotFound, missingForm.StatusCode);
+    }
+
+    [Fact]
+    public async Task Another_tenant_neither_reads_nor_writes_the_settings()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.MultiTenant with { DefaultPassword = "Password123!" }, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        using var other = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: ct);
+        var (formId, _) = await CreatePrivateFormWithThemeAsync(owner);
+
+        using var read = await other.GetAsync($"/api/forms/{formId}/settings", ct);
+        Assert.Equal(HttpStatusCode.NotFound, read.StatusCode);
+        using var write = await PatchSettingsAsync(other, formId, (_themeOn, "\"0\""));
+        Assert.Equal(HttpStatusCode.NotFound, write.StatusCode);
+
+        Assert.Equal(0, await CountSettingsRowsAsync(world, formId));
+        using var ownerRead = await owner.GetAsync($"/api/forms/{formId}/settings", ct);
+        Assert.Equal("\"0\"", ownerRead.Headers.ETag?.Tag);
+    }
+
+    [Fact]
+    public async Task A_deleted_form_has_no_settings_to_read_or_write()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        var (formId, _) = await CreatePrivateFormWithThemeAsync(admin);
+        using var saved = await PatchSettingsAsync(admin, formId, (_themeOn, "\"0\""));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        using var deleted = await admin.DeleteAsync($"/api/forms/{formId}", ct);
+        deleted.EnsureSuccessStatusCode();
+
+        using var read = await admin.GetAsync($"/api/forms/{formId}/settings", ct);
+        Assert.Equal(HttpStatusCode.NotFound, read.StatusCode);
+        using var write = await PatchSettingsAsync(admin, formId, (_themeOff, "\"1\""));
+        Assert.Equal(HttpStatusCode.NotFound, write.StatusCode);
+        Assert.Equal(1, await CountSettingsRowsAsync(world, formId, version: 1));
+    }
+
+    private static async Task<int> CountSettingsRowsAsync(IntegrationTestWorld world, string formId, long? version = null)
+    {
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var id = long.Parse(formId);
+        return await db.FormSettings.IgnoreQueryFilters()
+            .CountAsync(row => row.FormId == id && (version == null || row.Version == version), TestContext.Current.CancellationToken);
     }
 
     private static async Task<HttpResponseMessage> PatchSettingsAsync(HttpClient admin, string formId, (object Body, string? IfMatch) patch)
