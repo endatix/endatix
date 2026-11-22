@@ -25,7 +25,8 @@ public sealed class RestoreTenantBranding(
         "tenant-branding/restore",
         "Restore a branding version",
         "Publishes version number again as a new version (source restore); history is never rewound. A number the " +
-        "tenant does not have is 400 with the code unknown_version, checked before If-Match.");
+        "tenant does not have is 400 with the code unknown_version, checked before the version comparison, after " +
+        "the If-Match header is validated.");
 
     /// <inheritdoc/>
     protected override IRequest<Result<TenantBrandingDto>> Command(
