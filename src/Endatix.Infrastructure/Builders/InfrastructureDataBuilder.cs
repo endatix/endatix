@@ -64,6 +64,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IFormSubmissionsLock, FormSubmissionsLock>();
         Services.AddScoped<IDataListDependencyChecker, DataListDependencyChecker>();
         Services.AddScoped<IDataListRepository, DataListRepository>();
+        Services.AddScoped<ITenantBrandingRepository, TenantBrandingRepository>();
         Services.AddSingleton<DataSeeder>();
 
         // Add exporters

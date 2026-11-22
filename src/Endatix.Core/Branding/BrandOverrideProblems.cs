@@ -38,6 +38,9 @@ internal static class BrandOverrideProblems
     /// <summary>The asset is not a PNG or WebP file.</summary>
     public const string UNSUPPORTED_ASSET_TYPE = "unsupported_asset_type";
 
-    /// <summary>A rollback found no previous version to return to.</summary>
+    /// <summary>A rollback found no version before the live one to return to.</summary>
     public const string NO_PREVIOUS_VERSION = "no_previous_version";
+
+    /// <summary>A restore named a version number the tenant's branding does not have.</summary>
+    public const string UNKNOWN_VERSION = "unknown_version";
 }

@@ -1,16 +1,17 @@
 using Endatix.Core.Abstractions;
-using Endatix.Core.Exceptions;
-using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Branding;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
+using Endatix.Core.Versioning;
 
 namespace Endatix.Core.UseCases.TenantBranding;
 
 /// <summary>
-/// The save every write of a tenant's branding shares: load the row (or start one), apply the change, and save only
-/// when the revision moved, turning a lost race into a conflict.
+/// The save every write of a tenant's branding shares: load the row (or start one), apply the change, and save the new
+/// version with it, turning a lost race into a conflict. A change that adds no version saves nothing.
 /// </summary>
-internal sealed class TenantBrandingWriter(IRepository<Entities.TenantBranding> repository, long tenantId)
+internal sealed class TenantBrandingWriter(ITenantBrandingRepository repository, long tenantId, ContentVersionStamp stamp)
 {
     /// <summary>
     /// Why the tenant may not write its branding: no tenant (Unauthorized), or no <c>branding</c> entitlement
@@ -31,44 +32,40 @@ internal sealed class TenantBrandingWriter(IRepository<Entities.TenantBranding> 
             : Result.Forbidden("The tenant's plan does not include branding.");
     }
 
-    internal async Task<Result<TenantBrandingDto>> WriteAsync(
-        Func<Entities.TenantBranding, Result> change,
+    /// <summary>Publishes <paramref name="value"/> as a new version.</summary>
+    internal Task<Result<TenantBrandingDto>> PublishAsync(BrandOverride value, long expectedVersion, CancellationToken cancellationToken) =>
+        WriteAsync(branding => Task.FromResult(branding.Publish(value, expectedVersion, stamp)), cancellationToken);
+
+    /// <summary>Publishes version <paramref name="number"/> again, or for a rollback (null) the version before the live one.</summary>
+    internal Task<Result<TenantBrandingDto>> RestoreAsync(long? number, long expectedVersion, CancellationToken cancellationToken) =>
+        WriteAsync(async branding =>
+        {
+            var target = branding.RestoreTarget(number, expectedVersion);
+            if (!target.IsSuccess)
+            {
+                return target.ToErrorResult<TenantBrandingVersion?>();
+            }
+
+            var source = await repository.FindVersionAsync(tenantId, target.Value, cancellationToken);
+            return source is null
+                ? Result.Conflict("The branding changed while it was being read; read it again and retry.")
+                : branding.Restore(source, expectedVersion, stamp);
+        }, cancellationToken);
+
+    private async Task<Result<TenantBrandingDto>> WriteAsync(
+        Func<Entities.TenantBranding, Task<Result<TenantBrandingVersion?>>> change,
         CancellationToken cancellationToken)
     {
-        var stored = await repository.FirstOrDefaultAsync(new TenantBrandingByTenantIdSpec(tenantId), cancellationToken);
-        var branding = stored ?? new Entities.TenantBranding(tenantId);
-        var revision = branding.Revision;
-
-        var result = change(branding);
+        var branding = await repository.FindAsync(tenantId, cancellationToken) ?? new Entities.TenantBranding(tenantId);
+        var result = await change(branding);
         if (!result.IsSuccess)
         {
-            return result;
+            return result.ToErrorResult<TenantBrandingDto>();
         }
 
-        var saved = branding.Revision == revision || await TrySaveAsync(branding, stored is null, cancellationToken);
+        var saved = result.Value is not { } version || await repository.SaveOrConcedeAsync(branding, version, cancellationToken);
         return saved
             ? TenantBrandingDto.From(branding)
             : Result.Conflict("The branding changed while it was being saved; read it again and retry.");
-    }
-
-    private async Task<bool> TrySaveAsync(Entities.TenantBranding branding, bool isNew, CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (isNew)
-            {
-                await repository.AddAsync(branding, cancellationToken);
-            }
-            else
-            {
-                await repository.UpdateAsync(branding, cancellationToken);
-            }
-
-            return true;
-        }
-        catch (TenantBrandingConflictException)
-        {
-            return false;
-        }
     }
 }

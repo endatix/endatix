@@ -907,25 +907,59 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("DraftJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("PreviousJson")
-                        .HasColumnType("jsonb");
-
                     b.Property<DateTime?>("PublishedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PublishedJson")
                         .HasColumnType("jsonb");
 
-                    b.Property<long>("Revision")
+                    b.Property<long?>("PublishedNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
                     b.HasKey("TenantId");
 
                     b.ToTable("TenantBrandings", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.TenantBrandingVersion", b =>
+                {
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Number")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<long?>("RestoredFromNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("TenantId", "Number");
+
+                    b.ToTable("TenantBrandingVersions", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>
@@ -1263,6 +1297,15 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.Tenant", null)
                         .WithOne()
                         .HasForeignKey("Endatix.Core.Entities.TenantBranding", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.TenantBrandingVersion", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

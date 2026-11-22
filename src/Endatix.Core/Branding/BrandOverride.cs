@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Versioning;
 
 namespace Endatix.Core.Branding;
 
@@ -25,6 +26,7 @@ internal sealed class BrandOverride
     {
         TenantId = tenantId;
         CanonicalJson = canonicalJson;
+        ContentHash = CanonicalContentHash.Of(canonicalJson);
     }
 
     /// <summary>The tenant whose asset folder the keys were checked against.</summary>
@@ -32,6 +34,9 @@ internal sealed class BrandOverride
 
     /// <summary>The override as JSON with sorted keys and no whitespace, so equal overrides have equal text.</summary>
     public string CanonicalJson { get; }
+
+    /// <summary>The SHA-256 of <see cref="CanonicalJson"/>: the published version's content hash.</summary>
+    public string ContentHash { get; }
 
     /// <summary>
     /// Validates <paramref name="json"/> as an override for <paramref name="tenantId"/>.
@@ -60,13 +65,6 @@ internal sealed class BrandOverride
                 : Result<BrandOverride>.Success(new BrandOverride(tenantId, CanonicalBrandJson.Write(document.RootElement)));
         }
     }
-
-    /// <summary>
-    /// Whether <paramref name="storedJson"/> holds this override. A database may store JSON with its keys reordered,
-    /// so the stored text is compared in canonical form.
-    /// </summary>
-    public bool IsSameAs(string? storedJson) =>
-        storedJson is not null && CanonicalBrandJson.Write(storedJson) == CanonicalJson;
 
     /// <summary>The parsed text, or the problem with the text as a whole (its pointer is the empty string).</summary>
     private static (JsonDocument? Document, Result<BrandOverride>? Refusal) Read(string json)

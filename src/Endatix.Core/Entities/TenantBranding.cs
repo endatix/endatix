@@ -4,24 +4,30 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Branding;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Versioning;
 
 namespace Endatix.Core.Entities;
 
 /// <summary>
-/// A tenant's own brand (logo, icon, accent), one per tenant. It keeps the published override and the one before it,
-/// so a rollback is one step and a second rollback undoes the first.
+/// A tenant's own brand (logo, icon, accent), one per tenant: which <see cref="TenantBrandingVersion"/> is live, and a
+/// copy of its JSON so the read is one key lookup.
 /// </summary>
 /// <remarks>
-/// <see cref="Revision"/> counts the changes to the published override and is the optimistic concurrency token: a write
-/// names the revision it read and is refused when another write came first. A publish of the value already published
-/// changes nothing, whatever revision it names, so a retried request leaves the previous version in place.
+/// Every change appends a version and makes it live, so the live version is always the newest. A rollback restores the
+/// version before the live one as a new version: two rollbacks toggle, and history never rewinds. <see cref="Version"/>
+/// is the optimistic concurrency token: a write names the version it read and is refused when another write came
+/// first. Publishing (or restoring) the content already live changes nothing, whatever version it names, so a retried
+/// request adds no version.
 /// </remarks>
 [Experimental("ENDATIX0002")]
-public sealed class TenantBranding : IAggregateRoot, ITenantOwned
+public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
 {
+    /// <summary>The <see cref="Version"/> a write names when the tenant has no branding row yet.</summary>
+    public const long UNSAVED_VERSION = 0;
+
     private TenantBranding() { } // For EF Core
 
-    /// <summary>Starts a tenant's branding with nothing published, at revision 0.</summary>
+    /// <summary>Starts a tenant's branding with nothing published, at <see cref="UNSAVED_VERSION"/>.</summary>
     public TenantBranding(long tenantId)
     {
         Guard.Against.NegativeOrZero(tenantId);
@@ -31,92 +37,123 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned
     /// <summary>The tenant, and the primary key.</summary>
     public long TenantId { get; private set; }
 
-    /// <summary>The override the tenant shows, or null when the deployment brand applies.</summary>
+    /// <summary>Goes up by one on every change. 1 after the first publish; <see cref="UNSAVED_VERSION"/> before it.</summary>
+    public long Version { get; private set; } = UNSAVED_VERSION;
+
+    /// <summary>The live version's <see cref="TenantBrandingVersion.Number"/>, or null when the deployment brand applies.</summary>
+    public long? PublishedNumber { get; private set; }
+
+    /// <summary>The live version's JSON, or null when the deployment brand applies.</summary>
     public string? PublishedJson { get; private set; }
 
-    /// <summary>The override published before <see cref="PublishedJson"/>: what a rollback returns to.</summary>
-    public string? PreviousJson { get; private set; }
-
-    /// <summary>An unpublished override. Reserved for draft and preview editing; nothing writes it yet.</summary>
-    public string? DraftJson { get; }
-
-    /// <summary>Goes up by one on every change to the published override. 0 until the first publish.</summary>
-    public long Revision { get; private set; }
-
-    /// <summary>When the published override last changed, by a publish or a rollback.</summary>
+    /// <summary>When the live version was published, by a publish or a restore.</summary>
     public DateTime? PublishedAt { get; private set; }
 
-    /// <summary>
-    /// Publishes <paramref name="value"/> and keeps the current override as the previous one.
-    /// </summary>
+    /// <summary>Publishes <paramref name="value"/> as a new version.</summary>
     /// <param name="value">The validated override, for this tenant.</param>
-    /// <param name="expectedRevision">The <see cref="Revision"/> the caller read.</param>
-    /// <param name="now">The time of the publish.</param>
-    /// <returns>Success, also when the value is already published (nothing changes); <see cref="ResultStatus.Conflict"/> when
-    /// <paramref name="expectedRevision"/> is stale.</returns>
-    internal Result Publish(BrandOverride value, long expectedRevision, DateTime now)
-    {
-        EnsureOwnTenant(value);
-        if (value.IsSameAs(PublishedJson))
-        {
-            return Result.Success();
-        }
-
-        if (expectedRevision != Revision)
-        {
-            return StaleRevision();
-        }
-
-        PreviousJson = PublishedJson;
-        PublishedJson = value.CanonicalJson;
-        Changed(now);
-        return Result.Success();
-    }
-
-    /// <summary>
-    /// Swaps the published and previous overrides. After the first publish the previous override is none, so a rollback
-    /// returns the tenant to the deployment brand.
-    /// </summary>
-    /// <param name="expectedRevision">The <see cref="Revision"/> the caller read, so a retried rollback is refused instead of undoing itself.</param>
-    /// <param name="now">The time of the rollback.</param>
-    /// <returns>Success; <see cref="ResultStatus.Conflict"/> when <paramref name="expectedRevision"/> is stale;
-    /// <see cref="ResultStatus.Invalid"/> (<see cref="BrandOverrideProblems.NO_PREVIOUS_VERSION"/>) when nothing was ever published.</returns>
-    internal Result Rollback(long expectedRevision, DateTime now)
-    {
-        if (expectedRevision != Revision)
-        {
-            return StaleRevision();
-        }
-
-        if (PublishedJson is null && PreviousJson is null)
-        {
-            return Result.Invalid(new ValidationError(
-                "",
-                "There is no previous branding to return to.",
-                BrandOverrideProblems.NO_PREVIOUS_VERSION,
-                ValidationSeverity.Error));
-        }
-
-        (PublishedJson, PreviousJson) = (PreviousJson, PublishedJson);
-        Changed(now);
-        return Result.Success();
-    }
-
-    private void EnsureOwnTenant(BrandOverride value)
+    /// <param name="expectedVersion">The <see cref="Version"/> the caller read.</param>
+    /// <param name="stamp">When, and by whom.</param>
+    /// <returns>The version to save; null when the value is already live (nothing changes);
+    /// <see cref="ResultStatus.Conflict"/> when <paramref name="expectedVersion"/> is stale.</returns>
+    internal Result<TenantBrandingVersion?> Publish(BrandOverride value, long expectedVersion, ContentVersionStamp stamp)
     {
         Guard.Against.Null(value);
-        if (value.TenantId != TenantId)
+        EnsureOwnTenant(value.TenantId);
+        if (IsLive(value.ContentHash))
         {
-            throw new ArgumentException("The override was checked for another tenant.", nameof(value));
+            return Result<TenantBrandingVersion?>.Success(null);
+        }
+
+        return expectedVersion != Version
+            ? StaleVersion()
+            : Append(new(value.CanonicalJson, value.ContentHash, ContentVersionSources.PUBLISH, null), stamp);
+    }
+
+    /// <summary>
+    /// The number a restore publishes again: <paramref name="number"/>, or for a rollback (null) the version before the
+    /// live one.
+    /// </summary>
+    /// <returns>The number; <see cref="ResultStatus.Conflict"/> when <paramref name="expectedVersion"/> is stale;
+    /// <see cref="ResultStatus.Invalid"/> when there is no such version (<see cref="BrandOverrideProblems.UNKNOWN_VERSION"/>)
+    /// or nothing before the live one (<see cref="BrandOverrideProblems.NO_PREVIOUS_VERSION"/>).</returns>
+    internal Result<long> RestoreTarget(long? number, long expectedVersion)
+    {
+        if (expectedVersion != Version)
+        {
+            return StaleVersion();
+        }
+
+        var live = PublishedNumber ?? 0;
+        if (number is null)
+        {
+            return live > 1
+                ? live - 1
+                : Refused(BrandOverrideProblems.NO_PREVIOUS_VERSION, "There is no previous branding to return to.");
+        }
+
+        return number >= 1 && number <= live
+            ? number.Value
+            : Refused(BrandOverrideProblems.UNKNOWN_VERSION, $"There is no branding version {number}.");
+    }
+
+    /// <summary>Publishes a copy of <paramref name="source"/> as a new version.</summary>
+    /// <param name="source">An earlier version of this tenant's branding.</param>
+    /// <param name="expectedVersion">The <see cref="Version"/> the caller read, so a retried rollback is refused instead
+    /// of undoing itself.</param>
+    /// <param name="stamp">When, and by whom.</param>
+    /// <returns>The version to save; null when <paramref name="source"/>'s content is already live;
+    /// <see cref="ResultStatus.Conflict"/> when <paramref name="expectedVersion"/> is stale.</returns>
+    internal Result<TenantBrandingVersion?> Restore(TenantBrandingVersion source, long expectedVersion, ContentVersionStamp stamp)
+    {
+        Guard.Against.Null(source);
+        EnsureOwnTenant(source.TenantId);
+        if (IsLive(source.ContentHash))
+        {
+            return Result<TenantBrandingVersion?>.Success(null);
+        }
+
+        return expectedVersion != Version
+            ? StaleVersion()
+            : Append(new(CanonicalBrandJson.Write(source.Json), source.ContentHash, ContentVersionSources.RESTORE, source.Number), stamp);
+    }
+
+    // The cache may come back with its keys reordered (jsonb), so its hash is taken in canonical form.
+    private bool IsLive(string contentHash) =>
+        PublishedJson is not null && CanonicalContentHash.Of(CanonicalBrandJson.Write(PublishedJson)) == contentHash;
+
+    private TenantBrandingVersion Append(Content content, ContentVersionStamp stamp)
+    {
+        var version = new TenantBrandingVersion
+        {
+            TenantId = TenantId,
+            Number = (PublishedNumber ?? 0) + 1,
+            Json = content.Json,
+            ContentHash = content.Hash,
+            Source = content.Source,
+            RestoredFromNumber = content.RestoredFromNumber,
+            CreatedAt = stamp.At,
+            CreatedBy = stamp.By,
+        };
+        PublishedNumber = version.Number;
+        PublishedJson = version.Json;
+        PublishedAt = stamp.At;
+        Version++;
+        return version;
+    }
+
+    private void EnsureOwnTenant(long tenantId)
+    {
+        if (tenantId != TenantId)
+        {
+            throw new ArgumentException("The value belongs to another tenant.", nameof(tenantId));
         }
     }
 
-    private void Changed(DateTime now)
-    {
-        Revision++;
-        PublishedAt = now;
-    }
+    private Result StaleVersion() =>
+        Result.Conflict($"The branding changed since it was read; it is now at version {Version}.");
 
-    private Result StaleRevision() =>
-        Result.Conflict($"The branding changed since it was read; it is now at revision {Revision}.");
+    private static Result Refused(string code, string detail) =>
+        Result.Invalid(new ValidationError("", detail, code, ValidationSeverity.Error));
+
+    private readonly record struct Content(string Json, string Hash, string Source, long? RestoredFromNumber);
 }

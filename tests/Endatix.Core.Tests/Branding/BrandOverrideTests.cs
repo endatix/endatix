@@ -65,18 +65,21 @@ public sealed class BrandOverrideTests
     }
 
     [Fact]
-    public void IsSameAs_StoredWithKeysReordered_IsTrue()
+    public void ContentHash_KeysReordered_IsTheSame()
     {
         // Arrange
-        var value = BrandOverride.Parse(FULL, TENANT_ID).Value;
-        const string stored = """
+        const string reordered = """
             {"tokens": {"color": {"primary-on-dark": {"$type": "color", "$value": "#7aa2ff"}, "primary": {"$type": "color", "$value": "#0052d1"}}}, "assets": {"icon": "t/42/brand/icon.PNG", "logo": {"dark": "t/42/brand/logo-dark.webp", "light": "t/42/brand/logo-light.png"}}, "version": 1}
             """;
 
-        // Act & Assert
-        value.IsSameAs(stored).Should().BeTrue();
-        value.IsSameAs(null).Should().BeFalse();
-        value.IsSameAs("""{"version":1}""").Should().BeFalse();
+        // Act
+        var value = BrandOverride.Parse(FULL, TENANT_ID).Value;
+        var same = BrandOverride.Parse(reordered, TENANT_ID).Value;
+        var other = BrandOverride.Parse("""{"version":1}""", TENANT_ID).Value;
+
+        // Assert
+        value.ContentHash.Should().Be(same.ContentHash).And.HaveLength(64).And.MatchRegex("^[0-9a-f]+$");
+        value.ContentHash.Should().NotBe(other.ContentHash);
     }
 
     [Theory]

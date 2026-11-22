@@ -902,25 +902,59 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("DraftJson")
-                        .HasColumnType("json");
-
-                    b.Property<string>("PreviousJson")
-                        .HasColumnType("json");
-
                     b.Property<DateTime?>("PublishedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PublishedJson")
                         .HasColumnType("json");
 
-                    b.Property<long>("Revision")
+                    b.Property<long?>("PublishedNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
                     b.HasKey("TenantId");
 
                     b.ToTable("TenantBrandings", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.TenantBrandingVersion", b =>
+                {
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Number")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<long?>("RestoredFromNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("TenantId", "Number");
+
+                    b.ToTable("TenantBrandingVersions", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.TenantSettings", b =>
@@ -1258,6 +1292,15 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasOne("Endatix.Core.Entities.Tenant", null)
                         .WithOne()
                         .HasForeignKey("Endatix.Core.Entities.TenantBranding", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.TenantBrandingVersion", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
