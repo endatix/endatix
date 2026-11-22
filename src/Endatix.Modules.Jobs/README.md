@@ -529,14 +529,15 @@ job and as that job's subscriptions in one call; see
   (Reporting's export-format seeding). A system job reads only an app-level row and only for app-level
   work, and a tenant job only its own tenant's rows, so neither reaches the other's outbox rows.
 
-**Switching existing work to app-level.** A tenant job of work registered with `AddAppLevelOutboxWork`
-fails at once, so before moving existing work there, let its outbox rows and in-flight jobs drain: no
-pending outbox message for its events and no `Pending` or `Retrying` job of its type. Then deploy the
-switch.
+**Adding new app-level work.** A node of the previous version has no system scope, so it must not run while
+a new node enqueues system jobs. Upgrade every node first. Register `AddAppLevelOutboxWork` in a later deploy.
 
-In a rolling deploy, draining is not enough. A node of the previous version has no system scope, so it must not
-run while a new node enqueues system jobs. Upgrade every node first. Register `AddAppLevelOutboxWork` in a later
-deploy. Or keep producers and workers stopped until every node runs the new version.
+**Switching existing work to app-level.** A rolling deploy is not safe here, even after every node is upgraded.
+A new node's relay can enqueue a system job that a node still on the tenant registration claims. That job fails
+permanently with `WrongScope`. A tenant job of work registered with `AddAppLevelOutboxWork` fails the same way.
+So stop producers and workers, or deploy without rolling. Before the switch, let the work drain: no pending
+outbox message for its events and no `Pending`, `Processing` or `Retrying` job of its type. Then deploy the
+switch to every node, and start producers and workers again.
 
 Full operator guide: [Background processing](../../docs/endatix-docs/docs/configuration/background-processing.mdx).
 
