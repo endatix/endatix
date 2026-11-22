@@ -4,6 +4,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.FormSettings.Get;
 using FastEndpoints;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -54,4 +55,15 @@ public sealed class GetFormSettingsRequest
 {
     /// <summary>The form.</summary>
     public long FormId { get; set; }
+}
+
+/// <summary>Validation rules for <see cref="GetFormSettingsRequest"/>.</summary>
+[Experimental("ENDATIX0005")]
+public sealed class GetFormSettingsValidator : Validator<GetFormSettingsRequest>
+{
+    /// <summary>The form id is positive.</summary>
+    public GetFormSettingsValidator()
+    {
+        RuleFor(x => x.FormId).GreaterThan(0);
+    }
 }

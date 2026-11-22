@@ -54,6 +54,16 @@ public sealed class FormSettingsEndpointsTests
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void GetValidator_RefusesAFormIdThatIsNotPositive(long formId)
+    {
+        var result = new GetFormSettingsValidator().Validate(new GetFormSettingsRequest { FormId = formId });
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Theory]
     [InlineData(null, StatusCodes.Status428PreconditionRequired)]
     [InlineData("W/\"0\"", StatusCodes.Status400BadRequest)]
     public async Task PartialUpdate_WithoutAReadableIfMatch_IsRefusedWithoutSending(string? ifMatch, int status)
