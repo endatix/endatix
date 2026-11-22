@@ -68,6 +68,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         var rolledBackAccent = await PublicAccentAsync(anonymous, await ShortUrlAsync(world));
         using var restored = await SendAsync(admin, Post(RESTORE_ROUTE, new { number = 2 }), rolledBack.Headers.ETag!.Tag);
         using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
+        using var oversizedPage = await admin.GetAsync($"{VERSIONS_ROUTE}?pageSize=101", Cancellation);
 
         // Assert
         rolledBack.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -79,6 +80,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         items[0].GetProperty("source").GetString().Should().Be("restore");
         items[0].GetProperty("restoredFromNumber").GetString().Should().Be("2");
         items[0].GetProperty("createdBy").GetString().Should().Be(world.Tenants[0].Admin.Id.ToString());
+        oversizedPage.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]

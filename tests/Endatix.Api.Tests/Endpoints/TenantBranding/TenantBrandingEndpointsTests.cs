@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Endatix.Api.Endpoints.TenantBranding;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Get;
@@ -71,6 +72,23 @@ public sealed class TenantBrandingEndpointsTests
         var page = response.Result.As<Ok<Paged<TenantBrandingVersionModel>>>().Value!;
         page.TotalRecords.Should().Be(2);
         page.Items.Should().Equal(new TenantBrandingVersionModel(1, _publishedAt, 7, "publish", null));
+    }
+
+    [Fact]
+    public async Task History_WithoutPaging_SendsTheSharedDefaults()
+    {
+        // Arrange
+        var endpoint = Factory.Create<ListTenantBrandingVersions>(_mediator);
+        _mediator.Send(Arg.Any<ListTenantBrandingVersionsQuery>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(Paged<TenantBrandingVersionDto>.FromPage(1, PagedRequestLimits.DEFAULT_PAGE_SIZE, 0, [])));
+
+        // Act
+        await endpoint.ExecuteAsync(new ListTenantBrandingVersionsRequest(), Cancellation);
+
+        // Assert
+        await _mediator.Received(1).Send(
+            new ListTenantBrandingVersionsQuery(PagedRequestLimits.DEFAULT_PAGE, PagedRequestLimits.DEFAULT_PAGE_SIZE),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
