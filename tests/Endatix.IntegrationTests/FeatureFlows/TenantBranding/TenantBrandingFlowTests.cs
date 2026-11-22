@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Endatix.Core.UseCases.TenantBranding.Publishing;
 using Endatix.IntegrationTests.Shared;
 
 namespace Endatix.IntegrationTests.FeatureFlows.TenantBranding;
@@ -16,16 +17,16 @@ namespace Endatix.IntegrationTests.FeatureFlows.TenantBranding;
 [Trait("Priority", "P1")]
 public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string SeedPassword = "Password123!";
+    private const string SEED_PASSWORD = "Password123!";
     private const string BLUE = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#0052d1"}}}}""";
     private const string RED = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#b91c1c"}}}}""";
     private const string GREEN = """{"version":1,"tokens":{"color":{"primary":{"$type":"color","$value":"#16a34a"}}}}""";
 
-    private const string BrandingRoute = "/api/tenant-branding";
-    private const string PublishRoute = "/api/tenant-branding/published";
-    private const string RestoreRoute = "/api/tenant-branding/restore";
-    private const string RollbackRoute = "/api/tenant-branding/rollback";
-    private const string VersionsRoute = "/api/tenant-branding/versions";
+    private const string BRANDING_ROUTE = "/api/tenant-branding";
+    private const string PUBLISH_ROUTE = "/api/tenant-branding/published";
+    private const string RESTORE_ROUTE = "/api/tenant-branding/restore";
+    private const string ROLLBACK_ROUTE = "/api/tenant-branding/rollback";
+    private const string VERSIONS_ROUTE = "/api/tenant-branding/versions";
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
@@ -37,7 +38,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         var (world, admin) = await TenantAdminAsync(host);
         using var anonymous = world.AnonymousClient();
         var slug = await ShortUrlAsync(world);
-        using var initial = await admin.GetAsync(BrandingRoute, Cancellation);
+        using var initial = await admin.GetAsync(BRANDING_ROUTE, Cancellation);
 
         // Act
         using var blue = await SendAsync(admin, Publish(BLUE), initial.Headers.ETag!.Tag);
@@ -63,10 +64,10 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         using var green = await SendAsync(admin, Publish(GREEN), blue.Headers.ETag!.Tag);
 
         // Act - a rollback has no body
-        using var rolledBack = await SendAsync(admin, Post(RollbackRoute), green.Headers.ETag!.Tag);
+        using var rolledBack = await SendAsync(admin, Post(ROLLBACK_ROUTE), green.Headers.ETag!.Tag);
         var rolledBackAccent = await PublicAccentAsync(anonymous, await ShortUrlAsync(world));
-        using var restored = await SendAsync(admin, Post(RestoreRoute, new { number = 2 }), rolledBack.Headers.ETag!.Tag);
-        using var history = await admin.GetAsync(VersionsRoute, Cancellation);
+        using var restored = await SendAsync(admin, Post(RESTORE_ROUTE, new { number = 2 }), rolledBack.Headers.ETag!.Tag);
+        using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
 
         // Assert
         rolledBack.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -91,8 +92,8 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
 
         // Act
         using var publish = await SendAsync(admin, Publish(BLUE), "\"1\"");
-        using var restore = await SendAsync(admin, Post(RestoreRoute, new { number = 1 }), "\"1\"");
-        using var rollback = await SendAsync(admin, Post(RollbackRoute), "\"1\"");
+        using var restore = await SendAsync(admin, Post(RESTORE_ROUTE, new { number = 1 }), "\"1\"");
+        using var rollback = await SendAsync(admin, Post(ROLLBACK_ROUTE), "\"1\"");
         using var missing = await SendAsync(admin, Publish(BLUE), null);
 
         // Assert
@@ -126,6 +127,31 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         problem.GetProperty("code").GetString().Should().Be(code);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_body_over_the_override_bound_is_too_large_and_writes_no_version(bool chunked)
+    {
+        // Arrange - one character past the bound with a Content-Length, or 1 MB sent chunked (no length)
+        await using BrandingWebHost host = new(fixture);
+        var (_, admin) = await TenantAdminAsync(host);
+        var body = OverBound(chunked ? 1024 * 1024 : PublishTenantBrandingCommand.MAX_OVERRIDE_LENGTH + 1);
+        var request = new HttpRequestMessage(HttpMethod.Put, PUBLISH_ROUTE)
+        {
+            Content = chunked ? new ChunkedContent(body) : new StringContent(body, Encoding.UTF8, "application/json"),
+        };
+
+        // Act
+        using var response = await SendAsync(admin, request, "\"0\"");
+        using var read = await admin.GetAsync(BRANDING_ROUTE, Cancellation);
+        using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
+
+        // Assert
+        (await ProblemCodeAsync(response)).Should().Be("too_large");
+        read.Headers.ETag!.Tag.Should().Be("\"0\"");
+        (await ReadAsync(history)).GetProperty("items").GetArrayLength().Should().Be(0);
+    }
+
     [Fact]
     public async Task Restore_and_rollback_name_what_they_cannot_find()
     {
@@ -135,8 +161,8 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         using var blue = await SendAsync(admin, Publish(BLUE), "\"0\"");
 
         // Act
-        using var unknown = await SendAsync(admin, Post(RestoreRoute, new { number = 9 }), "\"1\"");
-        using var noPrevious = await SendAsync(admin, Post(RollbackRoute), "\"1\"");
+        using var unknown = await SendAsync(admin, Post(RESTORE_ROUTE, new { number = 9 }), "\"1\"");
+        using var noPrevious = await SendAsync(admin, Post(ROLLBACK_ROUTE), "\"1\"");
 
         // Assert
         (await ProblemCodeAsync(unknown)).Should().Be("unknown_version");
@@ -148,13 +174,13 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     {
         // Arrange
         await using BrandingWebHost host = new(fixture);
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, Cancellation);
         using var creator = await world.AsAsync(TestPersona.Creator, cancellationToken: Cancellation);
 
         // Act
-        using var read = await creator.GetAsync(BrandingRoute, Cancellation);
+        using var read = await creator.GetAsync(BRANDING_ROUTE, Cancellation);
         using var publish = await SendAsync(creator, Publish(BLUE), "\"0\"");
-        using var history = await creator.GetAsync(VersionsRoute, Cancellation);
+        using var history = await creator.GetAsync(VERSIONS_ROUTE, Cancellation);
 
         // Assert
         read.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -173,9 +199,9 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         using var anonymous = world.AnonymousClient();
 
         // Act
-        using var read = await admin.GetAsync(BrandingRoute, Cancellation);
+        using var read = await admin.GetAsync(BRANDING_ROUTE, Cancellation);
         using var publish = await SendAsync(admin, Publish(GREEN), read.Headers.ETag!.Tag);
-        using var history = await admin.GetAsync(VersionsRoute, Cancellation);
+        using var history = await admin.GetAsync(VERSIONS_ROUTE, Cancellation);
         var publicRead = await PublicTenantAsync(anonymous, await ShortUrlAsync(world));
 
         // Assert
@@ -198,8 +224,8 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         // Act
         HttpRequestMessage[] requests =
         [
-            new(HttpMethod.Get, BrandingRoute), new(HttpMethod.Get, VersionsRoute), Publish(GREEN),
-            Post(RestoreRoute, new { number = 1 }), Post(RollbackRoute),
+            new(HttpMethod.Get, BRANDING_ROUTE), new(HttpMethod.Get, VERSIONS_ROUTE), Publish(GREEN),
+            Post(RESTORE_ROUTE, new { number = 1 }), Post(ROLLBACK_ROUTE),
         ];
         var statuses = new List<HttpStatusCode>();
         foreach (var request in requests)
@@ -219,7 +245,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     {
         // Arrange - tenant A publishes; nothing has read A's public tenant yet, so the cache is cold
         await using BrandingWebHost host = new(fixture);
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword }, Cancellation);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant with { DefaultPassword = SEED_PASSWORD }, Cancellation);
         using var adminA = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 0, cancellationToken: Cancellation);
         using var adminB = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: Cancellation);
         using var anonymous = world.AnonymousClient();
@@ -241,7 +267,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     {
         // Arrange - A has two versions, B one
         await using BrandingWebHost host = new(fixture);
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant with { DefaultPassword = SeedPassword }, Cancellation);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant with { DefaultPassword = SEED_PASSWORD }, Cancellation);
         using var adminA = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 0, cancellationToken: Cancellation);
         using var adminB = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex: 1, cancellationToken: Cancellation);
         using var anonymous = world.AnonymousClient();
@@ -251,16 +277,16 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
         var emptyB = await PublicTenantAsync(anonymous, slugB);
 
         // Act
-        using var readB = await adminB.GetAsync(BrandingRoute, Cancellation);
-        using var historyB = await adminB.GetAsync(VersionsRoute, Cancellation);
-        using var restoreB = await SendAsync(adminB, Post(RestoreRoute, new { number = 2 }), "\"0\"");
+        using var readB = await adminB.GetAsync(BRANDING_ROUTE, Cancellation);
+        using var historyB = await adminB.GetAsync(VERSIONS_ROUTE, Cancellation);
+        using var restoreB = await SendAsync(adminB, Post(RESTORE_ROUTE, new { number = 2 }), "\"0\"");
         using var blueB = await SendAsync(adminB, Publish(BLUE), "\"0\"");
         using var blueAgainA = await SendAsync(adminA, Publish(BLUE), greenA.Headers.ETag!.Tag);
         using var redA = await SendAsync(adminA, Publish(RED), blueAgainA.Headers.ETag!.Tag);
 
         // B's own publish evicted its public entry and nothing has read it since, so both reads come from the database
         var publicBAfterA = await PublicAccentAsync(anonymous, slugB);
-        using var readBAfterA = await adminB.GetAsync(BrandingRoute, Cancellation);
+        using var readBAfterA = await adminB.GetAsync(BRANDING_ROUTE, Cancellation);
 
         // Assert - B starts at "0" with no history; A's numbers do not exist for B; A's red leaves B's blue
         greenA.Headers.ETag!.Tag.Should().Be("\"2\"");
@@ -292,7 +318,7 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
 
     private static async Task<(IntegrationTestWorld World, HttpClient Admin)> TenantAdminAsync(IIntegrationTestHostFixture host)
     {
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, Cancellation);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, Cancellation);
         return (world, await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: Cancellation));
     }
 
@@ -307,7 +333,14 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
     };
 
     private static HttpRequestMessage Publish(string json) =>
-        new(HttpMethod.Put, PublishRoute) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+        new(HttpMethod.Put, PUBLISH_ROUTE) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+
+    // A JSON object whose one string value pads it to exactly length characters.
+    private static string OverBound(int length)
+    {
+        const string head = "{\"version\":1,\"pad\":\"";
+        return head + new string('a', length - head.Length - 2) + "\"}";
+    }
 
     private static HttpRequestMessage Post(string route, object? body = null) =>
         new(HttpMethod.Post, route) { Content = body is null ? null : JsonContent.Create(body) };
@@ -351,4 +384,25 @@ public sealed class TenantBrandingFlowTests(EndatixIntegrationWebHostFixture fix
 
     private static async Task<JsonElement> ReadAsync(HttpResponseMessage response) =>
         JsonDocument.Parse(await response.Content.ReadAsStringAsync(Cancellation)).RootElement.Clone();
+
+    // Content with no length, so the client sends it with Transfer-Encoding: chunked.
+    private sealed class ChunkedContent : HttpContent
+    {
+        private readonly byte[] _bytes;
+
+        public ChunkedContent(string text)
+        {
+            _bytes = Encoding.UTF8.GetBytes(text);
+            Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" };
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            stream.WriteAsync(_bytes).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
 }
