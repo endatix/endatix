@@ -2,6 +2,7 @@ using System.Reflection;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.UseCases.Folders;
+using Endatix.Core.UseCases.Submissions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -57,6 +58,7 @@ public static class MessagingConfiguration
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
         services.AddScoped<FolderAssignmentPolicy>();
         services.AddScoped<FolderWritePolicy>();
+        services.AddScoped<SubmissionFormTheme>();
 
         if (options.IncludeLoggingPipeline)
         {

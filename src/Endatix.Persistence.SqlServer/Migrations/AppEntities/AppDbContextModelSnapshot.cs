@@ -474,6 +474,29 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.ToTable("FormDependencies", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>
+                {
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PdfJson")
+                        .HasColumnType("json");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("FormId");
+
+                    b.ToTable("FormSettings", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.FormTemplate", b =>
                 {
                     b.Property<long>("Id")
@@ -1165,6 +1188,15 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("Form");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Form", null)
+                        .WithOne()
+                        .HasForeignKey("Endatix.Core.Entities.FormSettings", "FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormTemplate", b =>

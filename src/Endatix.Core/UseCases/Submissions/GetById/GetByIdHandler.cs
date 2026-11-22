@@ -11,7 +11,9 @@ namespace Endatix.Core.UseCases.Submissions.GetById;
 /// <summary>
 /// Handler for the <c>GetByIdQuery</c> class
 /// </summary>
-public class GetByIdHandler(IRepository<Submission> repository) : IQueryHandler<GetByIdQuery, Result<Submission>>
+public class GetByIdHandler(
+    IRepository<Submission> repository,
+    SubmissionFormTheme formTheme) : IQueryHandler<GetByIdQuery, Result<Submission>>
 {
     public async Task<Result<Submission>> Handle(GetByIdQuery request, CancellationToken cancellationToken)
     {
@@ -23,6 +25,7 @@ public class GetByIdHandler(IRepository<Submission> repository) : IQueryHandler<
             return Result.NotFound("Submission not found");
         }
 
+        await formTheme.LoadAsync(submission, cancellationToken);
         return Result.Success(submission);
     }
 }

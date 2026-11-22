@@ -74,6 +74,10 @@ public class AppDbContext : DbContext, ITenantDbContext
     [Experimental("ENDATIX0002")]
     public DbSet<TenantBrandingVersion> TenantBrandingVersions { get; set; }
 
+    /// <summary>Each form's per-feature settings, one row per form. Declared so the tenant query filter applies.</summary>
+    [Experimental("ENDATIX0005")]
+    public DbSet<FormSettings> FormSettings { get; set; }
+
     public DbSet<DataList> DataLists { get; set; }
 
     public DbSet<DataListItem> DataListItems { get; set; }

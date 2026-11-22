@@ -57,6 +57,10 @@ public static class SubmissionMapper
         CollectionStatus = dto.CollectionStatus
     };
 
+    /// <summary>
+    /// Maps a submission with its definition and form to submission details. The form theme is returned when it is
+    /// loaded: the GetById and GetByAccessToken handlers load it only when the form's PDF settings use it.
+    /// </summary>
     public static SubmissionDetailsModel MapToSubmissionDetails(Submission submission)
     {
         var mappedModel = Map<SubmissionDetailsModel>(submission);
@@ -68,7 +72,8 @@ public static class SubmissionMapper
                 IsDraft = submission.FormDefinition.IsDraft,
                 JsonData = submission.FormDefinition.JsonData,
                 CreatedAt = submission.FormDefinition.CreatedAt,
-                ModifiedAt = submission.FormDefinition.ModifiedAt
+                ModifiedAt = submission.FormDefinition.ModifiedAt,
+                ThemeModel = submission.Form?.Theme?.JsonData
             };
         }
 

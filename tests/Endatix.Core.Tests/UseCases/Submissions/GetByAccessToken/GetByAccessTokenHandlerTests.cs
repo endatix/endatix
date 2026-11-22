@@ -1,10 +1,13 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Tests;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.GetByAccessToken;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.GetByAccessToken;
 
@@ -12,13 +15,15 @@ public class GetByAccessTokenHandlerTests
 {
     private readonly IRepository<Submission> _submissionRepository;
     private readonly ISubmissionAccessTokenService _tokenService;
+    private readonly IRepository<Theme> _themeRepository = Substitute.For<IRepository<Theme>>();
+    private readonly IFormSettingsRepository _formSettings = Substitute.For<IFormSettingsRepository>();
     private readonly GetByAccessTokenHandler _handler;
 
     public GetByAccessTokenHandlerTests()
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
-        _handler = new GetByAccessTokenHandler(_submissionRepository, _tokenService);
+        _handler = new GetByAccessTokenHandler(_submissionRepository, new SubmissionFormTheme(_formSettings, _themeRepository, NullLogger<SubmissionFormTheme>.Instance), _tokenService);
     }
 
     private static Submission CreateSubmissionWithForm(long formId, long formDefinitionId, bool isFormEnabled = true)
@@ -33,6 +38,33 @@ public class GetByAccessTokenHandlerTests
         formDefinitionProperty.SetValue(submission, formDefinition);
 
         return submission;
+    }
+
+    [Fact]
+    public async Task Handle_PdfSettingsUseTheTheme_LoadsTheFormTheme()
+    {
+        // Arrange
+        const string token = "valid.token.r.signature";
+        var theme = new Theme(SampleData.TENANT_ID, "Theme", jsonData: "{}") { Id = 7 };
+        var submission = CreateSubmissionWithForm(123L, 1L);
+        submission.Form.Id = 123L;
+        submission.Form.SetTheme(theme);
+        var settings = Core.Entities.FormSettings.For(submission.Form);
+        settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = true } }, 0, DateTime.UtcNow);
+        _formSettings.ReadAsync(submission.Form, Arg.Any<CancellationToken>()).Returns(settings);
+        typeof(Form).GetProperty(nameof(Form.Theme))!.SetValue(submission.Form, null); // loaded without its theme
+
+        _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new SubmissionAccessTokenClaims(456L, ["view"], DateTime.UtcNow.AddHours(1))));
+        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
+            .Returns(submission);
+        _themeRepository.GetByIdAsync(theme.Id, Arg.Any<CancellationToken>()).Returns(theme);
+
+        // Act
+        var result = await _handler.Handle(new GetByAccessTokenQuery(123L, token), CancellationToken.None);
+
+        // Assert
+        result.Value.Form.Theme.Should().BeSameAs(theme);
     }
 
     [Fact]
