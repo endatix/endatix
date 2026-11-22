@@ -11,7 +11,8 @@ namespace Endatix.Infrastructure.Data.Config.AppEntities;
 [ApplyConfigurationFor<AppDbContext>()]
 internal sealed class TenantBrandingVersionConfiguration : IEntityTypeConfiguration<TenantBrandingVersion>
 {
-    // Core's CanonicalContentHash.LENGTH (SHA-256 as hex) and ContentVersionSources.MAX_LENGTH, which are internal to Core.
+    // Copies of Core's internal CanonicalContentHash.LENGTH (SHA-256 as hex) and ContentVersionSources.MAX_LENGTH;
+    // TenantBrandingVersionConfigurationTests fails when they differ.
     private const int CONTENT_HASH_LENGTH = 64;
     private const int SOURCE_MAX_LENGTH = 32;
 
