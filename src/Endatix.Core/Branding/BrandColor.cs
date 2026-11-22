@@ -29,8 +29,8 @@ internal static partial class BrandColor
     [GeneratedRegex(@"^(rgb|hsl)a?\(\s*" + ARG + @"\s*,\s*" + ARG + @"\s*,\s*" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex CommaArgs();
 
-    /// <summary>All spaces: <c>rgb()</c>, <c>hsl()</c> and <c>oklch()</c>.</summary>
-    [GeneratedRegex(@"^(rgb|hsl|oklch)a?\(\s*" + ARG + @"\s+" + ARG + @"\s+" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    /// <summary>All spaces: <c>rgb()</c>, <c>hsl()</c> and <c>oklch()</c>; CSS has no <c>oklcha()</c>.</summary>
+    [GeneratedRegex(@"^(rgb|hsl|oklch(?!a))a?\(\s*" + ARG + @"\s+" + ARG + @"\s+" + ARG + @"\s*\)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SpaceArgs();
 
     /// <summary>The regex groups of the three arguments; each unit is the next group.</summary>
@@ -141,7 +141,7 @@ internal static partial class BrandColor
         return match.Groups[1].Value.ToLowerInvariant() switch
         {
             "rgb" => RgbFromArgs(args, commas),
-            "hsl" => HslFromArgs(args),
+            "hsl" => HslFromArgs(args, commas),
             _ => OklchFromArgs(args),
         };
     }
@@ -157,10 +157,11 @@ internal static partial class BrandColor
         return new Rgb(channels[0], channels[1], channels[2]);
     }
 
-    private static Rgb? HslFromArgs(ColorArg[] args)
+    /// <summary>The comma syntax needs a percentage for saturation and lightness; the space syntax also takes a number.</summary>
+    private static Rgb? HslFromArgs(ColorArg[] args, bool commas)
     {
         var (h, s, l) = (args[0], args[1], args[2]);
-        if (h.Unit == "%" || s.Unit == "deg" || l.Unit == "deg")
+        if (h.Unit == "%" || s.Unit == "deg" || l.Unit == "deg" || (commas && (s.Unit != "%" || l.Unit != "%")))
         {
             return null;
         }

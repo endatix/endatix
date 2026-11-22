@@ -16,6 +16,9 @@ public sealed class BrandContrastTests
     [InlineData("rgb(0 82 209)", "#0052d1")]
     [InlineData("rgb(10, 20, 30)", "#0a141e")]
     [InlineData("hsl(216 100% 41%)", "#0054d1")]
+    [InlineData("hsl(216 100 41)", "#0054d1")]
+    [InlineData("hsl(216, 100%, 41%)", "#0054d1")]
+    [InlineData("hsla(216deg, 100%, 41%)", "#0054d1")]
     [InlineData("oklch(0.5 0.2 260)", "#0559d2")]
     [InlineData("oklch(70% 40% 30deg)", "#f17260")]
     public void Parse_EachSyntaxTheHubReads_GivesTheHubsColour(string input, string expectedHex)
@@ -38,6 +41,22 @@ public sealed class BrandContrastTests
     [InlineData("rgba(1,2,3,0.5)")]
     [InlineData("rgb(\u0661\u0662 20 30)")]
     public void Parse_WhatTheHubRejects_IsNull(string input)
+    {
+        // Act
+        var color = BrandColor.Parse(input);
+
+        // Assert
+        color.Should().BeNull();
+    }
+
+    /// <summary>The Hub's <c>parseCssColor</c> still reads these; CSS does not, so the API refuses them.</summary>
+    [Theory]
+    [InlineData("hsl(216,100,41)")]
+    [InlineData("hsl(216,100%,41)")]
+    [InlineData("hsla(216,100,41%)")]
+    [InlineData("oklcha(0.5 0.2 260)")]
+    [InlineData("OKLCHA(0.5 0.2 260)")]
+    public void Parse_WhatCssRejects_IsNull(string input)
     {
         // Act
         var color = BrandColor.Parse(input);
