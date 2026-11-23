@@ -60,8 +60,8 @@ internal sealed record CopyDefinition(
 
         try
         {
-            using var document = JsonDocument.Parse(definitionJson);
-            return document.RootElement.ValueKind == JsonValueKind.Object ? NamesIn(document.RootElement) : null;
+            var definition = JsonSerializer.Deserialize<JsonElement>(definitionJson);
+            return definition.ValueKind == JsonValueKind.Object ? NamesIn(definition) : null;
         }
         catch (JsonException)
         {
@@ -71,9 +71,10 @@ internal sealed record CopyDefinition(
 
     private static SubmittedQuestions NamesIn(JsonElement definition)
     {
-        DefinitionWalk walk = new();
+        Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
+        DefinitionWalk walk = new(questions);
         walk.Visit(definition);
-        return new(walk.Counts.Keys.ToHashSet(StringComparer.Ordinal), walk.ShowingOther);
+        return new(walk.Counts, walk.ShowingOther, new ChoiceSources(questions));
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
@@ -116,7 +117,7 @@ internal sealed record CopyDefinition(
     // Counts the data names, notes any visibleIf on a page or on an element at any depth (panels, loops and matrix
     // detail panels too), and
     // collects the data names under a container visibleIf and those under a static visible: false.
-    private sealed class DefinitionWalk
+    private sealed class DefinitionWalk(Dictionary<string, JsonElement>? questions = null)
     {
         public Dictionary<string, int> Counts { get; } = new(StringComparer.Ordinal);
 
@@ -168,6 +169,7 @@ internal sealed record CopyDefinition(
         private void NoteQuestion(JsonElement question, string name, Hiding hidden)
         {
             Counts[name] = Counts.GetValueOrDefault(name) + 1;
+            questions?.TryAdd(name, question);
             Note(AlwaysHidden, name, hidden.Always);
             Note(UnderVisibleIf, name, hidden.ByVisibleIf);
             Note(ShowingOther, name, ChoiceSet.ShowsOther(question));
@@ -202,6 +204,27 @@ internal sealed record CopyDefinition(
 
 /// <summary>
 /// RUN TIME. The questions of the definition a submission was made on (<see cref="CopyDefinition.QuestionsIn"/>): every
-/// name, and the names of those that show an Other of their own.
+/// name, which questions show their own Other, and the source a copy offered on that version.
 /// </summary>
-internal sealed record SubmittedQuestions(IReadOnlySet<string> Names, IReadOnlySet<string> ShowingOther);
+internal sealed record SubmittedQuestions(
+    IReadOnlyDictionary<string, int> NameCounts,
+    IReadOnlySet<string> ShowingOther,
+    ChoiceSources Sources)
+{
+    public bool ShowsOwnOther(string name) => NameCounts.GetValueOrDefault(name) == 1 && ShowingOther.Contains(name);
+
+    // Two questions with the same name share one catalog. It cannot identify either one's Other.
+    public string? OtherSourceOf(string name)
+    {
+        if (NameCounts.GetValueOrDefault(name) != 1 ||
+            !Sources.QuestionsByName.TryGetValue(name, out var question) ||
+            Sources.Offered(question) is not { Other: { } other } offered ||
+            offered.TryGetChoice(SurveyJsPropertyNames.Other, out _) ||
+            NameCounts.GetValueOrDefault(other.SourceName) != 1)
+        {
+            return null;
+        }
+
+        return other.SourceName;
+    }
+}

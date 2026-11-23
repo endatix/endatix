@@ -401,7 +401,7 @@ public sealed class CopiedChoiceVisibilityTests
         return FlattenedSubmissionFlattener.Flatten(
             Json(submission),
             compiled.FlatteningMap,
-            ChoiceCatalogs.Read(compiled.CodebookJson));
+            ChoiceCatalogs.Read(compiled.CodebookJson, submittedDefinitionJson: definition));
     }
 
     internal static Dictionary<string, string?> Cells(Dictionary<string, JsonElement?> flattened) =>

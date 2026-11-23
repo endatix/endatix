@@ -156,15 +156,28 @@ internal sealed class ChoiceCatalogs
     {
         var select = For(question);
         var answer = select.Read(scope.Own, question);
-        return select.OtherFrom is { } source && answer.Has(SurveyJsPropertyNames.Other) && !CopyVisibility.IsText(answer.OtherText)
-            ? CopyVisibility.CopiedOtherText(source, scope, this) ?? answer.OtherText
+        return answer.Has(SurveyJsPropertyNames.Other) && !CopyVisibility.IsText(answer.OtherText)
+            ? CopiedText(scope, question) ?? answer.OtherText
             : answer.OtherText;
     }
 
-    private bool WasSubmittedWith(string question) => SubmittedQuestions.Value?.Names.Contains(question) ?? true;
+    private JsonElement? CopiedText(AnswerScope scope, string question)
+    {
+        if (!Copies(question) || For(question).KindOf(SurveyJsPropertyNames.Other) != ChoiceKind.Other)
+        {
+            return null;
+        }
+
+        var source = SubmittedQuestions.Value is { } version
+            ? version.OtherSourceOf(question)
+            : For(question).OtherFrom;
+        return source is null ? null : CopyVisibility.CopiedOtherText(source, scope, this);
+    }
+
+    private bool WasSubmittedWith(string question) => SubmittedQuestions.Value?.NameCounts.ContainsKey(question) ?? true;
 
     // Unknown when the submission's definition is: then only the source's answer can show its Other.
-    private bool ShowedOwnOther(string question) => SubmittedQuestions.Value?.ShowingOther.Contains(question) == true;
+    private bool ShowedOwnOther(string question) => SubmittedQuestions.Value?.ShowsOwnOther(question) == true;
 
     // The copy's own special items are always on its list, but only an exact rule that holds for this submission proves
     // which definition's list, and that the copy was shown. A source's Other was on it only when the source picked it
@@ -174,8 +187,7 @@ internal sealed class ChoiceCatalogs
         rule.HoldsFor(SubmissionComplete) &&
         (For(question).KindOf(choiceValue) switch
         {
-            ChoiceKind.Other when For(question).OtherFrom is { } source && !ShowedOwnOther(question) =>
-                CopyVisibility.CopiedOtherText(source, scope, this) is not null,
+            ChoiceKind.Other => ShowedOwnOther(question) || CopiedText(scope, question) is not null,
             not null and not ChoiceKind.Choice => true,
             _ => rule.Shows(choiceValue, scope, this) == true,
         });

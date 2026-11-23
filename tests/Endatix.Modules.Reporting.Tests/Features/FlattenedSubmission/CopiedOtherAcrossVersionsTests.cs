@@ -35,6 +35,19 @@ public sealed class CopiedOtherAcrossVersionsTests
     }
 
     [Fact]
+    public void Flatten_OwnOtherWithoutSubmittedDefinition_LeavesUnpickedOtherEmpty()
+    {
+        // Arrange: this copy never offered the source's Other, so its catalog has no otherFrom.
+        var compiled = new FormSchemaCompiler().CompilePersisted(_after);
+
+        // Act
+        var cells = FlattenWithoutDefinition(compiled, """{"src":["other"],"src-Comment":"typed","pick":["1"]}""");
+
+        // Assert
+        cells["other"].Should().BeNull();
+    }
+
+    [Fact]
     public void Flatten_NoSubmittedDefinitionAndTheSourcePickedOtherWithText_WritesZero()
     {
         // Arrange

@@ -208,8 +208,57 @@ public sealed partial class CopiedChoicesCrunchExportTests
         Column(csv, "L--1--Q4--other_text").Should().Equal("typed");
     }
 
-    // A copy that offered its source's Other, then got an Other of its own: the merge keeps otherFrom, so a row saved
-    // before keeps the source's text, and a row saved after has its own, even when the source picked Other too.
+    [Fact]
+    public async Task CsvShoji_AnsweredLoopCopyAfterReplace_ChecksOtherOnTheSubmittedSource()
+    {
+        // Arrange: Q1 still drives the loop after the copy switches to Q3.
+        var sources = SOURCE_WITH_OTHER + "," + SOURCE_WITH_OTHER.Replace("Q1", "Q3");
+        const string loop = """
+            {"type":"paneldynamic","name":"L","loopSource":["Q1"],"templateElements":[
+              {"type":"checkbox","name":"Q4","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}]}
+            """;
+        var before = DefinitionWith(sources, loop);
+        var after = DefinitionWith(sources, loop.Replace("""choicesFromQuestion":"Q1""", """choicesFromQuestion":"Q3"""));
+        const string answers = """{"Q1":["1","other"],"Q1-Comment":"typed","Q3":["1"],"L":[{"itemValue":"1","loopIndex":0,"Q4":["1"]}]}""";
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("old", answers, null, SubmittedDefinition: before),
+            new("new", answers, null, SubmittedDefinition: after),
+        ];
+
+        // Act
+        var (_, csv) = await ExportAsync(after, responses);
+
+        // Assert
+        Column(csv, "L--1--Q4--other").Should().Equal("0", string.Empty);
+    }
+
+    [Fact]
+    public async Task Export_CopyChangesSource_ReadsTheOtherTextOfferedOnEachSubmittedVersion()
+    {
+        // Arrange
+        var sources = SOURCE_WITH_OTHER + "," + SOURCE_WITH_OTHER.Replace("Q1", "Q3");
+        const string copy = """{"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}""";
+        var before = DefinitionWith(sources, copy);
+        var after = DefinitionWith(sources, copy.Replace("Q1", "Q3"));
+        const string answers = """{"Q1":["other"],"Q1-Comment":"first","Q3":["other"],"Q3-Comment":"second","Q2":"other"}""";
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("old", answers, null, SubmittedDefinition: before),
+            new("new", answers, null, SubmittedDefinition: after),
+            new("missing", """{"Q3":["other"],"Q3-Comment":"unrelated","Q2":"other"}""", null, SubmittedDefinition: before),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(before);
+
+        // Act
+        pipeline.Recompile(after, FormSchemaCompileMode.Merge);
+        pipeline.FlattenAll(after, responses);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), TestContext.Current.CancellationToken);
+
+        // Assert
+        Column(csv, "Q2--other_text").Should().Equal("first", "second", string.Empty);
+    }
+
     [Fact]
     public async Task Export_CopyThatGainsItsOwnOther_KeepsTheSourcesTextForEarlierRows()
     {
@@ -222,9 +271,10 @@ public sealed partial class CopiedChoicesCrunchExportTests
             """);
         IReadOnlyList<FixtureResponse> responses =
         [
-            new("earlier", """{"Q1":["other"],"Q1-Comment":"typed on Q1","Q2":"other"}""", null),
+            new("earlier", """{"Q1":["other"],"Q1-Comment":"typed on Q1","Q2":"other"}""", null, SubmittedDefinition: before),
             new("later", """{"Q1":["1"],"Q2":"other","Q2-Comment":"typed on Q2"}""", null),
             new("both", """{"Q1":["other"],"Q1-Comment":"A","Q2":"other","Q2-Comment":"B"}""", null),
+            new("own-empty", """{"Q1":["other"],"Q1-Comment":"A","Q2":"other"}""", null),
         ];
         var pipeline = PersonalizationPipeline.Compile(before);
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -235,8 +285,8 @@ public sealed partial class CopiedChoicesCrunchExportTests
         var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
 
         // Assert
-        Column(csv, "Q2").Should().Equal("3", "3", "3");
-        Column(csv, "Q2--other_text").Should().Equal("typed on Q1", "typed on Q2", "B");
+        Column(csv, "Q2").Should().Equal("3", "3", "3", "3");
+        Column(csv, "Q2--other_text").Should().Equal("typed on Q1", "typed on Q2", "B", string.Empty);
     }
 
     // The form version a row was saved on decides: once the copy shows an Other of its own, that Other is on its list
