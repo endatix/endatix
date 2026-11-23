@@ -34,7 +34,7 @@ internal readonly record struct CatalogChoice(string Value, int Id, ChoiceKind K
 /// <summary>
 /// RUN TIME read model of the codebook's <c>choiceCatalogs</c>: the merged union of every compiled definition. Built
 /// once per flatten. The only reader of the catalog fields <c>kind</c>, <c>exclusive</c>, <c>multiple</c>,
-/// <c>otherStorage</c> and <c>shown</c>, and of which questions copy their choices.
+/// <c>otherStorage</c>, <c>otherFrom</c> and <c>shown</c>, and of which questions copy their choices.
 /// </summary>
 internal sealed class ChoiceCatalogs
 {
@@ -65,8 +65,8 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false, string? submittedDefinitionJson = null)
     {
-        // Only a complete submission infers a 0 for an unanswered question, so only it needs its definition's names.
-        var submittedQuestions = submissionComplete ? CopyDefinition.QuestionNamesIn(submittedDefinitionJson) : null;
+        // Read only when a cell needs it: an unanswered question in a complete submission, or a copy's copied Other.
+        Lazy<SubmittedQuestions?> submittedQuestions = new(() => CopyDefinition.QuestionsIn(submittedDefinitionJson));
         using var document = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonDocument.Parse(codebookJson);
         if (document?.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
@@ -82,7 +82,7 @@ internal sealed class ChoiceCatalogs
     }
 
     // No catalogs, but the submission's completion still decides whether an unanswered select is 0.
-    private static ChoiceCatalogs EmptyFor(bool submissionComplete, IReadOnlySet<string>? submittedQuestions) =>
+    private static ChoiceCatalogs EmptyFor(bool submissionComplete, Lazy<SubmittedQuestions?> submittedQuestions) =>
         submissionComplete
             ? new(Empty._selects, Empty._copies, Empty._visibility) { SubmissionComplete = true, SubmittedQuestions = submittedQuestions }
             : Empty;
@@ -98,8 +98,8 @@ internal sealed class ChoiceCatalogs
     /// <summary>Whether the submission being flattened is completed.</summary>
     public bool SubmissionComplete { get; private init; }
 
-    // The question names of the definition the submission was made on; null when unknown.
-    private IReadOnlySet<string>? SubmittedQuestions { get; init; }
+    // The questions of the definition the submission was made on; null when unknown.
+    private Lazy<SubmittedQuestions?> SubmittedQuestions { get; init; } = new(() => null);
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
     public bool IsSelect(string question) => _selects.ContainsKey(question);
@@ -147,15 +147,52 @@ internal sealed class ChoiceCatalogs
             : IndicatorCell.Empty;
     }
 
-    private bool WasSubmittedWith(string question) => SubmittedQuestions?.Contains(question) ?? true;
+    /// <summary>
+    /// The question's Other text in <paramref name="scope"/>: its own when not empty. For a copy that offers, or once
+    /// offered, its source's Other (<see cref="SelectChoices.OtherFrom"/>) and picked it with no text of its own: the
+    /// source's text (a row saved while the copy had no Other of its own).
+    /// </summary>
+    public JsonElement? OtherText(AnswerScope scope, string question)
+    {
+        var select = For(question);
+        var answer = select.Read(scope.Own, question);
+        return answer.Has(SurveyJsPropertyNames.Other) && !CopyVisibility.IsText(answer.OtherText)
+            ? CopiedText(scope, question) ?? answer.OtherText
+            : answer.OtherText;
+    }
+
+    private JsonElement? CopiedText(AnswerScope scope, string question)
+    {
+        if (!Copies(question) || For(question).KindOf(SurveyJsPropertyNames.Other) != ChoiceKind.Other)
+        {
+            return null;
+        }
+
+        if (SubmittedQuestions.Value is { } version)
+        {
+            return version.CopiedText(scope, question);
+        }
+
+        return For(question).OtherFrom is { } source ? CopyVisibility.CopiedOtherText(source, scope, For(source)) : null;
+    }
+
+    private bool WasSubmittedWith(string question) => SubmittedQuestions.Value?.NameCounts.ContainsKey(question) ?? true;
+
+    // Unknown when the submission's definition is: then only the source's answer can show its Other.
+    private bool ShowedOwnOther(string question) => SubmittedQuestions.Value?.ShowsOwnOther(question) == true;
 
     // The copy's own special items are always on its list, but only an exact rule that holds for this submission proves
-    // which definition's list, and that the copy was shown.
+    // which definition's list, and that the copy was shown. A source's Other was on it only when the source picked it
+    // with text, unless the definition the submission was made on gave the copy an Other of its own.
     private bool AnsweredCopyShows(AnswerScope scope, string question, string choiceValue) =>
         _visibility.TryGetValue(question, out var rule) &&
         rule.HoldsFor(SubmissionComplete) &&
-        ((For(question).KindOf(choiceValue) is { } kind && kind != ChoiceKind.Choice) ||
-         rule.Shows(choiceValue, scope, this) == true);
+        (For(question).KindOf(choiceValue) switch
+        {
+            ChoiceKind.Other => ShowedOwnOther(question) || CopiedText(scope, question) is not null,
+            not null and not ChoiceKind.Choice => true,
+            _ => rule.Shows(choiceValue, scope, this) == true,
+        });
 
     // A copy in the current definition (its question entry, which every codebook since copied choices records), or in
     // any earlier one (the catalog's sticky copied marker).
@@ -182,13 +219,22 @@ internal sealed class ChoiceCatalogs
 /// <summary>The stored choices of one select question and where its Other text goes.</summary>
 internal sealed class SelectChoices
 {
-    private readonly HashSet<string> _values = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _values;
 
-    public static SelectChoices Unknown { get; } = new();
+    private SelectChoices(IReadOnlyList<CatalogChoice> choices)
+    {
+        Choices = choices;
+        _values = choices.Select(choice => choice.Value).ToHashSet(StringComparer.Ordinal);
+    }
 
-    public IReadOnlyList<CatalogChoice> Choices { get; private init; } = [];
+    public static SelectChoices Unknown { get; } = new([]);
+
+    public IReadOnlyList<CatalogChoice> Choices { get; }
 
     public OtherStorage? OtherStorage { get; private init; }
+
+    /// <summary>The source whose Other the copy offers (<c>otherFrom</c>); its text is the source's. Null otherwise.</summary>
+    public string? OtherFrom { get; private init; }
 
     /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
     public bool CanBeHidden { get; private init; }
@@ -212,6 +258,13 @@ internal sealed class SelectChoices
     /// <summary>Whether the select offers this value as one of its own choices (not a special item).</summary>
     public bool Offers(string value) => KindOf(value) == ChoiceKind.Choice;
 
+    internal static SelectChoices FromChoiceSet(ChoiceSet set) =>
+        new([.. set.Items.Select((item, index) => new CatalogChoice(item.Value, index + 1, item.Kind, item.Exclusive))])
+        {
+            OtherStorage = set.OtherStorage,
+            OtherFrom = set.OtherFrom,
+        };
+
     internal static SelectChoices? FromCatalog(JsonElement catalog)
     {
         if (catalog.ValueKind != JsonValueKind.Object ||
@@ -220,15 +273,12 @@ internal sealed class SelectChoices
             return null;
         }
 
-        var choices = ReadChoices(catalog);
-        SelectChoices select = new()
+        return new SelectChoices(ReadChoices(catalog))
         {
-            Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
+            OtherFrom = catalog.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.OtherFrom),
             CanBeHidden = CanBeHiddenIn(catalog),
         };
-        select._values.UnionWith(choices.Select(choice => choice.Value));
-        return select;
     }
 
     private static List<CatalogChoice> ReadChoices(JsonElement catalog) =>

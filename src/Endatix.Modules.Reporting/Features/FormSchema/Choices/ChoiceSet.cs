@@ -31,8 +31,9 @@ internal sealed record ChoiceSetItem(
 /// <remarks>
 /// <see cref="Items"/> are the inline choices in definition order (or, given <see cref="ResolvedChoices"/>, the choices
 /// they resolve to), then Other, None, Refused and Don't know
-/// (<see cref="SpecialChoices.All"/>), so positional ids never shift for existing items. Select All is never an item,
-/// because it is never stored.
+/// (<see cref="SpecialChoices.All"/>), then a source's Other the copy offers (<see cref="ResolvedChoices.Other"/>), last
+/// so that it was added after every item a codebook may already hold. Positional ids never shift for existing items.
+/// Select All is never an item, because it is never stored.
 /// </remarks>
 internal sealed class ChoiceSet
 {
@@ -47,15 +48,22 @@ internal sealed class ChoiceSet
     /// <summary>Whether the question shows an Other item.</summary>
     public bool HasOther => Items.Any(item => item.Kind == ChoiceKind.Other);
 
-    /// <summary>Whether the question has inline choices; a lazy multi-select (data list) has none.</summary>
-    public bool HasInlineChoices => Items.Any(item => item.Kind == ChoiceKind.Choice);
+    /// <summary>A readable choice list, including a copy whose only choice is its source's Other.</summary>
+    public bool HasIndicatorChoices => OtherFrom is not null || Items.Any(item => item.Kind == ChoiceKind.Choice);
 
     /// <summary>Null when the question shows no Other item.</summary>
     public OtherStorage? OtherStorage { get; private init; }
 
-    /// <summary>Inline choices and Other only: the values a <c>loopSource</c> driver turns into panels.</summary>
+    /// <summary>The source whose Other the copy offers, where that Other's text is stored; null otherwise.</summary>
+    public string? OtherFrom { get; private init; }
+
+    /// <summary>
+    /// Inline choices and the question's own Other only: the values a <c>loopSource</c> driver turns into panels. A
+    /// copied Other is left out: whether Hub gives it a panel is not known yet.
+    /// </summary>
     public IEnumerable<string> LoopDriverValues =>
-        Items.Where(item => item.Kind is ChoiceKind.Choice or ChoiceKind.Other).Select(item => item.Value);
+        Items.Where(item => item.Kind == ChoiceKind.Choice || item is { Kind: ChoiceKind.Other, Copied: false })
+            .Select(item => item.Value);
 
     /// <summary>Null for a question that is not a base select (ranking included).</summary>
     /// <param name="question">The question's definition element.</param>
@@ -71,14 +79,31 @@ internal sealed class ChoiceSet
 
         var items = ChoiceItems(question, choices);
         items.AddRange(SpecialItems(question, items));
+        var otherFrom = AddCopiedOther(items, choices?.Other);
         return new ChoiceSet
         {
             Items = items,
             IsMultiple = multiple,
-            OtherStorage = items.Exists(item => item.Kind == ChoiceKind.Other)
-                ? ResolveOtherStorage(question, survey ?? SurveyChoiceDefaults.Default)
-                : null,
+            OtherFrom = otherFrom,
+            OtherStorage = OtherStorageOf(question, items, survey),
         };
+    }
+
+    private static OtherStorage? OtherStorageOf(JsonElement question, List<ChoiceSetItem> items, SurveyChoiceDefaults? survey) =>
+        items.Exists(item => item.Kind == ChoiceKind.Other)
+            ? ResolveOtherStorage(question, survey ?? SurveyChoiceDefaults.Default)
+            : null;
+
+    // Adds the source's Other last; the source's name when it was added.
+    private static string? AddCopiedOther(List<ChoiceSetItem> items, CopiedOther? other)
+    {
+        if (other is not { } copied || CopiedOtherItem(copied.Source, items) is not { } item)
+        {
+            return null;
+        }
+
+        items.Add(item);
+        return copied.SourceName;
     }
 
     private static List<ChoiceSetItem> ChoiceItems(JsonElement question, ResolvedChoices? resolved)
@@ -120,13 +145,43 @@ internal sealed class ChoiceSet
             .ToList();
     }
 
-    /// <summary>Writes the catalog: <c>multiple</c>, <c>otherStorage</c>, then <c>choices</c> with id = position + 1.</summary>
+    // The source's Other, labelled with the source's otherText; not when a copied choice already stores "other".
+    private static ChoiceSetItem? CopiedOtherItem(JsonElement source, List<ChoiceSetItem> items)
+    {
+        if (items.Exists(item => string.Equals(item.Value, SurveyJsPropertyNames.Other, StringComparison.Ordinal)))
+        {
+            return null;
+        }
+
+        var spec = SpecialChoices.Other;
+        return new ChoiceSetItem(
+            spec.Value,
+            spec.Kind,
+            spec.Exclusive,
+            source.GetStringProperty(spec.TextProperty) ?? spec.DefaultText,
+            source,
+            spec.TextProperty,
+            Copied: true);
+    }
+
+    /// <summary>Whether the question shows its own Other item (<c>showOtherItem</c>, or the older <c>hasOther</c>).</summary>
+    public static bool ShowsOther(JsonElement question) => Shows(question, SpecialChoices.Other);
+
+    /// <summary>
+    /// Writes the catalog: <c>multiple</c>, <c>otherStorage</c>, <c>otherFrom</c>, then <c>choices</c> with id =
+    /// position + 1.
+    /// </summary>
     public void WriteCatalog(Utf8JsonWriter writer, Action<ChoiceSetItem, int> writeChoice)
     {
         writer.WriteBoolean(FormSchemaCodebookPropertyNames.Multiple, IsMultiple);
         if (OtherStorage is { } storage)
         {
             writer.WriteString(FormSchemaCodebookPropertyNames.OtherStorage, ToJsonName(storage));
+        }
+
+        if (OtherFrom is { } source)
+        {
+            writer.WriteString(FormSchemaCodebookPropertyNames.OtherFrom, source);
         }
 
         writer.WritePropertyName(SurveyJsPropertyNames.Choices);

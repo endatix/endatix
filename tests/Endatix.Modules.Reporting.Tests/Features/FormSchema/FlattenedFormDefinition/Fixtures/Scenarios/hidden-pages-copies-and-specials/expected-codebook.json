@@ -276,6 +276,14 @@
           "text": {
             "default": "Dates"
           }
+        },
+        {
+          "value": "other",
+          "id": 5,
+          "kind": "other",
+          "text": {
+            "default": "Other"
+          }
         }
       ]
     },
@@ -641,6 +649,14 @@
         "default": "Which one do you buy most?"
       }
     },
+    "topFruit__other_text": {
+      "parentKey": "topFruit",
+      "surveyJsType": "radiogroup",
+      "exportShape": "multiple_response",
+      "title": {
+        "default": "Which one do you buy most?"
+      }
+    },
     "veggiesAgain__A": {
       "parentKey": "veggiesAgain",
       "surveyJsType": "checkbox",
@@ -930,6 +946,8 @@
     },
     "topFruit": {
       "multiple": false,
+      "otherStorage": "comment",
+      "otherFrom": "fruits",
       "choices": [
         {
           "value": "A",
@@ -957,6 +975,14 @@
           "id": 4,
           "text": {
             "default": "Dates"
+          }
+        },
+        {
+          "value": "other",
+          "id": 5,
+          "kind": "other",
+          "text": {
+            "default": "Other"
           }
         }
       ],

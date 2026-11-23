@@ -489,7 +489,7 @@ internal static class FormDefinitionFlattener
 
                     break;
                 case SurveyJsFlattening.Simple:
-                    EmitSimpleColumn(collected, drivingCheckboxNames, columns, seenKeys, limits);
+                    EmitSimpleColumn(collected, drivingCheckboxNames, context);
                     break;
             }
         }
@@ -498,10 +498,9 @@ internal static class FormDefinitionFlattener
     private static void EmitSimpleColumn(
         CollectedElement collected,
         HashSet<string> drivingCheckboxNames,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
+        var (columns, seenKeys, limits, _) = context;
         var type = collected.Type;
         var name = collected.Name!;
 
@@ -513,7 +512,7 @@ internal static class FormDefinitionFlattener
 
         if (collected.Element.IsSingleSelectBaseSelect())
         {
-            EmitSingleSelectColumn(collected, columns, seenKeys, limits);
+            EmitSingleSelectColumn(collected, context);
             return;
         }
 
@@ -524,12 +523,10 @@ internal static class FormDefinitionFlattener
             MapDataType(collected.Element, type)));
     }
 
-    private static void EmitSingleSelectColumn(
-        CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+    // A copy that offers its source's Other has an Other text column too (ChoiceSources.Offered).
+    private static void EmitSingleSelectColumn(CollectedElement collected, FlattenContext context)
     {
+        var (columns, seenKeys, limits, sources) = context;
         var name = collected.Name!;
 
         // Neutral shape: one string column with the original SurveyJS choice value.
@@ -541,7 +538,7 @@ internal static class FormDefinitionFlattener
             STRING_COLUMN_TYPE,
             SourceQuestion: name));
 
-        if (ChoiceSet.Read(collected.Element)?.HasOther == true)
+        if (ChoiceSet.Read(collected.Element, choices: sources.Resolve(collected.Element))?.HasOther == true)
         {
             AddOtherTextColumn(collected, name, columns, seenKeys, limits);
         }
@@ -594,7 +591,7 @@ internal static class FormDefinitionFlattener
 
         // A data list, a lazy multi-select or a copy whose source cannot be read has no choices on the form. One
         // column keeps the selected values (including "other" and special items) instead of dropping them.
-        if (!choices.HasInlineChoices)
+        if (!choices.HasIndicatorChoices)
         {
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 name,
@@ -1290,14 +1287,7 @@ internal static class FormDefinitionFlattener
                 EmitLoopSourceChoiceIndicatorColumns(template, childName, keyPrefix, loopPath, context);
                 break;
             case SurveyJsFlattening.Simple when template.IsSingleSelectBaseSelect():
-                EmitLoopSourceSingleSelectColumn(
-                    template,
-                    childName,
-                    keyPrefix,
-                    loopPath,
-                    columns,
-                    seenKeys,
-                    limits);
+                EmitLoopSourceSingleSelectColumn(template, childName, keyPrefix, loopPath, context);
                 break;
             case SurveyJsFlattening.Simple:
                 AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
@@ -1334,10 +1324,9 @@ internal static class FormDefinitionFlattener
         string childName,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
+        var (columns, seenKeys, limits, sources) = context;
         AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
             ExportPathBuilder.Join([.. keyPrefix, childName]),
             FormSchemaColumnKind.LoopSource,
@@ -1346,7 +1335,7 @@ internal static class FormDefinitionFlattener
             SourceQuestion: childName,
             LoopPath: loopPath));
 
-        if (ChoiceSet.Read(template)?.HasOther == true)
+        if (ChoiceSet.Read(template, choices: sources.Resolve(template))?.HasOther == true)
         {
             AddLoopSourceOtherTextColumn(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
         }
@@ -1377,10 +1366,9 @@ internal static class FormDefinitionFlattener
     {
         var (columns, seenKeys, limits, sources) = context;
         var choices = ChoiceSet.Read(template, choices: sources.Resolve(template))!;
-        if (!choices.HasInlineChoices)
+        if (!choices.HasIndicatorChoices)
         {
-            EmitLoopSourceSingleSelectColumn(
-                template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+            EmitLoopSourceSingleSelectColumn(template, childName, keyPrefix, loopPath, context);
             return;
         }
 

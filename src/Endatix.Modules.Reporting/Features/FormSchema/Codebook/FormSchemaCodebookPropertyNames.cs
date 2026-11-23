@@ -41,6 +41,12 @@ internal static class FormSchemaCodebookPropertyNames
     public const string OtherStorage = "otherStorage";
 
     /// <summary>
+    /// Choice catalog of a copy that offers its source's Other: the source's name. The copy stores "other" but no text;
+    /// the text is the source's.
+    /// </summary>
+    public const string OtherFrom = "otherFrom";
+
+    /// <summary>
     /// Question: where a single select's choices come from, when not its own <c>choices</c>: <c>kind</c> ("dataList",
     /// "carryForward", "unresolvable") and <c>listId</c>, <c>sources</c> or <c>reason</c>. Absent means inline.
     /// </summary>

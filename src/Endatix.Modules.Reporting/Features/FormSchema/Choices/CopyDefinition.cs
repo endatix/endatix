@@ -11,7 +11,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 /// page, panel or question has a <c>visibleIf</c>, the questions a <c>visibleIf</c> on an enclosing panel, dynamic panel
 /// or page can hide, and the questions a static <c>visible: false</c> on themselves or on an enclosing panel or page
 /// always hides. At run time the same walk lists the question names of the definition a submission was made on
-/// (<see cref="QuestionNamesIn"/>).
+/// (<see cref="QuestionsIn"/>).
 /// </summary>
 internal sealed record CopyDefinition(
     IReadOnlySet<string> SharedNames,
@@ -47,10 +47,11 @@ internal sealed record CopyDefinition(
 
     /// <summary>
     /// RUN TIME. Every question name (<c>name</c>, not <c>valueName</c>, as the indicator columns are keyed) in
-    /// <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels; null when there is no
-    /// definition to read, or one that is not a JSON object, so an unreadable stored definition never fails a flatten.
+    /// <paramref name="definitionJson"/>, in pages, panels, loops and matrix detail panels, and those that show an Other
+    /// of their own; null when there is no definition to read, or one that is not a JSON object, so an unreadable stored
+    /// definition never fails a flatten.
     /// </summary>
-    public static IReadOnlySet<string>? QuestionNamesIn(string? definitionJson)
+    public static SubmittedQuestions? QuestionsIn(string? definitionJson)
     {
         if (string.IsNullOrWhiteSpace(definitionJson))
         {
@@ -59,8 +60,8 @@ internal sealed record CopyDefinition(
 
         try
         {
-            using var document = JsonDocument.Parse(definitionJson);
-            return document.RootElement.ValueKind == JsonValueKind.Object ? NamesIn(document.RootElement) : null;
+            var definition = JsonSerializer.Deserialize<JsonElement>(definitionJson);
+            return definition.ValueKind == JsonValueKind.Object ? NamesIn(definition) : null;
         }
         catch (JsonException)
         {
@@ -68,11 +69,12 @@ internal sealed record CopyDefinition(
         }
     }
 
-    private static HashSet<string> NamesIn(JsonElement definition)
+    private static SubmittedQuestions NamesIn(JsonElement definition)
     {
-        DefinitionWalk walk = new();
+        Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
+        DefinitionWalk walk = new(questions);
         walk.Visit(definition);
-        return walk.Counts.Keys.ToHashSet(StringComparer.Ordinal);
+        return new(walk.Counts, new ChoiceSources(questions), SurveyChoiceDefaults.Of(definition));
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
@@ -115,7 +117,7 @@ internal sealed record CopyDefinition(
     // Counts the data names, notes any visibleIf on a page or on an element at any depth (panels, loops and matrix
     // detail panels too), and
     // collects the data names under a container visibleIf and those under a static visible: false.
-    private sealed class DefinitionWalk
+    private sealed class DefinitionWalk(Dictionary<string, JsonElement>? questions = null)
     {
         public Dictionary<string, int> Counts { get; } = new(StringComparer.Ordinal);
 
@@ -154,13 +156,20 @@ internal sealed record CopyDefinition(
                 var inside = hiding.Inside(element, HasVisibleIfNoted(element));
                 if (!SurveyJsElementType.IsNonData(element.GetSurveyJsType()) && element.GetSurveyJsName() is { } name)
                 {
-                    Counts[name] = Counts.GetValueOrDefault(name) + 1;
-                    Note(AlwaysHidden, name, inside.Always);
-                    Note(UnderVisibleIf, name, hiding.ByVisibleIf);
+                    NoteQuestion(element, name, new Hiding(inside.Always, hiding.ByVisibleIf));
                 }
 
                 Visit(element, inside);
             }
+        }
+
+        // Always is the question's own or an enclosing static visible: false; ByVisibleIf an enclosing visibleIf only.
+        private void NoteQuestion(JsonElement question, string name, Hiding hidden)
+        {
+            Counts[name] = Counts.GetValueOrDefault(name) + 1;
+            questions?.TryAdd(name, question);
+            Note(AlwaysHidden, name, hidden.Always);
+            Note(UnderVisibleIf, name, hidden.ByVisibleIf);
         }
 
         private bool HasVisibleIfNoted(JsonElement element)
@@ -187,5 +196,52 @@ internal sealed record CopyDefinition(
             new(
                 Always || container.TryGetPropertyValue(SurveyJsPropertyNames.Visible) is { ValueKind: JsonValueKind.False },
                 ByVisibleIf || visibleIf);
+    }
+}
+
+/// <summary>
+/// RUN TIME. The questions of the definition a submission was made on (<see cref="CopyDefinition.QuestionsIn"/>): every
+/// name, which questions show their own Other, and the source a copy offered on that version.
+/// </summary>
+internal sealed record SubmittedQuestions(
+    IReadOnlyDictionary<string, int> NameCounts,
+    ChoiceSources Sources,
+    SurveyChoiceDefaults Defaults)
+{
+    private readonly Dictionary<string, SelectChoices> _sourceReaders = new(StringComparer.Ordinal);
+
+    public bool ShowsOwnOther(string name) =>
+        NameCounts.GetValueOrDefault(name) == 1 && ChoiceSet.ShowsOther(Sources.QuestionsByName[name]);
+
+    public JsonElement? CopiedText(AnswerScope scope, string question) =>
+        OtherSourceOf(question) is { } other
+            ? CopyVisibility.CopiedOtherText(other.SourceName, scope, ReaderFor(other))
+            : null;
+
+    private SelectChoices ReaderFor(CopiedOther other)
+    {
+        if (!_sourceReaders.TryGetValue(other.SourceName, out var reader))
+        {
+            var choices = ChoiceSet.Read(other.Source, Defaults, Sources.Resolve(other.Source))!;
+            reader = SelectChoices.FromChoiceSet(choices);
+            _sourceReaders.Add(other.SourceName, reader);
+        }
+
+        return reader;
+    }
+
+    // Two questions with the same name share one catalog. It cannot identify either one's Other.
+    private CopiedOther? OtherSourceOf(string name)
+    {
+        if (NameCounts.GetValueOrDefault(name) != 1 ||
+            !Sources.QuestionsByName.TryGetValue(name, out var question) ||
+            Sources.Offered(question) is not { Other: { } other } offered ||
+            offered.TryGetChoice(SurveyJsPropertyNames.Other, out _) ||
+            NameCounts.GetValueOrDefault(other.SourceName) != 1)
+        {
+            return null;
+        }
+
+        return other;
     }
 }
