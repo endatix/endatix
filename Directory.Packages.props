@@ -61,7 +61,7 @@
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="SendGrid" Version="9.29.3" />
     <PackageVersion Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
-    <PackageVersion Include="coverlet.MTP" Version="10.1.0" />
+    <PackageVersion Include="coverlet.MTP" Version="10.1.1" />
     <PackageVersion Include="serilog.sinks.async" Version="2.1.0" />
     <!-- Crypto advisory floor is 10.0.13; kept on the AspNet patch line ($(AspNetVersion)). Pkcs is also PackageReferenced from Directory.Build.props. -->
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="$(AspNetVersion)" />
@@ -87,9 +87,9 @@
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <!-- Test-only: lets the logging tests assert on exported LogRecords without a collector. -->
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="$(OpenTelemetryVersion)" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.16.0" />
-    <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
-    <PackageVersion Include="Testcontainers.Keycloak" Version="4.16.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.17.0" />
+    <PackageVersion Include="Testcontainers.Keycloak" Version="4.17.0" />
     <PackageVersion Include="Respawn" Version="7.0.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="$(AspNetVersion)" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" />
