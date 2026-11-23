@@ -1,6 +1,7 @@
 using System.Reflection;
 using Endatix.Api.Builders;
 using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.Common;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Tests.Builders;
@@ -37,6 +38,22 @@ public sealed class ApiConfigurationBuilderEndpointDiscoveryTests
         // Assert
         using var provider = services.BuildServiceProvider();
         provider.GetService<ExportAddons>().Should().NotBeNull();
+    }
+
+    [Fact]
+    public void RegisterEndpointDiscovery_WithoutWebHookProcessing_MakesTheFormValidatorsPolicyResolvable()
+    {
+        // Arrange
+        // The form validators take OutboundAddressPolicy; a host without webhook processing still builds them, and
+        // refuses private endpoint addresses.
+        var services = new ServiceCollection();
+
+        // Act
+        new ApiConfigurationBuilder(services).RegisterEndpointDiscovery();
+
+        // Assert
+        using var provider = services.BuildServiceProvider();
+        provider.GetService<OutboundAddressPolicy>().Should().Be(OutboundAddressPolicy.PublicOnly);
     }
 
     [Fact]

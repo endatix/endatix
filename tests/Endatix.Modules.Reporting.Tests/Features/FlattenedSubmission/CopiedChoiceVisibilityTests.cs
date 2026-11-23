@@ -183,29 +183,16 @@ public sealed class CopiedChoiceVisibilityTests
     }
 
     [Fact]
-    public void Flatten_SourceThatIsItselfACopy_WritesOnlyThePickedChoice()
+    public void Flatten_InlineCheckbox_KeepsZeroForAnUnansweredQuestionInACompleteSubmission()
     {
         // Arrange
-        var definition = Survey(
-            STORES,
-            """{"type":"checkbox","name":"aided","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}""",
-            Copy("checkbox", """{"choicesFromQuestion":"aided","choicesFromQuestionMode":"selected"}"""));
+        var compiled = new FormSchemaCompiler().CompilePersisted(Survey(STORES));
 
         // Act
-        var cells = FlattenCopy(definition, """{"stores":["1","2"],"aided":["1","2"],"pick":["2"]}""");
-
-        // Assert
-        cells.Should().Equal(Cells(("1", null), ("2", "1"), ("3", null)));
-    }
-
-    [Fact]
-    public void Flatten_InlineCheckbox_KeepsZeroForAnUnansweredQuestion()
-    {
-        // Arrange
-        var definition = Survey(STORES);
-
-        // Act
-        var flattened = Flatten(definition, """{}""");
+        var flattened = FlattenedSubmissionFlattener.Flatten(
+            Json("""{}"""),
+            compiled.FlatteningMap,
+            ChoiceCatalogs.Read(compiled.CodebookJson, submissionComplete: true));
 
         // Assert
         Cell(flattened, "stores__1").Should().Be("0");
@@ -351,7 +338,8 @@ public sealed class CopiedChoiceVisibilityTests
         { STORES, """{"choicesFromQuestion":"stores","choicesVisibleIf":"{item} != '1'"}""", nameof(UnknownBecause.ChoicesVisibleIf) },
         { """{"type":"checkbox","name":"stores","choices":["1",{"value":"2","visibleIf":"{x} = 1"}]}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceChoicesVisibleIf) },
         { """{"type":"ranking","name":"stores","choices":["1","2"]}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsARanking) },
-        { """{"type":"checkbox","name":"stores","choicesFromQuestion":"other"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsNotOwnChoices) },
+        { """{"type":"checkbox","name":"stores","choicesByUrl":{"url":"https://example.com/stores"}}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsNotOwnChoices) },
+        { """{"type":"checkbox","name":"stores","edxDataListId":"list-1"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.SourceIsNotOwnChoices) },
         { """{"type":"text","name":"stores"}""", """{"choicesFromQuestion":"stores"}""", nameof(UnknownBecause.NoSelectSource) },
     };
 
@@ -383,7 +371,7 @@ public sealed class CopiedChoiceVisibilityTests
     private static Dictionary<string, string?> FlattenCopy(string definition, string submission) =>
         Cells(Flatten(definition, submission));
 
-    private static Dictionary<string, string?> FlattenCopy(string definition, string submission, bool complete)
+    internal static Dictionary<string, string?> FlattenCopy(string definition, string submission, bool complete)
     {
         var compiled = new FormSchemaCompiler().CompilePersisted(definition);
         return Cells(FlattenedSubmissionFlattener.Flatten(
@@ -393,9 +381,12 @@ public sealed class CopiedChoiceVisibilityTests
     }
 
     // The survey's own properties (a JSON object), then its one page.
-    private static string SurveyWith(string surveyProperties, params string[] questions)
+    internal static string SurveyWith(string surveyProperties, params string[] questions) =>
+        WithSurveyProperties(Survey(questions), surveyProperties);
+
+    internal static string WithSurveyProperties(string definition, string surveyProperties)
     {
-        var survey = System.Text.Json.Nodes.JsonNode.Parse(Survey(questions))!.AsObject();
+        var survey = System.Text.Json.Nodes.JsonNode.Parse(definition)!.AsObject();
         foreach (var (name, value) in System.Text.Json.Nodes.JsonNode.Parse(surveyProperties)!.AsObject())
         {
             survey[name] = value?.DeepClone();

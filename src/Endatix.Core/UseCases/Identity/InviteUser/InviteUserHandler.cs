@@ -124,6 +124,6 @@ public sealed class InviteUserHandler(
             });
         }
 
-        return Result.Success();
+        return await roleManagementService.EnsureCurrentUserCanGrantRolesAsync(roleNames, cancellationToken);
     }
 }

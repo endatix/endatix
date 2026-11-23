@@ -1,0 +1,2 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,customer,channels__A,channels__B,topics__P,topics__S,oldPerks__1,oldPerks__2,newPerks__1,newPerks__2,newPerks__other,newPerks__other_text,newPerks__none
+100,1,true,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,N/A,N/A,N/A,N/A,N/A,Sam,0,0,0,1,,,,,,,

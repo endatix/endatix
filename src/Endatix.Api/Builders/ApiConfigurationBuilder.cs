@@ -3,6 +3,7 @@ using Endatix.Api.Endpoints.Submissions;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
 using Endatix.Api.Setup;
+using Endatix.Core.Common;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Serialization;
 using Endatix.Framework.Setup;
@@ -245,6 +246,8 @@ public class ApiConfigurationBuilder
         var registration = EndpointDiscoveryRegistration.GetOrAdd(Services);
         var added = registration.Add([typeof(ApiConfigurationBuilder).Assembly]);
         Services.TryAddTransient<ExportAddons>();
+        // The form validators take the server's policy; webhook processing registers the configured one, which wins.
+        Services.TryAddSingleton(OutboundAddressPolicy.PublicOnly);
 
         // Re-registering is wasted work only when nothing changed *and* a registration already
         // exists. "Nothing new was added" alone is not the test: ScanAssemblies may have

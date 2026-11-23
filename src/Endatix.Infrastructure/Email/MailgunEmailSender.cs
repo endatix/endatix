@@ -69,7 +69,7 @@ public class MailgunEmailSender(
 
         var contentValues = new List<KeyValuePair<string, string>>
         {
-            new("from", email.From),
+            new("from", FromHeader(email)),
             new("subject", email.Subject),
             new("text", email.PlainTextBody),
             new("html", email.HtmlBody)
@@ -118,10 +118,8 @@ public class MailgunEmailSender(
             contentValues.Add(new("subject", email.Subject));
         }
 
-        if (email.Metadata.Count > 0)
-        {
-            contentValues.Add(new("h:X-Mailgun-Variables", JsonSerializer.Serialize(email.Metadata)));
-        }
+        // Never empty: the email variables are always there.
+        contentValues.Add(new("h:X-Mailgun-Variables", JsonSerializer.Serialize(_templateRenderer.ProviderTemplateData(email))));
 
         using var response = await SendSimpleEmailAsync(email, contentValues, cancellationToken);
 
@@ -143,6 +141,14 @@ public class MailgunEmailSender(
 
         return await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
     }
+
+    // MimeKit quotes a display name that holds a comma or other special character, which a hand-built
+    // "Name <address>" would not.
+    // Called after the From guard, so the address is set.
+    private static string FromHeader(EmailWithBody email) =>
+        string.IsNullOrWhiteSpace(email.FromName)
+            ? email.From!
+            : FromMailbox.Create(email.From!, email.FromName).ToString();
 
     private HttpClient CreateAuthorizedClient()
     {

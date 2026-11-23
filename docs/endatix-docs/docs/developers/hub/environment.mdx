@@ -118,7 +118,7 @@ Server-evaluated product gates, not the PostHog analytics `isFeatureEnabled` hel
 `posthog` evaluates flags through PostHog; omitted or `environment` reads `FLAG_*` variables and falls back to each flag's code default. The choice is **frozen at the first flag evaluation** in the process, so switching it means restarting Hub — flag values themselves still resolve per request.
 </Setting>
 <Setting name="FLAG_<FLAG_KEY>" note="environment provider only">
-One variable per flag: upper-snake the flag key, so `ai-features` becomes `FLAG_AI_FEATURES`. Booleans accept `"true"`; anything else reads as false. Flags ship disabled: `ai-features`, `experimental-features`, `advanced-analytics`, `form-analytics`, `storage-stats`, `reporting-export`, `multi-tenancy`, `personalization`. `personalization` (`FLAG_PERSONALIZATION`) shows a form's **Audience** tab; it also needs the API's [Audience module](/docs/developers/api/audience).
+One variable per flag: upper-snake the flag key, so `ai-features` becomes `FLAG_AI_FEATURES`. Booleans accept `"true"`; anything else reads as false. Flags ship disabled: `ai-features`, `experimental-features`, `advanced-analytics`, `form-analytics`, `storage-stats`, `reporting-export`, `multi-tenancy`, `personalization`, `white-labeling`. `white-labeling` (`FLAG_WHITE_LABELING`) applies the mounted [brand pack](/docs/configuration/brand-pack). `personalization` (`FLAG_PERSONALIZATION`) shows a form's **Audience** tab; it also needs the API's [Audience module](/docs/developers/api/audience).
 </Setting>
 </Settings>
 
@@ -155,11 +155,19 @@ Comma-separated profile fields to add as columns in the submissions grid.
 </Setting>
 </Settings>
 
+### Branding
+
+<Settings>
+<Setting name="ENDATIX_BRAND_DIR">
+The folder of a mounted [brand pack](/docs/configuration/brand-pack) (`brand.json` and the files it names). Applied while the `white-labeling` flag is on. Unset means the built-in Endatix brand.
+</Setting>
+</Settings>
+
 ### Public pages
 
 <Settings>
 <Setting name="ENDATIX_SHOW_POWERED_BY" default="true">
-Shows a "Powered by Endatix" link at the foot of public status pages: access denied, form unavailable, closed, not found, already responded, expired or invalid submission links, maintenance, and a failed PDF export. Any value other than `false` leaves it on. It never appears inside a live survey or in signed-in Hub.
+Shows a "Powered by Endatix" link at the foot of public status pages: access denied, form unavailable, closed, not found, already responded, expired or invalid submission links, maintenance, and a failed PDF export. Any value other than `false` leaves it on. A [brand pack](/docs/configuration/brand-pack)'s `poweredBy` wins over it. It never appears inside a live survey or in signed-in Hub.
 </Setting>
 </Settings>
 

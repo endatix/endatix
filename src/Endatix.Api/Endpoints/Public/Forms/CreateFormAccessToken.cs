@@ -16,25 +16,33 @@ namespace Endatix.Api.Endpoints.Public.Forms;
 public sealed class CreateFormAccessToken(IMediator mediator)
     : Endpoint<CreateFormAccessTokenRequest, Results<Ok<CreateFormAccessTokenResponse>, ProblemHttpResult>>
 {
+    /// <summary>Tokens one client may request per minute, as many as submission opens.</summary>
+    public const int REQUESTS_PER_MINUTE = 60;
+
     /// <inheritdoc />
     public override void Configure()
     {
         Post("forms/{formId}/access-tokens");
         Group<PublicApiGroup>();
         AllowAnonymous();
+        Throttle(REQUESTS_PER_MINUTE, 60);
         Summary(s =>
         {
             s.Summary = "Create form access token";
             s.Description =
-                "Returns a JWT for Forms based access control (ReBAC). Requires the form id to be provided in the route.";
+                "Returns a JWT for Forms based access control (ReBAC). Requires the form id to be provided in the route. " +
+                "A token issued for a public form stops working once the form is private, disabled or deleted. " +
+                $"Limited to {REQUESTS_PER_MINUTE} requests a minute per client.";
             s.Responses[200] = "Form access token created successfully.";
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[404] = "Form not found.";
+            s.Responses[429] = "Too many requests.";
         });
         Description(builder => builder
             .Produces<CreateFormAccessTokenResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests));
     }
 
     /// <inheritdoc />

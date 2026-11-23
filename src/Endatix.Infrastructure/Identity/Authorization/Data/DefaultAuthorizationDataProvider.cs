@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Identity.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -76,11 +77,14 @@ internal sealed class DefaultAuthorizationDataProvider(
                 .ToListAsync(cancellationToken);
 
             var assignedRoles = userRoles
+                .Where(IsNotBorrowingAnAdminRoleName)
                 .Select(r => r.Name!)
                 .ToArray();
 
             var assignedPermissions = userRoles
-                .SelectMany(r => r.RolePermissions.Select(rp => rp.Permission.Name))
+                .SelectMany(r => r.RolePermissions
+                    .Select(rp => rp.Permission.Name)
+                    .Where(name => RoleGrantCeiling.GrantsOnRead(r, name)))
                 .Distinct()
                 .ToArray();
 
@@ -103,6 +107,14 @@ internal sealed class DefaultAuthorizationDataProvider(
     /// <summary>When the first of the loaded permissions lapses, so the cache stops serving them; default when none expires.</summary>
     private static DateTime EarliestPermissionExpiry(List<AppRole> roles) =>
         roles.SelectMany(role => role.RolePermissions).Min(rolePermission => rolePermission.ExpiresAt) ?? default;
+
+    /// <summary>
+    /// Admin and PlatformAdmin grant everything by name downstream (<see cref="AuthorizationData.IsAdmin"/>), so only
+    /// the built-in system rows may carry those names into the authorization data. A tenant role that borrows one
+    /// keeps its permissions but not the name.
+    /// </summary>
+    internal static bool IsNotBorrowingAnAdminRoleName(AppRole role) =>
+        !BuiltInAdminRoles.HasAdminName(role.Name) || BuiltInAdminRoles.IsBuiltInAdminRole(role);
 
     internal static Expression<Func<AppRole, bool>> IsRoleInAuthorizationScope(long tenantId)
     {
@@ -133,7 +145,7 @@ internal sealed class DefaultAuthorizationDataProvider(
                 role => role.Id,
                 (_, role) => role)
             .AnyAsync(
-                role => role.IsActive && role.Name == platformAdminRoleName,
+                role => role.IsActive && role.IsSystemDefined && role.TenantId <= 0 && role.Name == platformAdminRoleName,
                 cancellationToken);
     }
 }

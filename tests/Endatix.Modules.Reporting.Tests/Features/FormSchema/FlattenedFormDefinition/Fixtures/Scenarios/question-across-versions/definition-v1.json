@@ -1,0 +1,59 @@
+{
+  "pages": [
+    {
+      "name": "page1",
+      "elements": [
+        {
+          "type": "text",
+          "name": "customer",
+          "title": "Your name"
+        },
+        {
+          "type": "checkbox",
+          "name": "channels",
+          "title": "Where did you hear about us?",
+          "choices": [
+            {
+              "value": "A",
+              "text": "Radio"
+            },
+            {
+              "value": "B",
+              "text": "Friends"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "topics",
+          "title": "Which topics interest you?",
+          "choices": [
+            {
+              "value": "P",
+              "text": "Prices"
+            },
+            {
+              "value": "S",
+              "text": "Service"
+            }
+          ]
+        },
+        {
+          "type": "checkbox",
+          "name": "oldPerks",
+          "title": "Which perks did you use?",
+          "choices": [
+            {
+              "value": "1",
+              "text": "Free delivery"
+            },
+            {
+              "value": "2",
+              "text": "Gift wrap"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

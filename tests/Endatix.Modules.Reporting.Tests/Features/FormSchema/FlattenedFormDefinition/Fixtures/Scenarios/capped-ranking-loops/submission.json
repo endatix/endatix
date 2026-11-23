@@ -1,0 +1,16 @@
+{
+  "poolSize": 5,
+  "occasionPool": [1, "2", "3", 4, "5", 6],
+  "brands": ["1", "2", "3"],
+  "traits": ["t1", "t2"],
+  "topOccasions": ["5", "3"],
+  "aware": ["3", "1"],
+  "occasionLoop": [
+    { "itemValue": "3", "itemText": "Occasion 3", "loopIndex": 1, "occasionBrand": "1" },
+    { "itemValue": "5", "itemText": "Occasion 5", "loopIndex": 0, "occasionBrand": "none" }
+  ],
+  "traitLoop": [
+    { "itemValue": "3", "itemText": "Brand 3", "loopIndex": 0, "brandTraits": ["t2"] },
+    { "itemValue": "1", "itemText": "Brand 1", "loopIndex": 1, "brandTraits": ["none"] }
+  ]
+}

@@ -1,4 +1,5 @@
 using Endatix.Core.Configuration;
+using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
@@ -23,8 +24,8 @@ public class EmailTemplateSettingsBindingTests
 
         var fromAddress = EmailTemplateFromAddress.Resolve(
             settings,
-            EmailTemplateSettings.UserInvitationTemplateId,
-            "noreply@endatix.com");
+            new EmailTemplate(EmailTemplateSettings.UserInvitationTemplateId, "Subject", "<p>Body</p>", "Body", "noreply@endatix.com"),
+            new DeploymentSender("noreply@endatix.com", "Endatix", ConfiguredAddress: null));
 
         fromAddress.Should().Be("pick@endatix.com");
     }

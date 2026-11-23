@@ -80,4 +80,14 @@ public class FormIntegrationEventTests
         form.DomainEvents.OfType<FormDeletedEvent>().Should().ContainSingle();
         form.Revision.Should().Be(2);
     }
+
+    [Fact]
+    public void Payload_CarriesNoFormSettings()
+    {
+        var form = CreateForm();
+
+        var payload = System.Text.Json.JsonSerializer.Serialize(new FormUpdatedEvent(form).GetPayload());
+
+        payload.Should().NotContainEquivalentOf("pdf").And.NotContainEquivalentOf("settings\"");
+    }
 }

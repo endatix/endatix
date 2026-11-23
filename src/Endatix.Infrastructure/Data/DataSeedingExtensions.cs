@@ -42,13 +42,13 @@ public static class DataSeedingExtensions
 
         var userManager = scopedProvider.GetRequiredService<UserManager<AppUser>>();
         var userRegistrationService = scopedProvider.GetRequiredService<IUserRegistrationService>();
-        var roleManagementService = scopedProvider.GetRequiredService<IRoleManagementService>();
+        var systemRoleAssignment = scopedProvider.GetRequiredService<ISystemRoleAssignment>();
         var dataOptions = scopedProvider.GetRequiredService<IOptions<DataOptions>>().Value;
 
         await IdentitySeed.SeedInitialUser(
             userManager,
             userRegistrationService,
-            roleManagementService,
+            systemRoleAssignment,
             dataOptions,
             logger);
 

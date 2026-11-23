@@ -5,6 +5,19 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
 ## C# conventions
 
 - Primary constructors for DI. `sealed` by default; `internal` unless the type is public API or framework-discovered (endpoints, requests, validators).
+- A type added by a feature still in development is `internal sealed`, unless another assembly or a host needs it. Then it is public with `[Experimental("ENDATIXnnnn")]` (`System.Diagnostics.CodeAnalysis`), one ID per feature, so its C# signatures can change between releases. The owner declares a feature's API stable (on demand, or with the developer customization story); then the attribute comes off, and its table row and its ID in `EndatixExperimentalIds` are deleted with it. An ID is never reused. Endatix's own projects suppress the IDs through `EndatixExperimentalIds` in the root `Directory.Build.props`; add a new ID there and in the table below. The samples do not import the root props: a sample that uses an Experimental type opts in per project (`<NoWarn>$(NoWarn);ENDATIXnnnn</NoWarn>`), as a consumer does. Two limits:
+  - Experimental frees the C# signatures only, never stored or wire values (an entitlement name, a route, a JSON field).
+  - A change to an Experimental type is not a breaking change in the release notes; the notes name its ID instead.
+
+  | ID | Feature | Types |
+  | --- | --- | --- |
+  | `ENDATIX0001` | Tenant entitlements | `ITenantEntitlements`, `EntitlementNames`, `TenantEntitlementsServiceCollectionExtensions` |
+  | `ENDATIX0002` | Tenant branding | `TenantBranding`, `TenantBrandingVersion`, `ITenantBrandingRepository`, `AppDbContext.TenantBrandings`, `AppDbContext.TenantBrandingVersions`, `PublishTenantBrandingCommand`, `RestoreTenantBrandingCommand`, `RollbackTenantBrandingCommand`, `ResetTenantBrandingCommand`, `TenantBrandingDto`, `GetTenantBrandingQuery`, `TenantBrandingReadDto`, `ListTenantBrandingVersionsQuery`, `TenantBrandingVersionDto`, `IPublicTenantCacheInvalidator`, the `Endpoints/TenantBranding` endpoints, requests, validators and models |
+  | `ENDATIX0003` | Deployment brand | `DeploymentBrand`, `BrandPackException`, `AddDeploymentBrand` |
+  | `ENDATIX0004` | Email sender and variables | `EmailVariables`, `DeploymentSender`, `EmailSenderSettings`, `EmailWithBody.FromName`, `EmailTemplateRenderer.ProviderTemplateData` |
+  | `ENDATIX0005` | Form settings | `FormSettings`, `PdfSettings`, `FormSettingsChange`, `IFormSettingsRepository`, `AppDbContext.FormSettings`, `GetFormSettingsQuery`, `PartialUpdateFormSettingsCommand`, `FormSettingsDto`, `SubmissionFormTheme`, `FormSettingsModel`, `PdfSettingsModel`, the `FormSettings` endpoints |
+
+  Next free ID: `ENDATIX0006`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
 - Before committing C#, the build must add no new diagnostics of any severity on the lines you changed. SonarCloud imports every result in the build's SARIF log, including the info and suggestion ones (CA2012, CA1859, xUnit1045) that `dotnet build` never prints. To see them, run `dotnet build Endatix.slnx --no-incremental -p:ErrorLog=obj/diagnostics.sarif%2Cversion=2.1` and read each project's `obj/diagnostics.sarif` for results on your lines (the Endatix clean-code skill's `diagnostics.py` does this for you). A rule that is noise in tests gets `severity = none` in `.editorconfig`; `suggestion` still reaches Sonar.
@@ -125,7 +138,7 @@ Account-facing failures must be **indistinguishable to the caller**: same status
 
 ## Transactional email
 
-- Compose `EmailWithTemplate` with `To`, `TemplateId` and `Metadata` only. **Do not set `From`** on stored templates: `EmailTemplateRenderer` resolves it (`Endatix:EmailTemplates:*:FromAddress` → template row → default). External templates (`IsExternal = true`) send `From` as-is.
+- Compose `EmailWithTemplate` with `To`, `TemplateId` and `Metadata` only. **Do not set `From`** on stored templates: `EmailTemplateRenderer` resolves it (`Endatix:EmailTemplates:*:FromAddress` → `Endatix:Integrations:Email:Sender:Address` when set → template row → the `DeploymentSender` address when the row is empty, so no provider gets an empty From) and names it with the `DeploymentSender` (`Endatix:Integrations:Email:Sender:Name`, else the deprecated `SmtpSettings:DefaultFromName`, else the brand name). The brand never names a sender address or anything else about sending. Every email can use `{{productName}}`, `{{supportAddress}}` and `{{websiteUrl}}` from `EmailVariables`, which the brand contributes; a stored template renders them, and an external template (`IsExternal = true`) gets them as the provider's dynamic data. Composed metadata names the product through `EmailVariables`, never as "Endatix". A seed row may switch to those variables only one stable release after the release that added them (expand, then contract), so a rolled-back pod never sends a literal placeholder. External templates send `From` as-is.
 - `Metadata` keys match the template's `{{placeholders}}` (`Scripts/Data/*.sql`); a template id with no row throws at render time.
 - Best-effort after a committed write: catch and log a send failure, do not turn it into a 5xx. When nothing was persisted, return `Result.Unavailable` (`ForgotPasswordHandler`).
 
@@ -221,6 +234,7 @@ Single-context. `GLOSSARY.md` at the root is created lazily by `domain-modeling`
 - Lint: `dotnet format Endatix.slnx --verify-no-changes --include <changed files>`. CI has no lint step and the whole solution does not pass yet, so check only the files you touched
 - Check (build-warnings): a C# change adds no in-scope build warning, as CI's gate counts them. `dotnet build Endatix.slnx --no-incremental 2>&1 | tee build.log; ./scripts/check-build-warnings.sh build.log` (exit 0; 1 lists the in-scope warnings; NU1901-NU1904 are allowed). `--no-incremental` matters: an incremental build skips projects and hides their warnings. `./scripts/check-build-warnings.test.sh` tests the script itself
 - Run: `dotnet run --project src/Endatix.WebHost` (API on https://localhost:5001)
+- Signing keys: outside Development the API refuses to start unless `Endatix:Auth:Providers:EndatixJwt:SigningKey` and `Endatix:Submissions:AccessTokenSigningKey` are both set, at least 32 bytes, and not a published example. Development generates a random key for each one that is not set
 - PR title scope: `e[0-9]+|deps|deps-dev` (the full title and branch rules are in [CONTRIBUTING.md](CONTRIBUTING.md))
 - Branch name: `<type>/e<issue>-<slug>`
 

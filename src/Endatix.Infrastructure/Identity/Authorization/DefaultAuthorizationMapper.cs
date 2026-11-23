@@ -19,7 +19,7 @@ internal sealed class DefaultAuthorizationMapper(
 {
 
     /// <inheritdoc />
-    public async Task<MappingResult> MapToAppRolesAsync(string[] externalRoles, Dictionary<string, string> roleMappings, CancellationToken cancellationToken)
+    public async Task<MappingResult> MapToAppRolesAsync(string[] externalRoles, Dictionary<string, string> roleMappings, long tenantId, CancellationToken cancellationToken)
     {
         var normalizedMappingsResult = NormalizeRoleMappings(roleMappings);
         if (!normalizedMappingsResult.IsSuccess)
@@ -41,25 +41,15 @@ internal sealed class DefaultAuthorizationMapper(
         try
         {
             var mappedRolesWithPermissions = await roleManager.Roles
-                            .Where(x => x.IsActive && normalizedRoleNames.Contains(x.NormalizedName))
+                            .InTenantScope(normalizedRoleNames, tenantId)
                             .Include(x => x.RolePermissions)
                                 .ThenInclude(x => x.Permission)
                             .AsSplitQuery()
                             .AsNoTracking()
                             .ToListAsync(cancellationToken);
 
-            var roleNames = mappedRolesWithPermissions
-                .Where(role => role.Name is not null)
-                .Select(role => role.Name!)
-                .Distinct()
-                .ToArray();
-
-            var permissions = mappedRolesWithPermissions
-                .SelectMany(x => x.RolePermissions)
-                .Where(x => x.IsActive && x.Permission is not null && !string.IsNullOrEmpty(x.Permission.Name))
-                .Select(x => x.Permission.Name)
-                .Distinct()
-                .ToArray();
+            var roleNames = ScopedRoleRead.GrantedRoleNames(mappedRolesWithPermissions);
+            var permissions = ScopedRoleRead.GrantedPermissions(mappedRolesWithPermissions);
 
             return MappingResult.Success(roleNames, permissions);
         }

@@ -6,12 +6,18 @@ namespace Endatix.IntegrationTests.Infrastructure.Jobs;
 
 /// <summary>
 /// A local HTTP endpoint that records every webhook POST it receives, with its body, and answers with the status configured for
-/// its path.
+/// its path, or redirects to another of its paths.
 /// </summary>
 internal sealed class StubWebHookReceiver : IAsyncDisposable
 {
+    /// <summary>
+    /// The receiver listens on loopback, so a host that sends to it sets this setting to <c>true</c>.
+    /// </summary>
+    public const string AllowPrivateNetworkTargetsSetting = "Endatix:WebHooks:ServerSettings:AllowPrivateNetworkTargets";
+
     private readonly HttpListener _listener = new();
     private readonly ConcurrentDictionary<string, HttpStatusCode> _statuses = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _redirects = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<ReceivedWebHook> _received = new();
     private readonly Task _serving;
 
@@ -31,6 +37,13 @@ internal sealed class StubWebHookReceiver : IAsyncDisposable
     public string UrlFor(string path, HttpStatusCode status = HttpStatusCode.OK)
     {
         _statuses[path] = status;
+        return $"{BaseUrl}/{path}";
+    }
+
+    /// <summary>A URL that answers 302 with a Location of <paramref name="targetPath"/> on this receiver.</summary>
+    public string RedirectFor(string path, string targetPath)
+    {
+        _redirects[path] = $"{BaseUrl}/{targetPath}";
         return $"{BaseUrl}/{path}";
     }
 
@@ -67,7 +80,16 @@ internal sealed class StubWebHookReceiver : IAsyncDisposable
             var path = context.Request.Url!.AbsolutePath.Trim('/');
             using var body = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
             _received.Enqueue(new ReceivedWebHook(path, context.Request.Headers["X-Endatix-Hook-Id"], await body.ReadToEndAsync()));
-            context.Response.StatusCode = (int)_statuses.GetValueOrDefault(path, HttpStatusCode.OK);
+            if (_redirects.TryGetValue(path, out var location))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.Found;
+                context.Response.RedirectLocation = location;
+            }
+            else
+            {
+                context.Response.StatusCode = (int)_statuses.GetValueOrDefault(path, HttpStatusCode.OK);
+            }
+
             context.Response.Close();
         }
     }

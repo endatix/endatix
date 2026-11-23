@@ -49,6 +49,9 @@ internal static class SurveyJsPropertyNames
     /// <summary>SurveyJS: which of the source's choices a <see cref="ChoicesFromQuestion"/> copy shows (all, selected, unselected).</summary>
     public const string ChoicesFromQuestionMode = "choicesFromQuestionMode";
     public const string ChoicesVisibleIf = "choicesVisibleIf";
+    public const string Visible = "visible";
+    public const string ClearIfInvisible = "clearIfInvisible";
+    public const string DetailElements = "detailElements";
     public const string VisibleIf = "visibleIf";
     public const string ChoiceValuesFromQuestion = "choiceValuesFromQuestion";
     public const string AllowCustomChoices = "allowCustomChoices";

@@ -127,10 +127,11 @@ Press Enter to use defaults, or type your own values.
 
 The script will automatically initiate the actions to:
 
-1. Download the required Docker images
-2. Create and start all containers
-3. Set up the database and initial admin user
-4. Optionally seed sample forms and submissions
+1. Generate the two API signing keys into `.env`, or keep the ones an earlier run wrote there
+2. Download the required Docker images
+3. Create and start all containers
+4. Set up the database and initial admin user
+5. Optionally seed sample forms and submissions
 
 ---
 
@@ -201,7 +202,8 @@ Configuration is passed primarily via `appsettings.json` or Environment Override
 | Variable/Setting | Description | Default |
 |------------------|-------------|---------|
 | `ConnectionStrings__DefaultConnection` | SQL Server connection string | Required |
-| `Security__JwtSigningKey` | Secret used to sign API tokens | Required |
+| `Endatix__Auth__Providers__EndatixJwt__SigningKey` | Signs sign-in tokens. At least 32 bytes, for example `openssl rand -base64 48`. Outside Development the API refuses to start without it | Required |
+| `Endatix__Submissions__AccessTokenSigningKey` | Signs submission access tokens. Same rules as the sign-in key, with its own value | Required |
 | `Endatix__Hub__HubBaseUrl` | Public Hub origin for email links — [API Hub URL](/docs/configuration/settings/hub-settings) | Optional |
 | `Endatix__Cors__CorsPolicies__0__AllowedOrigins` | Array of CORS URLs allowed | `["*"]` |
 | `Email__SendGridSettings__ApiKey` / `Email__MailgunSettings__ApiKey` | Keys for email delivery integrations | Optional |
@@ -230,7 +232,8 @@ services:
     image: endatix/endatix-api:latest
     environment:
       ConnectionStrings__DefaultConnection: "Server=endatix-db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;"
-      Security__JwtSigningKey: ${SECURITY_JWT_SIGNING_KEY}
+      Endatix__Auth__Providers__EndatixJwt__SigningKey: ${ENDATIX_JWT_SIGNING_KEY:?Set ENDATIX_JWT_SIGNING_KEY to the output of openssl rand -base64 48}
+      Endatix__Submissions__AccessTokenSigningKey: ${ENDATIX_SUBMISSION_SIGNING_KEY:?Set ENDATIX_SUBMISSION_SIGNING_KEY to the output of openssl rand -base64 48}
     ports:
       - "5001:8080"
     networks:

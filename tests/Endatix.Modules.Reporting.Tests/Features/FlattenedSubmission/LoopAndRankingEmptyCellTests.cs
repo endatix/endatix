@@ -173,4 +173,50 @@ public sealed class LoopAndRankingEmptyCellTests
         Cell(flattened, "rank__x").Should().Be("1");
         Cell(flattened, "rank__y").Should().BeNull();
     }
+
+    [Fact]
+    public void Flatten_CopyWhoseSourceNameIsUsedInTwoLoops_WritesOnlyThePickedChoice()
+    {
+        // Arrange
+        var definition = Survey(
+            BRANDS,
+            Loop("""
+                 {"type":"checkbox","name":"stores","choices":["1","2","3"]},
+                 {"type":"checkbox","name":"pick","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}
+                 """),
+            """{"type":"paneldynamic","name":"otherLoop","loopSource":["brands"],"templateElements":[{"type":"checkbox","name":"stores","choices":["1","2","3"]}]}""");
+
+        // Act
+        var flattened = Flatten(
+            definition,
+            """{"brands":["1"],"brandLoop":[{"itemValue":"1","stores":["1","2"],"pick":["1"]}],"otherLoop":[{"itemValue":"1","stores":["3"]}]}""");
+
+        // Assert
+        Cell(flattened, "brandLoop__1__pick__1").Should().Be("1");
+        Cell(flattened, "brandLoop__1__pick__2").Should().BeNull();
+        Cell(flattened, "brandLoop__1__pick__3").Should().BeNull();
+    }
+
+    [Fact]
+    public void Flatten_CopyWhoseSourceNameIsUsedInALoopAndTheLoopInsideIt_WritesOnlyThePickedChoice()
+    {
+        // Arrange
+        var definition = Survey(
+            BRANDS,
+            Loop("""
+                 {"type":"checkbox","name":"stores","choices":["1","2","3"]},
+                 {"type":"paneldynamic","name":"innerLoop","loopSource":["brands"],"templateElements":[{"type":"checkbox","name":"stores","choices":["1","2","3"]}]},
+                 {"type":"checkbox","name":"pick","choicesFromQuestion":"stores","choicesFromQuestionMode":"selected"}
+                 """));
+
+        // Act
+        var flattened = Flatten(
+            definition,
+            """{"brands":["1"],"brandLoop":[{"itemValue":"1","stores":["1","2"],"pick":["1"],"innerLoop":[{"itemValue":"1","stores":["3"]}]}]}""");
+
+        // Assert
+        Cell(flattened, "brandLoop__1__pick__1").Should().Be("1");
+        Cell(flattened, "brandLoop__1__pick__2").Should().BeNull();
+        Cell(flattened, "brandLoop__1__pick__3").Should().BeNull();
+    }
 }

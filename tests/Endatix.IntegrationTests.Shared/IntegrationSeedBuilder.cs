@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
-using Endatix.Core.Common;
-using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Common;
+using Endatix.Core.Entities;
 using Endatix.Core.Entities.Identity;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Identity;
@@ -155,6 +155,56 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
     }
 
     /// <summary>
+    /// Seeds a system-defined role at tenant 0, the shape the migrations give the built-in roles, if it does not
+    /// already exist.
+    /// </summary>
+    public async Task SeedSystemRoleAsync(string roleName, CancellationToken cancellationToken = default)
+    {
+        using var scope = _services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+
+        var exists = await db.Roles.AnyAsync(x => x.TenantId == 0 && x.Name == roleName, cancellationToken);
+        if (exists)
+        {
+            return;
+        }
+
+        var role = AppRole.CreateSystemRole(roleName, tenantId: 0);
+        role.NormalizedName = roleName.ToUpperInvariant();
+        db.Roles.Add(role);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Admin and PlatformAdmin keep their production shape, one system row at tenant 0, which is the only shape the
+    /// API treats as an administrator. The other persisted system roles get a row in the tenant.
+    /// </summary>
+    private async Task SeedPersistedSystemRoleAsync(
+        long tenantId,
+        SystemRole systemRole,
+        bool includePermissions,
+        CancellationToken cancellationToken)
+    {
+        var roleTenantId = IsAdminRole(systemRole) ? 0 : tenantId;
+        if (roleTenantId == 0)
+        {
+            await SeedSystemRoleAsync(systemRole.Name, cancellationToken);
+        }
+        else
+        {
+            await SeedRoleAsync(tenantId, systemRole.Name, cancellationToken);
+        }
+
+        if (includePermissions)
+        {
+            await SeedRolePermissionsAsync(roleTenantId, systemRole.Name, systemRole.Permissions, cancellationToken);
+        }
+    }
+
+    private static bool IsAdminRole(SystemRole systemRole) =>
+        systemRole == SystemRole.Admin || systemRole == SystemRole.PlatformAdmin;
+
+    /// <summary>
     /// Seeds a user for the given tenant if one with the same user name does not already exist.
     /// When <paramref name="password"/> is provided the user is created via <see cref="UserManager{TUser}"/>
     /// so the password is hashed; otherwise the user is added raw to the store.
@@ -204,7 +254,8 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
     }
 
     /// <summary>
-    /// Assigns a role to a user for the given tenant. No-op if either the user, role, or assignment does not exist.
+    /// Assigns a role to a user for the given tenant: the tenant's role of that name, else the system role at tenant 0.
+    /// No-op if either the user or the role does not exist, or the assignment already does.
     /// </summary>
     public async Task SeedUserRoleAssignmentAsync(
         long tenantId,
@@ -218,7 +269,9 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
         var user = await db.Users
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.UserName == userName, cancellationToken);
         var role = await db.Roles
-            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Name == roleName, cancellationToken);
+            .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.Name == roleName, cancellationToken)
+            ?? await db.Roles
+                .FirstOrDefaultAsync(x => x.TenantId == 0 && x.IsSystemDefined && x.Name == roleName, cancellationToken);
 
         if (user is null || role is null)
         {
@@ -346,12 +399,7 @@ public sealed class IntegrationSeedBuilder(IServiceProvider services)
             {
                 foreach (var systemRole in SystemRole.AllSystemRoles.Where(x => x.IsPersisted))
                 {
-                    await SeedRoleAsync(tenantId, systemRole.Name, cancellationToken);
-
-                    if (resolvedOptions.IncludeRolePermissions)
-                    {
-                        await SeedRolePermissionsAsync(tenantId, systemRole.Name, systemRole.Permissions, cancellationToken);
-                    }
+                    await SeedPersistedSystemRoleAsync(tenantId, systemRole, resolvedOptions.IncludeRolePermissions, cancellationToken);
                 }
             }
 

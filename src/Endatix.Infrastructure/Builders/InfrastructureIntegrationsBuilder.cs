@@ -34,6 +34,7 @@ public class InfrastructureIntegrationsBuilder
         LogSetupInfo("Configuring integrations with default settings");
 
         _parentBuilder.Services.AddExternalStorage();
+        _parentBuilder.Services.AddDeploymentBrand(_parentBuilder.Configuration);
         _parentBuilder.Services.AddEmailTemplateSettings();
         _parentBuilder.Services.AddEmailSender<SmtpEmailSender, SmtpSettings>();
         _parentBuilder.Services.AddReCaptcha(_parentBuilder.Configuration);

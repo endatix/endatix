@@ -1,5 +1,6 @@
 using System.Text;
 using Ardalis.GuardClauses;
+using Endatix.Infrastructure.Identity.SigningKeys;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +37,7 @@ public sealed class EndatixUserJwtAuthProvider : IAuthProvider
         }
 
         Guard.Against.NullOrWhiteSpace(options.Issuer);
-        Guard.Against.NullOrWhiteSpace(options.SigningKey);
+        SigningKeyRule.EnsureValid<EndatixJwtOptions>(options.SigningKey, SigningKeyRule.JWT_KEY_PATH);
 
         _issuer = options.Issuer;
 

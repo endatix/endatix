@@ -46,7 +46,7 @@ const sidebars: SidebarsConfig = {
           label: "Upgrading",
           collapsed: true,
           link: { type: "doc", id: "guides/upgrading/index" },
-          items: ["guides/upgrading/v0-9-2", "guides/upgrading/v0-9-1"],
+          items: ["guides/upgrading/v0-9-3", "guides/upgrading/v0-9-2", "guides/upgrading/v0-9-1"],
         },
       ],
     },
@@ -110,6 +110,7 @@ const sidebars: SidebarsConfig = {
         "configuration/security-configuration",
         "configuration/observability",
         "configuration/bring-your-own-telemetry",
+        "configuration/brand-pack",
         {
           type: "category",
           label: "Settings",

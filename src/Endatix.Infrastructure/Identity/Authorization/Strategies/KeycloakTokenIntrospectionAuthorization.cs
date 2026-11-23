@@ -80,6 +80,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             var mappingResult = await externalAuthorizationMapper.MapToAppRolesAsync(
                 introspectionResult.Value.ExternalRoles,
                 keycloakSettings.Authorization.RoleMappings,
+                keycloakSettings.DefaultTenantId,
                 cancellationToken);
             if (!mappingResult.IsSuccess)
             {

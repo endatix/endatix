@@ -1,0 +1,302 @@
+=== email-verification
+From: noreply@endatix.com
+To: user@example.com
+Subject: Verify your email to activate your Endatix account
+--- html
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Verify your email address</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50;">Verify your email address</h2>
+        <p>Thank you for creating your Endatix account.</p>
+
+        <p>To get started, please verify your email address by clicking the button below:</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="https://hub.example.com/verify-email?token=verification-token"
+               style="background-color: #0066ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Verify email address
+            </a>
+        </div>
+
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #7f8c8d;">https://hub.example.com/verify-email?token=verification-token</p>
+
+        <p>This verification link will expire in 24 hours and can only be used once.</p>
+
+        <p>If you didn’t create an Endatix account, you can safely ignore this email.</p>
+
+        <p>– The Endatix Team</p>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ecf0f1;">
+        <p style="font-size: 12px; color: #7f8c8d;">
+            This is an automated message, please do not reply to this email.
+        </p>
+    </div>
+</body>
+</html>
+--- text
+Verify your email address
+
+Thank you for creating your Endatix account.
+
+To get started, please verify your email address by clicking the link below:
+
+https://hub.example.com/verify-email?token=verification-token
+
+This verification link will expire in 24 hours and can only be used once.
+
+If you didn’t create an Endatix account, you can safely ignore this email.
+
+– The Endatix Team
+
+---
+
+This is an automated message. Please do not reply to this email.
+=== user-invitation
+From: noreply@endatix.com
+To: user@example.com
+Subject: Accept your Endatix invitation
+--- html
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Accept your Endatix invitation</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50;">Accept your Endatix invitation</h2>
+        <p>Set your password to activate your account and sign in to Endatix Hub.</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="https://hub.example.com/activate-invite?token=invitation-token"
+               style="background-color: #0066ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Accept invitation
+            </a>
+        </div>
+
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #7f8c8d;">https://hub.example.com/activate-invite?token=invitation-token</p>
+
+        <p>This invitation link will expire and can only be used once.</p>
+        <p>If you were not expecting this invitation, you can safely ignore this email.</p>
+
+        <p>– The Endatix Team</p>
+    </div>
+</body>
+</html>
+--- text
+Accept your Endatix invitation
+
+Set your password to activate your account and sign in to Endatix Hub.
+
+https://hub.example.com/activate-invite?token=invitation-token
+
+This invitation link will expire and can only be used once.
+
+If you were not expecting this invitation, you can safely ignore this email.
+
+– The Endatix Team
+=== forgot-password
+From: noreply@endatix.com
+To: user@example.com
+Subject: Reset your password
+--- html
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Your Endatix password reset link</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50;">Your password reset link</h2>
+        <p>We received a request to reset the password for your Endatix account.</p>
+        
+        <p>To reset your password, please click the button below:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="https://hub.example.com/reset-password?email=user@example.com&amp;resetCode=cmVzZXQtdG9rZW4" 
+               style="background-color: #0066ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Reset password
+            </a>
+        </div>
+
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #7f8c8d;">https://hub.example.com/reset-password?email=user@example.com&amp;resetCode=cmVzZXQtdG9rZW4</p>
+        
+        <p>This link will expire in 2 hours and can only be used once.</p>
+        
+        <p>If you didn’t request a password reset, you can safely ignore this email.</p>
+        
+        <p>– The Endatix Team</p>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ecf0f1;">
+        <p style="font-size: 12px; color: #7f8c8d;">
+            This is an automated message, please do not reply to this email.
+        </p>
+    </div>
+</body>
+</html>
+--- text
+Your Endatix password reset link
+
+We received a request to reset the password for your Endatix account.
+
+To reset your password, please copy and paste the link below into your browser:
+
+https://hub.example.com/reset-password?email=user@example.com&resetCode=cmVzZXQtdG9rZW4
+
+This link will expire in 2 hours and can only be used once.
+
+If you didn’t request a password reset, you can safely ignore this email.
+
+– The Endatix Team
+
+---
+
+This is an automated message. Please do not reply to this email.
+=== password-changed
+From: noreply@endatix.com
+To: user@example.com
+Subject: Your Endatix password has been updated
+--- html
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Your Endatix password has been updated</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50;">Your Endatix password has been updated</h2>
+        <p>We wanted to let you know that the password on your account was just changed.</p>
+        
+        <ul>
+            <li>If you made this change, no further action is needed.</li>
+            <li>If you did not make this change, please contact our support team immediately at <a href="mailto:support@endatix.com">support@endatix.com</a>.</li>
+        </ul>
+
+        <p>– The Endatix Team</p>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ecf0f1;">
+        <p style="font-size: 12px; color: #7f8c8d;">
+            This is an automated message, please do not reply to this email.
+        </p>
+    </div>
+</body>
+</html>
+--- text
+Your Endatix password has been updated
+
+We wanted to let you know that the password on your account was just changed.
+
+If you made this change, no further action is needed
+
+If you did not make this change, please contact our support team immediately at support@endatix.com.
+
+– The Endatix Team
+
+---
+
+This is an automated message. Please do not reply to this email.
+=== tenant-signup-request
+From: noreply@endatix.com
+To: user@example.com
+Subject: New workspace request from request@example.com
+--- html
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>New workspace request</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50;">New workspace request</h2>
+        <p>Someone requested an Endatix workspace from the public signup waitlist.</p>
+
+        <p><strong>Email:</strong> request@example.com</p>
+        <p><strong>Company:</strong> &lt;companyName&gt;</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="https://hub.example.com/inbox"
+               style="background-color: #0066ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Review signup requests
+            </a>
+        </div>
+
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #7f8c8d;">https://hub.example.com/inbox</p>
+
+        <p>– The Endatix Team</p>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ecf0f1;">
+        <p style="font-size: 12px; color: #7f8c8d;">
+            This is an automated message, please do not reply to this email.
+        </p>
+    </div>
+</body>
+</html>
+--- text
+New workspace request
+
+Someone requested an Endatix workspace from the public signup waitlist.
+
+Email: request@example.com
+Company: <companyName>
+
+Review signup requests:
+https://hub.example.com/inbox
+
+– The Endatix Team
+
+---
+
+This is an automated message. Please do not reply to this email.
+=== tenant-signup-approved
+From: noreply@endatix.com
+To: user@example.com
+Subject: Your Endatix workspace is ready
+--- html
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Your workspace is ready</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2c3e50;">&lt;headline&gt;</h2>
+        <p>&lt;bodyText&gt;</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="https://hub.example.com/signin"
+               style="background-color: #0066ff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                &lt;actionText&gt;
+            </a>
+        </div>
+
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #7f8c8d;">https://hub.example.com/signin</p>
+
+        <p>– The Endatix Team</p>
+
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ecf0f1;">
+        <p style="font-size: 12px; color: #7f8c8d;">
+            This is an automated message, please do not reply to this email.
+        </p>
+    </div>
+</body>
+</html>
+--- text
+<headline>
+
+<bodyText>
+
+https://hub.example.com/signin
+
+– The Endatix Team
+
+---
+
+This is an automated message. Please do not reply to this email.

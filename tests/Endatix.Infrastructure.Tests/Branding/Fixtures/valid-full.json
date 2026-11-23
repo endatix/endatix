@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "Example Forms",
+  "legalName": "Example Ltd.",
+  "assets": { "logo": { "light": "logo-light.svg", "dark": "logo-dark.svg" }, "icon": "icon.svg", "ogImage": "og.jpg" },
+  "tokens": { "color": { "primary": { "$type": "color", "$value": "#0b6b5d" }, "primary-on-dark": { "$type": "color", "$value": "#4fd1b8" } } },
+  "links": { "website": "https://example.com", "docs": "https://docs.example.com", "support": "mailto:help@example.com" },
+  "poweredBy": false,
+  "personas": { "assistant": "Example Assistant", "bot": "Example Bot" }
+}

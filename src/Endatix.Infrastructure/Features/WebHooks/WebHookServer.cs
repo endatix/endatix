@@ -3,6 +3,7 @@ using System.Text.Json;
 using Ardalis.GuardClauses;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Framework.Serialization;
+using Endatix.Infrastructure.Networking;
 using Microsoft.Extensions.Logging;
 using Polly.Timeout;
 
@@ -20,37 +21,29 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
     /// <param name="message">The WebHook message to be sent.</param>
     /// <param name="instructions">Properties for the WebHook operation, including the destination URI.</param>
     /// <param name="token">A cancellation token.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result indicates if the WebHook was successfully processed.</returns>
-    internal async Task<bool> FireWebHookAsync<T>(WebHookMessage<T> message, TaskInstructions instructions, CancellationToken token)
+    /// <returns>Whether the endpoint got the webhook, failed (retryable), or was refused (final).</returns>
+    internal async Task<WebHookDeliveryOutcome> FireWebHookAsync<T>(
+        WebHookMessage<T> message,
+        TaskInstructions instructions,
+        CancellationToken token)
     {
-        var isSuccess = false;
         try
         {
             if (instructions.Uri is null || !Uri.IsWellFormedUriString(instructions.Uri, UriKind.Absolute))
             {
                 logger.LogWebHookInvalidUri(instructions.Uri, message.operation, message.id);
-                return false;
+                return WebHookDeliveryOutcome.Failed;
             }
 
-            var content = CreateContent(message);
-            using var request = new HttpRequestMessage(HttpMethod.Post, instructions.Uri)
-            {
-                Content = content,
-            };
-            AddWebHookHeaders(request, message, instructions);
-
-            var response = await httpClient.SendAsync(request, token);
-
-            if (response.IsSuccessStatusCode)
-            {
-                logger.LogWebHookDelivered(message.operation, message.id, response.StatusCode);
-                isSuccess = true;
-            }
-            else
-            {
-                logger.LogWebHookDeliveryFailed(message.operation, message.id, response.StatusCode);
-            }
-
+            return await PostAsync(message, instructions, token);
+        }
+        // The connect-time check refused the endpoint's address. Final; the wrapper's message names the host, so it
+        // is not logged.
+        catch (HttpRequestException ex) when (OutboundAddressRefusedException.Of(ex) is { } refusal)
+        {
+            logger.LogWebHookEndpointRefused(
+                WebHookEndpointKey.Of(instructions.Uri), instructions.FormId, refusal.Reason, message.operation.EventName, message.id);
+            return WebHookDeliveryOutcome.Refused;
         }
         // This exception is thrown when a single request times out (configured with WebHookSettings's AttemptTimeoutInSeconds setting)
         catch (TaskCanceledException ex)
@@ -67,7 +60,26 @@ public class WebHookServer(HttpClient httpClient, ILogger<WebHookServer> logger)
             logger.LogWebHookError(ex, message.operation, message.id);
         }
 
-        return isSuccess;
+        return WebHookDeliveryOutcome.Failed;
+    }
+
+    private async Task<WebHookDeliveryOutcome> PostAsync<T>(WebHookMessage<T> message, TaskInstructions instructions, CancellationToken token)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, instructions.Uri)
+        {
+            Content = CreateContent(message),
+        };
+        AddWebHookHeaders(request, message, instructions);
+
+        var response = await httpClient.SendAsync(request, token);
+        if (response.IsSuccessStatusCode)
+        {
+            logger.LogWebHookDelivered(message.operation, message.id, response.StatusCode);
+            return WebHookDeliveryOutcome.Delivered;
+        }
+
+        logger.LogWebHookDeliveryFailed(message.operation, message.id, response.StatusCode);
+        return WebHookDeliveryOutcome.Failed;
     }
 
 

@@ -4,11 +4,14 @@ using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.BackgroundJobs.Handlers;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Networking;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.Infrastructure.Tests.Features.BackgroundJobs;
@@ -106,6 +109,41 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAsync_EndpointAddressRefused_ReturnsAFinalFailure()
+    {
+        // Arrange
+        var messageId = await SeedMessageAsync(TenantId);
+        _http.Refuses = true;
+        var handler = CreateHandler();
+
+        // Act
+        var result = await handler.ExecuteAsync(Job(messageId, WebHookEndpointKey.Of(EndpointUrl)), CancellationToken.None);
+
+        // Assert — Invalid is not retried by the job runtime, and the reason names no address.
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle()
+            .Which.ErrorMessage.Should().Be(WebHookDeliveryJobHandler.EndpointAddressNotAllowed);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_EndpointAddressRefused_LogsTheKeyAndFormIdNotTheUrl()
+    {
+        // Arrange
+        var messageId = await SeedMessageAsync(TenantId);
+        _http.Refuses = true;
+        var logger = new TextLogger();
+        var handler = CreateHandler(logger);
+
+        // Act
+        await handler.ExecuteAsync(Job(messageId, WebHookEndpointKey.Of(EndpointUrl)), CancellationToken.None);
+
+        // Assert
+        var refusal = logger.Messages.Should().ContainSingle(message => message.Contains("was refused")).Subject;
+        refusal.Should().Contain(WebHookEndpointKey.Of(EndpointUrl)).And.Contain("form 12")
+            .And.NotContain("hooks.example.test").And.NotContain("secret");
+    }
+
+    [Fact]
     public async Task ExecuteAsync_EventDisabled_ReturnsFailure()
     {
         // Arrange
@@ -185,7 +223,7 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
         _http.Requests.Should().BeEmpty();
     }
 
-    private WebHookDeliveryJobHandler CreateHandler()
+    private WebHookDeliveryJobHandler CreateHandler(ILogger<WebHookDeliveryJobHandler>? logger = null)
     {
         var clients = Substitute.For<IHttpClientFactory>();
         clients.CreateClient(WebHookDeliveryJobHandler.HttpClientName).Returns(_ => new HttpClient(_http, disposeHandler: false));
@@ -194,7 +232,7 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
             new WebHookEventConfigReader(_forms, _tenantSettings, NullLogger<WebHookEventConfigReader>.Instance),
             clients,
             NullLoggerFactory.Instance,
-            NullLogger<WebHookDeliveryJobHandler>.Instance);
+            logger ?? NullLogger<WebHookDeliveryJobHandler>.Instance);
     }
 
     private Task<long> SeedMessageAsync(
@@ -231,9 +269,24 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
             },
         });
 
+    private sealed class TextLogger : ILogger<WebHookDeliveryJobHandler>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception));
+    }
+
     private sealed class RecordingHttpHandler(HttpStatusCode status) : HttpMessageHandler
     {
         public HttpStatusCode Status { get; set; } = status;
+
+        // Fails the request the way the connect-time check does.
+        public bool Refuses { get; set; }
 
         public List<HttpRequestMessage> Requests { get; } = [];
 
@@ -242,6 +295,12 @@ public sealed class WebHookDeliveryJobHandlerTests : IDisposable
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (Refuses)
+            {
+                throw new HttpRequestException(
+                    "Connection refused", new OutboundAddressRefusedException(OutboundAddressRefusalReason.NonPublicAddress));
+            }
+
             Requests.Add(request);
             Bodies.Add(request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken));
             return new HttpResponseMessage(Status);

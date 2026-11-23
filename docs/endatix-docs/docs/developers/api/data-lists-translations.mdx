@@ -89,6 +89,13 @@ Public endpoints (form-access JWT):
 - `GET .../public/forms/{formId}/data-lists/{dataListId}/search`
 - `GET .../public/forms/{formId}/data-lists/{dataListId}/display-values`
 
+Each route answers only for a list the form `{formId}` binds with `edxDataListId`, at any depth of the definition:
+
+- **Search** reads a list bound by the form's active definition, the one respondents fill in now.
+- **Display values** read a list bound by any definition of the form: the active one, a draft, or an older one. A submission made against an older definition keeps its labels.
+
+Any other list, including one another form uses, answers `404` like a list that does not exist. Both routes allow 300 requests a minute per client, and answer `429` above that.
+
 ### `includeLocales`
 
 Pass one or more locales as repeated query params (`includeLocales=default&includeLocales=fr`) or a comma-separated value. Locales outside the catalog are ignored. `default` is always included in the projected `labels` map.

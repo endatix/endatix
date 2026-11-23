@@ -1,5 +1,6 @@
 using Endatix.Core.Configuration;
 using Endatix.Core.Entities;
+using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Email.ListTemplates;
@@ -9,6 +10,8 @@ namespace Endatix.Core.Tests.UseCases.Email.ListTemplates;
 
 public class ListEmailTemplatesHandlerTests
 {
+    private static readonly DeploymentSender NoSender = new("noreply@endatix.com", "Endatix", ConfiguredAddress: null);
+
     private readonly IRepository<EmailTemplate> _repository;
     private readonly ListEmailTemplatesHandler _sut;
 
@@ -23,7 +26,7 @@ public class ListEmailTemplatesHandlerTests
                 FromAddress = "custom@example.com"
             }
         };
-        _sut = new ListEmailTemplatesHandler(_repository, settings);
+        _sut = new ListEmailTemplatesHandler(_repository, settings, NoSender);
     }
 
     [Fact]
@@ -71,10 +74,30 @@ public class ListEmailTemplatesHandlerTests
                     TemplateId = "email-verification",
                     FromAddress = string.Empty
                 }
-            });
+            },
+            NoSender);
 
         var result = await sut.Handle(new ListEmailTemplatesQuery(), TestContext.Current.CancellationToken);
 
         result.Value!.Single().FromAddress.Should().Be("db@example.com");
+    }
+
+    [Fact]
+    public async Task Handle_ConfiguredSenderAddress_ListsItLikeTheSendDoes()
+    {
+        // Arrange
+        var repository = Substitute.For<IRepository<EmailTemplate>>();
+        repository.ListAsync(Arg.Any<CancellationToken>()).Returns(
+        [
+            new EmailTemplate("forgot-password", "Reset", "<p>Reset</p>", "Reset", "noreply@endatix.com")
+        ]);
+        var sender = new DeploymentSender("noreply@example.com", "Example Forms", "noreply@example.com");
+        var sut = new ListEmailTemplatesHandler(repository, new EmailTemplateSettings(), sender);
+
+        // Act
+        var result = await sut.Handle(new ListEmailTemplatesQuery(), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Value!.Single().FromAddress.Should().Be("noreply@example.com");
     }
 }

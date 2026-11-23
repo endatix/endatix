@@ -41,7 +41,18 @@ public class TaskInstructions
     /// </summary>
     /// <param name="endpointConfig">The webhook endpoint configuration from the database.</param>
     /// <returns>A new TaskInstructions instance.</returns>
-    public static TaskInstructions FromWebHookEndpointConfig(Endatix.Core.Entities.WebHookEndpointConfig endpointConfig)
+    public static TaskInstructions FromWebHookEndpointConfig(Endatix.Core.Entities.WebHookEndpointConfig endpointConfig) =>
+        FromWebHookEndpointConfig(endpointConfig, formId: null);
+
+    /// <summary>
+    /// Creates TaskInstructions from a WebHookEndpointConfig, naming the form whose settings hold the endpoint.
+    /// </summary>
+    /// <param name="endpointConfig">The webhook endpoint configuration from the database.</param>
+    /// <param name="formId">The form whose settings name the endpoint; null for tenant or server settings.</param>
+    /// <returns>A new TaskInstructions instance.</returns>
+    public static TaskInstructions FromWebHookEndpointConfig(
+        Endatix.Core.Entities.WebHookEndpointConfig endpointConfig,
+        long? formId)
     {
         AuthenticationConfig? authConfig = null;
 
@@ -57,7 +68,7 @@ public class TaskInstructions
             };
         }
 
-        return new TaskInstructions(endpointConfig.Url, authConfig);
+        return new TaskInstructions(endpointConfig.Url, authConfig) { FormId = formId };
     }
 
     /// <summary>
@@ -69,4 +80,9 @@ public class TaskInstructions
     /// Gets the authentication configuration for the webhook request.
     /// </summary>
     public AuthenticationConfig? Authentication { get; init; }
+
+    /// <summary>
+    /// Gets the form whose settings name the endpoint, for the log; null for tenant or server settings.
+    /// </summary>
+    public long? FormId { get; init; }
 }

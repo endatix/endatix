@@ -2,7 +2,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Endatix.Core.Features.WebHooks;
+using Endatix.Framework.Logging;
 using Endatix.Infrastructure.Features.WebHooks;
+using Endatix.Infrastructure.Networking;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -19,7 +21,7 @@ public class WebHookServerTests
     }
 
     [Fact]
-    public async Task FireWebHookAsync_WithValidRequest_ReturnsTrue()
+    public async Task FireWebHookAsync_WithValidRequest_ReturnsDelivered()
     {
         // Arrange
         var handler = new MockHttpHandler(HttpStatusCode.OK, "Success");
@@ -33,14 +35,14 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeTrue();
+        result.Should().Be(WebHookDeliveryOutcome.Delivered);
         handler.LastRequest.Should().NotBeNull();
         handler.LastRequest!.Method.Should().Be(HttpMethod.Post);
         handler.LastRequest!.RequestUri.Should().Be("https://api.example.com/webhooks");
     }
 
     [Fact]
-    public async Task FireWebHookAsync_WithInvalidUri_ReturnsFalse()
+    public async Task FireWebHookAsync_WithInvalidUri_ReturnsFailed()
     {
         // Arrange
         var handler = new MockHttpHandler(HttpStatusCode.OK, "Success");
@@ -54,12 +56,12 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().Be(WebHookDeliveryOutcome.Failed);
         handler.LastRequest.Should().BeNull();
     }
 
     [Fact]
-    public async Task FireWebHookAsync_WithNullUri_ReturnsFalse()
+    public async Task FireWebHookAsync_WithNullUri_ReturnsFailed()
     {
         // Arrange
         var handler = new MockHttpHandler(HttpStatusCode.OK, "Success");
@@ -73,7 +75,7 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().Be(WebHookDeliveryOutcome.Failed);
         handler.LastRequest.Should().BeNull();
     }
 
@@ -81,7 +83,7 @@ public class WebHookServerTests
     [InlineData(HttpStatusCode.BadRequest)]
     [InlineData(HttpStatusCode.Unauthorized)]
     [InlineData(HttpStatusCode.InternalServerError)]
-    public async Task FireWebHookAsync_WithErrorStatusCode_ReturnsFalse(HttpStatusCode statusCode)
+    public async Task FireWebHookAsync_WithErrorStatusCode_ReturnsFailed(HttpStatusCode statusCode)
     {
         // Arrange
         var handler = new MockHttpHandler(statusCode, "Error");
@@ -95,11 +97,11 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().Be(WebHookDeliveryOutcome.Failed);
     }
 
     [Fact]
-    public async Task FireWebHookAsync_WithHttpException_ReturnsFalse()
+    public async Task FireWebHookAsync_WithHttpException_ReturnsFailed()
     {
         // Arrange
         var handler = new ThrowingHttpHandler();
@@ -113,7 +115,29 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().Be(WebHookDeliveryOutcome.Failed);
+    }
+
+    [Fact]
+    public async Task FireWebHookAsync_EndpointAddressRefused_ReturnsRefusedAndLogsTheKeyNotTheUrl()
+    {
+        // Arrange
+        const string url = "http://127.0.0.1:8080/hook?token=secret";
+        var logger = new TextLogger();
+        var httpClient = new HttpClient(new RefusingHttpHandler());
+        var server = new WebHookServer(httpClient, logger);
+        var instructions = new TaskInstructions(url) { FormId = 42 };
+
+        // Act
+        var result = await server.FireWebHookAsync(CreateTestWebHookMessage(), instructions, CancellationToken.None);
+
+        // Assert
+        result.Should().Be(WebHookDeliveryOutcome.Refused);
+        var entry = logger.Entries.Should().ContainSingle().Subject;
+        entry.EventId.Should().Be(EndatixEventIds.Webhooks.EndpointRefused);
+        entry.Exception.Should().BeNull();
+        entry.Message.Should().Contain(WebHookEndpointKey.Of(url)).And.Contain("42").And.Contain("NonPublicAddress")
+            .And.NotContain("127.0.0.1").And.NotContain("secret");
     }
 
     [Fact]
@@ -137,7 +161,7 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeTrue();
+        result.Should().Be(WebHookDeliveryOutcome.Delivered);
         handler.LastRequest.Should().NotBeNull();
         handler.LastRequest!.Headers.Should().Contain(h => h.Key == "X-API-KEY" && h.Value.First() == "test-api-key");
     }
@@ -157,7 +181,7 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeTrue();
+        result.Should().Be(WebHookDeliveryOutcome.Delivered);
         handler.LastRequest.Should().NotBeNull();
         handler.LastRequest!.Headers.Should().NotContain(h => h.Key.StartsWith("X-API") || h.Key == "Authorization");
     }
@@ -178,7 +202,7 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeTrue();
+        result.Should().Be(WebHookDeliveryOutcome.Delivered);
         handler.LastRequest.Should().NotBeNull();
         handler.LastRequest!.Headers.Should().NotContain(h => h.Key.StartsWith("X-API") || h.Key == "Authorization");
     }
@@ -198,7 +222,7 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeTrue();
+        result.Should().Be(WebHookDeliveryOutcome.Delivered);
         handler.LastRequest.Should().NotBeNull();
         
         var headers = handler.LastRequest!.Headers.ToDictionary(h => h.Key, h => h.Value.First());
@@ -228,7 +252,7 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeTrue();
+        result.Should().Be(WebHookDeliveryOutcome.Delivered);
         handler.LastRequest.Should().NotBeNull();
         handler.LastRequest!.Content.Should().NotBeNull();
         
@@ -248,7 +272,7 @@ public class WebHookServerTests
     }
 
     [Fact]
-    public async Task FireWebHookAsync_WithApiKeyAuthenticationMissingKey_ReturnsFalse()
+    public async Task FireWebHookAsync_WithApiKeyAuthenticationMissingKey_ReturnsFailed()
     {
         // Arrange
         var handler = new MockHttpHandler(HttpStatusCode.OK, "Success");
@@ -268,11 +292,11 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().Be(WebHookDeliveryOutcome.Failed);
     }
 
     [Fact]
-    public async Task FireWebHookAsync_WithApiKeyAuthenticationMissingHeader_ReturnsFalse()
+    public async Task FireWebHookAsync_WithApiKeyAuthenticationMissingHeader_ReturnsFailed()
     {
         // Arrange
         var handler = new MockHttpHandler(HttpStatusCode.OK, "Success");
@@ -292,7 +316,7 @@ public class WebHookServerTests
         var result = await server.FireWebHookAsync(message, instructions, CancellationToken.None);
 
         // Assert
-        result.Should().BeFalse();
+        result.Should().Be(WebHookDeliveryOutcome.Failed);
     }
 
     private static WebHookMessage<TestPayload> CreateTestWebHookMessage()
@@ -308,6 +332,27 @@ public class WebHookServerTests
     }
 
     // Helper classes for HTTP mocking
+    // Fails the way SocketsHttpHandler does when the connect callback refuses: the wrapper names the host and port.
+    private sealed class RefusingHttpHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new HttpRequestException(
+                $"Connection refused ({request.RequestUri!.Host}:{request.RequestUri.Port})",
+                new OutboundAddressRefusedException(OutboundAddressRefusalReason.NonPublicAddress));
+    }
+
+    private sealed class TextLogger : ILogger<WebHookServer>
+    {
+        public List<(int EventId, string Message, Exception? Exception)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((eventId.Id, formatter(state, exception), exception));
+    }
+
     private class MockHttpHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode _statusCode;

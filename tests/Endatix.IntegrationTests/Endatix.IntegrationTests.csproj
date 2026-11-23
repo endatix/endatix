@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Infrastructure\Snapshots\*.txt" Link="Snapshots\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +24,10 @@
     </None>
     <None Include="..\Endatix.Modules.Reporting.Tests\Features\FormSchema\FlattenedFormDefinition\Fixtures\special-choices-*.json">
       <Link>Fixtures\SpecialChoices\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\Endatix.Modules.Reporting.Tests\Features\FormSchema\FlattenedFormDefinition\Fixtures\Scenarios\**\*">
+      <Link>Fixtures\Scenarios\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Endatix.Modules.Reporting.Tests\Features\FormSchema\FlattenedFormDefinition\Fixtures\AllQuestionsPersonalized\**\*">

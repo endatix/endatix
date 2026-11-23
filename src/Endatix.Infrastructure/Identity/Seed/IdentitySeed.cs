@@ -23,19 +23,19 @@ namespace Endatix.Infrastructure.Identity.Seed
         /// </summary>
         /// <param name="userManager">ASP.NET Identity user manager</param>
         /// <param name="userRegistrationService">Service handling user registration logic</param>
-        /// <param name="roleManagementService">Service handling assigning roles to the seeded user</param>
+        /// <param name="systemRoleAssignment">Assigns the seeded user's role on behalf of the system</param>
         /// <param name="dataOptions">Configuration options containing the initial user credentials</param>
         /// <param name="logger">Logger instance</param>
         public static async Task SeedInitialUser(
             UserManager<AppUser> userManager,
             IUserRegistrationService userRegistrationService,
-            IRoleManagementService roleManagementService,
+            ISystemRoleAssignment systemRoleAssignment,
             DataOptions dataOptions,
             ILogger logger)
         {
             Guard.Against.Null(userManager);
             Guard.Against.Null(userRegistrationService);
-            Guard.Against.Null(roleManagementService);
+            Guard.Against.Null(systemRoleAssignment);
 
             var initialUserIsConfigured = dataOptions?.InitialUser != null;
 
@@ -75,7 +75,7 @@ namespace Endatix.Infrastructure.Identity.Seed
                 return;
             }
 
-            var assignRoleResult = await roleManagementService.AssignRoleToUserAsync(registerUserResult.Value.Id, SystemRole.PlatformAdmin.Name);
+            var assignRoleResult = await systemRoleAssignment.AssignRoleAsSystemAsync(registerUserResult.Value.Id, SystemRole.PlatformAdmin.Name);
 
             if (!assignRoleResult.IsSuccess)
             {

@@ -70,7 +70,7 @@ public class InfrastructureSecurityBuilderTests
         {
             ["Endatix:Auth:DefaultScheme"] = InfrastructureSecurityBuilder.MULTI_JWT_SCHEME_NAME,
             ["Endatix:Auth:Providers:EndatixJwt:Issuer"] = "endatix-api",
-            ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters",
+            ["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = "test-signing-key-32-characters-padding-to-32-bytes",
             ["Endatix:Auth:Providers:EndatixJwt:Audiences:0"] = "endatix-hub",
             ["Endatix:Auth:Providers:EndatixJwt:ReBacIssuer"] = "edx_res_auth",
             ["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true",

@@ -1,29 +1,30 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Account;
+using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Authorization.Access;
 using Endatix.Core.Entities.Identity;
+using Endatix.Core.Features.Auth;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Framework.Configuration;
-using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Users;
-using Endatix.Infrastructure.Identity.EmailVerification;
+using Endatix.Infrastructure.Caching;
+using Endatix.Infrastructure.Features.AccessControl;
+using Endatix.Infrastructure.Features.Account;
+using Endatix.Infrastructure.Features.Authorization.PublicForm;
+using Endatix.Infrastructure.Features.PlatformAdmin;
 using Endatix.Infrastructure.Features.Submissions;
+using Endatix.Infrastructure.Features.Submitters;
+using Endatix.Infrastructure.Identity.Authentication;
+using Endatix.Infrastructure.Identity.EmailVerification;
+using Endatix.Infrastructure.Identity.Repositories;
+using Endatix.Infrastructure.Identity.Services;
+using Endatix.Infrastructure.Identity.SigningKeys;
+using Endatix.Infrastructure.Identity.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Endatix.Infrastructure.Features.Account;
-using Endatix.Core.Abstractions.Account;
-using Endatix.Infrastructure.Identity.Services;
-using Endatix.Infrastructure.Identity.Repositories;
-using Endatix.Infrastructure.Features.AccessControl;
-using Endatix.Infrastructure.Features.Submitters;
-using Endatix.Core.Authorization.Access;
-using Endatix.Core.Abstractions.Authorization.PublicForm;
-using Endatix.Core.Features.Auth;
-using Endatix.Infrastructure.Caching;
-using Endatix.Infrastructure.Features.Authorization.PublicForm;
-using Endatix.Infrastructure.Features.PlatformAdmin;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -89,7 +90,9 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserPasswordManageService, UserPasswordManageService>();
         services.AddScoped<IUserTokenService, JwtTokenService>();
         services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
-        services.AddScoped<IRoleManagementService, RoleManagementService>();
+        services.AddScoped<RoleManagementService>();
+        services.AddScoped<IRoleManagementService>(sp => sp.GetRequiredService<RoleManagementService>());
+        services.AddScoped<ISystemRoleAssignment>(sp => sp.GetRequiredService<RoleManagementService>());
 
         // Register Identity repositories
         services.AddScoped<IRolesRepository, RolesRepository>();
@@ -98,11 +101,12 @@ public static class IdentityServiceCollectionExtensions
         services.AddKeyedScoped<IUnitOfWork, IdentityUnitOfWork>("identity");
 
         // Register submission access token service
-        services.AddEndatixOptions<SubmissionAccessTokenOptions>(configuration);
+        services.AddSigningKeyOptions(configuration);
         services.AddScoped<ISubmissionAccessTokenService, SubmissionAccessTokenService>();
         services.AddScoped<ISubmissionTokenService, SubmissionTokenService>();
         services.AddScoped<IFormAccessTokenService, FormAccessTokenService>();
 
+        services.AddScoped<IFormRuntimeScopeReader, FormRuntimeScopeReader>();
         services.AddScoped<PublicFormAccessPolicy>();
         services.AddScoped<IResourceAccessQuery<PublicFormAccessData, PublicFormAccessContext>>(sp => sp.GetRequiredService<PublicFormAccessPolicy>());
 

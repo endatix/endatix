@@ -47,7 +47,11 @@ db:
     dbname: dbname
 
 auth:
-  # Name of an existing secret holding the JWT signing key.
+  # Name of an existing secret holding the two API signing keys: the sign-in
+  # (JWT) key and the submission access token key. Each must be a random value
+  # of at least 32 bytes (for example `openssl rand -base64 48`), and they must
+  # differ. The API refuses to start without both. Existing installs that only
+  # had the sign-in key add `submission-signing-key` to the secret.
   secretName: endatix-auth-secret
   # The key within that secret. Configurable because the secret is usually
   # written by something other than a human — an external-secrets operator, a
@@ -55,6 +59,9 @@ auth:
   # after whatever the upstream store calls it. Renaming a key inside a shared
   # secret is often not ours to do; pointing the chart at it always is.
   secretKey: signing-key
+  # The key within the same secret that holds the submission access token
+  # signing key.
+  submissionSecretKey: submission-signing-key
   accessExpiryInMinutes: 90
   refreshExpiryInDays: 7
   issuer: endatix-api
@@ -99,6 +106,26 @@ data:
 hub:
   # Base URL of the Endatix Hub frontend, used for email links etc.
   baseUrl: ""
+
+# White-labeling: a deployment that shows its own product name and support address
+# instead of Endatix. Off by default, and with it off a mounted pack is ignored. Set
+# the Hub chart's whiteLabeling.enabled to the same value, so the API emails and the
+# Hub pages show the same brand. The seeded email subjects and bodies keep "Endatix"
+# and support@endatix.com until endatix/endatix#1775; the sender address is
+# Endatix:Integrations:Email:Sender, not the pack.
+whiteLabeling:
+  # Sets Endatix__FeatureFlags__WhiteLabeling.
+  enabled: false
+
+# The brand pack: a ConfigMap holding brand.json (and its asset files, which the
+# Hub serves). Mounted read-only at mountPath, with ENDATIX_BRAND_DIR pointing at
+# it. Mount the same ConfigMap into the Hub. At startup the API checks the fields it
+# reads (version, name, links.website, links.support, personas.assistant) and
+# refuses to start on an invalid one, naming the field. The Hub checks the whole pack.
+brandPack:
+  # Name of the ConfigMap. Empty mounts nothing.
+  configMap: ""
+  mountPath: /etc/endatix/brand
 
 cors:
   policyName: AllowAll

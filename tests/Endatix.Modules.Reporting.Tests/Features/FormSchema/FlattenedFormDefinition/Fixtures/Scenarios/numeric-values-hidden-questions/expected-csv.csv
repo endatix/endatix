@@ -1,0 +1,2 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,visits,photoFront,photoBack,reasons__1,reasons__2,reasons__3,reasons__other,reasons__other_text,brandUsed,brandStore,brandStore__other_text,brandSwitch,brandSwitch__other_text
+100,1,true,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,N/A,N/A,N/A,N/A,N/A,1,,,0,1,0,1,Opening hours,3,other,Market stall,,

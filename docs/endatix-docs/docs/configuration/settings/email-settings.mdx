@@ -34,9 +34,7 @@ To use SendGrid as your email provider, you need to configure the `SendGridSetti
     "Integrations": {
       "Email": {
         "SendGridSettings": {
-          "ApiKey": "SG.your_api_key_here",
-          "DefaultFromAddress": "noreply@yourdomain.com",
-          "DefaultFromName": "Endatix Notifications"
+          "ApiKey": "SG.your_api_key_here"
         }
       }
     }
@@ -47,8 +45,8 @@ To use SendGrid as your email provider, you need to configure the `SendGridSetti
 ### Properties
 
   * **`ApiKey`** *(Required)*: Your SendGrid API key with "Mail Send" permissions.
-  * **`DefaultFromAddress`** *(Required)*: The verified sender email address configured in your SendGrid account.
-  * **`DefaultFromName`**: The display name for the sender.
+
+The sender is not a SendGrid setting: set it once in the [deployment sender](#deployment-sender), with an address verified in your SendGrid account.
 
 *For implementation details, refer to [`SendGridSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SendGridSettings.cs).*
 
@@ -68,9 +66,7 @@ To use Mailgun, configure the `MailgunSettings` section. This integration uses t
         "MailgunSettings": {
           "ApiKey": "key-your_mailgun_api_key",
           "Domain": "mg.yourdomain.com",
-          "BaseUrl": "https://api.mailgun.net/v3",
-          "DefaultFromAddress": "noreply@mg.yourdomain.com",
-          "DefaultFromName": "Endatix Notifications"
+          "BaseUrl": "https://api.mailgun.net/v3"
         }
       }
     }
@@ -83,8 +79,8 @@ To use Mailgun, configure the `MailgunSettings` section. This integration uses t
   * **`ApiKey`** *(Required)*: Your private Mailgun API key.
   * **`Domain`** *(Required)*: The sending domain verified in your Mailgun account.
   * **`BaseUrl`**: The Mailgun API base URL. Use `https://api.eu.mailgun.net/v3` if your domain is hosted in the EU region.
-  * **`DefaultFromAddress`** *(Required)*: The default sender email address.
-  * **`DefaultFromName`**: The display name for the sender.
+
+The sender is not a Mailgun setting: set it once in the [deployment sender](#deployment-sender), with an address on your Mailgun domain.
 
 *For implementation details, refer to [`MailgunSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/MailgunSettings.cs).*
 
@@ -110,9 +106,7 @@ Not to be confused with [mailkit.com](https://www.mailkit.com/), an unrelated em
           "Port": 587,
           "EnableSsl": true,
           "Username": "your_smtp_username",
-          "Password": "your_smtp_password",
-          "DefaultFromAddress": "noreply@yourdomain.com",
-          "DefaultFromName": "Endatix Notifications"
+          "Password": "your_smtp_password"
         }
       }
     }
@@ -129,10 +123,27 @@ Not to be confused with [mailkit.com](https://www.mailkit.com/), an unrelated em
   * **`CheckCertificateRevocation`**: Whether to check the server's TLS certificate for revocation (OCSP/CRL) during the handshake. Defaults to `false`, since some networks block the endpoints this check needs, which would otherwise cause connections to fail. Set to `true` for stricter certificate validation if your network allows it.
   * **`Username`**: The username for SMTP authentication. If left empty, the connection is made without authentication (a warning is logged).
   * **`Password`**: The password for SMTP authentication.
-  * **`DefaultFromAddress`** *(Required)*: The default sender email address. Defaults to `noreply@endatix.com`.
-  * **`DefaultFromName`**: The default sender display name. Defaults to `Endatix`.
+
+<Settings>
+  <Setting name="Endatix:Integrations:Email:SmtpSettings:DefaultFromAddress" status="deprecated" replacedBy="Endatix:Integrations:Email:Sender:Address">
+    Read only when the [deployment sender](#deployment-sender) `Address` is empty.
+  </Setting>
+  <Setting name="Endatix:Integrations:Email:SmtpSettings:DefaultFromName" status="deprecated" replacedBy="Endatix:Integrations:Email:Sender:Name">
+    Read only when the [deployment sender](#deployment-sender) `Name` is empty.
+  </Setting>
+</Settings>
+
+The sender is not an SMTP setting: set it once in the [deployment sender](#deployment-sender).
 
 *For implementation details, refer to [`SmtpSettings.cs`](https://github.com/endatix/endatix/blob/main/src/Endatix.Infrastructure/Email/SmtpSettings.cs).*
+
+### Local development: Mailpit
+
+To catch every email locally instead of sending it, start [Mailpit](https://mailpit.axllent.org/) with `docker compose -f docker/docker-compose.mailpit.yml up` and point SMTP at it. Read the messages at `http://localhost:8025` (UI and [REST API](https://mailpit.axllent.org/docs/api-v1/)).
+
+```json
+"SmtpSettings": { "Host": "127.0.0.1", "Port": 1025, "EnableSsl": false }
+```
 
 :::warning[Upgrading from the .NET SmtpClient-based sender]
 Earlier Endatix versions sent SMTP mail using .NET's built-in `System.Net.Mail.SmtpClient`, which Microsoft's own docs [no longer recommend for new development](https://learn.microsoft.com/en-us/dotnet/api/system.net.mail.smtpclient). The MailKit-based sender is a drop-in replacement — no configuration changes are required for the common case of a `Host`/`Port` combination with username/password authentication over STARTTLS. Two behaviors changed:
@@ -143,6 +154,40 @@ Earlier Endatix versions sent SMTP mail using .NET's built-in `System.Net.Mail.S
 
 :::info
 For an overview of email providers and how to activate them in Endatix API see the [Email Providers Guide](../../developers/api/email-providers).
+:::
+
+## Deployment sender
+
+One sender, for every provider, binds under `Endatix:Integrations:Email:Sender`. It applies to emails the API renders from a stored template, and on SMTP to an email sent without a From address. A provider template (a SendGrid or Mailgun template id) sends the From its caller sets, without a display name.
+
+```json
+{
+  "Endatix": {
+    "Integrations": {
+      "Email": {
+        "Sender": {
+          "Address": "noreply@yourdomain.com",
+          "Name": "Your Product"
+        }
+      }
+    }
+  }
+}
+```
+
+<Settings>
+  <Setting name="Endatix:Integrations:Email:Sender:Address">
+    A bare address, with no display name. When set, every stored-template email sends from it; only a per-template `Endatix:EmailTemplates:*:FromAddress` wins over it (see [sender address resolution](#sender-address-resolution)). Left empty, each template sends from the address its database row stores. On SMTP, it is also the sender of an email without a From address, and `noreply@endatix.com` when empty; Mailgun and SendGrid require such an email to set its own From.
+  </Setting>
+  <Setting name="Endatix:Integrations:Email:Sender:Name">
+    The From display name of every stored-template email whose address has no name of its own, and on SMTP of an email without a display name. A per-template `FromAddress` written as `Name <address>` keeps its own name. Defaults to the deployment's product name: `Endatix`, or the [brand pack](/docs/configuration/brand-pack)'s `name` when [white-labeling](/docs/developers/api/feature-flags) is on.
+  </Setting>
+</Settings>
+
+The API does not start when `Address` holds a display name or `Name` holds a control character.
+
+:::warning[Deprecated: `SmtpSettings:DefaultFromAddress` and `DefaultFromName`]
+Move them to `Sender:Address` and `Sender:Name`. Until you do, the API still reads them, below `Sender:*`, and logs one warning at startup that names the new keys. As before, `DefaultFromAddress` sends only an email with no template and no From address; it never replaces a template row's address.
 :::
 
 ## How to change the sender today
@@ -193,17 +238,18 @@ Each entry has:
 | Property | Description |
 | --- | --- |
 | `TemplateId` | Database template name (SMTP/Mailgun) or a provider template id (for example a SendGrid template id) |
-| `FromAddress` | **Optional.** When set, list and send use this address instead of the database row. Leave empty (or omit) to keep the seeded DB sender. |
+| `FromAddress` | **Optional.** When set, list and send use this address instead of the database row. It may carry a display name (`Ops Team <ops@yourdomain.com>`); that name is sent as is, and the deployment sender `Name` fills only a bare address. Left empty (or omitted), the template sends from the deployment sender `Address` when that is set, and from the database row only when it is not. |
 
 ### Sender address resolution
 
 When Endatix sends or lists a template, the from-address is:
 
 1. `FromAddress` from `Endatix:EmailTemplates` for that template, if it is not empty (customer override, no DB edit)
-2. The address stored on the database template (seed today; Hub UI later)
-3. `noreply@endatix.com` only if both are empty
+2. The [deployment sender](#deployment-sender) `Address`, if it is set
+3. The address stored on the database template (seed today; Hub UI later)
+4. The deployment sender's address, `noreply@endatix.com` by default, only if the row's address is empty
 
-The Hub **Email Settings** page shows the same resolved address that send uses.
+The Hub **Email Settings** page shows the same resolved value that send uses, including a display name written in `FromAddress`. A bare address is sent named by the deployment sender `Name`.
 
 :::info[Future Hub UI]
 A future Hub UI will let admins edit from-address (and HTML) per tenant via the API. When that ships, this config overlay goes away. Until then, keep using `Endatix:EmailTemplates:*:FromAddress`.

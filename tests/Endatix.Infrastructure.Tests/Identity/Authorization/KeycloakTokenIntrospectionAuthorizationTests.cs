@@ -656,6 +656,7 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         public Task<IExternalAuthorizationMapper.MappingResult> MapToAppRolesAsync(
             string[] externalRoles,
             Dictionary<string, string> roleMappings,
+            long tenantId,
             CancellationToken cancellationToken)
         {
             return Task.FromResult(Result);

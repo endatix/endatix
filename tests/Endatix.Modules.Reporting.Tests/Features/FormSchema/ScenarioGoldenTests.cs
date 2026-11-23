@@ -6,6 +6,7 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 using Endatix.Modules.Reporting.Tests.Features.Export.Tabular;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
@@ -75,6 +76,7 @@ internal static class ScenarioGoldens
 {
     internal const string DEFINITION_FILE = "definition.json";
     internal const string SUBMISSION_FILE = "submission.json";
+    internal const string VERSIONS_FILE = "versions.json";
     internal const string CODEBOOK_FILE = "expected-codebook.json";
     internal const string SHOJI_CODEBOOK_FILE = "expected-shoji-codebook.json";
     internal const string FLATTENING_MAP_FILE = "expected-flattening-map.json";
@@ -132,7 +134,8 @@ internal static class ScenarioGoldens
     internal static async Task<IReadOnlyDictionary<string, string>> ExportAsync(string folder, CancellationToken cancellationToken)
     {
         var definition = File.ReadAllText(Path.Combine(folder, DEFINITION_FILE));
-        var pipeline = PersonalizationPipeline.Compile(definition);
+        var versions = ScenarioVersions.Read(folder);
+        var pipeline = versions.CompileThrough(definition);
         Dictionary<string, string> files = new(StringComparer.Ordinal)
         {
             [CODEBOOK_FILE] = pipeline.Schema.CodebookJson,
@@ -145,7 +148,7 @@ internal static class ScenarioGoldens
             return files;
         }
 
-        FixtureResponse response = new(RESPONSE_ID, File.ReadAllText(submissionPath), null);
+        FixtureResponse response = new(RESPONSE_ID, File.ReadAllText(submissionPath), null, SubmittedDefinition: versions.SubmittedOn);
         pipeline.FlattenAll(definition, [response]);
         var schema = pipeline.Entity(SubmissionFileExport.FORM_ID);
         var rows = pipeline.ExportRows([response]);
@@ -240,4 +243,49 @@ internal static class ScenarioGoldens
 
     private static void Write(string path, string content) =>
         File.WriteAllText(path, Normalize(Path.GetFileName(path), content));
+}
+
+/// <summary>
+/// A scenario's earlier form versions (<c>versions.json</c>, optional): <c>earlier</c> lists definition files compiled in
+/// order before <c>definition.json</c>, the first replacing and each later one merging, as a form with real submissions
+/// does; <c>submittedOn</c> names the one the submission was made on. Without the file, the scenario has one version.
+/// </summary>
+internal sealed record ScenarioVersions(IReadOnlyList<string> Earlier, string? SubmittedOn)
+{
+    private static readonly ScenarioVersions _none = new([], null);
+
+    public static ScenarioVersions Read(string folder)
+    {
+        var path = Path.Combine(folder, ScenarioGoldens.VERSIONS_FILE);
+        if (!File.Exists(path))
+        {
+            return _none;
+        }
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var root = document.RootElement;
+        var earlier = root.GetProperty("earlier").EnumerateArray()
+            .Select(file => File.ReadAllText(Path.Combine(folder, file.GetString()!)))
+            .ToList();
+        var submittedOn = root.TryGetProperty("submittedOn", out var file)
+            ? File.ReadAllText(Path.Combine(folder, file.GetString()!))
+            : null;
+        return new ScenarioVersions(earlier, submittedOn);
+    }
+
+    public PersonalizationPipeline CompileThrough(string definition)
+    {
+        if (Earlier.Count == 0)
+        {
+            return PersonalizationPipeline.Compile(definition);
+        }
+
+        var pipeline = PersonalizationPipeline.Compile(Earlier[0]);
+        foreach (var later in Earlier.Skip(1).Append(definition))
+        {
+            pipeline.Recompile(later, FormSchemaCompileMode.Merge);
+        }
+
+        return pipeline;
+    }
 }

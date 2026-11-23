@@ -4,6 +4,7 @@
 
   <ItemGroup>
     <None Include="Features\ReCaptcha\Fixtures\Siteverify\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Branding\Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,6 +11,7 @@ using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Endatix.Infrastructure.Identity.Provisioning;
 using Endatix.Infrastructure.Identity.Services;
+using Endatix.Infrastructure.Identity.SigningKeys;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +57,10 @@ public class InfrastructureSecurityBuilder
     {
         LogSetupInfo("Configuring security infrastructure with default settings");
 
+        SigningKeyValidation.ResolveSigningKeys(
+            Configuration,
+            _parentBuilder.AppEnvironment?.IsDevelopment() == true,
+            _logger);
         Services.AddEndatixSecurityServices(Configuration);
 
         ConfigureIdentity();
