@@ -10,11 +10,14 @@ internal static class ConditionalChoices
     public static bool HasListCondition(JsonElement question) =>
         question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ChoicesVisibleIf) is not null;
 
+    public static bool HasItemCondition(JsonElement choice) =>
+        choice.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf)?.GetNonEmptyStringValue() is not null;
+
     public static IEnumerable<string> ValuesIn(JsonElement question)
     {
         var all = HasListCondition(question);
         return SurveyJsChoiceHelper.EnumerateChoiceElements(question)
-            .Where(choice => all || choice.Element.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf)?.GetNonEmptyStringValue() is not null)
+            .Where(choice => all || HasItemCondition(choice.Element))
             .Select(choice => choice.Value);
     }
 

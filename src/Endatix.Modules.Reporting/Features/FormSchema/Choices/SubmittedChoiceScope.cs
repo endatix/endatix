@@ -8,7 +8,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 internal sealed class SubmittedChoiceScope
 {
     private readonly Dictionary<string, SubmittedChoiceScope> _panels = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, HashSet<string>> _conditions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Dictionary<string, bool>> _conditions = new(StringComparer.Ordinal);
 
     public SubmittedChoiceScope Panel(string name)
     {
@@ -34,7 +34,12 @@ internal sealed class SubmittedChoiceScope
             _conditions.Add(name, values);
         }
 
-        values.UnionWith(ConditionalChoices.ValuesIn(question));
+        var all = ConditionalChoices.HasListCondition(question);
+        foreach (var item in ChoiceSet.Read(question)!.Items)
+        {
+            values[item.Value] = values.GetValueOrDefault(item.Value) ||
+                (item.Kind == ChoiceKind.Choice && (all || ConditionalChoices.HasItemCondition(item.LabelSource)));
+        }
     }
 
     public bool? IsConditional(IReadOnlyList<LoopSegment> path, string name, string value)
@@ -48,6 +53,9 @@ internal sealed class SubmittedChoiceScope
             }
         }
 
-        return scope._conditions.GetValueOrDefault(name)?.Contains(value);
+        // A merge retains removed columns. Only an offered value can override its catalog condition.
+        return scope._conditions.TryGetValue(name, out var values) && values.TryGetValue(value, out var conditional)
+            ? conditional
+            : null;
     }
 }

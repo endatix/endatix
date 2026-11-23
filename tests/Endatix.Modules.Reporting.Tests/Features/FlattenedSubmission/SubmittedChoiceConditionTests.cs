@@ -13,6 +13,41 @@ public sealed class SubmittedChoiceConditionTests
     private const string FILTERED = """{"type":"checkbox","name":"pick","choices":["a",{"value":"b","visibleIf":"{x} = 1"},"c"]}""";
     private const string RESPONSE = """{"pick":["a"]}""";
 
+    [Theory]
+    [InlineData(PLAIN, "0")]
+    [InlineData("""{"type":"checkbox","name":"pick","choices":["a","c"]}""", null)]
+    public void Flatten_ConditionRemoved_OnlyWritesZeroIfTheChoiceIsStillOffered(string edited, string? expected)
+    {
+        // Arrange
+        var oldVersion = Survey(FILTERED);
+        var latest = Survey(edited);
+        var first = new FormSchemaCompiler().CompilePersisted(oldVersion);
+        var merged = Recompile(first, latest, FormSchemaCompileMode.Merge);
+
+        // Act
+        var historical = Flatten(merged, RESPONSE, oldVersion);
+        var current = Flatten(merged, RESPONSE, latest);
+
+        // Assert
+        Cells(historical).Should().Equal(Cells(("a", "1"), ("b", null), ("c", "0")));
+        Cells(current).Should().Equal(Cells(("a", "1"), ("b", expected), ("c", "0")));
+    }
+
+    [Fact]
+    public void Flatten_ConditionalInlineValueBecomesAnOwnSpecialItem_UnpickedItemIsZero()
+    {
+        // Arrange
+        var first = Survey("""{"type":"checkbox","name":"pick","choices":["a",{"value":"none","visibleIf":"{x} = 1"}]}""");
+        var latest = Survey("""{"type":"checkbox","name":"pick","choices":["a"],"showNoneItem":true}""");
+        var merged = Recompile(new FormSchemaCompiler().CompilePersisted(first), latest, FormSchemaCompileMode.Merge);
+
+        // Act
+        var row = Flatten(merged, RESPONSE, latest);
+
+        // Assert
+        Cells(row).Should().Equal(Cells(("a", "1"), ("none", "0")));
+    }
+
     [Fact]
     public void Flatten_LegacyCatalogMergedAfterRuleRemoved_UsesTheSubmittedVersion()
     {
