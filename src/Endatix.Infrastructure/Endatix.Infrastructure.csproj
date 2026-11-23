@@ -33,7 +33,7 @@
 		<PackageReference Include="SendGrid" />
 		<PackageReference Include="SendGrid.Extensions.DependencyInjection" />
 		<PackageReference Include="MailKit" />
-		<PackageReference Include="MimeKit" />
+		<PackageReference Include="MimeKit.Core" />
 		<PackageReference Include="MediatR" />
 		<PackageReference Include="Microsoft.FeatureManagement.AspNetCore" />
 		<PackageReference Include="Endatix.Outbox.Engine" />
