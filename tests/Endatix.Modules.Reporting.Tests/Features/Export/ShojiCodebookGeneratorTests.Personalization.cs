@@ -30,7 +30,7 @@ public sealed partial class ShojiCodebookGeneratorTests
         var city = document.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata").GetProperty("city");
         city.GetProperty("description").GetString().Should().Be(
             "Ciudad (prefilled from participant variable: home) Usa tu dirección actual.");
-        city.GetProperty("notes").GetString().Should().Be("Prefilled from participant variable: home");
+        city.TryGetProperty("notes", out _).Should().BeFalse();
     }
 
     [Fact]

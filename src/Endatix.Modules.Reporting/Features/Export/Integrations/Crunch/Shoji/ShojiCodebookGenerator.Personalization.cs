@@ -11,7 +11,7 @@ internal static partial class ShojiCodebookGenerator
 {
     private const string PERSONALIZATION_DESCRIPTION = "Original value at survey start.";
 
-    private static string DescribeQuestion(Utf8JsonWriter writer, JsonElement question)
+    private static string DescribeQuestion(JsonElement question)
     {
         var description = ReadQuestionDescription(question);
         if (question.ValueKind != JsonValueKind.Object ||
@@ -20,7 +20,6 @@ internal static partial class ShojiCodebookGenerator
             return description;
         }
 
-        writer.WriteString("notes", $"Prefilled from participant variable: {name}");
         var annotatedTitle = $"{ReadQuestionTitle(question)} (prefilled from participant variable: {name})";
         return string.IsNullOrWhiteSpace(description) ? annotatedTitle : $"{annotatedTitle} {description}";
     }

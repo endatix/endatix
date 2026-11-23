@@ -122,7 +122,6 @@
           "type": "text",
           "alias": "city",
           "name": "Which city do you live in?",
-          "notes": "Prefilled from participant variable: city",
           "description": "Which city do you live in? (prefilled from participant variable: city)"
         },
         "consent": {

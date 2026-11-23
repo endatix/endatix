@@ -1810,7 +1810,7 @@ internal static partial class ShojiCodebookGenerator
         JsonElement question,
         string? panelItemText = null)
     {
-        var description = DescribeQuestion(writer, question);
+        var description = DescribeQuestion(question);
         if (panelItemText is not null)
         {
             description = SubstitutePanelItemText(description, panelItemText);

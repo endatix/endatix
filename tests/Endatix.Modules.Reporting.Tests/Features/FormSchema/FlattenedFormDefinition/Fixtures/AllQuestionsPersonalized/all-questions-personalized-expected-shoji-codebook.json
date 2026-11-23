@@ -318,14 +318,12 @@
           "type": "text",
           "alias": "city",
           "name": "Confirm the city you live in",
-          "notes": "Prefilled from participant variable: hometown",
           "description": "Confirm the city you live in (prefilled from participant variable: hometown)"
         },
         "lastVisit": {
           "type": "datetime",
           "alias": "lastVisit",
           "name": "When did you last visit us?",
-          "notes": "Prefilled from participant variable: last_seen",
           "description": "When did you last visit us? (prefilled from participant variable: last_seen)",
           "resolution": "s",
           "format": {
@@ -340,7 +338,6 @@
           "type": "categorical",
           "alias": "qBoolean",
           "name": "Do you agree to the terms?",
-          "notes": "Prefilled from participant variable: panel_member",
           "description": "Do you agree to the terms? (prefilled from participant variable: panel_member)",
           "categories": [
             {
@@ -409,14 +406,12 @@
           "type": "text",
           "alias": "qText",
           "name": "Full Name",
-          "notes": "Prefilled from participant variable: full_name",
           "description": "Full Name (prefilled from participant variable: full_name)"
         },
         "qTextDate": {
           "type": "datetime",
           "alias": "qTextDate",
           "name": "Birth Date",
-          "notes": "Prefilled from participant variable: joined",
           "description": "Birth Date (prefilled from participant variable: joined)",
           "resolution": "D",
           "format": {
@@ -428,7 +423,6 @@
           "type": "numeric",
           "alias": "qTextNumber",
           "name": "Your Age",
-          "notes": "Prefilled from participant variable: age",
           "description": "Your Age (prefilled from participant variable: age)"
         },
         "qRanking": {

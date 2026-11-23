@@ -189,7 +189,7 @@ public sealed class AllQuestionsPersonalizedTests
         foreach (var name in new[] { "conditional", "derived", "answerCopy" })
         {
             questions.GetProperty(name).TryGetProperty("prefilledFrom", out _).Should().BeFalse();
-            variables.GetProperty(name).TryGetProperty("notes", out _).Should().BeFalse();
+            variables.GetProperty(name).GetProperty("description").GetString().Should().NotContain("prefilled from");
         }
     }
 
