@@ -1,11 +1,12 @@
 using System.Text.Json;
-using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 
 internal static class ConditionalChoices
 {
+    public const string PROPERTY_NAME = "conditionalChoices";
+
     public static bool HasListCondition(JsonElement question) =>
         question.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is not null;
 
@@ -18,7 +19,7 @@ internal static class ConditionalChoices
     }
 
     public static IEnumerable<string>? Read(JsonElement catalog) =>
-        catalog.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ConditionalChoices) is { ValueKind: JsonValueKind.Array } values
+        catalog.TryGetPropertyValue(PROPERTY_NAME) is { ValueKind: JsonValueKind.Array } values
             ? values.EnumerateArray().Select(value => value.GetString()).OfType<string>()
             : null;
 
@@ -30,7 +31,7 @@ internal static class ConditionalChoices
         string[] choices = [.. values.Distinct(StringComparer.Ordinal)];
         if (choices.Length > 0)
         {
-            writer.WritePropertyName(FormSchemaCodebookPropertyNames.ConditionalChoices);
+            writer.WritePropertyName(PROPERTY_NAME);
             JsonSerializer.Serialize(writer, choices);
         }
     }

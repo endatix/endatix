@@ -136,7 +136,7 @@ internal static partial class FormSchemaCodebookBuilder
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherFrom) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.CanBeHidden) &&
-                         !property.NameEquals(FormSchemaCodebookPropertyNames.ConditionalChoices) &&
+                         !property.NameEquals(ConditionalChoices.PROPERTY_NAME) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {
                 property.WriteTo(writer);
