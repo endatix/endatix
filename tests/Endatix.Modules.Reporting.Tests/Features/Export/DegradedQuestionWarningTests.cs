@@ -58,7 +58,7 @@ public sealed class DegradedQuestionWarningTests
             """);
 
         // Act
-        await ExportSchemas().CodebookAsync(schema, TestContext.Current.CancellationToken);
+        await ExportSchemas().CodebookAsync(schema, null, TestContext.Current.CancellationToken);
 
         // Assert
         _entries.Should().ContainSingle().Which.Values["Questions"].Should().Be("home");

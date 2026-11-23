@@ -67,12 +67,11 @@ internal sealed class ShojiCodebookExportDataSource(
                 requestLocale);
         }
 
-        await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
         (context.Options.Metadata ??= new Dictionary<string, object>())[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             settings with { Locale = requestLocale };
         context.Options.Metadata[PreparedSchemaKey] = schema.FlatteningMap;
 
-        return Result.Success(context.Options);
+        return await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
     }
 
     public async IAsyncEnumerable<IExportItem> StreamAsync(

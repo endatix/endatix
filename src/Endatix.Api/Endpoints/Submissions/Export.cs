@@ -154,7 +154,7 @@ public partial class Export : Endpoint<ExportRequest>
 
             if (!result.IsSuccess)
             {
-                var errors = string.Join(", ", result.Errors);
+                var errors = string.Join(", ", result.Errors.Concat(result.ValidationErrors.Select(error => error.ErrorMessage)));
                 LogExportFailedError(request.FormId, errors);
 
                 await SetErrorResponse(

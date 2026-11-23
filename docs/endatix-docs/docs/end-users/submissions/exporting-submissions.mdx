@@ -137,7 +137,7 @@ To hand that PDF to someone who has no Hub account, generate an **Export PDF** s
 
 ## None, Refuse to Answer, Don't Know, and Other
 
-A choice question can show special items next to its own choices: **None**, **Refuse to answer**, **Don't know**, and **Other**. Every export format writes them the same way:
+A choice question can show special items next to its own choices: **None**, **Refuse to answer**, **Don't know**, and **Other**. A format can use a numeric code for a single-select answer, such as `99` for None. Without configured codes, the defaults are:
 
 * **Multi-select (checkbox, tag box):** each special item gets its own column after the question's choices, such as `question__none`, `question__refused`, and `question__dontknow`, set to 1 when chosen and 0 when not, like any other choice. **Select All** has no column: it only ticks the other choices.
 * **Single-select (radio group, dropdown):** the column holds the stored value, `none`, `refused`, `dontknow`, or `other`.

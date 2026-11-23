@@ -1,0 +1,64 @@
+using System.Text.Json.Nodes;
+using Endatix.Modules.Reporting.Contracts.Export;
+using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
+
+namespace Endatix.Modules.Reporting.Features.Export.Tabular;
+
+internal sealed class ExportRowProjection
+{
+    private readonly Dictionary<(string Key, string Value), int> _cells = [];
+    private readonly Func<string, string>? _crunch;
+
+    public ExportRowProjection(FormSchemaEntity schema, SpecialChoiceCodes? settings, bool crunch)
+    {
+        var map = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
+        if (crunch)
+        {
+            _crunch = json => CrunchTabularValueProjector.Project(json, map, schema.Codebook);
+        }
+
+        if (settings is not null)
+        {
+            IndexCells(map, schema.Codebook, new ChoiceCodes(settings));
+        }
+    }
+
+    private void IndexCells(MergedFormSchema map, string codebook, ChoiceCodes codes)
+    {
+        var catalogs = ChoiceCatalogs.Read(codebook);
+        foreach (var column in map.Columns.Where(IsChoiceCell))
+        {
+            var choices = catalogs.For(column.SourceQuestion ?? column.Key).Choices;
+            foreach (var choice in choices.Where(choice => codes.Configures(choice.Kind)))
+            {
+                _cells[(column.Key, choice.Value)] = choice.Id;
+            }
+        }
+    }
+
+    private static bool IsChoiceCell(FormSchemaColumn column) =>
+        column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource or FormSchemaColumnKind.PanelDynamicIndex;
+
+    public string Project(string data)
+    {
+        var json = _crunch?.Invoke(data) ?? data;
+        if (_cells.Count == 0)
+        {
+            return json;
+        }
+
+        var row = JsonNode.Parse(json)!.AsObject();
+        foreach (var (key, value) in row.ToArray())
+        {
+            if (value is JsonValue cell && cell.TryGetValue<string>(out var answer) && _cells.TryGetValue((key, answer), out var code))
+            {
+                row[key] = code;
+            }
+        }
+
+        return row.ToJsonString();
+    }
+}

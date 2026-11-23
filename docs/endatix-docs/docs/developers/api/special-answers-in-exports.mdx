@@ -21,9 +21,19 @@ SurveyJS stores each special item as a fixed value in the submission. Endatix ex
 
 **Select All** is never stored: it only ticks the question's other choices, so it has no column or category. A custom choice with `isExclusive: true` stays an ordinary choice in every export.
 
-:::note
-These are the SurveyJS default values (`settings.noneItemValue`, `settings.refuseItemValue`, `settings.dontKnowItemValue`). Choosing your own export codes for them is tracked in [endatix#1544](https://github.com/endatix/endatix/issues/1544), and storing custom values in [endatix#1606](https://github.com/endatix/endatix/issues/1606).
-:::
+## Configure numeric export codes
+
+Set `settings.specialChoiceCodes` when you create an export format or update it with `PATCH /api/settings/export-formats/{exportFormatId}`. For example, to export None as 99 and Don't know as 97:
+
+```json
+{ "settings": { "specialChoiceCodes": { "none": 99, "dontknow": 97 } } }
+```
+
+Include any other settings you want to keep when replacing `settings`. All three keys (`none`, `refused`, `dontknow`) are optional. Without a code, each format keeps the values shown below. A configured single-select answer is a number in JSON and Excel, including in dynamic panels. Multi-select indicators keep their usual values, and codes do not replace items in raw arrays.
+
+For a Crunch import, set the same codes on the **csv-shoji** and **Codebook (Shoji)** formats. A code replaces the category's `id` and `numeric_value`; its missing status stays the same. Changing a code re-keys that category for an existing dataset. The native codebook also uses the configured ids. Stored answers and the stored codebook are unaffected.
+
+Use distinct integers and leave `-1` for Crunch's No Data category. If a code is already a different choice's id in the same question, the download returns HTTP 400. For a catalog compiled before special choices were supported, recompile the form schema before exporting with codes.
 
 ## CSV, JSON, and XLSX
 
