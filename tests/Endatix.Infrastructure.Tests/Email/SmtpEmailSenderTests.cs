@@ -1,8 +1,3 @@
-using MailKit;
-using MailKit.Security;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MimeKit;
 using Endatix.Core;
 using Endatix.Core.Branding;
 using Endatix.Core.Configuration;
@@ -11,11 +6,18 @@ using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Email;
+using MailKit;
+using MailKit.Security;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace Endatix.Infrastructure.Tests.Email;
 
 public partial class SmtpEmailSenderTests
 {
+    private static readonly SendResult _relayAccepted = new("250 OK", [], []);
+
     public SmtpEmailSenderTests()
     {
         // The one-time warning gates are process-wide (static) by design; reset them before every
@@ -144,7 +146,7 @@ public partial class SmtpEmailSenderTests
         // Assert
         await transport.Received(1).ConnectAsync("smtp.example.com", 587, SecureSocketOptions.StartTls, Arg.Any<CancellationToken>());
         await transport.Received(1).AuthenticateAsync("user", "pass", Arg.Any<CancellationToken>());
-        await transport.Received(1).SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>());
+        await transport.Received(1).SendAsync(Arg.Any<ISendRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -281,25 +283,23 @@ public partial class SmtpEmailSenderTests
     public async Task SendEmailWithBody_HtmlAndPlainText_BuildsMultipartAlternativeWithPlainTextFirst()
     {
         // Arrange
-        // SendEmailAsync disposes the MimeMessage (and its Body tree) in a `using` before returning,
-        // so the structure must be inspected inside the Arg.Do callback, not from a captured reference
-        // afterward — the latter throws ObjectDisposedException.
+        // Inspect inside Arg.Do because SendEmailAsync disposes the message before returning.
         var transport = Substitute.For<IMailTransport>();
         bool? isMultipartAlternative = null;
         int? partCount = null;
         string? firstPartMimeType = null;
         string? secondPartMimeType = null;
 
-        transport.SendAsync(Arg.Do<MimeMessage>(msg =>
+        transport.SendAsync(Arg.Do<ISendRequest>(request =>
         {
-            isMultipartAlternative = msg.Body is MultipartAlternative;
-            if (msg.Body is Multipart multipart)
+            isMultipartAlternative = request.Message.Body is MultipartAlternative;
+            if (request.Message.Body is Multipart multipart)
             {
                 partCount = multipart.Count;
                 firstPartMimeType = (multipart[0] as TextPart)?.ContentType.MimeType;
                 secondPartMimeType = (multipart[1] as TextPart)?.ContentType.MimeType;
             }
-        }), Arg.Any<CancellationToken>()).Returns("250 OK");
+        }), Arg.Any<CancellationToken>()).Returns(_relayAccepted);
 
         var sut = SmtpSenderWith(transport);
 
@@ -327,8 +327,8 @@ public partial class SmtpEmailSenderTests
         // Arrange
         var transport = Substitute.For<IMailTransport>();
         transport.IsConnected.Returns(true);
-        transport.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException<string>(new InvalidOperationException("boom")));
+        transport.SendAsync(Arg.Any<ISendRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<SendResult>(new InvalidOperationException("boom")));
 
         var sut = new TestableSmtpEmailSender(
             Substitute.For<ILogger<SmtpEmailSender>>(),
@@ -367,7 +367,7 @@ public partial class SmtpEmailSenderTests
         var logger = Substitute.For<ILogger<SmtpEmailSender>>();
         var transport = Substitute.For<IMailTransport>();
         transport.IsConnected.Returns(true);
-        transport.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>()).Returns("250 OK");
+        transport.SendAsync(Arg.Any<ISendRequest>(), Arg.Any<CancellationToken>()).Returns(_relayAccepted);
         transport.DisconnectAsync(false, CancellationToken.None)
             .Returns(Task.FromException(new IOException("disconnect failed")));
 
@@ -415,8 +415,8 @@ public partial class SmtpEmailSenderTests
         transport.IsConnected.Returns(true);
         var sendException = new InvalidOperationException("send failed");
         var disconnectException = new IOException("disconnect failed");
-        transport.SendAsync(Arg.Any<MimeMessage>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException<string>(sendException));
+        transport.SendAsync(Arg.Any<ISendRequest>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<SendResult>(sendException));
         transport.DisconnectAsync(false, CancellationToken.None)
             .Returns(Task.FromException(disconnectException));
 
@@ -462,18 +462,17 @@ public partial class SmtpEmailSenderTests
     public async Task SendEmailWithBody_MultipleRecipients_AddsAllRecipients()
     {
         // Arrange
-        // Inspect inside Arg.Do — the message is disposed by SendEmailAsync's `using` before control
-        // returns, so reading it afterward throws ObjectDisposedException.
+        // Inspect inside Arg.Do because SendEmailAsync disposes the message before returning.
         var transport = Substitute.For<IMailTransport>();
         int? recipientCount = null;
         string? firstAddress = null;
         string? secondAddress = null;
-        transport.SendAsync(Arg.Do<MimeMessage>(msg =>
+        transport.SendAsync(Arg.Do<ISendRequest>(request =>
         {
-            recipientCount = msg.To.Count;
-            firstAddress = (msg.To[0] as MailboxAddress)?.Address;
-            secondAddress = (msg.To[1] as MailboxAddress)?.Address;
-        }), Arg.Any<CancellationToken>()).Returns("250 OK");
+            recipientCount = request.Message.To.Count;
+            firstAddress = (request.Message.To[0] as MailboxAddress)?.Address;
+            secondAddress = (request.Message.To[1] as MailboxAddress)?.Address;
+        }), Arg.Any<CancellationToken>()).Returns(_relayAccepted);
 
         var sut = new TestableSmtpEmailSender(
             Substitute.For<ILogger<SmtpEmailSender>>(),
