@@ -123,6 +123,77 @@ public sealed class AllQuestionsPersonalizedTests
     }
 
     [Fact]
+    public async Task ShojiCodebook_PersonalizedForm_FormatsDatesAtTheirRecordedPrecision()
+    {
+        // Arrange
+        var (pipeline, _) = Flattened();
+
+        // Act
+        using var shoji = JsonDocument.Parse(await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken));
+
+        // Assert
+        var variables = shoji.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata");
+        foreach (var alias in new[] { "CreatedAt", "lastVisit", "participant_last_seen" })
+        {
+            var variable = variables.GetProperty(alias);
+            variable.GetProperty("format").GetProperty("data").GetString().Should().Be("%Y-%m-%d %H:%M");
+            variable.GetProperty("format").GetProperty("summary").GetString().Should().Be("%Y-%m-%d %H:%M");
+            variable.GetProperty("view").GetProperty("rollup_resolution").GetString().Should().Be("h");
+        }
+        variables.GetProperty("qTextDate").GetProperty("resolution").GetString().Should().Be("D");
+        variables.GetProperty("qTextDate").GetProperty("format").GetProperty("data").GetString().Should().Be("%Y-%m-%d");
+    }
+
+    [Fact]
+    public async Task ShojiCodebook_Ranking_MapsChoicesToExistingCsvColumns()
+    {
+        // Arrange
+        var (pipeline, _) = Flattened();
+
+        // Act
+        using var shoji = JsonDocument.Parse(await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken));
+
+        // Assert
+        var rank = shoji.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata").GetProperty("qRanking");
+        rank.GetProperty("type").GetString().Should().Be("numeric_array");
+        rank.GetProperty("name").GetString().Should().Be("Rank these fruits from best to worst");
+        rank.GetProperty("subvariables").EnumerateArray().Select(item => item.GetProperty("alias").GetString())
+            .Should().Equal("qRanking--apple", "qRanking--banana", "qRanking--orange");
+    }
+
+    [Fact]
+    public async Task Codebooks_ParticipantPrefill_DescribeOnlyDirectReferences()
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"elements":[
+              {"type":"text","name":"city","title":"Confirm the city you live in","defaultValueExpression":"{city}"},
+              {"type":"text","name":"conditional","visibleIf":"{city} notempty","title":"About {city}"},
+              {"type":"text","name":"derived","defaultValueExpression":"concat({city}, ' centre')"},
+              {"type":"text","name":"answerCopy","defaultValueExpression":"{derived}"}
+            ]}]}
+            """;
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        pipeline.Flatten(definition, new FixtureResponse("1", "{}", """{"identifier":"example","variables":{"city":"Sampletown"}}"""));
+
+        // Act
+        using var native = JsonDocument.Parse(pipeline.Schema.CodebookJson);
+        using var shoji = JsonDocument.Parse(await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken));
+
+        // Assert
+        var questions = native.RootElement.GetProperty("questions");
+        var variables = shoji.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata");
+        questions.GetProperty("city").GetProperty("prefilledFrom").GetString().Should().Be("city");
+        variables.GetProperty("city").GetProperty("description").GetString().Should().Be("Confirm the city you live in (prefilled from participant variable: city)");
+        variables.GetProperty("participant_city").GetProperty("description").GetString().Should().Be("Original value at survey start.");
+        foreach (var name in new[] { "conditional", "derived", "answerCopy" })
+        {
+            questions.GetProperty(name).TryGetProperty("prefilledFrom", out _).Should().BeFalse();
+            variables.GetProperty(name).GetProperty("description").GetString().Should().NotContain("prefilled from");
+        }
+    }
+
+    [Fact]
     public async Task ShojiCodebookAndCsv_PersonalizedForm_MatchGoldens()
     {
         // Arrange

@@ -251,6 +251,11 @@ internal static partial class ShojiCodebookGenerator
 
     private static IEnumerable<string> ColumnOrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args)
     {
+        if (column.Kind is FormSchemaColumnKind.RankingChoice)
+        {
+            return [ExportKeyTransformer.Transform(column.Key, args.KeySeparator), RankingAlias(column, args.KeySeparator)];
+        }
+
         if (!IsNeutralRangeSliderColumn(column, args.Questions))
         {
             return ResolveShojiOrderAlias(column, args.Questions, args.KeySeparator) is { } alias ? [alias] : [];

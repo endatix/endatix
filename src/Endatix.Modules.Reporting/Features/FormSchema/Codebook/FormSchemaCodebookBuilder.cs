@@ -22,7 +22,7 @@ internal static partial class FormSchemaCodebookBuilder
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition);
         var questionElements = CollectQuestionElements(definition);
         var choiceSources = ChoiceSourcesIn(questionElements, definition);
-        var questions = BuildQuestions(questionElements, choiceSources);
+        var questions = BuildQuestions(questionElements, choiceSources, merged);
         var columns = BuildColumns(merged, questionElements, TryParseExistingColumns(existingCodebookJson));
         var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition), choiceSources);
 
@@ -136,7 +136,8 @@ internal static partial class FormSchemaCodebookBuilder
 
     private static Dictionary<string, JsonElement> BuildQuestions(
         IReadOnlyDictionary<string, CollectedQuestion> questionElements,
-        ChoiceSources choiceSources)
+        ChoiceSources choiceSources,
+        MergedFormSchema merged)
     {
         Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
 
@@ -144,14 +145,9 @@ internal static partial class FormSchemaCodebookBuilder
         {
             var type = question.Element.GetSurveyJsType();
 
-            if (string.IsNullOrWhiteSpace(type))
+            if (!string.IsNullOrWhiteSpace(type) && TryBuildQuestionEntry(question, type, choiceSources, out var questionEntry))
             {
-                continue;
-            }
-
-            if (TryBuildQuestionEntry(question, type, choiceSources, out var questionEntry))
-            {
-                questions[name] = questionEntry;
+                questions[name] = WithParticipantPrefill(questionEntry, question.Element, merged);
             }
         }
 

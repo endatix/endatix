@@ -49,28 +49,56 @@
           "alias": "CreatedAt",
           "name": "Created At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "ModifiedAt": {
           "type": "datetime",
           "alias": "ModifiedAt",
           "name": "Modified At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "StartedAt": {
           "type": "datetime",
           "alias": "StartedAt",
           "name": "Started At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "CompletedAt": {
           "type": "datetime",
           "alias": "CompletedAt",
           "name": "Completed At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "DurationSeconds": {
           "type": "numeric",
@@ -744,77 +772,265 @@
           "name": "Anything else?",
           "description": ""
         },
-        "brandRank--1": {
-          "type": "numeric",
-          "alias": "brandRank--1",
-          "name": "Rank the brands you know -- 1",
-          "description": ""
+        "brandRank": {
+          "type": "numeric_array",
+          "alias": "brandRank",
+          "name": "Rank the brands you know",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "brandRank--1",
+              "name": "<p><b>Brand A</b></p>"
+            },
+            {
+              "alias": "brandRank--2",
+              "name": "Brand B"
+            },
+            {
+              "alias": "brandRank--3",
+              "name": "Brand C"
+            }
+          ]
         },
-        "brandRank--2": {
-          "type": "numeric",
-          "alias": "brandRank--2",
-          "name": "Rank the brands you know -- 2",
-          "description": ""
+        "cfqAllRank": {
+          "type": "numeric_array",
+          "alias": "cfqAllRank",
+          "name": "Rank stores (cfq, all)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "cfqAllRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqAllRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqAllRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "brandRank--3": {
-          "type": "numeric",
-          "alias": "brandRank--3",
-          "name": "Rank the brands you know -- 3",
-          "description": ""
+        "cfqSelectedRank": {
+          "type": "numeric_array",
+          "alias": "cfqSelectedRank",
+          "name": "Rank stores (cfq, selected)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "cfqSelectedRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqSelectedRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqSelectedRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqAllRank--1": {
-          "type": "numeric",
-          "alias": "cfqAllRank--1",
-          "name": "Rank stores (cfq, all) -- 1",
-          "description": ""
+        "cfqUnselectedRank": {
+          "type": "numeric_array",
+          "alias": "cfqUnselectedRank",
+          "name": "Rank stores (cfq, unselected)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "cfqUnselectedRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqUnselectedRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqUnselectedRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqAllRank--2": {
-          "type": "numeric",
-          "alias": "cfqAllRank--2",
-          "name": "Rank stores (cfq, all) -- 2",
-          "description": ""
+        "edxAllRank": {
+          "type": "numeric_array",
+          "alias": "edxAllRank",
+          "name": "Rank stores (edx, all)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "edxAllRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxAllRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxAllRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqAllRank--3": {
-          "type": "numeric",
-          "alias": "cfqAllRank--3",
-          "name": "Rank stores (cfq, all) -- 3",
-          "description": ""
+        "edxSelectedRank": {
+          "type": "numeric_array",
+          "alias": "edxSelectedRank",
+          "name": "Rank stores (edx, selected)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "edxSelectedRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxSelectedRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxSelectedRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqSelectedRank--1": {
-          "type": "numeric",
-          "alias": "cfqSelectedRank--1",
-          "name": "Rank stores (cfq, selected) -- 1",
-          "description": ""
+        "edxUnselectedRank": {
+          "type": "numeric_array",
+          "alias": "edxUnselectedRank",
+          "name": "Rank stores (edx, unselected)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "edxUnselectedRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxUnselectedRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxUnselectedRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqSelectedRank--2": {
-          "type": "numeric",
-          "alias": "cfqSelectedRank--2",
-          "name": "Rank stores (cfq, selected) -- 2",
-          "description": ""
+        "cfqAllLoop--1--cfqLoopRank": {
+          "type": "numeric_array",
+          "alias": "cfqAllLoop--1--cfqLoopRank",
+          "name": "cfqAllLoop -- Rank stores after Store A (cfq, all)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "cfqAllLoop--1--cfqLoopRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqAllLoop--1--cfqLoopRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqAllLoop--1--cfqLoopRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqSelectedRank--3": {
-          "type": "numeric",
-          "alias": "cfqSelectedRank--3",
-          "name": "Rank stores (cfq, selected) -- 3",
-          "description": ""
+        "cfqAllLoop--2--cfqLoopRank": {
+          "type": "numeric_array",
+          "alias": "cfqAllLoop--2--cfqLoopRank",
+          "name": "cfqAllLoop -- Rank stores after Store B (cfq, all)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "cfqAllLoop--2--cfqLoopRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqAllLoop--2--cfqLoopRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqAllLoop--2--cfqLoopRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqUnselectedRank--1": {
-          "type": "numeric",
-          "alias": "cfqUnselectedRank--1",
-          "name": "Rank stores (cfq, unselected) -- 1",
-          "description": ""
+        "cfqAllLoop--3--cfqLoopRank": {
+          "type": "numeric_array",
+          "alias": "cfqAllLoop--3--cfqLoopRank",
+          "name": "cfqAllLoop -- Rank stores after Store C (cfq, all)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "cfqAllLoop--3--cfqLoopRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "cfqAllLoop--3--cfqLoopRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "cfqAllLoop--3--cfqLoopRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqUnselectedRank--2": {
-          "type": "numeric",
-          "alias": "cfqUnselectedRank--2",
-          "name": "Rank stores (cfq, unselected) -- 2",
-          "description": ""
+        "edxAllLoop--1--edxLoopRank": {
+          "type": "numeric_array",
+          "alias": "edxAllLoop--1--edxLoopRank",
+          "name": "edxAllLoop -- Rank stores after Store A (edx, selected)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "edxAllLoop--1--edxLoopRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxAllLoop--1--edxLoopRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxAllLoop--1--edxLoopRank--3",
+              "name": "Store C"
+            }
+          ]
         },
-        "cfqUnselectedRank--3": {
-          "type": "numeric",
-          "alias": "cfqUnselectedRank--3",
-          "name": "Rank stores (cfq, unselected) -- 3",
-          "description": ""
+        "edxAllLoop--2--edxLoopRank": {
+          "type": "numeric_array",
+          "alias": "edxAllLoop--2--edxLoopRank",
+          "name": "edxAllLoop -- Rank stores after Store B (edx, selected)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "edxAllLoop--2--edxLoopRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxAllLoop--2--edxLoopRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxAllLoop--2--edxLoopRank--3",
+              "name": "Store C"
+            }
+          ]
+        },
+        "edxAllLoop--3--edxLoopRank": {
+          "type": "numeric_array",
+          "alias": "edxAllLoop--3--edxLoopRank",
+          "name": "edxAllLoop -- Rank stores after Store C (edx, selected)",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "edxAllLoop--3--edxLoopRank--1",
+              "name": "Store A"
+            },
+            {
+              "alias": "edxAllLoop--3--edxLoopRank--2",
+              "name": "Store B"
+            },
+            {
+              "alias": "edxAllLoop--3--edxLoopRank--3",
+              "name": "Store C"
+            }
+          ]
         },
         "contact--city": {
           "type": "text",
@@ -826,60 +1042,6 @@
           "type": "text",
           "alias": "contact--zip",
           "name": "contact--zip",
-          "description": ""
-        },
-        "edxAllRank--1": {
-          "type": "numeric",
-          "alias": "edxAllRank--1",
-          "name": "Rank stores (edx, all) -- 1",
-          "description": ""
-        },
-        "edxAllRank--2": {
-          "type": "numeric",
-          "alias": "edxAllRank--2",
-          "name": "Rank stores (edx, all) -- 2",
-          "description": ""
-        },
-        "edxAllRank--3": {
-          "type": "numeric",
-          "alias": "edxAllRank--3",
-          "name": "Rank stores (edx, all) -- 3",
-          "description": ""
-        },
-        "edxSelectedRank--1": {
-          "type": "numeric",
-          "alias": "edxSelectedRank--1",
-          "name": "Rank stores (edx, selected) -- 1",
-          "description": ""
-        },
-        "edxSelectedRank--2": {
-          "type": "numeric",
-          "alias": "edxSelectedRank--2",
-          "name": "Rank stores (edx, selected) -- 2",
-          "description": ""
-        },
-        "edxSelectedRank--3": {
-          "type": "numeric",
-          "alias": "edxSelectedRank--3",
-          "name": "Rank stores (edx, selected) -- 3",
-          "description": ""
-        },
-        "edxUnselectedRank--1": {
-          "type": "numeric",
-          "alias": "edxUnselectedRank--1",
-          "name": "Rank stores (edx, unselected) -- 1",
-          "description": ""
-        },
-        "edxUnselectedRank--2": {
-          "type": "numeric",
-          "alias": "edxUnselectedRank--2",
-          "name": "Rank stores (edx, unselected) -- 2",
-          "description": ""
-        },
-        "edxUnselectedRank--3": {
-          "type": "numeric",
-          "alias": "edxUnselectedRank--3",
-          "name": "Rank stores (edx, unselected) -- 3",
           "description": ""
         },
         "household--0--member": {
@@ -1304,82 +1466,10 @@
             }
           ]
         },
-        "cfqAllLoop--1--cfqLoopRank--1": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--1--cfqLoopRank--1",
-          "name": "cfqAllLoop -- Rank stores after Store A (cfq, all)",
-          "description": ""
-        },
-        "cfqAllLoop--1--cfqLoopRank--2": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--1--cfqLoopRank--2",
-          "name": "cfqAllLoop -- Rank stores after Store A (cfq, all) -- cfqAllLoop--1--cfqLoopRank--2",
-          "description": ""
-        },
-        "cfqAllLoop--1--cfqLoopRank--3": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--1--cfqLoopRank--3",
-          "name": "cfqAllLoop -- Rank stores after Store A (cfq, all) -- cfqAllLoop--1--cfqLoopRank--3",
-          "description": ""
-        },
-        "cfqAllLoop--2--cfqLoopRank--1": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--2--cfqLoopRank--1",
-          "name": "cfqAllLoop -- Rank stores after Store B (cfq, all)",
-          "description": ""
-        },
-        "cfqAllLoop--2--cfqLoopRank--2": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--2--cfqLoopRank--2",
-          "name": "cfqAllLoop -- Rank stores after Store B (cfq, all) -- cfqAllLoop--2--cfqLoopRank--2",
-          "description": ""
-        },
-        "cfqAllLoop--2--cfqLoopRank--3": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--2--cfqLoopRank--3",
-          "name": "cfqAllLoop -- Rank stores after Store B (cfq, all) -- cfqAllLoop--2--cfqLoopRank--3",
-          "description": ""
-        },
-        "cfqAllLoop--3--cfqLoopRank--1": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--3--cfqLoopRank--1",
-          "name": "cfqAllLoop -- Rank stores after Store C (cfq, all)",
-          "description": ""
-        },
-        "cfqAllLoop--3--cfqLoopRank--2": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--3--cfqLoopRank--2",
-          "name": "cfqAllLoop -- Rank stores after Store C (cfq, all) -- cfqAllLoop--3--cfqLoopRank--2",
-          "description": ""
-        },
-        "cfqAllLoop--3--cfqLoopRank--3": {
-          "type": "numeric",
-          "alias": "cfqAllLoop--3--cfqLoopRank--3",
-          "name": "cfqAllLoop -- Rank stores after Store C (cfq, all) -- cfqAllLoop--3--cfqLoopRank--3",
-          "description": ""
-        },
         "edxAllLoop--1--edxLoopPick--other_text": {
           "type": "text",
           "alias": "edxAllLoop--1--edxLoopPick--other_text",
           "name": "edxAllLoop -- Stores you would revisit after Store A (edx, unselected) -- Other",
-          "description": ""
-        },
-        "edxAllLoop--1--edxLoopRank--1": {
-          "type": "numeric",
-          "alias": "edxAllLoop--1--edxLoopRank--1",
-          "name": "edxAllLoop -- Rank stores after Store A (edx, selected)",
-          "description": ""
-        },
-        "edxAllLoop--1--edxLoopRank--2": {
-          "type": "numeric",
-          "alias": "edxAllLoop--1--edxLoopRank--2",
-          "name": "edxAllLoop -- Rank stores after Store A (edx, selected) -- edxAllLoop--1--edxLoopRank--2",
-          "description": ""
-        },
-        "edxAllLoop--1--edxLoopRank--3": {
-          "type": "numeric",
-          "alias": "edxAllLoop--1--edxLoopRank--3",
-          "name": "edxAllLoop -- Rank stores after Store A (edx, selected) -- edxAllLoop--1--edxLoopRank--3",
           "description": ""
         },
         "edxAllLoop--2--edxLoopPick--other_text": {
@@ -1388,46 +1478,10 @@
           "name": "edxAllLoop -- Stores you would revisit after Store B (edx, unselected) -- Other",
           "description": ""
         },
-        "edxAllLoop--2--edxLoopRank--1": {
-          "type": "numeric",
-          "alias": "edxAllLoop--2--edxLoopRank--1",
-          "name": "edxAllLoop -- Rank stores after Store B (edx, selected)",
-          "description": ""
-        },
-        "edxAllLoop--2--edxLoopRank--2": {
-          "type": "numeric",
-          "alias": "edxAllLoop--2--edxLoopRank--2",
-          "name": "edxAllLoop -- Rank stores after Store B (edx, selected) -- edxAllLoop--2--edxLoopRank--2",
-          "description": ""
-        },
-        "edxAllLoop--2--edxLoopRank--3": {
-          "type": "numeric",
-          "alias": "edxAllLoop--2--edxLoopRank--3",
-          "name": "edxAllLoop -- Rank stores after Store B (edx, selected) -- edxAllLoop--2--edxLoopRank--3",
-          "description": ""
-        },
         "edxAllLoop--3--edxLoopPick--other_text": {
           "type": "text",
           "alias": "edxAllLoop--3--edxLoopPick--other_text",
           "name": "edxAllLoop -- Stores you would revisit after Store C (edx, unselected) -- Other",
-          "description": ""
-        },
-        "edxAllLoop--3--edxLoopRank--1": {
-          "type": "numeric",
-          "alias": "edxAllLoop--3--edxLoopRank--1",
-          "name": "edxAllLoop -- Rank stores after Store C (edx, selected)",
-          "description": ""
-        },
-        "edxAllLoop--3--edxLoopRank--2": {
-          "type": "numeric",
-          "alias": "edxAllLoop--3--edxLoopRank--2",
-          "name": "edxAllLoop -- Rank stores after Store C (edx, selected) -- edxAllLoop--3--edxLoopRank--2",
-          "description": ""
-        },
-        "edxAllLoop--3--edxLoopRank--3": {
-          "type": "numeric",
-          "alias": "edxAllLoop--3--edxLoopRank--3",
-          "name": "edxAllLoop -- Rank stores after Store C (edx, selected) -- edxAllLoop--3--edxLoopRank--3",
           "description": ""
         },
         "reasonLoop--1--reason": {
@@ -1882,41 +1936,27 @@
             "hiddenTraits",
             "AidedBrands",
             "favorite",
-            "brandRank--1",
-            "brandRank--2",
-            "brandRank--3",
+            "brandRank",
             "stores",
             "cfqAllPick",
             "cfqAllOne",
-            "cfqAllRank--1",
-            "cfqAllRank--2",
-            "cfqAllRank--3",
+            "cfqAllRank",
             "cfqTagPick",
             "cfqSelectedPick",
             "cfqSelectedOne",
-            "cfqSelectedRank--1",
-            "cfqSelectedRank--2",
-            "cfqSelectedRank--3",
+            "cfqSelectedRank",
             "cfqUnselectedPick",
             "cfqUnselectedOne",
-            "cfqUnselectedRank--1",
-            "cfqUnselectedRank--2",
-            "cfqUnselectedRank--3",
+            "cfqUnselectedRank",
             "edxAllPick",
             "edxAllOne",
-            "edxAllRank--1",
-            "edxAllRank--2",
-            "edxAllRank--3",
+            "edxAllRank",
             "edxSelectedPick",
             "edxSelectedOne",
-            "edxSelectedRank--1",
-            "edxSelectedRank--2",
-            "edxSelectedRank--3",
+            "edxSelectedRank",
             "edxUnselectedPick",
             "edxUnselectedOne",
-            "edxUnselectedRank--1",
-            "edxUnselectedRank--2",
-            "edxUnselectedRank--3",
+            "edxUnselectedRank",
             {
               "group": "Household members",
               "entities": [
@@ -1993,15 +2033,9 @@
               "group": "cfqAllLoop",
               "entities": [
                 "cfqAllLoop--cfqAllOk",
-                "cfqAllLoop--1--cfqLoopRank--1",
-                "cfqAllLoop--1--cfqLoopRank--2",
-                "cfqAllLoop--1--cfqLoopRank--3",
-                "cfqAllLoop--2--cfqLoopRank--1",
-                "cfqAllLoop--2--cfqLoopRank--2",
-                "cfqAllLoop--2--cfqLoopRank--3",
-                "cfqAllLoop--3--cfqLoopRank--1",
-                "cfqAllLoop--3--cfqLoopRank--2",
-                "cfqAllLoop--3--cfqLoopRank--3"
+                "cfqAllLoop--1--cfqLoopRank",
+                "cfqAllLoop--2--cfqLoopRank",
+                "cfqAllLoop--3--cfqLoopRank"
               ]
             },
             {
@@ -2020,19 +2054,13 @@
               "group": "edxAllLoop",
               "entities": [
                 "edxAllLoop--edxAllOk",
-                "edxAllLoop--1--edxLoopRank--1",
-                "edxAllLoop--1--edxLoopRank--2",
-                "edxAllLoop--1--edxLoopRank--3",
+                "edxAllLoop--1--edxLoopRank",
                 "edxAllLoop--1--edxLoopPick",
                 "edxAllLoop--1--edxLoopPick--other_text",
-                "edxAllLoop--2--edxLoopRank--1",
-                "edxAllLoop--2--edxLoopRank--2",
-                "edxAllLoop--2--edxLoopRank--3",
+                "edxAllLoop--2--edxLoopRank",
                 "edxAllLoop--2--edxLoopPick",
                 "edxAllLoop--2--edxLoopPick--other_text",
-                "edxAllLoop--3--edxLoopRank--1",
-                "edxAllLoop--3--edxLoopRank--2",
-                "edxAllLoop--3--edxLoopRank--3",
+                "edxAllLoop--3--edxLoopRank",
                 "edxAllLoop--3--edxLoopPick",
                 "edxAllLoop--3--edxLoopPick--other_text"
               ]

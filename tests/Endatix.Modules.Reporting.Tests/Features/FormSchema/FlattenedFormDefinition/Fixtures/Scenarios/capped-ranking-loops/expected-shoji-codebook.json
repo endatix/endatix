@@ -49,28 +49,56 @@
           "alias": "CreatedAt",
           "name": "Created At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "ModifiedAt": {
           "type": "datetime",
           "alias": "ModifiedAt",
           "name": "Modified At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "StartedAt": {
           "type": "datetime",
           "alias": "StartedAt",
           "name": "Started At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "CompletedAt": {
           "type": "datetime",
           "alias": "CompletedAt",
           "name": "Completed At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "DurationSeconds": {
           "type": "numeric",
@@ -242,29 +270,29 @@
             }
           ]
         },
-        "topOccasions--2": {
-          "type": "numeric",
-          "alias": "topOccasions--2",
-          "name": "Rank your two main occasions -- 2",
-          "description": ""
-        },
-        "topOccasions--3": {
-          "type": "numeric",
-          "alias": "topOccasions--3",
-          "name": "Rank your two main occasions -- 3",
-          "description": ""
-        },
-        "topOccasions--4": {
-          "type": "numeric",
-          "alias": "topOccasions--4",
-          "name": "Rank your two main occasions -- 4",
-          "description": ""
-        },
-        "topOccasions--5": {
-          "type": "numeric",
-          "alias": "topOccasions--5",
-          "name": "Rank your two main occasions -- 5",
-          "description": ""
+        "topOccasions": {
+          "type": "numeric_array",
+          "alias": "topOccasions",
+          "name": "Rank your two main occasions",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "topOccasions--2",
+              "name": "Occasion 2"
+            },
+            {
+              "alias": "topOccasions--3",
+              "name": "Occasion 3"
+            },
+            {
+              "alias": "topOccasions--4",
+              "name": "Occasion 4"
+            },
+            {
+              "alias": "topOccasions--5",
+              "name": "Occasion 5"
+            }
+          ]
         },
         "occasionLoop--occasionBrand": {
           "type": "categorical_array",
@@ -471,10 +499,7 @@
             "occasionPool",
             "brands",
             "traits",
-            "topOccasions--2",
-            "topOccasions--3",
-            "topOccasions--4",
-            "topOccasions--5",
+            "topOccasions",
             "aware",
             {
               "group": "occasionLoop",
