@@ -20,9 +20,9 @@ internal sealed record CopyDefinition(
     IReadOnlySet<string> ContainerVisibleIfNames,
     IReadOnlySet<string> AlwaysHiddenNames)
 {
-    private const string ClearInvisibleValues = "clearInvisibleValues";
-    private const string OnComplete = "onComplete";
-    private const string Default = "default";
+    private const string CLEAR_INVISIBLE_VALUES = "clearInvisibleValues";
+    private const string ON_COMPLETE = "onComplete";
+    private const string DEFAULT = "default";
 
     /// <summary>No definition read: no rule may rely on hidden answers being cleared.</summary>
     public static CopyDefinition None { get; } =
@@ -72,9 +72,10 @@ internal sealed record CopyDefinition(
     private static SubmittedQuestions NamesIn(JsonElement definition)
     {
         Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
-        DefinitionWalk walk = new(questions);
+        SubmittedChoiceScope choices = new();
+        DefinitionWalk walk = new(questions, choices);
         walk.Visit(definition);
-        return new(walk.Counts, new ChoiceSources(questions), SurveyChoiceDefaults.Of(definition));
+        return new(walk.Counts, new ChoiceSources(questions), SurveyChoiceDefaults.Of(definition), choices);
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
@@ -84,8 +85,8 @@ internal sealed record CopyDefinition(
     /// <c>clearInvisibleValues</c> when it has none or <c>default</c>.
     /// </summary>
     public bool KeepsHiddenAnswer(JsonElement question) =>
-        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ClearIfInvisible) is { } own && own != Default
-            ? own != OnComplete
+        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ClearIfInvisible) is { } own && own != DEFAULT
+            ? own != ON_COMPLETE
             : !ClearsHiddenAnswersOnComplete;
 
     /// <summary>
@@ -107,17 +108,17 @@ internal sealed record CopyDefinition(
         (name is not null && AlwaysHiddenNames.Contains(name));
 
     private static bool ClearsOnComplete(JsonElement definition) =>
-        definition.TryGetPropertyValue(ClearInvisibleValues) switch
+        definition.TryGetPropertyValue(CLEAR_INVISIBLE_VALUES) switch
         {
             null or { ValueKind: JsonValueKind.Null } => true,
-            { ValueKind: JsonValueKind.String } mode => mode.GetString() == OnComplete,
+            { ValueKind: JsonValueKind.String } mode => mode.GetString() == ON_COMPLETE,
             _ => false,
         };
 
     // Counts the data names, notes any visibleIf on a page or on an element at any depth (panels, loops and matrix
     // detail panels too), and
     // collects the data names under a container visibleIf and those under a static visible: false.
-    private sealed class DefinitionWalk(Dictionary<string, JsonElement>? questions = null)
+    private sealed class DefinitionWalk(Dictionary<string, JsonElement>? questions = null, SubmittedChoiceScope? choices = null)
     {
         public Dictionary<string, int> Counts { get; } = new(StringComparer.Ordinal);
 
@@ -127,24 +128,24 @@ internal sealed record CopyDefinition(
 
         public bool HasVisibleIf { get; private set; }
 
-        public void Visit(JsonElement container) => Visit(container, default);
+        public void Visit(JsonElement container) => Visit(container, new WalkContext(false, false, choices));
 
-        private void Visit(JsonElement container, Hiding hiding)
+        private void Visit(JsonElement container, WalkContext context)
         {
             if (container.TryGetArrayProperty(SurveyJsPropertyNames.Pages, out var pages))
             {
                 foreach (var page in pages.EnumerateArray())
                 {
-                    Visit(page, hiding.Inside(page, HasVisibleIfNoted(page)));
+                    Visit(page, context.Inside(page, HasVisibleIfNoted(page)));
                 }
             }
 
-            VisitElements(container, SurveyJsPropertyNames.Elements, hiding);
-            VisitElements(container, SurveyJsPropertyNames.TemplateElements, hiding);
-            VisitElements(container, SurveyJsPropertyNames.DetailElements, hiding);
+            VisitElements(container, SurveyJsPropertyNames.Elements, context);
+            VisitElements(container, SurveyJsPropertyNames.TemplateElements, context.TemplateOf(container));
+            VisitElements(container, SurveyJsPropertyNames.DetailElements, context);
         }
 
-        private void VisitElements(JsonElement container, string property, Hiding hiding)
+        private void VisitElements(JsonElement container, string property, WalkContext context)
         {
             if (!container.TryGetArrayProperty(property, out var elements))
             {
@@ -153,10 +154,10 @@ internal sealed record CopyDefinition(
 
             foreach (var element in elements.EnumerateArray())
             {
-                var inside = hiding.Inside(element, HasVisibleIfNoted(element));
+                var inside = context.Inside(element, HasVisibleIfNoted(element));
                 if (!SurveyJsElementType.IsNonData(element.GetSurveyJsType()) && element.GetSurveyJsName() is { } name)
                 {
-                    NoteQuestion(element, name, new Hiding(inside.Always, hiding.ByVisibleIf));
+                    NoteQuestion(element, name, context with { Always = inside.Always });
                 }
 
                 Visit(element, inside);
@@ -164,12 +165,13 @@ internal sealed record CopyDefinition(
         }
 
         // Always is the question's own or an enclosing static visible: false; ByVisibleIf an enclosing visibleIf only.
-        private void NoteQuestion(JsonElement question, string name, Hiding hidden)
+        private void NoteQuestion(JsonElement question, string name, WalkContext context)
         {
             Counts[name] = Counts.GetValueOrDefault(name) + 1;
             questions?.TryAdd(name, question);
-            Note(AlwaysHidden, name, hidden.Always);
-            Note(UnderVisibleIf, name, hidden.ByVisibleIf);
+            context.Scope?.Note(name, question);
+            Note(AlwaysHidden, name, context.Always);
+            Note(UnderVisibleIf, name, context.ByVisibleIf);
         }
 
         private bool HasVisibleIfNoted(JsonElement element)
@@ -190,12 +192,18 @@ internal sealed record CopyDefinition(
 
     // What hides an element's contents: a static visible: false on it or an enclosing panel or page (Always), or a
     // visibleIf on an enclosing panel, dynamic panel or page (ByVisibleIf).
-    private readonly record struct Hiding(bool Always, bool ByVisibleIf)
+    private readonly record struct WalkContext(bool Always, bool ByVisibleIf, SubmittedChoiceScope? Scope)
     {
-        public Hiding Inside(JsonElement container, bool visibleIf) =>
+        public WalkContext Inside(JsonElement container, bool visibleIf) =>
             new(
                 Always || container.TryGetPropertyValue(SurveyJsPropertyNames.Visible) is { ValueKind: JsonValueKind.False },
-                ByVisibleIf || visibleIf);
+                ByVisibleIf || visibleIf, Scope);
+
+        public WalkContext TemplateOf(JsonElement container) =>
+            Scope is not null && SurveyJsElementType.PanelDynamic.Matches(container.GetSurveyJsType()) &&
+            (container.GetSurveyJsValueName() ?? container.GetSurveyJsName()) is { } name
+                ? this with { Scope = Scope.Panel(name) }
+                : this;
     }
 }
 
@@ -206,7 +214,8 @@ internal sealed record CopyDefinition(
 internal sealed record SubmittedQuestions(
     IReadOnlyDictionary<string, int> NameCounts,
     ChoiceSources Sources,
-    SurveyChoiceDefaults Defaults)
+    SurveyChoiceDefaults Defaults,
+    SubmittedChoiceScope Choices)
 {
     private readonly Dictionary<string, SelectChoices> _sourceReaders = new(StringComparer.Ordinal);
 

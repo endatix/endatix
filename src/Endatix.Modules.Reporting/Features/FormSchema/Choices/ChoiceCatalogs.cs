@@ -65,7 +65,7 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public static ChoiceCatalogs Read(string? codebookJson, bool submissionComplete = false, string? submittedDefinitionJson = null)
     {
-        // Read only when a cell needs it: an unanswered question in a complete submission, or a copy's copied Other.
+        // Parse the version only when a cell needs a fact that depends on the submitted definition.
         Lazy<SubmittedQuestions?> submittedQuestions = new(() => CopyDefinition.QuestionsIn(submittedDefinitionJson));
         using var document = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonDocument.Parse(codebookJson);
         if (document?.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
@@ -137,7 +137,7 @@ internal sealed class ChoiceCatalogs
 
         if (!_copies.Contains(question))
         {
-            return !For(question).IsConditional(choiceValue) && OwnQuestionShown(scope, question)
+            return OwnQuestionShown(scope, question) && !IsConditional(scope, question, choiceValue)
                 ? IndicatorCell.ShownNotPicked
                 : IndicatorCell.Empty;
         }
@@ -149,6 +149,9 @@ internal sealed class ChoiceCatalogs
 
     private bool OwnQuestionShown(AnswerScope scope, string question) =>
         scope.OwnAnswers(question) || (SubmissionComplete && !For(question).CanBeHidden && WasSubmittedWith(question));
+
+    private bool IsConditional(AnswerScope scope, string question, string value) =>
+        SubmittedQuestions.Value?.Choices.IsConditional(scope.LoopPath, question, value) ?? For(question).IsConditional(value);
 
     /// <summary>
     /// The question's Other text in <paramref name="scope"/>: its own when not empty. For a copy that offers, or once

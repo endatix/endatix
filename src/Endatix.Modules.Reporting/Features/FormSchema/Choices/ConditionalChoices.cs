@@ -8,13 +8,13 @@ internal static class ConditionalChoices
     public const string PROPERTY_NAME = "conditionalChoices";
 
     public static bool HasListCondition(JsonElement question) =>
-        question.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is not null;
+        question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ChoicesVisibleIf) is not null;
 
     public static IEnumerable<string> ValuesIn(JsonElement question)
     {
         var all = HasListCondition(question);
         return SurveyJsChoiceHelper.EnumerateChoiceElements(question)
-            .Where(choice => all || choice.Element.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf) is not null)
+            .Where(choice => all || choice.Element.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf)?.GetNonEmptyStringValue() is not null)
             .Select(choice => choice.Value);
     }
 

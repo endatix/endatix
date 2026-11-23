@@ -11,6 +11,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.Choices;
 internal sealed class AnswerScope
 {
     private readonly IReadOnlyList<JsonElement> _contexts;
+    public IReadOnlyList<LoopSegment> LoopPath { get; private init; } = [];
 
     private AnswerScope(IReadOnlyList<JsonElement> contexts)
     {
@@ -45,7 +46,7 @@ internal sealed class AnswerScope
             contexts.Add(item);
         }
 
-        return new AnswerScope(contexts);
+        return new AnswerScope(contexts) { LoopPath = loopPath };
     }
 
     /// <summary>
