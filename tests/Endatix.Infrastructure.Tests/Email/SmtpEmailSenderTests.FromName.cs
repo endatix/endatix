@@ -7,7 +7,6 @@ using Endatix.Infrastructure.Email;
 using MailKit;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MimeKit;
 
 namespace Endatix.Infrastructure.Tests.Email;
 
@@ -26,12 +25,12 @@ public partial class SmtpEmailSenderTests
         var transport = Substitute.For<IMailTransport>();
         string? sentName = null;
         string? sentAddress = null;
-        transport.SendAsync(Arg.Do<MimeMessage>(msg =>
+        transport.SendAsync(Arg.Do<ISendRequest>(request =>
         {
-            var sender = msg.From.Mailboxes.Single();
+            var sender = request.Message.From.Mailboxes.Single();
             sentName = sender.Name;
             sentAddress = sender.Address;
-        }), Arg.Any<CancellationToken>()).Returns("250 OK");
+        }), Arg.Any<CancellationToken>()).Returns(_relayAccepted);
 
         var sut = SmtpSenderWith(transport);
         var email = new EmailWithBody
@@ -58,8 +57,8 @@ public partial class SmtpEmailSenderTests
         // Arrange
         var transport = Substitute.For<IMailTransport>();
         string? sentAddress = null;
-        transport.SendAsync(Arg.Do<MimeMessage>(msg => sentAddress = msg.From.Mailboxes.Single().Address), Arg.Any<CancellationToken>())
-            .Returns("250 OK");
+        transport.SendAsync(Arg.Do<ISendRequest>(request => sentAddress = request.Message.From.Mailboxes.Single().Address),
+            Arg.Any<CancellationToken>()).Returns(_relayAccepted);
         var sut = SmtpSenderWith(transport);
         var email = new EmailWithBody
         {
@@ -85,12 +84,12 @@ public partial class SmtpEmailSenderTests
         var transport = Substitute.For<IMailTransport>();
         string? sentName = null;
         string? sentAddress = null;
-        transport.SendAsync(Arg.Do<MimeMessage>(msg =>
+        transport.SendAsync(Arg.Do<ISendRequest>(request =>
         {
-            var sender = msg.From.Mailboxes.Single();
+            var sender = request.Message.From.Mailboxes.Single();
             sentName = sender.Name;
             sentAddress = sender.Address;
-        }), Arg.Any<CancellationToken>()).Returns("250 OK");
+        }), Arg.Any<CancellationToken>()).Returns(_relayAccepted);
         var sut = SmtpSenderWith(transport);
         var email = new EmailWithBody
         {

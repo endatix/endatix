@@ -54,3 +54,13 @@ Once the provider is activated in your code, you must supply the necessary crede
 :::info
 For a complete list of required and optional properties for all supported email integrations (Mailgun, SendGrid, and SMTP), and for identity template sender addresses, see [Email Settings](/docs/configuration/settings/email-settings). After the API is running, [verify the provider and templates in Hub](/docs/end-users/administration/email-settings).
 :::
+
+## Upgrade a custom SMTP transport to MailKit 5
+
+If you override `SmtpEmailSender.CreateTransport()`, rebuild your extension against MailKit 5 and align any direct MIME references with `MimeKit.Core` 5. Do not keep a `MimeKit` 4.x reference alongside it: both assemblies define types such as `MimeMessage`, which causes compiler error `CS0433`. If you only configure the built-in SMTP provider, you do not need to change your settings.
+
+If you implement `IMailTransport`, migrate the `Send` and `SendAsync` overloads (with and without `FormatOptions`) to take an `ISendRequest`. Read the message from `request.Message` and return `SendResult` or `Task<SendResult>` instead of a response string. Implement `DisposeAsync()` if your transport does not inherit it from `MailService`.
+
+If your `SmtpClient` subclass overrides sender or recipient acceptance callbacks, move those overrides to a `SmtpSendRequest` subclass and pass an instance of it when your transport sends the message.
+
+See the [MailKit 5 porting guide](https://github.com/jstedfast/MailKit/blob/5.0.0/PortingGuide.md) for the complete migration.
