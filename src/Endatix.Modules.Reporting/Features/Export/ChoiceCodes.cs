@@ -4,6 +4,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.Export;
 
@@ -107,7 +108,7 @@ internal sealed class ChoiceCodes(SpecialChoiceCodes? settings)
             var code = _codes[(string)entry["kind"]!];
             if (entries.FirstOrDefault(other => other != entry && (int)other["id"]! == code) is { } conflict)
             {
-                return Error($"Code {code} for '{entry["value"]}' equals the id of '{conflict["value"]}' in question '{question}'.");
+                return Error($"Code {code} for '{entry[SurveyJsPropertyNames.Value]}' equals the id of '{conflict[SurveyJsPropertyNames.Value]}' in question '{question}'.");
             }
         }
         return null;
@@ -115,11 +116,11 @@ internal sealed class ChoiceCodes(SpecialChoiceCodes? settings)
 
     private static void AlignCurrentIds(JsonArray? current, JsonObject[] entries)
     {
-        var ids = entries.DistinctBy(entry => (string)entry["value"]!)
-            .ToDictionary(entry => (string)entry["value"]!, entry => (int)entry["id"]!);
+        var ids = entries.DistinctBy(entry => (string)entry[SurveyJsPropertyNames.Value]!)
+            .ToDictionary(entry => (string)entry[SurveyJsPropertyNames.Value]!, entry => (int)entry["id"]!);
         foreach (var entry in current?.OfType<JsonObject>() ?? [])
         {
-            if (ids.TryGetValue((string)entry["value"]!, out var id))
+            if (ids.TryGetValue((string)entry[SurveyJsPropertyNames.Value]!, out var id))
             {
                 entry["id"] = id;
             }
