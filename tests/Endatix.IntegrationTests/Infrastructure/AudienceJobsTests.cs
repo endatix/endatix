@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Features.Outbox;
@@ -113,7 +114,7 @@ public sealed class AudienceJobsTests(DbIntegrationFixture fixture)
 
         // Act
         await using var scope = host.Services.CreateAsyncScope();
-        var requests = await release.BuildRequestsAsync(scope.ServiceProvider, new OutboxDelivery(message, tenantId), ct);
+        var requests = await release.BuildRequestsAsync(scope.ServiceProvider, new OutboxDelivery(message, JobScope.ForTenant(tenantId)), ct);
 
         // Assert
         requests.Should().BeEmpty();

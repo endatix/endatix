@@ -403,7 +403,7 @@ Endatix uses **domain events** on aggregates (`BaseEntity` → `HasDomainEventsB
 | Customer webhook      | `IIntegrationEvent` + `WebHookOutboxIntegrationEventHandler` mapping | Outbox relay → HTTP, or with `DeliverToJobQueue` a job per endpoint                 | `form.updated`, `submission.completed`                                                                |
 | Module subscriber     | `IIntegrationEvent` + `IOutboxIntegrationEventHandler`               | Outbox relay → in-process handler, or with `DeliverToJobQueue` a job per subscriber | Reporting: `form.definition.updated`, `submission.updated`, `tenant.created` (default export formats) |
 
-A module registers each subscriber with `services.AddOutboxWork<TWork>()` (`Endatix.Infrastructure.Features.Outbox`): the handler implements `IOutboxWork<TWork>` (`JobType`, `HandledEventTypes`, `Read`), and the one call registers it inline, as a background job (`OutboxJobHandler`) and as the job's subscription to every event in `HandledEventTypes`, so `Endatix:Outbox:DeliverToJobQueue` can move it to the job queue. The job's stored input is `{"outboxMessageId":N}` under the work's `JobType` literal. The job fails for good, without retry, when the outbox row is gone or unreadable, when an app-level row's payload names another tenant, or when the tenant reader, `Read` or the work throws `OutboxPermanentFailureException`; anything else the work throws is retried. Inline, `CompositeIntegrationEventPublisher` lets that exception through unwrapped, so the relay fails the outbox row on that attempt (endatix#1566). With the switch on, startup fails when an outbox work has no job of its own or lists fewer `EventTypes` than its job subscribes, when any other inline handler's events have no subscription from its assembly that no work owns, or when an inline handler is registered twice; `OutboxWorkCoverageTests` boots every module that way.
+A module registers each subscriber with `services.AddOutboxWork<TWork>()` (`Endatix.Infrastructure.Features.Outbox`): the handler implements `IOutboxWork<TWork>` (`JobType`, `HandledEventTypes`, `Read`), and the one call registers it inline, as a background job (`OutboxJobHandler`) and as the job's subscription to every event in `HandledEventTypes`, so `Endatix:Outbox:DeliverToJobQueue` can move it to the job queue. The job's stored input is `{"outboxMessageId":N}` under the work's `JobType` literal. The job fails for good, without retry, when the outbox row is gone or unreadable, when an app-level row's payload names another tenant, when the job's scope does not match the work (a system job for tenant work, or a tenant job for app-level work), or when the tenant reader, `Read` or the work throws `OutboxPermanentFailureException`; anything else the work throws is retried. Inline, `CompositeIntegrationEventPublisher` lets that exception through unwrapped, so the relay fails the outbox row on that attempt (endatix#1566). With the switch on, startup fails when an outbox work has no job of its own or lists fewer `EventTypes` than its job subscribes, when any other inline handler's events have no subscription from its assembly that no work owns, or when an inline handler is registered twice; `OutboxWorkCoverageTests` boots every module that way.
 
 Plain `DomainEventBase` events that are **not** `IIntegrationEvent` are ignored by the outbox dispatcher and stay in-process.
 
@@ -511,7 +511,7 @@ Every job has exactly one **row** in `jobs."BackgroundJobs"` and, while it waits
 fired for the last time, so a finished job has none, and a job recovered from a dead node runs on a
 recovery trigger of Quartz's own before it gets a job-id trigger back for any retry.
 
-- The **row is the record**: tenant, status, attempts, progress, error, trace and retention. It is
+- The **row is the record**: scope, status, attempts, progress, error, trace and retention. It is
   what `GET jobs/{jobId}` reads, and the only place a job's state lives.
 - **Quartz.NET 4.7.2, pinned exactly, is the queue**: a clustered store in the same schema decides when and on which
   node a job runs, and re-runs a dead node's jobs on a survivor. A retry is a trigger the job wrapper
@@ -580,11 +580,30 @@ module's own driver delegate for each provider (`ExecutionGroupFilteringPostgreS
 Reporting's thread, and a node never takes a job type it cannot run — the job waits for a node that
 can.
 
+### Tenant jobs and system jobs
+
+A job has a **scope** (`JobScope`): a tenant's, or the system's. A tenant job carries a real tenant;
+`JobScope.ForTenant` refuses zero or less. A system job does work that belongs to no tenant, such as a
+signup processed before its tenant exists, and is made only from `JobScope.System` (`BackgroundJob.ForSystem`,
+or a request with that scope), never from a tenant id. `JobScopeStorage` is the one place a scope meets the `TenantId` column: a system job
+stores the value an app-level outbox row stores for "no tenant", which the tenant filter shows to no tenant,
+so `GET jobs/{jobId}` answers `404` to a tenant asking for one. That is the only API view of a job: there is no
+job listing or retry endpoint, so a system job, failed ones included, has no API view at all. The
+PlatformAdmin-only Quartz dashboard shows a system job's trigger while the job waits or retries, as it shows
+every job's; a finished job has no trigger, so its row is read in the database.
+
+A system job runs as the relay runs its work inline: with no ambient tenant, so app-level repositories work.
+The tenant filter is permissive there, so an unscoped query in a system job reads every tenant's rows; the
+handler scopes its own queries, as inline work does. Making tenant-filtered queries match nothing in a system
+job belongs to the tenant-scope change that follows, not to this one. `BackgroundJobContext.TenantId` throws
+`JobScopeMismatchException` for a system job, and the runner fails that job at once, without a retry, so a
+handler written for tenant work never runs one with no tenant.
+
 ### The handler contract
 
 Feature handlers derive from `BackgroundJobHandler<TPayload>` over a payload record that declares its
 job type once, as a literal. Return a failure `Result` for a deterministic error, throw only for a
-transient one; scope every query to the job's `TenantId`; honour the token; never hold one
+transient one; scope every query of a tenant job to the job's `TenantId`; honour the token; never hold one
 `DbContext` for the length of a job. Handlers never see a Quartz type.
 
 ### The relay delivers to the job queue
@@ -595,7 +614,11 @@ does no subscriber work and, once the jobs are queued, one failing subscriber ca
 re-send or dead-letter another. Reporting and Audience register each handler through `AddOutboxWork`, and the startup checks
 that guard the switch are listed with it under [Domain and integration events](#domain-and-integration-events);
 webhooks expand to one job per distinct enabled endpoint URL. The relay pauses rather than claim when
-the switch is on and no job queue is registered.
+the switch is on and no job queue is registered. A row's jobs take its tenant, the tenant an
+`appLevelTenant` reader names in an app-level row, or, for work registered with `AddAppLevelOutboxWork`, the
+system scope, which takes only app-level rows: a row that names a tenant fails the publish, in either
+delivery mode, and is retried, then failed, where an operator sees it. A work's `onlyWhen` is applied
+before that scope check, so a row the work skips enqueues nothing for it and blocks no other subscriber.
 
 ### Three idempotency guards
 

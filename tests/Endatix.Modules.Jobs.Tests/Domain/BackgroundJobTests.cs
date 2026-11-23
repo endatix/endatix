@@ -9,7 +9,7 @@ namespace Endatix.Modules.Jobs.Tests.Domain;
 /// <c>ExecuteUpdateAsync</c> rather than through these methods, so these tests are where the rules
 /// themselves are pinned — if a rule changes here, the runner's SQL has to change with it.
 /// </summary>
-public class BackgroundJobTests
+public partial class BackgroundJobTests
 {
     private static readonly DateTime Now = new(2026, 8, 14, 12, 0, 0, DateTimeKind.Utc);
 
@@ -179,8 +179,8 @@ public class BackgroundJobTests
         // Act
         var act = () => new BackgroundJob("SubmissionExport", "{}", tenantId: 0, nextAttemptAt: Now);
 
-        // Assert — zero is what the tenant context reports when no tenant is ambient, so a job
-        // carrying it would be hidden from every tenant and visible to every background service.
+        // Assert — zero is what the tenant context reports when no tenant is ambient. Work that belongs to
+        // no tenant is a system job, made by ForSystem, never a tenant job of tenant zero.
         act.Should().Throw<ArgumentException>();
     }
 

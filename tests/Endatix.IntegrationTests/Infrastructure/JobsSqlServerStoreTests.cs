@@ -101,12 +101,12 @@ public sealed partial class JobsSqlServerStoreTests(DbIntegrationFixture fixture
         tables.Should().Contain(["BackgroundJobs", "__EFMigrationsHistory"]);
         tables.Should().Contain(QuartzSchemaScripts.SqlServerTableNames());
         checkConstraints.Should().ContainSingle()
-            .Which.Should().Be(("CK_BackgroundJobs_TenantId", "([TenantId]>(0))"));
+            .Which.Should().Be(("CK_BackgroundJobs_TenantId", "([TenantId]>(0) OR [TenantId]=(0))"));
         jobIndexes.Should().Equal(
             ("IX_BackgroundJobs_DedupKey", true, "([DedupKey] IS NOT NULL)"),
             ("IX_BackgroundJobs_Expiry", false, null),
             ("IX_BackgroundJobs_Tenant", false, null));
-        appliedMigrations.Should().Be(3);
+        appliedMigrations.Should().Be(4);
         await ShouldHaveTheAcquisitionColumnAndIndexAsync(database, ct);
     }
 

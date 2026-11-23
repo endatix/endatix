@@ -5,7 +5,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
 
@@ -23,6 +22,11 @@ internal static class OutboxJobFailures
 
     /// <summary>An app-level row's payload names another tenant than the job's.</summary>
     public const string OtherTenant = "The outbox message belongs to another tenant.";
+
+    /// <summary>
+    /// A system job for tenant work, or a tenant job for system work: the job's scope is not the one the work runs in.
+    /// </summary>
+    public const string WrongScope = JobScopeMismatchException.WrongScope;
 
     /// <summary>The work threw <see cref="OutboxPermanentFailureException"/>: the message can never be processed.</summary>
     public const string PermanentFailure = "The outbox message can never be processed.";
@@ -67,7 +71,7 @@ internal sealed partial class OutboxJobHandler<TWork>(
         OutboxMessageJob<TWork> payload,
         CancellationToken cancellationToken)
     {
-        var lookup = await messages.FindAsync(job, payload.OutboxMessageId, registration.ReadTenant, cancellationToken);
+        var lookup = await messages.FindAsync(job, payload.OutboxMessageId, registration, cancellationToken);
         if (!lookup.TryGet(out var message, out var refused))
         {
             return Failure(refused);
@@ -100,16 +104,28 @@ internal sealed partial class OutboxJobHandler<TWork>(
 internal sealed class OutboxJobMessages(IRepository<OutboxMessage> outboxMessages)
 {
     /// <summary>The job's message, or the <see cref="OutboxJobFailures"/> reason the job cannot have it.</summary>
-    public async Task<OutboxJobLookup> FindAsync(
+    /// <remarks>
+    /// A system job reads only an app-level row, and only for app-level work; a tenant job reads only its own tenant's
+    /// row, or an app-level row whose payload names its tenant. Neither can read the other's rows.
+    /// </remarks>
+    public Task<OutboxJobLookup> FindAsync<TWork>(
+        BackgroundJobContext job,
+        long outboxMessageId,
+        OutboxWorkRegistration<TWork> registration,
+        CancellationToken cancellationToken)
+        where TWork : class, IOutboxWork<TWork> =>
+        job.Scope.IsSystem == registration.AppLevel
+            ? LoadAsync(job, outboxMessageId, registration.ReadTenant, cancellationToken)
+            : Task.FromResult(OutboxJobLookup.Refused(OutboxJobFailures.WrongScope));
+
+    private async Task<OutboxJobLookup> LoadAsync(
         BackgroundJobContext job,
         long outboxMessageId,
         Func<IOutboxMessage, long>? readTenant,
         CancellationToken cancellationToken)
     {
-        // Scoped to the tenant explicitly: outside a request nothing else scopes this read. An app-level row carries
-        // no tenant; its job belongs to the tenant the payload names.
         var row = await outboxMessages.FirstOrDefaultAsync(
-            new OutboxMessageByIdForTenantSpec(outboxMessageId, readTenant is null ? job.TenantId : AuthConstants.DEFAULT_TENANT_ID),
+            new OutboxMessageByIdForTenantSpec(outboxMessageId, RowTenant(job, readTenant)),
             cancellationToken);
         if (row is null)
         {
@@ -120,6 +136,11 @@ internal sealed class OutboxJobMessages(IRepository<OutboxMessage> outboxMessage
         var message = LegacyOutboxEvents.Translate(new OutboxMessageView(row));
         return readTenant is null ? OutboxJobLookup.Found(message) : ForTenant(readTenant, message, job.TenantId);
     }
+
+    // Scoped explicitly: outside a request nothing else scopes this read. An app-level row carries no tenant; a
+    // system job reads only such rows, and a tenant job of app-level work belongs to the tenant the payload names.
+    private static long RowTenant(BackgroundJobContext job, Func<IOutboxMessage, long>? readTenant) =>
+        job.Scope.IsSystem || readTenant is not null ? OutboxAppLevel.NoTenant : job.TenantId;
 
     private static OutboxJobLookup ForTenant(Func<IOutboxMessage, long> readTenant, IOutboxMessage message, long tenantId)
     {

@@ -28,7 +28,8 @@ public sealed class JobsMigrationsAvailabilityTests
             "20260928150416_InitialBackgroundJobs",
             "20260928153000_AddTriggerAcquisitionIndex",
             "20260928161206_AddDedupKeyToBackgroundJobs",
-            "20261107120000_UpgradeQuartzTablesTo472");
+            "20261107120000_UpgradeQuartzTablesTo472",
+            "20261117182125_AllowSystemBackgroundJobs");
     }
 
     [Fact]
@@ -44,7 +45,8 @@ public sealed class JobsMigrationsAvailabilityTests
         migrations.Should().Equal(
             "20261009151311_InitialBackgroundJobs",
             "20261015080000_PinTriggerAcquisitionGroupCollation",
-            "20261107120000_UpgradeQuartzTablesTo472");
+            "20261107120000_UpgradeQuartzTablesTo472",
+            "20261117182130_AllowSystemBackgroundJobs");
     }
 
     [Fact]

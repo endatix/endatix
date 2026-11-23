@@ -7,9 +7,10 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 /// </summary>
 /// <param name="JobId">Identifies the row; also the correlation id clients poll on.</param>
 /// <param name="JobType">The router key this handler was resolved for.</param>
-/// <param name="TenantId">
-/// The owning tenant. <b>Every query the handler issues must be scoped to this explicitly</b> — see
-/// the handler contract on <see cref="IBackgroundJobHandler"/>.
+/// <param name="Scope">
+/// Whose work the job is. For a tenant job, <b>every query the handler issues must be scoped to
+/// <see cref="TenantId"/> explicitly</b> — see the handler contract on <see cref="IBackgroundJobHandler"/>.
+/// A system job has no tenant; it runs as the outbox relay's inline work does, so it scopes its own queries too.
 /// </param>
 /// <param name="PayloadJson">The input supplied at enqueue time.</param>
 /// <param name="AttemptCount">
@@ -19,9 +20,31 @@ namespace Endatix.Core.Abstractions.BackgroundJobs;
 public sealed record BackgroundJobContext(
     long JobId,
     string JobType,
-    long TenantId,
+    JobScope Scope,
     string PayloadJson,
-    int AttemptCount);
+    int AttemptCount)
+{
+    /// <summary>The context of a job of tenant <paramref name="TenantId"/>.</summary>
+    public BackgroundJobContext(long JobId, string JobType, long TenantId, string PayloadJson, int AttemptCount)
+        : this(JobId, JobType, JobScope.ForTenant(TenantId), PayloadJson, AttemptCount)
+    {
+    }
+
+    /// <summary>The owning tenant of a tenant job.</summary>
+    /// <exception cref="JobScopeMismatchException">
+    /// The job is a system job. A handler written for tenant work fails here, and the runner fails the job at once
+    /// rather than run it with no tenant or retry it.
+    /// </exception>
+    public long TenantId => Scope.TenantId
+        ?? throw new JobScopeMismatchException($"Job {JobId} ({JobType}) is a system job and has no tenant.");
+
+    // Printing (ToString, debugger views) must never throw, so TenantId is left out: Scope says it.
+    private bool PrintMembers(System.Text.StringBuilder builder)
+    {
+        builder.Append($"JobId = {JobId}, JobType = {JobType}, Scope = {Scope}, AttemptCount = {AttemptCount}");
+        return true;
+    }
+}
 
 /// <summary>
 /// Executes one type of background job. Implementations are resolved from DI by
@@ -72,7 +95,7 @@ public sealed record BackgroundJobContext(
 /// <list type="number">
 ///   <item>
 ///     <description>
-///     <b>Scope every query to <see cref="BackgroundJobContext.TenantId"/> explicitly.</b> The
+///     <b>Scope every query of a tenant job to <see cref="BackgroundJobContext.TenantId"/> explicitly.</b> The
 ///     ambient tenant filter resolves to "no tenant" outside a request, which makes it permissive
 ///     rather than restrictive — a handler that queries as if it were in a request reads every
 ///     tenant's data.
