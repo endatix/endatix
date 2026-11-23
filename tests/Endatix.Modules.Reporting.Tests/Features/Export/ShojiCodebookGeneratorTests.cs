@@ -233,6 +233,29 @@ public sealed partial class ShojiCodebookGeneratorTests
         subvariables.Should().OnlyContain(item => !string.IsNullOrWhiteSpace(item.Name));
     }
 
+    [Theory]
+    [InlineData("visit--day")]
+    [InlineData("visits--north--visitDetails--day")]
+    public void Generate_MultipleTextDateItem_ExportsOnlyTheDay(string alias)
+    {
+        const string definitionJson = """
+            {"pages":[{"elements":[
+              {"type":"multipletext","name":"visit","items":[{"name":"day","inputType":"date"}]},
+              {"type":"checkbox","name":"sites","choices":["north"]},
+              {"type":"paneldynamic","name":"visits","loopSource":["sites"],"templateElements":[
+                {"type":"multipletext","name":"visitDetails","items":[{"name":"day","inputType":"date"}]}
+              ]}
+            ]}]}
+            """;
+        var compiled = new FormSchemaCompiler().CompilePersisted(definitionJson);
+
+        var variable = GenerateTable(compiled).GetProperty("metadata").GetProperty(alias);
+
+        variable.GetProperty("resolution").GetString().Should().Be("D");
+        variable.GetProperty("format").GetProperty("data").GetString().Should().Be("%Y-%m-%d");
+        variable.TryGetProperty("view", out _).Should().BeFalse();
+    }
+
     [Fact]
     public void Generate_MultipleTextItems_NamesEachVariableByItemTitle()
     {

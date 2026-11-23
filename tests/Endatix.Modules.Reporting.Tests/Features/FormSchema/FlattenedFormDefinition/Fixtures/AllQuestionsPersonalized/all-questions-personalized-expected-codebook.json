@@ -11,7 +11,8 @@
         "default": "Confirm the city you live in"
       },
       "pageName": "page1",
-      "exportShape": "scalar"
+      "exportShape": "scalar",
+      "prefilledFrom": "hometown"
     },
     "lastVisit": {
       "surveyJsType": "text",
@@ -20,7 +21,8 @@
       },
       "pageName": "page1",
       "exportShape": "scalar",
-      "inputType": "datetime-local"
+      "inputType": "datetime-local",
+      "prefilledFrom": "last_seen"
     },
     "qBoolean": {
       "surveyJsType": "boolean",
@@ -29,7 +31,8 @@
         "es": "¿Acepta los términos?"
       },
       "pageName": "page1",
-      "exportShape": "scalar"
+      "exportShape": "scalar",
+      "prefilledFrom": "panel_member"
     },
     "qComment": {
       "surveyJsType": "comment",
@@ -663,7 +666,8 @@
         "es": "Nombre completo"
       },
       "pageName": "page1",
-      "exportShape": "scalar"
+      "exportShape": "scalar",
+      "prefilledFrom": "full_name"
     },
     "qTextDate": {
       "surveyJsType": "text",
@@ -673,7 +677,8 @@
       },
       "pageName": "page1",
       "exportShape": "scalar",
-      "inputType": "date"
+      "inputType": "date",
+      "prefilledFrom": "joined"
     },
     "qTextNumber": {
       "surveyJsType": "text",
@@ -683,7 +688,8 @@
       },
       "pageName": "page1",
       "exportShape": "scalar",
-      "inputType": "number"
+      "inputType": "number",
+      "prefilledFrom": "age"
     },
     "questionSongs": {
       "surveyJsType": "tagbox",

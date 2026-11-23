@@ -1,13 +1,28 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 
 /// <summary>Shoji variables for the audience values frozen on each response.</summary>
 internal static partial class ShojiCodebookGenerator
 {
-    private const string PersonalizationDescription = "Participant value frozen when the response was opened.";
+    private const string PERSONALIZATION_DESCRIPTION = "Original value at survey start.";
+
+    private static string DescribeQuestion(JsonElement question)
+    {
+        var description = ReadQuestionDescription(question);
+        if (question.ValueKind != JsonValueKind.Object ||
+            question.GetStringProperty(FormSchemaCodebookBuilder.PREFILLED_FROM) is not { } name)
+        {
+            return description;
+        }
+
+        var annotatedTitle = $"{ReadQuestionTitle(question)} (prefilled from participant variable: {name})";
+        return string.IsNullOrWhiteSpace(description) ? annotatedTitle : $"{annotatedTitle} {description}";
+    }
 
     private sealed record ShojiVariableTracking(
         HashSet<string> WrittenVariables,
@@ -23,15 +38,13 @@ internal static partial class ShojiCodebookGenerator
     /// <summary>The Shoji type of an audience data type, and the resolution of a datetime.</summary>
     private sealed record PersonalizationShape(string Type, string? Resolution = null)
     {
-        private const string DayResolution = "D";
-
         // A choice list has no category catalog in the schema yet, so it ships as text, like a calculated value.
         public static PersonalizationShape Of(string dataType) =>
             dataType switch
             {
                 PersonalizationColumns.NumberType => new(ShojiCodebookPropertyNames.VariableTypeNumeric),
                 PersonalizationColumns.BooleanType => new(ShojiCodebookPropertyNames.VariableTypeCategorical),
-                PersonalizationColumns.DateType => new(ShojiCodebookPropertyNames.VariableTypeDatetime, DayResolution),
+                PersonalizationColumns.DateType => new(ShojiCodebookPropertyNames.VariableTypeDatetime, DAY_RESOLUTION),
                 PersonalizationColumns.DateTimeType => new(
                     ShojiCodebookPropertyNames.VariableTypeDatetime,
                     ShojiCodebookPropertyNames.DatetimeResolutionSeconds),
@@ -93,7 +106,7 @@ internal static partial class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Type, shape.Type);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, variable.DisplayName, alias, usedDisplayNames);
-        writer.WriteString(ShojiCodebookPropertyNames.Description, PersonalizationDescription);
+        writer.WriteString(ShojiCodebookPropertyNames.Description, PERSONALIZATION_DESCRIPTION);
         WritePersonalizationShapeDetails(writer, shape);
         writer.WriteEndObject();
     }
@@ -102,7 +115,7 @@ internal static partial class ShojiCodebookGenerator
     {
         if (shape.Resolution is not null)
         {
-            writer.WriteString(ShojiCodebookPropertyNames.Resolution, shape.Resolution);
+            WriteDateFormat(writer, shape.Resolution);
         }
 
         if (shape.Type == ShojiCodebookPropertyNames.VariableTypeCategorical)

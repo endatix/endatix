@@ -1,5 +1,7 @@
+using System.Text.Json;
 using Endatix.Core.Entities;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
 using FluentAssertions;
@@ -8,6 +10,29 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export;
 
 public sealed partial class ShojiCodebookGeneratorTests
 {
+    [Fact]
+    public void Generate_DirectPrefill_KeepsTheLocalizedQuestionDescription()
+    {
+        const string definition = """
+            {"pages":[{"elements":[{"type":"text","name":"city","defaultValueExpression":"{home}",
+              "title":{"default":"City","es":"Ciudad"},
+              "description":{"default":"Use your current address.","es":"Usa tu dirección actual."}}]}]}
+            """;
+        FormSchemaCompiler compiler = new();
+        var schema = compiler.CompilePersisted(definition);
+        var compiled = compiler.IncludePersonalization(definition,
+            new PersistedSchemaJson(schema.FlatteningMapJson, schema.CodebookJson),
+            PersonalizationColumns.From(PersonalizationReader.Read("""{"variables":{"home":"Toledo"}}""")));
+
+        using var document = JsonDocument.Parse(ShojiCodebookGenerator.Generate(
+            compiled.FlatteningMapJson, compiled.CodebookJson, locale: "es"));
+
+        var city = document.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata").GetProperty("city");
+        city.GetProperty("description").GetString().Should().Be(
+            "Ciudad (prefilled from participant variable: home) Usa tu dirección actual.");
+        city.TryGetProperty("notes", out _).Should().BeFalse();
+    }
+
     [Fact]
     public void Generate_AudiencePropertyTitledLikeAQuestion_QuestionKeepsItsNameAndOrderIsUnchanged()
     {
