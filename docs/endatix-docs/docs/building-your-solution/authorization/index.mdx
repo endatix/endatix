@@ -144,7 +144,7 @@ Tenant-specific management permissions:
 
 With default authorization, a signed-in user's next API request uses their updated permissions. This applies when you change the permissions on a role or assign or remove a role. The user keeps the same access token and does not need to sign out. Once all API instances in the deployment run the updated version (0.9.1 or later), each enforces the change on the next request it handles.
 
-The Hub updates which actions it shows on a page load. After changing a role in the Hub, reload the page to see the change. If you changed access through the API, allow up to 60 seconds and reload. A button that is still visible does not grant access: the API can already refuse the action with `403 Forbidden`.
+Reload the Hub page to refresh the available actions. The Hub instance where you changed a role clears its cached permissions. If the change came through the API or another Hub instance, this instance can still show the old actions for up to 60 seconds. Reload after that window. A button that is still visible does not grant access: the API already enforces the change and can return `403 Forbidden`.
 
 ## Quick Start
 
