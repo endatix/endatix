@@ -322,7 +322,7 @@ If the person was removed from the form in the meantime, **Start over** goes awa
 
 **Copy test link** gives you a link to a new test submission as a test person, to send to a colleague who has no Endatix login. They open it in any browser and fill in the form with that person's values, also on a private form.
 
-It is the link icon, first in a test person's row actions, and the first button on a test person's page. Real people do not have it. You see it when you can test forms, edit the form, and view, edit, or export submissions.
+It is the link icon in a test person's row actions and is also available on their page. Real people do not have it. You need permission to test and edit the form.
 
 <Shot
   alt="People table with qa.tester@example.com, marked Test, and alex.kim@example.com. The test person's row actions start with the link icon, Copy test link, before Test as this participant, Edit and Remove; the real person's row has no link icon, so the other three line up"
@@ -341,6 +341,14 @@ It is the link icon, first in a test person's row actions, and the first button 
 The panel also shows the link with **Copy this link**, in case your browser did not allow the copy. Click **Create and copy another** for a second link: each copy opens its own new test submission, with the person's current values and the latest saved form.
 
 Anyone with the link can fill in that one test submission until it is completed or the link expires, with no sign-in. It opens nothing else. The submission is a test submission like any other: it shows under **Submission Type: Test** on the Submissions page, stays out of exports unless you include test submissions, and can be deleted there.
+
+## Download test links
+
+To give testers separate runs, use **Download test links** on the form's **Participants** tab. You need permission to test and edit the form and at least one test participant.
+
+1. For a subset, tick the test participants in the list first. Open **Download test links** and choose **Selected** or **All test participants**.
+2. Choose **Runs per participant** (1 to 10) and the **Link lifetime**. Each run creates its own test submission, up to 500 links per download.
+3. Click **Download**. `test-links-<form>-<date>.csv` has one row per run: `identifier`, `run`, and `link`. Give each tester the link for their run. Anyone with that link can fill in that test submission without signing in.
 
 ## Limitations
 

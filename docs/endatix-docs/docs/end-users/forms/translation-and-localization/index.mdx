@@ -5,6 +5,8 @@ sidebar_label: Localization Overview
 ---
 
 import DocCardList from '@theme/DocCardList';
+import DetailsLight from "./single-language-details_light.webp";
+import DetailsDark from "./single-language-details_dark.webp";
 
 # **Localization Overview**
 
@@ -32,12 +34,18 @@ Endatix provides granular control over every text element within the form's cont
 
 ## **Setting a Default Language**
 
-Every localized form requires a designated Default Language. This acts as the fallback locale for respondents whose browser preferences do not match any of the translated languages you have provided. For instance, if you support English and French, but a user accesses the form with a Spanish browser setting, the form will render in the default language to ensure the content remains accessible. In the survey configuration, this is defined by the `locale` property, which establishes the baseline text against which all other translations are mapped.
-
-The default language is considered the first language the form was designed in. If you don't specify a language the default will be English. The default language can also be set through the form builder as shown below:
+The default language is the language you write the form in before adding translations. Set it in the form builder or with the `locale` property in the survey configuration. If you don't specify a language, the default is English.
 
 <img src={require('./localization-overview-default.webp').default} className="legacy-screenshot" width="400" alt="Default language" />
 <br />
+
+## Single-language surveys
+
+If German is the form's only language, respondents who open its share link see German buttons and validation messages, even in an English browser. There is no language picker.
+
+The same language follows the response. In [Submission Details](/docs/end-users/submissions/submission-details), **Language** shows German (`de`), and a Yes/No answer uses **Ja** or **Nein**. The submission PDF also uses the form's language for answer labels.
+
+<Shot alt="Submission Details for a German survey: the answer choices read Nein and Ja, and Language shows German (de)." sources={{ light: DetailsLight, dark: DetailsDark }} />
 
 ## **Supported Languages and Standards**
 
@@ -45,11 +53,12 @@ Endatix Hub supports **any language** compatible with web standards.
 There is no hard limit to the number of languages you can add to a single form.
 
 ### **Locale Standards**
-We utilize standard **IETF BCP 47 language tags** (e.g., `en-US`, `fr-CA`, `de`, `ja`).
-This ensures compatibility with browser language preferences, allowing Endatix to automatically serve the correct language based on the user's browser settings when possible.
+Endatix uses **IETF BCP 47 language tags**, such as `en-US`, `fr-CA`, `de`, and `ja`.
 
 ## **Language Selection**
-When multiple languages are configured, a language selector dropdown appears automatically in the form header. On the "live" form page the laungage is automatically selected based on the browser's locale setttings.
+On a multilingual form, an available language preselected for the respondent takes priority. Otherwise the form uses the respondent's saved language choice. If there is no saved choice, it uses the survey's language or, if none is set, the default language.
+
+If that saved choice or survey language is unavailable, the form tries the browser's preferred languages. For example, `fr-CA` can match `fr`. If none matches, the form uses the default language if available, or the first available language. Respondents can change the language in the form header.
 
 ### **Language Selector for Published Forms**
 If a form contains more than one language a dropdown selector automatically appears in the upper right corner of the screen:
