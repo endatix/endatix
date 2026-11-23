@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Features.Export;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export;
 
@@ -56,4 +57,25 @@ public sealed class ChoiceCodesTests
 
     private static IEnumerable<int> Ids(JsonNode group) =>
         group["choices"]!.AsArray().Select(choice => (int)choice!["id"]!);
+
+    [Fact]
+    public void Apply_AfterMergeRemovedLegacyDropdown_KeepsHistoricalLiteralAndCodesCurrentQuestion()
+    {
+        const string old = """{"pages":[{"elements":[{"type":"dropdown","name":"old","choices":["none"]}]}]}""";
+        const string current = """{"pages":[{"elements":[{"type":"dropdown","name":"q","choices":["a"],"showNoneItem":true}]}]}""";
+        var compiler = new FormSchemaCompiler();
+        var first = compiler.CompilePersisted(old);
+        var legacy = JsonNode.Parse(first.CodebookJson)!;
+        legacy["choiceCatalogs"]!["old"]!.AsObject().Remove("multiple");
+        var merged = compiler.CompilePersisted(current, first.FlatteningMapJson, legacy.ToJsonString());
+        var codes = new ChoiceCodes(new(None: 99));
+
+        var exported = codes.Apply(merged.CodebookJson);
+
+        exported.IsSuccess.Should().BeTrue();
+        var book = JsonNode.Parse(exported.Value)!;
+        Ids(book["choiceCatalogs"]!["old"]!).Should().Equal(1);
+        Ids(book["choiceCatalogs"]!["q"]!).Should().Equal(1, 99);
+        merged.FlatteningMap.Columns.Select(c => c.Key).Should().Contain("old");
+    }
 }

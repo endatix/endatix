@@ -37,6 +37,9 @@ internal static class FormSchemaCodebookPropertyNames
     /// <summary>Choice catalog: present on a base select; true when it stores several values.</summary>
     public const string Multiple = "multiple";
 
+    /// <summary>A merge retained this removed select's pre-kind catalog. Its existing values and ids remain literal.</summary>
+    public const string RETAINED_LEGACY = "retainedLegacy";
+
     /// <summary>Choice catalog: where the Other text is stored, "comment" or "value"; only with an Other item.</summary>
     public const string OtherStorage = "otherStorage";
 

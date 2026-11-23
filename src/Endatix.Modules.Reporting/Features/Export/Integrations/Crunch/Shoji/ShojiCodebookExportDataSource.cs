@@ -92,10 +92,10 @@ internal sealed class ShojiCodebookExportDataSource(
         var (datasetName, datasetDescription) = await ResolveDatasetMetadataAsync(
             context.FormId, requestLocale, cancellationToken);
         var flatteningMap = PreparedFlatteningMap(context, schema);
-        var codebookJson = ShojiCodebookGenerator.Generate(
+        var codebookJson = ShojiCodebookGenerator.ForDataset(
             flatteningMap,
             await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken),
-            settings.KeySeparator, requestLocale, datasetName, datasetDescription);
+            new ShojiCodebookGenerator.Dataset(settings.KeySeparator, requestLocale, datasetName, datasetDescription, settings.SpecialChoiceCodes));
         yield return new DynamicExportRow { Data = codebookJson };
     }
 

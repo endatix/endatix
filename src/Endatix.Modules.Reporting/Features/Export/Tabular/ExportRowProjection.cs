@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
@@ -17,7 +18,9 @@ internal sealed class ExportRowProjection
         var map = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         if (crunch)
         {
-            _crunch = json => CrunchTabularValueProjector.Project(json, map, schema.Codebook);
+            using var book = JsonDocument.Parse(schema.Codebook);
+            var catalog = new CrunchQuestions(book.RootElement, settings);
+            _crunch = json => CrunchTabularValueProjector.Project(json, map, catalog);
         }
 
         if (settings is not null)
@@ -29,7 +32,7 @@ internal sealed class ExportRowProjection
     private void IndexCells(MergedFormSchema map, string codebook, ChoiceCodes codes)
     {
         var catalogs = ChoiceCatalogs.Read(codebook);
-        foreach (var column in map.Columns.Where(IsChoiceCell))
+        foreach (var column in map.Columns.Where(NeedsSpecialCellCode))
         {
             var choices = catalogs.For(column.SourceQuestion ?? column.Key).Choices;
             foreach (var choice in choices.Where(choice => codes.Configures(choice.Kind)))
@@ -39,9 +42,9 @@ internal sealed class ExportRowProjection
         }
     }
 
-    private static bool IsChoiceCell(FormSchemaColumn column) =>
-        column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource
-            or FormSchemaColumnKind.PanelDynamicIndex or FormSchemaColumnKind.NestedLoop;
+    private bool NeedsSpecialCellCode(FormSchemaColumn column) =>
+        column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource ||
+        (_crunch is null && column.Kind is FormSchemaColumnKind.PanelDynamicIndex or FormSchemaColumnKind.NestedLoop);
 
     public string Project(string data)
     {

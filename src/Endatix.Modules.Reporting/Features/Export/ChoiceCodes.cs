@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
+using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 
 namespace Endatix.Modules.Reporting.Features.Export;
 
@@ -51,7 +52,11 @@ internal sealed class ChoiceCodes(SpecialChoiceCodes? settings)
 
     private static bool HasLegacySelect(JsonObject? questions, JsonObject catalogs) =>
         questions?.Any(pair => SurveyJsElementType.TryResolve((string?)pair.Value?["surveyJsType"])?.Category == SurveyJsElementCategory.BaseSelect &&
-                               catalogs[pair.Key]?["multiple"] is null) == true;
+                               RequiresRecompile(catalogs[pair.Key])) == true;
+
+    private static bool RequiresRecompile(JsonNode? catalog) =>
+        catalog?[FormSchemaCodebookPropertyNames.Multiple] is null &&
+        (bool?)catalog?[FormSchemaCodebookPropertyNames.RETAINED_LEGACY] != true;
 
     private Result ApplyCatalogs(JsonObject? questions, JsonObject catalogs)
     {

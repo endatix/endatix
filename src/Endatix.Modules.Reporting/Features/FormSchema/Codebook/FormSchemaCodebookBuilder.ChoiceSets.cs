@@ -110,6 +110,23 @@ internal static partial class FormSchemaCodebookBuilder
     private static OtherStorage? OtherStorageOf(JsonElement catalog) =>
         ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage));
 
+    // The current definition cannot rebuild a removed select. Preserve what its legacy catalog actually recorded;
+    // "none" in an untagged choice list can be an ordinary choice.
+    private static JsonElement RetainedCatalog(JsonProperty entry, Dictionary<string, JsonElement> questions)
+    {
+        var catalog = entry.Value;
+        if (!catalog.TryGetChoices(out _) || catalog.TryGetProperty(FormSchemaCodebookPropertyNames.Multiple, out _) ||
+            !questions.TryGetValue(entry.Name, out var question) ||
+            SurveyJsElementType.TryResolve(question.GetStringProperty(FormSchemaCodebookPropertyNames.SurveyJsType))?.Category != SurveyJsElementCategory.BaseSelect)
+        {
+            return catalog.Clone();
+        }
+
+        var retained = System.Text.Json.Nodes.JsonNode.Parse(catalog.GetRawText())!.AsObject();
+        retained[FormSchemaCodebookPropertyNames.RETAINED_LEGACY] = true;
+        return JsonSerializer.SerializeToElement(retained);
+    }
+
     // A name the current definition gives to a question that is not a select (a dropdown turned text) keeps its choice
     // ids, but its answers are no longer read as a select's. A select that was removed keeps its fields: old rows hold it.
     private static void DropStaleSelectFields(
