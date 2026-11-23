@@ -978,7 +978,7 @@ internal static partial class ShojiCodebookGenerator
                 WriteLoopScalarVariable(
                     writer,
                     exportKey,
-                    ShojiCodebookPropertyNames.VariableTypeText,
+                    (ShojiCodebookPropertyNames.VariableTypeText, question),
                     AppendOtherSuffix(preferredName),
                     question,
                     usedDisplayNames,
@@ -1001,11 +1001,10 @@ internal static partial class ShojiCodebookGenerator
                 continue;
             }
 
-            var shojiType = ResolveLoopScalarShojiType(column, question, columnMetadata);
             WriteLoopScalarVariable(
                 writer,
                 exportKey,
-                shojiType,
+                ResolveLoopScalarShape(column, question, columnMetadata),
                 preferredName,
                 question,
                 usedDisplayNames,
@@ -1279,7 +1278,7 @@ internal static partial class ShojiCodebookGenerator
     private static void WriteLoopScalarVariable(
         Utf8JsonWriter writer,
         string exportKey,
-        string shojiType,
+        (string Type, JsonElement Metadata) shape,
         string preferredName,
         JsonElement question,
         HashSet<string> usedDisplayNames,
@@ -1287,11 +1286,11 @@ internal static partial class ShojiCodebookGenerator
     {
         writer.WritePropertyName(exportKey);
         writer.WriteStartObject();
-        writer.WriteString(ShojiCodebookPropertyNames.Type, shojiType);
+        writer.WriteString(ShojiCodebookPropertyNames.Type, shape.Type);
         writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
         WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
         WriteQuestionDescription(writer, question, panelItemText);
-        WriteQuestionDate(writer, shojiType, question);
+        WriteQuestionDate(writer, shape.Type, shape.Metadata);
 
         writer.WriteEndObject();
     }
@@ -1386,7 +1385,7 @@ internal static partial class ShojiCodebookGenerator
         return ShojiCodebookPropertyNames.VariableTypeText;
     }
 
-    private static string ResolveLoopScalarShojiType(
+    private static (string Type, JsonElement Metadata) ResolveLoopScalarShape(
         FormSchemaColumn column,
         JsonElement question,
         JsonElement columnMetadata)
@@ -1396,16 +1395,13 @@ internal static partial class ShojiCodebookGenerator
              (SurveyJsElementType.Rating.Matches(question.GetSurveyJsType()) ||
               SurveyJsElementType.Slider.Matches(question.GetSurveyJsType()))))
         {
-            return ShojiCodebookPropertyNames.VariableTypeNumeric;
+            return (ShojiCodebookPropertyNames.VariableTypeNumeric, question);
         }
 
-        if (IsDateValuedGapLeaf(column, columnMetadata) ||
-            (question.ValueKind == JsonValueKind.Object && question.IsDateInputType()))
-        {
-            return ShojiCodebookPropertyNames.VariableTypeDatetime;
-        }
-
-        return ShojiCodebookPropertyNames.VariableTypeText;
+        var metadata = IsDateValuedGapLeaf(column, columnMetadata) ? columnMetadata : question;
+        return metadata.ValueKind == JsonValueKind.Object && metadata.IsDateInputType()
+            ? (ShojiCodebookPropertyNames.VariableTypeDatetime, metadata)
+            : (ShojiCodebookPropertyNames.VariableTypeText, metadata);
     }
 
     private static string ResolveGapLeafShojiType(
