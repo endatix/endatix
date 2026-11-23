@@ -13,14 +13,16 @@ internal static partial class ShojiCodebookGenerator
 
     private static string DescribeQuestion(Utf8JsonWriter writer, JsonElement question)
     {
+        var description = ReadQuestionDescription(question);
         if (question.ValueKind != JsonValueKind.Object ||
             question.GetStringProperty(FormSchemaCodebookBuilder.PREFILLED_FROM) is not { } name)
         {
-            return ReadQuestionDescription(question);
+            return description;
         }
 
         writer.WriteString("notes", $"Prefilled from participant variable: {name}");
-        return $"{ReadQuestionTitle(question)} (prefilled from participant variable: {name})";
+        var annotatedTitle = $"{ReadQuestionTitle(question)} (prefilled from participant variable: {name})";
+        return string.IsNullOrWhiteSpace(description) ? annotatedTitle : $"{annotatedTitle} {description}";
     }
 
     private sealed record ShojiVariableTracking(
