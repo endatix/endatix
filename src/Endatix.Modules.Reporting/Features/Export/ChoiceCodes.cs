@@ -40,9 +40,8 @@ internal sealed class ChoiceCodes(SpecialChoiceCodes? settings)
 
     private Result<string> Overlay(JsonNode book)
     {
-        var catalogs = book["choiceCatalogs"] as JsonObject;
         var questions = book["questions"] as JsonObject;
-        if (catalogs is null || HasLegacySelect(questions, catalogs))
+        if (book["choiceCatalogs"] is not JsonObject catalogs || HasLegacySelect(questions, catalogs))
         {
             return Result<string>.Invalid(Error("Rebuild the form schema with compile-schema before exporting with special choice codes."));
         }

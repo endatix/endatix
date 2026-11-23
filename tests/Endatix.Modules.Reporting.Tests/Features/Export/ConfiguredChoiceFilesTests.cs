@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export;
 
 public sealed class ConfiguredChoiceFilesTests
 {
-    private const string Settings = """{"specialChoiceCodes":{"none":99,"refused":98,"dontknow":97}}""";
+    private const string SETTINGS = """{"specialChoiceCodes":{"none":99,"refused":98,"dontknow":97}}""";
 
     private static Task<byte[]> FileAsync(string format)
     {
@@ -19,7 +19,7 @@ public sealed class ConfiguredChoiceFilesTests
         IReadOnlyList<FixtureResponse> responses = [new("r", answers, null)];
         var pipeline = PersonalizationPipeline.Compile(definition);
         pipeline.FlattenAll(definition, responses);
-        return SubmissionFileExport.ExportAsync(new(format, pipeline.Entity(), pipeline.ExportRows(responses), Settings),
+        return SubmissionFileExport.ExportAsync(new(format, pipeline.Entity(), pipeline.ExportRows(responses), SETTINGS),
             TestContext.Current.CancellationToken);
     }
 

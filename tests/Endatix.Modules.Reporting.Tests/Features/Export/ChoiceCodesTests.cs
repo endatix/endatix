@@ -6,7 +6,7 @@ namespace Endatix.Modules.Reporting.Tests.Features.Export;
 
 public sealed class ChoiceCodesTests
 {
-    private const string Book = """
+    private const string BOOK = """
         {"questions":{"q":{"surveyJsType":"dropdown","choices":[{"value":"b","id":1},{"value":"none","id":2,"kind":"none"}]}},
          "choiceCatalogs":{"q":{"multiple":false,"choices":[{"value":"a","id":1},{"value":"b","id":2},{"value":"none","id":3,"kind":"none"}]}}}
         """;
@@ -18,7 +18,7 @@ public sealed class ChoiceCodesTests
         var codes = new ChoiceCodes(new(None: 99));
 
         // Act
-        var result = codes.Apply(Book).Value;
+        var result = codes.Apply(BOOK).Value;
         var book = JsonNode.Parse(result)!;
 
         // Assert
@@ -31,7 +31,7 @@ public sealed class ChoiceCodesTests
     public void Apply_CodeConflictsWithRemovedChoice_NamesQuestionAndChoice()
     {
         // Act
-        var result = new ChoiceCodes(new(None: 1)).Apply(Book);
+        var result = new ChoiceCodes(new(None: 1)).Apply(BOOK);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Invalid);

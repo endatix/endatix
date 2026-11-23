@@ -71,7 +71,7 @@ internal sealed partial class TabularExportDataSource(
     private const string NoMatchingFiltersMessage =
         "No submissions matched the export filters. Broaden date/id/test filters or clear them and try again.";
 
-    private const string ProjectionKey = "ReportingRowProjection";
+    private const string PROJECTION_KEY = "ReportingRowProjection";
 
     public bool Matches(ExportDataSourceRequest request) =>
         request.ExportFormatId.HasValue &&
@@ -147,7 +147,7 @@ internal sealed partial class TabularExportDataSource(
         var crunch = ShouldProjectCrunchShapes(context.Request.Format, settings);
         if (crunch || settings.SpecialChoiceCodes is not null)
         {
-            context.Options.Metadata[ProjectionKey] = new ExportRowProjection(exported, settings.SpecialChoiceCodes, crunch);
+            context.Options.Metadata[PROJECTION_KEY] = new ExportRowProjection(exported, settings.SpecialChoiceCodes, crunch);
         }
 
     }
@@ -224,7 +224,7 @@ internal sealed partial class TabularExportDataSource(
     }
 
     private static ExportRowProjection? PreparedProjection(ExportOptions options) =>
-        options.Metadata?.TryGetValue(ProjectionKey, out var value) == true ? value as ExportRowProjection : null;
+        options.Metadata?.TryGetValue(PROJECTION_KEY, out var value) == true ? value as ExportRowProjection : null;
 
     private static bool ShouldProjectCrunchShapes(string format, ExportFormatSettings settings)
     {
