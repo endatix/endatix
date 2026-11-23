@@ -14,6 +14,23 @@ public sealed class SubmittedChoiceConditionTests
     private const string RESPONSE = """{"pick":["a"]}""";
 
     [Theory]
+    [InlineData(RESPONSE, "1", "0")]
+    [InlineData("{}", null, null)]
+    public void Flatten_DraftWithoutChoiceCatalogs_UsesSubmittedConditionsAndCompletionState(string response, string? picked, string? sibling)
+    {
+        // Arrange
+        var definition = Survey(FILTERED);
+        var compiled = new FormSchemaCompiler().CompilePersisted(definition);
+        var catalogs = ChoiceCatalogs.Read("{}", submissionComplete: false, submittedDefinitionJson: definition);
+
+        // Act
+        var row = FlattenedSubmissionFlattener.Flatten(Json(response), compiled.FlatteningMap, catalogs);
+
+        // Assert
+        Cells(row).Should().Equal(Cells(("a", picked), ("b", null), ("c", sibling)));
+    }
+
+    [Theory]
     [InlineData(PLAIN, "0")]
     [InlineData("""{"type":"checkbox","name":"pick","choices":["a","c"]}""", null)]
     public void Flatten_ConditionRemoved_OnlyWritesZeroIfTheChoiceIsStillOffered(string edited, string? expected)

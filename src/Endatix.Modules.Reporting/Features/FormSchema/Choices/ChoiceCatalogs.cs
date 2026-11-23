@@ -81,11 +81,10 @@ internal sealed class ChoiceCatalogs
         { SubmissionComplete = submissionComplete, SubmittedQuestions = submittedQuestions };
     }
 
-    // No catalogs, but the submission's completion still decides whether an unanswered select is 0.
+    // Older codebooks lack catalogs, but a draft can still have answered, conditional choices.
     private static ChoiceCatalogs EmptyFor(bool submissionComplete, Lazy<SubmittedQuestions?> submittedQuestions) =>
-        submissionComplete
-            ? new(Empty._selects, Empty._copies, Empty._visibility) { SubmissionComplete = true, SubmittedQuestions = submittedQuestions }
-            : Empty;
+        new(Empty._selects, Empty._copies, Empty._visibility)
+        { SubmissionComplete = submissionComplete, SubmittedQuestions = submittedQuestions };
 
     // Every catalog that reads as a T, by question name.
     private static Dictionary<string, T> ReadEach<T>(JsonElement catalogs, Func<JsonElement, T?> read)
