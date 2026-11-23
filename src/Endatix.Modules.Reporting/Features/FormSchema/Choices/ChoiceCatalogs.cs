@@ -168,10 +168,12 @@ internal sealed class ChoiceCatalogs
             return null;
         }
 
-        var source = SubmittedQuestions.Value is { } version
-            ? version.OtherSourceOf(question)
-            : For(question).OtherFrom;
-        return source is null ? null : CopyVisibility.CopiedOtherText(source, scope, this);
+        if (SubmittedQuestions.Value is { } version)
+        {
+            return version.CopiedText(scope, question);
+        }
+
+        return For(question).OtherFrom is { } source ? CopyVisibility.CopiedOtherText(source, scope, For(source)) : null;
     }
 
     private bool WasSubmittedWith(string question) => SubmittedQuestions.Value?.NameCounts.ContainsKey(question) ?? true;
@@ -217,11 +219,17 @@ internal sealed class ChoiceCatalogs
 /// <summary>The stored choices of one select question and where its Other text goes.</summary>
 internal sealed class SelectChoices
 {
-    private readonly HashSet<string> _values = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _values;
 
-    public static SelectChoices Unknown { get; } = new();
+    private SelectChoices(IReadOnlyList<CatalogChoice> choices)
+    {
+        Choices = choices;
+        _values = choices.Select(choice => choice.Value).ToHashSet(StringComparer.Ordinal);
+    }
 
-    public IReadOnlyList<CatalogChoice> Choices { get; private init; } = [];
+    public static SelectChoices Unknown { get; } = new([]);
+
+    public IReadOnlyList<CatalogChoice> Choices { get; }
 
     public OtherStorage? OtherStorage { get; private init; }
 
@@ -250,6 +258,13 @@ internal sealed class SelectChoices
     /// <summary>Whether the select offers this value as one of its own choices (not a special item).</summary>
     public bool Offers(string value) => KindOf(value) == ChoiceKind.Choice;
 
+    internal static SelectChoices FromChoiceSet(ChoiceSet set) =>
+        new([.. set.Items.Select((item, index) => new CatalogChoice(item.Value, index + 1, item.Kind, item.Exclusive))])
+        {
+            OtherStorage = set.OtherStorage,
+            OtherFrom = set.OtherFrom,
+        };
+
     internal static SelectChoices? FromCatalog(JsonElement catalog)
     {
         if (catalog.ValueKind != JsonValueKind.Object ||
@@ -258,16 +273,12 @@ internal sealed class SelectChoices
             return null;
         }
 
-        var choices = ReadChoices(catalog);
-        SelectChoices select = new()
+        return new SelectChoices(ReadChoices(catalog))
         {
-            Choices = choices,
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
             OtherFrom = catalog.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.OtherFrom),
             CanBeHidden = CanBeHiddenIn(catalog),
         };
-        select._values.UnionWith(choices.Select(choice => choice.Value));
-        return select;
     }
 
     private static List<CatalogChoice> ReadChoices(JsonElement catalog) =>

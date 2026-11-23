@@ -111,14 +111,14 @@ internal sealed partial class CopyVisibility
     /// that Other once the source picked it with a non-empty text. Null when the source did not, or has no answer in the
     /// scope.
     /// </summary>
-    public static JsonElement? CopiedOtherText(string sourceName, AnswerScope scope, ChoiceCatalogs catalogs)
+    public static JsonElement? CopiedOtherText(string sourceName, AnswerScope scope, SelectChoices source)
     {
         if (scope.ContextAnswering(sourceName) is not { } context)
         {
             return null;
         }
 
-        var answer = catalogs.For(sourceName).Read(context, sourceName);
+        var answer = source.Read(context, sourceName);
         return answer.Has(SurveyJsPropertyNames.Other) && IsText(answer.OtherText)
             ? answer.OtherText
             : null;

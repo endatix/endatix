@@ -234,6 +234,58 @@ public sealed partial class CopiedChoicesCrunchExportTests
     }
 
     [Fact]
+    public async Task Export_ValueBackedSourceBecomesText_DecodesHistoricalAnswersAfterMerge()
+    {
+        // Arrange
+        const string oldSource = """{"type":"checkbox","name":"Q1","choices":["regular"],"showOtherItem":true,"storeOthersAsComment":false}""";
+        const string copy = """{"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}""";
+        var before = DefinitionWith(oldSource, copy);
+        var after = DefinitionWith("""{"type":"text","name":"Q1"},""" + SOURCE_WITH_OTHER.Replace("Q1", "Q3"), copy.Replace("Q1", "Q3"));
+        IReadOnlyList<FixtureResponse> rows =
+        [
+            new("old", """{"Q1":["typed"],"Q2":"other"}""", null, SubmittedDefinition: before),
+            new("own", """{"Q1":["typed"],"Q2":"other","Q2-Comment":"own"}""", null, SubmittedDefinition: before),
+            new("current", """{"Q1":"unrelated","Q2":"other","Q3":["other"],"Q3-Comment":"current"}""", null),
+        ];
+        var pipeline = PersonalizationPipeline.Compile(before);
+
+        // Act
+        pipeline.Recompile(after, FormSchemaCompileMode.Merge);
+        pipeline.FlattenAll(after, rows);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(rows), SHOJI_SETTINGS), TestContext.Current.CancellationToken);
+
+        // Assert
+        Column(csv, "Q2--other_text").Should().Equal("typed", "own", "current");
+    }
+
+    [Fact]
+    public async Task CsvShoji_ValueBackedSourceChangesChoices_OnlySubmittedChoicesAreOrdinaryValues()
+    {
+        // Arrange: the source inherits value storage from the survey in both versions.
+        var before = DefinitionWith(
+            """{"type":"checkbox","name":"Q1","choices":["1","old"],"showOtherItem":true}""",
+            """{"type":"checkbox","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}""")
+            .Insert(1, """ "storeOthersAsComment":false,""");
+        var after = before.Replace("\"old\"", "\"new\"");
+        const string picked = """{"Q1":["1","new"],"Q2":["other"]}""";
+        const string left = """{"Q1":["1","new"],"Q2":["1"]}""";
+        IReadOnlyList<FixtureResponse> rows =
+        [
+            new("old-picked", picked, null, SubmittedDefinition: before),
+            new("old-left", left, null, SubmittedDefinition: before),
+            new("old-ordinary", """{"Q1":["1","old"],"Q2":["1"]}""", null, SubmittedDefinition: before),
+            new("current", left, null, SubmittedDefinition: after),
+        ];
+
+        // Act: replace gives the copy an applicable stored visibility rule.
+        var (_, csv) = await ExportAsync(after, rows);
+
+        // Assert
+        Column(csv, "Q2--other").Should().Equal("1", "0", string.Empty, string.Empty);
+        Column(csv, "Q2--other_text").Should().Equal("new", string.Empty, string.Empty, string.Empty);
+    }
+
+    [Fact]
     public async Task Export_CopyChangesSource_ReadsTheOtherTextOfferedOnEachSubmittedVersion()
     {
         // Arrange

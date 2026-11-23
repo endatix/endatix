@@ -74,7 +74,7 @@ internal sealed record CopyDefinition(
         Dictionary<string, JsonElement> questions = new(StringComparer.Ordinal);
         DefinitionWalk walk = new(questions);
         walk.Visit(definition);
-        return new(walk.Counts, walk.ShowingOther, new ChoiceSources(questions));
+        return new(walk.Counts, new ChoiceSources(questions), SurveyChoiceDefaults.Of(definition));
     }
 
     // SurveyJS clears a hidden question's answer on complete by default (clearInvisibleValues "onComplete"); "none",
@@ -125,8 +125,6 @@ internal sealed record CopyDefinition(
 
         public HashSet<string> UnderVisibleIf { get; } = new(StringComparer.Ordinal);
 
-        public HashSet<string> ShowingOther { get; } = new(StringComparer.Ordinal);
-
         public bool HasVisibleIf { get; private set; }
 
         public void Visit(JsonElement container) => Visit(container, default);
@@ -172,7 +170,6 @@ internal sealed record CopyDefinition(
             questions?.TryAdd(name, question);
             Note(AlwaysHidden, name, hidden.Always);
             Note(UnderVisibleIf, name, hidden.ByVisibleIf);
-            Note(ShowingOther, name, ChoiceSet.ShowsOther(question));
         }
 
         private bool HasVisibleIfNoted(JsonElement element)
@@ -208,13 +205,33 @@ internal sealed record CopyDefinition(
 /// </summary>
 internal sealed record SubmittedQuestions(
     IReadOnlyDictionary<string, int> NameCounts,
-    IReadOnlySet<string> ShowingOther,
-    ChoiceSources Sources)
+    ChoiceSources Sources,
+    SurveyChoiceDefaults Defaults)
 {
-    public bool ShowsOwnOther(string name) => NameCounts.GetValueOrDefault(name) == 1 && ShowingOther.Contains(name);
+    private readonly Dictionary<string, SelectChoices> _sourceReaders = new(StringComparer.Ordinal);
+
+    public bool ShowsOwnOther(string name) =>
+        NameCounts.GetValueOrDefault(name) == 1 && ChoiceSet.ShowsOther(Sources.QuestionsByName[name]);
+
+    public JsonElement? CopiedText(AnswerScope scope, string question) =>
+        OtherSourceOf(question) is { } other
+            ? CopyVisibility.CopiedOtherText(other.SourceName, scope, ReaderFor(other))
+            : null;
+
+    private SelectChoices ReaderFor(CopiedOther other)
+    {
+        if (!_sourceReaders.TryGetValue(other.SourceName, out var reader))
+        {
+            var choices = ChoiceSet.Read(other.Source, Defaults, Sources.Resolve(other.Source))!;
+            reader = SelectChoices.FromChoiceSet(choices);
+            _sourceReaders.Add(other.SourceName, reader);
+        }
+
+        return reader;
+    }
 
     // Two questions with the same name share one catalog. It cannot identify either one's Other.
-    public string? OtherSourceOf(string name)
+    private CopiedOther? OtherSourceOf(string name)
     {
         if (NameCounts.GetValueOrDefault(name) != 1 ||
             !Sources.QuestionsByName.TryGetValue(name, out var question) ||
@@ -225,6 +242,6 @@ internal sealed record SubmittedQuestions(
             return null;
         }
 
-        return other.SourceName;
+        return other;
     }
 }
