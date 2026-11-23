@@ -39,6 +39,30 @@ public sealed class ConfiguredChoiceFilesTests
     }
 
     [Fact]
+    public async Task Json_ValueNamePanel_CodesTheSelectAndKeepsAnInlineNone()
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"elements":[{"type":"checkbox","name":"cars","valuePropertyName":"brand","choices":["a"]},
+            {"type":"paneldynamic","name":"details","valueName":"cars","templateElements":[
+              {"type":"dropdown","name":"model","choices":["one"],"showNoneItem":true},
+              {"type":"dropdown","name":"note","choices":["none"]}]}]}]}
+            """;
+        IReadOnlyList<FixtureResponse> responses = [new("r", """{"cars":[{"brand":"a","model":"none","note":"none"}]}""", null)];
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        pipeline.FlattenAll(definition, responses);
+
+        // Act
+        var bytes = await SubmissionFileExport.ExportAsync(new("json", pipeline.Entity(), pipeline.ExportRows(responses), SETTINGS),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        using var json = JsonDocument.Parse(bytes);
+        json.RootElement[0].GetProperty("a__model").GetInt32().Should().Be(99);
+        json.RootElement[0].GetProperty("a__note").GetString().Should().Be("none");
+    }
+
+    [Fact]
     public async Task Csv_ConfiguredSelect_WritesCode()
     {
         // Act

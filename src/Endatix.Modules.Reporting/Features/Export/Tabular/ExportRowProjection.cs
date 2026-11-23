@@ -40,7 +40,8 @@ internal sealed class ExportRowProjection
     }
 
     private static bool IsChoiceCell(FormSchemaColumn column) =>
-        column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource or FormSchemaColumnKind.PanelDynamicIndex;
+        column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource
+            or FormSchemaColumnKind.PanelDynamicIndex or FormSchemaColumnKind.NestedLoop;
 
     public string Project(string data)
     {
