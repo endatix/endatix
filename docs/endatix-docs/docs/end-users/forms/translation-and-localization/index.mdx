@@ -5,6 +5,8 @@ sidebar_label: Localization Overview
 ---
 
 import DocCardList from '@theme/DocCardList';
+import DetailsLight from "./single-language-details_light.webp";
+import DetailsDark from "./single-language-details_dark.webp";
 
 # **Localization Overview**
 
@@ -38,6 +40,14 @@ The default language is considered the first language the form was designed in. 
 
 <img src={require('./localization-overview-default.webp').default} className="legacy-screenshot" width="400" alt="Default language" />
 <br />
+
+## Single-language surveys
+
+If German is the form's only language, respondents who open its share link see German buttons and validation messages, even in an English browser. There is no language picker.
+
+The same language follows the response. In [Submission Details](/docs/end-users/submissions/submission-details), **Language** shows German (`de`), and a Yes/No answer uses **Ja** or **Nein**. The submission PDF also uses the form's language for answer labels.
+
+<Shot alt="Submission Details for a German survey: the answer choices read Nein and Ja, and Language shows German (de)." sources={{ light: DetailsLight, dark: DetailsDark }} />
 
 ## **Supported Languages and Standards**
 

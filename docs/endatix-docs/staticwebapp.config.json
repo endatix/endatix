@@ -2,6 +2,11 @@
   "trailingSlash": "never",
   "routes": [
     {
+      "route": "/docs/end-users/forms/translation-and-localization/localization-overview",
+      "redirect": "/docs/end-users/forms/translation-and-localization",
+      "statusCode": 301
+    },
+    {
       "route": "/docs/getting-started/installation",
       "redirect": "/docs/getting-started/setup-nuget-package",
       "statusCode": 301

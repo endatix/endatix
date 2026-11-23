@@ -71,12 +71,18 @@ The designer's **Diagnostics** tab lists **Personalization** warnings when the f
 | **`{name}` is never used** | The form never reads that property. | Use it in the form, or leave it if you keep it only for your records. |
 | **`{name}` is not filled in for N of M real participants** | Some real participants have no value, so the form shows that place empty for them. | Fill the values in on the Audience tab, or reword the text so it reads well without one. |
 | **A question (or calculated value) shares its name with the property `{name}`** | The property replaces that question's answer, or the two overwrite each other. | Rename the question or the calculated value. |
+| **`{name}` no longer fits this question** (Diagnostics) | The question type no longer fits the Property selected under **Prefill from**. | Choose a compatible question type, or click **Clear prefill** in Diagnostics. This removes the starting value and leaves **Allow respondent to edit** unchanged. |
+| **No choice has the value…** (under **Prefill from**, on the question's **Personalization** tab) | A loaded participant's value does not match any of the question's choices. That participant starts with nothing selected. | Compare the Property value with the choice **value**, not its display text. Correct the participant's value or add the missing choice. |
 
 The Audience tab shows the same coverage for the saved form: see [Check which values the form uses](/docs/end-users/forms/audience#check-which-values-the-form-uses).
 
 ## Check the saved form on the Audience tab
 
 The designer previews the form you are editing. To see the saved form as participants will get it, and to find anyone on a large form, use [Preview as on the Audience tab](/docs/end-users/forms/audience#preview-as). From there, **Test as this participant** opens a real test submission with the same values.
+
+## Report a designer error
+
+If the designer shows **Something went wrong**, select **Copy Diagnostics** and send the details to support with the action you took just before the error. **Error ID** identifies a browser error; a server or API error may show a **Digest** or **Trace ID** instead. Send the ID that appears.
 
 ## Limitations
 

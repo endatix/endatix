@@ -190,6 +190,8 @@ The `/definition` endpoint (singular) always returns or updates the currently ac
 | POST | `/forms/{formId}/submissions/{submissionId}/status` | `submissions.edit` | Update submission status |
 | DELETE | `/forms/{formId}/submissions/{submissionId}` | `submissions.delete` OR `submissions.delete.owned` | Delete submission (see note below) |
 | POST | `/forms/{formId}/submissions/export` | `submissions.export` | Export submissions (CSV or custom formats) |
+| POST | `/forms/{formId}/reporting/compile-schema` | `submissions.export` OR `forms.edit` | Prepare the reporting schema. Replacing it (`replace=true`) requires `forms.edit`. |
+| POST | `/forms/{formId}/submissions/backfill` | `submissions.export` OR `forms.edit` | Fill reporting rows for existing submissions. Rebuilding existing rows (`force=true`) requires `forms.edit`. |
 | POST | `/forms/{formId}/submissions/{submissionId}/files` | `submissions.view` | Download submission files as ZIP |
 
 :::info[Ownership-Based Deletion]

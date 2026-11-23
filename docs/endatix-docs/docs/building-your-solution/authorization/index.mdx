@@ -140,6 +140,12 @@ Tenant-specific management permissions:
 
 </details>
 
+## When role changes take effect
+
+With default authorization, a signed-in user's next API request uses their updated permissions. This applies when you change the permissions on a role or assign or remove a role. The user keeps the same access token and does not need to sign out. Once all API instances in the deployment run the updated version (0.9.1 or later), each enforces the change on the next request it handles.
+
+The Hub updates which actions it shows on a page load. After changing a role in the Hub, reload the page to see the change. If you changed access through the API, allow up to 60 seconds and reload. A button that is still visible does not grant access: the API can already refuse the action with `403 Forbidden`.
+
 ## Quick Start
 
 ### Basic Authorization Setup
