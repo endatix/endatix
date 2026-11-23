@@ -15,12 +15,12 @@ internal static class ChoiceCommentColumns
         }
 
         var name = question.GetSurveyJsName()!;
-        foreach (var choice in SurveyJsChoiceHelper.EnumerateChoiceElements(question).Where(choice => HasCommentBox(choice.Element)))
+        foreach (var (value, text, _) in SurveyJsChoiceHelper.EnumerateChoiceElements(question).Where(choice => HasCommentBox(choice.Element)))
         {
             yield return new FormSchemaColumn(
-                ExportPathBuilder.Join(key, choice.Value, SurveyJsPropertyNames.Comment),
-                FormSchemaColumnKind.ChoiceComment, $"{question.GetSurveyJsTitle(name)} — {choice.Text} — Comment",
-                "string", SourceQuestion: name, ChoiceValue: choice.Value, LoopPath: loopPath);
+                ExportPathBuilder.Join(key, value, SurveyJsPropertyNames.Comment),
+                FormSchemaColumnKind.ChoiceComment, $"{question.GetSurveyJsTitle(name)} — {text} — Comment",
+                "string", SourceQuestion: name, ChoiceValue: value, LoopPath: loopPath);
         }
     }
 
