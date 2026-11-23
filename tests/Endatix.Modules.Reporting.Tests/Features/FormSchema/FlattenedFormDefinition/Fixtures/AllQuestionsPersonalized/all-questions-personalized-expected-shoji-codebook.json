@@ -49,28 +49,56 @@
           "alias": "CreatedAt",
           "name": "Created At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "ModifiedAt": {
           "type": "datetime",
           "alias": "ModifiedAt",
           "name": "Modified At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "StartedAt": {
           "type": "datetime",
           "alias": "StartedAt",
           "name": "Started At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "CompletedAt": {
           "type": "datetime",
           "alias": "CompletedAt",
           "name": "Completed At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "DurationSeconds": {
           "type": "numeric",
@@ -290,20 +318,30 @@
           "type": "text",
           "alias": "city",
           "name": "Confirm the city you live in",
-          "description": ""
+          "notes": "Prefilled from participant variable: hometown",
+          "description": "Confirm the city you live in (prefilled from participant variable: hometown)"
         },
         "lastVisit": {
           "type": "datetime",
           "alias": "lastVisit",
           "name": "When did you last visit us?",
-          "description": "",
-          "resolution": "s"
+          "notes": "Prefilled from participant variable: last_seen",
+          "description": "When did you last visit us? (prefilled from participant variable: last_seen)",
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "qBoolean": {
           "type": "categorical",
           "alias": "qBoolean",
           "name": "Do you agree to the terms?",
-          "description": "",
+          "notes": "Prefilled from participant variable: panel_member",
+          "description": "Do you agree to the terms? (prefilled from participant variable: panel_member)",
           "categories": [
             {
               "name": "No",
@@ -371,20 +409,47 @@
           "type": "text",
           "alias": "qText",
           "name": "Full Name",
-          "description": ""
+          "notes": "Prefilled from participant variable: full_name",
+          "description": "Full Name (prefilled from participant variable: full_name)"
         },
         "qTextDate": {
           "type": "datetime",
           "alias": "qTextDate",
           "name": "Birth Date",
-          "description": "",
-          "resolution": "s"
+          "notes": "Prefilled from participant variable: joined",
+          "description": "Birth Date (prefilled from participant variable: joined)",
+          "resolution": "D",
+          "format": {
+            "data": "%Y-%m-%d",
+            "summary": "%Y-%m-%d"
+          }
         },
         "qTextNumber": {
           "type": "numeric",
           "alias": "qTextNumber",
           "name": "Your Age",
-          "description": ""
+          "notes": "Prefilled from participant variable: age",
+          "description": "Your Age (prefilled from participant variable: age)"
+        },
+        "qRanking": {
+          "type": "numeric_array",
+          "alias": "qRanking",
+          "name": "Rank these fruits from best to worst",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "qRanking--apple",
+              "name": "Apple"
+            },
+            {
+              "alias": "qRanking--banana",
+              "name": "Banana"
+            },
+            {
+              "alias": "qRanking--orange",
+              "name": "Orange"
+            }
+          ]
         },
         "qFile": {
           "type": "text",
@@ -450,24 +515,6 @@
           "type": "text",
           "alias": "qMultipleText--phone",
           "name": "Contact Information -- Phone Number",
-          "description": ""
-        },
-        "qRanking--apple": {
-          "type": "numeric",
-          "alias": "qRanking--apple",
-          "name": "Rank these fruits from best to worst -- apple",
-          "description": ""
-        },
-        "qRanking--banana": {
-          "type": "numeric",
-          "alias": "qRanking--banana",
-          "name": "Rank these fruits from best to worst -- banana",
-          "description": ""
-        },
-        "qRanking--orange": {
-          "type": "numeric",
-          "alias": "qRanking--orange",
-          "name": "Rank these fruits from best to worst -- orange",
           "description": ""
         },
         "questionSongs--other_text": {
@@ -1006,45 +1053,56 @@
           "type": "text",
           "alias": "ParticipantIdentifier",
           "name": "Participant identifier",
-          "description": "Participant value frozen when the response was opened."
+          "description": "Original value at survey start."
         },
         "participant_age": {
           "type": "numeric",
           "alias": "participant_age",
           "name": "Age",
-          "description": "Participant value frozen when the response was opened."
+          "description": "Original value at survey start."
         },
         "participant_full_name": {
           "type": "text",
           "alias": "participant_full_name",
           "name": "Full name",
-          "description": "Participant value frozen when the response was opened."
+          "description": "Original value at survey start."
         },
         "participant_hometown": {
           "type": "text",
           "alias": "participant_hometown",
           "name": "Hometown",
-          "description": "Participant value frozen when the response was opened."
+          "description": "Original value at survey start."
         },
         "participant_joined": {
           "type": "datetime",
           "alias": "participant_joined",
           "name": "Joined",
-          "description": "Participant value frozen when the response was opened.",
-          "resolution": "D"
+          "description": "Original value at survey start.",
+          "resolution": "D",
+          "format": {
+            "data": "%Y-%m-%d",
+            "summary": "%Y-%m-%d"
+          }
         },
         "participant_last_seen": {
           "type": "datetime",
           "alias": "participant_last_seen",
           "name": "Last seen",
-          "description": "Participant value frozen when the response was opened.",
-          "resolution": "s"
+          "description": "Original value at survey start.",
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "participant_panel_member": {
           "type": "categorical",
           "alias": "participant_panel_member",
           "name": "Panel member",
-          "description": "Participant value frozen when the response was opened.",
+          "description": "Original value at survey start.",
           "categories": [
             {
               "name": "No",
@@ -1064,7 +1122,7 @@
           "type": "text",
           "alias": "participant_tags",
           "name": "Tags",
-          "description": "Participant value frozen when the response was opened."
+          "description": "Original value at survey start."
         }
       },
       "order": [
@@ -1117,9 +1175,7 @@
             "qBoolean",
             "qFile",
             "qImagePicker",
-            "qRanking--apple",
-            "qRanking--banana",
-            "qRanking--orange",
+            "qRanking",
             "qText",
             "qTextNumber",
             "qTextDate",

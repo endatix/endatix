@@ -49,28 +49,56 @@
           "alias": "CreatedAt",
           "name": "Created At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "ModifiedAt": {
           "type": "datetime",
           "alias": "ModifiedAt",
           "name": "Modified At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "StartedAt": {
           "type": "datetime",
           "alias": "StartedAt",
           "name": "Started At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "CompletedAt": {
           "type": "datetime",
           "alias": "CompletedAt",
           "name": "Completed At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "DurationSeconds": {
           "type": "numeric",
@@ -126,13 +154,13 @@
           "type": "text",
           "alias": "ParticipantIdentifier",
           "name": "Participant identifier",
-          "description": "Participant value frozen when the response was opened."
+          "description": "Original value at survey start."
         },
         "participant_city": {
           "type": "text",
           "alias": "participant_city",
           "name": "City",
-          "description": "Participant value frozen when the response was opened."
+          "description": "Original value at survey start."
         },
         "submitter_email": {
           "type": "text",

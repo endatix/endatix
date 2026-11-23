@@ -171,6 +171,7 @@ internal static partial class ShojiCodebookGenerator
         WriteGroupedVariables(writer, args.Questions, args.GroupedColumnKeys, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteTopLevelCategoricalVariables(writer, args.FlatteningMap, args.Questions, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteScalarVariables(writer, args.FlatteningMap, args.Questions, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
+        WriteRankingArrays(writer, args, tracking);
         WriteGapLeafVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteCheckboxOtherTextVariables(writer, args.FlatteningMap, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
         WriteLoopExpandedVariables(writer, args.FlatteningMap, args.Questions, args.CodebookColumns, writtenVariables, usedDisplayNames, args.KeySeparator, orderAliases);
@@ -326,7 +327,7 @@ internal static partial class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
         WriteUniqueName(writer, displayName, alias, usedDisplayNames);
         writer.WriteString(ShojiCodebookPropertyNames.Description, string.Empty);
-        writer.WriteString(ShojiCodebookPropertyNames.Resolution, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
+        WriteDateFormat(writer, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
         writer.WriteEndObject();
     }
 
@@ -599,12 +600,7 @@ internal static partial class ShojiCodebookGenerator
             writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
             WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
             WriteQuestionDescription(writer, question);
-            if (shojiType == ShojiCodebookPropertyNames.VariableTypeDatetime)
-            {
-                writer.WriteString(
-                    ShojiCodebookPropertyNames.Resolution,
-                    ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
-            }
+            WriteQuestionDate(writer, shojiType, columnMetadata);
 
             writer.WriteEndObject();
         }
@@ -1275,10 +1271,7 @@ internal static partial class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Alias, ExportKeyTransformer.Transform(questionName, keySeparator));
         WriteUniqueName(writer, BuildPrefixedDisplayName(question), questionName, usedDisplayNames);
         WriteQuestionDescription(writer, question);
-        if (shojiType == ShojiCodebookPropertyNames.VariableTypeDatetime)
-        {
-            writer.WriteString(ShojiCodebookPropertyNames.Resolution, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
-        }
+        WriteQuestionDate(writer, shojiType, question);
 
         writer.WriteEndObject();
     }
@@ -1298,10 +1291,7 @@ internal static partial class ShojiCodebookGenerator
         writer.WriteString(ShojiCodebookPropertyNames.Alias, exportKey);
         WriteUniqueName(writer, preferredName, exportKey, usedDisplayNames);
         WriteQuestionDescription(writer, question, panelItemText);
-        if (shojiType == ShojiCodebookPropertyNames.VariableTypeDatetime)
-        {
-            writer.WriteString(ShojiCodebookPropertyNames.Resolution, ShojiCodebookPropertyNames.DatetimeResolutionSeconds);
-        }
+        WriteQuestionDate(writer, shojiType, question);
 
         writer.WriteEndObject();
     }
@@ -1824,7 +1814,7 @@ internal static partial class ShojiCodebookGenerator
         JsonElement question,
         string? panelItemText = null)
     {
-        var description = ReadQuestionDescription(question);
+        var description = DescribeQuestion(writer, question);
         if (panelItemText is not null)
         {
             description = SubstitutePanelItemText(description, panelItemText);
