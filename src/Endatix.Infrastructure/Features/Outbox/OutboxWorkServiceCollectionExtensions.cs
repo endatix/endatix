@@ -56,7 +56,9 @@ public static class OutboxWorkServiceCollectionExtensions
     /// <summary>
     /// Registers <typeparamref name="TWork"/> like <see cref="AddOutboxWork{TWork}"/>, as work that belongs to no
     /// tenant: each app-level row (one whose stored tenant is none) becomes a system job, and a row that names a
-    /// tenant fails the publish, whether the relay runs the work inline or enqueues it.
+    /// tenant fails the publish, whether the relay runs the work inline or enqueues it, unless
+    /// <paramref name="onlyWhen"/> skips it. <paramref name="onlyWhen"/> is applied before that check, so app-level
+    /// work can share an event type with tenant work by filtering out tenant rows.
     /// </summary>
     /// <remarks>
     /// Use it for work that has no tenant, such as work that comes before its tenant exists. Work on an app-level row
@@ -73,7 +75,7 @@ public static class OutboxWorkServiceCollectionExtensions
         Func<IOutboxMessage, bool>? onlyWhen = null)
         where TWork : class, IOutboxWork<TWork> =>
         services
-            .AddSingleton(new AppLevelOutboxWork(typeof(TWork)))
+            .AddSingleton(new AppLevelOutboxWork(typeof(TWork), onlyWhen))
             .AddWork<TWork>(defaults, new OutboxWorkRegistration<TWork>(readTenant: null, onlyWhen, appLevel: true));
 
     private static IServiceCollection AddWork<TWork>(
@@ -102,7 +104,8 @@ public static class OutboxWorkServiceCollectionExtensions
                 eventType,
                 registration.ReadTenant is { } readTenant ? TenantOrNone(readTenant) : null,
                 typeof(TWork),
-                registration.AppLevel);
+                registration.AppLevel,
+                registration.OnlyWhen);
             if (registration.OnlyWhen is null)
             {
                 services.AddJobSubscription(source, message => new OutboxMessageJob<TWork>(message.Id));
@@ -145,7 +148,32 @@ internal sealed record OutboxMessageJob<TWork>(long OutboxMessageId) : IBackgrou
 }
 
 /// <summary>An outbox work registered app-level, which inline delivery runs on app-level messages only.</summary>
-internal sealed record AppLevelOutboxWork(Type WorkType);
+internal sealed record AppLevelOutboxWork(Type WorkType, Func<IOutboxMessage, bool>? OnlyWhen);
+
+/// <summary>The one rule for a work's <c>onlyWhen</c> before its scope is known.</summary>
+internal static class OutboxWorkFilter
+{
+    /// <summary>
+    /// Whether the work skips <paramref name="message"/>: only a predicate that returns false skips. One that throws
+    /// leaves the message to the work, which then fails on its own, as the expander does.
+    /// </summary>
+    public static bool Skips(Func<IOutboxMessage, bool>? onlyWhen, IOutboxMessage message)
+    {
+        if (onlyWhen is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return !onlyWhen(message);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return false;
+        }
+    }
+}
 
 /// <summary>What one work's registration told its job and its relay filter.</summary>
 internal sealed class OutboxWorkRegistration<TWork>(

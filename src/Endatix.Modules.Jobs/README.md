@@ -524,7 +524,9 @@ job and as that job's subscriptions in one call; see
 - With the switch on, startup fails while an inline outbox handler has no job for one of its events.
 - Work with no tenant registers with `AddAppLevelOutboxWork<TWork>()`: each app-level row (stored
   tenant none) becomes a system job, and a row that names a tenant fails the publish, inline or to
-  the job queue. Work whose
+  the job queue, unless the work's `onlyWhen` skips it. `onlyWhen` is applied before any scope check,
+  so a row one work skips never blocks the message's other subscribers: app-level and tenant work can
+  share an event type when each filters out the other's rows. Work whose
   app-level row names the tenant it belongs to uses `AddOutboxWork<TWork>(appLevelTenant: …)` instead
   (Reporting's export-format seeding). A system job reads only an app-level row and only for app-level
   work, and a tenant job only its own tenant's rows, so neither reaches the other's outbox rows.

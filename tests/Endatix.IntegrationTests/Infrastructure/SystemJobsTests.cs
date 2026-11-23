@@ -128,6 +128,57 @@ public sealed class SystemJobsTests(DbIntegrationFixture fixture)
         recorder.Runs.Should().Be(1);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Tenant_row_skipped_by_app_level_work_still_reaches_the_other_subscriber(bool deliverToJobQueue)
+    {
+        // Arrange — app-level work and tenant work share the event; each filters out the other's rows.
+        var ct = TestContext.Current.CancellationToken;
+        var appLevel = new ProbeRecorder();
+        var tenant = new TenantProbeRecorder();
+        await using var host = await FanOutHost.StartAsync(
+            fixture,
+            new FanOutHostSetup(deliverToJobQueue, services => services
+                .AddSingleton(appLevel)
+                .AddSingleton(tenant)
+                .AddAppLevelOutboxWork<AppLevelProbeWork>(onlyWhen: message => message.TenantId == NO_TENANT)
+                .AddOutboxWork<TenantProbeWork>(onlyWhen: message => message.TenantId != NO_TENANT)),
+            ct);
+
+        // Act
+        await host.InsertMessageAsync(new OutboxRow(955, EVENT_TYPE, TenantId: 5), ct);
+        var sent = await host.WaitForMessageAsync(955, message => message.Status == SENT, ct);
+        var tenantRan = await JobsTestWait.UntilAsync(() => Task.FromResult(tenant.Runs == 1), TimeSpan.FromSeconds(30), ct);
+
+        // Assert — the tenant work ran for the row, and the app-level work never saw it.
+        sent.Should().BeTrue();
+        tenantRan.Should().BeTrue();
+        appLevel.Runs.Should().Be(0);
+    }
+
+    internal sealed class TenantProbeRecorder
+    {
+        private int _runs;
+
+        public int Runs => Volatile.Read(ref _runs);
+
+        public void Ran() => Interlocked.Increment(ref _runs);
+    }
+
+    internal sealed class TenantProbeWork(TenantProbeRecorder recorder) : IOutboxWork<TenantProbeWork>
+    {
+        public static string JobType => "TestTenantProbe";
+
+        public static IReadOnlyCollection<string> HandledEventTypes { get; } = [EVENT_TYPE];
+
+        public OutboxWork Read(IOutboxMessage message) => OutboxWork.For(_ =>
+        {
+            recorder.Ran();
+            return Task.CompletedTask;
+        });
+    }
+
     internal sealed class ProbeRecorder
     {
         private int _runs;

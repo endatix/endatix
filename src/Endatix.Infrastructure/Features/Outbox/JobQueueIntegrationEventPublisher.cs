@@ -88,7 +88,7 @@ internal sealed class JobQueueIntegrationEventPublisher : IIntegrationEventPubli
         }
 
         List<BackgroundJobRequest> requests = [];
-        foreach (var subscription in subscriptions)
+        foreach (var subscription in subscriptions.Where(subscription => !subscription.Skips(message)))
         {
             var delivery = new OutboxDelivery(message, subscription.ResolveScope(message));
             requests.AddRange(await subscription.BuildRequestsAsync(_services, delivery, cancellationToken));

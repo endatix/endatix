@@ -33,7 +33,7 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         Func<IOutboxMessage, TPayload> createPayload,
         Func<IOutboxMessage, long>? resolveTenantId = null)
         where TPayload : IBackgroundJobPayload =>
-        services.AddJobSubscription(new SubscriptionSource(eventType, resolveTenantId, WorkType: null, AppLevel: false), createPayload);
+        services.AddJobSubscription(new SubscriptionSource(eventType, resolveTenantId, WorkType: null, AppLevel: false, OnlyWhen: null), createPayload);
 
     /// <summary>
     /// Subscribes jobs of <typeparamref name="TPayload"/>'s job type to <paramref name="eventType"/>, as many per
@@ -45,7 +45,7 @@ public static class OutboxSubscriptionServiceCollectionExtensions
         Func<IOutboxMessage, long>? resolveTenantId = null)
         where TPayload : IBackgroundJobPayload
         where TExpander : class, IOutboxSubscriberExpander<TPayload> =>
-        services.AddExpandingJobSubscription<TPayload, TExpander>(new SubscriptionSource(eventType, resolveTenantId, WorkType: null, AppLevel: false));
+        services.AddExpandingJobSubscription<TPayload, TExpander>(new SubscriptionSource(eventType, resolveTenantId, WorkType: null, AppLevel: false, OnlyWhen: null));
 
     /// <summary>The one-job subscription, owned by the source's work type when an outbox work registers it.</summary>
     internal static IServiceCollection AddJobSubscription<TPayload>(
@@ -115,18 +115,20 @@ public static class OutboxSubscriptionServiceCollectionExtensions
             WorkType = source.WorkType,
             TenantResolver = source.ResolveTenantId,
             AppLevel = source.AppLevel,
+            OnlyWhen = source.OnlyWhen,
             Requests = requests,
         };
 
     /// <summary>
-    /// What a subscription listens to, whose tenant its jobs take or whether they are system jobs, and the work that
-    /// owns it, if any.
+    /// What a subscription listens to, whose tenant its jobs take or whether they are system jobs, the work that
+    /// owns it, if any, and that work's <c>onlyWhen</c> filter.
     /// </summary>
     internal readonly record struct SubscriptionSource(
         string EventType,
         Func<IOutboxMessage, long>? ResolveTenantId,
         Type? WorkType,
-        bool AppLevel);
+        bool AppLevel,
+        Func<IOutboxMessage, bool>? OnlyWhen);
 
     private static IServiceCollection AddSubscription(this IServiceCollection services, OutboxJobSubscription subscription)
     {

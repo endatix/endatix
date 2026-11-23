@@ -51,6 +51,16 @@ public sealed class OutboxJobSubscription
     /// </summary>
     internal bool AppLevel { get; init; }
 
+    /// <summary>The owning work's <c>onlyWhen</c>, when it has one.</summary>
+    internal Func<IOutboxMessage, bool>? OnlyWhen { private get; init; }
+
+    /// <summary>
+    /// Whether the owning work's <c>onlyWhen</c> skips <paramref name="message"/>. Checked before
+    /// <see cref="ResolveScope"/>, so a message the work skips never reaches its scope check and cannot block the
+    /// message's other subscribers.
+    /// </summary>
+    internal bool Skips(IOutboxMessage message) => OutboxWorkFilter.Skips(OnlyWhen, message);
+
     /// <summary>Builds the job requests for a message delivered to one scope.</summary>
     internal OutboxRequestsBuilder Requests { private get; init; } = null!;
 

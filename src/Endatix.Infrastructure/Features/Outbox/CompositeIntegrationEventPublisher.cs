@@ -19,7 +19,8 @@ internal sealed partial class CompositeIntegrationEventPublisher(
     IEnumerable<AppLevelOutboxWork>? appLevelWorks = null) : IIntegrationEventPublisher
 {
     private readonly IOutboxIntegrationEventHandler[] _handlers = handlers.ToArray();
-    private readonly HashSet<Type> _appLevelWorks = [.. (appLevelWorks ?? []).Select(work => work.WorkType)];
+    private readonly Dictionary<Type, AppLevelOutboxWork> _appLevelWorks =
+        (appLevelWorks ?? []).ToDictionary(work => work.WorkType);
 
     /// <inheritdoc />
     public async Task PublishAsync(IOutboxMessage message, CancellationToken cancellationToken)
@@ -61,10 +62,17 @@ internal sealed partial class CompositeIntegrationEventPublisher(
     {
         var matched = _handlers
             .Where(handler => handler.EventTypes.Contains(message.EventType, StringComparer.Ordinal))
+            .Where(handler => !AppLevelWorkSkips(handler, message))
             .ToArray();
         ThrowIfAppLevelWorkGetsATenantRow(matched, message);
         return matched;
     }
+
+    // App-level work whose onlyWhen filters out a tenant row is passed over, so it never blocks the other handlers.
+    private bool AppLevelWorkSkips(IOutboxIntegrationEventHandler handler, IOutboxMessage message) =>
+        message.TenantId != OutboxAppLevel.NoTenant
+        && _appLevelWorks.TryGetValue(handler.GetType(), out var work)
+        && OutboxWorkFilter.Skips(work.OnlyWhen, message);
 
     // Checked before any handler runs, so the message fails whole, as it does when the relay enqueues jobs.
     private void ThrowIfAppLevelWorkGetsATenantRow(IOutboxIntegrationEventHandler[] matched, IOutboxMessage message)
@@ -74,7 +82,7 @@ internal sealed partial class CompositeIntegrationEventPublisher(
             return;
         }
 
-        var appLevel = matched.FirstOrDefault(handler => _appLevelWorks.Contains(handler.GetType()));
+        var appLevel = matched.FirstOrDefault(handler => _appLevelWorks.ContainsKey(handler.GetType()));
         if (appLevel is not null)
         {
             throw new InvalidOperationException(
