@@ -385,7 +385,7 @@ internal sealed partial class CopyVisibility
             return UnknownBecause.MaxChoices;
         }
 
-        return question.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is null ? null : UnknownBecause.ChoicesVisibleIf;
+        return ConditionalChoices.HasListCondition(question) ? UnknownBecause.ChoicesVisibleIf : null;
     }
 
     private static bool IsSelect(JsonElement question) =>
@@ -416,10 +416,7 @@ internal sealed partial class CopyVisibility
     }
 
     private static bool HasChoiceVisibilityRule(JsonElement source) =>
-        source.TryGetPropertyValue(SurveyJsPropertyNames.ChoicesVisibleIf) is not null ||
-        SurveyJsChoiceHelper.EnumerateChoiceElements(source).Any(choice =>
-            choice.Element.ValueKind == JsonValueKind.Object &&
-            choice.Element.TryGetPropertyValue(SurveyJsPropertyNames.VisibleIf) is not null);
+        ConditionalChoices.HasListCondition(source) || ConditionalChoices.ValuesIn(source).Any();
 
     // A copy that reads its copied sources' lists holds only when their rules do; a selected copy reads only picks.
     private static bool ChainHoldsWhenComplete(

@@ -1,0 +1,20 @@
+[
+  {
+    "formId": 100,
+    "id": 1,
+    "isComplete": true,
+    "collectionStatus": "complete",
+    "createdAt": "2026-10-14T10:00:00Z",
+    "modifiedAt": "2026-10-14T10:00:00Z",
+    "startedAt": "N/A",
+    "completedAt": "N/A",
+    "durationSeconds": "N/A",
+    "submitterId": "N/A",
+    "submitterDisplayId": "N/A",
+    "channels__radio": 1,
+    "channels__print": null,
+    "topics__music": 1,
+    "topics__books": null,
+    "topics__sport": 0
+  }
+]

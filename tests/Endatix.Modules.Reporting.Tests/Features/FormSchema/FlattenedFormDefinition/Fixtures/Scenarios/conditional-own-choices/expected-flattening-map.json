@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "key": "channels__radio",
+      "kind": "ChoiceIndicator",
+      "label": "channels — radio",
+      "dataType": "number",
+      "sourceQuestion": "channels",
+      "choiceValue": "radio",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "channels__print",
+      "kind": "ChoiceIndicator",
+      "label": "channels — print",
+      "dataType": "number",
+      "sourceQuestion": "channels",
+      "choiceValue": "print",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "topics__music",
+      "kind": "ChoiceIndicator",
+      "label": "topics — music",
+      "dataType": "number",
+      "sourceQuestion": "topics",
+      "choiceValue": "music",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "topics__books",
+      "kind": "ChoiceIndicator",
+      "label": "topics — books",
+      "dataType": "number",
+      "sourceQuestion": "topics",
+      "choiceValue": "books",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    },
+    {
+      "key": "topics__sport",
+      "kind": "ChoiceIndicator",
+      "label": "topics — sport",
+      "dataType": "number",
+      "sourceQuestion": "topics",
+      "choiceValue": "sport",
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": null,
+      "matrixColumnValue": null,
+      "matrixColumnChoices": null,
+      "loopPath": null
+    }
+  ]
+}

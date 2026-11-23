@@ -79,6 +79,7 @@ internal static partial class FormSchemaCodebookBuilder
         WriteOtherFields(writer, existingCatalog, currentCatalog);
         CopyVisibility.Merge(writer, existingCatalog, currentCatalog);
         SelectChoices.MergeCanBeHidden(writer, existingCatalog, currentCatalog);
+        ConditionalChoices.Merge(writer, existingCatalog, currentCatalog);
     }
 
     private static void WriteOtherFields(Utf8JsonWriter writer, JsonElement existingCatalog, JsonElement currentCatalog)
@@ -135,6 +136,7 @@ internal static partial class FormSchemaCodebookBuilder
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherStorage) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.OtherFrom) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.CanBeHidden) &&
+                         !property.NameEquals(ConditionalChoices.PROPERTY_NAME) &&
                          !property.NameEquals(FormSchemaCodebookPropertyNames.Shown)))
             {
                 property.WriteTo(writer);
