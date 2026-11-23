@@ -48,8 +48,8 @@ internal sealed class ChoiceSet
     /// <summary>Whether the question shows an Other item.</summary>
     public bool HasOther => Items.Any(item => item.Kind == ChoiceKind.Other);
 
-    /// <summary>Whether the question has inline choices; a lazy multi-select (data list) has none.</summary>
-    public bool HasInlineChoices => Items.Any(item => item.Kind == ChoiceKind.Choice);
+    /// <summary>A readable choice list, including a copy whose only choice is its source's Other.</summary>
+    public bool HasIndicatorChoices => OtherFrom is not null || Items.Any(item => item.Kind == ChoiceKind.Choice);
 
     /// <summary>Null when the question shows no Other item.</summary>
     public OtherStorage? OtherStorage { get; private init; }

@@ -80,7 +80,8 @@ internal sealed class ResolvedChoices
 /// (<see cref="ChoiceSource.CarryForward"/>) offers the union of every source's own choices, in source order, the
 /// first occurrence of a value winning; a source that copies its own is followed. A missing source or one that is not
 /// a select or a ranking is skipped, as Hub skips it. A source that is a data list (until #1160), loads its choices
-/// from a URL or from answers, or closes a cycle leaves the copy degraded, and so does a copy with no choices at all.
+/// from a URL or from answers, or closes a cycle leaves the copy degraded. A readable but empty union is degraded
+/// unless the copy offers its source's Other.
 /// <see cref="Resolve"/> applies this to a base select, single or multiple; <see cref="Offered"/> to any select or
 /// ranking.
 /// </summary>
@@ -114,14 +115,14 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
         var key = string.Join('\0', [name ?? string.Empty, .. copy.Sources, other is null ? string.Empty : SurveyJsPropertyNames.Other]);
         if (!_resolvedCopies.TryGetValue(key, out var resolved))
         {
-            resolved = ResolveCopy(name, copy).WithOther(other);
+            resolved = ResolveCopy(name, copy, other);
             _resolvedCopies[key] = resolved;
         }
 
         return resolved;
     }
 
-    private ResolvedChoices ResolveCopy(string? name, ChoiceSource.CarryForward copy)
+    private ResolvedChoices ResolveCopy(string? name, ChoiceSource.CarryForward copy, CopiedOther? other)
     {
         HashSet<string> visiting = new(StringComparer.Ordinal);
         if (name is not null)
@@ -129,7 +130,8 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
             visiting.Add(name);
         }
 
-        return ResolvedChoices.Copied(copy, Union(copy.Sources, visiting) is { Count: > 0 } union ? union : null);
+        var union = Union(copy.Sources, visiting);
+        return ResolvedChoices.Copied(copy, union is { Count: 0 } && other is null ? null : union).WithOther(other);
     }
 
     // SurveyJS getChoicesFromSelectQuestion: a selected-mode choicesFromQuestion copy that shows no Other of its own

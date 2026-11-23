@@ -591,7 +591,7 @@ internal static class FormDefinitionFlattener
 
         // A data list, a lazy multi-select or a copy whose source cannot be read has no choices on the form. One
         // column keeps the selected values (including "other" and special items) instead of dropping them.
-        if (!choices.HasInlineChoices)
+        if (!choices.HasIndicatorChoices)
         {
             AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
                 name,
@@ -1366,7 +1366,7 @@ internal static class FormDefinitionFlattener
     {
         var (columns, seenKeys, limits, sources) = context;
         var choices = ChoiceSet.Read(template, choices: sources.Resolve(template))!;
-        if (!choices.HasInlineChoices)
+        if (!choices.HasIndicatorChoices)
         {
             EmitLoopSourceSingleSelectColumn(template, childName, keyPrefix, loopPath, context);
             return;

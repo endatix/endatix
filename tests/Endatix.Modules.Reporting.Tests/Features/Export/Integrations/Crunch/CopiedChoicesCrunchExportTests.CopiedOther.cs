@@ -68,6 +68,30 @@ public sealed partial class CopiedChoicesCrunchExportTests
     }
 
     [Fact]
+    public async Task CsvShoji_OtherOnlySource_ExportsPickedOtherForSingleAndMultipleCopies()
+    {
+        // Arrange
+        var definition = DefinitionWith("""{"type":"checkbox","name":"Q1","choices":[],"showOtherItem":true}""", """
+            {"type":"radiogroup","name":"Q2","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"},
+            {"type":"checkbox","name":"Q3","choicesFromQuestion":"Q1","choicesFromQuestionMode":"selected"}
+            """);
+        IReadOnlyList<FixtureResponse> responses =
+        [
+            new("picked", """{"Q1":["other"],"Q1-Comment":"typed","Q2":"other","Q3":["other"]}""", null),
+        ];
+
+        // Act
+        var (shoji, csv) = await ExportAsync(definition, responses);
+
+        // Assert
+        Categories(shoji, "Q2").Should().Equal((1, "Other"));
+        Column(csv, "Q2").Should().Equal("1");
+        Column(csv, "Q2--other_text").Should().Equal("typed");
+        Column(csv, "Q3--other").Should().Equal("1");
+        Column(csv, "Q3--other_text").Should().Equal("typed");
+    }
+
+    [Fact]
     public async Task CsvShoji_CopyWithItsOwnNone_KeepsNoneIdAndAddsTheSourcesOtherLast()
     {
         // Arrange
