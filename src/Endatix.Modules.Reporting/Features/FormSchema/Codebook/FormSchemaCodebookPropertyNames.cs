@@ -73,6 +73,7 @@ internal static class FormSchemaCodebookPropertyNames
     /// Kept by every merge, so an unanswered row saved under such a definition never claims it was shown.
     /// </summary>
     public const string CanBeHidden = "canBeHidden";
+    public const string ConditionalChoices = "conditionalChoices";
     public const string Mode = "mode";
 
     /// <summary><see cref="Shown"/>: a source's name and the regular choice values it offered when compiled.</summary>

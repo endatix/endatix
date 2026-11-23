@@ -122,7 +122,7 @@ internal sealed class ChoiceCatalogs
 
     /// <summary>
     /// One indicator cell of <paramref name="question"/> in <paramref name="scope"/>. A picked choice was shown. A select
-    /// with its own choices shows every one, so the rest are 0 when it is answered, or when a complete submission left it
+    /// with its own choices shows every unconditional choice, so those are 0 when it is answered, or when a complete submission left it
     /// unanswered, nothing could hide it (<see cref="SelectChoices.CanBeHidden"/>) and the submission's form version has
     /// it; otherwise they are empty. A copy
     /// that has no answer shows nothing provably, so the rest are empty. An answered copy with an exact <see cref="CopyVisibility"/> shows its own special items (Other,
@@ -137,7 +137,7 @@ internal sealed class ChoiceCatalogs
 
         if (!_copies.Contains(question))
         {
-            return scope.OwnAnswers(question) || (SubmissionComplete && !For(question).CanBeHidden && WasSubmittedWith(question))
+            return !For(question).IsConditional(choiceValue) && OwnQuestionShown(scope, question)
                 ? IndicatorCell.ShownNotPicked
                 : IndicatorCell.Empty;
         }
@@ -146,6 +146,9 @@ internal sealed class ChoiceCatalogs
             ? IndicatorCell.ShownNotPicked
             : IndicatorCell.Empty;
     }
+
+    private bool OwnQuestionShown(AnswerScope scope, string question) =>
+        scope.OwnAnswers(question) || (SubmissionComplete && !For(question).CanBeHidden && WasSubmittedWith(question));
 
     /// <summary>
     /// The question's Other text in <paramref name="scope"/>: its own when not empty. For a copy that offers, or once
@@ -239,6 +242,10 @@ internal sealed class SelectChoices
     /// <summary>A definition could hide the question from a respondent (<c>canBeHidden</c>).</summary>
     public bool CanBeHidden { get; private init; }
 
+    private HashSet<string>? ConditionalValues { get; init; }
+
+    public bool IsConditional(string value) => ConditionalValues?.Contains(value) == true;
+
     private static bool CanBeHiddenIn(JsonElement catalog) =>
         catalog.ValueKind == JsonValueKind.Object && catalog.GetBooleanProperty(FormSchemaCodebookPropertyNames.CanBeHidden);
 
@@ -278,6 +285,7 @@ internal sealed class SelectChoices
             OtherStorage = ChoiceSet.ParseOtherStorage(catalog.GetStringProperty(FormSchemaCodebookPropertyNames.OtherStorage)),
             OtherFrom = catalog.GetNonEmptyStringProperty(FormSchemaCodebookPropertyNames.OtherFrom),
             CanBeHidden = CanBeHiddenIn(catalog),
+            ConditionalValues = ConditionalChoices.Read(catalog)?.ToHashSet(StringComparer.Ordinal),
         };
     }
 

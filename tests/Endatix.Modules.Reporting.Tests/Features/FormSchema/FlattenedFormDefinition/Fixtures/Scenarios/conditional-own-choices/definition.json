@@ -1,0 +1,22 @@
+{
+  "pages": [{
+    "name": "page1",
+    "elements": [
+      {
+        "type": "checkbox",
+        "name": "channels",
+        "choices": ["radio", "print"],
+        "choicesVisibleIf": "{item} != 'print'"
+      },
+      {
+        "type": "tagbox",
+        "name": "topics",
+        "choices": [
+          {"value": "music", "visibleIf": "{channels} contains 'radio'"},
+          {"value": "books", "visibleIf": "{channels} contains 'print'"},
+          "sport"
+        ]
+      }
+    ]
+  }]
+}

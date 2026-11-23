@@ -59,6 +59,8 @@ submission also checks that the csv-shoji file imports against the Shoji codeboo
 | `copy-of-a-copy` | Checkboxes that copy a copy (#1754). `aware` copies the brands picked in `brands` (selected); `pickTop`, and `pick` in `brandLoop` over `brands`, copy what `aware` picked (selected): `aware`'s picks are 0 or 1, the brand it left is empty, and the copy's None is 0 when not picked. `fromShortlist` copies all of `shortlist`, which caps its list (`edxCarryForwardMaxChoices`), so its unpicked choices and None stay empty. |
 | `question-across-versions` | A checkbox removed and one added between form versions (#1758). Version 1 has `oldPerks`, version 2 drops it, and `definition.json` adds `newPerks`; the merge keeps every column. The completed submission was saved on version 2 and leaves `channels` unanswered: `oldPerks` and `newPerks`, which its version does not have, are empty in every column, while `channels`, which nothing can hide, is 0 and the answered `topics` 1 and 0. |
 
+| `conditional-own-choices` | `channels` filters its regular choices with `choicesVisibleIf`: radio is picked (1), print is unknown (empty). `topics` has per-choice `visibleIf`: music is picked (1), books is unknown (empty), and the unconditional sport is not picked (0). |
+
 ### `copied-choices-loops`
 
 About 50 questions on five pages, three choices each, and one response that answers them all.
@@ -119,8 +121,7 @@ The goldens hold today's output, wrong parts included, so each fix shows up as a
 - **#1160, data lists:** a copy of a data list has no choices to publish; no scenario has one yet.
 - **#1441, stored values never offered:** a value a checkbox stores but its choices do not offer has no column and is
   not exported (`capped-ranking-loops`, `occasionPool` 1 and 6).
-- **A 0 the respondent did not see, with its own choices (no scenario yet):** `choicesVisibleIf` or a choice's own
-  `visibleIf` can hide a choice that still writes 0 (#1759); a question after a `complete` trigger ended the survey writes 0;
+- **A 0 the respondent did not see, with its own choices (no scenario yet):** a question after a `complete` trigger ended the survey writes 0;
   a checkbox moved between the form's root and a loop across versions writes 0 in the place its version did not have it,
   because the check against the submission's version (#1758) matches the question's name, not where it sits (#1770).
   #1753 covers only question, panel and page visibility.
