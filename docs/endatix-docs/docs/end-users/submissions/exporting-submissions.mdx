@@ -112,7 +112,9 @@ A folder with nothing in it is left out. If two panels at the same level have th
 
 If a form was prepared before this layout existed, its panels become folders named by their titles but do not nest. **Rebuild reporting data…** brings the nesting back.
 
-Date and time fields, including **Created At**, show hours and minutes (`2026-10-01 10:00`) and can be grouped by hour. A date-only question shows just the date (`2026-10-01`). A ranking appears as one question with a row for each choice. Its CSV still has one column per choice.
+The Shoji codebook requests an hours-and-minutes display (`2026-10-01 10:00`) and hourly grouping for timestamps such as **Created At**. For date-only answers it requests just the date (`2026-10-01`).
+
+The codebook groups a ranking into one question with a row for each choice. If another CSV column already uses the ranking's alias (for example, a calculated value named `rank`), the codebook keeps a separate numeric variable for each choice so the other column can still be imported. In both cases the CSV has one column per choice.
 
 ### Participant Columns
 
@@ -121,6 +123,8 @@ On a personalized form, every export ends each row with the participant's values
 If a question's column key is the same as a participant column's, the question keeps the key and the participant column is left out.
 
 In Crunch, a participant variable is labeled “Original value at survey start.” If a question starts with that variable's value, the question description names the variable so you can compare the original value with the submitted answer. For example, a city question prefilled directly from `city` points to `participant_city`. The Endatix codebook records `prefilledFrom: "city"` on the question. Using a variable in a condition, in question text, or as part of a calculation does not mark the question as prefilled.
+
+If a form was already prepared for export and its codebook is missing the prefill source, select **Rebuild reporting data…**, leave **Full recompile** off, then download the codebook again. This refreshes the metadata for current questions while keeping the export history of removed or renamed questions.
 
 Endatix 0.9.0, and pre-release (canary) builds from 0.8.1-canary.11, named these columns `AudienceIdentifier` and `audience_<variable>`, and called the codebook block and each column's type `personalization`. A form prepared on one of those builds keeps the old columns until you run **Rebuild reporting data…** with **Full recompile** (see [Upgrade to Endatix 0.9.1](/docs/guides/upgrading/v0-9-1#participant-columns)). Afterwards its exports show only the participant columns. If a Crunch.io dataset was loaded from such an export, alias its variables to the new names.
 
