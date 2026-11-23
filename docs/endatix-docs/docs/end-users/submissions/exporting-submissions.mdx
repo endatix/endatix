@@ -163,7 +163,7 @@ A **Codebook (Shoji)** file is unchanged: Crunch.io imports an empty cell as No 
 
 Submissions saved before Endatix 0.9.2 keep their earlier 0s until an administrator loads them again. Loaded again without a rebuild, copied choices are 1 or empty; after a rebuild with **Full recompile**, they also show exact 0s. See [Upgrade to Endatix 0.9.2](/docs/guides/upgrading/v0-9-2#copied-choices-export-empty-cells).
 
-Submissions saved before Endatix 0.9.3 keep the 0s of their unanswered checkboxes and tag boxes until they are loaded again. Only a rebuild with **Full recompile** empties the completed submissions whose question a visibility condition could hide: a rebuild without it skips submissions that have not changed. See [Upgrade to Endatix 0.9.3](/docs/guides/upgrading/v0-9-3#unanswered-checkboxes-export-empty-cells).
+Submissions saved before Endatix 0.9.3 keep the 0s of their unanswered checkboxes and tag boxes until they are loaded again. To refresh completed submissions whose question could be hidden, an administrator can merge the reporting schema and force a backfill through the API. A Hub rebuild without **Full recompile** skips unchanged submissions. See [Upgrade to Endatix 0.9.3](/docs/guides/upgrading/v0-9-3#unanswered-checkboxes-export-empty-cells).
 
 ## Important Considerations
 
@@ -171,7 +171,7 @@ Submissions saved before Endatix 0.9.3 keep the 0s of their unanswered checkboxe
 * **The panel starts from the grid.** Status, test submissions, and the four date ranges are copied from the filters already on the Submissions page. Clear a grid filter before you open the panel if you do not want it in the file.
 * **The export panel refreshes drafts before an Incomplete or All download.** Completed exports use the submissions already prepared. A draft that changes after you download the file is not in that file. Deleted submissions are never included. If only some drafts can be updated in one export, the file still downloads and the panel says so.
 * **A codebook has no rows to filter.** Status, test-submission, and date filters apply only to Submissions formats.
-* **Crunch.io category ids never move.** A choice keeps the id it was first exported with, even after choices are added or removed. A form that removed a choice before this rule existed has its later choices renumbered once, in its next Shoji export.
+* **Merge preserves Crunch.io category IDs.** A merge keeps existing IDs when choices change. **Full recompile** assigns IDs in current choice order, so a choice can get a different ID. A form that removed a choice before this rule existed has its later choices renumbered once, in its next Shoji export.
 * **Rebuilding needs permission to edit the form.** Without it, **Rebuild reporting data…** is not shown. Ask someone who can edit the form if an export is missing new columns.
 * **Full recompile discards export history.** It rebuilds the export structure from the form's current questions only. A question that was removed or renamed loses its column history in future exports.
 
