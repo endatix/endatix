@@ -12,7 +12,7 @@
         {
           "type": "checkbox",
           "name": "question2",
-          "choices": ["item1", { "value": "item2", "text": "item2", "showCommentArea": true }, "item3"],
+          "choices": [{ "value": "item1", "showCommentArea": true }, { "value": "item2", "text": "item2", "showCommentArea": true }, "item3"],
           "showOtherItem": true
         },
         {
@@ -20,6 +20,21 @@
           "name": "question3",
           "choices": ["item1", { "value": "item2", "text": "item2", "showCommentArea": true }, "item3"],
           "showOtherItem": true
+        },
+        {
+          "type": "radiogroup",
+          "name": "radio",
+          "choices": [{ "value": "yes", "showCommentArea": true }, { "value": "no", "showCommentArea": true }]
+        },
+        {
+          "type": "dropdown",
+          "name": "dropdown",
+          "choices": [{ "value": "yes", "showCommentArea": true }, { "value": "no", "showCommentArea": true }]
+        },
+        {
+          "type": "tagbox",
+          "name": "importedTags",
+          "choices": [{ "value": "east", "showCommentArea": true }, { "value": "west", "showCommentArea": true }]
         }
       ]
     }

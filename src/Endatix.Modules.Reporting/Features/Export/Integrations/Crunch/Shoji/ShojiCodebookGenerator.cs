@@ -607,12 +607,11 @@ internal static partial class ShojiCodebookGenerator
     }
 
     private static bool IsTopLevelGapLeafColumn(FormSchemaColumn column) =>
-        column.LoopPath is null &&
-        column.Kind is FormSchemaColumnKind.RankingChoice
-            or FormSchemaColumnKind.MultipleTextItem
-            or FormSchemaColumnKind.MatrixCell
-            or FormSchemaColumnKind.FileUpload
-            or FormSchemaColumnKind.PanelDynamicIndex;
+        column.LoopPath is null && (IsLeafKind(column.Kind) || column.Kind == FormSchemaColumnKind.PanelDynamicIndex);
+
+    private static bool IsLeafKind(FormSchemaColumnKind kind) =>
+        kind is FormSchemaColumnKind.RankingChoice or FormSchemaColumnKind.ChoiceComment
+            or FormSchemaColumnKind.MultipleTextItem or FormSchemaColumnKind.MatrixCell or FormSchemaColumnKind.FileUpload;
 
     private static void WriteCheckboxOtherTextVariables(
         Utf8JsonWriter writer,
@@ -778,11 +777,7 @@ internal static partial class ShojiCodebookGenerator
     }
 
     private static bool IsLoopScalarColumnKind(FormSchemaColumnKind kind) =>
-        kind is FormSchemaColumnKind.LoopSource
-            or FormSchemaColumnKind.FileUpload
-            or FormSchemaColumnKind.RankingChoice
-            or FormSchemaColumnKind.MultipleTextItem
-            or FormSchemaColumnKind.MatrixCell
+        IsLeafKind(kind) || kind is FormSchemaColumnKind.LoopSource
             or FormSchemaColumnKind.CheckboxOtherText
             or FormSchemaColumnKind.Simple
             or FormSchemaColumnKind.Calculated;

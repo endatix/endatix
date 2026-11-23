@@ -118,6 +118,38 @@
           "name": "Submitter Display ID",
           "description": ""
         },
+        "importedTags": {
+          "type": "multiple_response",
+          "alias": "importedTags",
+          "name": "importedTags",
+          "description": "",
+          "categories": [
+            {
+              "name": "not selected",
+              "id": 0,
+              "numeric_value": null,
+              "missing": false,
+              "selected": false
+            },
+            {
+              "name": "selected",
+              "id": 1,
+              "numeric_value": null,
+              "missing": false,
+              "selected": true
+            }
+          ],
+          "subvariables": [
+            {
+              "alias": "importedTags--east",
+              "name": "east"
+            },
+            {
+              "alias": "importedTags--west",
+              "name": "west"
+            }
+          ]
+        },
         "question1": {
           "type": "multiple_response",
           "alias": "question1",
@@ -238,6 +270,100 @@
             }
           ]
         },
+        "dropdown": {
+          "type": "categorical",
+          "alias": "dropdown",
+          "name": "dropdown",
+          "description": "",
+          "categories": [
+            {
+              "name": "yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "no",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ]
+        },
+        "radio": {
+          "type": "categorical",
+          "alias": "radio",
+          "name": "radio",
+          "description": "",
+          "categories": [
+            {
+              "name": "yes",
+              "id": 1,
+              "numeric_value": 1,
+              "missing": false
+            },
+            {
+              "name": "no",
+              "id": 2,
+              "numeric_value": 2,
+              "missing": false
+            }
+          ]
+        },
+        "dropdown--no--comment": {
+          "type": "text",
+          "alias": "dropdown--no--comment",
+          "name": "dropdown--no--comment",
+          "description": ""
+        },
+        "dropdown--yes--comment": {
+          "type": "text",
+          "alias": "dropdown--yes--comment",
+          "name": "dropdown--yes--comment",
+          "description": ""
+        },
+        "importedTags--east--comment": {
+          "type": "text",
+          "alias": "importedTags--east--comment",
+          "name": "importedTags--east--comment",
+          "description": ""
+        },
+        "importedTags--west--comment": {
+          "type": "text",
+          "alias": "importedTags--west--comment",
+          "name": "importedTags--west--comment",
+          "description": ""
+        },
+        "question2--item1--comment": {
+          "type": "text",
+          "alias": "question2--item1--comment",
+          "name": "question2--item1--comment",
+          "description": ""
+        },
+        "question2--item2--comment": {
+          "type": "text",
+          "alias": "question2--item2--comment",
+          "name": "question2--item2--comment",
+          "description": ""
+        },
+        "question3--item2--comment": {
+          "type": "text",
+          "alias": "question3--item2--comment",
+          "name": "question3--item2--comment",
+          "description": ""
+        },
+        "radio--no--comment": {
+          "type": "text",
+          "alias": "radio--no--comment",
+          "name": "radio--no--comment",
+          "description": ""
+        },
+        "radio--yes--comment": {
+          "type": "text",
+          "alias": "radio--yes--comment",
+          "name": "radio--yes--comment",
+          "description": ""
+        },
         "question1--other_text": {
           "type": "text",
           "alias": "question1--other_text",
@@ -280,8 +406,20 @@
             "question1--other_text",
             "question2",
             "question2--other_text",
+            "question2--item1--comment",
+            "question2--item2--comment",
             "question3",
-            "question3--other_text"
+            "question3--other_text",
+            "question3--item2--comment",
+            "radio",
+            "radio--yes--comment",
+            "radio--no--comment",
+            "dropdown",
+            "dropdown--yes--comment",
+            "dropdown--no--comment",
+            "importedTags",
+            "importedTags--east--comment",
+            "importedTags--west--comment"
           ]
         }
       ],

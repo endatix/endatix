@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 /// Walks a SurveyJS form definition and produces BI-ready form schema column definitions.
 /// Mirrors semantics of <c>getPlainData</c> / nested-loop SQL export without a SurveyJS runtime.
 /// </summary>
-internal static class FormDefinitionFlattener
+internal static partial class FormDefinitionFlattener
 {
     private const string STRING_COLUMN_TYPE = "string";
     private const string NUMBER_COLUMN_TYPE = "number";
@@ -30,13 +30,6 @@ internal static class FormDefinitionFlattener
         string? ParentValueName,
         JsonElement Choices,
         JsonElement[] TemplateElements);
-
-    // The columns compiled so far, the limits they are held to, and the choices each question offers.
-    private sealed record FlattenContext(
-        List<FormSchemaColumn> Columns,
-        HashSet<string> SeenKeys,
-        SchemaCompilationLimits Limits,
-        ChoiceSources Sources);
 
     private sealed record PanelPath(
         IReadOnlyList<string> LoopPath,
@@ -460,9 +453,7 @@ internal static class FormDefinitionFlattener
                 continue;
             }
 
-            var flattening = collected.Element.ResolveSurveyJsFlattening();
-
-            switch (flattening)
+            switch (collected.Element.ResolveSurveyJsFlattening())
             {
                 case SurveyJsFlattening.None:
                     break;
@@ -492,6 +483,8 @@ internal static class FormDefinitionFlattener
                     EmitSimpleColumn(collected, drivingCheckboxNames, context);
                     break;
             }
+
+            context.Add(ChoiceCommentColumns.For(collected.Element, collected.Name));
         }
     }
 
@@ -1279,9 +1272,7 @@ internal static class FormDefinitionFlattener
         }
 
         List<string> keyPrefix = [keyPanelName, .. driverChoices];
-        var flattening = template.ResolveSurveyJsFlattening();
-
-        switch (flattening)
+        switch (template.ResolveSurveyJsFlattening())
         {
             case SurveyJsFlattening.ChoiceIndicators:
                 EmitLoopSourceChoiceIndicatorColumns(template, childName, keyPrefix, loopPath, context);
@@ -1317,6 +1308,8 @@ internal static class FormDefinitionFlattener
                     LoopPath: loopPath));
                 break;
         }
+
+        context.Add(ChoiceCommentColumns.For(template, ExportPathBuilder.Join([.. keyPrefix, childName]), loopPath));
     }
 
     private static void EmitLoopSourceSingleSelectColumn(

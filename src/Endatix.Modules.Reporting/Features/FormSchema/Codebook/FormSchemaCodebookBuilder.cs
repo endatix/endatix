@@ -271,7 +271,7 @@ internal static partial class FormSchemaCodebookBuilder
         JsonElement questionElement) =>
         hasQuestion
             ? ResolveColumnExportShape(column, questionElement)
-            : ResolveColumnExportShapeWithoutQuestion(column);
+            : FormSchemaCodebookExportShape.FromColumnKind(column.Kind).Name;
 
     private static void WriteColumnLeafInputType(
         Utf8JsonWriter writer,
@@ -840,12 +840,10 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteEndObject();
     }
 
-    private static string ResolveColumnExportShapeWithoutQuestion(FormSchemaColumn column) =>
-        FormSchemaCodebookExportShape.FromColumnKind(column.Kind).Name;
-
     private static string ResolveColumnExportShape(FormSchemaColumn column, JsonElement questionElement) =>
         column.Kind switch
         {
+            FormSchemaColumnKind.ChoiceComment => FormSchemaCodebookExportShape.Scalar.Name,
             FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText =>
                 FormSchemaCodebookExportShape.MultipleResponse.Name,
             FormSchemaColumnKind.MatrixRow => FormSchemaCodebookExportShape.CategoricalArray.Name,

@@ -20,4 +20,5 @@ internal enum FormSchemaColumnKind
 
     /// <summary>A submitter profile field, read from the response's profile snapshot, not its answers.</summary>
     SubmitterProfile,
+    ChoiceComment,
 }

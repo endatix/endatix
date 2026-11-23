@@ -111,7 +111,7 @@ internal static class FlattenedSubmissionFlattener
     }
 
     private static bool IsChoiceColumn(FormSchemaColumn column, ChoiceCatalogs choices) =>
-        column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText ||
+        column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText or FormSchemaColumnKind.ChoiceComment ||
         (column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource &&
          choices.IsSelect(column.SourceQuestion ?? column.Key));
 
@@ -124,14 +124,13 @@ internal static class FlattenedSubmissionFlattener
         }
 
         var question = column.SourceQuestion ?? column.Key;
-        if (column.Kind == FormSchemaColumnKind.ChoiceIndicator)
+        return column.Kind switch
         {
-            return choices.Indicator(scope, question, column.ChoiceValue!).ToJson();
-        }
-
-        return column.Kind == FormSchemaColumnKind.CheckboxOtherText
-            ? choices.OtherText(scope, question)
-            : choices.For(question).Read(scope.Own, question).SingleValueJson();
+            FormSchemaColumnKind.ChoiceIndicator => choices.Indicator(scope, question, column.ChoiceValue!).ToJson(),
+            FormSchemaColumnKind.CheckboxOtherText => choices.OtherText(scope, question),
+            FormSchemaColumnKind.ChoiceComment => choices.For(question).Read(scope.Own, question).CommentFor(column.ChoiceValue!),
+            _ => choices.For(question).Read(scope.Own, question).SingleValueJson(),
+        };
     }
 
     private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)

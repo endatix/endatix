@@ -4,6 +4,50 @@
     "default"
   ],
   "questions": {
+    "dropdown": {
+      "surveyJsType": "dropdown",
+      "title": {},
+      "pageName": "page1",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "yes",
+          "id": 1,
+          "text": {
+            "default": "yes"
+          }
+        },
+        {
+          "value": "no",
+          "id": 2,
+          "text": {
+            "default": "no"
+          }
+        }
+      ]
+    },
+    "importedTags": {
+      "surveyJsType": "tagbox",
+      "title": {},
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "east",
+          "id": 1,
+          "text": {
+            "default": "east"
+          }
+        },
+        {
+          "value": "west",
+          "id": 2,
+          "text": {
+            "default": "west"
+          }
+        }
+      ]
+    },
     "question1": {
       "surveyJsType": "checkbox",
       "title": {},
@@ -114,9 +158,97 @@
           }
         }
       ]
+    },
+    "radio": {
+      "surveyJsType": "radiogroup",
+      "title": {},
+      "pageName": "page1",
+      "exportShape": "categorical",
+      "choices": [
+        {
+          "value": "yes",
+          "id": 1,
+          "text": {
+            "default": "yes"
+          }
+        },
+        {
+          "value": "no",
+          "id": 2,
+          "text": {
+            "default": "no"
+          }
+        }
+      ]
     }
   },
   "columns": {
+    "dropdown": {
+      "parentKey": "dropdown",
+      "surveyJsType": "dropdown",
+      "exportShape": "categorical",
+      "title": {}
+    },
+    "dropdown__no__comment": {
+      "parentKey": "dropdown",
+      "surveyJsType": "dropdown",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "no",
+      "choiceLabel": {
+        "default": "no"
+      }
+    },
+    "dropdown__yes__comment": {
+      "parentKey": "dropdown",
+      "surveyJsType": "dropdown",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "yes",
+      "choiceLabel": {
+        "default": "yes"
+      }
+    },
+    "importedTags__east": {
+      "parentKey": "importedTags",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "east",
+      "choiceLabel": {
+        "default": "east"
+      }
+    },
+    "importedTags__east__comment": {
+      "parentKey": "importedTags",
+      "surveyJsType": "tagbox",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "east",
+      "choiceLabel": {
+        "default": "east"
+      }
+    },
+    "importedTags__west": {
+      "parentKey": "importedTags",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "west",
+      "choiceLabel": {
+        "default": "west"
+      }
+    },
+    "importedTags__west__comment": {
+      "parentKey": "importedTags",
+      "surveyJsType": "tagbox",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "west",
+      "choiceLabel": {
+        "default": "west"
+      }
+    },
     "question1__item1": {
       "parentKey": "question1",
       "surveyJsType": "checkbox",
@@ -173,10 +305,30 @@
         "default": "item1"
       }
     },
+    "question2__item1__comment": {
+      "parentKey": "question2",
+      "surveyJsType": "checkbox",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "item1",
+      "choiceLabel": {
+        "default": "item1"
+      }
+    },
     "question2__item2": {
       "parentKey": "question2",
       "surveyJsType": "checkbox",
       "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "item2",
+      "choiceLabel": {
+        "default": "item2"
+      }
+    },
+    "question2__item2__comment": {
+      "parentKey": "question2",
+      "surveyJsType": "checkbox",
+      "exportShape": "scalar",
       "title": {},
       "choiceValue": "item2",
       "choiceLabel": {
@@ -229,6 +381,16 @@
         "default": "item2"
       }
     },
+    "question3__item2__comment": {
+      "parentKey": "question3",
+      "surveyJsType": "tagbox",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "item2",
+      "choiceLabel": {
+        "default": "item2"
+      }
+    },
     "question3__item3": {
       "parentKey": "question3",
       "surveyJsType": "tagbox",
@@ -254,9 +416,73 @@
       "surveyJsType": "tagbox",
       "exportShape": "multiple_response",
       "title": {}
+    },
+    "radio": {
+      "parentKey": "radio",
+      "surveyJsType": "radiogroup",
+      "exportShape": "categorical",
+      "title": {}
+    },
+    "radio__no__comment": {
+      "parentKey": "radio",
+      "surveyJsType": "radiogroup",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "no",
+      "choiceLabel": {
+        "default": "no"
+      }
+    },
+    "radio__yes__comment": {
+      "parentKey": "radio",
+      "surveyJsType": "radiogroup",
+      "exportShape": "scalar",
+      "title": {},
+      "choiceValue": "yes",
+      "choiceLabel": {
+        "default": "yes"
+      }
     }
   },
   "choiceCatalogs": {
+    "dropdown": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "yes",
+          "id": 1,
+          "text": {
+            "default": "yes"
+          }
+        },
+        {
+          "value": "no",
+          "id": 2,
+          "text": {
+            "default": "no"
+          }
+        }
+      ]
+    },
+    "importedTags": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "east",
+          "id": 1,
+          "text": {
+            "default": "east"
+          }
+        },
+        {
+          "value": "west",
+          "id": 2,
+          "text": {
+            "default": "west"
+          }
+        }
+      ]
+    },
     "question1": {
       "multiple": true,
       "otherStorage": "comment",
@@ -358,6 +584,25 @@
           "kind": "other",
           "text": {
             "default": "Other"
+          }
+        }
+      ]
+    },
+    "radio": {
+      "multiple": false,
+      "choices": [
+        {
+          "value": "yes",
+          "id": 1,
+          "text": {
+            "default": "yes"
+          }
+        },
+        {
+          "value": "no",
+          "id": 2,
+          "text": {
+            "default": "no"
           }
         }
       ]

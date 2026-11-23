@@ -371,7 +371,7 @@ internal sealed class SelectChoices
         {
             return item.TryGetPropertyValue(SurveyJsPropertyNames.Value) is { } value &&
                    value.GetScalarStringValue() is { } objectValue
-                ? new SelectAnswer.Token(objectValue, FromBoolean: false, value)
+                ? new SelectAnswer.Token(objectValue, FromBoolean: false, value) { Comment = item.TryGetPropertyValue(SurveyJsPropertyNames.Comment) }
                 : null;
         }
 
@@ -422,5 +422,12 @@ internal sealed class SelectAnswer
     /// </summary>
     public JsonElement? SingleValueJson() => _single;
 
-    internal readonly record struct Token(string Value, bool FromBoolean, JsonElement? Element);
+    public JsonElement? CommentFor(string choiceValue) =>
+        _tokens.FirstOrDefault(token => token.Value == choiceValue.Trim()).Comment is { ValueKind: JsonValueKind.String } text
+            ? text : null;
+
+    internal readonly record struct Token(string Value, bool FromBoolean, JsonElement? Element)
+    {
+        public JsonElement? Comment { get; init; }
+    }
 }

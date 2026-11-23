@@ -6,5 +6,8 @@
     { "value": "Typed for question2" }
   ],
   "question3": ["item2", "other"],
-  "question3-Comment": "Typed for question3"
+  "question3-Comment": "Typed for question3",
+  "radio": { "value": "yes", "comment": "Radio note" },
+  "dropdown": { "value": "no", "comment": "Dropdown note" },
+  "importedTags": [{ "value": "east", "comment": "Imported tag note" }]
 }
