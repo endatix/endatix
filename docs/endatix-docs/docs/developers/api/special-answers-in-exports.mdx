@@ -29,7 +29,9 @@ Set `settings.specialChoiceCodes` when you create an export format or update it 
 { "settings": { "specialChoiceCodes": { "none": 99, "dontknow": 97 } } }
 ```
 
-Include any other settings you want to keep when replacing `settings`. All four keys (`none`, `refused`, `dontknow`, `other`) are optional. For example, `{"other":87}` changes only the Other category's code; it remains a valid, non-missing category. Without a code, each format keeps the values shown below. A configured single-select answer is a number in JSON and Excel, including in dynamic panels. Multi-select indicators keep their usual values, and codes do not replace items in raw arrays.
+Include any other settings you want to keep when replacing `settings`. All four keys (`none`, `refused`, `dontknow`, `other`) are optional. For example, `{"other":87}` changes only the Other category's code; it remains a valid, non-missing category. Without a code, each format keeps the values shown below. Multi-select indicators keep their usual values, and codes do not replace items in raw arrays.
+
+**Native JSON and Excel:** For indexed and `valueName` panel cells, Endatix codes a matching stored choice token. With `none:99` and `other:87`, `none` and `other` become the numbers `99` and `87`. If value-backed Other stores the respondent's typed `blue` instead of the token `other`, the native cell stays the string `blue` (a text cell in Excel). Native output adds no companion column to these panel leaves. The category-and-text split below applies to the Crunch-shaped export.
 
 For a Crunch import, set the same codes on the **csv-shoji** and **Codebook (Shoji)** formats. A code replaces the category's `id` and `numeric_value`; its missing status stays the same. Changing a code re-keys that category for an existing dataset. The native codebook also uses the configured ids. Stored answers and the stored codebook are unaffected.
 
