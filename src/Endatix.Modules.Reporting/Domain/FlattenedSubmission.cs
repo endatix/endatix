@@ -77,6 +77,8 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     /// </summary>
     public long? SourceRevision { get; }
 
+    internal Guid? FlattenAttemptId { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
 
     /// <summary>
@@ -100,6 +102,9 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     public void MarkDeleted()
     {
         IsDeleted = true;
+        // Revoke even a claim made after this tracked copy was read. A fresh value forces EF to update
+        // the column on the deletion itself; setting it to null on an originally unclaimed copy would not.
+        FlattenAttemptId = Guid.NewGuid();
     }
 
     public SubmissionIntegrationSnapshotDto ToIntegrationSnapshot() => Integration.ToSnapshot();

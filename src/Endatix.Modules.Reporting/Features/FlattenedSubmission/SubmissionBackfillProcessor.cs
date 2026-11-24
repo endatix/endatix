@@ -2,6 +2,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
+using Endatix.Modules.Reporting.Domain;
 using Microsoft.Extensions.Logging;
 using FlattenedSubmissionRow = Endatix.Modules.Reporting.Domain.FlattenedSubmission;
 
@@ -41,9 +42,7 @@ internal sealed class SubmissionBackfillProcessor(
             candidates = candidates.Take(batchSize).ToList();
         }
 
-        var includeIncomplete = options.Completion == SubmissionBackfillCompletion.Incomplete;
         var processed = 0;
-        var skipped = 0;
         var failed = 0;
         List<long> failedSubmissionIds = [];
 
@@ -51,19 +50,13 @@ internal sealed class SubmissionBackfillProcessor(
         {
             if (await ShouldSkipAsync(tenantId, candidate, options.Force, cancellationToken))
             {
-                skipped++;
                 continue;
             }
 
             try
             {
-                await flatteningProcessor.ProcessAsync(
-                    tenantId,
-                    formId,
-                    candidate.SubmissionId,
-                    cancellationToken,
-                    includeIncomplete);
-                processed++;
+                var published = await TryBackfillCandidateAsync(new(tenantId, formId, candidate.SubmissionId), options, cancellationToken);
+                processed += published ? 1 : 0;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -89,11 +82,30 @@ internal sealed class SubmissionBackfillProcessor(
             FormId: formId,
             Scanned: candidates.Count,
             Processed: processed,
-            Skipped: skipped,
+            Skipped: candidates.Count - processed - failed,
             Failed: failed,
             HasMore: hasMore,
             NextAfterSubmissionId: hasMore ? nextAfterSubmissionId : null,
             FailedSubmissionIds: failedSubmissionIds);
+    }
+
+    private async Task<bool> TryBackfillCandidateAsync(FlattenedSubmissionKey key, SubmissionBackfillOptions options, CancellationToken ct)
+    {
+        var published = await flatteningProcessor.TryBackfillAsync(key, options.Completion == SubmissionBackfillCompletion.Incomplete, ct);
+        if (published || !options.Force)
+        {
+            return published;
+        }
+
+        // A competing claim alone cannot prove the requested rebuild published. Only a confirmed deletion
+        // releases the obligation; leave the live or unknown candidate on the operator's retry list.
+        var state = await submissionRepository.SingleOrDefaultAsync(new SubmissionDeletionStateSpec(key.TenantId, key.SubmissionId), ct);
+        if (state?.IsDeletedIn(key.FormId) == true)
+        {
+            return false;
+        }
+
+        throw new InvalidOperationException("Forced rebuild did not publish the live submission; retry the rebuild.");
     }
 
     private async Task<bool> ShouldSkipAsync(

@@ -19,7 +19,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("reporting")
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -92,6 +92,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.SqlServer
 
                     b.Property<string>("DataJson")
                         .HasColumnType("json");
+
+                    b.Property<Guid?>("FlattenAttemptId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");

@@ -43,7 +43,6 @@ internal sealed class SubmissionFlatteningProcessor(
     SearchCopyRebuilder searchCopyRebuilder,
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
-    private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
     private readonly SubmittedMatrixDefinition _submittedMatrices = new();
 
     // A cancelled flatten still owes its row the deletion check: an operator's cancel is final, and a run stopped at
@@ -59,20 +58,36 @@ internal sealed class SubmissionFlatteningProcessor(
         long formId,
         long submissionId,
         CancellationToken cancellationToken,
-        bool includeIncomplete = false) => ProcessAsync(new FlattenedSubmissionKey(tenantId, formId, submissionId),
-            includeIncomplete ? FlattenIntent.IncludeDraft : FlattenIntent.CompletedOnly, cancellationToken);
+        bool includeIncomplete = false) => ProcessAsync(new(tenantId, formId, submissionId), IntentFor(includeIncomplete), cancellationToken);
 
-    private async Task ProcessAsync(FlattenedSubmissionKey key, FlattenIntent intent, CancellationToken cancellationToken)
+    public async Task<bool> TryBackfillAsync(FlattenedSubmissionKey key, bool includeIncomplete, CancellationToken cancellationToken) =>
+        await ProcessAsync(key, IntentFor(includeIncomplete), cancellationToken) switch
+        {
+            FlattenOutcome.ScopeMismatch => throw new InvalidOperationException("Submission scope does not match the backfill request."),
+            FlattenOutcome.Published => true,
+            _ => false,
+        };
+
+    private static FlattenIntent IntentFor(bool includeIncomplete) => includeIncomplete ? FlattenIntent.IncludeDraft : FlattenIntent.CompletedOnly;
+
+    private async Task<FlattenOutcome> ProcessAsync(FlattenedSubmissionKey key, FlattenIntent intent, CancellationToken cancellationToken)
     {
         var submission = await ReadSubmissionAsync(key, cancellationToken);
         if (submission is null)
         {
             await HandleMissingSubmissionAsync(key, cancellationToken);
-            return;
+            return FlattenOutcome.NotPublished;
         }
 
-        await flattenedSubmissionRepository.EnsureExistsAsync(key, cancellationToken);
-        await FlattenAsync(new FlattenRun(key, submission, intent), cancellationToken);
+        var run = new FlattenRun(key, submission, intent);
+        if (run.Mismatched)
+        {
+            logger.LogWarning("Rejected flatten for tenant {TenantId}, form {FormId}, submission {SubmissionId}: source scope differs",
+                key.TenantId, key.FormId, key.SubmissionId);
+            return FlattenOutcome.ScopeMismatch;
+        }
+
+        return await FlattenAsync(run, cancellationToken) ? FlattenOutcome.Published : FlattenOutcome.NotPublished;
     }
 
     // Read before any write, so a submission that cannot be read never gets a row, and a row never stays in
@@ -82,62 +97,54 @@ internal sealed class SubmissionFlatteningProcessor(
             new SubmissionWithDefinitionAndFormSpec(key.FormId, key.SubmissionId),
             cancellationToken);
 
-    private async Task FlattenAsync(FlattenRun run, CancellationToken cancellationToken)
+    private async Task<bool> FlattenAsync(FlattenRun run, CancellationToken cancellationToken)
     {
-        if (run.Mismatched)
-        {
-            LogUnlessLanded(
-                await flattenedSubmissionRepository.TryMarkFailedAsync(run.Write, SubmissionMismatchMessage, cancellationToken),
-                run.Write);
-            return;
-        }
-
+        await flattenedSubmissionRepository.EnsureExistsAsync(run.Key, cancellationToken);
         _submittedMatrices.Validate(run.IsSkipped ? null : run.Submission.FormDefinition);
-        var processing = await flattenedSubmissionRepository.TryMarkProcessingAsync(run.Write, cancellationToken);
-        if (LogUnlessLanded(processing, run.Write))
-        {
-            await FinishProcessingAsync(run, cancellationToken);
-        }
+        var processing = await flattenedSubmissionRepository.TryMarkProcessingAsync(run.Attempt, cancellationToken);
+        return LogUnlessLanded(processing, run.Attempt) && await FinishProcessingAsync(run, cancellationToken);
     }
 
     // Once the processing write landed, the row's cleanup is this flatten's: a deletion whose sync already ran does
     // not come back for it, whether storing the data succeeds, fails, or is cancelled. A cancelled flatten still
     // surfaces as cancelled after its check, so a job's cancel or shutdown, and a backfill's stop, end as they would.
-    private async Task FinishProcessingAsync(FlattenRun run, CancellationToken cancellationToken)
+    private async Task<bool> FinishProcessingAsync(FlattenRun run, CancellationToken cancellationToken)
     {
+        bool published;
         try
         {
-            await StoreFlattenedDataAsync(run, cancellationToken);
+            published = await StoreFlattenedDataAsync(run, cancellationToken);
         }
         catch (Exception failure)
         {
-            var removedAsDeleted = await RemoveRowIfDeletedAfterFailureAsync(run.Key, cancellationToken);
-            if (!removedAsDeleted || cancellationToken.IsCancellationRequested)
+            if (!await RemoveRowIfDeletedAfterFailureAsync(run.Key, cancellationToken) || cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
 
             logger.LogDebug(failure, "Flattening submission {SubmissionId} failed after it was deleted", run.Key.SubmissionId);
-            return;
+            return false;
         }
 
-        await RemoveRowIfDeletedMeanwhileAsync(run.Key, cancellationToken);
+        return !await RemoveRowIfDeletedAfterWriteAsync(run.Key, cancellationToken) && published;
     }
 
-    private async Task StoreFlattenedDataAsync(FlattenRun run, CancellationToken cancellationToken)
+    private async Task<bool> StoreFlattenedDataAsync(FlattenRun run, CancellationToken cancellationToken)
     {
         if (run.IsSkipped)
         {
-            LogUnlessLanded(await flattenedSubmissionRepository.TryMarkSkippedAsync(run.Write, cancellationToken), run.Write);
-            return;
+            return LogUnlessLanded(await flattenedSubmissionRepository.TryMarkSkippedAsync(run.Attempt, cancellationToken), run.Attempt);
         }
 
         var schema = await SchemaOfAsync(run, cancellationToken);
         var data = await FlattenedDataAsync(run.Submission, schema, cancellationToken);
-        if (LogUnlessLanded(await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Write, data, cancellationToken), run.Write))
+        var published = await flattenedSubmissionRepository.TryMarkProcessedAsync(run.Attempt, data, cancellationToken);
+        if (LogUnlessLanded(published, run.Attempt))
         {
             await searchCopyRebuilder.CatchUpAsync(run.Key, data.SearchKeysRevision, cancellationToken);
         }
+
+        return published;
     }
 
     // A form deleted after its submission was read, with its cleanup already run, leaves no schema to flatten with;
@@ -201,22 +208,6 @@ internal sealed class SubmissionFlatteningProcessor(
         return true;
     }
 
-    // A deletion of the submission or its form whose sync ran between this flatten's read and its write would
-    // otherwise leave the row behind, whether the flatten marked it processed or skipped or lost it to a newer
-    // revision's write. The deletion is committed before its sync runs, so reading again after the write sees it,
-    // and the row is removed as the sync would have removed it. The same lookup as for a missing submission, because
-    // a criteria-only re-read of the submission would not see the form's own deletion.
-    private async Task RemoveRowIfDeletedMeanwhileAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
-    {
-        if (!await RemoveRowIfDeletedAfterWriteAsync(key, cancellationToken))
-        {
-            logger.LogInformation(
-                "Finished flattening submission {SubmissionId} for form {FormId}",
-                key.SubmissionId,
-                key.FormId);
-        }
-    }
-
     // A failure after the processing write would otherwise leave the row in Processing under a deleted submission or
     // form, and nothing removes it once the retries run out; when the row goes, the flatten has nothing left to retry.
     // A failure of the check itself is only logged, so the flatten's own failure is the one that is reported.
@@ -267,28 +258,27 @@ internal sealed class SubmissionFlatteningProcessor(
             removed);
     }
 
-    // A write that did not land lost to a flatten of a newer revision, which is what the row should keep.
     private bool LogUnlessLanded(bool landed, FlattenedRevision write)
     {
         if (!landed)
         {
             logger.LogDebug(
-                "Flattened submission {SubmissionId} was already written from a revision newer than {Revision}; left as it is",
-                write.SubmissionId,
-                write.Revision);
+                "Flatten attempt {AttemptId} for submission {SubmissionId} at revision {Revision} superseded or row removed",
+                write.AttemptId, write.SubmissionId, write.Revision);
         }
 
         return landed;
     }
 
     private enum FlattenIntent { CompletedOnly, IncludeDraft, CompletionEvent }
+    private enum FlattenOutcome { Published, NotPublished, ScopeMismatch }
 
     /// <summary>One flatten of a submission, as it was read for its row.</summary>
     private sealed record FlattenRun(FlattenedSubmissionKey Key, Submission Submission, FlattenIntent Intent)
     {
-        public FlattenedRevision Write =>
-            new(Key.TenantId, Key.SubmissionId, Submission.Revision, Submission.ModifiedAt ?? Submission.CreatedAt)
-            { KeepPrepared = Intent == FlattenIntent.CompletionEvent && Submission.IsComplete };
+        public FlattenedRevision Attempt { get; } = new(Key.TenantId, Key.SubmissionId,
+            Submission.Revision, Submission.ModifiedAt ?? Submission.CreatedAt)
+        { KeepPrepared = Intent == FlattenIntent.CompletionEvent && Submission.IsComplete };
 
         public bool Mismatched => Submission.TenantId != Key.TenantId || Submission.FormId != Key.FormId;
 

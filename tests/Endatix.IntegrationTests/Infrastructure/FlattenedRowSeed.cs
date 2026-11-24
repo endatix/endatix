@@ -41,14 +41,14 @@ internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
     public async Task ProcessedAsync(FlattenedSubmissionKey key, FlattenedRowData data, CancellationToken cancellationToken)
     {
         await _repository.EnsureExistsAsync(key, cancellationToken);
-        var landed = await _repository.TryMarkProcessedAsync(RevisionOf(key), data, cancellationToken);
+        var landed = await _repository.TryMarkProcessedAsync(await ClaimAsync(key, cancellationToken), data, cancellationToken);
         landed.Should().BeTrue("the seeded row has no newer revision");
     }
 
     /// <summary>Marks an existing row failed with <paramref name="error"/>.</summary>
     public async Task FailedAsync(FlattenedSubmissionKey key, string error, CancellationToken cancellationToken)
     {
-        var landed = await _repository.TryMarkFailedAsync(RevisionOf(key), error, cancellationToken);
+        var landed = await _repository.TryMarkFailedAsync(await ClaimAsync(key, cancellationToken), error, cancellationToken);
         landed.Should().BeTrue("the seeded row has no newer revision");
     }
 
@@ -56,10 +56,14 @@ internal sealed class FlattenedRowSeed(ReportingDbContextBase dbContext)
     public async Task SkippedAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken)
     {
         await _repository.EnsureExistsAsync(key, cancellationToken);
-        var landed = await _repository.TryMarkSkippedAsync(RevisionOf(key), cancellationToken);
+        var landed = await _repository.TryMarkSkippedAsync(await ClaimAsync(key, cancellationToken), cancellationToken);
         landed.Should().BeTrue("the seeded row has no newer revision");
     }
 
-    private static FlattenedRevision RevisionOf(FlattenedSubmissionKey key) =>
-        new(key.TenantId, key.SubmissionId, SeedRevision, DateTime.UtcNow);
+    private async Task<FlattenedRevision> ClaimAsync(FlattenedSubmissionKey key, CancellationToken ct)
+    {
+        FlattenedRevision write = new(key.TenantId, key.SubmissionId, SeedRevision, DateTime.UtcNow);
+        (await _repository.TryMarkProcessingAsync(write, ct)).Should().BeTrue();
+        return write;
+    }
 }

@@ -19,7 +19,7 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("reporting")
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -92,6 +92,9 @@ namespace Endatix.Modules.Reporting.Persistence.Migrations.PostgreSql
 
                     b.Property<string>("DataJson")
                         .HasColumnType("jsonb");
+
+                    b.Property<Guid?>("FlattenAttemptId")
+                        .HasColumnType("uuid");
 
                     b.Property<long>("FormId")
                         .HasColumnType("bigint");

@@ -26,4 +26,15 @@ public sealed class CompletionRefreshCompatibilityTests
             bool includeIncomplete = false) =>
             work.ProcessAsync(tenantId, formId, submissionId, cancellationToken, includeIncomplete);
     }
+
+    [Fact]
+    public async Task TryBackfillAsync_LegacyProcessor_PreservesItsSuccessfulReturn()
+    {
+        var work = Substitute.For<ISubmissionFlatteningProcessor>();
+        ISubmissionFlatteningProcessor legacy = new LegacyProcessor(work);
+        var ct = TestContext.Current.CancellationToken;
+
+        (await legacy.TryBackfillAsync(new(11, 22, 33), true, ct)).Should().BeTrue();
+        await work.Received(1).ProcessAsync(11, 22, 33, ct, includeIncomplete: true);
+    }
 }

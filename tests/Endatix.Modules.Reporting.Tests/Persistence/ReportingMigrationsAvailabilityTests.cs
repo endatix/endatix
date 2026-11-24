@@ -35,7 +35,8 @@ public sealed class ReportingMigrationsAvailabilityTests
             "20260930070117_AddFlattenedSubmissionSourceRevision",
             "20261016050012_AddSubmissionViews",
             "20261016102336_AddSearchCopy",
-            "20261016164018_AddSearchKeysRevision");
+            "20261016164018_AddSearchKeysRevision",
+            "20261124165052_AddFlattenAttemptId");
     }
 
     [Fact]
@@ -68,7 +69,8 @@ public sealed class ReportingMigrationsAvailabilityTests
             "20261012154208_InitialReporting",
             "20261016050017_AddSubmissionViews",
             "20261016102338_AddSearchCopy",
-            "20261016164020_AddSearchKeysRevision");
+            "20261016164020_AddSearchKeysRevision",
+            "20261124165102_AddFlattenAttemptId");
         sqlServerMigrationIds.Should().NotIntersectWith(
             postgreSqlContext.Database.GetMigrations(),
             "each provider's context must see only its own migrations");

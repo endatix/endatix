@@ -38,7 +38,7 @@ public sealed class SubmissionBackfillProcessorTests
             .GetBySubmissionIdAsync(TenantId, submissionId, Arg.Any<CancellationToken>())
             .Returns(existing);
 
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         var processor = CreateProcessor(
             submissionRepository,
             flattenedSubmissionRepository,
@@ -55,7 +55,7 @@ public sealed class SubmissionBackfillProcessorTests
         result.Processed.Should().Be(0);
         result.HasMore.Should().BeFalse();
         await flatteningProcessor.DidNotReceive()
-            .ProcessAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+            .TryBackfillAsync(Arg.Any<FlattenedSubmissionKey>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class SubmissionBackfillProcessorTests
             .GetBySubmissionIdAsync(TenantId, submissionId, Arg.Any<CancellationToken>())
             .Returns(existing);
 
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         var processor = CreateProcessor(
             submissionRepository,
             flattenedSubmissionRepository,
@@ -92,7 +92,7 @@ public sealed class SubmissionBackfillProcessorTests
         result.Processed.Should().Be(1);
         result.Skipped.Should().Be(0);
         await flatteningProcessor.Received(1)
-            .ProcessAsync(TenantId, FormId, submissionId, Arg.Any<CancellationToken>());
+            .TryBackfillAsync(new(TenantId, FormId, submissionId), false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -108,13 +108,13 @@ public sealed class SubmissionBackfillProcessorTests
             .GetBySubmissionIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns((FlattenedSubmissionRow?)null);
 
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         flatteningProcessor
-            .ProcessAsync(TenantId, FormId, 10, Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
+            .TryBackfillAsync(new(TenantId, FormId, 10), false, Arg.Any<CancellationToken>())
+            .Returns(true);
         flatteningProcessor
-            .ProcessAsync(TenantId, FormId, 11, Arg.Any<CancellationToken>())
-            .Returns(_ => throw new InvalidOperationException("flatten failed"));
+            .TryBackfillAsync(new(TenantId, FormId, 11), false, Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<bool>(new InvalidOperationException("flatten failed")));
 
         var processor = CreateProcessor(
             submissionRepository,
@@ -149,10 +149,10 @@ public sealed class SubmissionBackfillProcessorTests
             .GetBySubmissionIdAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns((FlattenedSubmissionRow?)null);
 
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         flatteningProcessor
-            .ProcessAsync(TenantId, FormId, 10, Arg.Any<CancellationToken>())
-            .Returns(_ =>
+            .TryBackfillAsync(new(TenantId, FormId, 10), false, Arg.Any<CancellationToken>())
+            .Returns<bool>(_ =>
             {
                 cancellationTokenSource.Cancel();
                 throw new TaskCanceledException();
@@ -181,7 +181,7 @@ public sealed class SubmissionBackfillProcessorTests
             .Returns([Candidate(1), Candidate(2), Candidate(3)]);
 
         var flattenedSubmissionRepository = Substitute.For<IFlattenedSubmissionRepository>();
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         var processor = CreateProcessor(
             submissionRepository,
             flattenedSubmissionRepository,
@@ -217,7 +217,7 @@ public sealed class SubmissionBackfillProcessorTests
             .GetBySubmissionIdAsync(TenantId, submissionId, Arg.Any<CancellationToken>())
             .Returns(existing);
 
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         var processor = CreateProcessor(
             submissionRepository,
             flattenedSubmissionRepository,
@@ -232,7 +232,7 @@ public sealed class SubmissionBackfillProcessorTests
         result.Processed.Should().Be(1);
         result.Skipped.Should().Be(0);
         await flatteningProcessor.Received(1)
-            .ProcessAsync(TenantId, FormId, submissionId, Arg.Any<CancellationToken>(), false);
+            .TryBackfillAsync(new(TenantId, FormId, submissionId), false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -250,7 +250,7 @@ public sealed class SubmissionBackfillProcessorTests
             .GetBySubmissionIdAsync(TenantId, submissionId, Arg.Any<CancellationToken>())
             .Returns((FlattenedSubmissionRow?)null);
 
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         var processor = CreateProcessor(
             submissionRepository,
             flattenedSubmissionRepository,
@@ -263,7 +263,7 @@ public sealed class SubmissionBackfillProcessorTests
             TestContext.Current.CancellationToken);
 
         await flatteningProcessor.Received(1)
-            .ProcessAsync(TenantId, FormId, submissionId, Arg.Any<CancellationToken>(), true);
+            .TryBackfillAsync(new(TenantId, FormId, submissionId), true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public sealed class SubmissionBackfillProcessorTests
         result.Processed.Should().Be(1);
         result.Skipped.Should().Be(0);
         await flatteningProcessor.Received(1)
-            .ProcessAsync(TenantId, FormId, submissionId, Arg.Any<CancellationToken>(), true);
+            .TryBackfillAsync(new(TenantId, FormId, submissionId), true, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -319,7 +319,7 @@ public sealed class SubmissionBackfillProcessorTests
         // Assert
         result.Skipped.Should().Be(1);
         await flatteningProcessor.DidNotReceive()
-            .ProcessAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>(), Arg.Any<bool>());
+            .TryBackfillAsync(Arg.Any<FlattenedSubmissionKey>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -348,7 +348,47 @@ public sealed class SubmissionBackfillProcessorTests
         // Assert
         result.Processed.Should().Be(1);
         await flatteningProcessor.Received(1)
-            .ProcessAsync(TenantId, FormId, submissionId, Arg.Any<CancellationToken>(), false);
+            .TryBackfillAsync(new(TenantId, FormId, submissionId), false, Arg.Any<CancellationToken>());
+    }
+
+    private static ISubmissionFlatteningProcessor AcceptingProcessor()
+    {
+        var processor = Substitute.For<ISubmissionFlatteningProcessor>();
+        processor.TryBackfillAsync(default, default, default).ReturnsForAnyArgs(true);
+        return processor;
+    }
+
+    [Fact]
+    public async Task BackfillFormAsync_EligibleNonForcedCandidateSuperseded_CountsOnlyASkip()
+    {
+        FlattenedSubmissionKey key = new(TenantId, FormId, 10);
+        var (backfill, writer) = CreateProcessorFor(new FlattenedSubmissionRow(key, _flattenedVersionAt), Candidate(key.SubmissionId));
+        var ct = TestContext.Current.CancellationToken;
+        writer.TryBackfillAsync(key, false, ct).Returns(false);
+
+        var page = await backfill.BackfillFormAsync(TenantId, FormId, new(), ct);
+
+        await writer.Received(1).TryBackfillAsync(key, false, ct);
+        (page.Scanned, page.Skipped, page.Processed, page.Failed).Should().Be((1, 1, 0, 0));
+        page.FailedSubmissionIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task BackfillFormAsync_ForcedCandidateConfirmedDeletedInThisForm_SkipsWithoutRetry()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sources = Substitute.For<IRepository<Submission>>();
+        sources.ListAsync(Arg.Any<SubmissionBackfillPageSpec>(), ct).Returns([Candidate(10)]);
+        sources.SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), ct)
+            .Returns(new SubmissionDeletionState(FormId, IsDeleted: true, FormIsDeleted: false));
+        var writer = Substitute.For<ISubmissionFlatteningProcessor>();
+        writer.TryBackfillAsync(new(TenantId, FormId, 10), false, ct).Returns(false);
+
+        var page = await CreateProcessor(sources, Substitute.For<IFlattenedSubmissionRepository>(), writer)
+            .BackfillFormAsync(TenantId, FormId, new(Force: true), ct);
+
+        (page.Scanned, page.Skipped, page.Processed, page.Failed).Should().Be((1, 1, 0, 0));
+        page.FailedSubmissionIds.Should().BeEmpty();
     }
 
     private static SubmissionBackfillCandidate Candidate(long submissionId, DateTime? modifiedAt = null) =>
@@ -367,7 +407,7 @@ public sealed class SubmissionBackfillProcessorTests
             .GetBySubmissionIdAsync(TenantId, candidate.SubmissionId, Arg.Any<CancellationToken>())
             .Returns(existing);
 
-        var flatteningProcessor = Substitute.For<ISubmissionFlatteningProcessor>();
+        var flatteningProcessor = AcceptingProcessor();
         return (CreateProcessor(submissionRepository, flattenedSubmissionRepository, flatteningProcessor), flatteningProcessor);
     }
 
