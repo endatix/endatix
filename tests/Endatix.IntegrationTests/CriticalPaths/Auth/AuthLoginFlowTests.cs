@@ -2,6 +2,7 @@ extern alias EndatixWebHost;
 
 using System.Buffers.Binary;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
@@ -126,8 +127,10 @@ public sealed class AuthLoginFlowTests
     {
         var meResponse = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), cancellationToken);
         meResponse.EnsureSuccessStatusCode();
+        var wire = await meResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken);
+        Assert.Equal(0, wire.GetProperty("requiredActions").GetArrayLength());
 
-        var mePayload = await meResponse.Content.ReadFromJsonAsync<AuthorizationData>(cancellationToken);
+        var mePayload = wire.Deserialize<AuthorizationData>(JsonSerializerOptions.Web);
         Assert.NotNull(mePayload);
         return mePayload;
     }

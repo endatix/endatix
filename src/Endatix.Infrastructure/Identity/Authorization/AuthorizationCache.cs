@@ -2,17 +2,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Caching;
-using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Authentication.Providers;
-using Endatix.Infrastructure.Identity.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
@@ -29,14 +23,15 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal class AuthorizationCache(
     HybridCache hybridCache,
     IDateTimeProvider dateTimeProvider,
-    IHttpContextAccessor httpContextAccessor,
-    IOptions<EndatixJwtOptions> endatixJwtOptions,
-    IAccessVersionStore accessVersionStore) : IAuthorizationCache
+    AuthorizationTokenFingerprint tokenFingerprint,
+    IAccessVersionStore accessVersionStore,
+    IEnumerable<IRequiredActionProvider> actionProviders) : IAuthorizationCache
 {
     /// <summary>The longest an entry lives, which bounds a change that skips the save hook.</summary>
     private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
 
     private const short ETAG_LENGTH = 12;
+    private readonly RequiredActionEvaluation _actions = new(actionProviders.ToArray(), dateTimeProvider);
 
     // Cache key prefixes
     private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
@@ -53,13 +48,7 @@ internal class AuthorizationCache(
     {
         var userId = principal.GetUserId() ?? throw new InvalidOperationException("Principal must have a user ID");
         var tenantId = principal.GetTenantId();
-        var accessToken = BearerAccessTokenResolver.Resolve(httpContextAccessor);
-        var claimIdentityId = !string.IsNullOrWhiteSpace(accessToken)
-            ? accessToken
-            : principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}_{tenantId}";
-        var cacheKeyTokenPart = CacheKeyFingerprint.ComputeHmacSha256Hex(
-            claimIdentityId,
-            endatixJwtOptions.Value.SigningKey);
+        var cacheKeyTokenPart = tokenFingerprint.For(principal, userId, tenantId);
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
@@ -89,13 +78,15 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
+        AuthorizationData? built = null;
         var cached = await hybridCache.GetOrCreateAsync(
             entry.Key,
-            async _ => await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
+            async _ => built = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
             entry.Options,
             entry.Tags,
             cancellationToken);
-        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime
+        // Report a fresh conflict once; on a cache hit, re-evaluate it rather than serving it as usable standing.
+        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime && (!cached.RequiredActionsUnavailable || ReferenceEquals(cached, built))
             ? cached
             : await RebuildAsync(entry, dataFactory, cancellationToken);
     }
@@ -124,8 +115,10 @@ internal class AuthorizationCache(
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
 
-        var expiresAt = EarlierOf(now.Add(lifetime), result.Value.ExpiresAt);
-        return result.Value.WithCacheMetadata(now, expiresAt, GenerateETag(result.Value));
+        var data = await _actions.ApplyAsync(result.Value, cancellationToken);
+        var expiresAt = EarlierOf(now.Add(lifetime), data.ExpiresAt);
+        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, now));
+        return data.WithCacheMetadata(now, expiresAt, GenerateETag(data));
     }
 
     /// <summary>The entry's end, or the earliest permission expiry the data carries when that comes first.</summary>
@@ -153,12 +146,15 @@ internal class AuthorizationCache(
     }
 
     /// <summary>Per-token key; the access versions in it retire every entry when an authorization input changes.</summary>
-    private static string GetClaimsCacheKey(AccessVersionKey versions, string tokenPart) =>
-        $"{versions.Prefix}:{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{versions.Versions}:{tokenPart}";
+    private string GetClaimsCacheKey(AccessVersionKey versions, string tokenPart) =>
+        $"{CacheNamespace(versions, JWT_AUTH_DATA_CACHE_KEY_PREFIX)}:{tokenPart}";
 
     /// <summary>Per-user-and-tenant key; the access versions in it retire every entry when an authorization input changes.</summary>
-    private static string GetUserAuthDataCacheKey(AccessVersionKey versions, string userId, long tenantId) =>
-        $"{versions.Prefix}:{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{versions.Versions}:{userId}:{tenantId}";
+    private string GetUserAuthDataCacheKey(AccessVersionKey versions, string userId, long tenantId) =>
+        $"{CacheNamespace(versions, USER_AUTH_DATA_CACHE_KEY_PREFIX)}:{userId}:{tenantId}";
+
+    private string CacheNamespace(AccessVersionKey versions, string kind) =>
+        $"{versions.Prefix}:{kind}:{versions.Versions}.{_actions.ConfigurationKey}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
 
@@ -199,6 +195,14 @@ internal class AuthorizationCache(
         var sortedRoles = string.Join(",", data.Roles.OrderBy(r => r).ToArray());
         var sortedPermissions = string.Join(",", data.Permissions.OrderBy(p => p).ToArray());
         var content = $"{data.UserId}:{data.TenantId}:{sortedRoles}:{sortedPermissions}";
+        if (data.RequiredActionsUnavailable)
+        {
+            content += ":standing-unavailable";
+        }
+        if (data.RequiredActions.Count > 0)
+        {
+            content += ":" + JsonSerializer.Serialize(data.RequiredActions);
+        }
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
 
         var shortETag = Convert.ToBase64String(hash)[..ETAG_LENGTH];

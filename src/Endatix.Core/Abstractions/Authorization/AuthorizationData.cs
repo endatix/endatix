@@ -11,7 +11,7 @@ namespace Endatix.Core.Abstractions.Authorization;
 public sealed record AuthorizationData
 {
     public const string ANONYMOUS_USER_ID = "anonymous";
-    
+
     /// <summary>
     /// Parameterless constructor for JSON deserialization only (used by HybridCache).
     /// Application code should use factory methods: <see cref="ForAnonymousUser"/> or <see cref="ForAuthenticatedUser"/>.
@@ -44,6 +44,13 @@ public sealed record AuthorizationData
     public long TenantId { get; init; }
     public HashSet<string> Roles { get; init; } = [];
     public HashSet<string> Permissions { get; init; } = [];
+    /// <summary>Outstanding actions applicable to the user in the current tenant.</summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0006")]
+    public IReadOnlyList<RequiredAction> RequiredActions { get; init; } = [];
+    /// <summary>Server-derived standing could not be established. An empty action list is not clearance in this state.</summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0006")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RequiredActionsUnavailable { get; init; }
     public bool IsAdmin { get; init; }
     public DateTime CachedAt { get; init; }
     public DateTime ExpiresAt { get; init; }

@@ -38,7 +38,7 @@ public sealed class AuthorizationCacheTests
             SigningKey = "test-signing-key-32-characters",
         });
         _versionStore = new StubAccessVersionStore(Guid.Parse("11111111-1111-1111-1111-111111111111"));
-        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, _httpContextAccessor, jwtOptions, _versionStore);
+        _cache = new AuthorizationCache(_hybridCache, _dateTimeProvider, new(_httpContextAccessor, jwtOptions), _versionStore, []);
     }
 
     [Fact]
@@ -270,8 +270,8 @@ public sealed class AuthorizationCacheTests
 
         // Assert
         capturedKeys.Should().HaveCount(2);
-        capturedKeys[0].Should().StartWith($"{_deployment:N}:jwt_auth:11111111111111111111111111111111{_tenantVersion:N}:");
-        capturedKeys[1].Should().StartWith($"{_deployment:N}:jwt_auth:22222222222222222222222222222222{_tenantVersion:N}:");
+        capturedKeys[0].Should().StartWith($"{_deployment:N}:jwt_auth:11111111111111111111111111111111{_tenantVersion:N}.none:");
+        capturedKeys[1].Should().StartWith($"{_deployment:N}:jwt_auth:22222222222222222222222222222222{_tenantVersion:N}.none:");
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public sealed class AuthorizationCacheTests
         await _cache.GetOrCreateAsync("123", 42, null, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
 
         // Assert
-        capturedKey.Should().Be($"{_deployment:N}:usr_auth:11111111111111111111111111111111{_tenantVersion:N}:123:42");
+        capturedKey.Should().Be($"{_deployment:N}:usr_auth:11111111111111111111111111111111{_tenantVersion:N}.none:123:42");
         _versionStore.ReadTenants.Should().Equal(42);
     }
 

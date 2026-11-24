@@ -88,8 +88,8 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
     public async Task GetOrCreateAsync_SecondInstanceSharesTheDistributedCache_ReadsEveryFieldBack()
     {
         // Arrange — one instance builds and stores the entry; the other has an empty L1, so it must deserialize from L2.
-        var writer = CreateInstance(withSharedL2: true);
-        var reader = CreateInstance(withSharedL2: true);
+        var writer = CreateInstance(true, new ConfiguredProvider("profile.complete"), new ConfiguredProvider("email.verify"));
+        var reader = CreateInstance(true, new ConfiguredProvider("email.verify"), new ConfiguredProvider("profile.complete"));
         var principal = CreatePrincipal();
         var written = await writer.GetOrCreateAsync(
             principal,
@@ -103,8 +103,130 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
             CancellationToken.None);
 
         // Assert
+        read.RequiredActions.Select(a => a.Key).Should().Equal("email.verify", "profile.complete");
         read.Should().BeEquivalentTo(written);
         read.Should().NotBeSameAs(written);
+    }
+
+    [Theory]
+    [InlineData(null, "v1", false)]
+    [InlineData("v1", null, false)]
+    [InlineData("v1", "v2", false)]
+    [InlineData("v2", "v1", false)]
+    [InlineData(null, "v1", true)]
+    [InlineData("v1", null, true)]
+    [InlineData("v1", "v2", true)]
+    [InlineData("v2", "v1", true)]
+    public async Task GetOrCreateAsync_DifferentProviderConfigurations_ServeTheirOwnSnapshot(
+        string? firstRevision, string? secondRevision, bool byUser)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var principal = CreatePrincipal();
+        var expiresAt = _start.UtcDateTime.AddSeconds(45);
+        var authorization = CreateData(expiresAt);
+        Task<Result<AuthorizationData>> Build(CancellationToken _) => Task.FromResult(Result.Success(authorization));
+        Task<AuthorizationData> ReadAsync(string? revision)
+        {
+            var cache = CreateInstance(true, revision is null ? [] : [new ConfiguredProvider(revision)]);
+            return byUser ? cache.GetOrCreateAsync("123", 42, principal, Build, ct) : cache.GetOrCreateAsync(principal, Build, ct);
+        }
+
+        await ReadAsync(firstRevision);
+        var read = await ReadAsync(secondRevision);
+
+        read.RequiredActions.Select(a => a.Key).Should().Equal(secondRevision is null ? Array.Empty<string>() : [secondRevision]);
+        read.Permissions.Should().BeEquivalentTo(authorization.Permissions);
+        read.Roles.Should().BeEquivalentTo(authorization.Roles);
+        read.ExpiresAt.Should().Be(expiresAt);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_EquivalentReportsInEitherOrder_ReturnsOneActionAndTheSameETag()
+    {
+        var deadline = _start.AddSeconds(30);
+        RequiredAction first = new()
+        {
+            Key = "profile.complete",
+            ResolvePath = "/profile",
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Notice,
+            BlockingFrom = deadline,
+            ResolverRoles = ["Creator", "Admin"]
+        };
+        var equivalent = first with
+        {
+            ResolverRoles = ["Admin", "Creator", "Admin"],
+            CanResolve = true,
+            BlockingFrom = deadline.ToOffset(TimeSpan.FromHours(2))
+        };
+        var other = first with { Key = "email.verify", ResolvePath = "/email" };
+        Task<AuthorizationData> ReadAsync(params RequiredAction[] reports)
+        {
+            var cache = CreateInstance(false, reports.Select(ReportProvider).ToArray());
+            return cache.GetOrCreateAsync(CreatePrincipal(), _ => Task.FromResult(Result.Success(CreateData(default))),
+                TestContext.Current.CancellationToken);
+        }
+
+        var forward = await ReadAsync(first, other, equivalent);
+        var reversed = await ReadAsync(equivalent, other, first);
+        var single = await ReadAsync(other, first);
+
+        forward.RequiredActions.Select(a => a.Key).Should().Equal("email.verify", "profile.complete");
+        reversed.ETag.Should().Be(single.ETag);
+        forward.ETag.Should().Be(single.ETag);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_UnavailableStanding_PreservesPermissionsAndRetriesAcrossHosts()
+    {
+        var original = CreateData(_start.UtcDateTime.AddSeconds(20));
+        RequiredAction first = new()
+        {
+            Key = "profile.complete",
+            ResolvePath = "/first",
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Blocking
+        };
+        var left = ReportProvider(first);
+        var right = ReportProvider(first with { ResolvePath = "/second" });
+        var principal = CreatePrincipal();
+        Task<AuthorizationData> ReadAsync(params IRequiredActionProvider[] providers) =>
+            CreateInstance(true, providers).GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(original)),
+                TestContext.Current.CancellationToken);
+
+        var conflict = await ReadAsync(left, right);
+        var reversed = await ReadAsync(right, left);
+        left.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        right.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var clear = await ReadAsync(left, right);
+
+        conflict.RequiredActionsUnavailable.Should().BeTrue();
+        conflict.RequiredActions.Should().BeEmpty();
+        conflict.Roles.Should().BeEquivalentTo(original.Roles);
+        conflict.Permissions.Should().BeEquivalentTo(original.Permissions);
+        conflict.ExpiresAt.Should().Be(original.ExpiresAt);
+        reversed.ETag.Should().Be(conflict.ETag);
+        clear.RequiredActionsUnavailable.Should().BeFalse();
+        clear.ETag.Should().NotBe(conflict.ETag);
+    }
+
+    private static IRequiredActionProvider ReportProvider(RequiredAction report)
+    {
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([report]);
+        return provider;
+    }
+
+    private sealed class ConfiguredProvider(string revision) : IRequiredActionProvider
+    {
+        public string CacheConfigurationKey => revision;
+
+        public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<RequiredAction>>([new()
+            {
+                Key = revision, ResolvePath = "/profile",
+                Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Notice
+            }]);
     }
 
     public void Dispose()
@@ -115,7 +237,84 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
         }
     }
 
-    private AuthorizationCache CreateInstance(bool withSharedL2)
+    [Theory]
+    [InlineData(true, false, RequiredActionSeverity.Blocking)]
+    [InlineData(false, true, RequiredActionSeverity.Blocking)]
+    [InlineData(false, false, RequiredActionSeverity.Notice)]
+    public async Task GetOrCreateAsync_AtBlockingFrom_ServesEffectiveSeverityForTheSamePrincipal(
+        bool canResolve, bool blockNonResolvers, RequiredActionSeverity expectedSeverity)
+    {
+        // Arrange
+        var deadline = _start.AddSeconds(8);
+        var provider = NoticeProvider(canResolve ? "Creator" : "Admin", blockNonResolvers);
+        var cache = CreateInstance(false, provider);
+        var principal = CreatePrincipal();
+        Task<AuthorizationData> ReadAsync() => cache.GetOrCreateAsync(principal,
+            _ => Task.FromResult(Result.Success(CreateData(default))), TestContext.Current.CancellationToken);
+
+        // Act
+        var before = await ReadAsync();
+        _clock.Now.Returns(deadline);
+        var after = await ReadAsync();
+
+        // Assert
+        before.RequiredActions.Single().Severity.Should().Be(RequiredActionSeverity.Notice);
+        after.RequiredActions.Single().Severity.Should().Be(expectedSeverity);
+        after.RequiredActions.Single().CanResolve.Should().Be(canResolve);
+        if (expectedSeverity == RequiredActionSeverity.Blocking)
+        {
+            after.ETag.Should().NotBe(before.ETag);
+            before.ExpiresAt.Should().Be(deadline.UtcDateTime);
+        }
+    }
+
+    [Theory]
+    [InlineData(18, 18)]
+    [InlineData(35, 20)]
+    public async Task GetOrCreateAsync_DeadlinePassesDuringRebuild_ReturnsBlockingWithinOriginalExpiry(
+        int permissionExpirySeconds, int expectedExpirySeconds)
+    {
+        var slowProvider = Substitute.For<IRequiredActionProvider>();
+        var cache = CreateInstance(false, NoticeProvider("Creator", false), slowProvider);
+        var principal = CreatePrincipal();
+        principal.Identities.Single().AddClaim(new Claim(JwtRegisteredClaimNames.Exp,
+            _start.AddSeconds(30).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        Task<AuthorizationData> ReadAsync(int expiry) => cache.GetOrCreateAsync(principal,
+            _ => Task.FromResult(Result.Success(CreateData(_start.AddSeconds(expiry).UtcDateTime))),
+            TestContext.Current.CancellationToken);
+        slowProvider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<RequiredAction>());
+        await ReadAsync(4);
+        _clock.Now.Returns(_start.AddSeconds(5));
+        slowProvider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            _clock.Now.Returns(_start.AddSeconds(9));
+            return Array.Empty<RequiredAction>();
+        });
+
+        var rebuilt = await ReadAsync(permissionExpirySeconds);
+
+        rebuilt.RequiredActions.Single().Severity.Should().Be(RequiredActionSeverity.Blocking);
+        rebuilt.ExpiresAt.Should().Be(_start.AddSeconds(expectedExpirySeconds).UtcDateTime);
+    }
+
+    private IRequiredActionProvider NoticeProvider(string resolverRole, bool blockNonResolvers)
+    {
+        RequiredAction action = new()
+        {
+            Key = "profile.complete",
+            ResolvePath = "/profile",
+            Scope = RequiredActionScope.Tenant,
+            Severity = RequiredActionSeverity.Notice,
+            BlockingFrom = _start.AddSeconds(8),
+            ResolverRoles = [resolverRole],
+            BlockNonResolvers = blockNonResolvers
+        };
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([action]);
+        return provider;
+    }
+
+    private AuthorizationCache CreateInstance(bool withSharedL2, params IRequiredActionProvider[] actionProviders)
     {
         ServiceCollection services = new();
         if (withSharedL2)
@@ -131,9 +330,9 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
         return new AuthorizationCache(
             provider.GetRequiredService<HybridCache>(),
             _clock,
-            new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
-            jwtOptions,
-            new FixedAccessVersionStore());
+            new(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, jwtOptions),
+            new FixedAccessVersionStore(),
+            actionProviders);
     }
 
     private static ClaimsPrincipal CreatePrincipal() =>
