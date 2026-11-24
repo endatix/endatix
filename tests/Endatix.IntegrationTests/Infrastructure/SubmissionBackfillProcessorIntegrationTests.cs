@@ -151,13 +151,19 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         SubmissionBackfillOptions force = new(Force: true);
 
         // Act & assert: the substitute source deliberately returns the submission outside each requested scope.
-        (await processor.BackfillFormAsync(TenantId + 1, FormId, force, ct)).Skipped.Should().Be(1);
+        AssertFailedCandidate(await processor.BackfillFormAsync(TenantId + 1, FormId, force, ct));
         (await db.FlattenedSubmissions.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant, EndatixQueryFilterNames.SoftDelete]).CountAsync(ct)).Should().Be(0);
         var owner = await AbandonClaimAsync(rows, source, ct);
-        (await processor.BackfillFormAsync(TenantId, FormId + 1, force, ct)).Skipped.Should().Be(1);
+        AssertFailedCandidate(await processor.BackfillFormAsync(TenantId, FormId + 1, force, ct));
         (await rows.TryMarkSkippedAsync(owner, ct)).Should().BeTrue();
         (await processor.BackfillFormAsync(TenantId, FormId, force, ct)).Processed.Should().Be(1);
         (await rows.GetBySubmissionIdAsync(TenantId, SubmissionId, ct))!.DataJson.Should().Contain("hello");
+    }
+
+    private static void AssertFailedCandidate(SubmissionBackfillResult result)
+    {
+        (result.Scanned, result.Processed, result.Skipped, result.Failed).Should().Be((1, 0, 0, 1));
+        result.FailedSubmissionIds.Should().Equal(SubmissionId);
     }
 
     [Fact]

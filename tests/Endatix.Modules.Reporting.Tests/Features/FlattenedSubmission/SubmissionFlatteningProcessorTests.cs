@@ -13,6 +13,7 @@ using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.FormSchema;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using FlattenedSubmissionKey = Endatix.Modules.Reporting.Domain.FlattenedSubmissionKey;
@@ -59,11 +60,26 @@ public partial class SubmissionFlatteningProcessorTests
         await _rows.Received(1).EnsureExistsAsync(new FlattenedSubmissionKey(TenantId, FormId, SubmissionId), Arg.Any<CancellationToken>());
         FlattenedRevision write = new(TenantId, SubmissionId, 4, submission.ModifiedAt ?? submission.CreatedAt);
         await _rows.Received(1).TryMarkProcessingAsync(write, Arg.Any<CancellationToken>());
+        var claimed = ClaimedRevision();
+        claimed.AttemptId.Should().NotBeEmpty();
         await _rows.Received(1).TryMarkProcessedAsync(
-            write,
+            Arg.Is<FlattenedRevision>(terminal => terminal == write && terminal.AttemptId == claimed.AttemptId),
             Arg.Is<FlattenedRowData>(data => data.DataJson.Contains("firstName")),
             Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().DeleteBySubmissionAsync(default, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void FlattenedRevision_IndependentAttemptsForEqualSources_RetainDictionaryLookupButNotOwnership()
+    {
+        var source = CompletedSubmission("{}", revision: 1);
+        var original = WriteOf(source);
+        var independent = WriteOf(source);
+        var bySource = new Dictionary<FlattenedRevision, string> { [original] = "prepared" };
+
+        independent.Should().Be(original);
+        independent.AttemptId.Should().NotBe(original.AttemptId);
+        bySource[independent].Should().Be("prepared");
     }
 
     [Fact]
@@ -239,7 +255,10 @@ public partial class SubmissionFlatteningProcessorTests
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert
-        await _rows.Received(1).TryMarkSkippedAsync(WriteOf(submission), Arg.Any<CancellationToken>());
+        var claimed = ClaimedRevision();
+        claimed.Should().Be(WriteOf(submission));
+        await _rows.Received(1).TryMarkSkippedAsync(
+            Arg.Is<FlattenedRevision>(terminal => terminal == claimed && terminal.AttemptId == claimed.AttemptId), Arg.Any<CancellationToken>());
         await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
@@ -309,7 +328,7 @@ public partial class SubmissionFlatteningProcessorTests
     [Theory]
     [InlineData(TenantId + 1, FormId)]
     [InlineData(TenantId, FormId + 1)]
-    public async Task ProcessAsync_ScopeMismatch_LeavesReportingUntouched(long sourceTenant, long sourceForm)
+    public async Task OutboxDelivery_ScopeMismatch_WarnsAndReturnsWithoutTouchingReporting(long sourceTenant, long sourceForm)
     {
         // Arrange
         var submission = Submission.Create(new SubmissionCreateArgs(sourceTenant, sourceForm, FormDefinitionId, "{}", IsComplete: true));
@@ -318,10 +337,17 @@ public partial class SubmissionFlatteningProcessorTests
         GivenRowAcceptsRevision(true);
 
         // Act
-        await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
+        var log = Substitute.For<ILogger<SubmissionFlatteningProcessor>>();
+        var processor = Processor(logger: log);
+        var ct = TestContext.Current.CancellationToken;
+        await processor.RefreshCompletedAsync(Key, ct);
+        await processor.ProcessAsync(TenantId, FormId, SubmissionId, ct);
 
         // Assert
         _rows.ReceivedCalls().Should().BeEmpty();
+        var warnings = log.ReceivedCalls().Where(call => call.GetArguments()[0] is LogLevel.Warning)
+            .Select(call => call.GetArguments()[2]?.ToString());
+        warnings.Should().Equal(Enumerable.Repeat($"Rejected flatten for tenant {TenantId}, form {FormId}, submission {SubmissionId}: source scope differs", 2));
         await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, Arg.Any<CancellationToken>());
         await _submissions.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
@@ -353,7 +379,7 @@ public partial class SubmissionFlatteningProcessorTests
             Arg.Any<CancellationToken>());
     }
 
-    private SubmissionFlatteningProcessor Processor(SubmitterProfileFields? fields = null) =>
+    private SubmissionFlatteningProcessor Processor(SubmitterProfileFields? fields = null, ILogger<SubmissionFlatteningProcessor>? logger = null) =>
         new(
             _submissions,
             _rows,
@@ -364,7 +390,7 @@ public partial class SubmissionFlatteningProcessorTests
                 Substitute.For<IReportingDbContext>(),
                 Substitute.For<IFormSchemaRepository>(),
                 NullLogger<SearchCopyRebuilder>.Instance),
-            NullLogger<SubmissionFlatteningProcessor>.Instance);
+            logger ?? NullLogger<SubmissionFlatteningProcessor>.Instance);
 
     private static Submission CompletedSubmission(string json, long revision)
     {
@@ -382,6 +408,9 @@ public partial class SubmissionFlatteningProcessorTests
 
     private static FlattenedRevision WriteOf(Submission submission) =>
         new(TenantId, SubmissionId, submission.Revision, submission.ModifiedAt ?? submission.CreatedAt);
+
+    private FlattenedRevision ClaimedRevision() => (FlattenedRevision)_rows.ReceivedCalls()
+        .Single(call => call.GetMethodInfo().Name == nameof(_rows.TryMarkProcessingAsync)).GetArguments()[0]!;
 
     private void GivenSubmission(Submission? submission) =>
         _submissions

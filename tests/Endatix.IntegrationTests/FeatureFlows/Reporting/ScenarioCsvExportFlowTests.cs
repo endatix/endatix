@@ -166,14 +166,19 @@ public sealed partial class ScenarioCsvExportFlowTests(EndatixIntegrationWebHost
 
         public async Task<string> ExportCsvAsync(string formId, string wireKey = "csv")
         {
+            using var response = await RequestCsvAsync(formId, wireKey);
+            response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
+            return await response.Content.ReadAsStringAsync(ct);
+        }
+
+        public async Task<HttpResponseMessage> RequestCsvAsync(string formId, string wireKey)
+        {
             var formats = await client.GetFromJsonAsync<JsonElement>("/api/settings/export-formats", ct);
             var csvFormat = formats.EnumerateArray().Single(format => format.GetProperty("wireKey").GetString() == wireKey);
-            using var response = await client.PostAsJsonAsync(
+            return await client.PostAsJsonAsync(
                 $"/api/forms/{formId}/submissions/export",
                 new { exportFormatId = csvFormat.GetProperty("id").GetString() },
                 ct);
-            response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
-            return await response.Content.ReadAsStringAsync(ct);
         }
 
         private async Task PostAsync(string uri, object body, HttpStatusCode expected)

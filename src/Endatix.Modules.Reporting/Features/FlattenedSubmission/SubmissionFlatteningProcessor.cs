@@ -58,22 +58,36 @@ internal sealed class SubmissionFlatteningProcessor(
         long formId,
         long submissionId,
         CancellationToken cancellationToken,
-        bool includeIncomplete = false) => TryBackfillAsync(new(tenantId, formId, submissionId), includeIncomplete, cancellationToken);
+        bool includeIncomplete = false) => ProcessAsync(new(tenantId, formId, submissionId), IntentFor(includeIncomplete), cancellationToken);
 
-    public Task<bool> TryBackfillAsync(FlattenedSubmissionKey key, bool includeIncomplete, CancellationToken cancellationToken) =>
-        ProcessAsync(key,
-            includeIncomplete ? FlattenIntent.IncludeDraft : FlattenIntent.CompletedOnly, cancellationToken);
+    public async Task<bool> TryBackfillAsync(FlattenedSubmissionKey key, bool includeIncomplete, CancellationToken cancellationToken) =>
+        await ProcessAsync(key, IntentFor(includeIncomplete), cancellationToken) switch
+        {
+            FlattenOutcome.ScopeMismatch => throw new InvalidOperationException("Submission scope does not match the backfill request."),
+            FlattenOutcome.Published => true,
+            _ => false,
+        };
 
-    private async Task<bool> ProcessAsync(FlattenedSubmissionKey key, FlattenIntent intent, CancellationToken cancellationToken)
+    private static FlattenIntent IntentFor(bool includeIncomplete) => includeIncomplete ? FlattenIntent.IncludeDraft : FlattenIntent.CompletedOnly;
+
+    private async Task<FlattenOutcome> ProcessAsync(FlattenedSubmissionKey key, FlattenIntent intent, CancellationToken cancellationToken)
     {
         var submission = await ReadSubmissionAsync(key, cancellationToken);
         if (submission is null)
         {
             await HandleMissingSubmissionAsync(key, cancellationToken);
-            return false;
+            return FlattenOutcome.NotPublished;
         }
 
-        return await FlattenAsync(new FlattenRun(key, submission, intent), cancellationToken);
+        var run = new FlattenRun(key, submission, intent);
+        if (run.Mismatched)
+        {
+            logger.LogWarning("Rejected flatten for tenant {TenantId}, form {FormId}, submission {SubmissionId}: source scope differs",
+                key.TenantId, key.FormId, key.SubmissionId);
+            return FlattenOutcome.ScopeMismatch;
+        }
+
+        return await FlattenAsync(run, cancellationToken) ? FlattenOutcome.Published : FlattenOutcome.NotPublished;
     }
 
     // Read before any write, so a submission that cannot be read never gets a row, and a row never stays in
@@ -85,13 +99,6 @@ internal sealed class SubmissionFlatteningProcessor(
 
     private async Task<bool> FlattenAsync(FlattenRun run, CancellationToken cancellationToken)
     {
-        if (run.Mismatched)
-        {
-            logger.LogWarning("Rejected flatten for tenant {TenantId}, form {FormId}, submission {SubmissionId}: source scope differs",
-                run.Key.TenantId, run.Key.FormId, run.Key.SubmissionId);
-            return false;
-        }
-
         await flattenedSubmissionRepository.EnsureExistsAsync(run.Key, cancellationToken);
         _submittedMatrices.Validate(run.IsSkipped ? null : run.Submission.FormDefinition);
         var processing = await flattenedSubmissionRepository.TryMarkProcessingAsync(run.Attempt, cancellationToken);
@@ -264,6 +271,7 @@ internal sealed class SubmissionFlatteningProcessor(
     }
 
     private enum FlattenIntent { CompletedOnly, IncludeDraft, CompletionEvent }
+    private enum FlattenOutcome { Published, NotPublished, ScopeMismatch }
 
     /// <summary>One flatten of a submission, as it was read for its row.</summary>
     private sealed record FlattenRun(FlattenedSubmissionKey Key, Submission Submission, FlattenIntent Intent)

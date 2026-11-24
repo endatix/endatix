@@ -66,6 +66,10 @@ public sealed partial class FlattenedSubmissionRepositoryTests
         // Assert
         await AssertCannotFinishAsync(rows, claimed, ct);
         (await rows.GetBySubmissionIdAsync(TenantId, SubmissionId, ct)).Should().BeNull();
+
+        var recovery = await ClaimAsync(rows, WriteOf(3), ct);
+        (await rows.TryMarkProcessedAsync(recovery, ProcessedData, ct)).Should().BeTrue();
+        (await ReadRowAsync(rows, ct)).IsDeleted.Should().BeFalse();
     }
 
     [Theory]

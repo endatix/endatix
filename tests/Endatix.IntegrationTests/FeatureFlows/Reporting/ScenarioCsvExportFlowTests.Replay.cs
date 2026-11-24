@@ -175,7 +175,7 @@ public sealed partial class ScenarioCsvExportFlowTests
     }
 
     [Fact]
-    public async Task Backfill_counts_a_superseded_publication_as_skipped()
+    public async Task Two_forced_backfills_report_the_first_attempts_lost_row()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
@@ -203,8 +203,9 @@ public sealed partial class ScenarioCsvExportFlowTests
         response.EnsureSuccessStatusCode();
         var page = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
         page.GetProperty("processed").GetInt32().Should().Be(1);
-        page.GetProperty("skipped").GetInt32().Should().Be(1);
-        page.GetProperty("failed").GetInt32().Should().Be(0);
+        page.GetProperty("skipped").GetInt32().Should().Be(0);
+        page.GetProperty("failed").GetInt32().Should().Be(1);
+        page.GetProperty("failedSubmissionIds").EnumerateArray().Select(id => id.ToString()).Should().Equal(pair.Ids[0]);
     }
 
     private static async Task AssertPairDownloadAsync(ScenarioApi api, string formId, string[] expected)

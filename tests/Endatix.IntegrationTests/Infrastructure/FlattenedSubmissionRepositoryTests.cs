@@ -25,14 +25,11 @@ public sealed partial class FlattenedSubmissionRepositoryTests
     private static readonly FlattenedRowData ProcessedData = new(ProcessedDataJson, ProcessedSearchJson, searchKeysRevision: 0);
     private static readonly DateTimeOffset CreatedAt = new(2026, 9, 2, 8, 0, 0, TimeSpan.Zero);
 
-    private static readonly Dictionary<string, Func<FlattenedSubmissionRepository, CancellationToken, Task<bool>>> AttemptWrites = new()
+    private static readonly Dictionary<string, Func<FlattenedSubmissionRepository, FlattenedRevision, CancellationToken, Task<bool>>> AttemptWrites = new()
     {
-        [nameof(FlattenedSubmissionRepository.TryMarkProcessingAsync)] = (repository, cancellationToken) =>
-            repository.TryMarkProcessingAsync(WriteOf(revision: 1), cancellationToken),
-        [nameof(FlattenedSubmissionRepository.TryMarkSkippedAsync)] = async (repository, cancellationToken) =>
-            await repository.TryMarkSkippedAsync(await ClaimAsync(repository, WriteOf(revision: 1), cancellationToken), cancellationToken),
-        [nameof(FlattenedSubmissionRepository.TryMarkFailedAsync)] = async (repository, cancellationToken) =>
-            await repository.TryMarkFailedAsync(await ClaimAsync(repository, WriteOf(revision: 1), cancellationToken), "Flatten failed.", cancellationToken),
+        [nameof(FlattenedSubmissionRepository.TryMarkProcessingAsync)] = (rows, write, ct) => rows.TryMarkProcessingAsync(write, ct),
+        [nameof(FlattenedSubmissionRepository.TryMarkSkippedAsync)] = (rows, write, ct) => rows.TryMarkSkippedAsync(write, ct),
+        [nameof(FlattenedSubmissionRepository.TryMarkFailedAsync)] = (rows, write, ct) => rows.TryMarkFailedAsync(write, "Flatten failed.", ct),
     };
 
     private readonly DbIntegrationFixture _fixture;
@@ -189,11 +186,12 @@ public sealed partial class FlattenedSubmissionRepositoryTests
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
         await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        var claimed = await ClaimAsync(repository, WriteOf(revision: 1), cancellationToken);
         var processedAt = CreatedAt.AddMinutes(5);
         _clock.UtcNow.Returns(processedAt);
 
         // Act
-        await repository.TryMarkProcessedAsync(await ClaimAsync(repository, WriteOf(revision: 1), cancellationToken), ProcessedData, cancellationToken);
+        await repository.TryMarkProcessedAsync(claimed, ProcessedData, cancellationToken);
 
         // Assert
         var persisted = await ReadRowAsync(repository, cancellationToken);
@@ -216,11 +214,17 @@ public sealed partial class FlattenedSubmissionRepositoryTests
         await using var dbContext = CreateContext(TenantId);
         var repository = CreateRepository(dbContext);
         await repository.EnsureExistsAsync(KeyOf(SubmissionId), cancellationToken);
+        var attempt = WriteOf(revision: 1);
+        if (write != nameof(FlattenedSubmissionRepository.TryMarkProcessingAsync))
+        {
+            await ClaimAsync(repository, attempt, cancellationToken);
+        }
+
         var attemptedAt = CreatedAt.AddMinutes(5);
         _clock.UtcNow.Returns(attemptedAt);
 
         // Act
-        var landed = await AttemptWrites[write](repository, cancellationToken);
+        var landed = await AttemptWrites[write](repository, attempt, cancellationToken);
 
         // Assert
         landed.Should().BeTrue();

@@ -358,6 +358,39 @@ public sealed class SubmissionBackfillProcessorTests
         return processor;
     }
 
+    [Fact]
+    public async Task BackfillFormAsync_EligibleNonForcedCandidateSuperseded_CountsOnlyASkip()
+    {
+        FlattenedSubmissionKey key = new(TenantId, FormId, 10);
+        var (backfill, writer) = CreateProcessorFor(new FlattenedSubmissionRow(key, _flattenedVersionAt), Candidate(key.SubmissionId));
+        var ct = TestContext.Current.CancellationToken;
+        writer.TryBackfillAsync(key, false, ct).Returns(false);
+
+        var page = await backfill.BackfillFormAsync(TenantId, FormId, new(), ct);
+
+        await writer.Received(1).TryBackfillAsync(key, false, ct);
+        (page.Scanned, page.Skipped, page.Processed, page.Failed).Should().Be((1, 1, 0, 0));
+        page.FailedSubmissionIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task BackfillFormAsync_ForcedCandidateConfirmedDeletedInThisForm_SkipsWithoutRetry()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var sources = Substitute.For<IRepository<Submission>>();
+        sources.ListAsync(Arg.Any<SubmissionBackfillPageSpec>(), ct).Returns([Candidate(10)]);
+        sources.SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), ct)
+            .Returns(new SubmissionDeletionState(FormId, IsDeleted: true, FormIsDeleted: false));
+        var writer = Substitute.For<ISubmissionFlatteningProcessor>();
+        writer.TryBackfillAsync(new(TenantId, FormId, 10), false, ct).Returns(false);
+
+        var page = await CreateProcessor(sources, Substitute.For<IFlattenedSubmissionRepository>(), writer)
+            .BackfillFormAsync(TenantId, FormId, new(Force: true), ct);
+
+        (page.Scanned, page.Skipped, page.Processed, page.Failed).Should().Be((1, 1, 0, 0));
+        page.FailedSubmissionIds.Should().BeEmpty();
+    }
+
     private static SubmissionBackfillCandidate Candidate(long submissionId, DateTime? modifiedAt = null) =>
         new(submissionId, modifiedAt, CreatedAt: _flattenedVersionAt.AddDays(-1));
 
