@@ -1,10 +1,11 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
-internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> providers)
+internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> providers, IDateTimeProvider clock)
 {
-    internal async Task<AuthorizationData> ApplyAsync(AuthorizationData data, DateTime now, CancellationToken cancellationToken)
+    internal async Task<AuthorizationData> ApplyAsync(AuthorizationData data, CancellationToken cancellationToken)
     {
         if (providers is IReadOnlyCollection<IRequiredActionProvider> { Count: 0 })
         {
@@ -12,13 +13,23 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
         }
 
         var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles);
+        var actions = await ReadPendingAsync(subject, cancellationToken);
+        var now = clock.Now.UtcDateTime;
+        return data with
+        {
+            RequiredActions = actions.OrderBy(a => a.Key, StringComparer.Ordinal)
+                .Select(action => ForUser(action, data.Roles, now)).ToArray()
+        };
+    }
+
+    private async Task<List<RequiredAction>> ReadPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken)
+    {
         List<RequiredAction> actions = [];
         foreach (var provider in providers)
         {
-            var pending = await provider.GetPendingAsync(subject, cancellationToken);
-            actions.AddRange(pending.Select(action => ForUser(action, data.Roles, now)));
+            actions.AddRange(await provider.GetPendingAsync(subject, cancellationToken));
         }
-        return data with { RequiredActions = actions.OrderBy(a => a.Key, StringComparer.Ordinal).ToArray() };
+        return actions;
     }
 
     private static RequiredAction ForUser(RequiredAction action, HashSet<string> roles, DateTime now)

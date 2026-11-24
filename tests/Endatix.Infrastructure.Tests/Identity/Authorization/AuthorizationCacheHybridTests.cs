@@ -147,6 +147,35 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(18, 18)]
+    [InlineData(35, 20)]
+    public async Task GetOrCreateAsync_DeadlinePassesDuringRebuild_ReturnsBlockingWithinOriginalExpiry(
+        int permissionExpirySeconds, int expectedExpirySeconds)
+    {
+        var slowProvider = Substitute.For<IRequiredActionProvider>();
+        var cache = CreateInstance(false, NoticeProvider("Creator", false), slowProvider);
+        var principal = CreatePrincipal();
+        principal.Identities.Single().AddClaim(new Claim(JwtRegisteredClaimNames.Exp,
+            _start.AddSeconds(30).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        Task<AuthorizationData> ReadAsync(int expiry) => cache.GetOrCreateAsync(principal,
+            _ => Task.FromResult(Result.Success(CreateData(_start.AddSeconds(expiry).UtcDateTime))),
+            TestContext.Current.CancellationToken);
+        slowProvider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<RequiredAction>());
+        await ReadAsync(4);
+        _clock.Now.Returns(_start.AddSeconds(5));
+        slowProvider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            _clock.Now.Returns(_start.AddSeconds(9));
+            return Array.Empty<RequiredAction>();
+        });
+
+        var rebuilt = await ReadAsync(permissionExpirySeconds);
+
+        rebuilt.RequiredActions.Single().Severity.Should().Be(RequiredActionSeverity.Blocking);
+        rebuilt.ExpiresAt.Should().Be(_start.AddSeconds(expectedExpirySeconds).UtcDateTime);
+    }
+
     private IRequiredActionProvider NoticeProvider(string resolverRole, bool blockNonResolvers)
     {
         RequiredAction action = new()

@@ -31,7 +31,7 @@ internal class AuthorizationCache(
     private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
 
     private const short ETAG_LENGTH = 12;
-    private readonly RequiredActionEvaluation _actions = new(actionProviders);
+    private readonly RequiredActionEvaluation _actions = new(actionProviders, dateTimeProvider);
 
     // Cache key prefixes
     private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
@@ -113,7 +113,7 @@ internal class AuthorizationCache(
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
 
-        var data = await _actions.ApplyAsync(result.Value, now, cancellationToken);
+        var data = await _actions.ApplyAsync(result.Value, cancellationToken);
         var expiresAt = EarlierOf(now.Add(lifetime), data.ExpiresAt);
         expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, now));
         return data.WithCacheMetadata(now, expiresAt, GenerateETag(data));
