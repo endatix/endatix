@@ -12,13 +12,45 @@ internal sealed class CrunchQuestions
 {
     private readonly HashSet<string> _codedQuestions;
 
-    public CrunchQuestions(JsonElement book, SpecialChoiceCodes? settings)
+    public CrunchQuestions(JsonElement book, SpecialChoiceCodes? settings, MergedFormSchema? map = null)
     {
         Entries = CodebookQuestions.Read(book);
         _codedQuestions = settings is null ? [] : MatchingQuestions(new ChoiceCodes(settings));
+        OtherTextKeys = map is null || _codedQuestions.Count == 0 ? [] : CompanionKeys(map);
     }
 
     public IReadOnlyDictionary<string, JsonElement> Entries { get; }
+
+    public Dictionary<string, string> OtherTextKeys { get; }
+
+    private Dictionary<string, string> CompanionKeys(MergedFormSchema map)
+    {
+        var used = map.Columns.Select(column => column.Key).ToHashSet(StringComparer.Ordinal);
+        Dictionary<string, string> keys = new(StringComparer.Ordinal);
+        foreach (var column in map.Columns.Where(IsCodedPanel))
+        {
+            if (!Entries[column.SourceQuestion!].TryGetChoices(out var choices) ||
+                !choices.EnumerateArray().Any(choice => CatalogChoice.Read(choice)?.Kind == ChoiceKind.Other))
+            {
+                continue;
+            }
+
+            var stem = ExportPathBuilder.ChoiceOtherTextKey(column.Key);
+            keys.Add(column.Key, FreeKey(stem, used));
+        }
+        return keys;
+    }
+
+    private static string FreeKey(string stem, HashSet<string> used)
+    {
+        var key = stem;
+        var n = 2;
+        while (!used.Add(key))
+        {
+            key = $"{stem}_{n++}";
+        }
+        return key;
+    }
 
     public bool IsCodedPanel(FormSchemaColumn column) =>
         column.Kind is FormSchemaColumnKind.PanelDynamicIndex or FormSchemaColumnKind.NestedLoop &&

@@ -87,8 +87,9 @@ internal sealed class ReportingExportRepository(
 
             submissionsQuery = ApplyCoreSubmissionFilters(submissionsQuery, options);
 
-            var submissions = await submissionsQuery
-                .ToDictionaryAsync(submission => submission.Id, cancellationToken);
+            var submissions = await submissionsQuery.ToDictionaryAsync(submission => submission.Id, cancellationToken);
+            var versions = options.IncludeSubmittedChoices
+                ? await SubmittedDefinitionsAsync(submissionsQuery, cancellationToken) : null;
 
             foreach (var flattened in batch)
             {
@@ -102,18 +103,7 @@ internal sealed class ReportingExportRepository(
                     continue;
                 }
 
-                yield return new FlattenedExportRow(
-                    SubmissionId: submission.Id,
-                    FormId: submission.FormId,
-                    IsComplete: submission.IsComplete,
-                    CollectionStatus: submission.CollectionStatus.Code,
-                    CreatedAt: submission.CreatedAt,
-                    ModifiedAt: submission.ModifiedAt,
-                    StartedAt: submission.StartedAt,
-                    CompletedAt: submission.CompletedAt,
-                    SubmitterId: submission.SubmitterId,
-                    SubmitterDisplayId: submission.SubmitterDisplayId,
-                    DataJson: flattened.DataJson!);
+                yield return ExportRow(submission, flattened, versions);
             }
 
             if (batch.Count < pageSize)
@@ -124,6 +114,29 @@ internal sealed class ReportingExportRepository(
             afterSubmissionId = batch[^1].SubmissionId;
         }
     }
+
+    private Task<Dictionary<long, string>> SubmittedDefinitionsAsync(IQueryable<Submission> batch, CancellationToken ct) =>
+        appDbContext.FormDefinitions.AsNoTracking()
+            .Where(d => batch.Any(s => s.FormDefinitionId == d.Id && s.FormId == d.FormId && s.TenantId == d.TenantId))
+            .ToDictionaryAsync(d => d.Id, d => d.JsonData, ct);
+
+    private static FlattenedExportRow ExportRow(Submission submission, FlattenedSubmission flattened, Dictionary<long, string>? versions) =>
+        new(
+            SubmissionId: submission.Id,
+            FormId: submission.FormId,
+            IsComplete: submission.IsComplete,
+            CollectionStatus: submission.CollectionStatus.Code,
+            CreatedAt: submission.CreatedAt,
+            ModifiedAt: submission.ModifiedAt,
+            StartedAt: submission.StartedAt,
+            CompletedAt: submission.CompletedAt,
+            SubmitterId: submission.SubmitterId,
+            SubmitterDisplayId: submission.SubmitterDisplayId,
+            DataJson: flattened.DataJson!)
+        {
+            SubmittedDefinition = versions?.GetValueOrDefault(submission.FormDefinitionId),
+            SubmittedAnswers = versions is null ? null : submission.JsonData,
+        };
 
     private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(
         long tenantId,

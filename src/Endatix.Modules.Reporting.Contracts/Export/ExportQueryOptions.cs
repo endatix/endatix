@@ -17,4 +17,8 @@ public sealed record ExportQueryOptions(
     long? MinSubmissionId = null,
     long? MaxSubmissionId = null,
     bool? IsComplete = null,
-    IReadOnlyList<string>? CollectionStatuses = null);
+    IReadOnlyList<string>? CollectionStatuses = null)
+{
+    /// <summary>Load the submitted choice definitions only for exports with value-backed panel text columns.</summary>
+    public bool IncludeSubmittedChoices { get; init; }
+}

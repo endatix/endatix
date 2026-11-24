@@ -11,7 +11,11 @@ namespace Endatix.Modules.Reporting.Features.Export.Tabular;
 internal sealed class ExportRowProjection
 {
     private readonly Dictionary<(string Key, string Value), int> _cells = [];
-    private readonly Func<string, string>? _crunch;
+    private readonly Func<FlattenedExportRow, string>? _crunch;
+    private readonly Dictionary<string, SubmittedQuestions?> _definitions = new(StringComparer.Ordinal);
+    private readonly CrunchQuestions? _catalog;
+
+    public bool NeedsSubmittedChoices => _catalog?.OtherTextKeys.Count > 0;
 
     public ExportRowProjection(FormSchemaEntity schema, SpecialChoiceCodes? settings, bool crunch)
     {
@@ -19,8 +23,8 @@ internal sealed class ExportRowProjection
         if (crunch)
         {
             using var book = JsonDocument.Parse(schema.Codebook);
-            var catalog = new CrunchQuestions(book.RootElement, settings);
-            _crunch = json => CrunchTabularValueProjector.Project(json, map, catalog);
+            _catalog = new CrunchQuestions(book.RootElement, settings, map);
+            _crunch = row => new CrunchTabularValueProjector(_catalog, Submitted(row)).Project(row.DataJson, map);
         }
 
         if (settings is not null)
@@ -46,9 +50,42 @@ internal sealed class ExportRowProjection
         column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource ||
         (_crunch is null && column.Kind is FormSchemaColumnKind.PanelDynamicIndex or FormSchemaColumnKind.NestedLoop);
 
-    public string Project(string data)
+    private PanelOtherAnswers? Submitted(FlattenedExportRow row)
     {
-        var json = _crunch?.Invoke(data) ?? data;
+        if (!NeedsSubmittedChoices || row.SubmittedDefinition is not { } definition || row.SubmittedAnswers is null)
+        {
+            return null;
+        }
+        if (!_definitions.TryGetValue(definition, out var submitted))
+        {
+            submitted = CopyDefinition.QuestionsIn(definition);
+            _definitions.Add(definition, submitted);
+        }
+        return new(submitted, JsonSerializer.Deserialize<JsonElement>(row.SubmittedAnswers));
+    }
+
+    public ExportColumnPlan WithCompanions(ExportColumnPlan plan, string separator)
+    {
+        if (!NeedsSubmittedChoices)
+        {
+            return plan;
+        }
+        var columns = plan.Columns.ToList();
+        foreach (var col in plan.Columns)
+        {
+            if (_catalog!.OtherTextKeys.TryGetValue(col.CanonicalKey, out var key))
+            {
+                var suffix = key[col.CanonicalKey.Length..];
+                columns.Add(new(key, col.ExportKey + suffix.Replace("__", separator, StringComparison.Ordinal),
+                    ExportColumnSource.DataJson, col.HeaderLabel + " -- Other", "string"));
+            }
+        }
+        return new(columns, plan.OmittedKeys);
+    }
+
+    public string Project(FlattenedExportRow source)
+    {
+        var json = _crunch?.Invoke(source) ?? source.DataJson;
         if (_cells.Count == 0)
         {
             return json;

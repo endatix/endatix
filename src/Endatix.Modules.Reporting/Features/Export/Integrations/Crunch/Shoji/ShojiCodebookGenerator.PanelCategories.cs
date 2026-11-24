@@ -22,6 +22,24 @@ internal static partial class ShojiCodebookGenerator
             args.CodebookColumns.TryGetValue(column.Key, out var metadata);
             var name = BuildLeafDisplayName(alias, column, question, metadata, args.KeySeparator);
             WriteCategoricalVariable(writer, alias, alias, question, name, tracking.UsedDisplayNames);
+            if (args.Catalog.OtherTextKeys.TryGetValue(column.Key, out var companion))
+            {
+                WritePanelText(writer, (ExportKeyTransformer.Transform(companion, args.KeySeparator), name), tracking);
+            }
+        }
+    }
+
+    private static void WritePanelText(Utf8JsonWriter writer, (string Alias, string Name) variable, ShojiVariableTracking tracking)
+    {
+        var (alias, name) = variable;
+        if (TryTrackVariable(tracking.WrittenVariables, tracking.OrderAliases, alias))
+        {
+            writer.WritePropertyName(alias);
+            writer.WriteStartObject();
+            writer.WriteString(ShojiCodebookPropertyNames.Type, ShojiCodebookPropertyNames.VariableTypeText);
+            writer.WriteString(ShojiCodebookPropertyNames.Alias, alias);
+            WriteUniqueName(writer, AppendOtherSuffix(name), alias, tracking.UsedDisplayNames);
+            writer.WriteEndObject();
         }
     }
 }

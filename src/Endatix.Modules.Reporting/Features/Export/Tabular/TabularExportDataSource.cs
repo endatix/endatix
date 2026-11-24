@@ -135,10 +135,8 @@ internal sealed partial class TabularExportDataSource(
 
     private void PrepareColumns(ExportDataSourceContext context, ExportFormatSettings settings, FormSchemaEntity exported)
     {
-        var columnPlan = MapColumnPlan(BuildPlan(exported, settings, context.Request.Format));
-
-        context.Options.Metadata![SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
-        context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
+        var plan = BuildPlan(exported, settings, context.Request.Format);
+        context.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings] =
             CreateExecutionSettings(
                 context.Options,
                 settings,
@@ -147,9 +145,11 @@ internal sealed partial class TabularExportDataSource(
         var crunch = ShouldProjectCrunchShapes(context.Request.Format, settings);
         if (crunch || settings.SpecialChoiceCodes is not null)
         {
-            context.Options.Metadata[PROJECTION_KEY] = new ExportRowProjection(exported, settings.SpecialChoiceCodes, crunch);
+            var projection = new ExportRowProjection(exported, settings.SpecialChoiceCodes, crunch);
+            plan = projection.WithCompanions(plan, settings.KeySeparator);
+            context.Options.Metadata[PROJECTION_KEY] = projection;
         }
-
+        context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = MapColumnPlan(plan);
     }
 
     private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings, string format)
@@ -216,7 +216,7 @@ internal sealed partial class TabularExportDataSource(
         await foreach (var row in reportingExportRepository.StreamFlattenedSubmissionsAsync(
                            context.TenantId,
                            context.FormId,
-                           options,
+                           options with { IncludeSubmittedChoices = projection?.NeedsSubmittedChoices == true },
                            cancellationToken))
         {
             yield return MapSubmissionRow(row, projection);
@@ -385,7 +385,7 @@ internal sealed partial class TabularExportDataSource(
             CompletedAt = row.CompletedAt,
             SubmitterId = row.SubmitterId,
             SubmitterDisplayId = row.SubmitterDisplayId,
-            AnswersModel = string.IsNullOrWhiteSpace(row.DataJson) ? row.DataJson : projection?.Project(row.DataJson) ?? row.DataJson,
+            AnswersModel = string.IsNullOrWhiteSpace(row.DataJson) ? row.DataJson : projection?.Project(row) ?? row.DataJson,
         };
 
     [LoggerMessage(

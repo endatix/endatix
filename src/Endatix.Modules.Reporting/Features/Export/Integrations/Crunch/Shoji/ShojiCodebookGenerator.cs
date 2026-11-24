@@ -71,7 +71,7 @@ internal static partial class ShojiCodebookGenerator
         System.Buffers.ArrayBufferWriter<byte> buffer = new();
         using (Utf8JsonWriter writer = new(buffer))
         {
-            WriteShojiCodebook(writer, new(map, new CrunchQuestions(book, dataset.Codes), BuildGroupedColumnKeys(map), columns, dataset));
+            WriteShojiCodebook(writer, new(map, new CrunchQuestions(book, dataset.Codes, map), BuildGroupedColumnKeys(map), columns, dataset));
         }
         return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
     }

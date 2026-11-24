@@ -14,16 +14,18 @@ internal sealed class CrunchTabularValueProjector
     private readonly Dictionary<string, JsonElement?> _values = new(StringComparer.Ordinal);
     private readonly HashSet<string> _consumed = new(StringComparer.Ordinal);
     private readonly CrunchQuestions _catalog;
+    private readonly PanelOtherAnswers? _submitted;
 
-    private CrunchTabularValueProjector(CrunchQuestions catalog) => _catalog = catalog;
+    internal CrunchTabularValueProjector(CrunchQuestions catalog, PanelOtherAnswers? submitted) =>
+        (_catalog, _submitted) = (catalog, submitted);
 
     internal static string Project(string dataJson, MergedFormSchema flatteningMap, string codebookJson)
     {
         using var book = JsonDocument.Parse(codebookJson);
-        return Project(dataJson, flatteningMap, new CrunchQuestions(book.RootElement, null));
+        return new CrunchTabularValueProjector(new CrunchQuestions(book.RootElement, null), null).Project(dataJson, flatteningMap);
     }
 
-    internal static string Project(string dataJson, MergedFormSchema flatteningMap, CrunchQuestions catalog)
+    internal string Project(string dataJson, MergedFormSchema flatteningMap)
     {
         if (string.IsNullOrWhiteSpace(dataJson))
         {
@@ -31,16 +33,15 @@ internal sealed class CrunchTabularValueProjector
         }
 
         using var dataDocument = JsonDocument.Parse(dataJson);
-        var row = new CrunchTabularValueProjector(catalog);
         foreach (var column in flatteningMap.Columns)
         {
             if (TryGetAnswer(dataDocument.RootElement, column.Key, out var answer))
             {
-                row.Add(column, answer);
+                Add(column, answer);
             }
         }
 
-        return row.WithRemainingKeys(dataDocument.RootElement);
+        return WithRemainingKeys(dataDocument.RootElement);
     }
 
     private void Add(FormSchemaColumn column, JsonElement answer)
@@ -58,6 +59,14 @@ internal sealed class CrunchTabularValueProjector
 
     private JsonElement? Cell(FormSchemaColumn column, string name, JsonElement answer)
     {
+        if (_catalog.OtherTextKeys.TryGetValue(column.Key, out var companion))
+        {
+            var (category, text) = _submitted?.Read(column, answer) ?? (null, PanelOtherAnswers.Literal(answer));
+            var id = category is { } value ? MapToCategoryId(value, _catalog.Entries[name]) : null;
+            _values[companion] = text ?? (id is null ? PanelOtherAnswers.Literal(answer) : null);
+            return id;
+        }
+
         if (_catalog.IsCodedPanel(column))
         {
             return MapToCategoryId(answer.TryGetPropertyValue(SurveyJsPropertyNames.Value) ?? answer, _catalog.Entries[name]);
