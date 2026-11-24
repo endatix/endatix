@@ -42,10 +42,8 @@ public sealed class FlattenSubmissionOutboxHandlerTests
 
         await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
-        await _flatteningProcessor.Received(1).ProcessAsync(
-            TenantId,
-            FormId,
-            SubmissionId,
+        await _flatteningProcessor.Received(1).RefreshCompletedAsync(
+            new(TenantId, FormId, SubmissionId),
             Arg.Any<CancellationToken>());
     }
 

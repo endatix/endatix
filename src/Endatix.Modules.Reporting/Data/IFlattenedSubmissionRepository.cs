@@ -74,7 +74,8 @@ public interface IFlattenedSubmissionRepository
     /// </summary>
     Task EnsureExistsAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken);
 
-    /// <summary>Marks the row processing.</summary>
+    /// <summary>Reserves the source revision and marks the row processing. A completion replay may retain a live,
+    /// processed snapshot of exactly the same source until the replacement is ready.</summary>
     /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
     Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken);
 

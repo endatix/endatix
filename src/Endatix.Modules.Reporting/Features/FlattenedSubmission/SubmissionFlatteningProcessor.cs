@@ -50,14 +50,19 @@ internal sealed class SubmissionFlatteningProcessor(
     // of its own, short enough not to hold up a host that is stopping.
     private static readonly TimeSpan CancelledCheckTimeout = TimeSpan.FromSeconds(5);
 
-    public async Task ProcessAsync(
+    public Task RefreshCompletedAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken) =>
+        ProcessAsync(key, FlattenIntent.CompletionEvent, cancellationToken);
+
+    public Task ProcessAsync(
         long tenantId,
         long formId,
         long submissionId,
         CancellationToken cancellationToken,
-        bool includeIncomplete = false)
+        bool includeIncomplete = false) => ProcessAsync(new FlattenedSubmissionKey(tenantId, formId, submissionId),
+            includeIncomplete ? FlattenIntent.IncludeDraft : FlattenIntent.CompletedOnly, cancellationToken);
+
+    private async Task ProcessAsync(FlattenedSubmissionKey key, FlattenIntent intent, CancellationToken cancellationToken)
     {
-        var key = new FlattenedSubmissionKey(tenantId, formId, submissionId);
         var submission = await ReadSubmissionAsync(key, cancellationToken);
         if (submission is null)
         {
@@ -66,7 +71,7 @@ internal sealed class SubmissionFlatteningProcessor(
         }
 
         await flattenedSubmissionRepository.EnsureExistsAsync(key, cancellationToken);
-        await FlattenAsync(new FlattenRun(key, submission, includeIncomplete), cancellationToken);
+        await FlattenAsync(new FlattenRun(key, submission, intent), cancellationToken);
     }
 
     // Read before any write, so a submission that cannot be read never gets a row, and a row never stays in
@@ -274,14 +279,17 @@ internal sealed class SubmissionFlatteningProcessor(
         return landed;
     }
 
+    private enum FlattenIntent { CompletedOnly, IncludeDraft, CompletionEvent }
+
     /// <summary>One flatten of a submission, as it was read for its row.</summary>
-    private sealed record FlattenRun(FlattenedSubmissionKey Key, Submission Submission, bool IncludeIncomplete)
+    private sealed record FlattenRun(FlattenedSubmissionKey Key, Submission Submission, FlattenIntent Intent)
     {
         public FlattenedRevision Write =>
-            new(Key.TenantId, Key.SubmissionId, Submission.Revision, Submission.ModifiedAt ?? Submission.CreatedAt);
+            new(Key.TenantId, Key.SubmissionId, Submission.Revision, Submission.ModifiedAt ?? Submission.CreatedAt)
+            { KeepPrepared = Intent == FlattenIntent.CompletionEvent && Submission.IsComplete };
 
         public bool Mismatched => Submission.TenantId != Key.TenantId || Submission.FormId != Key.FormId;
 
-        public bool IsSkipped => !Submission.IsComplete && !IncludeIncomplete;
+        public bool IsSkipped => !Submission.IsComplete && Intent != FlattenIntent.IncludeDraft;
     }
 }

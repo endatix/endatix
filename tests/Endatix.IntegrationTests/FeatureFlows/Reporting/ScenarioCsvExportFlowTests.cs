@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
-public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SEED_PASSWORD = "Password123!";
 
@@ -151,18 +151,23 @@ public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture 
             return form.RootElement.GetProperty("id").GetString()!;
         }
 
-        public Task SubmitCompleteAsync(string formId, string jsonData) =>
-            PostAsync($"/api/forms/{formId}/submissions", new { isComplete = true, jsonData }, HttpStatusCode.Created);
+        public async Task<string> SubmitCompleteAsync(string formId, string jsonData)
+        {
+            using var response = await client.PostAsJsonAsync($"/api/forms/{formId}/submissions", new { isComplete = true, jsonData }, ct);
+            response.StatusCode.Should().Be(HttpStatusCode.Created);
+            var submission = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+            return submission.GetProperty("id").GetString()!;
+        }
 
         public Task PostOkAsync(string uri, object body) => PostAsync(uri, body, HttpStatusCode.OK);
 
         public Task PublishDefinitionAsync(string formId, string jsonData) =>
             PostAsync($"/api/forms/{formId}/definitions", new { isDraft = false, jsonData }, HttpStatusCode.Created);
 
-        public async Task<string> ExportCsvAsync(string formId)
+        public async Task<string> ExportCsvAsync(string formId, string wireKey = "csv")
         {
             var formats = await client.GetFromJsonAsync<JsonElement>("/api/settings/export-formats", ct);
-            var csvFormat = formats.EnumerateArray().Single(format => format.GetProperty("wireKey").GetString() == "csv");
+            var csvFormat = formats.EnumerateArray().Single(format => format.GetProperty("wireKey").GetString() == wireKey);
             using var response = await client.PostAsJsonAsync(
                 $"/api/forms/{formId}/submissions/export",
                 new { exportFormatId = csvFormat.GetProperty("id").GetString() },

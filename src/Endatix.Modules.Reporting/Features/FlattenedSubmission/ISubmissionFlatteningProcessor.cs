@@ -1,3 +1,5 @@
+using Endatix.Modules.Reporting.Domain;
+
 namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 
 /// <summary>
@@ -5,6 +7,10 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// </summary>
 public interface ISubmissionFlatteningProcessor
 {
+    /// <summary>Refreshes a completed submission on event delivery, keeping an already prepared copy of the same source available.</summary>
+    Task RefreshCompletedAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken) =>
+        ProcessAsync(key.TenantId, key.FormId, key.SubmissionId, cancellationToken);
+
     /// <summary>
     /// Processes a submission into the reporting flattened read model.
     /// </summary>

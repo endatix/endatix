@@ -7,7 +7,10 @@ namespace Endatix.Modules.Reporting.Data;
 /// was not already written from a newer revision. <see cref="SourceModifiedAt"/> is the submission's own
 /// <c>ModifiedAt ?? CreatedAt</c> as it was read, which a processed row keeps for the backfill's staleness check.
 /// </summary>
-public readonly record struct FlattenedRevision(long TenantId, long SubmissionId, long Revision, DateTime SourceModifiedAt);
+public readonly record struct FlattenedRevision(long TenantId, long SubmissionId, long Revision, DateTime SourceModifiedAt)
+{
+    internal bool KeepPrepared { get; init; }
+}
 
 /// <summary>
 /// The data a processed flatten stores: the flattened answers, and their search copy built from the schema's search

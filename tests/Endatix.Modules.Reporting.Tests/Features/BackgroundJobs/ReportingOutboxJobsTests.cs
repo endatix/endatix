@@ -76,7 +76,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        await _flattening.Received(1).ProcessAsync(TenantA, 1, 2, Arg.Any<CancellationToken>());
+        await _flattening.Received(1).RefreshCompletedAsync(new(TenantA, 1, 2), Arg.Any<CancellationToken>());
     }
 
     [Fact]

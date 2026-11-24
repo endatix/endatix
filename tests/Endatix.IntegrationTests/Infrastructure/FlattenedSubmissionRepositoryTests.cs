@@ -252,6 +252,26 @@ public sealed class FlattenedSubmissionRepositoryTests
     }
 
     [Fact]
+    public async Task Older_completion_cannot_publish_its_answers_while_a_newer_revision_is_processing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(ct);
+        await using var db = CreateContext(TenantId);
+        var rows = CreateRepository(db);
+        var prepared = WriteOf(revision: 3) with { KeepPrepared = true };
+        await rows.EnsureExistsAsync(KeyOf(SubmissionId), ct);
+        await rows.TryMarkProcessedAsync(prepared, ProcessedData, ct);
+        await rows.TryMarkProcessingAsync(prepared, ct);
+        var newer = prepared with { Revision = 4 };
+        (await rows.TryMarkProcessingAsync(newer, ct)).Should().BeTrue();
+
+        (await rows.TryMarkProcessedAsync(prepared, ProcessedData, ct)).Should().BeFalse();
+
+        (await ReadRowAsync(rows, ct)).Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processing);
+        (await rows.TryMarkProcessedAsync(newer, ProcessedData, ct)).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task TryMarkProcessedAsync_AfterFailedWrite_ClearsLastError()
     {
         // Arrange
