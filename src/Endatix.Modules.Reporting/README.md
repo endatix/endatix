@@ -125,7 +125,9 @@ An entry with only `parentPanelTitle` (a codebook saved before `parentPanels` ex
 
 For a radio matrix column defined as `{ "value": 10, "text": "High" }`, the native codebook writes `value: "10"` and labels it `High`. Native data keeps the numeric answer `10`. In a Shoji CSV the same cell holds the category ID from the matching Shoji codebook, which need not be `10`. Columns stay in definition order; a previously omitted numeric column gets an ID after the already published IDs.
 
-An upgrade does not rewrite saved schemas. An existing codebook can still contain labels in place of codes until the matrix definition is compiled again. Merge compilation updates the questions in that definition but retains historical-only entries as stored. Row backfill alone cannot repair a codebook. Existing flattened numeric cells already contain the source code, so they do not need a backfill for this fix.
+Merge compilation keeps published category IDs, including categories removed from a matrix that still exists. New categories receive IDs after all reserved IDs. Numeric codes compare by exact numeric value (`10.0` and `1E1` match `10`); a string `"10"` is a different choice. If a flattened number could also be a string choice's ordinal, Shoji uses the original answer to distinguish them. Without a matching original answer the cell is missing.
+
+An upgrade does not rewrite saved schemas. A codebook compiled before numeric codes were identified may contain labels instead of codes. Exports keep the historical behavior for such a matrix; backfill alone cannot recover its codebook. A merge that cannot establish category continuity returns a conflict before saving. Historical-only questions retain their stored metadata. Explicit replacement starts a new schema and can discard historical categories and rows; it is not an identity-preserving upgrade.
 
 ### Copied choices
 

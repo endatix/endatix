@@ -1,0 +1,106 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
+
+namespace Endatix.Modules.Reporting.Features.FormSchema.Codebook;
+
+internal sealed class PublishedMatrixCategories(string question)
+{
+    private readonly Dictionary<MatrixCode, JsonElement> _published = [];
+    private readonly HashSet<int> _reserved = [];
+    private int _lastId;
+
+    internal static void MergeQuestions(Dictionary<string, JsonElement> questions, JsonElement existing)
+    {
+        foreach (var old in existing.EnumerateObject())
+        {
+            questions[old.Name] = questions.TryGetValue(old.Name, out var current) ? Merge(old, current) : old.Value.Clone();
+        }
+    }
+
+    private static JsonElement Merge(JsonProperty previous, JsonElement current)
+    {
+        var oldRadio = IsRadio(previous.Value, out var oldColumns);
+        var newRadio = IsRadio(current, out var newColumns);
+        var oldTyped = oldRadio && oldColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn);
+        var newTyped = newRadio && newColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn);
+        if (!oldTyped && !newTyped)
+        {
+            return current;
+        }
+
+        PublishedMatrixCategories catalog = new(previous.Name);
+        if (!oldRadio || !newRadio || (!oldTyped && oldColumns.GetArrayLength() > 0))
+        {
+            throw catalog.Conflict();
+        }
+
+        catalog.Reserve(oldColumns);
+        return catalog.WithPublishedIds(current, newColumns);
+    }
+
+    private static bool IsRadio(JsonElement question, out JsonElement columns)
+    {
+        columns = default;
+        return FormSchemaCodebookExportShape.OfQuestionEntry(question) == FormSchemaCodebookExportShape.CategoricalArray.Name &&
+            question.TryGetColumns(out columns);
+    }
+
+    private void Reserve(JsonElement columns)
+    {
+        foreach (var column in columns.EnumerateArray())
+        {
+            var id = column.GetProperty(FormSchemaCodebookPropertyNames.Id).GetInt32();
+            if (id <= 0 || !_reserved.Add(id) || !_published.TryAdd(MatrixCode.OfColumn(column), column))
+            {
+                throw Conflict();
+            }
+
+            _lastId = Math.Max(id, _lastId);
+        }
+    }
+
+    private JsonElement WithPublishedIds(JsonElement current, JsonElement columns)
+    {
+        var result = JsonNode.Parse(current.GetRawText())!;
+        var merged = new JsonArray(CurrentEntries(columns).ToArray());
+        foreach (var removed in _published.Values)
+        {
+            merged.Add(JsonNode.Parse(removed.GetRawText()));
+        }
+
+        result[SurveyJsPropertyNames.Columns] = merged;
+        return JsonSerializer.SerializeToElement(result);
+    }
+
+    private IEnumerable<JsonNode> CurrentEntries(JsonElement columns)
+    {
+        HashSet<MatrixCode> currentCodes = [];
+        foreach (var column in columns.EnumerateArray())
+        {
+            var code = MatrixCode.OfColumn(column);
+            if (!currentCodes.Add(code))
+            {
+                throw Conflict();
+            }
+
+            var entry = JsonNode.Parse(column.GetRawText())!;
+            entry[FormSchemaCodebookPropertyNames.Id] = PublishedId(code);
+            yield return entry;
+        }
+    }
+
+    private int PublishedId(MatrixCode code)
+    {
+        if (_published.Remove(code, out var old))
+        {
+            return old.GetProperty(FormSchemaCodebookPropertyNames.Id).GetInt32();
+        }
+
+        return _lastId == int.MaxValue ? throw Conflict() : ++_lastId;
+    }
+
+    internal ReportingSchemaAliasConflictException Conflict() =>
+        new($"Cannot establish distinct, continuous category identities for reporting matrix '{question}'. The previous reporting schema was retained.");
+}

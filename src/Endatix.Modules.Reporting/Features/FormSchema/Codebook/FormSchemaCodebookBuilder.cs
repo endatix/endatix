@@ -658,10 +658,7 @@ internal static partial class FormSchemaCodebookBuilder
         if (root.TryGetProperty(FormSchemaCodebookPropertyNames.Questions, out var existingQuestions) &&
             existingQuestions.ValueKind == JsonValueKind.Object)
         {
-            foreach (var property in existingQuestions.EnumerateObject())
-            {
-                questions.TryAdd(property.Name, property.Value.Clone());
-            }
+            PublishedMatrixCategories.MergeQuestions(questions, existingQuestions);
         }
 
         if (root.TryGetProperty(FormSchemaCodebookPropertyNames.Columns, out var existingColumns) &&

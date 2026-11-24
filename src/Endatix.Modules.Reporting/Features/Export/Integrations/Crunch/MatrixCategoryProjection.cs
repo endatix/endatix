@@ -9,47 +9,72 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 
 internal sealed class MatrixCategoryProjection(FlattenedExportRow row, Dictionary<string, JsonElement> questions) : IDisposable
 {
+    private readonly Dictionary<string, Dictionary<MatrixCode, JsonElement>?> _catalogs = [];
     private JsonDocument? _source;
 
-    public JsonElement Project(FormSchemaColumn column, JsonElement answer)
+    public JsonElement? Project(FormSchemaColumn column, JsonElement answer)
     {
-        if (column.Kind != FormSchemaColumnKind.MatrixRow || answer.ValueKind != JsonValueKind.Number ||
-            !questions.TryGetValue(column.SourceQuestion!, out var question) || !question.TryGetColumns(out var choices))
+        if (column.Kind != FormSchemaColumnKind.MatrixRow || Catalog(column.SourceQuestion!) is not { } categories)
         {
             return answer;
         }
 
-        var code = answer.GetRawText();
-        var category = choices.EnumerateArray().FirstOrDefault(choice =>
-            IsNumericCode(choice) && choice.GetStringProperty(SurveyJsPropertyNames.Value) == code);
-        if (category.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Id) is not { } id || id.GetRawText() == code)
+        if (answer.ValueKind != JsonValueKind.Number)
         {
-            return answer;
+            return Selected(column) is { ValueKind: JsonValueKind.String } text
+                ? Find(categories, MatrixCode.Text(text.GetString()!)) : null;
         }
 
-        return IsStringOrdinal(choices, code) && !SubmittedNumericCode(column, code) ? answer : id;
+        var code = MatrixCode.Number(answer.GetRawText());
+        var numeric = Find(categories, code);
+        var ordinal = StringCodeAt(column, code) is { } textCode ? Find(categories, MatrixCode.Text(textCode)) : null;
+        return numeric.HasValue && ordinal.HasValue
+            ? ResolveCollision(column, code, categories) : numeric ?? ordinal;
     }
 
-    // String choices flatten to their category id; only a collision needs the original JSON type.
-    private static bool IsStringOrdinal(JsonElement choices, string code) =>
-        choices.EnumerateArray().Any(choice =>
-            !IsNumericCode(choice) && choice.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Id)?.GetRawText() == code);
-
-    private static bool IsNumericCode(JsonElement choice) =>
-        choice.TryGetPropertyValue(FormSchemaCodebookPropertyNames.NUMERIC_CODE) is { ValueKind: JsonValueKind.True };
-
-    private bool SubmittedNumericCode(FormSchemaColumn column, string code)
+    private JsonElement? ResolveCollision(FormSchemaColumn column, MatrixCode code, Dictionary<MatrixCode, JsonElement> categories)
     {
-        if (row.SourceAnswersJson is null)
+        var selected = Selected(column);
+        return selected?.ValueKind switch
         {
-            return false;
+            JsonValueKind.Number when MatrixCode.Number(selected.Value.GetRawText()) == code => Find(categories, code),
+            JsonValueKind.String when StringCodeAt(column, code) is { } expected && selected.Value.GetString() == expected =>
+                Find(categories, MatrixCode.Text(expected)),
+            _ => null,
+        };
+    }
+
+    private static string? StringCodeAt(FormSchemaColumn column, MatrixCode code) =>
+        column.MatrixColumnChoices is { } choices && code.Ordinal(choices.Count) is { } index ? choices[index - 1] : null;
+
+    private Dictionary<MatrixCode, JsonElement>? Catalog(string name)
+    {
+        if (!_catalogs.TryGetValue(name, out var entries))
+        {
+            entries = questions.TryGetValue(name, out var question) && question.TryGetColumns(out var columns) &&
+                columns.EnumerateArray().Any(MatrixCode.IsNumericColumn)
+                ? columns.EnumerateArray().ToDictionary(MatrixCode.OfColumn, c => c.GetProperty(FormSchemaCodebookPropertyNames.Id))
+                : null;
+            _catalogs[name] = entries;
+        }
+
+        return entries;
+    }
+
+    private JsonElement? Selected(FormSchemaColumn column)
+    {
+        if (string.IsNullOrWhiteSpace(row.SourceAnswersJson))
+        {
+            return null;
         }
 
         _source ??= JsonDocument.Parse(row.SourceAnswersJson);
         var context = AnswerScope.Root(_source.RootElement).Within(column.LoopPath);
-        var selected = context?.Own.TryGetPropertyValue(column.SourceQuestion!)?.TryGetPropertyValue(column.MatrixRowValue!);
-        return selected is { ValueKind: JsonValueKind.Number } number && number.GetRawText() == code;
+        return context?.Own.TryGetPropertyValue(column.SourceQuestion!)?.TryGetPropertyValue(column.MatrixRowValue!);
     }
+
+    private static JsonElement? Find(Dictionary<MatrixCode, JsonElement> categories, MatrixCode key) =>
+        categories.TryGetValue(key, out var id) ? id : null;
 
     public void Dispose() => _source?.Dispose();
 }
