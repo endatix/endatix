@@ -205,9 +205,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             throw new InvalidAuthorizedIdentityException("The claims principal is not authenticated");
         }
 
-        var endatixIdentity = principal.Identities
-            .OfType<AuthorizedIdentity>()
-            .FirstOrDefault();
+        var endatixIdentity = principal.Identities.OfType<AuthorizedIdentity>().FirstOrDefault();
 
         if (endatixIdentity is null || !endatixIdentity.IsHydrated)
         {
@@ -223,7 +221,8 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
          permissions: endatixIdentity.Permissions.Distinct().ToArray(),
          cachedAt: endatixIdentity.CachedAt,
          expiresAt: endatixIdentity.CacheExpiresIn,
-         eTag: endatixIdentity.ETag);
+         eTag: endatixIdentity.ETag) with
+        { RequiredActions = endatixIdentity.RequiredActions };
 
         if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
         {

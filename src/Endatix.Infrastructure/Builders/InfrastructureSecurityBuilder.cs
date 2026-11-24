@@ -266,9 +266,9 @@ public class InfrastructureSecurityBuilder
                 policy.Requirements.Add(new PlatformAdminRequirement()));
         });
 
-        // Register core authorization services
         Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
         Services.AddScoped<IAccessVersionStore, DatabaseAccessVersionStore>();
+        Services.AddScoped<AuthorizationTokenFingerprint>();
         Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();

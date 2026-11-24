@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity.Authentication;
 
@@ -87,6 +88,11 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
     /// </summary>
     public string ETag => FindFirst(ClaimNames.ETag)?.Value ?? string.Empty;
 
+    internal IReadOnlyList<RequiredAction> RequiredActions =>
+        FindFirst(ClaimNames.REQUIRED_ACTIONS) is { } claim
+            ? JsonSerializer.Deserialize<RequiredAction[]>(claim.Value) ?? []
+            : [];
+
     /// <summary>
     /// Static factory method to build an authorized identity from an authorization data.
     /// </summary>
@@ -123,12 +129,19 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
             claims.Add(new Claim(ClaimNames.IsAdmin, "true"));
         }
 
+        AddCacheClaims(claims, authorizationData);
+        claims.Add(new Claim(ClaimNames.Hydrated, "true"));
+        return claims;
+    }
+
+    private static void AddCacheClaims(List<Claim> claims, AuthorizationData authorizationData)
+    {
         claims.Add(new Claim(ClaimNames.CachedAt, authorizationData.CachedAt.ToString("O")));
         claims.Add(new Claim(ClaimNames.ExpiresAt, authorizationData.ExpiresAt.ToString("O")));
         claims.Add(new Claim(ClaimNames.ETag, authorizationData.ETag));
-
-        claims.Add(new Claim(ClaimNames.Hydrated, "true"));
-
-        return claims;
+        if (authorizationData.RequiredActions.Count > 0)
+        {
+            claims.Add(new Claim(ClaimNames.REQUIRED_ACTIONS, JsonSerializer.Serialize(authorizationData.RequiredActions)));
+        }
     }
 }

@@ -2,17 +2,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Caching;
-using Endatix.Infrastructure.Identity;
-using Endatix.Infrastructure.Identity.Authentication;
-using Endatix.Infrastructure.Identity.Authentication.Providers;
-using Endatix.Infrastructure.Identity.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
@@ -29,14 +23,15 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal class AuthorizationCache(
     HybridCache hybridCache,
     IDateTimeProvider dateTimeProvider,
-    IHttpContextAccessor httpContextAccessor,
-    IOptions<EndatixJwtOptions> endatixJwtOptions,
-    IAccessVersionStore accessVersionStore) : IAuthorizationCache
+    AuthorizationTokenFingerprint tokenFingerprint,
+    IAccessVersionStore accessVersionStore,
+    IEnumerable<IRequiredActionProvider> actionProviders) : IAuthorizationCache
 {
     /// <summary>The longest an entry lives, which bounds a change that skips the save hook.</summary>
     private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
 
     private const short ETAG_LENGTH = 12;
+    private readonly RequiredActionEvaluation _actions = new(actionProviders);
 
     // Cache key prefixes
     private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
@@ -53,13 +48,7 @@ internal class AuthorizationCache(
     {
         var userId = principal.GetUserId() ?? throw new InvalidOperationException("Principal must have a user ID");
         var tenantId = principal.GetTenantId();
-        var accessToken = BearerAccessTokenResolver.Resolve(httpContextAccessor);
-        var claimIdentityId = !string.IsNullOrWhiteSpace(accessToken)
-            ? accessToken
-            : principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}_{tenantId}";
-        var cacheKeyTokenPart = CacheKeyFingerprint.ComputeHmacSha256Hex(
-            claimIdentityId,
-            endatixJwtOptions.Value.SigningKey);
+        var cacheKeyTokenPart = tokenFingerprint.For(principal, userId, tenantId);
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
@@ -124,8 +113,10 @@ internal class AuthorizationCache(
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
 
-        var expiresAt = EarlierOf(now.Add(lifetime), result.Value.ExpiresAt);
-        return result.Value.WithCacheMetadata(now, expiresAt, GenerateETag(result.Value));
+        var data = await _actions.ApplyAsync(result.Value, now, cancellationToken);
+        var expiresAt = EarlierOf(now.Add(lifetime), data.ExpiresAt);
+        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, now));
+        return data.WithCacheMetadata(now, expiresAt, GenerateETag(data));
     }
 
     /// <summary>The entry's end, or the earliest permission expiry the data carries when that comes first.</summary>
@@ -199,6 +190,10 @@ internal class AuthorizationCache(
         var sortedRoles = string.Join(",", data.Roles.OrderBy(r => r).ToArray());
         var sortedPermissions = string.Join(",", data.Permissions.OrderBy(p => p).ToArray());
         var content = $"{data.UserId}:{data.TenantId}:{sortedRoles}:{sortedPermissions}";
+        if (data.RequiredActions.Count > 0)
+        {
+            content += ":" + JsonSerializer.Serialize(data.RequiredActions);
+        }
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
 
         var shortETag = Convert.ToBase64String(hash)[..ETAG_LENGTH];

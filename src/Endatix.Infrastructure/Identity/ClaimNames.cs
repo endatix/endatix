@@ -75,4 +75,5 @@ public static class ClaimNames
     /// Represents a claim for the ETag.
     /// </summary>
     public const string ETag = "etag";
+    internal const string REQUIRED_ACTIONS = "required_actions";
 }
