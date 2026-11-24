@@ -46,6 +46,38 @@ public sealed class InlineChoiceVisibilityTests
     public static TheoryData<string> Types => new("checkbox", "tagbox");
 
     [Theory]
+    [InlineData("""{"pick":["1"]}""", "1", "0")]
+    [InlineData("""{"pick":["2"]}""", null, "1")]
+    [InlineData(UNANSWERED, null, "0")]
+    public void Flatten_PerChoiceCondition_OnlyItsUnpickedIndicatorIsUnknown(string submission, string? first, string second)
+    {
+        // Arrange
+        var definition = Survey("""{"type":"checkbox","name":"pick","choices":[{"value":"1","visibleIf":"{x} = 1"},"2"]}""");
+
+        // Act
+        var cells = FlattenCopy(definition, submission, complete: true);
+
+        // Assert
+        cells.Should().Equal(Cells(("1", first), ("2", second)));
+    }
+
+    [Theory]
+    [InlineData(FormSchemaCompileMode.Merge, null)]
+    [InlineData(FormSchemaCompileMode.Replace, "0")]
+    public void CompilePersisted_ListConditionRemoved_MergeKeepsUnknownWhileReplaceUsesCurrentChoices(FormSchemaCompileMode mode, string? expected)
+    {
+        // Arrange
+        var first = new FormSchemaCompiler().CompilePersisted(Survey(Pick("\"choicesVisibleIf\":\"{item} != '2'\"")));
+
+        // Act
+        var compiled = Recompile(first, Survey(PICK), mode);
+
+        // Assert
+        Cells(FlattenCompiled(compiled, """{"pick":["1"]}""")).Should()
+            .Equal(Cells(("1", "1"), ("2", expected), ("3", expected), ("other", "0")));
+    }
+
+    [Theory]
     [MemberData(nameof(HideableDefinitions))]
     public void Flatten_UnansweredQuestionThatCanBeHidden_IsEmptyInEveryColumn(string definition)
     {

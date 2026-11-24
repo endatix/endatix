@@ -1,0 +1,166 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "channels": {
+      "surveyJsType": "checkbox",
+      "title": {},
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "radio",
+          "id": 1,
+          "text": {
+            "default": "radio"
+          }
+        },
+        {
+          "value": "print",
+          "id": 2,
+          "text": {
+            "default": "print"
+          }
+        }
+      ]
+    },
+    "topics": {
+      "surveyJsType": "tagbox",
+      "title": {},
+      "pageName": "page1",
+      "exportShape": "multiple_response",
+      "choices": [
+        {
+          "value": "music",
+          "id": 1,
+          "text": {
+            "default": "music"
+          }
+        },
+        {
+          "value": "books",
+          "id": 2,
+          "text": {
+            "default": "books"
+          }
+        },
+        {
+          "value": "sport",
+          "id": 3,
+          "text": {
+            "default": "sport"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "channels__print": {
+      "parentKey": "channels",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "print",
+      "choiceLabel": {
+        "default": "print"
+      }
+    },
+    "channels__radio": {
+      "parentKey": "channels",
+      "surveyJsType": "checkbox",
+      "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "radio",
+      "choiceLabel": {
+        "default": "radio"
+      }
+    },
+    "topics__books": {
+      "parentKey": "topics",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "books",
+      "choiceLabel": {
+        "default": "books"
+      }
+    },
+    "topics__music": {
+      "parentKey": "topics",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "music",
+      "choiceLabel": {
+        "default": "music"
+      }
+    },
+    "topics__sport": {
+      "parentKey": "topics",
+      "surveyJsType": "tagbox",
+      "exportShape": "multiple_response",
+      "title": {},
+      "choiceValue": "sport",
+      "choiceLabel": {
+        "default": "sport"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "channels": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "radio",
+          "id": 1,
+          "text": {
+            "default": "radio"
+          }
+        },
+        {
+          "value": "print",
+          "id": 2,
+          "text": {
+            "default": "print"
+          }
+        }
+      ],
+      "conditionalChoices": [
+        "radio",
+        "print"
+      ]
+    },
+    "topics": {
+      "multiple": true,
+      "choices": [
+        {
+          "value": "music",
+          "id": 1,
+          "text": {
+            "default": "music"
+          }
+        },
+        {
+          "value": "books",
+          "id": 2,
+          "text": {
+            "default": "books"
+          }
+        },
+        {
+          "value": "sport",
+          "id": 3,
+          "text": {
+            "default": "sport"
+          }
+        }
+      ],
+      "conditionalChoices": [
+        "music",
+        "books"
+      ]
+    }
+  }
+}

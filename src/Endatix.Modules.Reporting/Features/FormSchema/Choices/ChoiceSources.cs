@@ -183,10 +183,13 @@ internal sealed class ChoiceSources(IReadOnlyDictionary<string, JsonElement> que
     public void WriteVisibilityFields(Utf8JsonWriter writer, JsonElement question)
     {
         CopyVisibility.WriteFor(writer, question, () => CopyVisibility.Of(question, this, definition ?? CopyDefinition.None));
-        if (definition is { } whole &&
-            question.IsMultiSelectBaseSelect() &&
-            ChoiceSource.Parse(question) is not ChoiceSource.CarryForward &&
-            whole.CanHide(question, question.GetSurveyJsName()))
+        if (!question.IsMultiSelectBaseSelect() || ChoiceSource.Parse(question) is ChoiceSource.CarryForward)
+        {
+            return;
+        }
+
+        ConditionalChoices.Write(writer, ConditionalChoices.ValuesIn(question));
+        if (definition?.CanHide(question, question.GetSurveyJsName()) == true)
         {
             writer.WriteBoolean(FormSchemaCodebookPropertyNames.CanBeHidden, true);
         }

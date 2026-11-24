@@ -49,28 +49,56 @@
           "alias": "CreatedAt",
           "name": "Created At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "ModifiedAt": {
           "type": "datetime",
           "alias": "ModifiedAt",
           "name": "Modified At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "StartedAt": {
           "type": "datetime",
           "alias": "StartedAt",
           "name": "Started At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "CompletedAt": {
           "type": "datetime",
           "alias": "CompletedAt",
           "name": "Completed At",
           "description": "",
-          "resolution": "s"
+          "resolution": "s",
+          "format": {
+            "data": "%Y-%m-%d %H:%M",
+            "summary": "%Y-%m-%d %H:%M"
+          },
+          "view": {
+            "rollup_resolution": "h"
+          }
         },
         "DurationSeconds": {
           "type": "numeric",
@@ -262,17 +290,21 @@
             }
           ]
         },
-        "occasionRank--10": {
-          "type": "numeric",
-          "alias": "occasionRank--10",
-          "name": "Rank the occasions -- 10",
-          "description": ""
-        },
-        "occasionRank--20": {
-          "type": "numeric",
-          "alias": "occasionRank--20",
-          "name": "Rank the occasions -- 20",
-          "description": ""
+        "occasionRank": {
+          "type": "numeric_array",
+          "alias": "occasionRank",
+          "name": "Rank the occasions",
+          "description": "",
+          "subvariables": [
+            {
+              "alias": "occasionRank--10",
+              "name": "Morning"
+            },
+            {
+              "alias": "occasionRank--20",
+              "name": "Evening"
+            }
+          ]
         },
         "considerLoop--consider": {
           "type": "categorical_array",
@@ -1195,8 +1227,7 @@
             "brands",
             "aware",
             "occasions",
-            "occasionRank--10",
-            "occasionRank--20",
+            "occasionRank",
             {
               "group": "considerLoop",
               "entities": [

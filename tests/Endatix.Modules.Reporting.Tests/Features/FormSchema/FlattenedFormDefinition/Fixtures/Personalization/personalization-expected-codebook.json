@@ -10,7 +10,8 @@
         "default": "Which city do you live in?"
       },
       "pageName": "page1",
-      "exportShape": "scalar"
+      "exportShape": "scalar",
+      "prefilledFrom": "city"
     },
     "consent": {
       "surveyJsType": "boolean",

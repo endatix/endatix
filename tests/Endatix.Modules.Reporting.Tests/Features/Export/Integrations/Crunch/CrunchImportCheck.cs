@@ -127,7 +127,7 @@ internal static partial class CrunchImportCheck
         value.Length == 0 ||
         TypeOf(variable) switch
         {
-            "numeric" => Number().IsMatch(value),
+            "numeric" or "numeric_array" => Number().IsMatch(value),
             "datetime" => DateTime.TryParseExact(value, _datetimeFormats, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out _),
             "categorical" or "categorical_array" or "multiple_response" => IsCategoryId(variable, value),
             _ => true,

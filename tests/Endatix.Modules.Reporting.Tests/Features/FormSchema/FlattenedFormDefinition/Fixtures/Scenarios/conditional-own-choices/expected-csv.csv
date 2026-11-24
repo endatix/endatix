@@ -1,0 +1,2 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,channels__radio,channels__print,topics__music,topics__books,topics__sport
+100,1,true,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,N/A,N/A,N/A,N/A,N/A,1,,1,,0
