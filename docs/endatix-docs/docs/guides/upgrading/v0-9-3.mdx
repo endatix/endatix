@@ -48,7 +48,7 @@ Each cell contains only the comment stored on that selected choice. An unpicked 
 
 To refresh existing exports, compile the affected form in merge mode and run the forced backfill for both completion scopes as described in [Refresh stored rows](#refresh-stored-rows). This recovers comments present in the saved answers for choices in the compiled schema; it cannot recover text that was never stored.
 
-Reporting uses the submitted version and the panel item to identify the choice. If the version is missing or the answer could belong to a different question type, the comment cell stays blank. The original answer is unchanged.
+Reporting uses the submitted form definition and the panel item to identify the choice. If backfill can access the definition but cannot interpret it, or if the answer could belong to a different question type, it keeps the row and leaves the unverifiable comment blank. If backfill cannot access the definition, the row fails: check `failedSubmissionIds` for the submission ID. Neither outcome changes the original answer.
 
 If a new comment would collide with another export header or a Shoji ranking array, the comment gets the first free suffix (`_2`, `_3`, …). A published comment keeps its assigned header. If a later question or choice would reuse that header, the compile endpoint rejects the change with HTTP `409` and `errorCode: "ReportingSchemaAliasConflict"`. Read `detail` for the two meanings and give support the `traceId`. Rename the conflicting question or choice before retrying; do not backfill after a rejected compile.
 
