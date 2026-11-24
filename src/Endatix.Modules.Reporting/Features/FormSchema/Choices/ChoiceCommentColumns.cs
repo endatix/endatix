@@ -27,6 +27,19 @@ internal static class ChoiceCommentColumns
     internal static bool HasCommentBox(JsonElement choice) =>
         choice.ValueKind == JsonValueKind.Object && choice.GetBooleanProperty(SurveyJsPropertyNames.ShowCommentArea);
 
+    // A historical key can outlive its question. Only the submitted definition identifies what its object means.
+    public static bool CanRead(JsonElement question, FormSchemaColumn column, JsonElement? answer) =>
+        question.GetSurveyJsName() == column.SourceQuestion &&
+        SupportsChoiceComments(question) && ChoiceSource.Parse(question) is ChoiceSource.Inline &&
+        IsSupportedAnswer(question, answer) &&
+        SurveyJsChoiceHelper.EnumerateChoiceElements(question).Any(choice => choice.Value == column.ChoiceValue && HasCommentBox(choice.Element));
+
+    private static bool IsSupportedAnswer(JsonElement question, JsonElement? answer) =>
+        question.IsMultiSelectBaseSelect()
+            ? answer is { ValueKind: JsonValueKind.Array } &&
+              question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ValuePropertyName) is null or SurveyJsPropertyNames.Value
+            : answer is { ValueKind: JsonValueKind.Object };
+
     private static bool SupportsChoiceComments(JsonElement question)
     {
         var type = question.GetSurveyJsType();

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
@@ -17,6 +18,13 @@ internal static partial class FormDefinitionFlattener
             {
                 AddColumn(Columns, SeenKeys, Limits, column);
             }
+        }
+
+        public void AddPanelAnswer(JsonElement template, FormSchemaColumn answer)
+        {
+            AddColumn(Columns, SeenKeys, Limits, answer);
+            Add(ChoiceCommentColumns.For(template, answer.Key, answer.LoopPath)
+                .Select(comment => comment with { PanelName = answer.PanelName, PanelIndex = answer.PanelIndex }));
         }
     }
 }

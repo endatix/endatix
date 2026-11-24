@@ -48,6 +48,10 @@ Each cell contains only the comment stored on that selected choice. An unpicked 
 
 To refresh existing exports, compile the affected form in merge mode and run the forced backfill for both completion scopes as described in [Refresh stored rows](#refresh-stored-rows). This recovers comments present in the saved answers for choices in the compiled schema; it cannot recover text that was never stored.
 
+Reporting uses the submitted version and the panel item to identify the choice. If the version is missing or the answer could belong to a different question type, the comment cell stays blank. The original answer is unchanged.
+
+If a new comment would collide with another export header, the comment gets the first free suffix (`_2`, `_3`, …). A published comment keeps its assigned header. If a later question or choice would reuse that header, the compile endpoint rejects the change with HTTP `409` and `errorCode: "ReportingSchemaAliasConflict"`. Read `detail` for the two meanings and give support the `traceId`. Rename the conflicting question or choice before retrying; do not backfill after a rejected compile. `previousSchemaRetained: true` confirms the prior schema survived. `previousExportAvailable: true` means it still has exportable completed, non-test rows; such a download omits the recent changes. Other failures do not make those guarantees.
+
 ## Checkboxes from other form versions export empty cells {/* #checkboxes-from-other-form-versions */}
 
 **What changed:** a checkbox or tag box with its own choices that a submission's form version did not have, because it was added in a later version or removed in an earlier one, now exports empty cells for that submission, Other and None included. In 0.9.2 a completed submission wrote `0` in every one of its columns, as if the respondent had seen it and left it. Submissions saved on a version that has the question are unchanged. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).

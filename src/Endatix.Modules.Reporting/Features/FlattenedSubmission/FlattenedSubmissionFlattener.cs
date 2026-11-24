@@ -128,7 +128,7 @@ internal static class FlattenedSubmissionFlattener
         {
             FormSchemaColumnKind.ChoiceIndicator => choices.Indicator(scope, question, column.ChoiceValue!).ToJson(),
             FormSchemaColumnKind.CheckboxOtherText => choices.OtherText(scope, question),
-            FormSchemaColumnKind.ChoiceComment => choices.For(question).Read(scope.Own, question).CommentFor(column.ChoiceValue!),
+            FormSchemaColumnKind.ChoiceComment => CommentInScope(scope, column, choices),
             _ => choices.For(question).Read(scope.Own, question).SingleValueJson(),
         };
     }
@@ -142,6 +142,12 @@ internal static class FlattenedSubmissionFlattener
         }
 
         return answer;
+    }
+
+    private static JsonElement? CommentInScope(AnswerScope scope, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        var context = column.PanelIndex is null ? scope.Own : PanelItem(scope.Own, column);
+        return context is { } item ? choices.ChoiceComment(item, column) : null;
     }
 
     // A copied ranking's list depends on its sources, so an unranked choice may never have been on it: empty, not 0.
@@ -394,32 +400,12 @@ internal static class FlattenedSubmissionFlattener
     }
 
     private static JsonElement? TryGetPanelIndexValue(JsonElement submission, FormSchemaColumn column)
-    {
-        if (column.PanelIndex is null || column.SourceQuestion is null)
-        {
-            return null;
-        }
+        => column.SourceQuestion is { } question ? PanelItem(submission, column)?.TryGetPropertyValue(question) : null;
 
-        if (string.IsNullOrWhiteSpace(column.PanelName) ||
-            submission.TryGetPropertyValue(column.PanelName) is not JsonElement panelArray ||
-            panelArray.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var index = 0;
-        foreach (var panelItem in panelArray.EnumerateArray())
-        {
-            if (index == column.PanelIndex.Value)
-            {
-                return panelItem.TryGetPropertyValue(column.SourceQuestion);
-            }
-
-            index++;
-        }
-
-        return null;
-    }
+    private static JsonElement? PanelItem(JsonElement submission, FormSchemaColumn column) =>
+        column.PanelIndex is int index && index >= 0 && column.PanelName is { } panel &&
+        submission.TryGetPropertyValue(panel) is { ValueKind: JsonValueKind.Array } items && index < items.GetArrayLength()
+            ? items[index] : null;
 
     private static JsonElement? TryGetLoopContextValue(AnswerScope root, FormSchemaColumn column)
     {

@@ -295,7 +295,15 @@ internal sealed class FormSchemaProcessor(
         var current = await ReadDefinitionJsonAsync(rebuild.Target, cancellationToken);
         if (current is not null && !string.Equals(current, rebuild.Definition.Json, StringComparison.Ordinal))
         {
-            await RebuildAsync(rebuild.Target, rebuild.Trigger, cancellationToken);
+            try
+            {
+                await RebuildAsync(rebuild.Target, rebuild.Trigger, cancellationToken);
+            }
+            catch (ReportingSchemaAliasConflictException conflict)
+            {
+                // This rebuild already committed. Its caller cannot claim the pre-request schema and rows were retained.
+                throw new InvalidOperationException("The definition changed again after reporting compilation.", conflict);
+            }
         }
     }
 

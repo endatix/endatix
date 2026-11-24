@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 using Storage = Endatix.Modules.Reporting.Features.FormSchema.Choices.OtherStorage;
 
@@ -109,6 +110,12 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public SelectChoices For(string question) =>
         _selects.TryGetValue(question, out var select) ? select : SelectChoices.Unknown;
+
+    public JsonElement? ChoiceComment(JsonElement context, FormSchemaColumn column) =>
+        SubmittedQuestions.Value?.Choices.Question(column) is { } question &&
+        ChoiceCommentColumns.CanRead(question, column, context.TryGetPropertyValue(column.SourceQuestion!))
+            ? SelectChoices.Unknown.Read(context, column.SourceQuestion!).CommentFor(column.ChoiceValue!)
+            : null;
 
     /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
     public bool Copies(string question) => _copies.Contains(question);

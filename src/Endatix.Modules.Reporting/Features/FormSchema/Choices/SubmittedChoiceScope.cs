@@ -9,6 +9,7 @@ internal sealed class SubmittedChoiceScope
 {
     private readonly Dictionary<string, SubmittedChoiceScope> _panels = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<string, bool>> _conditions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, JsonElement?> _questionsByAnswerKey = new(StringComparer.Ordinal);
 
     public SubmittedChoiceScope Panel(string name)
     {
@@ -22,6 +23,12 @@ internal sealed class SubmittedChoiceScope
     }
 
     public void Note(string name, JsonElement question)
+    {
+        NoteAnswerKey(question.GetSurveyJsValueName() ?? name, question);
+        NoteConditions(name, question);
+    }
+
+    private void NoteConditions(string name, JsonElement question)
     {
         if (!question.IsMultiSelectBaseSelect() || ChoiceSource.Parse(question) is ChoiceSource.CarryForward)
         {
@@ -42,20 +49,41 @@ internal sealed class SubmittedChoiceScope
         }
     }
 
+    private void NoteAnswerKey(string key, JsonElement question)
+    {
+        if (!_questionsByAnswerKey.TryAdd(key, question))
+        {
+            _questionsByAnswerKey[key] = null;
+        }
+    }
+
     public bool? IsConditional(IReadOnlyList<LoopSegment> path, string name, string value)
     {
+        var scope = At(path.Select(segment => segment.PanelValueName));
+        return scope is not null && scope._conditions.TryGetValue(name, out var values) && values.TryGetValue(value, out var conditional)
+            ? conditional
+            : null;
+    }
+
+    public JsonElement? Question(FormSchemaColumn column)
+    {
+        var path = column.PanelName is { } panel
+            ? [panel]
+            : column.LoopPath?.Select(segment => segment.PanelValueName) ?? [];
+        return At(path)?._questionsByAnswerKey.GetValueOrDefault(column.SourceQuestion!);
+    }
+
+    private SubmittedChoiceScope? At(IEnumerable<string> path)
+    {
         var scope = this;
-        foreach (var segment in path)
+        foreach (var panel in path)
         {
-            if (!scope._panels.TryGetValue(segment.PanelValueName, out scope))
+            if (!scope._panels.TryGetValue(panel, out scope))
             {
                 return null;
             }
         }
 
-        // A merge retains removed columns. Only an offered value can override its catalog condition.
-        return scope._conditions.TryGetValue(name, out var values) && values.TryGetValue(value, out var conditional)
-            ? conditional
-            : null;
+        return scope;
     }
 }
