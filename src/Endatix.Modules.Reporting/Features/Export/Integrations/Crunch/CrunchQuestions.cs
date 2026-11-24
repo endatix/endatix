@@ -41,7 +41,7 @@ internal sealed class CrunchQuestions
         return keys;
     }
 
-    private static string FreeKey(string stem, HashSet<string> used)
+    internal static string FreeKey(string stem, HashSet<string> used)
     {
         var key = stem;
         var n = 2;

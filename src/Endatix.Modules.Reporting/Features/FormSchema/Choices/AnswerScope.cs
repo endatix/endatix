@@ -24,6 +24,18 @@ internal sealed class AnswerScope
     /// <summary>The scope of a row's root columns: the submission alone. A row resolves it once.</summary>
     public static AnswerScope Root(JsonElement submission) => new([submission]);
 
+    public AnswerScope? WithinPanel(FormSchemaColumn column)
+    {
+        if (column.Kind is FormSchemaColumnKind.NestedLoop)
+        {
+            return Within(column.LoopPath);
+        }
+
+        return column.PanelIndex is >= 0 && column.PanelName is { } name &&
+            Own.TryGetArrayProperty(name, out var items) && column.PanelIndex < items.GetArrayLength()
+            ? new AnswerScope([.. _contexts, items[column.PanelIndex.Value]]) : null;
+    }
+
     /// <summary>
     /// This scope narrowed to a column's loop path: itself when the column is not in a loop, null when the submission
     /// has no item for a segment of the path.

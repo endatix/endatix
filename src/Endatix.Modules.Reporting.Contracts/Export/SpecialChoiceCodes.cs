@@ -8,4 +8,9 @@ namespace Endatix.Modules.Reporting.Contracts.Export;
 public sealed record SpecialChoiceCodes(
     int? None = null,
     int? Refused = null,
-    [property: JsonPropertyName("dontknow")] int? DontKnow = null);
+    [property: JsonPropertyName("dontknow")] int? DontKnow = null)
+{
+    /// <summary>When omitted, Other retains its ordinary format-specific representation.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? Other { get; init; }
+}

@@ -6,7 +6,7 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 internal static partial class ShojiCodebookGenerator
 {
     internal sealed record Dataset(string KeySeparator, string Locale, string? Name, string? Description,
-        Contracts.Export.SpecialChoiceCodes? Codes = null);
+        Contracts.Export.SpecialChoiceCodes? Codes = null, ShojiPanelAliases? PanelAliases = null);
 
     private static void WritePanelCategories(Utf8JsonWriter writer, ShojiCodebookWriteArgs args, ShojiVariableTracking tracking)
     {
@@ -22,9 +22,9 @@ internal static partial class ShojiCodebookGenerator
             args.CodebookColumns.TryGetValue(column.Key, out var metadata);
             var name = BuildLeafDisplayName(alias, column, question, metadata, args.KeySeparator);
             WriteCategoricalVariable(writer, alias, alias, question, name, tracking.UsedDisplayNames);
-            if (args.Catalog.OtherTextKeys.TryGetValue(column.Key, out var companion))
+            if (args.Format.PanelAliases is { } aliases && args.Catalog.OtherTextKeys.ContainsKey(column.Key))
             {
-                WritePanelText(writer, (ExportKeyTransformer.Transform(companion, args.KeySeparator), name), tracking);
+                WritePanelText(writer, (aliases.Native.CompanionAlias(column.Key), name), tracking);
             }
         }
     }

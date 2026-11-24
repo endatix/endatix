@@ -13,6 +13,7 @@ internal sealed class ChoiceCodes(SpecialChoiceCodes? settings)
 {
     private readonly Dictionary<string, int> _codes = new Dictionary<string, int?>
     {
+        [SurveyJsPropertyNames.Other] = settings?.Other,
         ["none"] = settings?.None,
         ["refused"] = settings?.Refused,
         ["dontknow"] = settings?.DontKnow,

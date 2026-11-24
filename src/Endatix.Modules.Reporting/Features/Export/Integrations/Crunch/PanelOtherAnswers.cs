@@ -11,7 +11,7 @@ internal sealed record PanelOtherAnswers(SubmittedQuestions? Definition, JsonEle
     {
         var literal = Literal(raw);
         if (literal is null || Definition?.Choices.PanelQuestion(column) is not { } question ||
-            Context(column) is not { } context || context.TryGetPropertyValue(column.SourceQuestion!) is not { } stored ||
+            AnswerScope.Root(Submission).WithinPanel(column) is not { } scope || scope.Own.TryGetPropertyValue(column.SourceQuestion!) is not { } stored ||
             !JsonElement.DeepEquals(stored, raw))
         {
             return (null, literal);
@@ -22,8 +22,16 @@ internal sealed record PanelOtherAnswers(SubmittedQuestions? Definition, JsonEle
             return (null, literal);
         }
 
-        var answer = reader.Read(context, column.SourceQuestion!);
-        return Classify(reader, answer, literal);
+        return ReadScoped(reader, (scope, column.SourceQuestion!), literal);
+    }
+
+    private (JsonElement?, JsonElement?) ReadScoped(SelectChoices reader, (AnswerScope Scope, string Name) source, JsonElement? literal)
+    {
+        var (scope, name) = source;
+        var answer = reader.Read(scope.Own, name);
+        var (category, text) = Classify(reader, answer, literal);
+        return reader.OtherFrom is not null && answer.Has(SurveyJsPropertyNames.Other) && !CopyVisibility.IsText(text)
+            ? (category, Definition!.CopiedText(scope, name) ?? text) : (category, text);
     }
 
     private SelectChoices? SubmittedChoices(JsonElement question)
@@ -56,15 +64,4 @@ internal sealed record PanelOtherAnswers(SubmittedQuestions? Definition, JsonEle
         };
     }
 
-    private JsonElement? Context(FormSchemaColumn column)
-    {
-        if (column.Kind is FormSchemaColumnKind.NestedLoop)
-        {
-            return AnswerScope.Root(Submission).Within(column.LoopPath)?.Own;
-        }
-
-        return column.PanelIndex is >= 0 && column.PanelName is { } name &&
-            Submission.TryGetArrayProperty(name, out var items) && column.PanelIndex < items.GetArrayLength()
-            ? items[column.PanelIndex.Value] : null;
-    }
 }

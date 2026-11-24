@@ -28,7 +28,7 @@ public sealed class ShojiCodebookExportDataSourceTests
         IFormsRepository? formsRepository = null) =>
         new(
             TestExportSchemas.Of(formSchemaRepository),
-            formsRepository ?? Substitute.For<IFormsRepository>(),
+            new ShojiDatasetExport(formsRepository ?? Substitute.For<IFormsRepository>(), ColumnAliasTransformerRegistry.Default),
             ExportFormatSettingsParser);
 
     [Fact]

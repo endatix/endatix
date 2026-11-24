@@ -29,7 +29,7 @@ internal static class CrunchExport
     {
         ShojiCodebookExportDataSource dataSource = new(
             TestExportSchemas.Of(SubmissionFileExport.Schemas(schema)),
-            Substitute.For<IFormsRepository>(),
+            new ShojiDatasetExport(Substitute.For<IFormsRepository>(), ColumnAliasTransformerRegistry.Default),
             _settingsParser);
         var context = SubmissionFileExport.Context("codebook-shoji", typeof(DynamicExportRow), new(ExportFormatId: 1, SettingsJson: settingsJson));
         (await dataSource.PrepareOptionsAsync(context, cancellationToken)).IsSuccess.Should().BeTrue();

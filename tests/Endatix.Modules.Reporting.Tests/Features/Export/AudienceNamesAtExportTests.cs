@@ -70,7 +70,7 @@ public sealed class AudienceNamesAtExportTests
         // Arrange
         ShojiCodebookExportDataSource dataSource = new(
             new ExportSchemas(_schemas, _catalog, NullLogger<ExportSchemas>.Instance),
-            Substitute.For<IFormsRepository>(),
+            new ShojiDatasetExport(Substitute.For<IFormsRepository>(), ColumnAliasTransformerRegistry.Default),
             _settingsParser);
 
         // Act

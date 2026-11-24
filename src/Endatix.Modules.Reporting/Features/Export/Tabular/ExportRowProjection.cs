@@ -64,23 +64,13 @@ internal sealed class ExportRowProjection
         return new(submitted, JsonSerializer.Deserialize<JsonElement>(row.SubmittedAnswers));
     }
 
-    public ExportColumnPlan WithCompanions(ExportColumnPlan plan, string separator)
+    public ExportColumnPlan WithCompanions(ExportColumnPlan plan, Func<ExportColumnPlan> unscoped, string separator)
     {
         if (!NeedsSubmittedChoices)
         {
             return plan;
         }
-        var columns = plan.Columns.ToList();
-        foreach (var col in plan.Columns)
-        {
-            if (_catalog!.OtherTextKeys.TryGetValue(col.CanonicalKey, out var key))
-            {
-                var suffix = key[col.CanonicalKey.Length..];
-                columns.Add(new(key, col.ExportKey + suffix.Replace("__", separator, StringComparison.Ordinal),
-                    ExportColumnSource.DataJson, col.HeaderLabel + " -- Other", "string"));
-            }
-        }
-        return new(columns, plan.OmittedKeys);
+        return new PanelExportColumns(unscoped(), _catalog!, separator).WithCompanions(plan);
     }
 
     public string Project(FlattenedExportRow source)

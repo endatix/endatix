@@ -146,7 +146,8 @@ internal sealed partial class TabularExportDataSource(
         if (crunch || settings.SpecialChoiceCodes is not null)
         {
             var projection = new ExportRowProjection(exported, settings.SpecialChoiceCodes, crunch);
-            plan = projection.WithCompanions(plan, settings.KeySeparator);
+            var full = () => settings.ColumnScope is null ? plan : BuildPlan(exported, settings with { ColumnScope = null }, context.Request.Format);
+            plan = projection.WithCompanions(plan, full, settings.KeySeparator);
             context.Options.Metadata[PROJECTION_KEY] = projection;
         }
         context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = MapColumnPlan(plan);
