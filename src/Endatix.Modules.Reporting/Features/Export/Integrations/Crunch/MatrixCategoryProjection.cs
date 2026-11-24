@@ -21,8 +21,7 @@ internal sealed class MatrixCategoryProjection(FlattenedExportRow row, Dictionar
 
         if (answer.ValueKind != JsonValueKind.Number)
         {
-            return Selected(column) is { ValueKind: JsonValueKind.String } text
-                ? Find(categories, MatrixCode.Text(text.GetString()!)) : null;
+            return TextCategory(answer, column, categories);
         }
 
         var code = MatrixCode.Number(answer.GetRawText());
@@ -30,6 +29,13 @@ internal sealed class MatrixCategoryProjection(FlattenedExportRow row, Dictionar
         var ordinal = StringCodeAt(column, code) is { } textCode ? Find(categories, MatrixCode.Text(textCode)) : null;
         return numeric.HasValue && ordinal.HasValue
             ? ResolveCollision(column, code, categories) : numeric ?? ordinal;
+    }
+
+    private JsonElement? TextCategory(JsonElement answer, FormSchemaColumn column, Dictionary<MatrixCode, JsonElement> categories)
+    {
+        var text = answer.ValueKind == JsonValueKind.Null ? Selected(column) : answer;
+        return text is { ValueKind: JsonValueKind.String } value
+            ? Find(categories, MatrixCode.Text(value.GetString()!)) : null;
     }
 
     private JsonElement? ResolveCollision(FormSchemaColumn column, MatrixCode code, Dictionary<MatrixCode, JsonElement> categories)

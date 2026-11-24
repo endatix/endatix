@@ -86,19 +86,35 @@ internal sealed class PublishedMatrixCategories(string question)
             }
 
             var entry = JsonNode.Parse(column.GetRawText())!;
-            entry[FormSchemaCodebookPropertyNames.Id] = PublishedId(code);
+            entry[FormSchemaCodebookPropertyNames.Id] = PublishedId(code, entry);
             yield return entry;
         }
     }
 
-    private int PublishedId(MatrixCode code)
+    private int PublishedId(MatrixCode code, JsonNode entry)
     {
         if (_published.Remove(code, out var old))
         {
+            PreserveNameSource(old, entry);
             return old.GetProperty(FormSchemaCodebookPropertyNames.Id).GetInt32();
         }
 
         return _lastId == int.MaxValue ? throw Conflict() : ++_lastId;
+    }
+
+    private static void PreserveNameSource(JsonElement old, JsonNode current)
+    {
+        var source = old.TryGetPropertyValue(FormSchemaCodebookPropertyNames.PUBLISHED_NAME_SOURCE) ?? old;
+        var text = JsonNode.Parse(source.GetProperty(SurveyJsPropertyNames.Text).GetRawText());
+        var value = source.GetStringProperty(SurveyJsPropertyNames.Value);
+        if (value != (string?)current[SurveyJsPropertyNames.Value] || !JsonNode.DeepEquals(text, current[SurveyJsPropertyNames.Text]))
+        {
+            current[FormSchemaCodebookPropertyNames.PUBLISHED_NAME_SOURCE] = new JsonObject
+            {
+                [SurveyJsPropertyNames.Value] = value,
+                [SurveyJsPropertyNames.Text] = text,
+            };
+        }
     }
 
     internal ReportingSchemaAliasConflictException Conflict() =>

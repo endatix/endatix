@@ -127,6 +127,8 @@ For a radio matrix column defined as `{ "value": 10, "text": "High" }`, the nati
 
 Merge compilation keeps published category IDs, including categories removed from a matrix that still exists. New categories receive IDs after all reserved IDs. Numeric codes compare by exact numeric value (`10.0` and `1E1` match `10`); a string `"10"` is a different choice. If a flattened number could also be a string choice's ordinal, Shoji uses the original answer to distinguish them. Without a matching original answer the cell is missing.
 
+Shoji keeps the published names of a typed matrix's categories as well as their IDs. If `10` was published as `High` and `20` replaces it with the same label, the new name is `High (20)`. The native codebook still shows the definition's label. When a flattened cell contains the exact string code, Shoji can decode it even without the original submission; `"80"` never means numeric `80`.
+
 An upgrade does not rewrite saved schemas. A codebook compiled before numeric codes were identified may contain labels instead of codes. Exports keep the historical behavior for such a matrix; backfill alone cannot recover its codebook. A merge that cannot establish category continuity returns a conflict before saving. Historical-only questions retain their stored metadata. Explicit replacement starts a new schema and can discard historical categories and rows; it is not an identity-preserving upgrade.
 
 ### Copied choices
