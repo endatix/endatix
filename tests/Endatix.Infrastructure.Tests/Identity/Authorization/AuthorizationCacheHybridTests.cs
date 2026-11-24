@@ -140,6 +140,49 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
         read.ExpiresAt.Should().Be(expiresAt);
     }
 
+    [Fact]
+    public async Task GetOrCreateAsync_EquivalentReportsInEitherOrder_ReturnsOneActionAndTheSameETag()
+    {
+        var deadline = _start.AddSeconds(30);
+        RequiredAction first = new()
+        {
+            Key = "profile.complete",
+            ResolvePath = "/profile",
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Notice,
+            BlockingFrom = deadline,
+            ResolverRoles = ["Creator", "Admin"]
+        };
+        var equivalent = first with
+        {
+            ResolverRoles = ["Admin", "Creator", "Admin"],
+            CanResolve = true,
+            BlockingFrom = deadline.ToOffset(TimeSpan.FromHours(2))
+        };
+        var other = first with { Key = "email.verify", ResolvePath = "/email" };
+        Task<AuthorizationData> ReadAsync(params RequiredAction[] reports)
+        {
+            var cache = CreateInstance(false, reports.Select(ReportProvider).ToArray());
+            return cache.GetOrCreateAsync(CreatePrincipal(), _ => Task.FromResult(Result.Success(CreateData(default))),
+                TestContext.Current.CancellationToken);
+        }
+
+        var forward = await ReadAsync(first, other, equivalent);
+        var reversed = await ReadAsync(equivalent, other, first);
+        var single = await ReadAsync(other, first);
+
+        forward.RequiredActions.Select(a => a.Key).Should().Equal("email.verify", "profile.complete");
+        reversed.ETag.Should().Be(single.ETag);
+        forward.ETag.Should().Be(single.ETag);
+    }
+
+    private static IRequiredActionProvider ReportProvider(RequiredAction report)
+    {
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([report]);
+        return provider;
+    }
+
     private sealed class ConfiguredProvider(string revision) : IRequiredActionProvider
     {
         public string CacheConfigurationKey => revision;

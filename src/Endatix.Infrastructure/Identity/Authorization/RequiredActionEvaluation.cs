@@ -39,7 +39,8 @@ internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] provide
         var now = clock.Now.UtcDateTime;
         return data with
         {
-            RequiredActions = actions.OrderBy(a => a.Key, StringComparer.Ordinal)
+            RequiredActions = actions.Select(Normalize).GroupBy(action => action.Key, StringComparer.Ordinal)
+                .OrderBy(group => group.Key, StringComparer.Ordinal).SelectMany(CoalesceEquivalent)
                 .Select(action => ForUser(action, data.Roles, now)).ToArray()
         };
     }
@@ -54,14 +55,26 @@ internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] provide
         return actions;
     }
 
+    private static RequiredAction Normalize(RequiredAction action) => action with
+    {
+        ResolverRoles = action.ResolverRoles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+        BlockingFrom = action.BlockingFrom?.ToUniversalTime(),
+        CanResolve = false
+    };
+
+    private static IEnumerable<RequiredAction> CoalesceEquivalent(IGrouping<string, RequiredAction> group)
+    {
+        var first = group.First();
+        return group.All(report => report.ResolverRoles.SequenceEqual(first.ResolverRoles, StringComparer.Ordinal)
+            && report with { ResolverRoles = first.ResolverRoles } == first) ? [first] : group;
+    }
+
     private static RequiredAction ForUser(RequiredAction action, HashSet<string> roles, DateTime now)
     {
-        var resolverRoles = action.ResolverRoles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        var canResolve = resolverRoles.Length == 0 || roles.Overlaps(resolverRoles);
+        var canResolve = action.ResolverRoles.Count == 0 || roles.Overlaps(action.ResolverRoles);
         var blocking = action.Severity == RequiredActionSeverity.Blocking || action.BlockingFrom <= now;
         return action with
         {
-            ResolverRoles = resolverRoles,
             CanResolve = canResolve,
             Severity = blocking && (canResolve || action.BlockNonResolvers)
                 ? RequiredActionSeverity.Blocking : RequiredActionSeverity.Notice
