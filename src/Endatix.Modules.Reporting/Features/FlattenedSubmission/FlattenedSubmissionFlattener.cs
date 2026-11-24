@@ -146,8 +146,19 @@ internal static class FlattenedSubmissionFlattener
 
     private static JsonElement? CommentInScope(AnswerScope scope, FormSchemaColumn column, ChoiceCatalogs choices)
     {
-        var context = column.PanelIndex is null ? scope.Own : PanelItem(scope.Own, column);
-        return context is { } item ? choices.ChoiceComment(item, column) : null;
+        if (column.PanelIndex is null)
+        {
+            return choices.ChoiceComment(scope.Own, column);
+        }
+
+        if (column.PanelName is not { } name || choices.IndexedPanelKey(name) is not { Length: > 0 } key)
+        {
+            return null;
+        }
+
+        // The published name identifies the column; only the submitted panel key identifies its data and template.
+        var stored = column with { PanelName = key };
+        return PanelItem(scope.Own, stored) is { } item ? choices.ChoiceComment(item, stored) : null;
     }
 
     // A copied ranking's list depends on its sources, so an unranked choice may never have been on it: empty, not 0.

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -78,9 +79,26 @@ internal sealed class SubmittedChoiceScope
             ? [panel]
             : column.LoopPath?.Select(segment => segment.PanelValueName) ?? [];
         var scope = At(path);
-        return scope?._answerKeysByName.GetValueOrDefault(column.SourceQuestion!) is { } key
-            ? scope._questionsByAnswerKey.GetValueOrDefault(key) : null;
+        return scope?.UniqueQuestion(column.SourceQuestion!);
     }
+
+    public string? IndexedPanelKey(string name)
+    {
+        if (UniqueQuestion(name) is not { } panel || !SurveyJsElementType.PanelDynamic.Matches(panel.GetSurveyJsType()))
+        {
+            return null;
+        }
+
+        if (!panel.TryGetProperty(SurveyJsPropertyNames.ValueName, out var valueName))
+        {
+            return name;
+        }
+
+        return valueName.ValueKind == JsonValueKind.String ? valueName.GetString() : null;
+    }
+
+    private JsonElement? UniqueQuestion(string name) =>
+        _answerKeysByName.GetValueOrDefault(name) is { } key ? _questionsByAnswerKey.GetValueOrDefault(key) : null;
 
     private SubmittedChoiceScope? At(IEnumerable<string> path)
     {

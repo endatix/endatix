@@ -124,6 +124,8 @@ internal sealed class ChoiceCatalogs
             : null;
     }
 
+    public string? IndexedPanelKey(string name) => SubmittedQuestions.Value?.Choices.IndexedPanelKey(name);
+
     /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
     public bool Copies(string question) => _copies.Contains(question);
 
