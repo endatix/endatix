@@ -21,6 +21,10 @@ public sealed class ChoiceCommentHistoryTests
     [InlineData(TAG, NOTES, "Stored text")]
     [InlineData(TAG, """{"q":["yes"]}""", null)]
     [InlineData(null, NOTE, null)]
+    [InlineData("""{"type":"dropdown","name":"q","valueName":"answer","choices":[{"value":"yes","showCommentArea":true}]}""",
+        """{"answer":{"value":"yes","comment":"Real note"},"q":{"value":"yes","comment":"Wrong key"}}""", "Real note")]
+    [InlineData("""{"type":"dropdown","name":"q","valueName":"answer","choices":[{"value":"yes","showCommentArea":true}]},{"type":"text","name":"answer"}""",
+        """{"answer":{"value":"yes","comment":"Ambiguous"}}""", null)]
     [InlineData("""{"type":"checkbox","name":"q","valuePropertyName":"brand","choices":[{"value":"yes","showCommentArea":true}]}""", NOTES, null)]
     [InlineData("""{"type":"radiogroup","name":"q","choices":["yes"]}""", NOTE, null)]
     public void Flatten_RetainedComment_UsesTheSubmittedQuestionAndItsStorageShape(string? submitted, string raw, string? text)
@@ -40,4 +44,20 @@ public sealed class ChoiceCommentHistoryTests
     }
 
     private static string Definition(string question) => $$"""{"pages":[{"elements":[{{question}}]}]}""";
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("unparseable")]
+    public void HasColumnsFor_UnreadableHistoricalDefinition_RetainsTheExistingMap(string historical)
+    {
+        // Arrange
+        FormSchemaCompiler compiler = new();
+        var schema = compiler.CompilePersisted(Definition(RADIO));
+
+        // Act
+        var covered = compiler.HasColumnsFor(schema.FlatteningMapJson, historical);
+
+        // Assert
+        covered.Should().BeTrue();
+    }
 }

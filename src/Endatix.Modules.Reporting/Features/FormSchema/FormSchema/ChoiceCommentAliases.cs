@@ -69,6 +69,11 @@ internal sealed class ChoiceCommentAliases
     private static IEnumerable<string> Aliases(FormSchemaColumn column)
     {
         yield return Alias(column.Key);
+        if (column.Kind == FormSchemaColumnKind.RankingChoice)
+        {
+            yield return Alias(column.RankingArrayKey());
+        }
+
         if (column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.MatrixRow)
         {
             yield return Alias(ExportKeyTransformer.RemoveLastSegment(column.Key));

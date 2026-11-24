@@ -49,6 +49,5 @@ internal static partial class ShojiCodebookGenerator
     }
 
     private static string RankingAlias(FormSchemaColumn column, string separator) =>
-        ExportKeyTransformer.Transform(column.LoopPath is null && column.SourceQuestion is { } name
-            ? name : ExportKeyTransformer.RemoveLastSegment(column.Key), separator);
+        ExportKeyTransformer.Transform(column.RankingArrayKey(), separator);
 }

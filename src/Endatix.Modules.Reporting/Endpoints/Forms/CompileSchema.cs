@@ -2,7 +2,6 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using FastEndpoints;
@@ -64,7 +63,7 @@ public sealed class CompileSchema(
         var result = await mediator.Send(command, ct);
         if (result.IsConflict())
         {
-            return await AliasConflictAsync(command, result.Errors.Single(), ct);
+            return AliasConflict(command, result.Errors.Single());
         }
 
         return Compiled(result);
@@ -81,14 +80,14 @@ public sealed class CompileSchema(
                 })
             .SetTypedResults<Ok<CompileFormSchemaResponse>, ProblemHttpResult>();
 
-    private async Task<ProblemHttpResult> AliasConflictAsync(CompileFormSchemaCommand command, string detail, CancellationToken ct)
+    private ProblemHttpResult AliasConflict(CompileFormSchemaCommand command, string detail)
     {
         var problem = EndatixProblemDetails.Create(StatusCodes.Status409Conflict, null, detail, HttpContext, ReportingSchemaAliasConflictException.CODE);
         Logger.LogWarning("Reporting compile rejected for form {FormId}: {ErrorCode}; support reference {TraceId}; {Conflict}",
             command.FormId, ReportingSchemaAliasConflictException.CODE, problem.Extensions["traceId"], detail);
         problem.Extensions["previousSchemaRetained"] = true;
-        problem.Extensions["previousExportAvailable"] = await Resolve<IReportingExportRepository>().HasExportableRowsAsync(
-            command.TenantId, command.FormId, new ExportQueryOptions(IsComplete: true), ct);
+        // Compile has no selected export format, locale or filters and cannot vouch for the download.
+        problem.Extensions["previousExportAvailable"] = false;
         return TypedResults.Problem(problem);
     }
 }

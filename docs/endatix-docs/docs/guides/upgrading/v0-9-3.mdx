@@ -50,7 +50,9 @@ To refresh existing exports, compile the affected form in merge mode and run the
 
 Reporting uses the submitted version and the panel item to identify the choice. If the version is missing or the answer could belong to a different question type, the comment cell stays blank. The original answer is unchanged.
 
-If a new comment would collide with another export header, the comment gets the first free suffix (`_2`, `_3`, …). A published comment keeps its assigned header. If a later question or choice would reuse that header, the compile endpoint rejects the change with HTTP `409` and `errorCode: "ReportingSchemaAliasConflict"`. Read `detail` for the two meanings and give support the `traceId`. Rename the conflicting question or choice before retrying; do not backfill after a rejected compile. `previousSchemaRetained: true` confirms the prior schema survived. `previousExportAvailable: true` means it still has exportable completed, non-test rows; such a download omits the recent changes. Other failures do not make those guarantees.
+If a new comment would collide with another export header or a Shoji ranking array, the comment gets the first free suffix (`_2`, `_3`, …). A published comment keeps its assigned header. If a later question or choice would reuse that header, the compile endpoint rejects the change with HTTP `409` and `errorCode: "ReportingSchemaAliasConflict"`. Read `detail` for the two meanings and give support the `traceId`. Rename the conflicting question or choice before retrying; do not backfill after a rejected compile.
+
+`previousSchemaRetained: true` confirms the prior schema survived. Compile does not receive the selected export format, locale or filters, so it returns `previousExportAvailable: false` even when rows exist. Only a successful download with those exact options establishes that the previous export is usable. It omits recent changes.
 
 ## Checkboxes from other form versions export empty cells {/* #checkboxes-from-other-form-versions */}
 

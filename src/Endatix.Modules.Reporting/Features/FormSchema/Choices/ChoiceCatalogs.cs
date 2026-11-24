@@ -111,11 +111,18 @@ internal sealed class ChoiceCatalogs
     public SelectChoices For(string question) =>
         _selects.TryGetValue(question, out var select) ? select : SelectChoices.Unknown;
 
-    public JsonElement? ChoiceComment(JsonElement context, FormSchemaColumn column) =>
-        SubmittedQuestions.Value?.Choices.Question(column) is { } question &&
-        ChoiceCommentColumns.CanRead(question, column, context.TryGetPropertyValue(column.SourceQuestion!))
-            ? SelectChoices.Unknown.Read(context, column.SourceQuestion!).CommentFor(column.ChoiceValue!)
+    public JsonElement? ChoiceComment(JsonElement context, FormSchemaColumn column)
+    {
+        if (SubmittedQuestions.Value?.Choices.Question(column) is not { } question)
+        {
+            return null;
+        }
+
+        var key = question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ValueName) ?? column.SourceQuestion!;
+        return ChoiceCommentColumns.CanRead(question, column, context.TryGetPropertyValue(key))
+            ? SelectChoices.Unknown.Read(context, key).CommentFor(column.ChoiceValue!)
             : null;
+    }
 
     /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
     public bool Copies(string question) => _copies.Contains(question);

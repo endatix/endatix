@@ -10,6 +10,7 @@ internal sealed class SubmittedChoiceScope
     private readonly Dictionary<string, SubmittedChoiceScope> _panels = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<string, bool>> _conditions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, JsonElement?> _questionsByAnswerKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _answerKeysByName = new(StringComparer.Ordinal);
 
     public SubmittedChoiceScope Panel(string name)
     {
@@ -24,7 +25,13 @@ internal sealed class SubmittedChoiceScope
 
     public void Note(string name, JsonElement question)
     {
-        NoteAnswerKey(question.GetSurveyJsValueName() ?? name, question);
+        var key = question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ValueName) ?? name;
+        if (!_answerKeysByName.TryAdd(name, key))
+        {
+            _answerKeysByName[name] = null;
+        }
+
+        NoteAnswerKey(key, question);
         NoteConditions(name, question);
     }
 
@@ -70,7 +77,9 @@ internal sealed class SubmittedChoiceScope
         var path = column.PanelName is { } panel
             ? [panel]
             : column.LoopPath?.Select(segment => segment.PanelValueName) ?? [];
-        return At(path)?._questionsByAnswerKey.GetValueOrDefault(column.SourceQuestion!);
+        var scope = At(path);
+        return scope?._answerKeysByName.GetValueOrDefault(column.SourceQuestion!) is { } key
+            ? scope._questionsByAnswerKey.GetValueOrDefault(key) : null;
     }
 
     private SubmittedChoiceScope? At(IEnumerable<string> path)

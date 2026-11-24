@@ -127,7 +127,7 @@ public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture 
         detail.GetProperty("errorCode").GetString().Should().Be("ReportingSchemaAliasConflict");
         detail.GetProperty("traceId").GetString().Should().NotBeNullOrWhiteSpace();
         detail.GetProperty("previousSchemaRetained").GetBoolean().Should().BeTrue();
-        detail.GetProperty("previousExportAvailable").GetBoolean().Should().BeTrue();
+        detail.GetProperty("previousExportAvailable").GetBoolean().Should().BeFalse();
         original.Should().Contain("Earlier note");
         (await api.ExportCsvAsync(formId)).Should().Be(original);
     }

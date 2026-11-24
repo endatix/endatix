@@ -55,4 +55,24 @@ public sealed class ChoiceCommentAliasTests
 
     private static string Definition(string choices) =>
         """{"pages":[{"elements":[{"type":"checkbox","name":"q","choices":[""" + choices + "]}]}]}";
+
+    [Fact]
+    public void Compile_CommentWouldTakeRankingArrayAlias_PreservesThePublishedNumericArray()
+    {
+        // Arrange
+        const string ranking = """{"type":"ranking","name":"q--a--comment","choices":["first","second"]}""";
+        var first = """{"pages":[{"elements":[""" + ranking + "]}]}";
+        const string checkbox = """{"type":"checkbox","name":"q","choices":[{"value":"a","showCommentArea":true}]}""";
+        var next = """{"pages":[{"elements":[""" + ranking + "," + checkbox + "]}]}";
+        var pipeline = Personalization.PersonalizationPipeline.Compile(first);
+
+        // Act
+        pipeline.Recompile(next, FormSchemaCompileMode.Merge);
+        using var shoji = JsonDocument.Parse(pipeline.ShojiCodebook());
+
+        // Assert
+        var metadata = shoji.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata");
+        metadata.GetProperty("q--a--comment").GetProperty("type").GetString().Should().Be("numeric_array");
+        metadata.GetProperty("q--a--comment_2").GetProperty("type").GetString().Should().Be("text");
+    }
 }

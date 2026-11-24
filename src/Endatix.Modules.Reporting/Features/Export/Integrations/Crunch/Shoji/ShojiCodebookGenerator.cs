@@ -967,14 +967,14 @@ internal static partial class ShojiCodebookGenerator
             codebookColumns.TryGetValue(column.Key, out var columnMetadata);
             var preferredName = BuildLoopDisplayName(exportKey, column, question, questions, columnMetadata, keySeparator);
 
-            if (column.Kind is FormSchemaColumnKind.CheckboxOtherText)
+            if (column.Kind is FormSchemaColumnKind.CheckboxOtherText or FormSchemaColumnKind.ChoiceComment)
             {
                 var driverText = ResolveLoopDriverChoiceText(column, questions, keySeparator);
                 WriteLoopScalarVariable(
                     writer,
                     exportKey,
                     (ShojiCodebookPropertyNames.VariableTypeText, question),
-                    AppendOtherSuffix(preferredName),
+                    column.Kind == FormSchemaColumnKind.CheckboxOtherText ? AppendOtherSuffix(preferredName) : preferredName,
                     question,
                     usedDisplayNames,
                     driverText);
@@ -1415,7 +1415,7 @@ internal static partial class ShojiCodebookGenerator
         }
 
         if (string.Equals(column.DataType, "number", StringComparison.OrdinalIgnoreCase) ||
-            (question.ValueKind == JsonValueKind.Object &&
+            (column.Kind != FormSchemaColumnKind.ChoiceComment && question.ValueKind == JsonValueKind.Object &&
              SurveyJsElementType.Rating.Matches(question.GetSurveyJsType())))
         {
             return ShojiCodebookPropertyNames.VariableTypeNumeric;

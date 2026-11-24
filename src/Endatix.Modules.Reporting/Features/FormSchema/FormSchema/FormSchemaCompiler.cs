@@ -95,8 +95,25 @@ internal class FormSchemaCompiler(
     /// Whether a persisted flattening map already has every column the definition compiles to, so merging the
     /// definition into it would add none.
     /// </summary>
-    public bool HasColumnsFor(string flatteningMapJson, string definitionJson) =>
-        HasColumns(flatteningMapJson, Columns(definitionJson));
+    public bool HasColumnsFor(string flatteningMapJson, string definitionJson)
+    {
+        using var submitted = ReadHistoricalDefinition(definitionJson);
+        // An unreadable older definition cannot contribute columns. Flatten with the verified owner's stored map.
+        return submitted?.RootElement is not { ValueKind: JsonValueKind.Object } definition ||
+               HasColumns(flatteningMapJson, FormDefinitionFlattener.Flatten(definition, _limits));
+    }
+
+    private static JsonDocument? ReadHistoricalDefinition(string json)
+    {
+        try
+        {
+            return JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>Whether a persisted flattening map already has a column with the key of every one in <paramref name="columns"/>.</summary>
     public static bool HasColumns(string flatteningMapJson, IReadOnlyList<FormSchemaColumn> columns)
