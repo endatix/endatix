@@ -15,34 +15,28 @@ internal sealed class PublishedMatrixCategories(string question)
     {
         foreach (var old in existing.EnumerateObject())
         {
-            questions[old.Name] = questions.TryGetValue(old.Name, out var current) ? Merge(old, current, history) : old.Value.Clone();
+            questions[old.Name] = questions.TryGetValue(old.Name, out var current)
+                ? new PublishedMatrixCategories(old.Name).Merge(old.Value, current, history) : old.Value.Clone();
         }
     }
 
-    private static JsonElement Merge(JsonProperty previous, JsonElement current, LegacyMatrixHistory? history)
+    internal JsonElement Merge(JsonElement previous, JsonElement current, LegacyMatrixHistory? history)
     {
-        if (!IsRadio(previous.Value, out var oldColumns) || !IsRadio(current, out var newColumns))
+        if (!IsRadio(previous, out var oldColumns) || oldColumns.GetArrayLength() == 0 || !IsRadio(current, out var newColumns))
         {
             return current;
         }
 
-        if (!oldColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn))
+        var proven = previous.GetBooleanProperty(FormSchemaCodebookPropertyNames.TYPED_MATRIX_CODES) ||
+            oldColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn);
+        if (!proven && newColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn))
         {
-            if (!newColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn) || oldColumns.GetArrayLength() == 0)
-            {
-                return current;
-            }
-
-            oldColumns = history?.Recover(previous.Name, oldColumns) ?? throw new LegacyMatrixSourceRequiredException(previous.Name);
+            oldColumns = history?.Recover(question, oldColumns) ?? throw new LegacyMatrixSourceRequiredException(question);
+            proven = true;
         }
 
-        return new PublishedMatrixCategories(previous.Name).MergeColumns(oldColumns, current, newColumns);
-    }
-
-    private JsonElement MergeColumns(JsonElement old, JsonElement current, JsonElement columns)
-    {
-        Reserve(old);
-        return WithPublishedIds(current, columns);
+        Reserve(oldColumns);
+        return WithPublishedIds(current, newColumns, proven);
     }
 
     private static bool IsRadio(JsonElement question, out JsonElement columns)
@@ -66,9 +60,15 @@ internal sealed class PublishedMatrixCategories(string question)
         }
     }
 
-    private JsonElement WithPublishedIds(JsonElement current, JsonElement columns)
+    private JsonElement WithPublishedIds(JsonElement current, JsonElement columns, bool proven)
     {
         var result = JsonNode.Parse(current.GetRawText())!;
+        if (!proven)
+        {
+            // Rewriting an untyped category alongside today's strings cannot establish its historical type.
+            result.AsObject().Remove(FormSchemaCodebookPropertyNames.TYPED_MATRIX_CODES);
+        }
+
         var merged = new JsonArray(CurrentEntries(columns).ToArray());
         foreach (var removed in _published.Values)
         {

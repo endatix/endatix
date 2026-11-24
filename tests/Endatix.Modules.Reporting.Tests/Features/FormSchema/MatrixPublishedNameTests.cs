@@ -1,5 +1,8 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Modules.Reporting.Contracts.Export;
+using Endatix.Modules.Reporting.Features.Export;
+using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
@@ -77,6 +80,56 @@ public sealed class MatrixPublishedNameTests
     private static string Definition(string columns) =>
         $$"""{"elements":[{"type":"matrix","name":"m","rows":["r"],"columns":{{columns}}}]}""";
 
+    [Fact]
+    public async Task Merge_StringsThenNumbers_OldAndNewDownloadsRetainAliasesAndCategoryMeanings()
+    {
+        // Arrange
+        var original = Definition("""["first","second"]""");
+        var revised = Definition("""["added","second"]""");
+        var later = Definition("""[80,"added","second"]""");
+        var pipeline = PersonalizationPipeline.Compile(original);
+        FixtureResponse[] responses = [Answer("old", "\"first\""), Answer("new", "\"added\""), Answer("number", "80")];
+        pipeline.Flatten(original, responses[0]);
+        var first = await ReadAsync(pipeline, pipeline.ExportRows(responses[..1]));
+
+        // Act
+        pipeline.Recompile(revised, FormSchemaCompileMode.Merge);
+        pipeline.Flatten(revised, responses[1]);
+        var second = await ReadAsync(pipeline, pipeline.ExportRows(responses[..2]));
+        pipeline.Recompile(later, FormSchemaCompileMode.Merge);
+        pipeline.Flatten(later, responses[2]);
+        var third = await ReadAsync(pipeline, pipeline.ExportRows(responses));
+
+        // Assert
+        first.Decoded.Should().Equal("first");
+        second.Decoded.Should().Equal("first", "added");
+        third.Native.Should().Equal("1", "3", "80");
+        third.Ids.Should().Equal("1", "3", "4");
+        third.Decoded.Should().Equal("first", "added", "80");
+        third.Names["2"].Should().Be("second");
+    }
+
+    [Fact]
+    public void Export_UnmarkedStringBook_KeepsLegacyShojiNames()
+    {
+        // Arrange
+        var pipeline = PersonalizationPipeline.Compile(Definition("""["second"," second "]"""));
+        var unmarked = JsonNode.Parse(pipeline.Schema.CodebookJson)!;
+        unmarked["questions"]!["m"]!.AsObject().Remove("typedMatrixCodes");
+
+        // Act
+        var shoji = ShojiCodebookGenerator.Generate(pipeline.Schema.FlatteningMapJson, unmarked.ToJsonString(),
+            ExportFormatSettings.InterimCrunchKeySeparator);
+
+        // Assert
+        using var book = JsonDocument.Parse(shoji);
+        var table = book.RootElement.GetProperty("body").GetProperty("table");
+        table.GetProperty("hidden").EnumerateArray().Select(a => a.GetString()).Should().Contain("FormId");
+        var matrix = table.GetProperty("metadata").GetProperty("m");
+        matrix.GetProperty("categories").EnumerateArray().Select(c => c.GetProperty("name").GetString())
+            .Should().Equal("second", "second");
+    }
+
     private static FixtureResponse Answer(string id, string json) => new(id, """{"m":{"r":""" + json + "}}", null);
 
     private sealed record Readback(string[] Native, Dictionary<string, string> Names, string[] Ids)
@@ -93,6 +146,7 @@ public sealed class MatrixPublishedNameTests
         using var book = JsonDocument.Parse(await CrunchExport.ShojiCodebookAsync(schema, ct));
         var matrix = book.RootElement.GetProperty("body").GetProperty("table").GetProperty("metadata").GetProperty("m");
         var alias = matrix.GetProperty("subvariables")[0].GetProperty("alias").GetString()!;
+        alias.Should().Be("m--r");
         var (header, records) = CrunchImportCheck.Read(await CrunchExport.CsvAsync(schema, rows, ct));
         return new(
             [.. data.RootElement.EnumerateArray().Select(r => r.GetProperty("m__r").GetRawText())],

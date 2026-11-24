@@ -61,17 +61,16 @@ internal class FormSchemaCompiler(
     private FormSchemaCompileResult CompileCore(string definitionJson, CompilationBase previous)
     {
         using var definition = JsonDocument.Parse(definitionJson);
-        var existingFlatteningMap = string.IsNullOrWhiteSpace(previous.Map)
-            ? null
-            : FormSchemaFlatteningMap.FromJson(previous.Map);
+        var existingFlatteningMap = string.IsNullOrWhiteSpace(previous.Map) ? null : FormSchemaFlatteningMap.FromJson(previous.Map);
 
         var currentColumns = FormDefinitionFlattener.Flatten(definition.RootElement, _limits, existingFlatteningMap);
         var merged = Merge(currentColumns, previous.Mode == FormSchemaCompileMode.Replace ? null : existingFlatteningMap);
-        var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
         var codebookJson = FormSchemaCodebookBuilder.Build(
             definition.RootElement,
             merged.WithCurrentColumns(currentColumns),
             previous.Codebook);
+        merged = MatrixStringOrdinals.Apply(merged, codebookJson, previous.Codebook.Json is null ? null : existingFlatteningMap);
+        var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition.RootElement);
         var localesJson = JsonSerializer.Serialize(locales);
 

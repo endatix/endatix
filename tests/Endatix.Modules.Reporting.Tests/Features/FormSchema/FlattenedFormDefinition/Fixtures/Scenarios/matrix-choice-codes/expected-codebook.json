@@ -8,6 +8,7 @@
       "surveyJsType": "matrix",
       "title": {},
       "exportShape": "categorical_array",
+      "typedMatrixCodes": true,
       "columns": [
         {
           "numericCode": true,
@@ -52,6 +53,7 @@
       "surveyJsType": "matrix",
       "title": {},
       "exportShape": "categorical_array",
+      "typedMatrixCodes": true,
       "columns": [
         {
           "numericCode": true,

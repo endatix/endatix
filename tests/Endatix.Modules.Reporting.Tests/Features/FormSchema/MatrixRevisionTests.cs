@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
@@ -91,15 +92,18 @@ public sealed class MatrixRevisionTests
     public void Merge_UntypedLegacyLabels_CannotEstablishNumericCategoryIdentity()
     {
         // Arrange
-        var pipeline = PersonalizationPipeline.Compile(Definition("""["Two","Skip"]"""));
-        var stored = pipeline.Schema.CodebookJson;
+        var compiler = new FormSchemaCompiler();
+        var old = compiler.CompilePersisted(Definition("""["Two","Skip"]"""));
+        var legacy = JsonNode.Parse(old.CodebookJson)!;
+        legacy["questions"]!["m"]!.AsObject().Remove("typedMatrixCodes");
+        var merged = compiler.CompilePersisted(Definition("""["Skip","added"]"""), old.FlatteningMapJson, legacy.ToJsonString());
 
         // Act
-        var compile = () => pipeline.Recompile(Definition(REVISED), FormSchemaCompileMode.Merge);
+        var compile = () => compiler.CompilePersisted(Definition(REVISED), merged.FlatteningMapJson, merged.CodebookJson);
 
         // Assert
         compile.Should().Throw<ReportingSchemaAliasConflictException>();
-        pipeline.Schema.CodebookJson.Should().Be(stored);
+        merged.CodebookJson.Should().NotContain("typedMatrixCodes");
     }
 
     [Theory]

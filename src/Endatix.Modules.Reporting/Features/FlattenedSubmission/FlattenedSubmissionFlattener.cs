@@ -87,7 +87,7 @@ internal static class FlattenedSubmissionFlattener
                 return ExtractRankingChoiceValue(root, column, choices);
 
             case FormSchemaColumnKind.MatrixRow:
-                return ExtractMatrixRowValue(root, column);
+                return ExtractMatrixRowValue(root, column, choices);
 
             case FormSchemaColumnKind.MatrixCell:
                 return ExtractMatrixCellValue(root, column);
@@ -174,11 +174,11 @@ internal static class FlattenedSubmissionFlattener
         return cell.IsUnranked && choices.Copies(column.SourceQuestion!) ? RankCell.Empty : cell;
     }
 
-    private static JsonElement? ExtractMatrixRowValue(AnswerScope root, FormSchemaColumn column) =>
+    private static JsonElement? ExtractMatrixRowValue(AnswerScope root, FormSchemaColumn column, ChoiceCatalogs choices) =>
         ExtractFromLoopAwareContext(
             root,
             column.LoopPath,
-            context => TryGetMatrixRadioRowValue(context, column));
+            context => TryGetMatrixRadioRowValue(context, column, choices));
 
     private static JsonElement? ExtractMultipleTextItemValue(AnswerScope root, FormSchemaColumn column) =>
         ExtractFromLoopAwareContext(
@@ -230,19 +230,14 @@ internal static class FlattenedSubmissionFlattener
         return ahead < answer.GetArrayLength() ? RankCell.Ranked(ahead + 1) : RankCell.Unranked;
     }
 
-    private static JsonElement? TryGetMatrixRadioRowValue(JsonElement context, FormSchemaColumn column)
+    private static JsonElement? TryGetMatrixRadioRowValue(JsonElement context, FormSchemaColumn column, ChoiceCatalogs choices)
     {
         if (column.SourceQuestion is null || column.MatrixRowValue is null)
         {
             return null;
         }
 
-        if (context.TryGetPropertyValue(column.SourceQuestion) is not JsonElement matrixAnswer)
-        {
-            return null;
-        }
-
-        if (matrixAnswer.TryGetPropertyValue(column.MatrixRowValue) is not JsonElement rowAnswer)
+        if (TryGetPlainMatrixRowValue(context, column.SourceQuestion, column.MatrixRowValue) is not { } rowAnswer)
         {
             return null;
         }
@@ -257,15 +252,35 @@ internal static class FlattenedSubmissionFlattener
             return rowAnswer;
         }
 
-        var selectedValue = rowAnswer.GetScalarStringValue();
-        if (selectedValue is null)
+        return rowAnswer.ValueKind == JsonValueKind.String ? MatrixStringAnswer(rowAnswer, column, choices) : null;
+    }
+
+    private static JsonElement? MatrixStringAnswer(JsonElement answer, FormSchemaColumn row, ChoiceCatalogs catalog)
+    {
+        var value = answer.GetString()!;
+        var ordinals = row.MatrixColumnChoices!;
+        if (PublishedOrdinal(ordinals, value) is { } exact)
         {
-            return null;
+            return exact;
         }
 
-        for (var index = 0; index < column.MatrixColumnChoices.Count; index++)
+        if (catalog.HasMixedMatrixString(row.SourceQuestion!, value))
         {
-            if (string.Equals(column.MatrixColumnChoices[index], selectedValue, StringComparison.Ordinal))
+            return answer;
+        }
+
+        // Older writers trimmed the answer before looking up an unpadded ordinal. Never guess between spellings.
+        var trimmed = value.Trim();
+        return trimmed.Length > 0 && trimmed != value && !ordinals.Any(s => s != trimmed && s.Trim() == trimmed) &&
+            !catalog.HasPaddedMatrixString(row.SourceQuestion!, trimmed) ? PublishedOrdinal(ordinals, trimmed) : null;
+    }
+
+    // A new ordinal in a mixed matrix could impersonate a raw numeric code. Only its published ordinals are safe.
+    private static JsonElement? PublishedOrdinal(IReadOnlyList<string> choices, string selected)
+    {
+        for (var index = 0; index < choices.Count; index++)
+        {
+            if (string.Equals(choices[index], selected, StringComparison.Ordinal))
             {
                 return RankCell.Ranked(index + 1).ToJson();
             }
