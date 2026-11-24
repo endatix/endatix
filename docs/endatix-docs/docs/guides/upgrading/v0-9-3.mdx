@@ -6,7 +6,9 @@ description: Upgrade Reporting exports from 0.9.2 to 0.9.3. Choose a compile mod
 
 # Upgrade to Endatix 0.9.3
 
-This guide applies to Reporting preview exports that include copied choices, Other text, or checkbox and tag box indicators. Only affected forms need a refresh.
+If your deployment writes Reporting rows, apply the migration and pause forced rebuilds until every writer is upgraded and old work has drained. This includes custom writers that call the repository directly: they must claim each row before computing and publish with that same claim.
+
+Refresh stored data only for forms affected by the export changes below.
 
 ## Before you start
 
