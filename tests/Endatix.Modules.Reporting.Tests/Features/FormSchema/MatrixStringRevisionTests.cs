@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Endatix.Modules.Reporting.Features.FormSchema.Choices;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
@@ -10,6 +11,27 @@ public sealed class MatrixStringRevisionTests
 {
     private static string Definition(string columns) =>
         $$"""{"elements":[{"type":"matrix","name":"m","rows":["r","blank"],"columns":{{columns}}}]}""";
+
+    [Theory]
+    [InlineData(false, 2)]
+    [InlineData(true, 1)]
+    public void Recompile_ReorderedPersistedMatrix_UsesTheMatchingBookForEachMode(bool replace, int expected)
+    {
+        // Arrange
+        var pipeline = PersonalizationPipeline.Compile(Definition("""["first","second"]"""));
+        var revised = Definition("""["second","first"]""");
+
+        // Act
+        pipeline.Recompile(revised, replace ? FormSchemaCompileMode.Replace : FormSchemaCompileMode.Merge);
+        pipeline.Flatten(revised, new("new", """{"m":{"r":"second"}}""", null));
+
+        // Assert
+        pipeline.Rows["new"]["m__r"]!.Value.GetInt32().Should().Be(expected);
+        using var book = JsonDocument.Parse(pipeline.Schema.CodebookJson);
+        var choices = book.RootElement.GetProperty("questions").GetProperty("m").GetProperty("columns");
+        choices.EnumerateArray().Single(c => c.GetProperty("id").GetInt32() == expected)
+            .GetProperty("value").GetString().Should().Be("second");
+    }
 
     [Fact]
     public void Merge_ReorderedAndExtendedStringChoices_BothResponsesDecodeThroughPublishedIds()
@@ -52,6 +74,22 @@ public sealed class MatrixStringRevisionTests
         pipeline.Rows["number"]["m__r"]!.Value.GetInt32().Should().Be(3);
         pipeline.Rows["string"]["m__r"]!.Value.GetString().Should().Be("added");
         pipeline.Rows["string"]["m__blank"].Should().BeNull();
+    }
+
+    [Fact]
+    public void Read_MixedChoicesForOneQuestion_DoesNotInterpretUnusedHistoricalColumns()
+    {
+        // Unrelated metadata with a column lacking a category value cannot decode a mixed answer.
+        const string book = """
+            {"choiceCatalogs":{},"questions":{
+              "unused":{"columns":[{"numericCode":true,"value":"1"},{"name":"freeText"}]},
+              "m":{"exportShape":"categorical_array","columns":[{"numericCode":true,"value":"1"},{"value":" one "}]}}}
+            """;
+        var catalogs = ChoiceCatalogs.Read(book);
+        catalogs.HasMixedMatrixString("m", " one ").Should().BeTrue();
+        catalogs.HasPaddedMatrixString("m", "one").Should().BeTrue();
+        catalogs.HasMixedMatrixString("m", "unknown").Should().BeFalse();
+        catalogs.HasMixedMatrixString("absent", " one ").Should().BeFalse();
     }
 
     [Fact]

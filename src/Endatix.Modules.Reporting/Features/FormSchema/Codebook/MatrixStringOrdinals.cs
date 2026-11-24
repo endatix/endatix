@@ -10,17 +10,26 @@ internal static class MatrixStringOrdinals
     // Empty historical maps store literal answers. Mixed matrices also have raw numeric codes, not just ordinals.
     internal static MergedFormSchema Apply(MergedFormSchema merged, string codebook, MergedFormSchema? previous)
     {
-        if (previous is null || !merged.Columns.Any(c => c.Kind == FormSchemaColumnKind.MatrixRow))
+        if (previous is null)
+        {
+            return merged;
+        }
+
+        var sources = merged.Columns.Where(UsesOrdinalMap).Select(row => row.SourceQuestion).ToHashSet(StringComparer.Ordinal);
+        if (sources.Count == 0)
         {
             return merged;
         }
 
         using var book = JsonDocument.Parse(codebook);
         var questions = book.RootElement.GetProperty(FormSchemaCodebookPropertyNames.Questions);
-        var ordinals = questions.EnumerateObject().Where(q => HasStringOrdinals(q.Value))
+        var ordinals = questions.EnumerateObject().Where(q => sources.Contains(q.Name) && HasStringOrdinals(q.Value))
             .ToDictionary(q => q.Name, OrderedValues, StringComparer.Ordinal);
         return new(merged.Columns.Select(row => ApplyToRow(row, ordinals, previous)));
     }
+
+    private static bool UsesOrdinalMap(FormSchemaColumn row) =>
+        row.Kind == FormSchemaColumnKind.MatrixRow && row.MatrixColumnChoices is { Count: > 0 };
 
     private static bool HasStringOrdinals(JsonElement question) =>
         FormSchemaCodebookExportShape.OfQuestionEntry(question) == FormSchemaCodebookExportShape.CategoricalArray.Name &&
@@ -46,8 +55,7 @@ internal static class MatrixStringOrdinals
 
     private static FormSchemaColumn ApplyToRow(FormSchemaColumn row, Dictionary<string, string[]> ordinals, MergedFormSchema previous)
     {
-        if (row.Kind != FormSchemaColumnKind.MatrixRow || row.MatrixColumnChoices is not { Count: > 0 } ||
-            row.SourceQuestion is not { } name || !ordinals.TryGetValue(name, out var choices))
+        if (!UsesOrdinalMap(row) || row.SourceQuestion is not { } name || !ordinals.TryGetValue(name, out var choices))
         {
             return row;
         }

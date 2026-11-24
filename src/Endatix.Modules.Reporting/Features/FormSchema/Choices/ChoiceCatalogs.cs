@@ -42,6 +42,8 @@ internal sealed class ChoiceCatalogs
     private readonly Dictionary<string, SelectChoices> _selects;
     private readonly HashSet<string> _copies;
     private readonly Dictionary<string, CopyVisibility> _visibility;
+    private readonly JsonElement? _questions;
+    private Dictionary<string, HashSet<string>?>? _mixedStrings;
 
     private ChoiceCatalogs(
         Dictionary<string, SelectChoices> selects,
@@ -56,10 +58,7 @@ internal sealed class ChoiceCatalogs
     private ChoiceCatalogs(JsonElement book, JsonElement catalogs)
         : this(ReadEach(catalogs, SelectChoices.FromCatalog), CopiesIn(book, catalogs), ReadEach(catalogs, CopyVisibility.Read))
     {
-        if (book.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is { ValueKind: JsonValueKind.Object } questions)
-        {
-            MixedMatrixStrings = ReadEach(questions, MixedStrings);
-        }
+        _questions = book.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions);
     }
 
     public static ChoiceCatalogs Empty { get; } = new(
@@ -77,14 +76,14 @@ internal sealed class ChoiceCatalogs
     {
         // Parse the version only when a cell needs a fact that depends on the submitted definition.
         Lazy<SubmittedQuestions?> submittedQuestions = new(() => CopyDefinition.QuestionsIn(submittedDefinitionJson));
-        using var document = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonDocument.Parse(codebookJson);
-        if (document?.RootElement.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
+        JsonElement? book = string.IsNullOrWhiteSpace(codebookJson) ? null : JsonElement.Parse(codebookJson);
+        if (book?.TryGetPropertyValue(FormSchemaCodebookPropertyNames.ChoiceCatalogs) is not
             { ValueKind: JsonValueKind.Object } catalogs)
         {
             return EmptyFor(submissionComplete, submittedQuestions);
         }
 
-        return new ChoiceCatalogs(document.RootElement, catalogs)
+        return new ChoiceCatalogs(book.Value, catalogs)
         { SubmissionComplete = submissionComplete, SubmittedQuestions = submittedQuestions };
     }
 
@@ -107,13 +106,28 @@ internal sealed class ChoiceCatalogs
     // The questions of the definition the submission was made on; null when unknown.
     private Lazy<SubmittedQuestions?> SubmittedQuestions { get; init; } = new(() => null);
 
-    private Dictionary<string, HashSet<string>> MixedMatrixStrings { get; } = [];
-
     internal bool HasMixedMatrixString(string question, string value) =>
-        MixedMatrixStrings.TryGetValue(question, out var strings) && strings.Contains(value);
+        MixedStringsFor(question)?.Contains(value) == true;
 
     internal bool HasPaddedMatrixString(string question, string trimmed) =>
-        MixedMatrixStrings.TryGetValue(question, out var strings) && strings.Any(s => s != trimmed && s.Trim() == trimmed);
+        MixedStringsFor(question)?.Any(s => s != trimmed && s.Trim() == trimmed) == true;
+
+    private HashSet<string>? MixedStringsFor(string name)
+    {
+        if (_questions is not { ValueKind: JsonValueKind.Object } questions)
+        {
+            return null;
+        }
+
+        _mixedStrings ??= new(StringComparer.Ordinal);
+        if (!_mixedStrings.TryGetValue(name, out var values))
+        {
+            values = questions.TryGetProperty(name, out var entry) ? MixedStrings(entry) : null;
+            _mixedStrings.Add(name, values);
+        }
+
+        return values;
+    }
 
     private static HashSet<string>? MixedStrings(JsonElement question) =>
         question.TryGetColumns(out var columns) && columns.EnumerateArray().Any(MatrixCode.IsNumericColumn)
