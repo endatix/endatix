@@ -24,7 +24,8 @@ internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] provide
         }).OrderBy(p => p.Assembly, StringComparer.Ordinal)
           .ThenBy(p => p.Type, StringComparer.Ordinal)
           .ThenBy(p => p.Revision, StringComparer.Ordinal);
-        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
+        // Older snapshots could contain contradictory reports without an unavailable marker.
+        return "standing-v2:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
     }
 
     internal async Task<AuthorizationData> ApplyAsync(AuthorizationData data, CancellationToken cancellationToken)
@@ -36,13 +37,23 @@ internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] provide
 
         var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles);
         var actions = await ReadPendingAsync(subject, cancellationToken);
-        var now = clock.Now.UtcDateTime;
-        return data with
+        return Project(data, actions, clock.Now.UtcDateTime);
+    }
+
+    private static AuthorizationData Project(AuthorizationData data, List<RequiredAction> actions, DateTime now)
+    {
+        var groups = actions.Select(Normalize).GroupBy(action => action.Key, StringComparer.Ordinal);
+        List<RequiredAction> projected = [];
+        foreach (var group in groups.OrderBy(group => group.Key, StringComparer.Ordinal))
         {
-            RequiredActions = actions.Select(Normalize).GroupBy(action => action.Key, StringComparer.Ordinal)
-                .OrderBy(group => group.Key, StringComparer.Ordinal).SelectMany(CoalesceEquivalent)
-                .Select(action => ForUser(action, data.Roles, now)).ToArray()
-        };
+            var report = group.First();
+            if (!group.All(other => Equivalent(report, other)))
+            {
+                return data with { RequiredActionsUnavailable = true, RequiredActions = [] };
+            }
+            projected.Add(ForUser(report, data.Roles, now));
+        }
+        return data with { RequiredActionsUnavailable = false, RequiredActions = projected };
     }
 
     private async Task<List<RequiredAction>> ReadPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken)
@@ -62,12 +73,9 @@ internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] provide
         CanResolve = false
     };
 
-    private static IEnumerable<RequiredAction> CoalesceEquivalent(IGrouping<string, RequiredAction> group)
-    {
-        var first = group.First();
-        return group.All(report => report.ResolverRoles.SequenceEqual(first.ResolverRoles, StringComparer.Ordinal)
-            && report with { ResolverRoles = first.ResolverRoles } == first) ? [first] : group;
-    }
+    private static bool Equivalent(RequiredAction first, RequiredAction other) =>
+        other.ResolverRoles.SequenceEqual(first.ResolverRoles, StringComparer.Ordinal)
+        && other with { ResolverRoles = first.ResolverRoles } == first;
 
     private static RequiredAction ForUser(RequiredAction action, HashSet<string> roles, DateTime now)
     {

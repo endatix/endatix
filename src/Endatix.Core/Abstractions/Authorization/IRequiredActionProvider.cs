@@ -20,5 +20,8 @@ public interface IRequiredActionProvider
     string CacheConfigurationKey { get; }
 
     /// <summary>Returns only outstanding actions applicable to the subject; an empty list means none.</summary>
+    /// <remarks>Reports sharing a key must describe the same obligation. Role order, repeated roles and time-zone
+    /// offsets do not distinguish reports. A contradiction makes the subject's required-action standing unavailable;
+    /// registration order never selects a winner.</remarks>
     Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken);
 }

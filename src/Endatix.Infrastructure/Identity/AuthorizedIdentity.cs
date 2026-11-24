@@ -17,8 +17,10 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
     public AuthorizedIdentity(AuthorizationData authData)
             : base(BuildAuthorizationClaims(authData), AuthType)
     {
+        RequiredActionsUnavailable = authData?.RequiredActionsUnavailable == true;
     }
 
+    internal bool RequiredActionsUnavailable { get; }
 
     /// <summary>
     /// Checks if this identity has been hydrated with RBAC data.

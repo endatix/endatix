@@ -222,7 +222,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
          cachedAt: endatixIdentity.CachedAt,
          expiresAt: endatixIdentity.CacheExpiresIn,
          eTag: endatixIdentity.ETag) with
-        { RequiredActions = endatixIdentity.RequiredActions };
+        { RequiredActions = endatixIdentity.RequiredActions, RequiredActionsUnavailable = endatixIdentity.RequiredActionsUnavailable };
 
         if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
         {

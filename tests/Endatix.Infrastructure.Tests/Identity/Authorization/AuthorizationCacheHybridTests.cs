@@ -176,6 +176,40 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
         forward.ETag.Should().Be(single.ETag);
     }
 
+    [Fact]
+    public async Task GetOrCreateAsync_UnavailableStanding_PreservesPermissionsAndRetriesAcrossHosts()
+    {
+        var original = CreateData(_start.UtcDateTime.AddSeconds(20));
+        RequiredAction first = new()
+        {
+            Key = "profile.complete",
+            ResolvePath = "/first",
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Blocking
+        };
+        var left = ReportProvider(first);
+        var right = ReportProvider(first with { ResolvePath = "/second" });
+        var principal = CreatePrincipal();
+        Task<AuthorizationData> ReadAsync(params IRequiredActionProvider[] providers) =>
+            CreateInstance(true, providers).GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(original)),
+                TestContext.Current.CancellationToken);
+
+        var conflict = await ReadAsync(left, right);
+        var reversed = await ReadAsync(right, left);
+        left.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        right.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var clear = await ReadAsync(left, right);
+
+        conflict.RequiredActionsUnavailable.Should().BeTrue();
+        conflict.RequiredActions.Should().BeEmpty();
+        conflict.Roles.Should().BeEquivalentTo(original.Roles);
+        conflict.Permissions.Should().BeEquivalentTo(original.Permissions);
+        conflict.ExpiresAt.Should().Be(original.ExpiresAt);
+        reversed.ETag.Should().Be(conflict.ETag);
+        clear.RequiredActionsUnavailable.Should().BeFalse();
+        clear.ETag.Should().NotBe(conflict.ETag);
+    }
+
     private static IRequiredActionProvider ReportProvider(RequiredAction report)
     {
         var provider = Substitute.For<IRequiredActionProvider>();

@@ -78,13 +78,15 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
+        AuthorizationData? built = null;
         var cached = await hybridCache.GetOrCreateAsync(
             entry.Key,
-            async _ => await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
+            async _ => built = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
             entry.Options,
             entry.Tags,
             cancellationToken);
-        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime
+        // Report a fresh conflict once; on a cache hit, re-evaluate it rather than serving it as usable standing.
+        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime && (!cached.RequiredActionsUnavailable || ReferenceEquals(cached, built))
             ? cached
             : await RebuildAsync(entry, dataFactory, cancellationToken);
     }
@@ -193,6 +195,10 @@ internal class AuthorizationCache(
         var sortedRoles = string.Join(",", data.Roles.OrderBy(r => r).ToArray());
         var sortedPermissions = string.Join(",", data.Permissions.OrderBy(p => p).ToArray());
         var content = $"{data.UserId}:{data.TenantId}:{sortedRoles}:{sortedPermissions}";
+        if (data.RequiredActionsUnavailable)
+        {
+            content += ":standing-unavailable";
+        }
         if (data.RequiredActions.Count > 0)
         {
             content += ":" + JsonSerializer.Serialize(data.RequiredActions);
