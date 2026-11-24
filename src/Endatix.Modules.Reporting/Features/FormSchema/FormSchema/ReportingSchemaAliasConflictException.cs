@@ -1,6 +1,6 @@
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
-internal sealed class ReportingSchemaAliasConflictException(string detail)
+internal class ReportingSchemaAliasConflictException(string detail)
     : InvalidOperationException("A published reporting alias has conflicting meanings.")
 {
     public const string CODE = "ReportingSchemaAliasConflict";

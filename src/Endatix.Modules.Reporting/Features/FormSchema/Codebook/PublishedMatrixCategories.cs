@@ -11,33 +11,38 @@ internal sealed class PublishedMatrixCategories(string question)
     private readonly HashSet<int> _reserved = [];
     private int _lastId;
 
-    internal static void MergeQuestions(Dictionary<string, JsonElement> questions, JsonElement existing)
+    internal static void MergeQuestions(Dictionary<string, JsonElement> questions, JsonElement existing, LegacyMatrixHistory? history)
     {
         foreach (var old in existing.EnumerateObject())
         {
-            questions[old.Name] = questions.TryGetValue(old.Name, out var current) ? Merge(old, current) : old.Value.Clone();
+            questions[old.Name] = questions.TryGetValue(old.Name, out var current) ? Merge(old, current, history) : old.Value.Clone();
         }
     }
 
-    private static JsonElement Merge(JsonProperty previous, JsonElement current)
+    private static JsonElement Merge(JsonProperty previous, JsonElement current, LegacyMatrixHistory? history)
     {
-        var oldRadio = IsRadio(previous.Value, out var oldColumns);
-        var newRadio = IsRadio(current, out var newColumns);
-        var oldTyped = oldRadio && oldColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn);
-        var newTyped = newRadio && newColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn);
-        if (!oldTyped && !newTyped)
+        if (!IsRadio(previous.Value, out var oldColumns) || !IsRadio(current, out var newColumns))
         {
             return current;
         }
 
-        PublishedMatrixCategories catalog = new(previous.Name);
-        if (!oldRadio || !newRadio || (!oldTyped && oldColumns.GetArrayLength() > 0))
+        if (!oldColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn))
         {
-            throw catalog.Conflict();
+            if (!newColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn) || oldColumns.GetArrayLength() == 0)
+            {
+                return current;
+            }
+
+            oldColumns = history?.Recover(previous.Name, oldColumns) ?? throw new LegacyMatrixSourceRequiredException(previous.Name);
         }
 
-        catalog.Reserve(oldColumns);
-        return catalog.WithPublishedIds(current, newColumns);
+        return new PublishedMatrixCategories(previous.Name).MergeColumns(oldColumns, current, newColumns);
+    }
+
+    private JsonElement MergeColumns(JsonElement old, JsonElement current, JsonElement columns)
+    {
+        Reserve(old);
+        return WithPublishedIds(current, columns);
     }
 
     private static bool IsRadio(JsonElement question, out JsonElement columns)

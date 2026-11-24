@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "key": "rating__a",
+      "kind": "MatrixRow",
+      "label": "Rate each store — Store A",
+      "dataType": "number",
+      "sourceQuestion": "rating",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "a",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "Poor",
+        "Fair",
+        "Good",
+        "Very good"
+      ],
+      "loopPath": null
+    },
+    {
+      "key": "rating__b",
+      "kind": "MatrixRow",
+      "label": "Rate each store — Store B",
+      "dataType": "number",
+      "sourceQuestion": "rating",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "b",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "Poor",
+        "Fair",
+        "Good",
+        "Very good"
+      ],
+      "loopPath": null
+    }
+  ]
+}

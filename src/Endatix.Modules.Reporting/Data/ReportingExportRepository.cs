@@ -128,7 +128,8 @@ internal sealed class ReportingExportRepository(
             SubmitterDisplayId: submission.SubmitterDisplayId,
             DataJson: flattened.DataJson!)
         {
-            SourceAnswersJson = submission.JsonData,
+            SourceAnswersJson = flattened.SourceRevision == submission.Revision &&
+                flattened.SourceModifiedAt == (submission.ModifiedAt ?? submission.CreatedAt) ? submission.JsonData : null,
         };
 
     private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(

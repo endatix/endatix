@@ -19,7 +19,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class ReportingExportRepositoryIntegrationTests
+public sealed partial class ReportingExportRepositoryIntegrationTests
 {
     private const long TenantId = 41;
 

@@ -15,7 +15,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
-public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string SEED_PASSWORD = "Password123!";
 

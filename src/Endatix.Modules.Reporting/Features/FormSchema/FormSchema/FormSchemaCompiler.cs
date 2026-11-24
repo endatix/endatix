@@ -49,24 +49,29 @@ internal class FormSchemaCompiler(
         string definitionJson,
         string? existingFlatteningMapJson = null,
         string? existingCodebookJson = null,
-        FormSchemaCompileMode mode = FormSchemaCompileMode.Merge)
-    {
-        var codebookJsonInput = mode == FormSchemaCompileMode.Replace
-            ? null
-            : existingCodebookJson;
+        FormSchemaCompileMode mode = FormSchemaCompileMode.Merge) =>
+        CompileCore(definitionJson, new(existingFlatteningMapJson, mode,
+            new CodebookSource(mode == FormSchemaCompileMode.Replace ? null : existingCodebookJson)));
 
+    internal FormSchemaCompileResult CompileLegacyMerge(string definitionJson, PersistedSchemaJson stored, LegacyMatrixHistory history) =>
+        CompileCore(definitionJson, new(stored.FlatteningMap, FormSchemaCompileMode.Merge, new CodebookSource(stored.Codebook, history)));
+
+    private sealed record CompilationBase(string? Map, FormSchemaCompileMode Mode, CodebookSource Codebook);
+
+    private FormSchemaCompileResult CompileCore(string definitionJson, CompilationBase previous)
+    {
         using var definition = JsonDocument.Parse(definitionJson);
-        var existingFlatteningMap = string.IsNullOrWhiteSpace(existingFlatteningMapJson)
+        var existingFlatteningMap = string.IsNullOrWhiteSpace(previous.Map)
             ? null
-            : FormSchemaFlatteningMap.FromJson(existingFlatteningMapJson);
+            : FormSchemaFlatteningMap.FromJson(previous.Map);
 
         var currentColumns = FormDefinitionFlattener.Flatten(definition.RootElement, _limits, existingFlatteningMap);
-        var merged = Merge(currentColumns, mode == FormSchemaCompileMode.Replace ? null : existingFlatteningMap);
+        var merged = Merge(currentColumns, previous.Mode == FormSchemaCompileMode.Replace ? null : existingFlatteningMap);
         var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
         var codebookJson = FormSchemaCodebookBuilder.Build(
             definition.RootElement,
             merged.WithCurrentColumns(currentColumns),
-            codebookJsonInput);
+            previous.Codebook);
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition.RootElement);
         var localesJson = JsonSerializer.Serialize(locales);
 
@@ -103,7 +108,7 @@ internal class FormSchemaCompiler(
                HasColumns(flatteningMapJson, FormDefinitionFlattener.Flatten(definition, _limits));
     }
 
-    private static JsonDocument? ReadHistoricalDefinition(string json)
+    internal static JsonDocument? ReadHistoricalDefinition(string json)
     {
         try
         {

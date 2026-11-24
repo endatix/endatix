@@ -44,6 +44,7 @@ internal sealed class SubmissionFlatteningProcessor(
     ILogger<SubmissionFlatteningProcessor> logger) : ISubmissionFlatteningProcessor
 {
     private const string SubmissionMismatchMessage = "Submission tenant or form does not match the flatten request.";
+    private readonly SubmittedMatrixDefinition _submittedMatrices = new();
 
     // A cancelled flatten still owes its row the deletion check: an operator's cancel is final, and a run stopped at
     // its maximum run time may be its last attempt, so no later run would check. The check gets this long on a token
@@ -86,6 +87,7 @@ internal sealed class SubmissionFlatteningProcessor(
             return;
         }
 
+        _submittedMatrices.Validate(run.IsSkipped ? null : run.Submission.FormDefinition);
         var processing = await flattenedSubmissionRepository.TryMarkProcessingAsync(run.Write, cancellationToken);
         if (LogUnlessLanded(processing, run.Write))
         {

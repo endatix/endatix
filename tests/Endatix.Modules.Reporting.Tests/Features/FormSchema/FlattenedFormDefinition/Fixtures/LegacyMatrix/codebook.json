@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "rating": {
+      "surveyJsType": "matrix",
+      "title": {
+        "default": "Rate each store"
+      },
+      "pageName": "ratingPage",
+      "exportShape": "categorical_array",
+      "columns": [
+        {
+          "value": "Poor",
+          "id": 1,
+          "text": {
+            "default": "Poor"
+          }
+        },
+        {
+          "value": "Fair",
+          "id": 2,
+          "text": {
+            "default": "Fair"
+          }
+        },
+        {
+          "value": "Good",
+          "id": 3,
+          "text": {
+            "default": "Good"
+          }
+        },
+        {
+          "value": "Very good",
+          "id": 4,
+          "text": {
+            "default": "Very good"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "value": "a",
+          "text": {
+            "default": "Store A"
+          }
+        },
+        {
+          "value": "b",
+          "text": {
+            "default": "Store B"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "rating__a": {
+      "parentKey": "rating",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {
+        "default": "Rate each store"
+      },
+      "matrixRowValue": "a",
+      "rowLabel": {
+        "default": "Store A"
+      }
+    },
+    "rating__b": {
+      "parentKey": "rating",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {
+        "default": "Rate each store"
+      },
+      "matrixRowValue": "b",
+      "rowLabel": {
+        "default": "Store B"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "rating": {
+      "choices": []
+    }
+  }
+}

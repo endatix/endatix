@@ -55,7 +55,8 @@ public sealed class MatrixRevisionTests
         var pipeline = PersonalizationPipeline.Compile(Definition(ORIGINAL));
         var response = Response("a", flat);
         pipeline.Flatten(Definition(ORIGINAL), response);
-        var row = pipeline.ExportRows([response]).Single() with { SourceAnswersJson = raw };
+        var withoutEvidence = pipeline.ExportRows([response]).Single() with { SourceAnswersJson = null };
+        var row = raw is null ? withoutEvidence : withoutEvidence.WithSourceAnswers(raw);
 
         // Act
         var csv = await CrunchExport.CsvAsync(pipeline.Entity(), [row], TestContext.Current.CancellationToken);
@@ -99,6 +100,24 @@ public sealed class MatrixRevisionTests
         // Assert
         compile.Should().Throw<ReportingSchemaAliasConflictException>();
         pipeline.Schema.CodebookJson.Should().Be(stored);
+    }
+
+    [Theory]
+    [InlineData("""{"type":"rating","name":"m"}""")]
+    [InlineData("""{"type":"matrixdropdown","name":"m","rows":["r"],"columns":[{"name":"x","cellType":"text"}]}""")]
+    public void Merge_ChangingQuestionTypeInEitherDirection_KeepsHistoricalColumnKeys(string replacement)
+    {
+        var radio = Definition(ORIGINAL);
+        var other = """{"elements":[""" + replacement + "]}";
+        var pipeline = PersonalizationPipeline.Compile(radio);
+        var first = pipeline.Schema.FlatteningMap.Columns.Select(c => c.Key).ToArray();
+        pipeline.Recompile(other, FormSchemaCompileMode.Merge);
+        var second = pipeline.Schema.FlatteningMap.Columns.Select(c => c.Key).ToArray();
+        second.Should().Contain(first);
+        using var book = JsonDocument.Parse(pipeline.Schema.CodebookJson);
+        book.RootElement.GetProperty("questions").GetProperty("m").GetProperty("surveyJsType").GetString().Should().NotBe("matrix");
+        pipeline.Recompile(radio, FormSchemaCompileMode.Merge);
+        pipeline.Schema.FlatteningMap.Columns.Select(c => c.Key).Should().Equal(second);
     }
 
     [Theory]

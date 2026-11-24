@@ -17,18 +17,18 @@ internal static partial class FormSchemaCodebookBuilder
     internal static string Build(
         JsonElement definition,
         MergedFormSchema merged,
-        string? existingCodebookJson = null)
+        CodebookSource source)
     {
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition);
         var questionElements = CollectQuestionElements(definition);
         var choiceSources = ChoiceSourcesIn(questionElements, definition);
         var questions = BuildQuestions(questionElements, choiceSources, merged);
-        var columns = BuildColumns(merged, questionElements, TryParseExistingColumns(existingCodebookJson));
+        var columns = BuildColumns(merged, questionElements, TryParseExistingColumns(source.Json));
         var choiceCatalogs = BuildChoiceCatalogs(questionElements, SurveyChoiceDefaults.Of(definition), choiceSources);
 
-        if (!string.IsNullOrWhiteSpace(existingCodebookJson))
+        if (!string.IsNullOrWhiteSpace(source.Json))
         {
-            MergeExisting(existingCodebookJson, questions, columns, choiceCatalogs);
+            MergeExisting(source, questions, columns, choiceCatalogs);
             DropStaleSelectFields(choiceCatalogs, questionElements);
         }
 
@@ -179,7 +179,7 @@ internal static partial class FormSchemaCodebookBuilder
         out JsonElement existingColumn)
     {
         existingColumn = default;
-        if (IsDescribedByColumnAlone(column) || TryGetQuestionElement(column, questionElements, out _))
+        if (IsDescribedByColumnAlone(column) || HasCurrentQuestion(column, questionElements))
         {
             return false;
         }
@@ -647,18 +647,18 @@ internal static partial class FormSchemaCodebookBuilder
     }
 
     private static void MergeExisting(
-        string existingCodebookJson,
+        CodebookSource source,
         Dictionary<string, JsonElement> questions,
         Dictionary<string, JsonElement> columns,
         Dictionary<string, JsonElement> choiceCatalogs)
     {
-        using var document = JsonDocument.Parse(existingCodebookJson);
+        using var document = JsonDocument.Parse(source.Json!);
         var root = document.RootElement;
 
         if (root.TryGetProperty(FormSchemaCodebookPropertyNames.Questions, out var existingQuestions) &&
             existingQuestions.ValueKind == JsonValueKind.Object)
         {
-            PublishedMatrixCategories.MergeQuestions(questions, existingQuestions);
+            PublishedMatrixCategories.MergeQuestions(questions, existingQuestions, source.History);
         }
 
         if (root.TryGetProperty(FormSchemaCodebookPropertyNames.Columns, out var existingColumns) &&
