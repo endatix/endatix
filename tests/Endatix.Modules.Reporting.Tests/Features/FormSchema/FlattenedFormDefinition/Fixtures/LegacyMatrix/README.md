@@ -1,0 +1,1 @@
+`definition.json`, `map.json`, and `codebook.json` are the `rating` question and its rows from the committed `Scenarios/hidden-pages-copies-and-specials` fixtures at `39c40baf`, before numeric matrix codes were preserved. The stored map and book are inputs to migration tests, not outputs to regenerate with the current compiler.

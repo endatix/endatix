@@ -1,0 +1,44 @@
+{
+  "pages": [
+    {
+      "name": "ratingPage",
+      "elements": [
+        {
+          "type": "matrix",
+          "name": "rating",
+          "title": "Rate each store",
+          "edxDisplayMode": "carousel",
+          "eachRowRequired": true,
+          "columns": [
+            {
+              "value": 1,
+              "text": "Poor"
+            },
+            {
+              "value": 2,
+              "text": "Fair"
+            },
+            {
+              "value": 3,
+              "text": "Good"
+            },
+            {
+              "value": 4,
+              "text": "Very good"
+            }
+          ],
+          "rows": [
+            {
+              "value": "a",
+              "text": "Store A"
+            },
+            {
+              "value": "b",
+              "text": "Store B"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

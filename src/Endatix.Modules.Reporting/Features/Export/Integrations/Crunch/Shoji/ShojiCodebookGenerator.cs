@@ -1574,36 +1574,6 @@ internal static partial class ShojiCodebookGenerator
         writer.WriteEndArray();
     }
 
-    private static void WriteMatrixCategories(Utf8JsonWriter writer, JsonElement question)
-    {
-        writer.WritePropertyName(ShojiCodebookPropertyNames.Categories);
-        writer.WriteStartArray();
-
-        if (question.TryGetProperty(SurveyJsPropertyNames.Columns, out var columns) &&
-            columns.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var column in columns.EnumerateArray())
-            {
-                if (!column.TryGetProperty(FormSchemaCodebookPropertyNames.Id, out var idElement) ||
-                    idElement.ValueKind != JsonValueKind.Number)
-                {
-                    continue;
-                }
-
-                writer.WriteStartObject();
-                writer.WriteString(
-                    ShojiCodebookPropertyNames.Name,
-                    ReadDefaultLocalizedText(column, ShojiCodebookPropertyNames.Text).Trim());
-                writer.WriteNumber(FormSchemaCodebookPropertyNames.Id, idElement.GetInt32());
-                writer.WriteNumber(ShojiCodebookPropertyNames.NumericValue, idElement.GetInt32());
-                writer.WriteBoolean(ShojiCodebookPropertyNames.Missing, false);
-                writer.WriteEndObject();
-            }
-        }
-
-        writer.WriteEndArray();
-    }
-
     private static void WriteUniqueName(
         Utf8JsonWriter writer,
         string preferredName,

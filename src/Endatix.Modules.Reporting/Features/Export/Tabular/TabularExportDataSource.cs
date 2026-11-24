@@ -382,7 +382,7 @@ internal sealed partial class TabularExportDataSource(
         {
             var flatteningMap = FormSchemaFlatteningMap.FromJson(projection.FlatteningMapJson);
             answersModel = CrunchTabularValueProjector.Project(
-                answersModel,
+                row,
                 flatteningMap,
                 projection.CodebookJson);
         }
