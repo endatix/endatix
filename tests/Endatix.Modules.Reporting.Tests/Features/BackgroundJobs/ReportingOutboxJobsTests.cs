@@ -6,10 +6,10 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.BackgroundJobs;
-using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Features.ExportFormats;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.Outbox;
 using Endatix.Modules.Reporting.Features.SearchCopy;
 using Endatix.Modules.Reporting.Persistence;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,7 +62,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, Arg.Any<CancellationToken>());
+        _flattening.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        await _flattening.Received(1).ProcessAsync(TenantA, 1, 2, Arg.Any<CancellationToken>());
+        await _flattening.Received(1).RefreshCompletedAsync(new(TenantA, 1, 2), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         // Assert — a failure result, not a throw, so the job is not retried.
         result.ValidationErrors.Should().ContainSingle()
             .Which.ErrorMessage.Should().Be("The outbox message could not be read.");
-        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, Arg.Any<CancellationToken>());
+        _flattening.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

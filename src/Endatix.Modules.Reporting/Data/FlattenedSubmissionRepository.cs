@@ -98,7 +98,11 @@ internal sealed class FlattenedSubmissionRepository(
         return TryWriteAsync(
             write,
             setters => setters
-                .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Processing)
+                .SetProperty(row => row.Integration.Code, row => write.KeepPrepared && !row.IsDeleted &&
+                    row.Integration.Code == SubmissionIntegrationStatusCodes.Processed && row.DataJson != null &&
+                    row.SourceRevision == write.Revision && row.SourceModifiedAt == write.SourceModifiedAt
+                        ? SubmissionIntegrationStatusCodes.Processed : SubmissionIntegrationStatusCodes.Processing)
+                .SetProperty(row => row.SourceRevision, write.Revision)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.LastError, (string?)null)
                 .SetProperty(row => row.ModifiedAt, now),

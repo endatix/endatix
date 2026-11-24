@@ -244,6 +244,25 @@ public partial class SubmissionFlatteningProcessorTests
     }
 
     [Fact]
+    public async Task RefreshCompletedAsync_SourceIsIncomplete_DoesNotKeepPreparedAnswers()
+    {
+        // Arrange: the event names the work; the source actually read decides whether answers can stay prepared.
+        var draft = Submission.Create(new SubmissionCreateArgs(TenantId, FormId, FormDefinitionId, "{}", IsComplete: false));
+        draft.Id = SubmissionId;
+        GivenSubmission(draft);
+        GivenRowAcceptsRevision(true);
+        var ct = TestContext.Current.CancellationToken;
+
+        // Act
+        await Processor().RefreshCompletedAsync(Key, ct);
+
+        // Assert: the ordinary processing transition hides any prior snapshot before the draft is skipped.
+        await _rows.Received(1).TryMarkProcessingAsync(WriteOf(draft), ct);
+        await _rows.Received(1).TryMarkSkippedAsync(WriteOf(draft), ct);
+        await _rows.DidNotReceiveWithAnyArgs().TryMarkProcessedAsync(default, default!, ct);
+    }
+
+    [Fact]
     public async Task ProcessAsync_IncompleteSubmissionWithIncludeIncomplete_WritesFlattenedDataAtItsRevision()
     {
         // Arrange — a draft, as the incomplete backfill scope asks for it.

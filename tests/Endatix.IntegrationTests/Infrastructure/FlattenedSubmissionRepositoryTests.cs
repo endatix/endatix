@@ -14,7 +14,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class FlattenedSubmissionRepositoryTests
+public sealed partial class FlattenedSubmissionRepositoryTests
 {
     private const long TenantId = 1;
     private const long OtherTenantId = 2;
@@ -249,6 +249,31 @@ public sealed class FlattenedSubmissionRepositoryTests
         var persisted = await ReadRowAsync(repository, cancellationToken);
         persisted.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processing);
         persisted.Integration.LastError.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryMarkProcessedAsync_NewerRevisionIsProcessing_RejectsOlderCompletion()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(ct);
+        await using var db = CreateContext(TenantId);
+        var rows = CreateRepository(db);
+        var prepared = WriteOf(revision: 3) with { KeepPrepared = true };
+        await rows.EnsureExistsAsync(KeyOf(SubmissionId), ct);
+        await rows.TryMarkProcessedAsync(prepared, ProcessedData, ct);
+        await rows.TryMarkProcessingAsync(prepared, ct);
+        var newer = prepared with { Revision = 4 };
+        (await rows.TryMarkProcessingAsync(newer, ct)).Should().BeTrue();
+
+        // Act
+        var published = await rows.TryMarkProcessedAsync(prepared, ProcessedData, ct);
+
+        // Assert
+        published.Should().BeFalse();
+
+        (await ReadRowAsync(rows, ct)).Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processing);
+        (await rows.TryMarkProcessedAsync(newer, ProcessedData, ct)).Should().BeTrue();
     }
 
     [Fact]

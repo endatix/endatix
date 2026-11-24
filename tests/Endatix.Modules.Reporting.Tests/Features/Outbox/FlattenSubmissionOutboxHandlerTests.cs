@@ -23,7 +23,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [Fact]
     public void EventTypes_IncludesSubmissionCompletedAndUpdated()
     {
-        IReadOnlyCollection<string> eventTypes = FlattenSubmissionOutboxHandler.HandledEventTypes;
+        var eventTypes = FlattenSubmissionOutboxHandler.HandledEventTypes;
 
         eventTypes.Should().Contain(SubmissionLifecycleEvent.EventTypes.Completed);
         eventTypes.Should().Contain(SubmissionUpdatedEvent.EventTypeName);
@@ -32,7 +32,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [Fact]
     public async Task HandleAsync_WithSubmissionCompleted_CallsProcessor()
     {
-        Submission submission = CreateSubmission();
+        var submission = CreateSubmission();
         string payload = ReportingOutboxTestHelpers.SerializePayload(submission.DomainEvents.OfType<SubmissionLifecycleEvent>().Single(e => e.EventType == SubmissionLifecycleEvent.EventTypes.Completed).GetPayload());
         ReportingOutboxTestHelpers.FakeOutboxMessage message = new(
             Id: 1,
@@ -42,10 +42,8 @@ public sealed class FlattenSubmissionOutboxHandlerTests
 
         await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
-        await _flatteningProcessor.Received(1).ProcessAsync(
-            TenantId,
-            FormId,
-            SubmissionId,
+        await _flatteningProcessor.Received(1).RefreshCompletedAsync(
+            new(TenantId, FormId, SubmissionId),
             Arg.Any<CancellationToken>());
     }
 
@@ -58,7 +56,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [InlineData("test")]
     public async Task HandleAsync_WithSubmissionUpdated_FlattenedDataChangeKind_CallsProcessor(string changeKind)
     {
-        Submission submission = CreateSubmission();
+        var submission = CreateSubmission();
         string payload = ReportingOutboxTestHelpers.SerializePayload(
             new SubmissionUpdatedEvent(submission, SubmissionChangeKindsExtensions.ParseWireValue(changeKind)).GetPayload());
         ReportingOutboxTestHelpers.FakeOutboxMessage message = new(
@@ -81,7 +79,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
     [InlineData("")]
     public async Task HandleAsync_WithSubmissionUpdated_NonFlattenedChangeKind_DoesNotCallProcessor(string changeKind)
     {
-        Submission submission = CreateSubmission();
+        var submission = CreateSubmission();
         SubmissionChangeKinds parsedChangeKind = string.IsNullOrEmpty(changeKind)
             ? SubmissionChangeKinds.None
             : SubmissionChangeKindsExtensions.ParseWireValue(changeKind);
@@ -95,11 +93,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
 
         await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
-        await _flatteningProcessor.DidNotReceive().ProcessAsync(
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<CancellationToken>());
+        _flatteningProcessor.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -111,16 +105,12 @@ public sealed class FlattenSubmissionOutboxHandlerTests
             Payload: """{"tenantId":"42","formId":"100"}""",
             TenantId: TenantId);
 
-        Func<Task> act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
+        var act = () => CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should()
             .ThrowAsync<InvalidOperationException>()
             .WithMessage("*missing a valid submissionId*");
-        await _flatteningProcessor.DidNotReceive().ProcessAsync(
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<CancellationToken>());
+        _flatteningProcessor.ReceivedCalls().Should().BeEmpty();
     }
 
     private static Submission CreateSubmission()

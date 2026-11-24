@@ -71,7 +71,7 @@ public sealed class FlattenedSubmission : ITenantOwned, IAggregateRoot
     public bool IsDeleted { get; private set; }
 
     /// <summary>
-    /// The <see cref="Endatix.Core.Entities.Submission.Revision"/> the row was last written from, or <c>null</c>
+    /// The <see cref="Endatix.Core.Entities.Submission.Revision"/> the row last started or finished processing, or <c>null</c>
     /// before the first flatten recorded one. Writes from an older revision than this are refused, so flattens of
     /// one submission that finish out of order cannot put older data over newer.
     /// </summary>

@@ -3,6 +3,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.Infrastructure.Utils;
+using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
 using Endatix.Outbox.Engine;
 using Microsoft.Extensions.Logging;
@@ -51,13 +52,16 @@ internal sealed class FlattenSubmissionOutboxHandler(
         }
 
         return new Input(
-            message.GetRequiredTenantId(payload),
-            message.GetRequiredIdProp(payload, "formId"),
-            message.GetRequiredIdProp(payload, "submissionId"));
+            new(message.GetRequiredTenantId(payload),
+                message.GetRequiredIdProp(payload, "formId"),
+                message.GetRequiredIdProp(payload, "submissionId")),
+            message.EventType == SubmissionLifecycleEvent.EventTypes.Completed);
     }
 
     public Task ProcessAsync(Input input, CancellationToken cancellationToken) =>
-        flatteningProcessor.ProcessAsync(input.TenantId, input.FormId, input.SubmissionId, cancellationToken);
+        input.IsCompletion
+            ? flatteningProcessor.RefreshCompletedAsync(input.Key, cancellationToken)
+            : flatteningProcessor.ProcessAsync(input.Key.TenantId, input.Key.FormId, input.Key.SubmissionId, cancellationToken);
 
     private static bool ShouldSkipDueToChangeKind(IOutboxMessage message, JsonElement payload, ILogger logger)
     {
@@ -82,5 +86,5 @@ internal sealed class FlattenSubmissionOutboxHandler(
         return true;
     }
 
-    public sealed record Input(long TenantId, long FormId, long SubmissionId);
+    public sealed record Input(FlattenedSubmissionKey Key, bool IsCompletion);
 }
