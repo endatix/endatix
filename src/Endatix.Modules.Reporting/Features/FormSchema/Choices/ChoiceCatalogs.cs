@@ -53,6 +53,15 @@ internal sealed class ChoiceCatalogs
         _visibility = visibility;
     }
 
+    private ChoiceCatalogs(JsonElement book, JsonElement catalogs)
+        : this(ReadEach(catalogs, SelectChoices.FromCatalog), CopiesIn(book, catalogs), ReadEach(catalogs, CopyVisibility.Read))
+    {
+        if (book.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Questions) is { ValueKind: JsonValueKind.Object } questions)
+        {
+            MixedMatrixStrings = ReadEach(questions, MixedStrings);
+        }
+    }
+
     public static ChoiceCatalogs Empty { get; } = new(
         new Dictionary<string, SelectChoices>(StringComparer.Ordinal),
         new HashSet<string>(StringComparer.Ordinal),
@@ -75,10 +84,7 @@ internal sealed class ChoiceCatalogs
             return EmptyFor(submissionComplete, submittedQuestions);
         }
 
-        return new ChoiceCatalogs(
-            ReadEach(catalogs, SelectChoices.FromCatalog),
-            CopiesIn(document.RootElement, catalogs),
-            ReadEach(catalogs, CopyVisibility.Read))
+        return new ChoiceCatalogs(document.RootElement, catalogs)
         { SubmissionComplete = submissionComplete, SubmittedQuestions = submittedQuestions };
     }
 
@@ -100,6 +106,17 @@ internal sealed class ChoiceCatalogs
 
     // The questions of the definition the submission was made on; null when unknown.
     private Lazy<SubmittedQuestions?> SubmittedQuestions { get; init; } = new(() => null);
+
+    private Dictionary<string, HashSet<string>> MixedMatrixStrings { get; } = [];
+
+    internal bool HasMixedMatrixString(string question, string value) =>
+        MixedMatrixStrings.TryGetValue(question, out var strings) && strings.Contains(value);
+
+    private static HashSet<string>? MixedStrings(JsonElement question) =>
+        question.TryGetColumns(out var columns) && columns.EnumerateArray().Any(MatrixCode.IsNumericColumn)
+            ? columns.EnumerateArray().Where(c => !MatrixCode.IsNumericColumn(c))
+                .Select(c => MatrixCode.OfColumn(c).Value).ToHashSet(StringComparer.Ordinal)
+            : null;
 
     /// <summary>True when the catalog marks the question as a base select (<c>multiple</c> present).</summary>
     public bool IsSelect(string question) => _selects.ContainsKey(question);

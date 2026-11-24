@@ -21,18 +21,13 @@ internal sealed class PublishedMatrixCategories(string question)
 
     private static JsonElement Merge(JsonProperty previous, JsonElement current, LegacyMatrixHistory? history)
     {
-        if (!IsRadio(previous.Value, out var oldColumns) || !IsRadio(current, out var newColumns))
+        if (!IsRadio(previous.Value, out var oldColumns) || oldColumns.GetArrayLength() == 0 || !IsRadio(current, out var newColumns))
         {
             return current;
         }
 
-        if (!oldColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn))
+        if (!oldColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn) && newColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn))
         {
-            if (!newColumns.EnumerateArray().Any(MatrixCode.IsNumericColumn) || oldColumns.GetArrayLength() == 0)
-            {
-                return current;
-            }
-
             oldColumns = history?.Recover(previous.Name, oldColumns) ?? throw new LegacyMatrixSourceRequiredException(previous.Name);
         }
 
