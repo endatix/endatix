@@ -14,7 +14,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class FlattenedSubmissionRepositoryTests
+public sealed partial class FlattenedSubmissionRepositoryTests
 {
     private const long TenantId = 1;
     private const long OtherTenantId = 2;
