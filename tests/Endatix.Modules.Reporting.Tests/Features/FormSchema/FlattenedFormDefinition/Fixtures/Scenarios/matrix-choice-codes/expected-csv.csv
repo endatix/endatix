@@ -1,0 +1,2 @@
+FormId,Id,IsComplete,CollectionStatus,CreatedAt,ModifiedAt,StartedAt,CompletedAt,DurationSeconds,SubmitterId,SubmitterDisplayId,scale__r,scale__control,collision__number,collision__string
+100,1,true,complete,2026-10-14 10:00:00,2026-10-14 10:00:00,N/A,N/A,N/A,N/A,N/A,10,3,2,2

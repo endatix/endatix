@@ -14,4 +14,8 @@ public sealed record FlattenedExportRow(
     DateTime? CompletedAt,
     long? SubmitterId,
     string? SubmitterDisplayId,
-    string DataJson);
+    string DataJson)
+{
+    // A flattened matrix cell can be either a numeric source code or an already-encoded string choice.
+    internal string? SourceAnswersJson { get; init; }
+}

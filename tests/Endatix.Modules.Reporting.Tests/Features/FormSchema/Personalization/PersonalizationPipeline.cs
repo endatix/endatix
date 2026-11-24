@@ -133,7 +133,10 @@ internal sealed class PersonalizationPipeline
             CompletedAt: system.CompletedAt,
             SubmitterId: system.SubmitterId,
             SubmitterDisplayId: system.SubmitterDisplayId,
-            DataJson: JsonSerializer.Serialize(_rows[response.Id]));
+            DataJson: JsonSerializer.Serialize(_rows[response.Id]))
+        {
+            SourceAnswersJson = response.AnswersJson,
+        };
     }
 
     public string ShojiCodebook() =>

@@ -147,6 +147,42 @@ internal static class SurveyJsChoiceHelper
         }
     }
 
+    internal sealed record MatrixCategory(string Value, int Id, string Label, JsonElement Element, bool IsNumeric);
+
+    internal static IEnumerable<MatrixCategory> RadioMatrixCategories(JsonElement matrix)
+    {
+        if (!matrix.TryGetColumns(out var columns))
+        {
+            yield break;
+        }
+
+        var publishedId = 0;
+        // Previously omitted numeric columns get new ids after every published category, even when interleaved.
+        var nextId = EnumerateMatrixColumns(matrix).Count();
+        foreach (var column in columns.EnumerateArray())
+        {
+            var previous = NamedColumnValue(column);
+            var number = NumericColumnCode(column);
+            if ((number ?? previous) is { } value)
+            {
+                yield return new(value, previous is null ? ++nextId : ++publishedId, GetChoiceTextLabel(column, value), column, number is not null);
+            }
+        }
+    }
+
+    private static string? NumericColumnCode(JsonElement column)
+    {
+        var value = column.ValueKind == JsonValueKind.Number ? column : column.TryGetPropertyValue(SurveyJsPropertyNames.Value);
+        return value is { ValueKind: JsonValueKind.Number } number ? number.GetRawText() : null;
+    }
+
+    private static string? NamedColumnValue(JsonElement column) => column.ValueKind switch
+    {
+        JsonValueKind.String => column.GetString(),
+        JsonValueKind.Object => GetNamedItemValueString(column),
+        _ => null,
+    };
+
     internal static IEnumerable<(string Value, string Text, JsonElement ColumnElement)> EnumerateMatrixColumns(
         JsonElement element)
     {
@@ -157,19 +193,7 @@ internal static class SurveyJsChoiceHelper
 
         foreach (var column in columns.EnumerateArray())
         {
-            if (column.ValueKind == JsonValueKind.String)
-            {
-                var text = column.GetString()!;
-                yield return (text, text, column);
-                continue;
-            }
-
-            if (column.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            var value = GetNamedItemValueString(column);
+            var value = NamedColumnValue(column);
 
             if (value is null)
             {

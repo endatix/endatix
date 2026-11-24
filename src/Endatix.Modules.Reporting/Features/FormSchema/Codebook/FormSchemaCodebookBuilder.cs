@@ -1026,24 +1026,6 @@ internal static partial class FormSchemaCodebookBuilder
         writer.WriteEndArray();
     }
 
-    private static void WriteMatrixColumns(Utf8JsonWriter writer, JsonElement element)
-    {
-        writer.WritePropertyName(SurveyJsPropertyNames.Columns);
-        writer.WriteStartArray();
-        var columnId = 1;
-        foreach ((var value, var text, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(element))
-        {
-            WriteChoice(
-                writer,
-                value,
-                columnId++,
-                SurveyJsLocalizationHelper.ReadLocalizedStrings(columnElement, SurveyJsPropertyNames.Text),
-                fallback: text);
-        }
-
-        writer.WriteEndArray();
-    }
-
     private static void WriteMatrixDropdownColumns(Utf8JsonWriter writer, JsonElement element)
     {
         writer.WritePropertyName(SurveyJsPropertyNames.Columns);

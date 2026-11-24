@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
@@ -11,16 +12,12 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 /// </summary>
 internal static class CrunchTabularValueProjector
 {
-    internal static string Project(string dataJson, MergedFormSchema flatteningMap, string codebookJson)
+    internal static string Project(FlattenedExportRow row, MergedFormSchema flatteningMap, string codebookJson)
     {
-        if (string.IsNullOrWhiteSpace(dataJson))
-        {
-            return dataJson;
-        }
-
-        using var dataDocument = JsonDocument.Parse(dataJson);
+        using var dataDocument = JsonDocument.Parse(row.DataJson);
         using var codebookDocument = JsonDocument.Parse(codebookJson);
         var questions = CodebookQuestions.Read(codebookDocument.RootElement);
+        using var matrix = new MatrixCategoryProjection(row, questions);
 
         Dictionary<string, JsonElement?> projected = new(StringComparer.Ordinal);
         HashSet<string> consumedKeys = new(StringComparer.Ordinal);
@@ -46,7 +43,7 @@ internal static class CrunchTabularValueProjector
                 continue;
             }
 
-            projected[column.Key] = answer.Clone();
+            projected[column.Key] = matrix.Project(column, answer);
             consumedKeys.Add(column.Key);
         }
 

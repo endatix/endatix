@@ -1,0 +1,19 @@
+[
+  {
+    "formId": 100,
+    "id": 1,
+    "isComplete": true,
+    "collectionStatus": "complete",
+    "createdAt": "2026-10-14T10:00:00Z",
+    "modifiedAt": "2026-10-14T10:00:00Z",
+    "startedAt": "N/A",
+    "completedAt": "N/A",
+    "durationSeconds": "N/A",
+    "submitterId": "N/A",
+    "submitterDisplayId": "N/A",
+    "scale__r": 10,
+    "scale__control": 3,
+    "collision__number": 2,
+    "collision__string": 2
+  }
+]

@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "locales": [
+    "default"
+  ],
+  "questions": {
+    "collision": {
+      "surveyJsType": "matrix",
+      "title": {},
+      "exportShape": "categorical_array",
+      "columns": [
+        {
+          "numericCode": true,
+          "value": "80",
+          "id": 3,
+          "text": {
+            "default": "80"
+          }
+        },
+        {
+          "numericCode": true,
+          "value": "2",
+          "id": 1,
+          "text": {
+            "default": "Two"
+          }
+        },
+        {
+          "value": "skip",
+          "id": 2,
+          "text": {
+            "default": "Skip"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "value": "number",
+          "text": {
+            "default": "number"
+          }
+        },
+        {
+          "value": "string",
+          "text": {
+            "default": "string"
+          }
+        }
+      ]
+    },
+    "scale": {
+      "surveyJsType": "matrix",
+      "title": {},
+      "exportShape": "categorical_array",
+      "columns": [
+        {
+          "numericCode": true,
+          "value": "20",
+          "id": 1,
+          "text": {
+            "default": "Low"
+          }
+        },
+        {
+          "numericCode": true,
+          "value": "10",
+          "id": 2,
+          "text": {
+            "default": "High"
+          }
+        },
+        {
+          "value": "na",
+          "id": 3,
+          "text": {
+            "default": "Not applicable"
+          }
+        }
+      ],
+      "rows": [
+        {
+          "value": "r",
+          "text": {
+            "default": "r"
+          }
+        },
+        {
+          "value": "control",
+          "text": {
+            "default": "control"
+          }
+        }
+      ]
+    }
+  },
+  "columns": {
+    "collision__number": {
+      "parentKey": "collision",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {},
+      "matrixRowValue": "number",
+      "rowLabel": {
+        "default": "number"
+      }
+    },
+    "collision__string": {
+      "parentKey": "collision",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {},
+      "matrixRowValue": "string",
+      "rowLabel": {
+        "default": "string"
+      }
+    },
+    "scale__control": {
+      "parentKey": "scale",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {},
+      "matrixRowValue": "control",
+      "rowLabel": {
+        "default": "control"
+      }
+    },
+    "scale__r": {
+      "parentKey": "scale",
+      "surveyJsType": "matrix",
+      "exportShape": "categorical_array",
+      "title": {},
+      "matrixRowValue": "r",
+      "rowLabel": {
+        "default": "r"
+      }
+    }
+  },
+  "choiceCatalogs": {
+    "collision": {
+      "choices": []
+    },
+    "scale": {
+      "choices": []
+    }
+  }
+}

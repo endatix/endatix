@@ -1,0 +1,24 @@
+{
+  "elements": [
+    {
+      "type": "matrix",
+      "name": "scale",
+      "rows": ["r", "control"],
+      "columns": [
+        { "value": 20, "text": "Low" },
+        { "value": 10, "text": "High" },
+        { "value": "na", "text": "Not applicable" }
+      ]
+    },
+    {
+      "type": "matrix",
+      "name": "collision",
+      "rows": ["number", "string"],
+      "columns": [
+        80,
+        { "value": 2, "text": "Two" },
+        { "value": "skip", "text": "Skip" }
+      ]
+    }
+  ]
+}
