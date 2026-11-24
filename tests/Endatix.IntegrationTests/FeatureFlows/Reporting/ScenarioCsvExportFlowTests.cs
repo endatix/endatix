@@ -99,6 +99,42 @@ public sealed class ScenarioCsvExportFlowTests(EndatixIntegrationWebHostFixture 
     private static string[] Lines(string csv) =>
         csv.TrimStart('\uFEFF').Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Published_comment_conflict_rejects_compile_and_keeps_the_previous_download(bool replace)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using ReportingWebHost host = new(fixture);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        ScenarioApi api = new(client, ct);
+        var formId = await api.CreateFormAsync(Checkbox("""{"value":"a","showCommentArea":true}"""));
+        var compile = $"/api/forms/{formId}/reporting/compile-schema";
+        await api.SubmitCompleteAsync(formId, """{"q":[{"value":"a","comment":"Earlier note"}]}""");
+        await api.PostOkAsync(compile, new { });
+        await api.PostOkAsync($"/api/forms/{formId}/submissions/backfill", new { force = true });
+        var original = await api.ExportCsvAsync(formId);
+        await api.PublishDefinitionAsync(formId, Checkbox("\"a--comment\""));
+
+        // Act
+        using var rejected = await client.PostAsJsonAsync(compile, new { replace }, ct);
+
+        // Assert
+        rejected.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var detail = await rejected.Content.ReadFromJsonAsync<JsonElement>(ct);
+        detail.GetProperty("errorCode").GetString().Should().Be("ReportingSchemaAliasConflict");
+        detail.GetProperty("traceId").GetString().Should().NotBeNullOrWhiteSpace();
+        detail.GetProperty("previousSchemaRetained").GetBoolean().Should().BeTrue();
+        detail.GetProperty("previousExportAvailable").GetBoolean().Should().BeFalse();
+        original.Should().Contain("Earlier note");
+        (await api.ExportCsvAsync(formId)).Should().Be(original);
+    }
+
+    private static string Checkbox(string choices) =>
+        """{"pages":[{"elements":[{"name":"q","type":"checkbox","choices":[""" + choices + "]}]}]}";
+
     private static string Answers(string row) => row.Split(',', SYSTEM_COLUMNS + 1)[SYSTEM_COLUMNS];
 
     // The admin's client and the test's token, so each call names only what it sends.

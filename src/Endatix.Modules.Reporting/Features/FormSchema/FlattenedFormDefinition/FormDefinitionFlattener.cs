@@ -10,7 +10,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 /// Walks a SurveyJS form definition and produces BI-ready form schema column definitions.
 /// Mirrors semantics of <c>getPlainData</c> / nested-loop SQL export without a SurveyJS runtime.
 /// </summary>
-internal static class FormDefinitionFlattener
+internal static partial class FormDefinitionFlattener
 {
     private const string STRING_COLUMN_TYPE = "string";
     private const string NUMBER_COLUMN_TYPE = "number";
@@ -31,13 +31,6 @@ internal static class FormDefinitionFlattener
         JsonElement Choices,
         JsonElement[] TemplateElements);
 
-    // The columns compiled so far, the limits they are held to, and the choices each question offers.
-    private sealed record FlattenContext(
-        List<FormSchemaColumn> Columns,
-        HashSet<string> SeenKeys,
-        SchemaCompilationLimits Limits,
-        ChoiceSources Sources);
-
     private sealed record PanelPath(
         IReadOnlyList<string> LoopPath,
         IReadOnlyList<string> PropertyPath,
@@ -52,13 +45,13 @@ internal static class FormDefinitionFlattener
 
     public static IReadOnlyList<FormSchemaColumn> Flatten(
         JsonElement definition,
-        SchemaCompilationLimits? limits = null)
+        SchemaCompilationLimits? limits = null,
+        MergedFormSchema? published = null)
     {
         var effectiveLimits = limits ?? SchemaCompilationLimits.Default;
         var allElements = CollectElements(definition, effectiveLimits);
         EnforceMaxQuestions(allElements, definition, effectiveLimits);
-        var drivingCheckboxNames = allElements
-            .Where(item => IsDrivingCheckbox(item.Element, item.Type, item.Name))
+        var drivingCheckboxNames = allElements.Where(item => IsDrivingCheckbox(item.Element, item.Type, item.Name))
             .Select(item => item.Name!)
             .ToHashSet(StringComparer.Ordinal);
 
@@ -74,10 +67,10 @@ internal static class FormDefinitionFlattener
 
         EmitRootElementColumns(rootElements, drivingCheckboxNames, context);
         AddLoopSourceColumns(allElements, context);
-        AddNestedLoopColumns(panelPaths, drivingCheckboxNames, columns, seenKeys, effectiveLimits);
+        AddNestedLoopColumns(panelPaths, drivingCheckboxNames, context);
         AddCalculatedValueColumns(definition, columns, seenKeys, effectiveLimits);
 
-        return columns;
+        return ChoiceCommentAliases.Assign(columns, published);
     }
 
     private static List<CollectedElement> CollectElements(JsonElement definition, SchemaCompilationLimits limits)
@@ -460,9 +453,7 @@ internal static class FormDefinitionFlattener
                 continue;
             }
 
-            var flattening = collected.Element.ResolveSurveyJsFlattening();
-
-            switch (flattening)
+            switch (collected.Element.ResolveSurveyJsFlattening())
             {
                 case SurveyJsFlattening.None:
                     break;
@@ -484,7 +475,7 @@ internal static class FormDefinitionFlattener
                 case SurveyJsFlattening.PanelDynamic:
                     if (!HasLoopSource(collected.Element))
                     {
-                        EmitStandalonePanelDynamicColumns(collected, drivingCheckboxNames, columns, seenKeys, limits);
+                        EmitStandalonePanelDynamicColumns(collected, drivingCheckboxNames, context);
                     }
 
                     break;
@@ -492,6 +483,8 @@ internal static class FormDefinitionFlattener
                     EmitSimpleColumn(collected, drivingCheckboxNames, context);
                     break;
             }
+
+            context.Add(ChoiceCommentColumns.For(collected.Element, collected.Name));
         }
     }
 
@@ -914,9 +907,7 @@ internal static class FormDefinitionFlattener
     private static void EmitStandalonePanelDynamicColumns(
         CollectedElement collected,
         HashSet<string> drivingCheckboxNames,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
         if (HasLoopSource(collected.Element))
         {
@@ -937,7 +928,7 @@ internal static class FormDefinitionFlattener
             return;
         }
 
-        var maxPanelCount = ResolvePanelCount(collected.Element, limits);
+        var maxPanelCount = ResolvePanelCount(collected.Element, context.Limits);
 
         for (var index = 0; index < maxPanelCount; index++)
         {
@@ -954,7 +945,7 @@ internal static class FormDefinitionFlattener
                 }
 
                 var key = ExportPathBuilder.PanelIndexKey(name, index, childName);
-                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                context.AddPanelAnswer(template, new FormSchemaColumn(
                     key,
                     FormSchemaColumnKind.PanelDynamicIndex,
                     $"{template.GetSurveyJsTitle(childName)} ({name} #{index + 1})",
@@ -1279,9 +1270,7 @@ internal static class FormDefinitionFlattener
         }
 
         List<string> keyPrefix = [keyPanelName, .. driverChoices];
-        var flattening = template.ResolveSurveyJsFlattening();
-
-        switch (flattening)
+        switch (template.ResolveSurveyJsFlattening())
         {
             case SurveyJsFlattening.ChoiceIndicators:
                 EmitLoopSourceChoiceIndicatorColumns(template, childName, keyPrefix, loopPath, context);
@@ -1317,6 +1306,8 @@ internal static class FormDefinitionFlattener
                     LoopPath: loopPath));
                 break;
         }
+
+        context.Add(ChoiceCommentColumns.For(template, ExportPathBuilder.Join([.. keyPrefix, childName]), loopPath));
     }
 
     private static void EmitLoopSourceSingleSelectColumn(
@@ -1510,9 +1501,7 @@ internal static class FormDefinitionFlattener
     private static void AddNestedLoopColumns(
         IReadOnlyList<PanelPath> panelPaths,
         HashSet<string> drivingCheckboxNames,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
         foreach (var panelPath in panelPaths)
         {
@@ -1529,7 +1518,7 @@ internal static class FormDefinitionFlattener
                     continue;
                 }
 
-                foreach (var choiceValues in EnumerateChoiceCombinations(panelPath, limits))
+                foreach (var choiceValues in EnumerateChoiceCombinations(panelPath, context.Limits))
                 {
                     List<LoopSegment> loopSegments = new(panelPath.LoopPath.Count);
                     for (var i = 0; i < panelPath.LoopPath.Count; i++)
@@ -1541,7 +1530,7 @@ internal static class FormDefinitionFlattener
                     }
 
                     var key = ExportPathBuilder.NestedLoopKey(choiceValues.AsSpan(), childName);
-                    AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    context.AddPanelAnswer(template, new FormSchemaColumn(
                         key,
                         FormSchemaColumnKind.NestedLoop,
                         $"{template.GetSurveyJsTitle(childName)} ({string.Join(" / ", choiceValues)})",
@@ -1605,7 +1594,7 @@ internal static class FormDefinitionFlattener
         SchemaCompilationLimits limits,
         FormSchemaColumn column)
     {
-        if (!seenKeys.Add(column.Key))
+        if (!ReserveOrdinaryKey(seenKeys, column))
         {
             throw new SchemaCompilationLimitExceededException(
                 SchemaCompilationLimitKind.DuplicateColumnKey,
@@ -1624,6 +1613,10 @@ internal static class FormDefinitionFlattener
 
         columns.Add(column);
     }
+
+    // Comment keys are candidates until every ordinary column is known.
+    private static bool ReserveOrdinaryKey(HashSet<string> seenKeys, FormSchemaColumn column) =>
+        column.Kind == FormSchemaColumnKind.ChoiceComment || seenKeys.Add(column.Key);
 
     private static void ThrowLimitExceeded(
         SchemaCompilationLimitKind limitKind,

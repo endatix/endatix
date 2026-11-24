@@ -15,4 +15,8 @@ internal sealed record FormSchemaColumn(
     int? PanelIndex = null,
     string? MatrixRowValue = null,
     string? MatrixColumnValue = null,
-    IReadOnlyList<string>? MatrixColumnChoices = null);
+    IReadOnlyList<string>? MatrixColumnChoices = null)
+{
+    internal string RankingArrayKey() => LoopPath is null && SourceQuestion is { } name
+        ? name : Shared.SurveyJs.ExportKeyTransformer.RemoveLastSegment(Key);
+}

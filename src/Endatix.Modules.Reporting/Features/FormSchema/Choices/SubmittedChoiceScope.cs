@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Domain.SurveyJs;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 
@@ -9,6 +10,8 @@ internal sealed class SubmittedChoiceScope
 {
     private readonly Dictionary<string, SubmittedChoiceScope> _panels = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<string, bool>> _conditions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, JsonElement?> _questionsByAnswerKey = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _answerKeysByName = new(StringComparer.Ordinal);
 
     public SubmittedChoiceScope Panel(string name)
     {
@@ -22,6 +25,18 @@ internal sealed class SubmittedChoiceScope
     }
 
     public void Note(string name, JsonElement question)
+    {
+        var key = question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ValueName) ?? name;
+        if (!_answerKeysByName.TryAdd(name, key))
+        {
+            _answerKeysByName[name] = null;
+        }
+
+        NoteAnswerKey(key, question);
+        NoteConditions(name, question);
+    }
+
+    private void NoteConditions(string name, JsonElement question)
     {
         if (!question.IsMultiSelectBaseSelect() || ChoiceSource.Parse(question) is ChoiceSource.CarryForward)
         {
@@ -42,20 +57,60 @@ internal sealed class SubmittedChoiceScope
         }
     }
 
+    private void NoteAnswerKey(string key, JsonElement question)
+    {
+        if (!_questionsByAnswerKey.TryAdd(key, question))
+        {
+            _questionsByAnswerKey[key] = null;
+        }
+    }
+
     public bool? IsConditional(IReadOnlyList<LoopSegment> path, string name, string value)
     {
-        var scope = this;
-        foreach (var segment in path)
+        var scope = At(path.Select(segment => segment.PanelValueName));
+        return scope is not null && scope._conditions.TryGetValue(name, out var values) && values.TryGetValue(value, out var conditional)
+            ? conditional
+            : null;
+    }
+
+    public JsonElement? Question(FormSchemaColumn column)
+    {
+        var path = column.PanelName is { } panel
+            ? [panel]
+            : column.LoopPath?.Select(segment => segment.PanelValueName) ?? [];
+        var scope = At(path);
+        return scope?.UniqueQuestion(column.SourceQuestion!);
+    }
+
+    public string? IndexedPanelKey(string name)
+    {
+        if (UniqueQuestion(name) is not { } panel || !SurveyJsElementType.PanelDynamic.Matches(panel.GetSurveyJsType()))
         {
-            if (!scope._panels.TryGetValue(segment.PanelValueName, out scope))
+            return null;
+        }
+
+        if (!panel.TryGetProperty(SurveyJsPropertyNames.ValueName, out var valueName))
+        {
+            return name;
+        }
+
+        return valueName.ValueKind == JsonValueKind.String ? valueName.GetString() : null;
+    }
+
+    private JsonElement? UniqueQuestion(string name) =>
+        _answerKeysByName.GetValueOrDefault(name) is { } key ? _questionsByAnswerKey.GetValueOrDefault(key) : null;
+
+    private SubmittedChoiceScope? At(IEnumerable<string> path)
+    {
+        var scope = this;
+        foreach (var panel in path)
+        {
+            if (!scope._panels.TryGetValue(panel, out scope))
             {
                 return null;
             }
         }
 
-        // A merge retains removed columns. Only an offered value can override its catalog condition.
-        return scope._conditions.TryGetValue(name, out var values) && values.TryGetValue(value, out var conditional)
-            ? conditional
-            : null;
+        return scope;
     }
 }

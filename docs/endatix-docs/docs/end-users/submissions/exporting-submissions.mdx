@@ -80,6 +80,10 @@ Once a form is prepared, **Rebuild reporting data…** appears at the bottom of 
 
 Updating drafts when you export **Incomplete** or **All** is separate from rebuild. That step only refreshes the drafts in this download. It does not recompile the form.
 
+If a conflict stops the rebuild because an existing export column would change meaning, the panel tells you whether the previous schema was kept. Use **Copy support reference** to share the failed attempt with support.
+
+When the previous schema was kept, choose your format and filters, then select **Check previous export**. **Download using previous schema** appears only after the Hub receives the complete file for that exact selection. The file uses the previous schema, so recent changes may be missing. Check again if you change the selection or reopen the panel. An unfinished rebuild or a **Full recompile** that already replaced the schema does not prove a previous file is available.
+
 ## Where Formats Come From
 
 The formats listed in **Export format** are configured per workspace at **Settings → Organization → Export formats**, by someone with permission to manage organization settings:

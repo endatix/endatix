@@ -607,12 +607,11 @@ internal static partial class ShojiCodebookGenerator
     }
 
     private static bool IsTopLevelGapLeafColumn(FormSchemaColumn column) =>
-        column.LoopPath is null &&
-        column.Kind is FormSchemaColumnKind.RankingChoice
-            or FormSchemaColumnKind.MultipleTextItem
-            or FormSchemaColumnKind.MatrixCell
-            or FormSchemaColumnKind.FileUpload
-            or FormSchemaColumnKind.PanelDynamicIndex;
+        column.LoopPath is null && (IsLeafKind(column.Kind) || column.Kind == FormSchemaColumnKind.PanelDynamicIndex);
+
+    private static bool IsLeafKind(FormSchemaColumnKind kind) =>
+        kind is FormSchemaColumnKind.RankingChoice or FormSchemaColumnKind.ChoiceComment
+            or FormSchemaColumnKind.MultipleTextItem or FormSchemaColumnKind.MatrixCell or FormSchemaColumnKind.FileUpload;
 
     private static void WriteCheckboxOtherTextVariables(
         Utf8JsonWriter writer,
@@ -778,11 +777,7 @@ internal static partial class ShojiCodebookGenerator
     }
 
     private static bool IsLoopScalarColumnKind(FormSchemaColumnKind kind) =>
-        kind is FormSchemaColumnKind.LoopSource
-            or FormSchemaColumnKind.FileUpload
-            or FormSchemaColumnKind.RankingChoice
-            or FormSchemaColumnKind.MultipleTextItem
-            or FormSchemaColumnKind.MatrixCell
+        IsLeafKind(kind) || kind is FormSchemaColumnKind.LoopSource
             or FormSchemaColumnKind.CheckboxOtherText
             or FormSchemaColumnKind.Simple
             or FormSchemaColumnKind.Calculated;
@@ -972,14 +967,14 @@ internal static partial class ShojiCodebookGenerator
             codebookColumns.TryGetValue(column.Key, out var columnMetadata);
             var preferredName = BuildLoopDisplayName(exportKey, column, question, questions, columnMetadata, keySeparator);
 
-            if (column.Kind is FormSchemaColumnKind.CheckboxOtherText)
+            if (column.Kind is FormSchemaColumnKind.CheckboxOtherText or FormSchemaColumnKind.ChoiceComment)
             {
                 var driverText = ResolveLoopDriverChoiceText(column, questions, keySeparator);
                 WriteLoopScalarVariable(
                     writer,
                     exportKey,
                     (ShojiCodebookPropertyNames.VariableTypeText, question),
-                    AppendOtherSuffix(preferredName),
+                    column.Kind == FormSchemaColumnKind.CheckboxOtherText ? AppendOtherSuffix(preferredName) : preferredName,
                     question,
                     usedDisplayNames,
                     driverText);
@@ -1420,7 +1415,7 @@ internal static partial class ShojiCodebookGenerator
         }
 
         if (string.Equals(column.DataType, "number", StringComparison.OrdinalIgnoreCase) ||
-            (question.ValueKind == JsonValueKind.Object &&
+            (column.Kind != FormSchemaColumnKind.ChoiceComment && question.ValueKind == JsonValueKind.Object &&
              SurveyJsElementType.Rating.Matches(question.GetSurveyJsType())))
         {
             return ShojiCodebookPropertyNames.VariableTypeNumeric;

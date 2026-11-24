@@ -3,11 +3,13 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Modules.Reporting.Endpoints.Forms;
 
@@ -26,18 +28,18 @@ public sealed class CompileSchema(
         Summary(summary =>
         {
             summary.Summary = "Compile reporting form schema";
-            summary.Description =
-                "Compiles and persists the export schema for the active form definition. " +
+            summary.Description = "Compiles and persists the export schema for the active form definition. " +
                 "Use before exporting when the form predates the reporting pipeline or outbox processing has not run. " +
                 "Set replace=true to force Replace mode and clear flattened submissions even when real submissions exist. " +
                 "Requires submissions.export or forms.edit; replace=true requires forms.edit.";
             summary.Responses[200] = "Form schema compiled.";
             summary.Responses[403] = "Forbidden. replace=true requires forms.edit.";
             summary.Responses[404] = "Form or active definition not found.";
+            summary.Responses[409] = "A published reporting alias would change meaning. The previous schema was retained.";
         });
         Description(builder => builder
             .Produces<CompileFormSchemaResponse>(200, "application/json")
-            .ProducesProblem(404)
+            .ProducesProblem(404).ProducesProblem(409)
             .ProducesProblem(403)
             .ProducesProblem(400));
     }
@@ -59,8 +61,16 @@ public sealed class CompileSchema(
         CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId, request.Replace);
 
         var result = await mediator.Send(command, ct);
+        if (result.IsConflict())
+        {
+            return AliasConflict(command, result.Errors.Single());
+        }
 
-        return TypedResultsBuilder
+        return Compiled(result);
+    }
+
+    private static Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult> Compiled(Result<CompileFormSchemaResult> result) =>
+        TypedResultsBuilder
             .MapResult(
                 result,
                 compiled => new CompileFormSchemaResponse
@@ -69,6 +79,16 @@ public sealed class CompileSchema(
                     FormDefinitionId = compiled.FormDefinitionId,
                 })
             .SetTypedResults<Ok<CompileFormSchemaResponse>, ProblemHttpResult>();
+
+    private ProblemHttpResult AliasConflict(CompileFormSchemaCommand command, string detail)
+    {
+        var problem = EndatixProblemDetails.Create(StatusCodes.Status409Conflict, null, detail, HttpContext, ReportingSchemaAliasConflictException.CODE);
+        Logger.LogWarning("Reporting compile rejected for form {FormId}: {ErrorCode}; support reference {TraceId}; {Conflict}",
+            command.FormId, ReportingSchemaAliasConflictException.CODE, problem.Extensions["traceId"], detail);
+        problem.Extensions["previousSchemaRetained"] = true;
+        // Compile has no selected export format, locale or filters and cannot vouch for the download.
+        problem.Extensions["previousExportAvailable"] = false;
+        return TypedResults.Problem(problem);
     }
 }
 
