@@ -1,13 +1,35 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
-internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> providers, IDateTimeProvider clock)
+internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] providers, IDateTimeProvider clock)
 {
+    internal string ConfigurationKey { get; } = GetConfigurationKey(providers);
+
+    private static string GetConfigurationKey(IRequiredActionProvider[] providers)
+    {
+        if (providers.Length == 0)
+        {
+            return "none";
+        }
+
+        var revisions = providers.Select(p => new
+        {
+            Assembly = p.GetType().Assembly.GetName().Name,
+            Type = p.GetType().FullName,
+            Revision = p.CacheConfigurationKey
+        }).OrderBy(p => p.Assembly, StringComparer.Ordinal)
+          .ThenBy(p => p.Type, StringComparer.Ordinal)
+          .ThenBy(p => p.Revision, StringComparer.Ordinal);
+        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
+    }
+
     internal async Task<AuthorizationData> ApplyAsync(AuthorizationData data, CancellationToken cancellationToken)
     {
-        if (providers is IReadOnlyCollection<IRequiredActionProvider> { Count: 0 })
+        if (providers.Length == 0)
         {
             return data;
         }

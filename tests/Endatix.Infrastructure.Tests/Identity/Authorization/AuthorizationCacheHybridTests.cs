@@ -88,8 +88,8 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
     public async Task GetOrCreateAsync_SecondInstanceSharesTheDistributedCache_ReadsEveryFieldBack()
     {
         // Arrange — one instance builds and stores the entry; the other has an empty L1, so it must deserialize from L2.
-        var writer = CreateInstance(true, NoticeProvider("Creator", false));
-        var reader = CreateInstance(withSharedL2: true);
+        var writer = CreateInstance(true, new ConfiguredProvider("profile.complete"), new ConfiguredProvider("email.verify"));
+        var reader = CreateInstance(true, new ConfiguredProvider("email.verify"), new ConfiguredProvider("profile.complete"));
         var principal = CreatePrincipal();
         var written = await writer.GetOrCreateAsync(
             principal,
@@ -103,9 +103,53 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
             CancellationToken.None);
 
         // Assert
-        read.RequiredActions.Should().ContainSingle(a => a.Key == "profile.complete");
+        read.RequiredActions.Select(a => a.Key).Should().Equal("email.verify", "profile.complete");
         read.Should().BeEquivalentTo(written);
         read.Should().NotBeSameAs(written);
+    }
+
+    [Theory]
+    [InlineData(null, "v1", false)]
+    [InlineData("v1", null, false)]
+    [InlineData("v1", "v2", false)]
+    [InlineData("v2", "v1", false)]
+    [InlineData(null, "v1", true)]
+    [InlineData("v1", null, true)]
+    [InlineData("v1", "v2", true)]
+    [InlineData("v2", "v1", true)]
+    public async Task GetOrCreateAsync_DifferentProviderConfigurations_ServeTheirOwnSnapshot(
+        string? firstRevision, string? secondRevision, bool byUser)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var principal = CreatePrincipal();
+        var expiresAt = _start.UtcDateTime.AddSeconds(45);
+        var authorization = CreateData(expiresAt);
+        Task<Result<AuthorizationData>> Build(CancellationToken _) => Task.FromResult(Result.Success(authorization));
+        Task<AuthorizationData> ReadAsync(string? revision)
+        {
+            var cache = CreateInstance(true, revision is null ? [] : [new ConfiguredProvider(revision)]);
+            return byUser ? cache.GetOrCreateAsync("123", 42, principal, Build, ct) : cache.GetOrCreateAsync(principal, Build, ct);
+        }
+
+        await ReadAsync(firstRevision);
+        var read = await ReadAsync(secondRevision);
+
+        read.RequiredActions.Select(a => a.Key).Should().Equal(secondRevision is null ? Array.Empty<string>() : [secondRevision]);
+        read.Permissions.Should().BeEquivalentTo(authorization.Permissions);
+        read.Roles.Should().BeEquivalentTo(authorization.Roles);
+        read.ExpiresAt.Should().Be(expiresAt);
+    }
+
+    private sealed class ConfiguredProvider(string revision) : IRequiredActionProvider
+    {
+        public string CacheConfigurationKey => revision;
+
+        public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<RequiredAction>>([new()
+            {
+                Key = revision, ResolvePath = "/profile",
+                Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Notice
+            }]);
     }
 
     public void Dispose()

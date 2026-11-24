@@ -13,6 +13,12 @@ public sealed record RequiredActionSubject(string UserId, long TenantId, IReadOn
 [Experimental("ENDATIX0006")]
 public interface IRequiredActionProvider
 {
+    /// <summary>A stable, non-secret revision of the settings and behavior that determine this provider's reported actions.</summary>
+    /// <remarks>Use the same revision on hosts with equivalent configuration. Change it when their snapshots are no
+    /// longer interchangeable. Do not include credentials, customer identifiers, document text or raw settings.
+    /// This is not a per-request key: changes in a subject's standing use normal access-version and expiry rules.</remarks>
+    string CacheConfigurationKey { get; }
+
     /// <summary>Returns only outstanding actions applicable to the subject; an empty list means none.</summary>
     Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken);
 }

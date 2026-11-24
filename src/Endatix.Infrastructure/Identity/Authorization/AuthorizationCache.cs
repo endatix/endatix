@@ -31,7 +31,7 @@ internal class AuthorizationCache(
     private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
 
     private const short ETAG_LENGTH = 12;
-    private readonly RequiredActionEvaluation _actions = new(actionProviders, dateTimeProvider);
+    private readonly RequiredActionEvaluation _actions = new(actionProviders.ToArray(), dateTimeProvider);
 
     // Cache key prefixes
     private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
@@ -144,12 +144,15 @@ internal class AuthorizationCache(
     }
 
     /// <summary>Per-token key; the access versions in it retire every entry when an authorization input changes.</summary>
-    private static string GetClaimsCacheKey(AccessVersionKey versions, string tokenPart) =>
-        $"{versions.Prefix}:{JWT_AUTH_DATA_CACHE_KEY_PREFIX}:{versions.Versions}:{tokenPart}";
+    private string GetClaimsCacheKey(AccessVersionKey versions, string tokenPart) =>
+        $"{CacheNamespace(versions, JWT_AUTH_DATA_CACHE_KEY_PREFIX)}:{tokenPart}";
 
     /// <summary>Per-user-and-tenant key; the access versions in it retire every entry when an authorization input changes.</summary>
-    private static string GetUserAuthDataCacheKey(AccessVersionKey versions, string userId, long tenantId) =>
-        $"{versions.Prefix}:{USER_AUTH_DATA_CACHE_KEY_PREFIX}:{versions.Versions}:{userId}:{tenantId}";
+    private string GetUserAuthDataCacheKey(AccessVersionKey versions, string userId, long tenantId) =>
+        $"{CacheNamespace(versions, USER_AUTH_DATA_CACHE_KEY_PREFIX)}:{userId}:{tenantId}";
+
+    private string CacheNamespace(AccessVersionKey versions, string kind) =>
+        $"{versions.Prefix}:{kind}:{versions.Versions}.{_actions.ConfigurationKey}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
 

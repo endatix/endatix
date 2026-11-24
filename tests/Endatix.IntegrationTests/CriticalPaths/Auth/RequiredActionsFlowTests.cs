@@ -41,6 +41,8 @@ public sealed class RequiredActionsFlowTests(EndatixIntegrationWebHostFixture fi
 
     private sealed class ProfileProvider(string userId, long tenantId) : IRequiredActionProvider
     {
+        public string CacheConfigurationKey => "v1";
+
         public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken)
         {
             Assert.Equal(userId, subject.UserId);
