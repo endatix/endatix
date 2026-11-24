@@ -62,7 +62,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, Arg.Any<CancellationToken>());
+        _flattening.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class ReportingOutboxJobsTests : IDisposable
         // Assert — a failure result, not a throw, so the job is not retried.
         result.ValidationErrors.Should().ContainSingle()
             .Which.ErrorMessage.Should().Be("The outbox message could not be read.");
-        await _flattening.DidNotReceiveWithAnyArgs().ProcessAsync(default, default, default, Arg.Any<CancellationToken>());
+        _flattening.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

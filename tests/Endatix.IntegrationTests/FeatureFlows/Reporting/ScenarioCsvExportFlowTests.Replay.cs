@@ -13,6 +13,7 @@ public sealed partial class ScenarioCsvExportFlowTests
     [Fact]
     public async Task Completion_replay_keeps_both_prepared_responses_in_each_csv_download()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using ReportingWebHost host = new(fixture);
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, ct);
@@ -28,11 +29,13 @@ public sealed partial class ScenarioCsvExportFlowTests
         await api.PostOkAsync($"/api/forms/{formId}/submissions/backfill", new { force = true });
         await AssertDownloadIdsAsync(api, formId, [first, second]);
 
+        // Act: deliver on this host, where Reporting handles the event. Both background relays stay off.
         using var pause = host.Services.GetRequiredService<AppCommandGate>().PauseAt(AnswerWrite());
         var delivery = BackgroundWork.Of(host.Services).DeliverOutboxOnceAsync(ct);
         try
         {
             await pause.Reached.WaitAsync(TimeSpan.FromSeconds(30), ct);
+            // Assert while the completion worker is paused before publishing its answers.
             await AssertDownloadIdsAsync(api, formId, [first, second]);
         }
         finally
@@ -47,6 +50,7 @@ public sealed partial class ScenarioCsvExportFlowTests
     [Fact]
     public async Task Forced_backfill_rebuilds_a_prepared_response_against_the_merged_schema()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using ReportingWebHost host = new(fixture);
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, ct);
@@ -62,8 +66,10 @@ public sealed partial class ScenarioCsvExportFlowTests
         await api.PublishDefinitionAsync(formId, """{"elements":[{"type":"text","name":"q1"},{"type":"text","name":"extra"}]}""");
         await api.PostOkAsync(compile, new { });
 
+        // Act
         await api.PostOkAsync(backfill, new { force = true });
 
+        // Assert
         (await api.ExportCsvAsync(formId)).Should().Contain("retained answer");
     }
 

@@ -252,8 +252,9 @@ public sealed class FlattenedSubmissionRepositoryTests
     }
 
     [Fact]
-    public async Task Older_completion_cannot_publish_its_answers_while_a_newer_revision_is_processing()
+    public async Task TryMarkProcessedAsync_NewerRevisionIsProcessing_RejectsOlderCompletion()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(ct);
         await using var db = CreateContext(TenantId);
@@ -265,7 +266,11 @@ public sealed class FlattenedSubmissionRepositoryTests
         var newer = prepared with { Revision = 4 };
         (await rows.TryMarkProcessingAsync(newer, ct)).Should().BeTrue();
 
-        (await rows.TryMarkProcessedAsync(prepared, ProcessedData, ct)).Should().BeFalse();
+        // Act
+        var published = await rows.TryMarkProcessedAsync(prepared, ProcessedData, ct);
+
+        // Assert
+        published.Should().BeFalse();
 
         (await ReadRowAsync(rows, ct)).Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processing);
         (await rows.TryMarkProcessedAsync(newer, ProcessedData, ct)).Should().BeTrue();

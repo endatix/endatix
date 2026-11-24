@@ -93,11 +93,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
 
         await CreateSut().Read(message).RunAsync(TestContext.Current.CancellationToken);
 
-        await _flatteningProcessor.DidNotReceive().ProcessAsync(
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<CancellationToken>());
+        _flatteningProcessor.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -114,11 +110,7 @@ public sealed class FlattenSubmissionOutboxHandlerTests
         await act.Should()
             .ThrowAsync<InvalidOperationException>()
             .WithMessage("*missing a valid submissionId*");
-        await _flatteningProcessor.DidNotReceive().ProcessAsync(
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<long>(),
-            Arg.Any<CancellationToken>());
+        _flatteningProcessor.ReceivedCalls().Should().BeEmpty();
     }
 
     private static Submission CreateSubmission()
