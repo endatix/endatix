@@ -20,6 +20,7 @@ internal static partial class FormSchemaCodebookBuilder
 
     private static void WriteMatrixColumns(Utf8JsonWriter writer, JsonElement element)
     {
+        writer.WriteBoolean(FormSchemaCodebookPropertyNames.TYPED_MATRIX_CODES, true);
         writer.WriteStartArray(SurveyJsPropertyNames.Columns);
         foreach (var category in DistinctMatrixCategories(element))
         {

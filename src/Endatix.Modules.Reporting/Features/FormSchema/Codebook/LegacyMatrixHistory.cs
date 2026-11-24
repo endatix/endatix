@@ -17,7 +17,7 @@ internal sealed class LegacyMatrixHistory(MergedFormSchema storedMap, IReadOnlyL
         var values = stored.EnumerateArray().Select(c => c.GetProperty(SurveyJsPropertyNames.Value).GetString()!).ToList();
         if (!MapAgrees(name, values))
         {
-            throw new LegacyMatrixSourceRequiredException(name);
+            return RecoverMergedStrings(name, stored);
         }
 
         JsonElement? recovered = null;
@@ -29,7 +29,28 @@ internal sealed class LegacyMatrixHistory(MergedFormSchema storedMap, IReadOnlyL
             }
         }
 
-        return recovered ?? throw new LegacyMatrixSourceRequiredException(name);
+        return recovered ?? RecoverMergedStrings(name, stored);
+    }
+
+    // An unmarked, merged string book may never have existed in any one definition. Prove every id
+    // from the original typed definitions in publication order, not from the display order or today's definition.
+    private JsonElement RecoverMergedStrings(string name, JsonElement stored)
+    {
+        if (definitions.Count < 2)
+        {
+            throw new LegacyMatrixSourceRequiredException(name);
+        }
+
+        var values = stored.EnumerateArray().OrderBy(c => c.GetProperty(FormSchemaCodebookPropertyNames.Id).GetInt32())
+            .Select(c => c.GetProperty(SurveyJsPropertyNames.Value).GetString()!).ToList();
+        var replay = definitions.Select(d => FormSchemaCodebookBuilder.HistoricalStringMatrix(d, name))
+            .Aggregate((prior, next) => new PublishedMatrixCategories(name).Merge(prior, next, history: null));
+        if (!MapAgrees(name, values) || !JsonElement.DeepEquals(stored, replay.GetProperty(SurveyJsPropertyNames.Columns)))
+        {
+            throw new LegacyMatrixSourceRequiredException(name);
+        }
+
+        return stored;
     }
 
     private bool MapAgrees(string name, List<string> values)

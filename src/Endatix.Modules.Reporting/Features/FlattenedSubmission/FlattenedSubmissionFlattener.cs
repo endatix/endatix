@@ -252,13 +252,27 @@ internal static class FlattenedSubmissionFlattener
             return rowAnswer;
         }
 
-        if (rowAnswer.GetNonEmptyStringValue() is not { } selected)
+        return rowAnswer.ValueKind == JsonValueKind.String ? MatrixStringAnswer(rowAnswer, column, choices) : null;
+    }
+
+    private static JsonElement? MatrixStringAnswer(JsonElement answer, FormSchemaColumn row, ChoiceCatalogs catalog)
+    {
+        var value = answer.GetString()!;
+        var ordinals = row.MatrixColumnChoices!;
+        if (PublishedOrdinal(ordinals, value) is { } exact)
         {
-            return null;
+            return exact;
         }
 
-        return PublishedOrdinal(column.MatrixColumnChoices, selected) ??
-            (choices.HasMixedMatrixString(column.SourceQuestion, rowAnswer.GetString()!) ? rowAnswer : null);
+        if (catalog.HasMixedMatrixString(row.SourceQuestion!, value))
+        {
+            return answer;
+        }
+
+        // Older writers trimmed the answer before looking up an unpadded ordinal. Never guess between spellings.
+        var trimmed = value.Trim();
+        return trimmed.Length > 0 && trimmed != value && !ordinals.Any(s => s != trimmed && s.Trim() == trimmed) &&
+            !catalog.HasPaddedMatrixString(row.SourceQuestion!, trimmed) ? PublishedOrdinal(ordinals, trimmed) : null;
     }
 
     // A new ordinal in a mixed matrix could impersonate a raw numeric code. Only its published ordinals are safe.

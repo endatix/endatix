@@ -41,7 +41,7 @@ internal sealed partial class FormSchemaProcessor
             versions = versions.Where(d => d.Id == schema.FormDefinitionRevision);
         }
 
-        var sources = await versions.Select(d => new { d.Id, d.ModifiedAt, d.JsonData }).ToListAsync(ct);
+        var sources = await versions.OrderBy(d => d.Id).Select(d => new { d.Id, d.ModifiedAt, d.JsonData }).ToListAsync(ct);
         if (!sources.Any(d => d.Id == schema.FormDefinitionRevision) || sources.Any(d => d.ModifiedAt is not null))
         {
             return null;

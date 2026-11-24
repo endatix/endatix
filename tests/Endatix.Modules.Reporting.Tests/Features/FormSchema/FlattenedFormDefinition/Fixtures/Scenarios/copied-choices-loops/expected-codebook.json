@@ -1594,6 +1594,7 @@
       "title": {},
       "pageName": "profile",
       "exportShape": "categorical_array",
+      "typedMatrixCodes": true,
       "columns": [
         {
           "value": "1",

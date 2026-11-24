@@ -112,6 +112,9 @@ internal sealed class ChoiceCatalogs
     internal bool HasMixedMatrixString(string question, string value) =>
         MixedMatrixStrings.TryGetValue(question, out var strings) && strings.Contains(value);
 
+    internal bool HasPaddedMatrixString(string question, string trimmed) =>
+        MixedMatrixStrings.TryGetValue(question, out var strings) && strings.Any(s => s != trimmed && s.Trim() == trimmed);
+
     private static HashSet<string>? MixedStrings(JsonElement question) =>
         question.TryGetColumns(out var columns) && columns.EnumerateArray().Any(MatrixCode.IsNumericColumn)
             ? columns.EnumerateArray().Where(c => !MatrixCode.IsNumericColumn(c))

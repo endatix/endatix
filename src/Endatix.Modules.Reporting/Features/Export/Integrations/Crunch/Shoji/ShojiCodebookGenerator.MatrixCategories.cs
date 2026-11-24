@@ -19,7 +19,9 @@ internal static partial class ShojiCodebookGenerator
         var categories = columns.EnumerateArray()
             .Where(c => c.TryGetPropertyValue(FormSchemaCodebookPropertyNames.Id) is { ValueKind: JsonValueKind.Number })
             .Select(MatrixNameSource).ToList();
-        var names = columns.EnumerateArray().Any(MatrixCode.IsNumericColumn) ? PublishedNames(categories) : null;
+        var names = columns.EnumerateArray().Any(MatrixCode.IsNumericColumn) ||
+            (question.GetBooleanProperty(FormSchemaCodebookPropertyNames.TYPED_MATRIX_CODES) && categories.Exists(c => c.Value != c.Value.Trim()))
+            ? PublishedNames(categories) : null;
         WriteCategories(writer, [.. categories.Select(c => (names?[c.Id] ?? c.Label, c.Id, c.Id))]);
     }
 

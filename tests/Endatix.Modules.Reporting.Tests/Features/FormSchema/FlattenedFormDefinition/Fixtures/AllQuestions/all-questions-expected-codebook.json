@@ -242,6 +242,7 @@
       },
       "pageName": "page1",
       "exportShape": "categorical_array",
+      "typedMatrixCodes": true,
       "columns": [
         {
           "value": "poor",

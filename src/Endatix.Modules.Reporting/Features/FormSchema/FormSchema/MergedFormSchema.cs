@@ -147,22 +147,7 @@ internal sealed class MergedFormSchema
         var panelIndex = item.GetNullableInt32Property(FormSchemaPropertyNames.PanelIndex);
         var matrixRowValue = item.GetStringProperty(FormSchemaPropertyNames.MatrixRowValue);
         var matrixColumnValue = item.GetStringProperty(FormSchemaPropertyNames.MatrixColumnValue);
-        IReadOnlyList<string>? matrixColumnChoices = null;
-        if (item.TryGetNullableArrayProperty(FormSchemaPropertyNames.MatrixColumnChoices, out var matrixColumnChoicesProp) &&
-            matrixColumnChoicesProp is not null)
-        {
-            List<string> choices = [];
-            foreach (var choice in matrixColumnChoicesProp.Value.EnumerateArray())
-            {
-                var value = choice.GetScalarStringValue();
-                if (value is not null)
-                {
-                    choices.Add(value);
-                }
-            }
-
-            matrixColumnChoices = choices;
-        }
+        var matrixColumnChoices = ReadMatrixColumnChoices(item);
 
         if (!TryParseLoopPath(item, out var loopPath))
         {
@@ -185,6 +170,11 @@ internal sealed class MergedFormSchema
 
         return true;
     }
+
+    private static List<string>? ReadMatrixColumnChoices(JsonElement item) =>
+        item.TryGetArrayProperty(FormSchemaPropertyNames.MatrixColumnChoices, out var choices)
+            ? [.. choices.EnumerateArray().Select(c => c.ValueKind == JsonValueKind.String ? c.GetString() : c.GetScalarStringValue()).OfType<string>()]
+            : null;
 
     private static bool TryParseColumnKind(JsonElement item, out FormSchemaColumnKind kind)
     {

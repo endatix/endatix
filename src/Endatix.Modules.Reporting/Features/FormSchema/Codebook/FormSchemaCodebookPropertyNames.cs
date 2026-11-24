@@ -28,6 +28,7 @@ internal static class FormSchemaCodebookPropertyNames
 
     public const string Id = "id";
     public const string NUMERIC_CODE = "numericCode";
+    public const string TYPED_MATRIX_CODES = "typedMatrixCodes";
     public const string PUBLISHED_NAME_SOURCE = "publishedNameSource";
 
     /// <summary>Choice catalog: the special item a choice is ("other", "none", "refused", "dontknow"); absent for an inline choice.</summary>

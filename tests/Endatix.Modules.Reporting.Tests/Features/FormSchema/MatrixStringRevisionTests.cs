@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 
@@ -65,5 +67,77 @@ public sealed class MatrixStringRevisionTests
 
         // Assert
         merge.Should().Throw<ReportingSchemaAliasConflictException>();
+    }
+
+    [Theory]
+    [InlineData(" second ", 3)]
+    [InlineData("second", 2)]
+    [InlineData(" solo ", 4)]
+    [InlineData("  second  ", null)]
+    [InlineData(" first ", 1)]
+    [InlineData("unknown", null)]
+    public void Flatten_PublishedPaddedChoice_PrefersExactIdentityOverCompatibility(string answer, int? expected)
+    {
+        // Arrange
+        var revised = Definition("""["first","second"," second "," solo "]""");
+        var pipeline = PersonalizationPipeline.Compile(Definition("""["first","second"]"""));
+        pipeline.Recompile(revised, FormSchemaCompileMode.Merge);
+
+        // Act
+        // A later compile reads the ordinal map back from storage.
+        pipeline.Recompile(revised, FormSchemaCompileMode.Merge);
+        pipeline.Flatten(revised, new("response", JsonSerializer.Serialize(new { m = new { r = answer } }), null));
+
+        // Assert
+        var row = pipeline.Rows["response"];
+        (row["m__r"]?.GetInt32()).Should().Be(expected);
+        row["m__blank"].Should().BeNull();
+    }
+
+    [Fact]
+    public void Merge_NumericChoiceAfterStringReorder_ReservesRemovedAndPreviouslyPublishedIds()
+    {
+        // Arrange
+        var pipeline = PersonalizationPipeline.Compile(Definition("""["first","second"]"""));
+        pipeline.Recompile(Definition("""["added","second"]"""), FormSchemaCompileMode.Merge);
+
+        // Act
+        pipeline.Recompile(Definition("""[80,"added","second"]"""), FormSchemaCompileMode.Merge);
+
+        // Assert
+        using var book = JsonDocument.Parse(pipeline.Schema.CodebookJson);
+        var columns = book.RootElement.GetProperty("questions").GetProperty("m").GetProperty("columns");
+        columns.EnumerateArray().OrderBy(c => c.GetProperty("id").GetInt32())
+            .Select(c => c.GetProperty("value").GetString()).Should().Equal("first", "second", "added", "80");
+    }
+
+    [Theory]
+    [InlineData("""["first","second"]""", true)]
+    [InlineData("""[{"value":2,"text":"first"},"second"]""", false)]
+    [InlineData("""["second","first"]""", false)]
+    public void Merge_UnmarkedMergedBook_RequiresHistoricalProofOfEveryStringOrdinal(string historicalChoices, bool agrees)
+    {
+        // Arrange
+        var compiler = new FormSchemaCompiler();
+        var original = compiler.CompilePersisted(Definition("""["first","second"]"""));
+        var second = Definition("""["added","second"]""");
+        var merged = compiler.CompilePersisted(second, original.FlatteningMapJson, original.CodebookJson);
+        var unmarked = JsonNode.Parse(merged.CodebookJson)!;
+        unmarked["questions"]!["m"]!.AsObject().Remove("typedMatrixCodes");
+        LegacyMatrixHistory history = new(merged.FlatteningMap, [Definition(historicalChoices), second]);
+
+        // Act
+        var compile = () => compiler.CompileLegacyMerge(Definition("""[80,"second","added"]"""),
+            new(merged.FlatteningMapJson, unmarked.ToJsonString()), history);
+
+        // Assert
+        if (agrees)
+        {
+            compile().CodebookJson.Should().Contain("\"typedMatrixCodes\":true");
+        }
+        else
+        {
+            compile.Should().Throw<ReportingSchemaAliasConflictException>();
+        }
     }
 }
