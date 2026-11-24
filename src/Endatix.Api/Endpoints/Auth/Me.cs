@@ -26,6 +26,10 @@ public class Me(ICurrentUserAuthorizationService authorizationService)
             s.Responses[401] = "Unauthorized - authentication required.";
             s.Responses[503] = "Required action status is temporarily unavailable.";
         });
+        Description(builder => builder
+            .Produces<AuthorizationData>(StatusCodes.Status200OK, "application/json")
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     public override async Task<Results<Ok<AuthorizationData>, UnauthorizedHttpResult, ProblemHttpResult>> ExecuteAsync(
