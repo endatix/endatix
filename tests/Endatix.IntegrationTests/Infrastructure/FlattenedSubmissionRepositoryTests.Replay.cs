@@ -9,6 +9,65 @@ public sealed partial class FlattenedSubmissionRepositoryTests
 {
     public enum Snapshot { Matching, TimestampBefore, TimestampAfter, NoAnswers, Deleted, Failed, OlderRevision, Forced }
 
+    [Fact]
+    public async Task TerminalWrites_AfterSupersessionOrDeletion_NeverChangeTheRow()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(ct);
+        await using var db = CreateContext(TenantId);
+        var rows = CreateRepository(db);
+        var key = KeyOf(SubmissionId);
+        await rows.EnsureExistsAsync(key, ct);
+        var old = await ClaimAsync(rows, WriteOf(3), ct);
+        var replacement = await ClaimAsync(rows, WriteOf(3), ct);
+
+        // Act & assert: neither an independently reconstructed value nor the superseded owner can finish.
+        await AssertCannotFinishAsync(rows, WriteOf(3), ct);
+        await AssertCannotFinishAsync(rows, old, ct);
+        await AssertCannotFinishAsync(rows, replacement with { Revision = 4 }, ct);
+        (await ReadRowAsync(rows, ct)).FlattenAttemptId.Should().Be(replacement.AttemptId);
+        (await rows.TryMarkProcessedAsync(replacement, ProcessedData, ct)).Should().BeTrue();
+        await AssertCannotFinishAsync(rows, replacement, ct);
+
+        await rows.DeleteBySubmissionAsync(key, ct);
+        await AssertCannotFinishAsync(rows, old, ct);
+        (await rows.GetBySubmissionIdAsync(TenantId, SubmissionId, ct)).Should().BeNull();
+        await rows.EnsureExistsAsync(key, ct);
+        var recreated = await ClaimAsync(rows, WriteOf(3), ct);
+        await AssertCannotFinishAsync(rows, old, ct);
+        (await rows.TryMarkProcessedAsync(recreated, ProcessedData, ct)).Should().BeTrue();
+    }
+
+    private static async Task AssertCannotFinishAsync(FlattenedSubmissionRepository rows, FlattenedRevision write, CancellationToken ct)
+    {
+        (await rows.TryMarkProcessedAsync(write, ProcessedData, ct)).Should().BeFalse();
+        (await rows.TryMarkSkippedAsync(write, ct)).Should().BeFalse();
+        (await rows.TryMarkFailedAsync(write, "rejected", ct)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task MarkDeleted_TrackedBeforeClaim_RevokesTheConcurrentWriter()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(ct);
+        await using var db = CreateContext(TenantId);
+        var rows = CreateRepository(db);
+        await rows.EnsureExistsAsync(KeyOf(SubmissionId), ct);
+        await using var deleting = CreateContext(TenantId);
+        var original = await deleting.FlattenedSubmissions.SingleAsync(ct);
+        var claimed = await ClaimAsync(rows, WriteOf(3), ct);
+
+        // Act
+        original.MarkDeleted();
+        await deleting.SaveChangesAsync(ct);
+
+        // Assert
+        await AssertCannotFinishAsync(rows, claimed, ct);
+        (await rows.GetBySubmissionIdAsync(TenantId, SubmissionId, ct)).Should().BeNull();
+    }
+
     [Theory]
     [InlineData(Snapshot.Matching, SubmissionIntegrationStatusCodes.Processed)]
     [InlineData(Snapshot.TimestampBefore, SubmissionIntegrationStatusCodes.Processing)]
@@ -27,7 +86,7 @@ public sealed partial class FlattenedSubmissionRepositoryTests
         var rows = CreateRepository(db);
         var stored = WriteOf(3);
         await rows.EnsureExistsAsync(KeyOf(SubmissionId), ct);
-        (await rows.TryMarkProcessedAsync(stored, ProcessedData, ct)).Should().BeTrue();
+        (await rows.TryMarkProcessedAsync(await ClaimAsync(rows, stored, ct), ProcessedData, ct)).Should().BeTrue();
         var all = db.FlattenedSubmissions.IgnoreQueryFilters().Where(row => row.SubmissionId == SubmissionId);
         await SetSnapshotStateAsync(all, snapshot, ct);
 
@@ -43,7 +102,13 @@ public sealed partial class FlattenedSubmissionRepositoryTests
         row.IsDeleted.Should().Be(snapshot == Snapshot.Deleted);
     }
 
-    private static FlattenedRevision AttemptFor(FlattenedRevision stored, Snapshot snapshot) => stored with
+    private static async Task<FlattenedRevision> ClaimAsync(FlattenedSubmissionRepository rows, FlattenedRevision write, CancellationToken ct)
+    {
+        (await rows.TryMarkProcessingAsync(write, ct)).Should().BeTrue();
+        return write;
+    }
+
+    private static FlattenedRevision AttemptFor(FlattenedRevision stored, Snapshot snapshot) => WriteOf(stored.Revision) with
     {
         KeepPrepared = snapshot != Snapshot.Forced,
         Revision = snapshot == Snapshot.OlderRevision ? stored.Revision + 1 : stored.Revision,

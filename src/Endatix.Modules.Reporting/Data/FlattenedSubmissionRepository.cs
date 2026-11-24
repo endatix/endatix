@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
+using Endatix.Infrastructure.Data;
 using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Persistence;
@@ -92,39 +93,40 @@ internal sealed class FlattenedSubmissionRepository(
     }
 
     /// <inheritdoc />
-    public Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken)
+    public async Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken)
     {
         var now = UtcNow;
-        return TryWriteAsync(
-            write,
+        var count = await NotNewerThan(write).ExecuteUpdateAsync(
             setters => setters
                 .SetProperty(row => row.Integration.Code, row => write.KeepPrepared && !row.IsDeleted &&
                     row.Integration.Code == SubmissionIntegrationStatusCodes.Processed && row.DataJson != null &&
                     row.SourceRevision == write.Revision && row.SourceModifiedAt == write.SourceModifiedAt
                         ? SubmissionIntegrationStatusCodes.Processed : SubmissionIntegrationStatusCodes.Processing)
+                .SetProperty(row => row.FlattenAttemptId, write.AttemptId)
                 .SetProperty(row => row.SourceRevision, write.Revision)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.LastError, (string?)null)
                 .SetProperty(row => row.ModifiedAt, now),
             cancellationToken);
+        return count == 1 && ForgetTracked(write.SubmissionId);
     }
 
     /// <inheritdoc />
     public Task<bool> TryMarkProcessedAsync(FlattenedRevision write, FlattenedRowData data, CancellationToken cancellationToken)
     {
         var now = UtcNow;
-        return TryWriteAsync(
+        return TryFinishAsync(
             write,
             setters => setters
                 .SetProperty(row => row.DataJson, data.DataJson)
                 .SetProperty(row => row.SearchJson, data.SearchJson)
                 .SetProperty(row => row.SearchKeysRevision, data.SearchKeysRevision)
+                .SetProperty(row => row.FlattenAttemptId, (Guid?)null)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Processed)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.ProcessedAt, now)
                 .SetProperty(row => row.Integration.LastError, (string?)null)
                 .SetProperty(row => row.IsDeleted, false)
-                .SetProperty(row => row.SourceRevision, write.Revision)
                 .SetProperty(row => row.SourceModifiedAt, write.SourceModifiedAt)
                 .SetProperty(row => row.ModifiedAt, now),
             cancellationToken);
@@ -134,16 +136,16 @@ internal sealed class FlattenedSubmissionRepository(
     public Task<bool> TryMarkSkippedAsync(FlattenedRevision write, CancellationToken cancellationToken)
     {
         var now = UtcNow;
-        return TryWriteAsync(
+        return TryFinishAsync(
             write,
             setters => setters
                 .SetProperty(row => row.DataJson, (string?)null)
                 .SetProperty(row => row.SearchJson, (string?)null)
+                .SetProperty(row => row.FlattenAttemptId, (Guid?)null)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Skipped)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.ProcessedAt, (DateTime?)null)
                 .SetProperty(row => row.Integration.LastError, (string?)null)
-                .SetProperty(row => row.SourceRevision, write.Revision)
                 .SetProperty(row => row.SourceModifiedAt, (DateTime?)null)
                 .SetProperty(row => row.ModifiedAt, now),
             cancellationToken);
@@ -154,9 +156,10 @@ internal sealed class FlattenedSubmissionRepository(
     {
         var now = UtcNow;
         var storedError = SubmissionIntegrationState.TruncateError(error);
-        return TryWriteAsync(
+        return TryFinishAsync(
             write,
             setters => setters
+                .SetProperty(row => row.FlattenAttemptId, (Guid?)null)
                 .SetProperty(row => row.Integration.Code, SubmissionIntegrationStatusCodes.Failed)
                 .SetProperty(row => row.Integration.LastAttemptAt, now)
                 .SetProperty(row => row.Integration.LastError, storedError)
@@ -186,21 +189,25 @@ internal sealed class FlattenedSubmissionRepository(
         }
     }
 
-    private async Task<bool> TryWriteAsync(
+    private async Task<bool> TryFinishAsync(
         FlattenedRevision write,
         Action<UpdateSettersBuilder<FlattenedSubmission>> setters,
         CancellationToken cancellationToken) =>
-        await NotNewerThan(write).ExecuteUpdateAsync(setters, cancellationToken) == 1
-        && ForgetTracked(write.SubmissionId);
+        await WritableRows
+            .Where(row => row.TenantId == write.TenantId && row.SubmissionId == write.SubmissionId &&
+                row.SourceRevision == write.Revision && row.FlattenAttemptId == write.AttemptId)
+            .ExecuteUpdateAsync(setters, cancellationToken) == 1 && ForgetTracked(write.SubmissionId);
 
     // Set-based and conditional in one statement, so two flattens of one submission cannot interleave a read and a
     // write: whichever revision is older loses, whatever order they finish in.
     private IQueryable<FlattenedSubmission> NotNewerThan(FlattenedRevision write) =>
-        dbContext.FlattenedSubmissions
-            .IgnoreQueryFilters()
-            .Where(row => row.TenantId == write.TenantId
+        WritableRows
+            .Where(row => write.AttemptId != Guid.Empty && row.TenantId == write.TenantId
                 && row.SubmissionId == write.SubmissionId
                 && (row.SourceRevision == null || row.SourceRevision <= write.Revision));
+
+    private IQueryable<FlattenedSubmission> WritableRows => dbContext.FlattenedSubmissions
+        .IgnoreQueryFilters([EndatixQueryFilterNames.Tenant, EndatixQueryFilterNames.SoftDelete]);
 
     // The conditional writes bypass the change tracker, so a copy of the row this context tracks would go stale;
     // it is let go so the next read in the same scope sees the row as written. Returns true for use after a write.

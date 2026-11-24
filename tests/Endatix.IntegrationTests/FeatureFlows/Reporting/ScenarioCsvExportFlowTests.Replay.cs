@@ -110,9 +110,7 @@ public sealed partial class ScenarioCsvExportFlowTests
 
     private static async Task<(string Form, string[] Ids)> PreparePairAsync(ScenarioApi api, HttpClient client, CancellationToken ct)
     {
-        using var format = await client.PostAsJsonAsync("/api/settings/export-formats",
-            new { name = "Shoji CSV", exportTarget = "Submissions", deliveryFormat = "Csv", profile = "Shoji" }, ct);
-        format.EnsureSuccessStatusCode();
+        await EnableShojiAsync(client, ct);
         var form = await api.CreateFormAsync(SubmissionFlatteningWorld.DefinitionJson);
         var first = await api.SubmitCompleteAsync(form, """{"q1":"one"}""");
         var second = await api.SubmitCompleteAsync(form, """{"q1":"two"}""");
@@ -121,14 +119,23 @@ public sealed partial class ScenarioCsvExportFlowTests
         return (form, [first, second]);
     }
 
-    [Fact]
-    public async Task Forced_backfill_rebuilds_a_prepared_response_against_the_merged_schema()
+    private static async Task EnableShojiAsync(HttpClient client, CancellationToken ct)
+    {
+        using var format = await client.PostAsJsonAsync("/api/settings/export-formats",
+            new { name = "Shoji CSV", exportTarget = "Submissions", deliveryFormat = "Csv", profile = "Shoji" }, ct);
+        format.EnsureSuccessStatusCode();
+    }
+
+    [Theory]
+    [InlineData("csv")]
+    [InlineData("csv-shoji")]
+    public async Task Forced_backfill_survives_a_late_completion_using_the_previous_schema(string profile)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using ReportingWebHost host = new(fixture);
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, ct);
-        using var client = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: ct);
+        using var client = await ReplayClientAsync(host, ct);
+        await EnableShojiAsync(client, ct);
         ScenarioApi api = new(client, ct);
         var formId = await api.CreateFormAsync(SubmissionFlatteningWorld.DefinitionJson);
         await api.SubmitCompleteAsync(formId, """{"q1":"one","extra":"retained answer"}""");
@@ -136,15 +143,68 @@ public sealed partial class ScenarioCsvExportFlowTests
         var backfill = $"/api/forms/{formId}/submissions/backfill";
         await api.PostOkAsync(compile, new { });
         await api.PostOkAsync(backfill, new { force = true });
-        (await api.ExportCsvAsync(formId)).Should().NotContain("retained answer");
-        await api.PublishDefinitionAsync(formId, """{"elements":[{"type":"text","name":"q1"},{"type":"text","name":"extra"}]}""");
-        await api.PostOkAsync(compile, new { });
+        (await ReadOverlapDownloadAsync(api, formId, profile)).Should().NotContain("retained answer");
 
         // Act
-        await api.PostOkAsync(backfill, new { force = true });
+        using var pause = host.Services.GetRequiredService<AppCommandGate>().PauseAt(AnswerWrite());
+        var delivery = BackgroundWork.Of(host.Services).DeliverOutboxOnceAsync(ct);
+        try
+        {
+            await ReachedBeforeDeliveryEndsAsync(pause.Reached, delivery, ct);
+            await api.PublishDefinitionAsync(formId, """{"elements":[{"type":"text","name":"q1"},{"type":"text","name":"extra"}]}""");
+            await api.PostOkAsync(compile, new { });
+            await api.PostOkAsync(backfill, new { force = true });
+            (await ReadOverlapDownloadAsync(api, formId, profile)).Should().Contain("retained answer");
+        }
+        finally
+        {
+            pause.Release();
+            await delivery.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        }
 
-        // Assert
-        (await api.ExportCsvAsync(formId)).Should().Contain("retained answer");
+        // Assert: no repair rebuild after the paused writer resumes.
+        (await ReadOverlapDownloadAsync(api, formId, profile)).Should().Contain("retained answer");
+        (await SentCompletionsAsync(host, ct)).Should().ContainSingle();
+    }
+
+    private static async Task<string> ReadOverlapDownloadAsync(ScenarioApi api, string formId, string profile)
+    {
+        var download = await api.ExportCsvAsync(formId, profile);
+        TestContext.Current.TestOutputHelper!.WriteLine($"{profile} download:\n{download}");
+        return download;
+    }
+
+    [Fact]
+    public async Task Backfill_counts_a_superseded_publication_as_skipped()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using ReportingWebHost host = new(fixture);
+        using var client = await ReplayClientAsync(host, ct);
+        ScenarioApi api = new(client, ct);
+        var pair = await PreparePairAsync(api, client, ct);
+        var uri = $"/api/forms/{pair.Form}/submissions/backfill";
+        using var gate = host.Services.GetRequiredService<AppCommandGate>().PauseAt(AnswerWrite());
+
+        // Act: a second backfill supersedes the first one's first row before publication.
+        var first = client.PostAsJsonAsync(uri, new { force = true }, ct);
+        try
+        {
+            await ReachedBeforeDeliveryEndsAsync(gate.Reached, first, ct);
+            await api.PostOkAsync(uri, new { force = true });
+        }
+        finally
+        {
+            gate.Release();
+        }
+
+        // Assert: the first backfill still publishes the second row.
+        using var response = await first.WaitAsync(TimeSpan.FromSeconds(30), ct);
+        response.EnsureSuccessStatusCode();
+        var page = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        page.GetProperty("processed").GetInt32().Should().Be(1);
+        page.GetProperty("skipped").GetInt32().Should().Be(1);
+        page.GetProperty("failed").GetInt32().Should().Be(0);
     }
 
     private static async Task AssertPairDownloadAsync(ScenarioApi api, string formId, string[] expected)

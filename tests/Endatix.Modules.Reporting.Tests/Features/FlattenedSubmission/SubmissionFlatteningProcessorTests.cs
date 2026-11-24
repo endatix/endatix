@@ -306,11 +306,13 @@ public partial class SubmissionFlatteningProcessorTests
         await _submissions.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task ProcessAsync_TenantMismatch_MarksRowFailed()
+    [Theory]
+    [InlineData(TenantId + 1, FormId)]
+    [InlineData(TenantId, FormId + 1)]
+    public async Task ProcessAsync_ScopeMismatch_LeavesReportingUntouched(long sourceTenant, long sourceForm)
     {
         // Arrange
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: 2, FormId, FormDefinitionId, "{}", IsComplete: true));
+        var submission = Submission.Create(new SubmissionCreateArgs(sourceTenant, sourceForm, FormDefinitionId, "{}", IsComplete: true));
         submission.Id = SubmissionId;
         GivenSubmission(submission);
         GivenRowAcceptsRevision(true);
@@ -319,10 +321,7 @@ public partial class SubmissionFlatteningProcessorTests
         await Processor().ProcessAsync(TenantId, FormId, SubmissionId, TestContext.Current.CancellationToken);
 
         // Assert
-        await _rows.Received(1).TryMarkFailedAsync(
-            WriteOf(submission),
-            "Submission tenant or form does not match the flatten request.",
-            Arg.Any<CancellationToken>());
+        _rows.ReceivedCalls().Should().BeEmpty();
         await _schemas.DidNotReceiveWithAnyArgs().GetOrCompileAsync(default, default, default, Arg.Any<CancellationToken>());
         await _submissions.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionDeletionStateSpec>(), Arg.Any<CancellationToken>());
     }

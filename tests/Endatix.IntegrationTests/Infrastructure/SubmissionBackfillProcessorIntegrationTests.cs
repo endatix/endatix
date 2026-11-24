@@ -1,10 +1,9 @@
-using Endatix.Modules.Reporting.Features.SearchCopy;
 using System.Text.Json.Nodes;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure;
 using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
@@ -12,11 +11,12 @@ using Endatix.Modules.Reporting.Contracts;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Domain;
 using Endatix.Modules.Reporting.Features.FlattenedSubmission;
-using Endatix.Modules.Reporting.Features.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
-using Endatix.Modules.Reporting.Persistence;
 using Endatix.Modules.Reporting.Features.FormSchema.SubmitterProfile;
+using Endatix.Modules.Reporting.Features.FormSchema;
+using Endatix.Modules.Reporting.Features.SearchCopy;
+using Endatix.Modules.Reporting.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -77,7 +77,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         result.Skipped.Should().Be(1);
         result.Processed.Should().Be(0);
         await flatteningProcessor.DidNotReceive()
-            .ProcessAsync(Arg.Any<long>(), Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+            .TryBackfillAsync(Arg.Any<FlattenedSubmissionKey>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
 
         var persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
             TenantId,
@@ -89,7 +89,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
     }
 
     [Fact]
-    public async Task BackfillFormAsync_WithUnflattenedRow_ProcessesAndPersistsFlatData()
+    public async Task BackfillFormAsync_WithAbandonedClaim_ReclaimsAndPersistsFlatData()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         await ResetReportingSchemaAsync(cancellationToken);
@@ -101,6 +101,7 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
 
         var submission = CreateSubmission(SimpleSubmissionJson, isComplete: true);
         var submissionRepository = CreateSubmissionRepository(submission);
+        var abandoned = await AbandonClaimAsync(flattenedSubmissionRepository, submission, cancellationToken);
 
         var processor = CreateBackfillProcessor(
             submissionRepository,
@@ -110,12 +111,13 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
         var result = await processor.BackfillFormAsync(
             TenantId,
             FormId,
-            new SubmissionBackfillOptions(),
+            new SubmissionBackfillOptions(BatchSize: 1),
             cancellationToken);
 
         result.Processed.Should().Be(1);
         result.Skipped.Should().Be(0);
         result.Failed.Should().Be(0);
+        (await flattenedSubmissionRepository.TryMarkSkippedAsync(abandoned, cancellationToken)).Should().BeFalse();
 
         var persisted = await flattenedSubmissionRepository.GetBySubmissionIdAsync(
             TenantId,
@@ -123,10 +125,39 @@ public sealed class SubmissionBackfillProcessorIntegrationTests
             cancellationToken);
         persisted.Should().NotBeNull();
         persisted!.Integration.Code.Should().Be(SubmissionIntegrationStatusCodes.Processed);
-        persisted.DataJson.Should().NotBeNullOrWhiteSpace();
+        JsonNode.Parse(persisted.DataJson!)!["q1"]!.GetValue<string>().Should().Be("hello");
+    }
 
-        using var actualDocument = JsonDocument.Parse(persisted.DataJson!);
-        actualDocument.RootElement.GetProperty("q1").GetString().Should().Be("hello");
+    private static async Task<FlattenedRevision> AbandonClaimAsync(FlattenedSubmissionRepository rows, Submission source, CancellationToken ct)
+    {
+        var abandoned = new FlattenedRevision(TenantId, SubmissionId, source.Revision, source.CreatedAt);
+        await rows.EnsureExistsAsync(new(TenantId, FormId, SubmissionId), ct);
+        (await rows.TryMarkProcessingAsync(abandoned, ct)).Should().BeTrue();
+        return abandoned;
+    }
+
+    [Fact]
+    public async Task BackfillFormAsync_InvalidScope_CannotCreateOrStealTheClaimOrBlockRetry()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await ResetReportingSchemaAsync(ct);
+        await using var db = CreateContext(TenantId);
+        var rows = CreateRepository(db);
+        var schemas = CreateSchemaRepository(db);
+        await SeedSimpleFormSchemaAsync(schemas, ct);
+        var source = CreateSubmission(SimpleSubmissionJson, isComplete: true);
+        var processor = CreateBackfillProcessor(CreateSubmissionRepository(source), rows, schemas);
+        SubmissionBackfillOptions force = new(Force: true);
+
+        // Act & assert: the substitute source deliberately returns the submission outside each requested scope.
+        (await processor.BackfillFormAsync(TenantId + 1, FormId, force, ct)).Skipped.Should().Be(1);
+        (await db.FlattenedSubmissions.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant, EndatixQueryFilterNames.SoftDelete]).CountAsync(ct)).Should().Be(0);
+        var owner = await AbandonClaimAsync(rows, source, ct);
+        (await processor.BackfillFormAsync(TenantId, FormId + 1, force, ct)).Skipped.Should().Be(1);
+        (await rows.TryMarkSkippedAsync(owner, ct)).Should().BeTrue();
+        (await processor.BackfillFormAsync(TenantId, FormId, force, ct)).Processed.Should().Be(1);
+        (await rows.GetBySubmissionIdAsync(TenantId, SubmissionId, ct))!.DataJson.Should().Contain("hello");
     }
 
     [Fact]

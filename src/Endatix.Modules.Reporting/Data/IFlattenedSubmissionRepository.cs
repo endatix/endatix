@@ -76,24 +76,24 @@ public interface IFlattenedSubmissionRepository
 
     /// <summary>Reserves the source revision and marks the row processing. A completion replay may retain a live,
     /// processed snapshot of exactly the same source until the replacement is ready.</summary>
-    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    /// <returns><c>false</c> when the attempt could not claim the row.</returns>
     Task<bool> TryMarkProcessingAsync(FlattenedRevision write, CancellationToken cancellationToken);
 
     /// <summary>
     /// Stores the flattened data and its search copy built from the write's revision, in one update, with the
     /// revision and the submission's stamp it was built from.
     /// </summary>
-    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    /// <returns><c>false</c> when the row is missing or the attempt no longer owns its revision.</returns>
     Task<bool> TryMarkProcessedAsync(FlattenedRevision write, FlattenedRowData data, CancellationToken cancellationToken);
 
     /// <summary>
     /// Marks the row skipped for a submission that was incomplete at the write's revision, and clears its data, its
     /// search copy and its submission stamp.
     /// </summary>
-    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    /// <returns><c>false</c> when the row is missing or the attempt no longer owns its revision.</returns>
     Task<bool> TryMarkSkippedAsync(FlattenedRevision write, CancellationToken cancellationToken);
 
     /// <summary>Marks the row failed with <paramref name="error"/>.</summary>
-    /// <returns><c>false</c> when the row is newer than the write's revision, or missing, and nothing was written.</returns>
+    /// <returns><c>false</c> when the row is missing or the attempt no longer owns its revision.</returns>
     Task<bool> TryMarkFailedAsync(FlattenedRevision write, string error, CancellationToken cancellationToken);
 }

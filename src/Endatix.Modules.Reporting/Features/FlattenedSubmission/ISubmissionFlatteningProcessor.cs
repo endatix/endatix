@@ -7,6 +7,13 @@ namespace Endatix.Modules.Reporting.Features.FlattenedSubmission;
 /// </summary>
 public interface ISubmissionFlatteningProcessor
 {
+    /// <summary>Returns whether this backfill produced a row. Legacy processors report success on completion.</summary>
+    async Task<bool> TryBackfillAsync(FlattenedSubmissionKey key, bool includeIncomplete, CancellationToken cancellationToken)
+    {
+        await ProcessAsync(key.TenantId, key.FormId, key.SubmissionId, cancellationToken, includeIncomplete);
+        return true;
+    }
+
     /// <summary>Refreshes a completed submission on event delivery, keeping an already prepared copy of the same source available.</summary>
     Task RefreshCompletedAsync(FlattenedSubmissionKey key, CancellationToken cancellationToken) =>
         ProcessAsync(key.TenantId, key.FormId, key.SubmissionId, cancellationToken);

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
@@ -17,7 +18,7 @@ namespace Endatix.IntegrationTests;
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
 // No Lane trait: runs in CI's Rest lane to even out the SQL Server lanes (tests/README.md, Lanes).
-public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
+public sealed partial class ReportingJobsTests(DbIntegrationFixture fixture)
 {
     private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
@@ -27,6 +28,34 @@ public sealed class ReportingJobsTests(DbIntegrationFixture fixture)
         ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffBaseSeconds"] = "1",
         ["Endatix:BackgroundJobs:JobTypes:ReportingFlattenSubmission:BackoffCapSeconds"] = "1",
     };
+
+    [Fact]
+    public async Task Flatten_job_reclaims_after_its_terminal_write_fails()
+    {
+        // Arrange: ensure the job sees a newer source than the seed, so it really enters processing.
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartHostAsync(reporting: true, ct, QuickFlattenRetries);
+        var (tenant, form, submission) = await host.SeedSubmissionAsync("retry-flatten", ct);
+        await WaitForSeedingJobsAsync(host, ct);
+        await SetSubmissionAsync(host, new SubmissionAnswer(submission, 9, "retry answer"), ct);
+        var gate = host.Services.GetRequiredService<Infrastructure.AppCommandGate>();
+        using var failure = gate.FailAt(AnswerPublication(), new InvalidOperationException("Synthetic publication failure"));
+
+        // Act: the first job execution claimed the row but cannot finish. Quartz retries the same job.
+        await host.InsertMessageAsync(new OutboxRow(915, "submission.completed", tenant, SubmissionPayload(tenant, form, submission)), ct);
+        await failure.Reached.WaitAsync(Patience, ct);
+        (await WaitForJobAsync(host, new ExpectedJob("915:ReportingFlattenSubmission", status => status == 3), ct)).Should().BeTrue();
+
+        // Assert
+        (await JobAsync(host, "915:ReportingFlattenSubmission", ct)).Should().Be((3, 2));
+        var rows = await host.Database.QueryAsync(
+            $"""SELECT "DataJson" FROM reporting."FlattenedSubmissions" WHERE "SubmissionId" = {submission} AND "SourceRevision" = 9 AND "FlattenAttemptId" IS NULL""",
+            reader => reader.GetString(0), ct);
+        rows.Should().ContainSingle().Which.Should().Contain("retry answer");
+    }
+
+    [GeneratedRegex("""^UPDATE\b.*SET\s+.*["\[]DataJson["\]]\s*=""", RegexOptions.Singleline)]
+    private static partial Regex AnswerPublication();
 
     [Fact]
     public async Task Flatten_runs_as_its_own_job()

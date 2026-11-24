@@ -6,10 +6,21 @@ namespace Endatix.Modules.Reporting.Data;
 /// A write to a submission's flattened row, made from one revision of the submission. It lands only when the row
 /// was not already written from a newer revision. <see cref="SourceModifiedAt"/> is the submission's own
 /// <c>ModifiedAt ?? CreatedAt</c> as it was read, which a processed row keeps for the backfill's staleness check.
+/// Construct a fresh value for each processing attempt, claim with it before computing, and pass that same value
+/// to the terminal write. Reconstructing it from equal source fields does not carry the claim.
 /// </summary>
 public readonly record struct FlattenedRevision(long TenantId, long SubmissionId, long Revision, DateTime SourceModifiedAt)
 {
+    // Copies carry the claim to publication. Construct a new value for every attempt, including a retry.
+    internal Guid AttemptId { get; } = Guid.NewGuid();
     internal bool KeepPrepared { get; init; }
+
+    /// <summary>Compares source values, not ownership of a database claim.</summary>
+    public bool Equals(FlattenedRevision other) => TenantId == other.TenantId && SubmissionId == other.SubmissionId &&
+        Revision == other.Revision && SourceModifiedAt == other.SourceModifiedAt && KeepPrepared == other.KeepPrepared;
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => HashCode.Combine(TenantId, SubmissionId, Revision, SourceModifiedAt, KeepPrepared);
 }
 
 /// <summary>

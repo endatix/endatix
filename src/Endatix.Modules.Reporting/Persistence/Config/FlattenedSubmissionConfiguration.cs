@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Endatix.Modules.Reporting.Domain;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Modules.Reporting.Persistence.Config;
 
@@ -16,8 +16,7 @@ internal sealed class FlattenedSubmissionConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.SubmissionId).ValueGeneratedNever();
         builder.Property(x => x.TenantId).IsRequired();
         builder.Property(x => x.FormId).IsRequired();
-        builder.Property(x => x.DataJson)
-            .IsRequired(false);
+        builder.Property(x => x.DataJson).IsRequired(false);
         builder.Property(x => x.SearchJson).IsRequired(false);
         builder.Property(x => x.SearchKeysRevision).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired();
@@ -25,6 +24,7 @@ internal sealed class FlattenedSubmissionConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.ModifiedAt).IsRequired(false);
         builder.Property(x => x.SourceModifiedAt).IsRequired(false);
         builder.Property(x => x.SourceRevision).IsRequired(false);
+        builder.Property(x => x.FlattenAttemptId).IsRequired(false);
 
         builder.ComplexProperty(x => x.Integration, cp =>
         {

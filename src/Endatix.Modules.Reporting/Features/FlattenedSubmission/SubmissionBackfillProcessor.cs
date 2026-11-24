@@ -43,7 +43,6 @@ internal sealed class SubmissionBackfillProcessor(
 
         var includeIncomplete = options.Completion == SubmissionBackfillCompletion.Incomplete;
         var processed = 0;
-        var skipped = 0;
         var failed = 0;
         List<long> failedSubmissionIds = [];
 
@@ -51,19 +50,14 @@ internal sealed class SubmissionBackfillProcessor(
         {
             if (await ShouldSkipAsync(tenantId, candidate, options.Force, cancellationToken))
             {
-                skipped++;
                 continue;
             }
 
             try
             {
-                await flatteningProcessor.ProcessAsync(
-                    tenantId,
-                    formId,
-                    candidate.SubmissionId,
-                    cancellationToken,
-                    includeIncomplete);
-                processed++;
+                var published = await flatteningProcessor.TryBackfillAsync(
+                    new(tenantId, formId, candidate.SubmissionId), includeIncomplete, cancellationToken);
+                processed += published ? 1 : 0;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -89,7 +83,7 @@ internal sealed class SubmissionBackfillProcessor(
             FormId: formId,
             Scanned: candidates.Count,
             Processed: processed,
-            Skipped: skipped,
+            Skipped: candidates.Count - processed - failed,
             Failed: failed,
             HasMore: hasMore,
             NextAfterSubmissionId: hasMore ? nextAfterSubmissionId : null,
