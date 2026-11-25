@@ -19,7 +19,7 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// Implements the user service by leveraging the integration with ASP.NET Core Identity including the registered <see cref="AppUser" /> persisted object />
 /// </summary>
 [method: SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "Public DI constructor consumed by endatix-saas; grouping the collaborators into holders would break it and adds types with no behaviour.")]
-public sealed class AppUserService(
+public sealed partial class AppUserService(
     UserManager<AppUser> userManager,
     ITenantContext tenantContext,
     AppIdentityDbContext identityDbContext,
@@ -364,79 +364,6 @@ public sealed class AppUserService(
         }
 
         return await RemoveTenantAccessAsync(user, tenantId, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task<Result> LockoutUserAsync(long userId, CancellationToken cancellationToken = default)
-    {
-        if (userId <= 0)
-        {
-            return Result.NotFound();
-        }
-
-        if (IsCurrentUser(userId))
-        {
-            return Result.Forbidden(SELF_LOCKOUT_FORBIDDEN_MESSAGE);
-        }
-
-        var tenantId = tenantContext.TenantId;
-        var user = await FindCurrentTenantUserAsync(userId, tenantId, cancellationToken);
-        if (user is null)
-        {
-            return Result.NotFound();
-        }
-
-        var accessGuard = await EnsureCallerCoversUserAccessAsync(user, cancellationToken);
-        if (!accessGuard.IsSuccess)
-        {
-            return accessGuard;
-        }
-
-        var enableLockoutResult = await userManager.SetLockoutEnabledAsync(user, true);
-        if (!enableLockoutResult.Succeeded)
-        {
-            return ToErrorResult(enableLockoutResult);
-        }
-
-        var lockoutResult = await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
-        if (!lockoutResult.Succeeded)
-        {
-            return ToErrorResult(lockoutResult);
-        }
-
-        await authorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
-        return Result.Success();
-    }
-
-    /// <inheritdoc />
-    public async Task<Result> UnlockUserAsync(long userId, CancellationToken cancellationToken = default)
-    {
-        if (userId <= 0)
-        {
-            return Result.NotFound();
-        }
-
-        var tenantId = tenantContext.TenantId;
-        var user = await FindCurrentTenantUserAsync(userId, tenantId, cancellationToken);
-        if (user is null)
-        {
-            return Result.NotFound();
-        }
-
-        var accessGuard = await EnsureCallerCoversUserAccessAsync(user, cancellationToken);
-        if (!accessGuard.IsSuccess)
-        {
-            return accessGuard;
-        }
-
-        var unlockResult = await userManager.SetLockoutEndDateAsync(user, null);
-        if (!unlockResult.Succeeded)
-        {
-            return ToErrorResult(unlockResult);
-        }
-
-        await authorizationCache.InvalidateAsync(user.Id.ToString(), tenantId, cancellationToken);
-        return Result.Success();
     }
 
     private Task<AppUser?> FindCurrentTenantUserAsync(long userId, long tenantId, CancellationToken cancellationToken)

@@ -17,7 +17,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "CriticalPath")]
 [Trait("Priority", "P0")]
-public sealed class RequiredActionsFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     [Fact]
     public async Task Form_access_preserves_the_resource_denial_for_a_pending_user()

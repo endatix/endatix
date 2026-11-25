@@ -53,6 +53,8 @@ core anonymous anonymous POST /api/auth/send-verification-email
 core anonymous anonymous POST /api/auth/verify-email
 
 core operation-dormant account GET /api/access/forms/{formId}
+core operation-dormant account POST /api/users/{userId}/lockout
+core operation-dormant account POST /api/users/{userId}/unlock
 
 core operation-pending#1825 platform-admin DELETE /api/admin/platform-admins/{userId}
 core operation-pending#1825 account DELETE /api/roles/{roleName}
@@ -83,9 +85,7 @@ core operation-pending#1825 account POST /api/tenant-branding/reset
 core operation-pending#1825 account POST /api/tenant-branding/restore
 core operation-pending#1825 account POST /api/tenant-branding/rollback
 core operation-pending#1825 account POST /api/users
-core operation-pending#1825 account POST /api/users/{userId}/lockout
 core operation-pending#1825 account POST /api/users/{userId}/resend-verification
-core operation-pending#1825 account POST /api/users/{userId}/unlock
 core operation-pending#1825 account PUT /api/roles/{roleName}
 core operation-pending#1825 account PUT /api/tenant-branding/published
 core operation-pending#1825 account PUT /api/users/{userId}/roles

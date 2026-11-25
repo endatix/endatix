@@ -46,6 +46,36 @@ public sealed class AccountStanding
         var snapshot = await _authorization.GetAuthorizationDataAsync(cancellationToken);
         return snapshot.IsSuccess ? Refusal<T>(snapshot.Value) : snapshot.ToErrorResult<T>();
     }
+
+    /// <summary>Checks standing for an operation whose success has no payload.</summary>
+    public async Task<Result?> RefusalAsync(CancellationToken cancellationToken)
+    {
+        var refusal = await RefusalAsync<Result>(cancellationToken);
+        return refusal switch
+        {
+            null => null,
+            RequiredActionRefusal<Result> blocked => new EmptyOperationRefusal(blocked),
+            _ => new EmptyOperationError(refusal)
+        };
+    }
+
+    private sealed class EmptyOperationError : Result
+    {
+        internal EmptyOperationError(Result<Result> error) : base(error.Status)
+        {
+            Errors = error.Errors;
+            ValidationErrors = error.ValidationErrors;
+            CorrelationId = error.CorrelationId;
+            Existing = error.Existing;
+        }
+    }
+
+    private sealed class EmptyOperationRefusal(RequiredActionRefusal<Result> refusal)
+        : Result(refusal.Status), IRequiredActionRefusal, IMappableError
+    {
+        public IReadOnlyList<RequiredAction> Actions => refusal.Actions;
+        public Result<T> MapError<T>() => refusal.MapError<T>();
+    }
 }
 
 /// <summary>Distinguishes a standing refusal from an ordinary permission denial.</summary>
