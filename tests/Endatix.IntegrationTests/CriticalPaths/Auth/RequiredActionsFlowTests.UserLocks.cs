@@ -103,6 +103,9 @@ public sealed partial class RequiredActionsFlowTests
         Assert.True(before.GetProperty("isLockedOut").GetBoolean());
         using var allowed = await admin.PostAsync($"{route}/unlock", null, ct);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        var operation = await allowed.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.True(operation.GetProperty("isSuccess").GetBoolean());
+        Assert.Equal("User unlocked.", operation.GetProperty("message").GetString());
         var after = await admin.GetFromJsonAsync<JsonElement>(route, ct);
         Assert.False(after.GetProperty("isLockedOut").GetBoolean());
     }
@@ -143,6 +146,9 @@ public sealed partial class RequiredActionsFlowTests
         Assert.False(before.GetProperty("isLockedOut").GetBoolean());
         using var allowed = await admin.PostAsync($"{route}/lockout", null, ct);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        var operation = await allowed.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.True(operation.GetProperty("isSuccess").GetBoolean());
+        Assert.Equal("User locked out.", operation.GetProperty("message").GetString());
         var after = await admin.GetFromJsonAsync<JsonElement>(route, ct);
         Assert.True(after.GetProperty("isLockedOut").GetBoolean());
     }
