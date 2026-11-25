@@ -1,18 +1,19 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.MyAccount.ChangePassword;
 using FastEndpoints;
 using MediatR;
-using Errors = Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.MyAccount.ChangePassword;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions;
+using Errors = Microsoft.AspNetCore.Mvc;
 
 namespace Endatix.Api.Endpoints.MyAccount;
 
 /// <summary>
 /// Endpoint for changing a user's password
 /// </summary>
+[Endatix.Core.Infrastructure.Attributes.AllowWithRequiredActions]
 public class ChangePassword(IMediator mediator, IUserContext userContext) : Endpoint<ChangePasswordRequest, Results<Ok<ChangePasswordResponse>, ProblemHttpResult>>
 {
     /// <summary>

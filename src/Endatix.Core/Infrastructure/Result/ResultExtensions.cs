@@ -54,9 +54,9 @@ public static class ResultExtensions
             return Result<TDestination>.Conflict(result.Existing, [.. result.Errors]);
         }
 
-        var correlationId = TryGetCorrelationId(result);
-
-        return ConvertError<TDestination>(result.Status, result.Errors, result.ValidationErrors, correlationId);
+        return result is IMappableError error
+            ? error.MapError<TDestination>()
+            : ConvertError<TDestination>(result.Status, result.Errors, result.ValidationErrors, TryGetCorrelationId(result));
     }
 
     private static Result<TDestination> ConvertError<TDestination>(
@@ -100,4 +100,10 @@ public static class ResultExtensions
 
         return correlationIdProperty.GetValue(result) as string ?? string.Empty;
     }
+}
+
+/// <summary>A failure with typed details that must survive a change of success payload.</summary>
+internal interface IMappableError
+{
+    Result<T> MapError<T>();
 }

@@ -1,8 +1,8 @@
 using Endatix.Core.Infrastructure.Result;
-using AppDomain = Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using AppDomain = Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -83,6 +83,11 @@ public static partial class ResultExtensions
             fields: fields,
             keepServerDetail: result.IsUnavailable());
         AddExisting(problem, result.Existing);
+        if (result is Core.Abstractions.Authorization.IRequiredActionRefusal refusal)
+        {
+            problem.Extensions["errorCode"] = "required_action";
+            problem.Extensions["requiredActions"] = refusal.Actions;
+        }
 
         return TypedResults.Problem(problem);
     }

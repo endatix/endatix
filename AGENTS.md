@@ -16,7 +16,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
   | `ENDATIX0003` | Deployment brand | `DeploymentBrand`, `BrandPackException`, `AddDeploymentBrand` |
   | `ENDATIX0004` | Email sender and variables | `EmailVariables`, `DeploymentSender`, `EmailSenderSettings`, `EmailWithBody.FromName`, `EmailTemplateRenderer.ProviderTemplateData` |
   | `ENDATIX0005` | Form settings | `FormSettings`, `PdfSettings`, `FormSettingsChange`, `IFormSettingsRepository`, `AppDbContext.FormSettings`, `GetFormSettingsQuery`, `PartialUpdateFormSettingsCommand`, `FormSettingsDto`, `SubmissionFormTheme`, `FormSettingsModel`, `PdfSettingsModel`, the `FormSettings` endpoints |
-  | `ENDATIX0006` | Required actions | `IRequiredActionProvider`, `RequiredActionSubject`, `RequiredAction`, `RequiredActionScope`, `RequiredActionSeverity`, `AuthorizationData.RequiredActions`, `AuthorizationData.RequiredActionsUnavailable` |
+  | `ENDATIX0006` | Required actions | `IRequiredActionProvider`, `RequiredActionSubject`, `RequiredAction`, `RequiredActionScope`, `RequiredActionSeverity`, `AuthorizationData.RequiredActions`, `AuthorizationData.RequiredActionsUnavailable`, `AccountStanding`, `IRequiredActionRefusal`, `AllowWithRequiredActionsAttribute` |
 
   Next free ID: `ENDATIX0007`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
