@@ -175,6 +175,20 @@ at startup, and `GET /` redirects to the page.
 Your app's own `GET /` wins over that redirect. An SPA fallback (`MapFallback`) does not, so the root still redirects
 to the docs.
 
+### Set the docs in code
+
+The config keys above are stable. The C# options behind them (`ApiOptions.Docs`, `ApiDocsUi`, and
+`UseEndatixApiDocs`) are experimental and can change between releases. To use them, opt in to `ENDATIX0006` in your
+project:
+
+```xml
+<PropertyGroup>
+  <NoWarn>$(NoWarn);ENDATIX0006</NoWarn>
+</PropertyGroup>
+```
+
+`UseSwagger()` with no path serves a docs page at `/swagger`, as it served Swagger UI there before.
+
 ## Rate Limiting
 
 Endatix provides support for API rate limiting to protect your API from abuse.
