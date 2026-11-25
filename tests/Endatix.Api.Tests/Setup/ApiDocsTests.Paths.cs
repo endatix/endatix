@@ -136,6 +136,25 @@ public sealed partial class ApiDocsTests
             && warning.Contains("'/old-docs'", StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData(null, null, "/api-docs")]
+    [InlineData("", null, "/api-docs")]
+    [InlineData(null, "/old-docs/", "/old-docs")]
+    [InlineData("/docs", "/old-docs", "/docs")]
+    public void Resolved_page_path_is_the_page_the_docs_serve_at(string? apiDocsPath, string? swaggerPath, string expected)
+    {
+        // Arrange
+#pragma warning disable CS0618 // Subject under test: the deprecated mirror of ApiDocsPath.
+        var options = new ApiOptions { ApiDocsPath = apiDocsPath, SwaggerPath = swaggerPath };
+#pragma warning restore CS0618
+
+        // Act
+        var pagePath = ApiDocs.ResolvedPagePath(options);
+
+        // Assert
+        pagePath.Should().Be(expected);
+    }
+
     private static Task<ApiDocsHost> StartWithWarningsAsync(ApiOptions options, WarningLog log) =>
         ApiDocsHost.StartWithPipelineAsync(
             (app, _) =>

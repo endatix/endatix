@@ -54,6 +54,12 @@ internal static class ApiDocs
     }
 
     /// <summary>
+    /// The docs page path <see cref="Add"/> serves for these options, without logging. Startup logs show it instead of
+    /// the raw settings, which are null when the default or the deprecated <see cref="ApiOptions.SwaggerPath"/> applies.
+    /// </summary>
+    internal static string ResolvedPagePath(ApiOptions options) => PagePath(Requested(options).Value);
+
+    /// <summary>
     /// <see cref="Requested"/>, and a warning when <see cref="ApiOptions.ApiDocsPath"/> and the deprecated
     /// <see cref="ApiOptions.SwaggerPath"/> hold two different values, so a host that set both learns which one applies.
     /// </summary>

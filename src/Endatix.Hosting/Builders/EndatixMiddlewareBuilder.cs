@@ -235,16 +235,23 @@ public class EndatixMiddlewareBuilder
         {
             _logger.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}",
                 options.UseSwagger,
-                options.ApiDocsPath);
+                ApiDocsPathForLog(options));
         }
     }
+
+    /// <summary>
+    /// The docs path setting for a log line. The resolver lives in Endatix.Api internals, so this labels the raw
+    /// setting instead: unset means the deprecated SwaggerPath, when set, or the default page applies.
+    /// </summary>
+    private static string ApiDocsPathForLog(ApiOptions options) =>
+        options.ApiDocsPath ?? "(unset: SwaggerPath or the default /api-docs)";
 
     internal EndatixMiddlewareBuilder UseApi(ApiOptions options)
     {
         _logger?.LogInformation(
             "Adding API middleware with resolved options: UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}",
             options.UseSwagger,
-            options.ApiDocsPath);
+            ApiDocsPathForLog(options));
 
         App.UseEndatixApi(options);
         return this;

@@ -33,9 +33,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}, UseSwaggerUi={UseSwaggerUi}",
+                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, ApiDocsPage={ApiDocsPage}, UseSwaggerUi={UseSwaggerUi}",
                 options.UseSwagger,
-                options.ApiDocsPath,
+                ApiDocs.ResolvedPagePath(options),
                 options.UseSwaggerUi);
         }
 
@@ -60,9 +60,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}, UseSwaggerUi={UseSwaggerUi}",
+                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, ApiDocsPage={ApiDocsPage}, UseSwaggerUi={UseSwaggerUi}",
                 options.UseSwagger,
-                options.ApiDocsPath,
+                ApiDocs.ResolvedPagePath(options),
                 options.UseSwaggerUi);
         }
 
