@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
@@ -61,19 +62,17 @@ public sealed class PublishTenantBrandingRequest
     public string Content { get; set; } = "";
 }
 
-/// <summary>
-/// The publish body as the OpenAPI document shows it: the brand override's root fields. Only the document uses it; the
-/// body is read as text and checked by the brand override's own parser.
-/// </summary>
+/// <summary>A brand override in the brand pack's shape, version 1: the logo, the icon and the accent, each optional.</summary>
 /// <remarks>
+/// Only the OpenAPI document uses this type: the body is read as text and checked by the brand override's own parser.
 /// FastEndpoints describes a body by a type with public properties, so <c>Accepts&lt;object&gt;</c> fails the whole
 /// document (endatix/endatix#1841). <c>OpenApiDocumentFlowTests</c> ties these names to the parser's root fields.
 /// </remarks>
-[Experimental("ENDATIX0002")]
 internal sealed class BrandOverrideBody
 {
-    /// <summary>The brand pack version the override follows; 1.</summary>
-    public int Version { get; init; }
+    /// <summary>The brand pack version the override follows. Required; only 1 is supported.</summary>
+    [Required]
+    public int Version { get; init; } = 1;
 
     /// <summary>The logo (<c>light</c>, optional <c>dark</c>) and the icon, as storage keys under the tenant's brand folder.</summary>
     public object? Assets { get; init; }

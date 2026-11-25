@@ -13,17 +13,17 @@ namespace Endatix.IntegrationTests.FeatureFlows.Api;
 [Trait("Priority", "P1")]
 public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string DocumentPath = "/swagger/alpha-version/swagger.json";
+    private const string DOCUMENT_PATH = "/swagger/alpha-version/swagger.json";
 
     [Fact]
     public async Task Document_generates_for_every_endpoint()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        using var client = fixture.Factory.CreateClient();
+        using var client = fixture.CreateClient();
 
         // Act
-        using var response = await client.GetAsync(new Uri(DocumentPath, UriKind.Relative), ct);
+        using var response = await client.GetAsync(new Uri(DOCUMENT_PATH, UriKind.Relative), ct);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
@@ -38,8 +38,8 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        using var client = fixture.Factory.CreateClient();
-        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri(DocumentPath, UriKind.Relative), ct));
+        using var client = fixture.CreateClient();
+        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri(DOCUMENT_PATH, UriKind.Relative), ct));
         var root = document.RootElement;
 
         // Act
