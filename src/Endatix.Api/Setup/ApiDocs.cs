@@ -1,6 +1,7 @@
 using Endatix.Api.Builders;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -45,6 +46,7 @@ internal static class ApiDocs
         var documentPath = AddDocument(app, options);
         AddSwaggerUi(app, options, pagePath);
         MapScalar(routes, pagePath, documentPath);
+        MapOldSwaggerUiBookmark(routes, pagePath);
     }
 
     private static bool WasAdded(IApplicationBuilder app)
@@ -102,6 +104,15 @@ internal static class ApiDocs
             .WithOpenApiRoutePattern(documentPath)
             .AddDocument(DOCUMENT_NAME)
             .AddPreferredSecuritySchemes(BEARER_SCHEME));
+
+    /// <summary>
+    /// Sends the old Swagger UI address, <c>{page}/index.html</c>, to the docs page. The literal route outranks Scalar's
+    /// <c>{page}/{documentName?}</c>, which would take <c>index.html</c> for a document name. The relative target keeps
+    /// the path base.
+    /// </summary>
+    private static void MapOldSwaggerUiBookmark(IEndpointRouteBuilder routes, string pagePath) =>
+        routes.MapGet($"{pagePath}/index.html", () => Results.Redirect("./"))
+            .ExcludeFromDescription();
 
     /// <summary>
     /// Adds Swagger UI when it is on, at <c>/swagger</c> or where the host's settings move it. It must not take the docs

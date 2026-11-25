@@ -52,6 +52,24 @@ public sealed partial class ApiDocsTests
         response.Headers.Location!.OriginalString.Should().Be("api-docs/");
     }
 
+    [Theory]
+    [InlineData("/api-docs/index.html")]
+    [InlineData("/sub/api-docs/index.html")]
+    public async Task Old_swagger_ui_bookmark_redirects_to_the_docs_page(string bookmark)
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync(beforeApi: app => app.UsePathBase("/sub"));
+        using var client = host.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync(new Uri(bookmark, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        new Uri(new Uri("http://localhost" + bookmark), response.Headers.Location!).AbsolutePath
+            .Should().Be(bookmark.Replace("index.html", string.Empty, StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Existing_document_path_still_serves_the_document_with_the_bearer_scheme()
     {
