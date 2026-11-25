@@ -134,7 +134,7 @@ public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFi
         return await world.AsAsync(TestPersona.CustomRole(roleName), userName: userName, cancellationToken: ct);
     }
 
-    private static async Task<string> CreateFormWithSubmissionAsync(HttpClient admin, CancellationToken ct)
+    internal static async Task<string> CreateFormWithSubmissionAsync(HttpClient admin, CancellationToken ct)
     {
         using var created = await admin.PostAsJsonAsync(
             "/api/forms",
@@ -150,7 +150,7 @@ public sealed class ExportPreparePermissionFlowTests(EndatixIntegrationWebHostFi
         var formId = form.RootElement.GetProperty("id").GetString()!;
 
         using var submitted = await admin.PostAsJsonAsync(
-            $"/api/forms/{formId}/submissions", new { isComplete = true, jsonData = """{"q1":"answer"}""" }, ct);
+            $"/api/forms/{formId}/submissions", new { isComplete = true, jsonData = """{"q1":"export-fixture-answer"}""" }, ct);
         submitted.EnsureSuccessStatusCode();
         return formId;
     }
