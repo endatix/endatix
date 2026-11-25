@@ -39,11 +39,12 @@ public sealed partial class RequiredActionInventoryTests
                 ConfigureProfile(builder, profile);
                 builder.ConfigureTestServices(services => ConfigureStanding(services, unavailable));
                 builder.ConfigureLogging(logging => logging.AddProvider(dispatches)
-                    .AddFilter<EndpointDispatches>(EndpointDispatches.Category, LogLevel.Information));
+                    .AddFilter<EndpointDispatches>(EndpointDispatches.CATEGORY, LogLevel.Information));
             });
             using var owner = host.CreateClient(new WebApplicationFactoryClientOptions
             {
-                BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false
+                BaseAddress = new Uri("https://localhost"),
+                AllowAutoRedirect = false
             });
             owner.DefaultRequestHeaders.Authorization = admin.DefaultRequestHeaders.Authorization;
             var endpoints = host.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>();
@@ -79,7 +80,7 @@ public sealed partial class RequiredActionInventoryTests
         {
             using var operation = request;
             using var response = await owner.SendAsync(request, ct);
-            response.Headers.GetValues(MatchedRegistration.Header).Single().Should().Be(route,
+            response.Headers.GetValues(MatchedRegistration.HEADER).Single().Should().Be(route,
                 $"{request.Method} {request.RequestUri!.AbsolutePath} must select {route}");
             response.StatusCode.Should().Be(actions.HasValue ? HttpStatusCode.Forbidden : HttpStatusCode.ServiceUnavailable,
                 $"{request.Method} {request.RequestUri!.AbsolutePath} must stop before endpoint dispatch");
@@ -106,7 +107,7 @@ public sealed partial class RequiredActionInventoryTests
 
     private static IEnumerable<(string?, HttpRequestMessage)> AccountRequests(IEnumerable<RouteEndpoint> endpoints) => endpoints
         .Where(route => route.Metadata.GetMetadata<StaticAssetDescriptor>() is null &&
-            Access(route.Metadata) is "account" or "platform-admin" or "no-policy")
+            Access(route.Metadata) is not ("resolver" or "open-no-policy" or "anonymous" or "form-token"))
         .SelectMany(route => Methods(route).Select(method => (route.RoutePattern.RawText, ExampleRequest(route, method))));
 
     private static HttpRequestMessage ExampleRequest(RouteEndpoint route, string method)
@@ -121,7 +122,7 @@ public sealed partial class RequiredActionInventoryTests
 
     private sealed class MatchedRegistration : IStartupFilter
     {
-        internal const string Header = "X-Test-Registration";
+        internal const string HEADER = "X-Test-Registration";
 
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
         {
@@ -129,7 +130,7 @@ public sealed partial class RequiredActionInventoryTests
             {
                 context.Response.OnStarting(() =>
                 {
-                    context.Response.Headers[Header] = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "unmatched";
+                    context.Response.Headers[HEADER] = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "unmatched";
                     return Task.CompletedTask;
                 });
                 await continuation(context);

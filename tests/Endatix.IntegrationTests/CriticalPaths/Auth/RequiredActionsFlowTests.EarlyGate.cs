@@ -2,15 +2,19 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Attributes;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Hosting;
 using Endatix.Infrastructure.Identity.Authorization;
+using Endatix.IntegrationTests.FeatureFlows.DataLists;
 using Endatix.IntegrationTests.Shared;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
 
 namespace Endatix.IntegrationTests;
 
@@ -23,7 +27,7 @@ public sealed partial class RequiredActionsFlowTests
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.AddSingleton<IRequiredActionProvider>(new MutableProvider("profile", "/profile"));
-            services.AddSingleton<IStartupFilter, RepairRoute>();
+            services.AddSingleton<IStartupFilter, GateTestRoutes>();
             EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
@@ -31,10 +35,10 @@ public sealed partial class RequiredActionsFlowTests
         using var member = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         using var admin = await world.AsAsync(TestPersona.PlatformAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
 
-        using var challenge = await anonymous.GetAsync(RepairRoute.Path, ct);
-        using var forbid = await member.GetAsync(RepairRoute.Path, ct);
-        using var allowed = await admin.GetAsync(RepairRoute.Path, ct);
-        using var gated = await admin.GetAsync(RepairRoute.Neighbor, ct);
+        using var challenge = await anonymous.GetAsync(GateTestRoutes.REPAIR, ct);
+        using var forbid = await member.GetAsync(GateTestRoutes.REPAIR, ct);
+        using var allowed = await admin.GetAsync(GateTestRoutes.REPAIR, ct);
+        using var gated = await admin.GetAsync(GateTestRoutes.NEIGHBOR, ct);
 
         Assert.Equal(HttpStatusCode.Unauthorized, challenge.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, forbid.StatusCode);
@@ -42,21 +46,44 @@ public sealed partial class RequiredActionsFlowTests
         await AssertStandingRefusalAsync(gated, await admin.GetFromJsonAsync<JsonElement>("/api/auth/me", ct), ct);
     }
 
-    private sealed class RepairRoute : IStartupFilter
+    [Fact]
+    public async Task A_direct_policy_combined_with_form_token_authorization_is_gated()
     {
-        internal const string Path = "/api/__integration-test__/repair";
-        internal const string Neighbor = "/api/__integration-test__/ordinary";
+        var ct = TestContext.Current.CancellationToken;
+        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton<IStartupFilter, GateTestRoutes>();
+            services.AddScoped(_ => new AccountStanding(snapshots));
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        var (form, _) = await FormAccessTokenUseFlowTests.SeedRuntimeFormAsync(world, true, ct);
+        using var respondent = await PublicDataListScopeFlowTests.AnonymousWithFormTokenAsync(world, form, ct);
+
+        using var mixed = await respondent.GetAsync(GateTestRoutes.MIXED, ct);
+
+        await AssertUnavailableQuestionsAsync(mixed, ct);
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+    }
+
+    private sealed class GateTestRoutes : IStartupFilter
+    {
+        internal const string REPAIR = "/api/__integration-test__/repair";
+        internal const string NEIGHBOR = "/api/__integration-test__/ordinary";
+        internal const string MIXED = "/api/__integration-test__/mixed";
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
         {
             next(app);
             app.UseRouting();
-            app.UseAuthorization();
-            app.UseRequiredActionsGate();
+            app.UseEndatix(builder => builder.UseSecurity());
             app.UseEndpoints(routes =>
             {
-                routes.MapGet(Path, () => Results.NoContent()).RequireAuthorization(AuthorizationPolicies.PlatformAdminAccess)
+                routes.MapGet(REPAIR, () => Results.NoContent()).RequireAuthorization(AuthorizationPolicies.PlatformAdminAccess)
                     .WithMetadata(new AllowWithRequiredActionsAttribute());
-                routes.MapGet(Neighbor, () => Results.NoContent()).RequireAuthorization(AuthorizationPolicies.PlatformAdminAccess);
+                routes.MapGet(NEIGHBOR, () => Results.NoContent()).RequireAuthorization(AuthorizationPolicies.PlatformAdminAccess);
+                routes.MapGet(MIXED, () => Results.NoContent()).RequireAuthorization(AuthorizationPolicies.PublicResourceAccess)
+                    .RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
             });
         };
     }

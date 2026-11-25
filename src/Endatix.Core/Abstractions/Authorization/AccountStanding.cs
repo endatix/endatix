@@ -9,7 +9,7 @@ public sealed class AccountStanding
 {
     private readonly ICurrentUserAuthorizationService? _authorization;
     private bool _admitted;
-    private const string UnavailableMessage = "Required action status is unavailable. Try again.";
+    private const string UNAVAILABLE_MESSAGE = "Required action status is unavailable. Try again.";
 
     /// <summary>Creates the dormant decision used by shipped hosts until all account operations are covered.</summary>
     public AccountStanding() { }
@@ -29,7 +29,7 @@ public sealed class AccountStanding
 
         if (snapshot.RequiredActionsUnavailable)
         {
-            return Result<T>.Unavailable(UnavailableMessage);
+            return Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
         }
 
         // The gate and operation share this scoped decision for the lifetime of the request.
@@ -46,7 +46,7 @@ public sealed class AccountStanding
         }
 
         var snapshot = await _authorization.GetAuthorizationDataAsync(cancellationToken);
-        return snapshot.IsSuccess ? Refusal<T>(snapshot.Value) : Result<T>.Unavailable(UnavailableMessage);
+        return snapshot.IsSuccess ? Refusal<T>(snapshot.Value) : Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
     }
 
     /// <summary>Checks standing for an operation whose success has no payload.</summary>

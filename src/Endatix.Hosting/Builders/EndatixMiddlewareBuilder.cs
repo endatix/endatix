@@ -20,6 +20,7 @@ namespace Endatix.Hosting.Builders;
 public class EndatixMiddlewareBuilder
 {
     private readonly ILogger? _logger;
+    private bool _standingGatePending;
 
     /// <summary>
     /// Gets the application builder.
@@ -96,20 +97,12 @@ public class EndatixMiddlewareBuilder
             healthChecks.ApplyProbes(App);
         }
 
-        if (options.UseHsts)
-        {
-            UseHsts();
-        }
-
-        if (options.UseHttpsRedirection)
-        {
-            UseHttpsRedirection();
-        }
-
+        UseTransport(options);
         if (options.UseApi)
         {
             UseApi(options.ApiOptions);
         }
+        ApplyPendingStandingGate();
 
         // After UseApi on purpose: UseCors lives inside it, so a dashboard on another origin fetching
         // /health/detail keeps its Access-Control-Allow-Origin header. The probes above need no CORS
@@ -161,7 +154,28 @@ public class EndatixMiddlewareBuilder
     {
         _logger?.LogInformation("Adding authorization middleware");
         App.UseAuthorization();
-        App.UseRequiredActionsGate();
+        _standingGatePending = true;
+    }
+
+    internal void ApplyPendingStandingGate()
+    {
+        if (_standingGatePending)
+        {
+            App.UseRequiredActionsGate();
+            _standingGatePending = false;
+        }
+    }
+
+    private void UseTransport(EndatixMiddlewareOptions options)
+    {
+        if (options.UseHsts)
+        {
+            UseHsts();
+        }
+        if (options.UseHttpsRedirection)
+        {
+            UseHttpsRedirection();
+        }
     }
 
     /// <summary>

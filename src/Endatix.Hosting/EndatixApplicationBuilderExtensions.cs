@@ -48,6 +48,7 @@ public static class EndatixApplicationBuilderExtensions
 
         var builder = new EndatixMiddlewareBuilder(app);
         configure(builder);
+        builder.ApplyPendingStandingGate();
 
         app.GetLogger()?.LogInformation("Endatix middleware configured with custom settings");
         return app;
@@ -95,11 +96,9 @@ public static class EndatixApplicationBuilderExtensions
 
         var middlewareBuilder = new EndatixMiddlewareBuilder(app);
 
-        // First apply defaults
         middlewareBuilder.UseDefaults();
-
-        // Then apply custom configuration
         configureAction(middlewareBuilder);
+        middlewareBuilder.ApplyPendingStandingGate();
 
         return app;
     }

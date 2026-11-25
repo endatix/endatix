@@ -48,8 +48,8 @@ public sealed partial class RequiredActionsFlowTests
         var id = world.Tenants[0].Creator.Id;
         using var allowed = await admin.PostAsync($"/api/users/{id}/lockout", null, ct);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
-        var persisted = await LockStateAsync(world, id, ct);
-        Assert.True(persisted.Enabled && persisted.End > DateTimeOffset.UtcNow);
+        var (enabled, end) = await LockStateAsync(world, id, ct);
+        Assert.True(enabled && end > DateTimeOffset.UtcNow);
     }
 
     private static async Task<(bool Enabled, DateTimeOffset? End)> LockStateAsync(IntegrationTestWorld world, long id, CancellationToken ct)

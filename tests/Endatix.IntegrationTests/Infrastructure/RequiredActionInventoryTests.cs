@@ -91,6 +91,15 @@ public sealed partial class RequiredActionInventoryTests(EndatixIntegrationWebHo
     private static RouteEndpoint ExampleRoute(params object[] metadata) =>
         new(_ => Task.CompletedTask, RoutePatternFactory.Parse("/inventory-example"), 0, new EndpointMetadataCollection(metadata), null);
 
+    [Fact]
+    public void A_direct_authorization_policy_is_not_a_respondent_only_registration()
+    {
+        var route = ExampleRoute(new HttpMethodMetadata(["GET"]), new AuthorizeAttribute(AuthorizationPolicies.PublicResourceAccess),
+            new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+
+        Assert.Equal(["mixed-policy GET /inventory-example"], Operations([route]));
+    }
+
     private static string[] ModulesIn(string profile) => profile switch
     {
         "core" => ["core"],
@@ -135,7 +144,7 @@ public sealed partial class RequiredActionInventoryTests(EndatixIntegrationWebHo
         ["anonymous"] = ["anonymous"],
         ["open"] = ["resolver", "open-no-policy"],
         ["respondent"] = ["anonymous", "form-token"],
-        ["gated"] = ["account", "platform-admin", "no-policy"],
+        ["gated"] = ["account", "platform-admin", "no-policy", "mixed-policy"],
     };
 
     private static IEnumerable<string> Differences(IEnumerable<string> actual, IEnumerable<string> reviewed)
@@ -174,7 +183,7 @@ public sealed partial class RequiredActionInventoryTests(EndatixIntegrationWebHo
         }
         if (policies.Any(p => p.Policy == AuthorizationPolicies.PublicResourceAccess))
         {
-            return RespondentAccess(policies, metadata.GetMetadata<EndpointDefinition>());
+            return RespondentAccess(policies, metadata);
         }
         if (policies.Any(p => p.Policy == AuthorizationPolicies.PlatformAdminAccess))
         {
@@ -183,8 +192,13 @@ public sealed partial class RequiredActionInventoryTests(EndatixIntegrationWebHo
         return policies.Count > 0 ? "account" : "no-policy";
     }
 
-    private static string RespondentAccess(IReadOnlyList<IAuthorizeData> policies, EndpointDefinition? definition)
+    private static string RespondentAccess(IReadOnlyList<IAuthorizeData> policies, EndpointMetadataCollection metadata)
     {
+        if (metadata.GetMetadata<AuthorizationPolicy>() is not null || metadata.GetMetadata<IAuthorizationRequirementData>() is not null)
+        {
+            return "mixed-policy";
+        }
+        var definition = metadata.GetMetadata<EndpointDefinition>();
         // FastEndpoints adds the endpoint's own generated policy alongside its declared public-resource policy.
         var generatedPolicy = definition is
         {

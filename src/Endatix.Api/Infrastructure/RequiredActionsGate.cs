@@ -46,6 +46,10 @@ internal sealed class RequiredActionsGate(RequestDelegate next)
 
     private static bool IsRespondent(EndpointMetadataCollection metadata, EndpointDefinition? definition)
     {
+        if (metadata.GetMetadata<AuthorizationPolicy>() is not null || metadata.GetMetadata<IAuthorizationRequirementData>() is not null)
+        {
+            return false;
+        }
         var policies = metadata.GetOrderedMetadata<IAuthorizeData>();
         // FastEndpoints adds a generated policy even when the only declared policy is a form token.
         var companion = definition is

@@ -309,9 +309,13 @@ When touching a feature, prefer migrating **reads** to Infrastructure feature qu
 
 ## Required actions gate
 
-When a host enables `AccountStanding`, authenticated account operations check it immediately after framework authorization, before request binding, resource checks, or product work. A challenge (`401`) or ordinary route permission denial (`403`) therefore takes precedence. Blocking actions return `403 required_action` with the same action objects as `auth/me`. Unknown standing returns a retryable `503`. Notices alone allow the operation to proceed with its usual validation and authorization.
+When a host enables `AccountStanding`, authenticated account operations check it after framework authorization and configured transport middleware, before request binding, resource checks, or product work. A challenge (`401`) or ordinary route permission denial (`403`) therefore takes precedence. An otherwise authorized HTTP request still redirects when HTTPS redirection is configured. On HTTPS, HSTS and CORS decorate refusals under the same policies as other API responses. CORS controls whether the browser may read a response; it grants no API access.
 
-Account operations are gated by default. Anonymous and public respondent/form-token operations do not check account standing. `[AllowWithRequiredActions]` keeps an account operation available to resolve an action or sign out; it grants no permission. A module that routes its own endpoints installs `UseRequiredActionsGate()` immediately after its own `UseAuthorization()`. The default host leaves enforcement dormant.
+Blocking actions return `403 required_action` with the same action objects as `auth/me`. Unknown standing returns a retryable `503`. Notices alone allow the operation to proceed with its usual validation and authorization.
+
+Account operations are gated by default. Anonymous and public respondent/form-token operations do not check account standing. `[AllowWithRequiredActions]` keeps an account operation available to resolve an action or sign out; it grants no permission. The default host leaves enforcement dormant.
+
+`UseEndatix()` and its options overload install the gate when security is enabled. The manually composed `UseEndatix(builder => …)` pipeline installs it after the configured middleware when `UseSecurity()` is used. A separately routed module or a hand-built pipeline must install `UseRequiredActionsGate()` after its own route authorization and transport middleware and before endpoint dispatch.
 
 ## Testing
 
