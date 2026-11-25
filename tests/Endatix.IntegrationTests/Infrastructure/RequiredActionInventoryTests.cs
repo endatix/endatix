@@ -58,8 +58,7 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
     public void A_new_anonymous_registration_requires_its_own_review()
     {
         // Arrange
-        var route = new RouteEndpoint(_ => Task.CompletedTask, RoutePatternFactory.Parse("/inventory-example"), 0,
-            new EndpointMetadataCollection(new HttpMethodMetadata(["GET"]), new AllowAnonymousAttribute()), null);
+        var route = ExampleRoute(new HttpMethodMetadata(["GET"]), new AllowAnonymousAttribute());
         var reviewed = Reviewed(ModulesIn("core")).ToArray();
 
         // Act
@@ -68,6 +67,37 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
         // Assert
         differences.Should().Equal("Unclassified: anonymous GET /inventory-example");
     }
+
+    [Fact]
+    public void An_empty_method_list_requires_review_as_a_wildcard_registration()
+    {
+        // Arrange
+        var route = ExampleRoute(new HttpMethodMetadata([]), new AllowAnonymousAttribute());
+
+        // Act
+        var differences = Differences(Operations([route]), []);
+
+        // Assert
+        differences.Should().Equal("Unclassified: anonymous * /inventory-example");
+    }
+
+    [Theory]
+    [InlineData("PublicResourceAccess", "PlatformAdmin")]
+    [InlineData("PlatformAdmin", "PublicResourceAccess")]
+    public void A_mixed_policy_registration_no_longer_matches_the_reviewed_respondent(string first, string second)
+    {
+        // Arrange
+        var route = ExampleRoute(new HttpMethodMetadata(["GET"]), new AuthorizeAttribute(first), new AuthorizeAttribute(second));
+
+        // Act
+        var differences = Differences(Operations([route]), ["form-token GET /inventory-example"]);
+
+        // Assert
+        differences.Should().Equal("Unclassified: mixed-policy GET /inventory-example", "Missing: form-token GET /inventory-example");
+    }
+
+    private static RouteEndpoint ExampleRoute(params object[] metadata) =>
+        new(_ => Task.CompletedTask, RoutePatternFactory.Parse("/inventory-example"), 0, new EndpointMetadataCollection(metadata), null);
 
     private static string[] ModulesIn(string profile) => profile switch
     {
@@ -129,8 +159,11 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
     // Only the framework's actual static-file descriptors are assets; an executable GET under the same path is not.
     private static IEnumerable<string> Operations(IEnumerable<RouteEndpoint> registrations) => registrations
         .Where(route => route.Metadata.GetMetadata<StaticAssetDescriptor>() is null)
-        .SelectMany(route => (route.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? ["*"])
+        .SelectMany(route => Methods(route)
             .Select(method => $"{Access(route.Metadata)} {method} {route.RoutePattern.RawText}"));
+
+    private static IReadOnlyList<string> Methods(RouteEndpoint route) =>
+        route.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods is { Count: > 0 } methods ? methods : ["*"];
 
     private static string Access(EndpointMetadataCollection metadata)
     {
@@ -147,12 +180,26 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
         }
         if (policies.Any(p => p.Policy == AuthorizationPolicies.PublicResourceAccess))
         {
-            return "form-token";
+            return RespondentAccess(policies, metadata.GetMetadata<EndpointDefinition>());
         }
         if (policies.Any(p => p.Policy == AuthorizationPolicies.PlatformAdminAccess))
         {
             return "platform-admin";
         }
         return policies.Count > 0 ? "account" : "no-policy";
+    }
+
+    private static string RespondentAccess(IReadOnlyList<IAuthorizeData> policies, EndpointDefinition? definition)
+    {
+        // FastEndpoints adds the endpoint's own generated policy alongside its declared public-resource policy.
+        var generatedPolicy = definition is
+        {
+            AllowedPermissions: not { Count: > 0 }, AllowedRoles: not { Count: > 0 },
+            AllowedClaimTypes: not { Count: > 0 }, AllowedScopes: not { Count: > 0 }
+        } ? definition.SecurityPolicyName : null;
+        var respondentOnly = policies.All(p =>
+            (p.Policy == AuthorizationPolicies.PublicResourceAccess || (generatedPolicy is not null && p.Policy == generatedPolicy))
+            && string.IsNullOrEmpty(p.Roles) && string.IsNullOrEmpty(p.AuthenticationSchemes));
+        return respondentOnly ? "form-token" : "mixed-policy";
     }
 }
