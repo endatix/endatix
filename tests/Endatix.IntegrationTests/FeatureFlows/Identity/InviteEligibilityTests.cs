@@ -20,6 +20,7 @@ public sealed class InviteEligibilityTests(EndatixIntegrationWebHostFixture fixt
     public async Task Module_refusals_return_an_invite_problem_before_registration(
         InviteEligibility decision, HttpStatusCode status, string detail)
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var registration = Substitute.For<IUserRegistrationService>();
         var eligibility = Substitute.For<IInviteEligibilityProvider>();
@@ -32,8 +33,10 @@ public sealed class InviteEligibilityTests(EndatixIntegrationWebHostFixture fixt
         eligibility.DecideAsync(world.Tenants[0].Id, Arg.Any<CancellationToken>()).Returns(decision);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
 
+        // Act
         using var response = await admin.PostAsJsonAsync("/api/users", new { email = "teammate@example.test" }, ct);
 
+        // Assert
         Assert.Equal(status, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(ct);

@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Identity.InviteUser;
 
@@ -17,14 +19,17 @@ public sealed class InviteUserHandler(
     : ICommandHandler<InviteUserCommand, Result<User>>
 {
     private readonly IInviteEligibilityProvider? _eligibility;
+    private readonly ILogger<InviteUserHandler>? _logger;
 
     /// <summary>Creates the handler with the module's invite eligibility check.</summary>
+    [Experimental("ENDATIX0007")]
     public InviteUserHandler(IUserRegistrationService userRegistrationService, IRoleManagementService roleManagementService,
         ITenantContext tenantContext, ICurrentUserAuthorizationService currentUserAuthorizationService,
-        IInviteEligibilityProvider eligibility)
+        IInviteEligibilityProvider eligibility, ILogger<InviteUserHandler>? logger = null)
         : this(userRegistrationService, roleManagementService, tenantContext, currentUserAuthorizationService)
     {
         _eligibility = eligibility ?? throw new ArgumentNullException(nameof(eligibility));
+        _logger = logger;
     }
 
     /// <inheritdoc/>
@@ -62,7 +67,7 @@ public sealed class InviteUserHandler(
         return decision switch
         {
             InviteEligibility.Allowed => null,
-            InviteEligibility.Declined => new InviteDeclined(),
+            InviteEligibility.Declined => new InviteDeclined<User>(),
             _ => Result<User>.Unavailable("Invite eligibility is unavailable. Try again.")
         };
     }
@@ -73,8 +78,9 @@ public sealed class InviteUserHandler(
         {
             return await provider.DecideAsync(tenantContext.TenantId, cancellationToken);
         }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
+            _logger?.LogError(ex, "Could not determine teammate invite eligibility.");
             return InviteEligibility.Unavailable;
         }
     }

@@ -65,7 +65,8 @@ Tenant-specific management permissions:
 
 #### Teammate invite eligibility
 
-For `POST /api/users`, a module can register a scoped `IInviteEligibilityProvider`.
+For `POST /api/users`, a module can register a scoped `IInviteEligibilityProvider`
+(experimental C# API `ENDATIX0007`).
 The invite command calls `DecideAsync` for the current tenant after checking
 `tenant.users.invite` and the requested roles. The provider can use the request's
 `IUserContext` to identify the caller. With no provider, or when it returns

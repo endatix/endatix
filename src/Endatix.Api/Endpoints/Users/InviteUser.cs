@@ -47,31 +47,25 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
         CancellationToken ct)
     {
         var result = await mediator.Send(new InviteUserCommand(request.Email!, request.Roles), ct);
-        if (!result.IsSuccess)
-        {
-            return InviteProblem(result);
-        }
 
-        var roles = await roleManagementService.GetUserRolesAsync(result.Value.Id, ct);
-        if (!roles.IsSuccess)
+        IReadOnlyList<string> roles = [];
+        if (result.IsSuccess && result.Value is not null)
         {
-            return TypedResults.Problem(detail: "User was invited, but assigned roles could not be loaded.",
-                statusCode: StatusCodes.Status500InternalServerError);
+            var rolesResult = await roleManagementService.GetUserRolesAsync(result.Value.Id, ct);
+
+            if (!rolesResult.IsSuccess)
+            {
+                return TypedResults.Problem(
+                    detail: "User was invited, but assigned roles could not be loaded.",
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+
+            roles = [.. rolesResult.Value];
         }
 
         return TypedResultsBuilder
-            .MapResult(result, user => Map(user, [.. roles.Value]))
+            .MapResult(result, user => Map(user, roles))
             .SetTypedResults<Ok<InviteUserResponse>, ProblemHttpResult>();
-    }
-
-    private static ProblemHttpResult InviteProblem(Core.Infrastructure.Result.Result<User> result)
-    {
-        var problem = result.ToProblem();
-        if (result is InviteDeclined)
-        {
-            problem.ProblemDetails.Extensions["errorCode"] = "invite_declined";
-        }
-        return problem;
     }
 
     private static InviteUserResponse Map(User user, IReadOnlyList<string> roles)
