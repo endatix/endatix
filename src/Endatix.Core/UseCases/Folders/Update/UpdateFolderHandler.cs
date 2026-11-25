@@ -126,34 +126,10 @@ public sealed class UpdateFolderHandler(
                 (folder.Name, folder.NormalizedName) = name;
             }
             folder.UrlSlug = Slug ?? folder.UrlSlug;
-            ApplyTextFields(folder, request);
-            ApplyStateFields(folder, request);
-        }
-    }
-
-    private static void ApplyTextFields(Folder folder, UpdateFolderCommand request)
-    {
-        if (request.Description is not null)
-        {
-            folder.Description = request.Description.Trim();
-        }
-
-        if (request.Metadata is not null)
-        {
-            folder.Metadata = request.Metadata;
-        }
-    }
-
-    private static void ApplyStateFields(Folder folder, UpdateFolderCommand request)
-    {
-        if (request.IsActive.HasValue)
-        {
-            folder.IsActive = request.IsActive.Value;
-        }
-
-        if (request.Immutable.HasValue)
-        {
-            folder.Immutable = request.Immutable.Value;
+            folder.Description = request.Description?.Trim() ?? folder.Description;
+            folder.Metadata = request.Metadata ?? folder.Metadata;
+            folder.IsActive = request.IsActive ?? folder.IsActive;
+            folder.Immutable = request.Immutable ?? folder.Immutable;
         }
     }
 

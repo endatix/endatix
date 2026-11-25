@@ -9,8 +9,8 @@ using Endatix.Core.Specifications;
 using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Folders.Delete;
-using Microsoft.Extensions.Logging.Abstractions;
 using MediatR;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Core.Tests.UseCases.Folders.Delete;

@@ -1,5 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Folders.List;
 using FastEndpoints;
 using MediatR;
@@ -44,9 +45,13 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
         if (request.IncludeInactive)
         {
             var manageResult = await authorizationService.HasPermissionAsync(Actions.Folders.Manage, ct);
-            if (!manageResult.IsSuccess || !manageResult.Value)
+            if (!manageResult.IsSuccess)
             {
                 return manageResult.ToProblem();
+            }
+            if (!manageResult.Value)
+            {
+                return Result.Forbidden("Permission 'folders.manage' required to include inactive folders.").ToProblem();
             }
         }
 

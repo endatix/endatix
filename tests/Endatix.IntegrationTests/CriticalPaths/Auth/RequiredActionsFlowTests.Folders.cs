@@ -108,6 +108,8 @@ public sealed partial class RequiredActionsFlowTests
         var own = await ManagedAsset.CreateAsync(owner, "folders", ct);
         using var locked = await owner.PatchAsJsonAsync(own.Detail, new { immutable = true, isActive = false }, ct);
         locked.EnsureSuccessStatusCode();
+        var all = await owner.GetFromJsonAsync<JsonElement>(own.Path + "?includeInactive=true", ct);
+        Assert.Equal(own.Id, Assert.Single(all.EnumerateArray()).GetProperty("id").GetString());
         using var inactive = await client.GetAsync("/api/folders/by-slug/original", ct);
         using var duplicate = await client.PostAsJsonAsync(own.Path, new { name = "Original" }, ct);
         using var invalid = await client.PatchAsJsonAsync(own.Detail, new { name = "Changed" }, ct);
@@ -163,8 +165,10 @@ public sealed partial class RequiredActionsFlowTests
         await world.Seed.SeedUserRoleAssignmentAsync(tenant, name, role, ct);
         using var reader = await world.AsAsync(TestPersona.CustomRole(role), mode: IntegrationAuthMode.SyntheticJwt, userName: name, cancellationToken: ct);
         const string inactive = "/api/folders?includeInactive=true";
+        using var permitted = await reader.GetAsync("/api/folders", ct);
+        Assert.Equal(HttpStatusCode.OK, permitted.StatusCode);
         using var ordinary = await reader.GetAsync(inactive, ct);
-        Assert.False(ordinary.IsSuccessStatusCode);
+        await AssertOrdinaryFolderDenialAsync(ordinary, ct);
 
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
@@ -173,9 +177,19 @@ public sealed partial class RequiredActionsFlowTests
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = reader.DefaultRequestHeaders.Authorization;
         using var denied = await client.GetAsync(inactive, ct);
-        Assert.Equal(ordinary.StatusCode, denied.StatusCode);
+        await AssertOrdinaryFolderDenialAsync(denied, ct);
         Assert.Empty(snapshots.ReceivedCalls());
         using var active = await client.GetAsync("/api/folders", ct);
         await AssertUnavailableQuestionsAsync(active, ct);
+    }
+
+    private static async Task AssertOrdinaryFolderDenialAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.False(problem.TryGetProperty("requiredActions", out _));
+        Assert.False(problem.TryGetProperty("items", out _));
+        Assert.False(problem.TryGetProperty("name", out _));
     }
 }
