@@ -1,12 +1,13 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.UseCases.Identity.Login;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Identity.Login;
 
 namespace Endatix.Api.Endpoints.Auth;
 
+[Endatix.Core.Infrastructure.Attributes.AllowWithRequiredActions]
 public class Logout(IMediator mediator) : EndpointWithoutRequest<Results<Ok<LogoutResponse>, ProblemHttpResult>>
 {
     /// <summary>

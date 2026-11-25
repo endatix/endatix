@@ -39,7 +39,7 @@ public class FormAccessPolicyTests
                 return factory(ct);
             });
 
-        _policy = new FormAccessPolicy(_authorizationService, _cache, _dateTimeProvider);
+        _policy = new FormAccessPolicy(_authorizationService, new FormPermissionCache(_cache, _dateTimeProvider), new AccountStanding(_authorizationService));
     }
 
     #region Authorization Failure
@@ -258,6 +258,25 @@ public class FormAccessPolicyTests
     #region Caching
 
     [Fact]
+    public async Task GetAccessData_PendingAuthorizedViewer_DoesNotReadOrPopulateProductCache()
+    {
+        // Arrange
+        var snapshot = AuthorizationData.ForAuthenticatedUser("viewer", 1, [], [Actions.Access.Hub, Actions.Forms.View]) with
+        {
+            RequiredActions = [new RequiredAction { Key = "profile", ResolvePath = "/profile", Scope = RequiredActionScope.User,
+                Severity = RequiredActionSeverity.Blocking }]
+        };
+        _authorizationService.GetAuthorizationDataAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(snapshot));
+
+        // Act
+        var result = await _policy.GetAccessData(new FormAccessContext(1), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.IsType<IRequiredActionRefusal>(result, exactMatch: false);
+        Assert.Empty(_cache.ReceivedCalls());
+    }
+
+    [Fact]
     public async Task GetAccessDataAsync_AuthenticatedUser_CachesWithCorrectKey()
     {
         // Arrange
@@ -284,7 +303,7 @@ public class FormAccessPolicyTests
 
         // Assert
         await _cache.Received(1).GetOrCreateAsync<Cached<FormAccessData>>(
-            Arg.Is<string>(k => k == $"auth:form_mgmt:{formId}:user:{userId}"),
+            Arg.Is<string>(k => k == $"auth:form_mgmt:{formId}:tenant:1:user:{userId}:View"),
             Arg.Any<Func<CancellationToken, ValueTask<Cached<FormAccessData>>>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),

@@ -30,12 +30,14 @@ public sealed class GetFormAccess(
             s.Responses[400] = "Invalid input data.";
             s.Responses[401] = "Authentication required.";
             s.Responses[403] = "Forbidden.";
+            s.Responses[503] = "Account standing temporarily unavailable.";
         });
         Description(builder => builder
             .Produces<GetFormAccessResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden));
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     public override async Task<Results<Ok<GetFormAccessResponse>, ProblemHttpResult>> ExecuteAsync(
@@ -96,4 +98,3 @@ public sealed record GetFormAccessResponse(
             cached.ExpiresAt,
             cached.ETag);
 }
-

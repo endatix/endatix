@@ -266,11 +266,17 @@ public class InfrastructureSecurityBuilder
                 policy.Requirements.Add(new PlatformAdminRequirement()));
         });
 
+        RegisterAuthorizationServices();
+    }
+
+    private void RegisterAuthorizationServices()
+    {
         Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
         Services.AddScoped<IAccessVersionStore, DatabaseAccessVersionStore>();
         Services.AddScoped<AuthorizationTokenFingerprint>();
         Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
+        Services.AddScoped<AccountStanding>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
 

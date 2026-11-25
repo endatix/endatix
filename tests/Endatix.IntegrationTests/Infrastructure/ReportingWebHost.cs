@@ -3,6 +3,8 @@ extern alias EndatixWebHost;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.IntegrationTests;
 
@@ -19,11 +21,18 @@ internal sealed class ReportingWebHost : IIntegrationTestHostFixture, IAsyncDisp
 {
     private readonly WebApplicationFactory<EndatixWebHost::Program> _factory;
 
-    public ReportingWebHost(EndatixIntegrationWebHostFixture fixture)
+    public ReportingWebHost(EndatixIntegrationWebHostFixture fixture, Action<IServiceCollection>? configure = null)
     {
         Database = fixture.Database;
         _factory = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider)
-            .WithWebHostBuilder(builder => builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true"));
+            .WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("Endatix:FeatureFlags:ReportingModule", "true");
+                if (configure is not null)
+                {
+                    builder.ConfigureTestServices(configure);
+                }
+            });
 
         // Reading Services starts the host. A start that fails leaves the factory with no host to dispose: the
         // application's own app.Run() disposes the host it failed to start.

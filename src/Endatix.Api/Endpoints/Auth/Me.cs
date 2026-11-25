@@ -11,6 +11,7 @@ namespace Endatix.Api.Endpoints.Auth;
 /// Endpoint for getting current user information including roles and permissions.
 /// Used by clients (e.g., Next.js Hub) to fetch fresh permission data without re-authentication.
 /// </summary>
+[Endatix.Core.Infrastructure.Attributes.AllowWithRequiredActions]
 public class Me(ICurrentUserAuthorizationService authorizationService)
     : EndpointWithoutRequest<Results<Ok<AuthorizationData>, UnauthorizedHttpResult, ProblemHttpResult>>
 {

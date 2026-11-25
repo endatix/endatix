@@ -33,7 +33,8 @@ public sealed class CompileSchema(
                 "Set replace=true to force Replace mode and clear flattened submissions even when real submissions exist. " +
                 "Requires submissions.export or forms.edit; replace=true requires forms.edit.";
             summary.Responses[200] = "Form schema compiled.";
-            summary.Responses[403] = "Forbidden. replace=true requires forms.edit.";
+            summary.Responses[403] = "Forbidden. replace=true requires forms.edit; account standing may also deny compilation.";
+            summary.Responses[503] = "Account standing temporarily unavailable.";
             summary.Responses[404] = "Form or active definition not found.";
             summary.Responses[409] = "A published reporting alias would change meaning. The previous schema was retained.";
         });
@@ -41,6 +42,7 @@ public sealed class CompileSchema(
             .Produces<CompileFormSchemaResponse>(200, "application/json")
             .ProducesProblem(404).ProducesProblem(409)
             .ProducesProblem(403)
+            .ProducesProblem(503)
             .ProducesProblem(400));
     }
 
@@ -49,13 +51,10 @@ public sealed class CompileSchema(
         CompileFormSchemaRequest request,
         CancellationToken ct)
     {
-        if (request.Replace)
+        var access = await AuthorizeAsync(request, ct);
+        if (!access.IsSuccess)
         {
-            var access = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, ct);
-            if (!access.IsSuccess)
-            {
-                return access.ToProblem();
-            }
+            return access.ToProblem();
         }
 
         CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId, request.Replace);
@@ -67,6 +66,20 @@ public sealed class CompileSchema(
         }
 
         return Compiled(result);
+    }
+
+    private async Task<Result<bool>> AuthorizeAsync(CompileFormSchemaRequest request, CancellationToken ct)
+    {
+        if (request.Replace)
+        {
+            var edit = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, ct);
+            if (!edit.IsSuccess)
+            {
+                return edit.ToErrorResult<bool>();
+            }
+        }
+
+        return await mediator.Send(new AuthorizeSchemaCompile(request.FormId, tenantContext.TenantId), ct);
     }
 
     private static Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult> Compiled(Result<CompileFormSchemaResult> result) =>

@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Account;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Authorization.PublicForm;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Submissions;
@@ -34,6 +35,14 @@ namespace Endatix.Infrastructure.Identity;
 public static class IdentityServiceCollectionExtensions
 {
     private const int DEFAULT_PASSWORD_RESET_TOKEN_EXPIRATION_IN_MINUTES = 120;
+
+    private static void AddFormManagementAccess(IServiceCollection services)
+    {
+        services.AddScoped<FormPermissionCache>();
+        services.AddScoped(sp => new FormAccessPolicy(sp.GetRequiredService<ICurrentUserAuthorizationService>(),
+            sp.GetRequiredService<FormPermissionCache>(), sp.GetRequiredService<AccountStanding>()));
+        services.AddScoped<IResourceAccessQuery<FormAccessData, FormAccessContext>>(sp => sp.GetRequiredService<FormAccessPolicy>());
+    }
 
     /// <summary>
     /// Adds identity configuration with custom options to the service collection.
@@ -113,8 +122,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<SubmissionAccessPolicy>();
         services.AddScoped<IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>>(sp => sp.GetRequiredService<SubmissionAccessPolicy>());
 
-        services.AddScoped<FormAccessPolicy>();
-        services.AddScoped<IResourceAccessQuery<FormAccessData, FormAccessContext>>(sp => sp.GetRequiredService<FormAccessPolicy>());
+        AddFormManagementAccess(services);
 
         services.AddScoped<FormTemplateAccessPolicy>();
         services.AddScoped<IResourceAccessQuery<FormTemplateAccessData, FormTemplateAccessContext>>(sp => sp.GetRequiredService<FormTemplateAccessPolicy>());
