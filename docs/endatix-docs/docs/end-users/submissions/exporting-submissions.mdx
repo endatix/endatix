@@ -20,7 +20,7 @@ import pdfHeaderDark from "./submission-details-header_dark.png";
 
 # Exporting Submissions
 
-Download a file of a form's responses — CSV, Excel, or JSON — or a **codebook** that describes the form's questions without any response data. The export panel opens from the [Submissions grid](/docs/end-users/submissions/viewing-submissions) and starts with that grid's filters already filled in. On a wide screen it slides in from the side; on a narrow screen it opens from the bottom.
+Download a file of a form's responses (CSV, Excel, or JSON) or a **codebook** that describes the form's questions without any response data. The export panel opens from the [Submissions grid](/docs/end-users/submissions/viewing-submissions) and starts with that grid's filters already filled in. On a wide screen it slides in from the side; on a narrow screen it opens from the bottom.
 
 :::info[Two possible toolbars]
 Some workspaces still show **Export Submissions** as a dropdown listing CSV, Excel, and a fixed set of formats an administrator configured directly on the API. This article covers the panel described below, which workspaces move to over time. Either way you pick a format, optionally narrow the rows, and download a file.
@@ -72,7 +72,7 @@ Select a **Codebook** format and the row filters disappear. A codebook describes
   sources={{ light: codebookLight, dark: codebookDark }}
 />
 
-A codebook lists every question, its type, and its choice values and labels — the metadata a statistics package (SPSS, R, or Crunch.io) needs to make sense of a separate data file's column headers and coded values. Some codebook formats also ask for a language, used for question and choice labels.
+A codebook lists every question, its type, and its choice values and labels: the metadata a statistics package (SPSS, R, or Crunch.io) needs to make sense of a separate data file's column headers and coded values. Some codebook formats also ask for a language, used for question and choice labels.
 
 ### Rebuild Reporting Data
 
@@ -89,11 +89,11 @@ When the previous schema was kept, choose your format and filters, then select *
 The formats listed in **Export format** are configured per workspace at **Settings → Organization → Export formats**, by someone with permission to manage organization settings:
 
 <ThemedImage
-  alt="Export formats settings page: a Tenant default export format card set to CSV, and a table of four formats — Codebook, CSV (Default), Excel (XLSX), and JSON — each with its export type and settings. An arrow points at the Create format button."
+  alt="Export formats settings page: a Tenant default export format card set to CSV, and a table of four formats (Codebook, CSV (Default), Excel (XLSX), and JSON), each with its export type and settings. An arrow points at the Create format button."
   sources={{ light: settingsLight, dark: settingsDark }}
 />
 
-Every new workspace starts with four formats — **CSV** (the tenant default), **Excel (XLSX)**, **JSON**, and **Codebook** — which cover the common cases. An administrator can add more: for example, a **Codebook (Shoji)** format, shown here mid-creation, produces a codebook in the variant Crunch.io expects instead of Endatix's own default shape:
+Every new workspace starts with four formats, **CSV** (the tenant default), **Excel (XLSX)**, **JSON**, and **Codebook**, which cover the common cases. An administrator can add more: for example, a **Codebook (Shoji)** format, shown here mid-creation, produces a codebook in the variant Crunch.io expects instead of Endatix's own default shape:
 
 <ThemedImage
   alt="Create export format panel: Name field, Export target set to Codebook, Delivery format set to JSON, and the Variant dropdown open showing Codebook (Standard Endatix codebook JSON) and Codebook (Shoji) (Crunch-compatible codebook JSON)"
@@ -132,7 +132,7 @@ If a form was already prepared for export and its codebook is missing the prefil
 
 Endatix 0.9.0, and pre-release (canary) builds from 0.8.1-canary.11, named these columns `AudienceIdentifier` and `audience_<variable>`, and called the codebook block and each column's type `personalization`. A form prepared on one of those builds keeps the old columns until you run **Rebuild reporting data…** with **Full recompile** (see [Upgrade to Endatix 0.9.1](/docs/guides/upgrading/v0-9-1#participant-columns)). Afterwards its exports show only the participant columns. If a Crunch.io dataset was loaded from such an export, alias its variables to the new names.
 
-Each format also has **Column naming** and a **key separator** (under **Advanced**) that control how nested question keys — a choice within a multi-select question, for example — are joined into one column header, such as `question__choice`. As a regular user exporting submissions, you don't need to touch any of this. It's here so you know who to ask if a format you need isn't in the list, or if you're the one setting up a new workspace.
+Each format also has **Column naming** and a **key separator** (under **Advanced**) that control how nested question keys (a choice within a multi-select question, for example) are joined into one column header, such as `question__choice`. As a regular user exporting submissions, you don't need to touch any of this. It's here so you know who to ask if a format you need isn't in the list, or if you're the one setting up a new workspace.
 
 ## Exporting a Single Submission as PDF
 
@@ -164,21 +164,25 @@ For the exact columns, values, and Crunch.io categories in each format, see [Spe
 
 ## Empty Cells
 
-In the columns of a checkbox or tag box, a 0 means the respondent saw the choice and did not pick it, and an empty cell means they were not shown it, or the export cannot tell. Empty cells appear in the cases below. A 0 can still appear for a choice the respondent did not see in two cases: a question after the point where a trigger completed the survey, and a checkbox moved into or out of a loop in a later form version, for submissions saved where their version did not have it ([#1770](https://github.com/endatix/endatix/issues/1770)).
+Each choice of a checkbox or tag box has its own column:
 
-* **Conditional choices:** when a choice has a visibility condition, it exports as 1 if picked and empty otherwise, even on an answered question. A condition on the whole list applies to every regular choice; a condition on just one choice leaves its siblings unchanged. The export uses the version the respondent answered, so removing a condition later does not turn an earlier empty cell into 0.
-* **Unanswered questions (Endatix 0.9.3):** a checkbox or tag box with its own choices that the respondent did not answer writes 0 for unconditional choices only in a completed submission, and only when no visibility condition could hide it. It is empty in every column in an incomplete submission, or when the question has a visibility condition or is always hidden, itself or through a panel or page that holds it, or when the form uses its name for two questions. It is also empty in a submission saved on a form version that did not have the question, because the question was added later or removed earlier.
-* **Copied choices:** a checkbox or tag box that copies its choices from another question ([Carry Forward](/docs/end-users/forms/form-builder/carry-forward), or SurveyJS **Choices from question**) writes 1 for a choice the respondent picked, 0 for a choice they were shown and did not pick, and an empty cell for a choice they were not shown. Which choices were shown is worked out from the answers to the source questions in the same submission. A source question can copy its choices too: a question that copies only the selected choices shows what the source question picked, and one that copies all or the unselected choices shows what the source question was shown, when that can be worked out. When the answers cannot tell, only the picked choices are 1 and the rest are empty: with a **Max choices** limit, a visibility condition on the choices, a visibility condition on the question or its source, or on a panel or page that holds either, in an incomplete submission, any visibility condition on a question, panel, or page in a form that keeps hidden answers, a visibility condition on the question or its source, or on a panel or page that holds either, when that question keeps its own hidden answer, a copied question that is always hidden or sits in a panel or page that is always hidden, the copied question's name or a source question's name used twice in the form, a source question that is a ranking or loads its choices from a data list or a web service, a source question that copies its choices when the question copies all or the unselected choices and the source question's own shown choices cannot be worked out, or a source question with no answer. A copied question the respondent did not answer is empty in every column. A question that copies the selected choices with **Choices from question** and shows no **Other** of its own also lists the source question's **Other** after its choices, as SurveyJS adds it once the source question picked **Other** with a text. If the respondent picked that **Other**, the export uses the copy's own text first, then the text from the source on their form version. An answered copy writes 0 for an unpicked **Other** only if its shown choices can be worked out and either its source supplied that text or the respondent's version showed the copy's own **Other**. Otherwise the cell is empty. When the respondent answered it and its shown choices can be worked out, its own **None** is 0 when not picked, even if a source question has no answer; in an incomplete submission whose question or source is under a visibility condition, they are empty too.
+* **1:** the respondent picked the choice.
+* **0:** the respondent was shown the choice and did not pick it.
+* **Empty:** the respondent was not shown the choice, or the export cannot tell.
+
+Empty cells appear in these cases. The full rules, including every case where the export cannot tell, are in [Special Answers in Exports](/docs/developers/api/special-answers-in-exports#multi-select-checkbox-tag-box).
+
+* **Conditional choices:** a choice with a visibility condition is 1 if picked and empty otherwise, even on an answered question. The export uses the form version the respondent answered, so removing a condition later does not turn an earlier empty cell into 0.
+* **Unanswered questions (Endatix 0.9.3):** an unanswered checkbox or tag box writes 0 only in a completed submission where nothing could hide the question. Otherwise every column is empty: an incomplete submission, a question that a visibility condition could hide, or a form version that did not have the question.
+* **Copied choices:** a question that copies its choices from another question ([Carry Forward](/docs/end-users/forms/form-builder/carry-forward), or SurveyJS **Choices from question**) writes 0 only for a choice the respondent was shown, worked out from the source questions' answers in the same submission. When those answers cannot tell, for example with a **Max choices** limit or a source question with no answer, unpicked choices are empty. An unanswered copy is empty in every column.
 * **Loops:** in a loop item the respondent did not have, for example a brand not picked in the question the loop repeats over, every column is empty.
-* **Rankings:** an unanswered ranking is empty in every column. An answered ranking writes each choice's rank, and 0 for a choice left unranked. A ranking that copies its choices from another question leaves an unranked choice empty instead, since the respondent may not have been shown it.
+* **Rankings:** an unanswered ranking is empty in every column. An answered ranking writes each choice's rank, and 0 for a choice left unranked. A ranking that copies its choices leaves an unranked choice empty instead.
+
+A 0 can still appear for a choice the respondent did not see in two cases: a question after the point where a trigger completed the survey, and a checkbox moved into or out of a loop in a later form version, for submissions saved where their version did not have it ([#1770](https://github.com/endatix/endatix/issues/1770)).
 
 A **Codebook (Shoji)** file is unchanged: Crunch.io imports an empty cell as No Data.
 
-Submissions saved before Endatix 0.9.2 keep their earlier 0s until an administrator loads them again. Loaded again without a rebuild, copied choices are 1 or empty; after a rebuild with **Full recompile**, they also show exact 0s. See [Upgrade to Endatix 0.9.2](/docs/guides/upgrading/v0-9-2#copied-choices-export-empty-cells).
-
-Submissions saved before Endatix 0.9.3 keep the 0s of their unanswered checkboxes and tag boxes until they are loaded again. To refresh completed submissions whose question could be hidden, an administrator can merge the reporting schema and force a backfill through the API. A Hub rebuild without **Full recompile** skips unchanged submissions. See [Upgrade to Endatix 0.9.3](/docs/guides/upgrading/v0-9-3#unanswered-checkboxes-export-empty-cells).
-
-**Refresh older conditional-choice cells.** Completed submissions keep their stored `0`s until an administrator with `forms.edit` calls `POST forms/{formId}/submissions/backfill` with `force=true` and `completionScope=completed`. The Hub refreshes drafts before an **Incomplete** or **All** download, but skips unchanged rows. If an unchanged draft also has a stale `0`, force a separate backfill with `completionScope=incomplete`. Follow [Refresh stored rows](/docs/guides/upgrading/v0-9-3#refresh-stored-rows) to page through each scope and check for failures.
+**Older submissions keep their stored 0s.** Rows saved before Endatix 0.9.2 or 0.9.3 change only when an administrator with `forms.edit` refreshes them. A Hub rebuild without **Full recompile** skips unchanged submissions, so most forms need the API. See [Copied choices export empty cells](/docs/guides/upgrading/v0-9-2#copied-choices-export-empty-cells) for 0.9.2 and [Refresh stored rows](/docs/guides/upgrading/v0-9-3#refresh-stored-rows) for 0.9.3.
 
 ## Important Considerations
 
