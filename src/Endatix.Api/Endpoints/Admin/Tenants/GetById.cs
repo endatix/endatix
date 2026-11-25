@@ -17,6 +17,8 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class GetById(IMediator mediator, IConfiguration configuration)
     : Endpoint<GetTenantByIdRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
+    private readonly MultiTenancyGate _access = new(configuration, mediator);
+
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -45,7 +47,7 @@ public sealed class GetById(IMediator mediator, IConfiguration configuration)
         GetTenantByIdRequest request,
         CancellationToken ct)
     {
-        if (await MultiTenancyGate.RefusalAsync(configuration, mediator, new PlatformTenantAccess(request.TenantId), ct) is { } refusal)
+        if (await _access.RefusalAsync(new PlatformTenantAccess(request.TenantId), ct) is { } refusal)
         {
             return refusal;
         }

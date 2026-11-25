@@ -76,38 +76,78 @@ public sealed partial class RequiredActionsFlowTests
         yield return new(HttpMethod.Post, "/api/auth/assume-tenant") { Content = JsonContent.Create(new { tenantId = target.Id }) };
     }
 
-    [Fact]
-    public async Task Assumed_session_checks_standing_before_issuing_home_tokens()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Assumed_session_checks_standing_before_issuing_home_tokens(bool unavailable)
     {
         var ct = TestContext.Current.CancellationToken;
         var blocker = new MutableProvider("legal", "/terms") { Pending = false };
-        await using var host = new ReportingWebHost(fixture, services =>
-        {
-            services.AddSingleton<IRequiredActionProvider>(blocker);
-            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("help", "/help") { Severity = RequiredActionSeverity.Notice, Key = "help" });
-            EnableStanding(services);
-        });
+        var conflict = new MutableProvider("conflict", "/other") { Pending = false };
+        await using var host = SessionHost(blocker, conflict);
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
         using var admin = await world.AsAsync(TestPersona.PlatformAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var tenant = world.Tenants[1].Id;
         using var enter = await admin.PostAsJsonAsync("/api/auth/assume-tenant", new { tenantId = tenant }, ct);
-        enter.EnsureSuccessStatusCode();
-        var tokens = await enter.Content.ReadFromJsonAsync<JsonElement>(ct);
         using var assumed = host.CreateClient();
-        assumed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
+        await UseSessionAsync(assumed, enter, ct);
         blocker.Pending = true;
-        var me = await assumed.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        conflict.Pending = unavailable;
         var before = await OperatorStateAsync(world, ct);
         using var denied = await assumed.PostAsync("/api/auth/exit-assume", null, ct);
-        await AssertStandingRefusalAsync(denied, me, ct);
+        if (unavailable)
+        {
+            await AssertUnavailableExitAsync(denied, ct);
+        }
+        else
+        {
+            var me = await assumed.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+            await AssertStandingRefusalAsync(denied, me, ct);
+        }
         Assert.Equal(before, await OperatorStateAsync(world, ct));
 
-        blocker.Pending = false;
+        blocker.Pending = conflict.Pending = false;
         using var scope = world.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<ICurrentUserAuthorizationService>()
             .InvalidateAuthorizationDataCacheAsync(world.Tenants[0].PlatformAdmin.Id.ToString(), tenant, ct);
         using var exit = await assumed.PostAsync("/api/auth/exit-assume", null, ct);
-        exit.EnsureSuccessStatusCode();
+        using var home = host.CreateClient();
+        await UseSessionAsync(home, exit, ct);
+        await AssertHomeSessionAsync(home, world.Tenants[0].Id, ct);
+    }
+
+    private ReportingWebHost SessionHost(IRequiredActionProvider blocker, IRequiredActionProvider conflict) =>
+        new(fixture, services =>
+        {
+            services.AddSingleton(blocker);
+            services.AddSingleton(conflict);
+            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("help", "/help") { Severity = RequiredActionSeverity.Notice, Key = "help" });
+            EnableStanding(services);
+        });
+
+    private static async Task UseSessionAsync(HttpClient client, HttpResponseMessage issued, CancellationToken ct)
+    {
+        issued.EnsureSuccessStatusCode();
+        var tokens = await issued.Content.ReadFromJsonAsync<JsonElement>(ct);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
+    }
+
+    private static async Task AssertHomeSessionAsync(HttpClient home, long tenantId, CancellationToken ct)
+    {
+        var homeMe = await home.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        Assert.Equal(tenantId.ToString(), homeMe.GetProperty("tenantId").GetString());
+        using var alreadyHome = await home.PostAsync("/api/auth/exit-assume", null, ct);
+        Assert.Equal(HttpStatusCode.BadRequest, alreadyHome.StatusCode);
+        Assert.Contains("Not in an assumed tenant session", await alreadyHome.Content.ReadAsStringAsync(ct));
+    }
+
+    private static async Task AssertUnavailableExitAsync(HttpResponseMessage denied, CancellationToken ct)
+    {
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, denied.StatusCode);
+        var problem = await denied.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.Contains("Try again", problem.GetProperty("detail").GetString());
+        Assert.False(problem.TryGetProperty("accessToken", out _));
+        Assert.False(problem.TryGetProperty("refreshToken", out _));
     }
 
     [Fact]
@@ -159,6 +199,15 @@ public sealed partial class RequiredActionsFlowTests
         }
         using var missing = await admin.PatchAsJsonAsync("/api/admin/tenants/999999", new { name = "missing" }, ct);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Empty(snapshots.ReceivedCalls());
+        var patch = $"/api/admin/tenants/{world.Tenants[1].Id}";
+        foreach (var field in new object[] { new { allowSelfRegistration = false },
+                     new { allowedAuthProviderKeys = Array.Empty<string>() }, new { defaultRegistrationRoleName = "Respondent" } })
+        {
+            using var settings = await admin.PatchAsJsonAsync(patch, field, ct);
+            Assert.Equal(HttpStatusCode.NotFound, settings.StatusCode);
+            Assert.Contains("Tenant settings not found", await settings.Content.ReadAsStringAsync(ct));
+        }
         Assert.Empty(snapshots.ReceivedCalls());
     }
 }

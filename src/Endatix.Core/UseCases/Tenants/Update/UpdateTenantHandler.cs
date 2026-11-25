@@ -58,10 +58,7 @@ public sealed class UpdateTenantHandler(
             }
         }
 
-        var updatesSelfRegistration = request.AllowSelfRegistration.HasValue
-            || request.AllowedAuthProviderKeys is not null
-            || request.DefaultRegistrationRoleName is not null;
-        if (!updatesSelfRegistration)
+        if (!request.UpdatesRegistrationPolicy)
         {
             return Result.Success(new TenantPatch(name, null));
         }

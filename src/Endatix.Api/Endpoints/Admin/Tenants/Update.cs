@@ -20,6 +20,8 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class Update(IMediator mediator, IConfiguration configuration, HybridCache cache)
     : Endpoint<UpdateTenantRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
+    private readonly MultiTenancyGate _access = new(configuration, mediator);
+
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -55,18 +57,12 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
         UpdateTenantRequest request,
         CancellationToken ct)
     {
-        if (await MultiTenancyGate.RefusalAsync(configuration, mediator, new PlatformTenantAccess(request.TenantId, request.UpdatesRegistrationPolicy), ct) is { } refusal)
+        var command = request.ToCommand();
+        if (await _access.RefusalAsync(new PlatformTenantAccess(command.TenantId, command.UpdatesRegistrationPolicy), ct) is { } refusal)
         {
             return refusal;
         }
 
-        UpdateTenantCommand command = new(
-            request.TenantId,
-            request.Name,
-            request.Description,
-            request.AllowSelfRegistration,
-            request.AllowedAuthProviderKeys,
-            request.DefaultRegistrationRoleName);
         var result = await mediator.Send(command, ct);
         if (result.IsSuccess)
         {
@@ -84,7 +80,7 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
 /// </summary>
 public sealed class UpdateTenantRequest
 {
-    internal bool UpdatesRegistrationPolicy => AllowSelfRegistration.HasValue || AllowedAuthProviderKeys is not null || DefaultRegistrationRoleName is not null;
+    internal UpdateTenantCommand ToCommand() => new(TenantId, Name, Description, AllowSelfRegistration, AllowedAuthProviderKeys, DefaultRegistrationRoleName);
 
     /// <summary>
     /// The tenant to update.

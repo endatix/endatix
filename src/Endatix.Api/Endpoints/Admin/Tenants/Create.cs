@@ -18,6 +18,8 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class Create(IMediator mediator, IConfiguration configuration)
     : Endpoint<CreateTenantRequest, Results<Created<TenantModel>, ProblemHttpResult>>
 {
+    private readonly MultiTenancyGate _access = new(configuration, mediator);
+
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -56,7 +58,7 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
         CreateTenantRequest request,
         CancellationToken ct)
     {
-        if (await MultiTenancyGate.RefusalAsync(configuration, mediator, new PlatformTenantAccess(), ct) is { } refusal)
+        if (await _access.RefusalAsync(new PlatformTenantAccess(), ct) is { } refusal)
         {
             return refusal;
         }
