@@ -53,11 +53,8 @@ internal sealed class ThemeAdmission(IRepository<Theme> themes, ManagedContentSc
         {
             return data.ToErrorResult<ThemeJsonData?>();
         }
-        if (scope is not null && await scope.RefusalAsync<ThemeJsonData?>(ct) is { } refusal)
-        {
-            return refusal;
-        }
-        return Result<ThemeJsonData?>.Success(data?.Value);
+        return scope is not null && await scope.RefusalAsync<ThemeJsonData?>(ct) is { } refusal
+            ? refusal : Result<ThemeJsonData?>.Success(data?.Value);
     }
 
     internal sealed record ThemeChange(long? Id, string? Name, string? Json)
