@@ -1,6 +1,5 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.TenantSettings;
 using Endatix.Core.UseCases.TenantSettings.PartialUpdate;
 using FastEndpoints;
 using FluentValidation;
@@ -41,12 +40,6 @@ public sealed class PartialUpdate(IMediator mediator)
         PartialUpdateTenantSettingsRequest request,
         CancellationToken ct)
     {
-        var access = await mediator.Send(new TenantSettingsAccess.Update(), ct);
-        if (!access.IsSuccess)
-        {
-            return access.ToProblem();
-        }
-
         var updateSettingsResult = await mediator.Send(request.ToCommand(), ct);
 
         return TypedResultsBuilder

@@ -9,22 +9,21 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Endatix.Infrastructure.Identity.Users;
 
-internal sealed class TeammateRegistration(IUserRegistrationService registration, AccountStanding standing) : IUserRegistrationService
+internal sealed class TeammateRegistration(IUserRegistrationService registration) : IUserRegistrationService
 {
     internal static void AddInviteHandler(IServiceCollection services) =>
         services.TryAddScoped<IRequestHandler<InviteUserCommand, Result<User>>>(provider =>
         {
             var configured = provider.GetRequiredService<IUserRegistrationService>();
-            var decision = provider.GetRequiredService<AccountStanding>();
-            var teammate = decision.IsEnforced ? new TeammateRegistration(configured, decision) : configured;
+            var teammate = configured is not AppUserRegistrationService && provider.GetRequiredService<AccountStanding>().IsEnforced
+                ? new TeammateRegistration(configured)
+                : configured;
             return ActivatorUtilities.CreateInstance<InviteUserHandler>(provider, teammate);
         });
 
-    // A replacement service owns its target eligibility; its public registration call offers no pre-write standing check.
+    // Enforced hosts currently support only the built-in registration service for teammate invitations.
     public Task<Result<User>> RegisterInvitedUserAsync(string email, long tenantId, CancellationToken cancellationToken) =>
-        registration is AppUserRegistrationService builtIn
-            ? builtIn.RegisterTeammateAsync(email, tenantId, standing, cancellationToken)
-            : Task.FromResult(Result<User>.Unavailable("Invitation eligibility is unavailable. Try again."));
+        Task.FromResult(Result<User>.Unavailable("Invitation eligibility is unavailable. Try again."));
 
     public Task<Result<User>> RegisterUserAsync(string email, string password, CancellationToken cancellationToken) =>
         registration.RegisterUserAsync(email, password, cancellationToken);

@@ -5,7 +5,6 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.History;
 using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
@@ -20,7 +19,7 @@ namespace Endatix.Api.Endpoints.TenantBranding;
 /// Lists the current tenant's branding versions, newest first, so an admin can pick one to restore.
 /// </summary>
 [Experimental("ENDATIX0002")]
-public sealed class ListTenantBrandingVersions(IMediator mediator, TenantBrandingAccess access)
+public sealed class ListTenantBrandingVersions(IMediator mediator)
     : Endpoint<ListTenantBrandingVersionsRequest, Results<Ok<Paged<TenantBrandingVersionModel>>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
@@ -50,11 +49,6 @@ public sealed class ListTenantBrandingVersions(IMediator mediator, TenantBrandin
         ListTenantBrandingVersionsRequest request,
         CancellationToken ct)
     {
-        if (await access.ReadRefusalAsync(ct) is { } refusal)
-        {
-            return refusal.ToProblem();
-        }
-
         var result = await mediator.Send(new ListTenantBrandingVersionsQuery(request.ResolvePage(), request.ResolvePageSize()), ct);
         return result.IsSuccess
             ? TypedResults.Ok(result.Value.MapToPaged(TenantBrandingVersionModel.Map))

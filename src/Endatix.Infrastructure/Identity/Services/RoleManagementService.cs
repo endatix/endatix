@@ -407,8 +407,7 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
         }
 
         var newAssignments = missingEditableRoleIds.Select(roleId => new IdentityUserRole<long> { UserId = userId, RoleId = roleId });
-        return await _standing.RefusalAsync(cancellationToken)
-            ?? await SaveAssignmentsAsync(staleEditableRoleAssignments, newAssignments, cancellationToken);
+        return await SaveAssignmentsAsync(staleEditableRoleAssignments, newAssignments, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -451,11 +450,6 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
         if (!accessGuard.IsSuccess)
         {
             return accessGuard.ToErrorResult<string>();
-        }
-
-        if (await _standing.RefusalAsync<string>(cancellationToken) is { } refusal)
-        {
-            return refusal;
         }
 
         var tenantId = _tenantContext.TenantId;
@@ -547,7 +541,7 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
             });
         }
 
-        return await _standing.RefusalAsync(cancellationToken) ?? await DeleteCustomRoleAsync(role, cancellationToken);
+        return await DeleteCustomRoleAsync(role, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -866,11 +860,6 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
         if (!target.IsSuccess)
         {
             return target.ToErrorResult<string>();
-        }
-
-        if (await _standing.RefusalAsync<string>(cancellationToken) is { } refusal)
-        {
-            return refusal;
         }
 
         var role = await tenantRole.FirstOrDefaultAsync(role => role.Id == target.Value && !role.IsSystemDefined, cancellationToken);

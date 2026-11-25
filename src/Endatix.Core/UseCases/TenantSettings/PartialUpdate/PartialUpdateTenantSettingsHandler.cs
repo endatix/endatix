@@ -4,8 +4,8 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.TenantSettings.Get;
-using Entities = Endatix.Core.Entities;
 using MediatR;
+using Entities = Endatix.Core.Entities;
 
 namespace Endatix.Core.UseCases.TenantSettings.PartialUpdate;
 
@@ -23,6 +23,11 @@ public sealed class PartialUpdateTenantSettingsHandler(
         PartialUpdateTenantSettingsCommand request,
         CancellationToken cancellationToken)
     {
+        if (tenantContext.TenantId <= 0)
+        {
+            return Result.NotFound("Tenant settings not found.");
+        }
+
         var spec = new TenantSettingsByTenantIdSpec(tenantContext.TenantId);
         var entity = await repository.FirstOrDefaultAsync(spec, cancellationToken);
         if (entity is null)
@@ -30,6 +35,16 @@ public sealed class PartialUpdateTenantSettingsHandler(
             return Result.NotFound("Tenant settings not found.");
         }
 
+        if (ApplyUpdates(entity, request))
+        {
+            await repository.UpdateAsync(entity, cancellationToken);
+        }
+
+        return await mediator.Send(new GetTenantSettingsQuery(), cancellationToken);
+    }
+
+    private static bool ApplyUpdates(Entities.TenantSettings entity, PartialUpdateTenantSettingsCommand request)
+    {
         var hasUpdates = false;
 
         if (request.RequireFolderAssignment.HasValue)
@@ -49,11 +64,6 @@ public sealed class PartialUpdateTenantSettingsHandler(
             hasUpdates = true;
         }
 
-        if (hasUpdates)
-        {
-            await repository.UpdateAsync(entity, cancellationToken);
-        }
-
-        return await mediator.Send(new GetTenantSettingsQuery(), cancellationToken);
+        return hasUpdates;
     }
 }

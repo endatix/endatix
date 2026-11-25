@@ -147,7 +147,7 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     }
 
     private static TenantBrandingAccess Access(long tenantId) =>
-        new(new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new());
+        new(new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements());
 
     private async Task<TenantBranding> ReadAsync(long tenantId)
     {

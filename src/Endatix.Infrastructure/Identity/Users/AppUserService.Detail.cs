@@ -14,14 +14,7 @@ public sealed partial class AppUserService
             return Result.NotFound();
         }
 
-        var visibleUsers = VisibleUser(userId);
-        if (_standing.IsEnforced && !await visibleUsers.AnyAsync(cancellationToken))
-        {
-            return Result.NotFound();
-        }
-
-        return await _standing.RefusalAsync<UserWithRoles>(cancellationToken)
-            ?? await ReadUserWithRolesAsync(visibleUsers, cancellationToken);
+        return await ReadUserWithRolesAsync(VisibleUser(userId), cancellationToken);
     }
 
     private IQueryable<AppUser> VisibleUser(long userId)

@@ -20,7 +20,6 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
     {
         Get("/admin/tenants");
         Policies(AuthorizationPolicies.PlatformAdminAccess);
-        PreProcessor<AuthorizedAccountStanding<ListPlatformTenantsRequest>>();
         Summary(s =>
         {
             s.Summary = "List platform tenants";

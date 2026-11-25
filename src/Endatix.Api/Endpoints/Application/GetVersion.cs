@@ -18,7 +18,6 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
     {
         Get("system/version");
         Permissions(Actions.Access.Hub);
-        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "Get API version";

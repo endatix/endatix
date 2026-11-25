@@ -3,27 +3,13 @@ using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Identity.Services;
 
 public sealed partial class RoleManagementService
 {
-    private AccountStanding _standing = new();
-
-    internal static RoleManagementService Create(IServiceProvider services)
-    {
-        var roles = ActivatorUtilities.CreateInstance<RoleManagementService>(services);
-        roles._standing = services.GetRequiredService<AccountStanding>();
-        return roles;
-    }
-
     private async Task<Result> ChangePlatformRoleAsync(AppUser user, Func<AppUser, string, Task<IdentityResult>> change, CancellationToken ct)
     {
-        if (await _standing.RefusalAsync(ct) is { } refusal)
-        {
-            return refusal;
-        }
         var result = await change(user, SystemRole.PlatformAdmin.Name);
         if (!result.Succeeded)
         {

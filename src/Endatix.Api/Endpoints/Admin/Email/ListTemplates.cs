@@ -22,7 +22,6 @@ public class ListTemplates(IMediator mediator)
     {
         Get("/admin/email/templates");
         Policies(SystemRole.PlatformAdmin.Name);
-        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "List email templates";

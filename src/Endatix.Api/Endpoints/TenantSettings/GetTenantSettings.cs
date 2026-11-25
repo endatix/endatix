@@ -1,6 +1,5 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.TenantSettings;
 using Endatix.Core.UseCases.TenantSettings.Get;
 using FastEndpoints;
 using MediatR;
@@ -40,12 +39,6 @@ public class GetTenantSettings(IMediator mediator) : EndpointWithoutRequest<Resu
     /// <inheritdoc/>
     public override async Task<Results<Ok<TenantSettingsModel>, ProblemHttpResult>> ExecuteAsync(CancellationToken ct)
     {
-        var access = await mediator.Send(new TenantSettingsAccess.Read(), ct);
-        if (!access.IsSuccess)
-        {
-            return access.ToProblem();
-        }
-
         var result = await mediator.Send(new GetTenantSettingsQuery(), ct);
 
         return TypedResultsBuilder

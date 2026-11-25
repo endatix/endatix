@@ -19,21 +19,9 @@ public sealed class ExitAssumeHandler(
     IUserTokenService tokenService,
     IAuthService authService,
     ICurrentUserAuthorizationService authorizationService,
-    IDateTimeProvider dateTimeProvider,
-    AccountStanding standing)
+    IDateTimeProvider dateTimeProvider)
     : ICommandHandler<ExitAssumeCommand, Result<AuthTokensDto>>
 {
-    /// <summary>Creates the handler with dormant account standing.</summary>
-    public ExitAssumeHandler(
-        IUserContext userContext,
-        IUserService userService,
-        IRepository<Tenant> tenantRepository,
-        IUserTokenService tokenService,
-        IAuthService authService,
-        ICurrentUserAuthorizationService authorizationService,
-        IDateTimeProvider dateTimeProvider)
-        : this(userContext, userService, tenantRepository, tokenService, authService, authorizationService, dateTimeProvider, new AccountStanding()) { }
-
     /// <inheritdoc />
     public async Task<Result<AuthTokensDto>> Handle(ExitAssumeCommand request, CancellationToken cancellationToken)
     {
@@ -52,11 +40,6 @@ public sealed class ExitAssumeHandler(
         if (!userResult.IsSuccess)
         {
             return Result.Unauthorized();
-        }
-
-        if (await standing.RefusalAsync<AuthTokensDto>(cancellationToken) is { } refusal)
-        {
-            return refusal;
         }
 
         var user = userResult.Value;

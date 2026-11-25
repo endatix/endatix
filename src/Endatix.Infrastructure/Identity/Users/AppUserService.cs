@@ -344,7 +344,7 @@ public sealed partial class AppUserService(
 
         return await RemovingUserWouldLeaveTenantWithoutActiveAdminAsync(user, tenantId, cancellationToken)
             ? Result.Conflict(LAST_TENANT_ADMIN_REMOVAL_FORBIDDEN_MESSAGE)
-            : await _standing.RefusalAsync(cancellationToken) ?? Result.Success();
+            : Result.Success();
     }
 
     /// <summary>
