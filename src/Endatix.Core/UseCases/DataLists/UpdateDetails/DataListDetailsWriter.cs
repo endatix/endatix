@@ -1,8 +1,8 @@
-using Endatix.Core.UseCases.DataLists.Create;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.DataLists.Create;
 using MediatR;
 
 namespace Endatix.Core.UseCases.DataLists.UpdateDetails;

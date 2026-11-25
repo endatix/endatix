@@ -1,13 +1,13 @@
-using Microsoft.Extensions.DependencyInjection;
 using Ardalis.GuardClauses;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Themes.Delete;

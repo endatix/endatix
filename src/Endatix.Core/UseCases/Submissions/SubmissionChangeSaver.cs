@@ -1,8 +1,8 @@
-using Endatix.Core.Specifications;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Submissions;
 

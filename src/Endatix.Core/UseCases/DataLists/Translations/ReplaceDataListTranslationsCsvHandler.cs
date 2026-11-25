@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
@@ -8,6 +7,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.DataLists.Translations;
