@@ -6,7 +6,8 @@ using Endatix.IntegrationTests.Shared;
 namespace Endatix.IntegrationTests.FeatureFlows.Api;
 
 /// <summary>
-/// The OpenAPI document behind the API docs page generates for every endpoint (endatix/endatix#1841).
+/// The OpenAPI document behind the API docs page generates for every endpoint (endatix/endatix#1841), and lists the tenant
+/// branding endpoints only when WhiteLabeling is on (endatix/endatix#1843). The shared host has the flag off.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -14,6 +15,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Api;
 public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string DOCUMENT_PATH = "/swagger/alpha-version/swagger.json";
+    private const string BRANDING_ROUTE = "/tenant-branding";
 
     [Fact]
     public async Task Document_generates_for_every_endpoint()
@@ -29,6 +31,44 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
         response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
     }
 
+    [Fact]
+    public async Task Branding_endpoints_are_not_documented_when_white_labeling_is_off()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        using var client = fixture.CreateClient();
+
+        using var document = await ReadDocumentAsync(client, ct);
+
+        // Act
+        var paths = Paths(document);
+
+        // Assert
+        paths.Should().NotContain(path => path.Contains(BRANDING_ROUTE, StringComparison.Ordinal));
+        paths.Should().Contain(path => path.EndsWith("/public/tenants/{slug}", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Branding_endpoints_are_documented_when_white_labeling_is_on()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using BrandingWebHost host = new(fixture);
+        using var client = host.CreateClient();
+
+        using var document = await ReadDocumentAsync(client, ct);
+
+        // Act
+        var paths = Paths(document);
+
+        // Assert
+        paths.Where(path => path.Contains(BRANDING_ROUTE, StringComparison.Ordinal))
+            .Select(path => path[path.IndexOf(BRANDING_ROUTE, StringComparison.Ordinal)..])
+            .Should().BeEquivalentTo(
+                BRANDING_ROUTE, "/tenant-branding/versions", "/tenant-branding/published", "/tenant-branding/restore",
+                "/tenant-branding/rollback", "/tenant-branding/reset");
+    }
+
     /// <summary>
     /// The publish body is read as text, so its schema is a documentation type. It lists the fields the brand override
     /// parser accepts at its root, and not the request's raw <c>content</c>.
@@ -38,8 +78,9 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        using var client = fixture.CreateClient();
-        using var document = JsonDocument.Parse(await client.GetStringAsync(new Uri(DOCUMENT_PATH, UriKind.Relative), ct));
+        await using BrandingWebHost host = new(fixture);
+        using var client = host.CreateClient();
+        using var document = await ReadDocumentAsync(client, ct);
         var root = document.RootElement;
 
         // Act
@@ -53,6 +94,12 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
         // Assert
         properties.Should().BeEquivalentTo(BrandOverrideReader.ROOT_FIELDS);
     }
+
+    private static async Task<JsonDocument> ReadDocumentAsync(HttpClient client, CancellationToken ct) =>
+        JsonDocument.Parse(await client.GetStringAsync(new Uri(DOCUMENT_PATH, UriKind.Relative), ct));
+
+    private static List<string> Paths(JsonDocument document) =>
+        document.RootElement.GetProperty("paths").EnumerateObject().Select(path => path.Name).ToList();
 
     private static JsonElement Resolve(JsonElement root, JsonElement schema)
     {
