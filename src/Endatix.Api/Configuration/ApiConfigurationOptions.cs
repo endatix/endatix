@@ -51,4 +51,4 @@ public class ApiConfigurationOptions : EndatixOptionsBase
         /// </summary>
         public string? Ui { get; set; }
     }
-} 
+}
