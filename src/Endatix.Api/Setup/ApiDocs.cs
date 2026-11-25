@@ -29,6 +29,8 @@ internal static class ApiDocs
 
     private const string ADDED_KEY = "Endatix.Api.ApiDocsAdded";
 
+    private const string SWAGGER_PATH_KEY = "SwaggerPath";
+
     /// <summary>
     /// Adds the document, Scalar and the opt-in Swagger UI once per application. A later call changes nothing and logs a
     /// warning, so a host that adds the docs through two builders does not map the docs page twice.
@@ -42,7 +44,7 @@ internal static class ApiDocs
 
         var routes = AsRouteBuilder(app);
         var requestedPath = RequestedPath(app, options);
-        var pagePath = PagePath(requestedPath);
+        var pagePath = PagePath(requestedPath.Value);
         app.Properties[ADDED_KEY] = true;
         var documentPath = AddDocument(app, options);
         AddSwaggerUi(app, options, pagePath);
@@ -52,15 +54,12 @@ internal static class ApiDocs
     }
 
     /// <summary>
-    /// The docs page path the host asked for: <see cref="ApiOptions.ApiDocsPath"/>, else the deprecated
-    /// <see cref="ApiOptions.SwaggerPath"/>, else null for the default. Two different values log a warning, so a host
-    /// that set both learns which one applies.
+    /// <see cref="Requested"/>, and a warning when <see cref="ApiOptions.ApiDocsPath"/> and the deprecated
+    /// <see cref="ApiOptions.SwaggerPath"/> hold two different values, so a host that set both learns which one applies.
     /// </summary>
-    private static string? RequestedPath(IApplicationBuilder app, ApiOptions options)
+    private static RequestedDocsPath RequestedPath(IApplicationBuilder app, ApiOptions options)
     {
-#pragma warning disable CS0618 // SwaggerPath is the deprecated mirror of ApiDocsPath, still read for older hosts.
-        var swaggerPath = options.SwaggerPath;
-#pragma warning restore CS0618
+        var swaggerPath = DeprecatedSwaggerPath(options);
         if (options.ApiDocsPath is not null && swaggerPath is not null
             && !string.Equals(options.ApiDocsPath, swaggerPath, StringComparison.Ordinal))
         {
@@ -70,8 +69,21 @@ internal static class ApiDocs
                 swaggerPath);
         }
 
-        return options.ApiDocsPath ?? swaggerPath;
+        return Requested(options);
     }
+
+    /// <summary>
+    /// The docs page path the host asked for and the setting it came from: <see cref="ApiOptions.ApiDocsPath"/>, else
+    /// the deprecated <see cref="ApiOptions.SwaggerPath"/>, else a null value for the default.
+    /// </summary>
+    private static RequestedDocsPath Requested(ApiOptions options) =>
+        options.ApiDocsPath is not null
+            ? new RequestedDocsPath(options.ApiDocsPath, nameof(ApiOptions.ApiDocsPath))
+            : new RequestedDocsPath(DeprecatedSwaggerPath(options), SWAGGER_PATH_KEY);
+
+#pragma warning disable CS0618 // SwaggerPath is the deprecated mirror of ApiDocsPath, still read for older hosts.
+    private static string? DeprecatedSwaggerPath(ApiOptions options) => options.SwaggerPath;
+#pragma warning restore CS0618
 
     private static bool WasAdded(IApplicationBuilder app)
     {
@@ -131,21 +143,18 @@ internal static class ApiDocs
 
     /// <summary>
     /// An empty or <c>/</c> requested path asked for the docs at the root, which they cannot take, so they serve at the
-    /// default. The root then redirects there and a warning says so. An unset (null) or other path adds no root route,
-    /// so a host keeps its root.
+    /// default. The root then redirects there and a warning names the setting that asked. An unset (null) or other path
+    /// adds no root route, so a host keeps its root.
     /// </summary>
     private static void RedirectRootWhenPathFallsBack(
-        IApplicationBuilder app, IEndpointRouteBuilder routes, string? requestedPath)
+        IApplicationBuilder app, IEndpointRouteBuilder routes, RequestedDocsPath requestedPath)
     {
-        if (requestedPath is null || requestedPath.Trim().TrimEnd('/').Length > 0)
+        if (requestedPath.Value is null || requestedPath.Value.Trim().TrimEnd('/').Length > 0)
         {
             return;
         }
 
-        Logger(app)?.LogWarning(
-            "ApiDocsPath '{ApiDocsPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.",
-            requestedPath,
-            DEFAULT_PATH);
+        LogRootFallback(app, requestedPath);
         routes.MapGet("/", (HttpRequest request) => Results.Redirect($"{request.PathBase}{DEFAULT_PATH}/"))
             .ExcludeFromDescription();
     }
@@ -204,6 +213,19 @@ internal static class ApiDocs
         return string.IsNullOrEmpty(path) ? DEFAULT_PATH : path;
     }
 
+    private static void LogRootFallback(IApplicationBuilder app, RequestedDocsPath requestedPath)
+    {
+        var deprecation = requestedPath.Key == SWAGGER_PATH_KEY
+            ? " SwaggerPath is deprecated: set ApiDocsPath instead."
+            : string.Empty;
+        Logger(app)?.LogWarning(
+            "{Setting} '{RequestedPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.{Deprecation}",
+            requestedPath.Key,
+            requestedPath.Value,
+            DEFAULT_PATH,
+            deprecation);
+    }
+
     private static ILogger? Logger(IApplicationBuilder app) =>
         app.ApplicationServices.GetService<ILoggerFactory>()?.CreateLogger(typeof(ApiDocs).FullName!);
 
@@ -211,4 +233,7 @@ internal static class ApiDocs
         app as IEndpointRouteBuilder
         ?? throw new InvalidOperationException(
             "The API docs page needs endpoint routing. Add the Endatix API to a WebApplication.");
+
+    /// <summary>A requested docs page path and the setting it came from, so a warning names that setting.</summary>
+    private sealed record RequestedDocsPath(string? Value, string Key);
 }

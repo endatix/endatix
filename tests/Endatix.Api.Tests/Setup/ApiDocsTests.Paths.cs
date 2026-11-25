@@ -86,6 +86,36 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
+    public async Task Root_fallback_warning_names_api_docs_path_when_it_set_the_root()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await StartWithWarningsAsync(new ApiOptions { ApiDocsPath = "" }, log);
+
+        // Assert
+        log.Warnings.Should().ContainSingle(warning => warning.StartsWith("ApiDocsPath ''", StringComparison.Ordinal)
+            && !warning.Contains("SwaggerPath", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Root_fallback_warning_names_swagger_path_and_points_to_api_docs_path_when_it_set_the_root()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+#pragma warning disable CS0618 // Subject under test: the deprecated mirror of ApiDocsPath.
+        await using var host = await StartWithWarningsAsync(new ApiOptions { SwaggerPath = "" }, log);
+#pragma warning restore CS0618
+
+        // Assert
+        log.Warnings.Should().ContainSingle(warning => warning.StartsWith("SwaggerPath ''", StringComparison.Ordinal)
+            && warning.Contains("set ApiDocsPath instead", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Api_docs_path_wins_over_a_different_swagger_path_with_a_warning()
     {
         // Arrange
