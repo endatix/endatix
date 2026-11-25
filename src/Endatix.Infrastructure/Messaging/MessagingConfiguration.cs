@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Infrastructure.Identity.Users;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,9 +59,7 @@ public static class MessagingConfiguration
         });
 
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
-        services.AddScoped<FolderAssignmentPolicy>();
-        services.AddScoped<FolderWritePolicy>();
-        services.AddScoped<SubmissionFormTheme>();
+        AddUseCaseServices(services);
 
         if (options.IncludeLoggingPipeline)
         {
@@ -68,5 +67,13 @@ public static class MessagingConfiguration
         }
 
         return services;
+    }
+
+    private static void AddUseCaseServices(IServiceCollection services)
+    {
+        services.AddScoped<FolderAssignmentPolicy>();
+        services.AddScoped<FolderWritePolicy>();
+        services.AddScoped<SubmissionFormTheme>();
+        services.AddScoped<TenantBrandingAccess>();
     }
 }

@@ -25,9 +25,13 @@ public sealed class TenantBrandingEndpointsTests
     private readonly IMediator _mediator = Substitute.For<IMediator>();
     private readonly IPublicTenantCacheInvalidator _publicTenantCache = Substitute.For<IPublicTenantCacheInvalidator>();
     private readonly IUserContext _userContext = Substitute.For<IUserContext>();
+    private readonly TenantBrandingAccess _access;
 
     public TenantBrandingEndpointsTests()
     {
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(42);
+        _access = new(tenant, Substitute.For<ITenantEntitlements>(), new());
         _userContext.GetCurrentUserId().Returns("7");
     }
 
@@ -37,7 +41,7 @@ public sealed class TenantBrandingEndpointsTests
     public async Task Get_ReturnsThePublishedBrandAsAnObjectWithItsETag()
     {
         // Arrange
-        var endpoint = Factory.Create<GetTenantBranding>(_mediator);
+        var endpoint = Factory.Create<GetTenantBranding>(_mediator, _access);
         _mediator.Send(Arg.Any<GetTenantBrandingQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new TenantBrandingReadDto(true, new TenantBrandingDto(BLUE, 1, 1, _publishedAt))));
 
@@ -59,7 +63,7 @@ public sealed class TenantBrandingEndpointsTests
     public async Task History_SendsThePagingAndListsTheVersions()
     {
         // Arrange
-        var endpoint = Factory.Create<ListTenantBrandingVersions>(_mediator);
+        var endpoint = Factory.Create<ListTenantBrandingVersions>(_mediator, _access);
         _mediator.Send(Arg.Any<ListTenantBrandingVersionsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<TenantBrandingVersionDto>.FromPage(2, 1, 2,
                 [new TenantBrandingVersionDto(1, _publishedAt, 7, "publish", null)])));
@@ -78,7 +82,7 @@ public sealed class TenantBrandingEndpointsTests
     public async Task History_WithoutPaging_SendsTheSharedDefaults()
     {
         // Arrange
-        var endpoint = Factory.Create<ListTenantBrandingVersions>(_mediator);
+        var endpoint = Factory.Create<ListTenantBrandingVersions>(_mediator, _access);
         _mediator.Send(Arg.Any<ListTenantBrandingVersionsQuery>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(Paged<TenantBrandingVersionDto>.FromPage(1, PagedRequestLimits.DEFAULT_PAGE_SIZE, 0, [])));
 
@@ -95,9 +99,8 @@ public sealed class TenantBrandingEndpointsTests
     public async Task Get_NoTenant_IsUnauthorizedWithoutAnETag()
     {
         // Arrange
-        var endpoint = Factory.Create<GetTenantBranding>(_mediator);
-        _mediator.Send(Arg.Any<GetTenantBrandingQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result<TenantBrandingReadDto>.Unauthorized());
+        var noTenant = new TenantBrandingAccess(Substitute.For<ITenantContext>(), Substitute.For<ITenantEntitlements>(), new());
+        var endpoint = Factory.Create<GetTenantBranding>(_mediator, noTenant);
 
         // Act
         var response = await endpoint.ExecuteAsync(Cancellation);
@@ -105,6 +108,7 @@ public sealed class TenantBrandingEndpointsTests
         // Assert
         response.Result.As<ProblemHttpResult>().StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         endpoint.HttpContext.Response.Headers.ETag.Should().BeEmpty();
+        await _mediator.DidNotReceive().Send(Arg.Any<GetTenantBrandingQuery>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -17,7 +17,7 @@ internal sealed class BrandingWebHost : IIntegrationTestHostFixture, IAsyncDispo
 {
     private readonly WebApplicationFactory<EndatixWebHost::Program> _factory;
 
-    public BrandingWebHost(EndatixIntegrationWebHostFixture fixture, bool entitled = true)
+    public BrandingWebHost(EndatixIntegrationWebHostFixture fixture, bool entitled = true, Action<IServiceCollection>? configure = null)
     {
         Database = fixture.Database;
         _factory = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider)
@@ -27,6 +27,10 @@ internal sealed class BrandingWebHost : IIntegrationTestHostFixture, IAsyncDispo
                 if (!entitled)
                 {
                     builder.ConfigureTestServices(services => services.AddSingleton<ITenantEntitlements, NoEntitlements>());
+                }
+                if (configure is not null)
+                {
+                    builder.ConfigureTestServices(configure);
                 }
             });
 

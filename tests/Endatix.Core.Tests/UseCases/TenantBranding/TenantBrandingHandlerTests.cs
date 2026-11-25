@@ -43,8 +43,9 @@ public sealed class TenantBrandingHandlerTests
             });
         _repository.FindVersionAsync(TENANT_ID, Arg.Any<long>(), Arg.Any<CancellationToken>())
             .Returns(call => _saved.GetValueOrDefault(call.ArgAt<long>(1)));
-        _publish = new PublishTenantBrandingHandler(_repository, _tenantContext, _entitlements, _dateTimeProvider);
-        _restore = new RestoreTenantBrandingHandler(_repository, _tenantContext, _entitlements, _dateTimeProvider);
+        var access = new TenantBrandingAccess(_tenantContext, _entitlements, new());
+        _publish = new PublishTenantBrandingHandler(_repository, access, _dateTimeProvider);
+        _restore = new RestoreTenantBrandingHandler(_repository, access, _dateTimeProvider);
     }
 
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;

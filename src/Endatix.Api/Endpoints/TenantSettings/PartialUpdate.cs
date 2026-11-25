@@ -1,5 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.TenantSettings;
 using Endatix.Core.UseCases.TenantSettings.PartialUpdate;
 using FastEndpoints;
 using FluentValidation;
@@ -22,13 +23,14 @@ public sealed class PartialUpdate(IMediator mediator)
         Permissions(Actions.Tenant.ManageSettings);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Partially update tenant settings";
             s.Description = "Updates selected tenant configuration for the current tenant.";
             s.Responses[200] = "Tenant settings updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Tenant settings not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantSettingsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -39,13 +41,13 @@ public sealed class PartialUpdate(IMediator mediator)
         PartialUpdateTenantSettingsRequest request,
         CancellationToken ct)
     {
-        var updateSettingsCommand = new PartialUpdateTenantSettingsCommand
+        var access = await mediator.Send(new TenantSettingsAccess.Update(), ct);
+        if (!access.IsSuccess)
         {
-            RequireFolderAssignment = request.RequireFolderAssignment,
-            SubmissionTokenExpiryHours = request.SubmissionTokenExpiryHours,
-            ClearSubmissionTokenExpiryHours = request.ClearSubmissionTokenExpiryHours,
-        };
-        var updateSettingsResult = await mediator.Send(updateSettingsCommand, ct);
+            return access.ToProblem();
+        }
+
+        var updateSettingsResult = await mediator.Send(request.ToCommand(), ct);
 
         return TypedResultsBuilder
             .MapResult(updateSettingsResult, TenantSettingsMapper.Map)
@@ -58,6 +60,13 @@ public sealed class PartialUpdate(IMediator mediator)
 /// </summary>
 public sealed class PartialUpdateTenantSettingsRequest
 {
+    internal PartialUpdateTenantSettingsCommand ToCommand() => new()
+    {
+        RequireFolderAssignment = RequireFolderAssignment,
+        SubmissionTokenExpiryHours = SubmissionTokenExpiryHours,
+        ClearSubmissionTokenExpiryHours = ClearSubmissionTokenExpiryHours
+    };
+
     /// <summary>
     /// When set, updates whether forms and templates must be assigned to a folder.
     /// </summary>
