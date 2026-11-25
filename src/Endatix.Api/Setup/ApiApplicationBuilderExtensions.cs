@@ -33,9 +33,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware. DocsEnabled={DocsEnabled}, SwaggerUiEnabled={SwaggerUiEnabled}",
-                options.Docs.Enabled,
-                options.Docs.SwaggerUi.Enabled);
+                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+                options.UseSwagger,
+                options.SwaggerPath);
         }
 
         var result = app.UseEndatixApi(options);
@@ -59,9 +59,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware with custom options. DocsEnabled={DocsEnabled}, SwaggerUiEnabled={SwaggerUiEnabled}",
-                options.Docs.Enabled,
-                options.Docs.SwaggerUi.Enabled);
+                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+                options.UseSwagger,
+                options.SwaggerPath);
         }
 
         var result = app.UseEndatixApi(options);
@@ -132,8 +132,10 @@ public static class ApiApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Adds the API docs while <see cref="ApiDocsOptions.Enabled"/> is on: the OpenAPI document, Scalar at
-    /// <see cref="ApiDocsOptions.Path"/>, and Swagger UI at <see cref="SwaggerUiDocsOptions.Path"/> while it is on. <see cref="UseEndatixApi(IApplicationBuilder, ApiOptions)"/> already adds them; a second call does nothing.
+    /// Adds the API docs while <see cref="ApiDocsOptions.Enabled"/> is on: the OpenAPI document, once per application,
+    /// and a docs page at <see cref="ApiDocsOptions.Path"/> with <see cref="ApiDocsOptions.Ui"/>.
+    /// <see cref="UseEndatixApi(IApplicationBuilder, ApiOptions)"/> already adds them; a call for a page path already
+    /// mapped changes nothing, and a call for another path adds a page there.
     /// </summary>
     /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
     /// <param name="options">The API options.</param>

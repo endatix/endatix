@@ -121,7 +121,7 @@ public sealed partial class ApiDocsTests
         await using var host = await StartWithWarningsAsync(new ApiOptions { Docs = { Path = docsPath } }, log);
 
         // Assert
-        log.Information.Should().ContainSingle(line => line == $"Serving the API docs at {expected}");
+        log.Information.Should().ContainSingle(line => line == $"Serving the API docs at {expected} with Scalar");
     }
 
     private static Task<ApiDocsHost> StartWithWarningsAsync(ApiOptions options, WarningLog log) =>

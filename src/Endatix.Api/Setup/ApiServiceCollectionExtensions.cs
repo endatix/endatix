@@ -78,8 +78,7 @@ public static class ApiServiceCollectionExtensions
             options.SwaggerPath = legacy.SwaggerPath;
         }
 
-        options.Docs.SwaggerUi.Enabled = docs.SwaggerUi.Enabled;
-        options.Docs.SwaggerUi.Path = docs.SwaggerUi.Path;
+        options.Docs.SetUiSetting(docs.Ui);
         options.Docs.Conflicts = DocsConflicts(config, legacy);
     }
 

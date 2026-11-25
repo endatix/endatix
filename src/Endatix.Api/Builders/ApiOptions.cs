@@ -24,8 +24,8 @@ public class ApiOptions
     public string ExceptionHandlerPath { get; set; } = "/error";
 
     /// <summary>
-    /// Gets or sets the API docs settings: the document, the Scalar docs page, and Swagger UI. This can be configured
-    /// via appsettings.json under <c>Endatix:Api:Docs</c>.
+    /// Gets or sets the API docs settings: the document, the docs page, and the UI it shows. This can be configured via
+    /// appsettings.json under <c>Endatix:Api:Docs</c>.
     /// </summary>
     public ApiDocsOptions Docs { get; set; } = new();
 
@@ -56,8 +56,8 @@ public class ApiOptions
     public Action<OpenApiDocumentMiddlewareSettings>? ConfigureOpenApiDocument { get; set; }
 
     /// <summary>
-    /// Gets or sets a delegate to configure Swagger UI display settings, its <c>Path</c> included. It applies while Swagger
-    /// UI is on (<see cref="SwaggerUiDocsOptions.Enabled"/>).
+    /// Gets or sets a delegate to configure Swagger UI display settings, its <c>Path</c> included. Setting it shows Swagger
+    /// UI on the docs page unless <see cref="ApiDocsOptions.Ui"/> is set.
     /// more info: https://fast-endpoints.com/docs/swagger-support#describe-endpoints
     /// </summary>
     public Action<SwaggerUiSettings>? ConfigureSwaggerUi { get; set; }

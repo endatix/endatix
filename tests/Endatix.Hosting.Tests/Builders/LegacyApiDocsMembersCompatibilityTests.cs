@@ -24,6 +24,7 @@ public sealed class LegacyApiDocsMembersCompatibilityTests
             options.UseSwagger = true;
             options.SwaggerPath = "/legacy";
             options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list";
+            options.Docs.Ui = ApiDocsUi.Scalar;
         });
         await using var app = builder.Build();
 
@@ -45,15 +46,22 @@ public sealed class LegacyApiDocsMembersCompatibilityTests
         var configuration = new ApiConfigurationOptions();
 
         // Act
-        bool useSwagger = options.UseSwagger;
-        string? swaggerPath = options.SwaggerPath;
-        bool configuredUseSwagger = configuration.UseSwagger;
-        string? configuredSwaggerPath = configuration.SwaggerPath;
+        var useSwagger = Typed<bool>(options.UseSwagger);
+        var swaggerPath = Typed<string?>(options.SwaggerPath);
+        var configuredUseSwagger = Typed<bool>(configuration.UseSwagger);
+        var configuredSwaggerPath = Typed<string?>(configuration.SwaggerPath);
+        var ui = Typed<ApiDocsUi?>(options.Docs.Ui);
+        var configuredUi = Typed<string?>(configuration.Docs.Ui);
 
         // Assert
         useSwagger.Should().BeTrue();
         swaggerPath.Should().Be("/api-docs");
         configuredUseSwagger.Should().BeTrue();
         configuredSwaggerPath.Should().Be("/api-docs");
+        ui.Should().BeNull();
+        configuredUi.Should().BeNull();
     }
+
+    /// <summary>Reads a value as the type a host's code expects, so a changed member type fails to compile here.</summary>
+    private static T Typed<T>(T value) => value;
 }

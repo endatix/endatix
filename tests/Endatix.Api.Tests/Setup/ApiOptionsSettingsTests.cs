@@ -25,8 +25,8 @@ public sealed class ApiOptionsSettingsTests
         // Assert
         docs.Enabled.Should().BeTrue();
         docs.Path.Should().BeNull();
-        docs.SwaggerUi.Enabled.Should().BeNull();
-        docs.SwaggerUi.Path.Should().BeNull();
+        docs.Ui.Should().BeNull();
+        docs.UnknownUi.Should().BeNull();
         docs.Conflicts.Should().BeEmpty();
     }
 
@@ -38,8 +38,8 @@ public sealed class ApiOptionsSettingsTests
         var configuration = new ApiConfigurationOptions();
 
         // Act
-        string? optionsPath = options.SwaggerPath;
-        string? configurationPath = configuration.SwaggerPath;
+        var optionsPath = options.SwaggerPath;
+        var configurationPath = configuration.SwaggerPath;
 
         // Assert
         optionsPath.Should().Be("/api-docs");
@@ -55,8 +55,7 @@ public sealed class ApiOptionsSettingsTests
         {
             ["Endatix:Api:Docs:Enabled"] = "false",
             ["Endatix:Api:Docs:Path"] = "/docs",
-            ["Endatix:Api:Docs:SwaggerUi:Enabled"] = "true",
-            ["Endatix:Api:Docs:SwaggerUi:Path"] = "/ui",
+            ["Endatix:Api:Docs:Ui"] = "None",
         });
 
         // Act
@@ -65,8 +64,58 @@ public sealed class ApiOptionsSettingsTests
         // Assert
         docs.Enabled.Should().BeFalse();
         docs.Path.Should().Be("/docs");
-        docs.SwaggerUi.Enabled.Should().BeTrue();
-        docs.SwaggerUi.Path.Should().Be("/ui");
+        docs.Ui.Should().Be(ApiDocsUi.None);
+    }
+
+    [Theory]
+    [InlineData("Scalar", ApiDocsUi.Scalar)]
+    [InlineData("scalar", ApiDocsUi.Scalar)]
+    [InlineData("SwaggerUi", ApiDocsUi.SwaggerUi)]
+    [InlineData("SwaggerUI", ApiDocsUi.SwaggerUi)]
+    [InlineData("swagger", ApiDocsUi.SwaggerUi)]
+    [InlineData(" None ", ApiDocsUi.None)]
+    public void Docs_ui_setting_accepts_each_name_in_any_case(string value, ApiDocsUi expected)
+    {
+        // Arrange
+        var configuration = Configuration(new() { ["Endatix:Api:Docs:Ui"] = value });
+
+        // Act
+        var docs = Resolve(configuration).Docs;
+
+        // Assert
+        docs.Ui.Should().Be(expected);
+        docs.UnknownUi.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("Bogus")]
+    [InlineData("1")]
+    [InlineData("Scalar, None")]
+    public void Unknown_docs_ui_setting_shows_Scalar_and_keeps_the_value_for_the_warning(string value)
+    {
+        // Arrange
+        var configuration = Configuration(new() { ["Endatix:Api:Docs:Ui"] = value });
+
+        // Act
+        var docs = Resolve(configuration).Docs;
+
+        // Assert
+        docs.Ui.Should().Be(ApiDocsUi.Scalar);
+        docs.UnknownUi.Should().Be(value);
+    }
+
+    [Fact]
+    public void Empty_docs_ui_setting_is_unset()
+    {
+        // Arrange
+        var configuration = Configuration(new() { ["Endatix:Api:Docs:Ui"] = " " });
+
+        // Act
+        var docs = Resolve(configuration).Docs;
+
+        // Assert
+        docs.Ui.Should().BeNull();
+        docs.UnknownUi.Should().BeNull();
     }
 
     [Fact]
@@ -153,11 +202,10 @@ public sealed class ApiOptionsSettingsTests
     public void Legacy_properties_forward_to_the_docs_settings()
     {
         // Arrange
-        var options = new ApiOptions();
+        const string legacyPath = "/old";
 
         // Act
-        options.UseSwagger = false;
-        options.SwaggerPath = "/old";
+        var options = new ApiOptions { UseSwagger = false, SwaggerPath = legacyPath };
 
         // Assert
         options.Docs.Enabled.Should().BeFalse();
@@ -188,17 +236,19 @@ public sealed class ApiOptionsSettingsTests
             ["Endatix:Api:Docs:Enabled"] = "false",
             ["Endatix:Api:UseSwagger"] = "true",
             ["Endatix:Api:SwaggerPath"] = "",
+            ["Endatix:Api:Docs:Ui"] = "Bogus",
         })).Docs;
 
         // Act
-        var copy = docs.ForExplicitDocs(path: null, turnSwaggerUiOn: true);
+        var copy = docs.ForExplicitDocs(path: null);
 
         // Assert
         copy.Should().NotBeSameAs(docs);
         copy.Enabled.Should().BeTrue();
         copy.Path.Should().BeEmpty();
         copy.PathSetting.Should().Be(ApiDocsOptions.SWAGGER_PATH_SETTING);
-        copy.SwaggerUi.Enabled.Should().BeTrue();
+        copy.Ui.Should().Be(ApiDocsUi.Scalar);
+        copy.UnknownUi.Should().Be("Bogus");
         copy.Conflicts.Should().BeEmpty();
     }
 
@@ -210,18 +260,18 @@ public sealed class ApiOptionsSettingsTests
         {
             ["Endatix:Api:Docs:Path"] = "/new",
             ["Endatix:Api:SwaggerPath"] = "/old",
-            ["Endatix:Api:Docs:SwaggerUi:Enabled"] = "false",
+            ["Endatix:Api:Docs:Ui"] = "SwaggerUi",
         })).Docs;
 
         // Act
-        var withoutPath = docs.ForExplicitDocs(path: null, turnSwaggerUiOn: false);
-        var withPath = docs.ForExplicitDocs("/given", turnSwaggerUiOn: false);
+        var withoutPath = docs.ForExplicitDocs(path: null);
+        var withPath = docs.ForExplicitDocs("/given");
 
         // Assert
         withoutPath.Conflicts.Should().ContainSingle(conflict => conflict.Setting == ApiDocsOptions.PATH_SETTING);
         withPath.Conflicts.Should().BeEmpty();
         withPath.Path.Should().Be("/given");
-        withPath.SwaggerUi.Enabled.Should().BeFalse();
+        withPath.Ui.Should().Be(ApiDocsUi.SwaggerUi);
     }
 
     private static IConfiguration Configuration(Dictionary<string, string?> values) =>

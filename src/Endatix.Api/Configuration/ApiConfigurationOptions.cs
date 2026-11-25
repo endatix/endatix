@@ -18,7 +18,7 @@ public class ApiConfigurationOptions : EndatixOptionsBase
     public override string SectionPath => "Api";
 
     /// <summary>
-    /// Gets or sets the API docs settings: the document, the Scalar docs page, and Swagger UI.
+    /// Gets or sets the API docs settings: the document, the docs page, and the UI it shows.
     /// </summary>
     public DocsSection Docs { get; set; } = new();
 
@@ -41,24 +41,14 @@ public class ApiConfigurationOptions : EndatixOptionsBase
         /// <summary>Gets or sets a value indicating whether to serve the API docs. Null means unset (on).</summary>
         public bool? Enabled { get; set; }
 
-        /// <summary>Gets or sets the path of the API docs page, which shows Scalar. Null means "/api-docs".</summary>
+        /// <summary>Gets or sets the path of the API docs page. Null means "/api-docs".</summary>
         [RegularExpression("^/.*", ErrorMessage = "API docs path must start with '/'")]
         public string? Path { get; set; }
 
-        /// <summary>Gets or sets the Swagger UI settings.</summary>
-        public SwaggerUiSection SwaggerUi { get; set; } = new();
-    }
-
-    /// <summary>The <c>Endatix:Api:Docs:SwaggerUi</c> section.</summary>
-    public sealed class SwaggerUiSection
-    {
         /// <summary>
-        /// Gets or sets a value indicating whether to serve Swagger UI. Null means this release's default, which is on.
+        /// Gets or sets the UI the docs page shows: <c>Scalar</c>, <c>SwaggerUi</c> or <c>None</c>, in any case. Null
+        /// means Scalar. An unknown value logs a warning and shows Scalar.
         /// </summary>
-        public bool? Enabled { get; set; }
-
-        /// <summary>Gets or sets the path of Swagger UI. Null means "/swagger".</summary>
-        [RegularExpression("^/.*", ErrorMessage = "Swagger UI path must start with '/'")]
-        public string? Path { get; set; }
+        public string? Ui { get; set; }
     }
-}
+} 

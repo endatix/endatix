@@ -9,69 +9,99 @@ namespace Endatix.Api.Tests.Setup;
 
 /// <summary>
 /// Hosts that change nothing in code keep working: every docs configuration a host may have in appsettings.json starts
-/// without a throw and serves what this release promises (endatix/endatix#1846).
+/// without a throw and serves what its settings promise (endatix/endatix#1846).
 /// </summary>
 public sealed partial class ApiDocsTests
 {
+    private static readonly Served _scalarAtApiDocs = new()
+    {
+        ApiDocs = Status.Redirect("api-docs/"),
+        ApiDocsSlash = Status.Ok,
+        ApiDocsIndex = Status.Redirect("./"),
+        ScalarPage = "/api-docs/",
+    };
+
+    private static readonly Served _nothingAtApiDocs = new()
+    {
+        ApiDocs = Status.NotFound,
+        ApiDocsSlash = Status.NotFound,
+        ApiDocsIndex = Status.NotFound,
+    };
+
+    private static readonly Served _swaggerUiAtApiDocs = new()
+    {
+        ApiDocs = Status.Redirect("/api-docs/index.html"),
+        ApiDocsSlash = Status.Redirect("/api-docs/index.html"),
+        ApiDocsIndex = Status.Ok,
+        SwaggerUiPage = "/api-docs/index.html",
+    };
+
     private static readonly Dictionary<string, CompatibilityRow> _compatibilityRows = new()
     {
-        ["no keys"] = new() { Settings = [], DocsPage = "/api-docs", BookmarkTarget = SWAGGER_UI_PAGE },
-        ["SwaggerPath /x"] = new() { Settings = Keys(("SwaggerPath", "/x")), DocsPage = "/x", BookmarkTarget = SWAGGER_UI_PAGE },
+        ["no keys"] = new() { Settings = [], Served = _scalarAtApiDocs },
+        ["Docs Ui SwaggerUi"] = new() { Settings = Keys(("Docs:Ui", "SwaggerUi")), Served = _swaggerUiAtApiDocs },
+        ["Docs Ui swagger alias"] = new() { Settings = Keys(("Docs:Ui", "swagger")), Served = _swaggerUiAtApiDocs },
+        ["Docs Ui Bogus"] = new()
+        {
+            Settings = Keys(("Docs:Ui", "Bogus")),
+            Served = _scalarAtApiDocs,
+            Warning = "Endatix:Api:Docs:Ui 'Bogus' is not a docs UI. Use one of Scalar, SwaggerUi, Swagger, None.",
+        },
+        ["Docs Ui None"] = new() { Settings = Keys(("Docs:Ui", "None")), Served = _nothingAtApiDocs },
+        ["UseSwagger false"] = new() { Settings = Keys(("UseSwagger", "false")), Served = _nothingAtApiDocs, Document = false },
+        ["Docs Enabled true wins over UseSwagger false"] = new()
+        {
+            Settings = Keys(("Docs:Enabled", "true"), ("UseSwagger", "false")),
+            Served = _scalarAtApiDocs,
+            Warning = "Endatix:Api:Docs:Enabled 'True' and the deprecated Endatix:Api:UseSwagger 'False'",
+        },
+        ["Docs Enabled false wins over UseSwagger true"] = new()
+        {
+            Settings = Keys(("Docs:Enabled", "false"), ("UseSwagger", "true")),
+            Served = _nothingAtApiDocs,
+            Document = false,
+            Warning = "Endatix:Api:Docs:Enabled 'False' and the deprecated Endatix:Api:UseSwagger 'True'",
+        },
+        ["Docs Path empty"] = new()
+        {
+            Settings = Keys(("Docs:Path", "")),
+            Served = _scalarAtApiDocs,
+            Root = Status.Redirect("/api-docs/"),
+            Warning = "Endatix:Api:Docs:Path ''",
+        },
+        ["SwaggerPath /x"] = new()
+        {
+            Settings = Keys(("SwaggerPath", "/x")),
+            Served = _nothingAtApiDocs with { ScalarPage = "/x/" },
+        },
         ["SwaggerPath empty"] = new()
         {
             Settings = Keys(("SwaggerPath", "")),
-            DocsPage = "/api-docs",
-            BookmarkTarget = SWAGGER_UI_PAGE,
-            RootTarget = "/api-docs/",
+            Served = _scalarAtApiDocs,
+            Root = Status.Redirect("/api-docs/"),
             Warning = "Endatix:Api:SwaggerPath ''",
-        },
-        ["SwaggerPath /swagger"] = new()
-        {
-            Settings = Keys(("SwaggerPath", "/swagger")),
-            DocsPage = "/api-docs",
-            BookmarkTarget = SWAGGER_UI_PAGE,
-            Warning = "both asked for /swagger",
-        },
-        ["UseSwagger false"] = new() { Settings = Keys(("UseSwagger", "false")) },
-        ["SwaggerUi Enabled false"] = new()
-        {
-            Settings = Keys(("Docs:SwaggerUi:Enabled", "false")),
-            DocsPage = "/api-docs",
-            BookmarkTarget = "/api-docs/",
-            SwaggerUi = HttpStatusCode.NotFound,
         },
         ["Docs Path wins over SwaggerPath"] = new()
         {
             Settings = Keys(("Docs:Path", "/new"), ("SwaggerPath", "/old")),
-            DocsPage = "/new",
-            BookmarkTarget = SWAGGER_UI_PAGE,
+            Served = _nothingAtApiDocs with { ScalarPage = "/new/" },
             Warning = "Endatix:Api:Docs:Path '/new' and the deprecated Endatix:Api:SwaggerPath '/old'",
-        },
-        ["Docs Enabled wins over UseSwagger"] = new()
-        {
-            Settings = Keys(("Docs:Enabled", "false"), ("UseSwagger", "true")),
-            Warning = "Endatix:Api:Docs:Enabled 'False' and the deprecated Endatix:Api:UseSwagger 'True'",
-        },
-        ["SwaggerUi Path on the docs page"] = new()
-        {
-            Settings = Keys(("Docs:SwaggerUi:Path", "/api-docs")),
-            DocsPage = "/scalar",
-            BookmarkTarget = "/api-docs/index.html",
-            SwaggerUi = HttpStatusCode.NotFound,
-            Warning = "both asked for /api-docs",
         },
     };
 
     [Theory]
     [InlineData("no keys")]
+    [InlineData("Docs Ui SwaggerUi")]
+    [InlineData("Docs Ui swagger alias")]
+    [InlineData("Docs Ui Bogus")]
+    [InlineData("Docs Ui None")]
+    [InlineData("UseSwagger false")]
+    [InlineData("Docs Enabled true wins over UseSwagger false")]
+    [InlineData("Docs Enabled false wins over UseSwagger true")]
+    [InlineData("Docs Path empty")]
     [InlineData("SwaggerPath /x")]
     [InlineData("SwaggerPath empty")]
-    [InlineData("SwaggerPath /swagger")]
-    [InlineData("UseSwagger false")]
-    [InlineData("SwaggerUi Enabled false")]
     [InlineData("Docs Path wins over SwaggerPath")]
-    [InlineData("Docs Enabled wins over UseSwagger")]
-    [InlineData("SwaggerUi Path on the docs page")]
     public async Task Configured_host_starts_and_serves_what_its_settings_promise(string rowName)
     {
         // Arrange
@@ -83,11 +113,14 @@ public sealed partial class ApiDocsTests
         using var client = host.CreateClient();
 
         // Assert
-        await AssertDocsPageAsync(client, row);
-        await AssertRedirectAsync(client, $"{row.DocsPage ?? "/api-docs"}/index.html", row.BookmarkTarget);
-        (await GetStatusAsync(client, SWAGGER_UI_PAGE)).Should().Be(row.DocsPage is null ? HttpStatusCode.NotFound : row.SwaggerUi);
-        (await GetStatusAsync(client, DOCUMENT_PATH)).Should().Be(row.DocsPage is null ? HttpStatusCode.NotFound : HttpStatusCode.OK);
-        await AssertRedirectAsync(client, "/", row.RootTarget);
+        await AssertStatusAsync(client, "/api-docs", row.Served.ApiDocs);
+        await AssertStatusAsync(client, "/api-docs/", row.Served.ApiDocsSlash);
+        await AssertStatusAsync(client, "/api-docs/index.html", row.Served.ApiDocsIndex);
+        await AssertStatusAsync(client, "/swagger", Status.NotFound);
+        await AssertStatusAsync(client, SWAGGER_UI_PAGE, Status.NotFound);
+        await AssertStatusAsync(client, DOCUMENT_PATH, row.Document ? Status.Ok : Status.NotFound);
+        await AssertStatusAsync(client, "/", row.Root);
+        await AssertPagesAsync(client, row.Served);
         AssertWarnings(log, row.Warning);
     }
 
@@ -112,8 +145,7 @@ public sealed partial class ApiDocsTests
         root.StatusCode.Should().Be(HttpStatusCode.OK);
         (await root.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be(CustomerRootController.BODY);
         (await ScalarPage.ReadAsync(client, "/api/api-docs/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
-        (await GetStatusAsync(client, "/api" + SWAGGER_UI_PAGE)).Should().Be(HttpStatusCode.OK);
-        await AssertRedirectAsync(client, "/api/api-docs/index.html", "/api" + SWAGGER_UI_PAGE);
+        await AssertStatusAsync(client, "/api/api-docs/index.html", Status.Redirect("./"));
     }
 
     [Fact]
@@ -125,68 +157,49 @@ public sealed partial class ApiDocsTests
         // Act
         await using var host = await ApiDocsHost.StartFromConfigAsync(
             Keys(("Docs:Path", "/new"), ("SwaggerPath", "/old")),
-            beforeApi: app => app.UseEndatixApiDocs(new ApiOptions { Docs = ConfiguredDocs(app).ForExplicitDocs("/given", false) }),
+            beforeApi: app => app.UseEndatixApiDocs(new ApiOptions { Docs = ConfiguredDocs(app).ForExplicitDocs("/given") }),
             log: log);
         using var client = host.CreateClient();
 
         // Assert
         (await ScalarPage.ReadAsync(client, "/given/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        (await ScalarPage.ReadAsync(client, "/new/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
         log.Warnings.Should().NotContain(line => line.Contains("Endatix:Api:Docs:Path", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task Unset_swagger_ui_setting_logs_that_its_default_changes_next_release()
+    public async Task Configured_host_logs_one_serving_line_naming_the_page_and_its_ui()
     {
         // Arrange
         var log = new WarningLog();
 
         // Act
-        await using var host = await ApiDocsHost.StartFromConfigAsync([], log: log);
+        await using var host = await ApiDocsHost.StartFromConfigAsync(Keys(("Docs:Ui", "SwaggerUI")), log: log);
 
         // Assert
-        log.Information.Should().ContainSingle(line => line.Contains("off by default from the next release", StringComparison.Ordinal)
-            && line.Contains("Endatix:Api:Docs:SwaggerUi:Enabled", StringComparison.Ordinal));
-        log.Information.Should().Contain("Serving Swagger UI at /swagger");
+        log.Information.Should().ContainSingle(line => line.StartsWith("Serving the API docs", StringComparison.Ordinal))
+            .Which.Should().Be("Serving the API docs at /api-docs with SwaggerUi");
     }
 
-    [Theory]
-    [InlineData("true")]
-    [InlineData("false")]
-    public async Task Explicit_swagger_ui_setting_logs_no_default_change(string enabled)
-    {
-        // Arrange
-        var log = new WarningLog();
-
-        // Act
-        await using var host = await ApiDocsHost.StartFromConfigAsync(Keys(("Docs:SwaggerUi:Enabled", enabled)), log: log);
-
-        // Assert
-        log.Information.Should().NotContain(line => line.Contains("next release", StringComparison.Ordinal));
-    }
-
-    private static async Task AssertDocsPageAsync(HttpClient client, CompatibilityRow row)
-    {
-        if (row.DocsPage is null)
-        {
-            (await GetStatusAsync(client, "/api-docs/")).Should().Be(HttpStatusCode.NotFound);
-            return;
-        }
-
-        (await ScalarPage.ReadAsync(client, $"{row.DocsPage}/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
-    }
-
-    /// <summary>A redirect to the target, resolved as a browser resolves it; a null target means not found.</summary>
-    private static async Task AssertRedirectAsync(HttpClient client, string path, string? target)
+    private static async Task AssertStatusAsync(HttpClient client, string path, Status expected)
     {
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
-        if (target is null)
+        response.StatusCode.Should().Be(expected.Code, path);
+        response.Headers.Location?.OriginalString.Should().Be(expected.Location, path);
+    }
+
+    private static async Task AssertPagesAsync(HttpClient client, Served served)
+    {
+        if (served.ScalarPage is not null)
         {
-            response.StatusCode.Should().Be(HttpStatusCode.NotFound, path);
-            return;
+            (await ScalarPage.ReadAsync(client, served.ScalarPage)).DocumentUrls.Should().Equal(DOCUMENT_URL);
         }
 
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect, path);
-        new Uri(new Uri("http://localhost" + path), response.Headers.Location!).AbsolutePath.Should().Be(target, path);
+        if (served.SwaggerUiPage is not null)
+        {
+            var html = await client.GetStringAsync(new Uri(served.SwaggerUiPage, UriKind.Relative), TestContext.Current.CancellationToken);
+            html.Should().Contain("swagger-ui").And.NotContain("scalar.js");
+        }
     }
 
     private static void AssertWarnings(WarningLog log, string? warning)
@@ -206,21 +219,40 @@ public sealed partial class ApiDocsTests
     private static Dictionary<string, string?> Keys(params (string Key, string? Value)[] settings) =>
         settings.ToDictionary(setting => $"Endatix:Api:{setting.Key}", setting => setting.Value);
 
-    /// <summary>
-    /// One configuration and what it serves. A null docs page means the docs are off, so every docs URL is not found. A
-    /// null redirect target means that URL is not found.
-    /// </summary>
+    /// <summary>A status and, for a redirect, the Location header as the server sent it.</summary>
+    private sealed record Status(HttpStatusCode Code, string? Location = null)
+    {
+        public static readonly Status Ok = new(HttpStatusCode.OK);
+
+        public static readonly Status NotFound = new(HttpStatusCode.NotFound);
+
+        public static Status Redirect(string location) => new(HttpStatusCode.Redirect, location);
+    }
+
+    /// <summary>What the <c>/api-docs</c> URLs answer, and where Scalar or Swagger UI shows the document.</summary>
+    private sealed record Served
+    {
+        public required Status ApiDocs { get; init; }
+
+        public required Status ApiDocsSlash { get; init; }
+
+        public required Status ApiDocsIndex { get; init; }
+
+        public string? ScalarPage { get; init; }
+
+        public string? SwaggerUiPage { get; init; }
+    }
+
+    /// <summary>One configuration and what it serves. <c>/swagger</c> answers not found in every row.</summary>
     private sealed class CompatibilityRow
     {
         public required Dictionary<string, string?> Settings { get; init; }
 
-        public string? DocsPage { get; init; }
+        public required Served Served { get; init; }
 
-        public string? BookmarkTarget { get; init; }
+        public bool Document { get; init; } = true;
 
-        public HttpStatusCode SwaggerUi { get; init; } = HttpStatusCode.OK;
-
-        public string? RootTarget { get; init; }
+        public Status Root { get; init; } = Status.NotFound;
 
         public string? Warning { get; init; }
     }
