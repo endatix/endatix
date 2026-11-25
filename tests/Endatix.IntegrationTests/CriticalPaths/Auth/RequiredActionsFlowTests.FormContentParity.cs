@@ -21,7 +21,7 @@ public sealed partial class RequiredActionsFlowTests
     {
         var ct = TestContext.Current.CancellationToken;
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData()));
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(AdmittedSnapshot()));
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.AddScoped(_ => new AccountStanding(snapshots));

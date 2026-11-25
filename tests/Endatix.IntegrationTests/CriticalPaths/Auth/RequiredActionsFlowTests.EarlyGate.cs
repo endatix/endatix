@@ -6,6 +6,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Attributes;
 using Endatix.Hosting;
+using Endatix.Infrastructure.Builders;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.IntegrationTests.FeatureFlows.DataLists;
 using Endatix.IntegrationTests.Shared;
@@ -55,15 +56,19 @@ public sealed partial class RequiredActionsFlowTests
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.AddSingleton<IStartupFilter>(new GateTestRoutes(false));
+            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("profile", "/profile"));
             EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         var (form, _) = await FormAccessTokenUseFlowTests.SeedRuntimeFormAsync(world, true, ct);
         using var respondent = await PublicDataListScopeFlowTests.AnonymousWithFormTokenAsync(world, form, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
 
         using var mixed = await respondent.GetAsync(GateTestRoutes.MIXED, ct);
+        using var blocked = await owner.GetAsync(GateTestRoutes.MIXED, ct);
 
         await AssertUnavailableQuestionsAsync(mixed, ct);
+        await AssertStandingRefusalAsync(blocked, await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct), ct);
     }
 
     [Fact]
@@ -116,7 +121,7 @@ public sealed partial class RequiredActionsFlowTests
                 .WithMetadata(new AllowWithRequiredActionsAttribute());
             routes.MapGet(NEIGHBOR, () => Results.NoContent()).RequireAuthorization(AuthorizationPolicies.PlatformAdminAccess);
             routes.MapGet(MIXED, () => Results.NoContent()).RequireAuthorization(AuthorizationPolicies.PublicResourceAccess)
-                .RequireAuthorization(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+                .RequireAuthorization(new AuthorizationPolicyBuilder(InfrastructureSecurityBuilder.MULTI_JWT_SCHEME_NAME).RequireAuthenticatedUser().Build());
             routes.MapPost(JSON, (JsonElement body) => Results.Ok(body)).RequireAuthorization(AuthorizationPolicies.PlatformAdminAccess);
         }
     }

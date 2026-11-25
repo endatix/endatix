@@ -58,7 +58,7 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(own.Id, Assert.Single(page.GetProperty("items").EnumerateArray()).GetProperty("id").GetString());
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AuthorizationData()));
+            .Returns(Result.Success(AdmittedSnapshot()));
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();
         using var restricted = await RestrictedUserAsync(world, ct);

@@ -134,7 +134,7 @@ public sealed partial class RequiredActionsFlowTests
         using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var form = await CreateFormAsync(owner, ct);
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData()));
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(AdmittedSnapshot()));
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;

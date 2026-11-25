@@ -73,6 +73,8 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
     private static void EnableStanding(IServiceCollection services) =>
         services.AddScoped(sp => new AccountStanding(sp.GetRequiredService<ICurrentUserAuthorizationService>()));
 
+    private static AuthorizationData AdmittedSnapshot() => AuthorizationData.ForAuthenticatedUser("owner", 1, [], []);
+
     private static async Task<HttpClient> RestrictedUserAsync(IntegrationTestWorld world, CancellationToken ct)
     {
         var tenant = world.Tenants[0].Id;

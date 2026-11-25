@@ -27,7 +27,7 @@ public sealed class AccountStanding
             return null;
         }
 
-        if (snapshot.RequiredActionsUnavailable || snapshot.UserId == AuthorizationData.ANONYMOUS_USER_ID)
+        if (snapshot.RequiredActionsUnavailable || string.IsNullOrWhiteSpace(snapshot.UserId) || snapshot.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
             return Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
         }

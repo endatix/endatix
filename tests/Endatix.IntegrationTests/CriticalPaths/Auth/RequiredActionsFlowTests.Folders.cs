@@ -111,7 +111,7 @@ public sealed partial class RequiredActionsFlowTests
         using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AuthorizationData()));
+            .Returns(Result.Success(AdmittedSnapshot()));
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
@@ -155,7 +155,7 @@ public sealed partial class RequiredActionsFlowTests
         {
             using var locked = await owner.PatchAsJsonAsync(folder.Detail, new { immutable = true }, ct);
             locked.EnsureSuccessStatusCode();
-            return Result.Success(new AuthorizationData());
+            return Result.Success(AdmittedSnapshot());
         });
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();

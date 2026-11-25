@@ -119,6 +119,7 @@ public sealed class FolderStandingReadTests
             beforeDecision();
             return Result.Success(new AuthorizationData
             {
+                UserId = "owner",
                 RequiredActionsUnavailable = status == ResultStatus.Unavailable,
                 RequiredActions = status == ResultStatus.Forbidden
                     ? [new RequiredAction { Key = "setup", ResolvePath = "/setup", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Blocking }]
