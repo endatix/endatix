@@ -25,13 +25,12 @@ internal class AuthorizationCache(
     IDateTimeProvider dateTimeProvider,
     AuthorizationTokenFingerprint tokenFingerprint,
     IAccessVersionStore accessVersionStore,
-    IEnumerable<IRequiredActionProvider> actionProviders) : IAuthorizationCache
+    RequiredActionEvaluation actions) : IAuthorizationCache
 {
     /// <summary>The longest an entry lives, which bounds a change that skips the save hook.</summary>
     private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
 
     private const short ETAG_LENGTH = 12;
-    private readonly RequiredActionEvaluation _actions = new(actionProviders.ToArray(), dateTimeProvider);
 
     // Cache key prefixes
     private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
@@ -52,7 +51,7 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId)),
+            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId),
             dataFactory,
             cancellationToken);
     }
@@ -63,7 +62,7 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId)),
+            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId),
             dataFactory,
             cancellationToken);
     }
@@ -81,12 +80,13 @@ internal class AuthorizationCache(
         AuthorizationData? built = null;
         var cached = await hybridCache.GetOrCreateAsync(
             entry.Key,
-            async _ => built = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
+            async _ => built = (await BuildAsync(dataFactory, entry, cancellationToken)).At(dateTimeProvider.Now.UtcDateTime),
             entry.Options,
             entry.Tags,
             cancellationToken);
         // Report a fresh conflict once; on a cache hit, re-evaluate it rather than serving it as usable standing.
-        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime && (!cached.RequiredActionsUnavailable || ReferenceEquals(cached, built))
+        var mustRehydrate = cached.RequiredActionsUnavailable || NeedsHydratedVersion(entry, cached);
+        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime && (!mustRehydrate || ReferenceEquals(cached, built))
             ? cached
             : await RebuildAsync(entry, dataFactory, cancellationToken);
     }
@@ -97,15 +97,23 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
-        var rebuilt = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken);
+        var snapshot = await BuildAsync(dataFactory, entry, cancellationToken);
+        var rebuilt = snapshot.At(dateTimeProvider.Now.UtcDateTime);
         await hybridCache.SetAsync(entry.Key, rebuilt, entry.Options, entry.Tags, cancellationToken);
-        return rebuilt;
+        var now = dateTimeProvider.Now.UtcDateTime;
+        if (snapshot.PermissionsExpired(now))
+        {
+            // Re-read grants once, without another distributed write that could outlive them again.
+            snapshot = await BuildAsync(dataFactory, entry, cancellationToken);
+            return snapshot.WithCurrentPermissions(dateTimeProvider.Now.UtcDateTime);
+        }
+        return actions.HasProviders && rebuilt.ExpiresAt <= now ? snapshot.At(now) : rebuilt;
     }
 
     /// <summary>Builds the data and stamps it with the time it stops being served.</summary>
-    private async Task<AuthorizationData> BuildAsync(
+    private async Task<BuiltSnapshot> BuildAsync(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
-        TimeSpan lifetime,
+        CacheEntry entry,
         CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
@@ -115,18 +123,36 @@ internal class AuthorizationCache(
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
 
-        var data = await _actions.ApplyAsync(result.Value, cancellationToken);
-        var expiresAt = EarlierOf(now.Add(lifetime), data.ExpiresAt);
-        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, now));
-        return data.WithCacheMetadata(now, expiresAt, GenerateETag(data));
+        var subjectEntry = NeedsHydratedVersion(entry, result.Value)
+            ? entry with { Versions = await accessVersionStore.ReadAsync(result.Value.TenantId, cancellationToken) } : entry;
+        var project = await actions.EvaluateAsync(result.Value, subjectEntry, cancellationToken);
+        return new(result.Value.ExpiresAt, at => Stamp(project(at), now, entry.Lifetime));
+    }
+
+    private sealed record BuiltSnapshot(DateTime PermissionExpiry, Func<DateTime, AuthorizationData> At)
+    {
+        internal bool PermissionsExpired(DateTime now) => PermissionExpiry != default && PermissionExpiry <= now;
+        internal AuthorizationData WithCurrentPermissions(DateTime now) => PermissionsExpired(now)
+            ? throw new InvalidOperationException("Fresh authorization data contains expired permissions.") : At(now);
+    }
+
+    private static AuthorizationData Stamp(AuthorizationData data, DateTime builtAt, TimeSpan lifetime)
+    {
+        var expiresAt = EarlierOf(builtAt.Add(lifetime), data.ExpiresAt);
+        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, builtAt));
+        return data.WithCacheMetadata(builtAt, expiresAt, GenerateETag(data));
     }
 
     /// <summary>The entry's end, or the earliest permission expiry the data carries when that comes first.</summary>
     private static DateTime EarlierOf(DateTime entryEnd, DateTime permissionsExpireAt) =>
         permissionsExpireAt != default && permissionsExpireAt < entryEnd ? permissionsExpireAt : entryEnd;
 
-    /// <summary>One cache entry's key, lifetime and tags.</summary>
-    private readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags)
+    // External authorization strategies can map a positive token tenant to a different local tenant.
+    private bool NeedsHydratedVersion(CacheEntry entry, AuthorizationData data) =>
+        actions.HasProviders && entry.LookupTenant > 0 && entry.LookupTenant != data.TenantId;
+
+    /// <summary>One cache entry's key, lifetime, tags and version scope.</summary>
+    internal readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags, AccessVersionKey Versions, string Configuration, long LookupTenant)
     {
         /// <summary>The entry lives <see cref="Lifetime"/> in both cache levels.</summary>
         public HybridCacheEntryOptions Options => new() { Expiration = Lifetime, LocalCacheExpiration = Lifetime };
@@ -154,7 +180,7 @@ internal class AuthorizationCache(
         $"{CacheNamespace(versions, USER_AUTH_DATA_CACHE_KEY_PREFIX)}:{userId}:{tenantId}";
 
     private string CacheNamespace(AccessVersionKey versions, string kind) =>
-        $"{versions.Prefix}:{kind}:{versions.Versions}.{_actions.ConfigurationKey}";
+        $"{versions.Prefix}:{kind}:{versions.Versions}.{actions.ConfigurationKey}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
 

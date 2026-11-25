@@ -22,6 +22,30 @@ public sealed class AccessVersionScopeTests(EndatixIntegrationWebHostFixture fix
     private const string SYSTEM_ROLE_NAME = "VersionedSystemRole";
 
     [Fact]
+    public async Task TenantChangedAsync_ConcurrentFirstNotifications_CommitOneTenantVersion()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await PrepareAsync(fixture, ct);
+        var tenantId = world.Tenants[0].Id;
+        await DeleteRowAsync(world, tenantId, ct);
+        var before = await ReadVersionsAsync(world, tenantId, ct);
+        async Task NotifyAsync()
+        {
+            using var scope = world.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<IAuthorizationDataChanges>().TenantChangedAsync(tenantId, ct);
+        }
+
+        // Act
+        await Task.WhenAll(NotifyAsync(), NotifyAsync());
+
+        // Assert
+        var after = await ReadVersionsAsync(world, tenantId, ct);
+        after.Scope.Should().NotBe(before.Scope);
+        after.System.Should().Be(before.System);
+    }
+
+    [Fact]
     public async Task SaveChangesAsync_RoleChangedInOneTenant_KeepsOtherTenantAndSystemVersions()
     {
         // Arrange
