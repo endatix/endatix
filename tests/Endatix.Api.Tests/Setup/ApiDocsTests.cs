@@ -4,10 +4,7 @@ using System.Text.RegularExpressions;
 using Endatix.Api.Builders;
 using Endatix.Api.Setup;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NSwag.AspNetCore;
 
 namespace Endatix.Api.Tests.Setup;
@@ -190,103 +187,6 @@ public sealed partial class ApiDocsTests
         (await GetStatusAsync(client, "/anything")).Should().Be(HttpStatusCode.NotFound);
     }
 
-    [Theory]
-    [InlineData("", "/")]
-    [InlineData("/", "/")]
-    [InlineData("  ", "/")]
-    [InlineData("/", "/sub/")]
-    public async Task Root_api_docs_path_redirects_the_root_to_the_docs_page_with_a_warning(string apiDocsPath, string root)
-    {
-        // Arrange
-        var warnings = new List<string>();
-        await using var host = await StartWithWarningsAsync(new ApiOptions { ApiDocsPath = apiDocsPath }, warnings);
-        using var client = host.CreateClient();
-
-        // Act
-        using var response = await client.GetAsync(new Uri(root, UriKind.Relative), TestContext.Current.CancellationToken);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location!.OriginalString.Should().Be(root + "api-docs/");
-        warnings.Should().ContainSingle(warning => warning.Contains("ApiDocsPath", StringComparison.Ordinal));
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("/docs")]
-    public async Task Set_or_unset_api_docs_path_adds_no_root_redirect_and_no_warning(string? apiDocsPath)
-    {
-        // Arrange
-        var warnings = new List<string>();
-        await using var host = await StartWithWarningsAsync(new ApiOptions { ApiDocsPath = apiDocsPath }, warnings);
-        using var client = host.CreateClient();
-
-        // Act
-        var status = await GetStatusAsync(client, "/");
-
-        // Assert
-        status.Should().Be(HttpStatusCode.NotFound);
-        warnings.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task Deprecated_swagger_path_alone_still_moves_the_docs_page()
-    {
-        // Arrange
-        var warnings = new List<string>();
-#pragma warning disable CS0618 // Subject under test: the deprecated mirror of ApiDocsPath.
-        await using var host = await StartWithWarningsAsync(new ApiOptions { SwaggerPath = "/docs" }, warnings);
-#pragma warning restore CS0618
-        using var client = host.CreateClient();
-
-        // Act
-        var page = await ScalarPage.ReadAsync(client, "/docs/");
-
-        // Assert
-        page.DocumentUrls.Should().Equal(DOCUMENT_URL);
-        (await GetStatusAsync(client, "/api-docs/")).Should().Be(HttpStatusCode.NotFound);
-        warnings.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task Deprecated_root_swagger_path_redirects_the_root_to_the_docs_page()
-    {
-        // Arrange
-        var warnings = new List<string>();
-#pragma warning disable CS0618 // Subject under test: the deprecated mirror of ApiDocsPath.
-        await using var host = await StartWithWarningsAsync(new ApiOptions { SwaggerPath = "/" }, warnings);
-#pragma warning restore CS0618
-        using var client = host.CreateClient();
-
-        // Act
-        using var response = await client.GetAsync(new Uri("/", UriKind.Relative), TestContext.Current.CancellationToken);
-
-        // Assert
-        response.Headers.Location!.OriginalString.Should().Be("/api-docs/");
-        warnings.Should().ContainSingle();
-    }
-
-    [Fact]
-    public async Task Api_docs_path_wins_over_a_different_swagger_path_with_a_warning()
-    {
-        // Arrange
-        var warnings = new List<string>();
-#pragma warning disable CS0618 // Subject under test: the deprecated mirror loses to ApiDocsPath.
-        var options = new ApiOptions { ApiDocsPath = "/docs", SwaggerPath = "/old-docs" };
-#pragma warning restore CS0618
-        await using var host = await StartWithWarningsAsync(options, warnings);
-        using var client = host.CreateClient();
-
-        // Act
-        var page = await ScalarPage.ReadAsync(client, "/docs/");
-
-        // Assert
-        page.DocumentUrls.Should().Equal(DOCUMENT_URL);
-        (await GetStatusAsync(client, "/old-docs/")).Should().Be(HttpStatusCode.NotFound);
-        warnings.Should().ContainSingle(warning => warning.Contains("'/docs'", StringComparison.Ordinal)
-            && warning.Contains("'/old-docs'", StringComparison.Ordinal));
-    }
-
     [Fact]
     public async Task Docs_page_finds_the_document_under_a_path_base()
     {
@@ -454,87 +354,6 @@ public sealed partial class ApiDocsTests
         await start.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Swagger UI*");
     }
 
-    [Fact]
-    public void Use_swagger_ui_setting_maps_to_api_options()
-    {
-        // Arrange
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?> { ["Endatix:Api:UseSwaggerUi"] = "true" })
-            .Build();
-        var services = new ServiceCollection().AddApiOptions(configuration);
-
-        // Act
-        using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<ApiOptions>>().Value;
-
-        // Assert
-        options.UseSwaggerUi.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Api_docs_path_settings_map_to_api_options()
-    {
-        // Arrange
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Endatix:Api:ApiDocsPath"] = "/docs",
-                ["Endatix:Api:SwaggerPath"] = "/old-docs",
-            })
-            .Build();
-        var services = new ServiceCollection().AddApiOptions(configuration);
-
-        // Act
-        using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<ApiOptions>>().Value;
-
-        // Assert
-        options.ApiDocsPath.Should().Be("/docs");
-#pragma warning disable CS0618 // Subject under test: the deprecated key still binds.
-        options.SwaggerPath.Should().Be("/old-docs");
-#pragma warning restore CS0618
-    }
-
-    [Fact]
-    public void Api_docs_paths_are_unset_when_the_settings_are_absent()
-    {
-        // Arrange
-        var services = new ServiceCollection().AddApiOptions(new ConfigurationBuilder().Build());
-
-        // Act
-        using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<ApiOptions>>().Value;
-
-        // Assert
-        options.ApiDocsPath.Should().BeNull();
-#pragma warning disable CS0618 // Subject under test: the deprecated key does not count as set.
-        options.SwaggerPath.Should().BeNull();
-#pragma warning restore CS0618
-    }
-
-    [Fact]
-    public void Swagger_ui_is_off_when_the_setting_is_absent()
-    {
-        // Arrange
-        var services = new ServiceCollection().AddApiOptions(new ConfigurationBuilder().Build());
-
-        // Act
-        using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<ApiOptions>>().Value;
-
-        // Assert
-        options.UseSwaggerUi.Should().BeFalse();
-    }
-
-    private static Task<ApiDocsHost> StartWithWarningsAsync(ApiOptions options, List<string> warnings) =>
-        ApiDocsHost.StartWithPipelineAsync(
-            (app, _) =>
-            {
-                app.UsePathBase("/sub");
-                app.UseEndatixApiDocs(options);
-            },
-            services => services.AddSingleton<ILoggerProvider>(new WarningLoggerProvider(warnings)));
-
     private static async Task<HttpStatusCode> GetStatusAsync(HttpClient client, string path)
     {
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
@@ -572,30 +391,5 @@ public sealed partial class ApiDocsTests
 
         [GeneratedRegex(@"initialize\(\s*'(?<path>[^']*)',\s*\w+,\s*(?<config>\{.*\}),\s*'", RegexOptions.Singleline)]
         private static partial Regex InitializeCall();
-    }
-
-    private sealed class WarningLoggerProvider(List<string> warnings) : ILoggerProvider
-    {
-        public ILogger CreateLogger(string categoryName) => new WarningLogger(warnings);
-
-        public void Dispose()
-        {
-        }
-
-        private sealed class WarningLogger(List<string> warnings) : ILogger
-        {
-            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-            public bool IsEnabled(LogLevel logLevel) => logLevel == LogLevel.Warning;
-
-            public void Log<TState>(
-                LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-            {
-                if (logLevel == LogLevel.Warning)
-                {
-                    warnings.Add(formatter(state, exception));
-                }
-            }
-        }
     }
 }

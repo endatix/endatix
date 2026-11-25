@@ -53,19 +53,20 @@ public static class ApiServiceCollectionExtensions
         services.AddTransient<IConfigureOptions<ApiOptions>>(provider =>
         {
             var config = provider.GetRequiredService<IOptions<ApiConfigurationOptions>>().Value;
-            return new ConfigureNamedOptions<ApiOptions>(Options.DefaultName, options =>
-            {
-                // Map properties from ApiConfigurationOptions to ApiOptions
-                options.UseSwagger = config.UseSwagger;
-                options.ApiDocsPath = config.ApiDocsPath;
-#pragma warning disable CS0618 // The deprecated key still configures the docs page when ApiDocsPath is unset.
-                options.SwaggerPath = config.SwaggerPath;
-#pragma warning restore CS0618
-                options.UseSwaggerUi = config.UseSwaggerUi;
-            });
+            return new ConfigureNamedOptions<ApiOptions>(Options.DefaultName, options => MapApiOptions(config, options));
         });
 
         return services;
+    }
+
+    private static void MapApiOptions(ApiConfigurationOptions config, ApiOptions options)
+    {
+        options.UseSwagger = config.UseSwagger;
+        options.ApiDocsPath = config.ApiDocsPath;
+#pragma warning disable CS0618 // The deprecated key still configures the docs page when ApiDocsPath is unset.
+        options.SwaggerPath = config.SwaggerPath;
+#pragma warning restore CS0618
+        options.UseSwaggerUi = config.UseSwaggerUi;
     }
 
     /// <summary>
