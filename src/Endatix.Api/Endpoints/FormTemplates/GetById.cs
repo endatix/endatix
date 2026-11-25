@@ -34,8 +34,9 @@ public class GetById(IMediator mediator) : Endpoint<GetFormTemplateByIdRequest, 
             s.Responses[200] = "Form template retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form template not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<FormTemplateModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

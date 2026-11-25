@@ -3,17 +3,19 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Models.Themes;
-using Endatix.Core.Specifications;
-using System.Text.Json;
 
 namespace Endatix.Core.UseCases.Themes.PartialUpdate;
 
 /// <summary>
 /// Handler for partially updating a theme.
 /// </summary>
-public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository) : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
+public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository, ManagedContentScope? scope)
+    : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public PartialUpdateThemeHandler(IRepository<Theme> themeRepository)
+        : this(themeRepository, null) { }
+
     /// <summary>
     /// Handles the partial update of a theme.
     /// </summary>
@@ -24,47 +26,28 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository) : ICo
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-        var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
-        if (theme == null)
+        var admission = new ThemeAdmission(themeRepository, scope);
+        var change = new ThemeAdmission.ThemeChange(request.ThemeId, request.Name, request.ThemeData);
+        var edit = await admission.PrepareEditAsync(change, cancellationToken);
+        if (!edit.IsSuccess)
         {
-            return Result<Theme>.NotFound($"Theme not found");
+            return edit.ToErrorResult<Theme>();
         }
-
-        // Check if another theme with the same name exists.
-        // NOTE: this might be removed to support color scheme and border variants since names should match
+        var theme = edit.Value.Target;
         if (!string.IsNullOrEmpty(request.Name))
         {
-            var existingTheme = await themeRepository.FirstOrDefaultAsync(
-                new ThemeSpecifications.ByName(request.Name),
-                cancellationToken);
-
-            if (existingTheme != null && existingTheme.Id != request.ThemeId)
-            {
-                return Result<Theme>.Error($"Another theme with the name '{request.Name}' already exists");
-            }
-
             theme.UpdateName(request.Name);
         }
-
-        if (request.Description != null)
+        if (request.Description is not null)
         {
             theme.UpdateDescription(request.Description);
         }
-
-        if (request.ThemeData != null)
+        if (edit.Value.Data is { } json)
         {
-            var themeDataResult = ThemeJsonData.Create(request.ThemeData);
-            if (!themeDataResult.IsSuccess)
-            {
-                return Result<Theme>.Invalid(themeDataResult.ValidationErrors);
-            }
-
-            theme.UpdateJsonData(themeDataResult.Value);
+            theme.UpdateJsonData(json);
         }
-
         await themeRepository.UpdateAsync(theme, cancellationToken);
         await themeRepository.SaveChangesAsync(cancellationToken);
-
-        return Result<Theme>.Success(theme);
+        return Result.Success(theme);
     }
 }

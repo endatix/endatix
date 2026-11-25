@@ -56,8 +56,9 @@ public class List(IMediator mediator) : Endpoint<ListRequest, Results<Ok<Paged<T
                 ]);
             s.Responses[200] = "Themes retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<ThemeModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

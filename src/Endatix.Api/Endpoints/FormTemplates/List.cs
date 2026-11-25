@@ -52,8 +52,9 @@ public class List(IMediator mediator)
                 ]);
             s.Responses[200] = "Form templates retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<FormTemplateModelWithoutJsonData>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

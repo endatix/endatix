@@ -229,6 +229,7 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
     [Theory]
     [InlineData("form")]
     [InlineData("submission")]
+    [InlineData("template")]
     public async Task Warm_permissions_expire_at_the_earlier_cache_or_standing_deadline(string resource)
     {
         // Arrange
@@ -241,7 +242,12 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-        var route = resource == "form" ? "/api/access/forms/1" : (await SubmissionTarget.CreateAsync(client, ct)).Access;
+        var route = resource switch
+        {
+            "form" => "/api/access/forms/1",
+            "template" => "/api/access/form-templates/1",
+            _ => (await SubmissionTarget.CreateAsync(client, ct)).Access
+        };
         var warm = await client.GetFromJsonAsync<JsonElement>(route, ct);
         var deadline = DateTime.UtcNow.AddSeconds(15);
         Assert.True(warm.GetProperty("expiresAt").GetDateTime() > deadline);

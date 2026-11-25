@@ -38,8 +38,9 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<T
             s.Responses[200] = "Theme retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Theme not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<ThemeModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

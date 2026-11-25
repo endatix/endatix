@@ -31,14 +31,13 @@ public sealed class GetFormTemplateAccess(
             s.Responses[400] = "Invalid input data.";
             s.Responses[401] = "Authentication required.";
             s.Responses[403] = "Forbidden.";
+            s.DescribeStandingProblems();
         });
 
-        Description(builder => builder
-
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<GetFormTemplateAccessResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden));
+            .ProducesProblem(StatusCodes.Status401Unauthorized));
     }
 
     public override async Task<Results<Ok<GetFormTemplateAccessResponse>, ProblemHttpResult>> ExecuteAsync(

@@ -29,8 +29,9 @@ public class Delete(IMediator mediator) : Endpoint<DeleteFormTemplateRequest, Re
             s.Responses[200] = "Form template deleted successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form template not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<string>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
