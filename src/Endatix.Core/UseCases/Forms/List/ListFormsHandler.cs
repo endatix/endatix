@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Messaging;
@@ -12,17 +13,30 @@ namespace Endatix.Core.UseCases.Forms.List;
 /// Handler for listing forms.
 /// </summary>
 [DirectCallOnly]
-public sealed class ListFormsHandler(IFormsRepository repository,
-    ILogger<ListFormsHandler> logger) : IQueryHandler<ListFormsQuery, Result<Paged<FormDto>>>
+public sealed class ListFormsHandler : IQueryHandler<ListFormsQuery, Result<Paged<FormDto>>>
 {
-    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+    private readonly IFormsRepository _repository;
+    private readonly ILogger _logger;
+    private readonly ContentQueryScope _scope;
+
+    /// <summary>Uses the caller’s repository and logger for direct calls.</summary>
+    public ListFormsHandler(IFormsRepository repository,
+    ILogger<ListFormsHandler> logger)
+        : this(repository, logger, ContentQueryScope.Repository) { }
+
+    private ListFormsHandler(IFormsRepository repository, ILogger logger, ContentQueryScope scope)
+    {
+        _repository = repository;
+        _logger = logger;
+        _scope = scope;
+    }
 
     /// <inheritdoc/>
     public async Task<Result<Paged<FormDto>>> Handle(
         ListFormsQuery request,
         CancellationToken cancellationToken)
     {
-        if (Selection.TenantId <= 0)
+        if (_scope.TenantId <= 0)
         {
             return Result.Unauthorized("Tenant context is required.");
         }
@@ -31,15 +45,15 @@ public sealed class ListFormsHandler(IFormsRepository repository,
         {
             var filter = CreateFilterParameters(request);
             var count = new FormsListFilterSpec(filter, request.Search?.Trim(), request.Created, request.Modified);
-            Selection.Apply(count);
-            var total = await repository.CountAsync(count, cancellationToken);
+            _scope.Apply(count);
+            var total = await _repository.CountAsync(count, cancellationToken);
             var resolved = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
             var forms = total == 0 ? [] : await LoadFormsPageAsync(new PagingParameters(resolved), (request, filter), cancellationToken);
             return Result.Success(resolved.ToPaged([.. forms]));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to list forms");
+            _logger.LogError(ex, "Failed to list forms");
             return Result.Error("Failed to list forms.");
         }
     }
@@ -57,8 +71,8 @@ public sealed class ListFormsHandler(IFormsRepository repository,
             request.Created,
             request.Modified);
 
-        Selection.Apply(searchFormSpec);
-        return await repository.ListAsync(searchFormSpec, cancellationToken);
+        _scope.Apply(searchFormSpec);
+        return await _repository.ListAsync(searchFormSpec, cancellationToken);
     }
 
     private static FilterParameters CreateFilterParameters(ListFormsQuery request)
@@ -87,7 +101,7 @@ public sealed class ListFormsHandler(IFormsRepository repository,
         return new FilterParameters(filterList);
     }
 
-    internal sealed class Registered(IFormsRepository repository, ILoggerFactory loggers, ContentQueryScope tenant)
+    internal sealed class Registered(IFormsRepository repository, [FromKeyedServices(typeof(ListFormsHandler))] ILogger logger, ContentQueryScope tenant)
         : RegisteredContentHandler<ListFormsQuery, Result<Paged<FormDto>>>(
-            new ListFormsHandler(repository, loggers.CreateLogger<ListFormsHandler>()) { Selection = tenant });
+            new ListFormsHandler(repository, logger, tenant));
 }

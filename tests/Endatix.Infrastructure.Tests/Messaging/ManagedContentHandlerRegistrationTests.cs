@@ -12,10 +12,18 @@ namespace Endatix.Infrastructure.Tests.Messaging;
 
 public class ManagedContentHandlerRegistrationTests
 {
-    [Fact]
-    public void Registered_handlers_never_select_the_direct_call_adapter()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Registered_handlers_never_select_the_direct_call_adapter(bool alreadyScanned)
     {
-        var services = new ServiceCollection().AddMediatRMessaging();
+        var services = new ServiceCollection();
+        if (alreadyScanned)
+        {
+            services.AddMediatR(config => config.RegisterServicesFromAssembly(typeof(ListCustomQuestionsHandler).Assembly));
+            services.AddTransient<IRequestHandler<ListCustomQuestionsQuery, Result<Paged<CustomQuestion>>>, ListCustomQuestionsHandler>();
+        }
+        services.AddMediatRMessaging();
         var types = typeof(ListCustomQuestionsHandler).Assembly.DefinedTypes;
         var adapters = types.Where(type => type.IsDefined(typeof(DirectCallOnlyAttribute), false)).ToHashSet<Type>();
         var registeredOwners = types.Where(type => type.BaseType is { IsGenericType: true } parent
@@ -31,6 +39,18 @@ public class ManagedContentHandlerRegistrationTests
             Assert.NotNull(registration.ImplementationType);
             Assert.Equal(adapter, registration.ImplementationType.DeclaringType);
         }
+    }
+
+    [Fact]
+    public void Intentional_question_handler_replacement_survives_registration()
+    {
+        var replacement = Substitute.For<IRequestHandler<ListCustomQuestionsQuery, Result<Paged<CustomQuestion>>>>();
+        var services = new ServiceCollection();
+        services.AddSingleton(replacement);
+        services.AddMediatRMessaging();
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Same(replacement, provider.GetRequiredService<IRequestHandler<ListCustomQuestionsQuery, Result<Paged<CustomQuestion>>>>());
     }
 
     [Fact]

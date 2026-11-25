@@ -12,6 +12,7 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// <summary>
 /// Handler for listing data lists.
 /// </summary>
+[DirectCallOnly]
 public sealed class ListDataListsHandler(IRepository<DataList> repository)
     : IQueryHandler<ListDataListsQuery, Result<Paged<DataListDto>>>
 {
@@ -42,4 +43,7 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
         IReadOnlyList<DataListDto> items = totalRecords > 0 ? await repository.ListAsync(pagedSpec, cancellationToken) : [];
         return Result.Success(resolved.ToPaged(items));
     }
+
+    internal sealed class Registered(IRepository<DataList> repository, ITenantContext tenant)
+        : RegisteredContentHandler<ListDataListsQuery, Result<Paged<DataListDto>>>(new ListDataListsHandler(repository, tenant));
 }

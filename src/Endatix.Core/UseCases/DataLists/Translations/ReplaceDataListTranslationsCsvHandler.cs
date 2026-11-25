@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
@@ -19,7 +20,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler : ICommandHandler<Repl
 {
     private readonly DataListRows _lists;
     private readonly IMediator _mediator;
-    private readonly ILogger<ReplaceDataListTranslationsCsvHandler> _logger;
+    private readonly ILogger _logger;
 
     /// <summary>Uses the supplied repositories for direct calls.</summary>
     public ReplaceDataListTranslationsCsvHandler(IRepository<DataList> repository,
@@ -27,7 +28,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler : ICommandHandler<Repl
         ILogger<ReplaceDataListTranslationsCsvHandler> logger)
         : this(new DataListRows(repository, ContentQueryScope.Repository), mediator, logger) { }
 
-    private ReplaceDataListTranslationsCsvHandler(DataListRows lists, IMediator mediator, ILogger<ReplaceDataListTranslationsCsvHandler> logger)
+    private ReplaceDataListTranslationsCsvHandler(DataListRows lists, IMediator mediator, ILogger logger)
     {
         _lists = lists;
         _mediator = mediator;
@@ -250,7 +251,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler : ICommandHandler<Repl
             ErrorMessage = message
         });
 
-    internal sealed class Registered(DataListRows lists, IMediator mediator, ILoggerFactory loggers)
+    internal sealed class Registered(DataListRows lists, IMediator mediator, [FromKeyedServices(typeof(ReplaceDataListTranslationsCsvHandler))] ILogger logger)
         : RegisteredContentHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>(
-            new ReplaceDataListTranslationsCsvHandler(lists, mediator, loggers.CreateLogger<ReplaceDataListTranslationsCsvHandler>()));
+            new ReplaceDataListTranslationsCsvHandler(lists, mediator, logger));
 }

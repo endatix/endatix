@@ -51,20 +51,19 @@ public class UpdateFormHandler : ICommandHandler<UpdateFormCommand, Result<Form>
             return conflict;
         }
 
-        form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
-
-        var folderCheck = await _folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
-            form.FolderId,
-            request.FolderId,
-            targetFolderId => form.MoveToFolder(targetFolderId),
-            "Form cannot be moved to the requested folder.",
-            cancellationToken);
+        var folderCheck = await _folderAssignmentPolicy.CheckMoveAsync(form.FolderId, request.FolderId, cancellationToken);
         if (!folderCheck.IsOk())
         {
             return folderCheck.ToErrorResult<Form>();
         }
 
-        form.UpdateWebHookSettings(ParseWebHookSettings(request.WebHookSettingsJson));
+        var webhook = UpdateFormWebhooks.Parse(request.WebHookSettingsJson);
+        if (!form.MoveToFolder(request.FolderId))
+        {
+            return Result.Error("Form cannot be moved to the requested folder.");
+        }
+        form.SetEnabled(request.IsEnabled);
+        form.UpdateWebHookSettings(webhook);
 
         // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
         // before save so the capture is atomic. (UpdateFormCommand doesn't change IsPublic, so it's preserved.)
@@ -81,22 +80,6 @@ public class UpdateFormHandler : ICommandHandler<UpdateFormCommand, Result<Form>
         await _forms.SaveAsync(form, cancellationToken);
 
         return Result.Success(form);
-    }
-
-    private static WebHookConfiguration? ParseWebHookSettings(string? webHookSettingsJson)
-    {
-        if (string.IsNullOrWhiteSpace(webHookSettingsJson))
-        {
-            return null;
-        }
-
-        var webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(webHookSettingsJson);
-        if (webHookConfig?.Events is null || webHookConfig.Events.Count == 0)
-        {
-            return null;
-        }
-
-        return webHookConfig;
     }
 
     private static int? ResolveSubmissionTokenExpiryHours(

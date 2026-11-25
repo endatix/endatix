@@ -1,3 +1,4 @@
+using Endatix.Core.Specifications;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -8,8 +9,17 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <summary>
 /// Saves a change to a submission's answers or state, with a version of the answers it replaced.
 /// </summary>
-internal sealed class SubmissionChangeSaver(IRepository<Submission> submissions, IRepository<SubmissionVersion> versions)
+internal sealed class SubmissionChangeSaver(IRepository<Submission> submissions, IRepository<SubmissionVersion> versions, ContentQueryScope scope)
 {
+    internal Task<Submission?> FindAsync(long formId, long submissionId, CancellationToken ct) =>
+        submissions.SingleOrDefaultAsync(scope.Submission(new SubmissionByFormIdAndSubmissionIdSpec(formId, submissionId)), ct);
+
+    internal Task<Submission?> FindForUpdateAsync(PartialUpdate.PartialUpdateSubmissionCommand request, CancellationToken ct)
+    {
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
+        return submissions.SingleOrDefaultAsync(request.TokenTenantId is long id ? spec.OnLiveForm(id) : scope.Submission(spec), ct);
+    }
+
     /// <summary>
     /// Reports as <see cref="SubmissionRepositoryExtensions.TrySaveChangesAsync"/> does. A refused save rolled back,
     /// the version and any event with it.

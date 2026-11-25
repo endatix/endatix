@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
@@ -19,14 +20,14 @@ public class DeleteThemeHandler : ICommandHandler<DeleteThemeCommand, Result<str
 {
     private readonly ThemeRemoval _removal;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<DeleteThemeHandler> _logger;
+    private readonly ILogger _logger;
 
     /// <summary>Uses the supplied repositories for direct calls.</summary>
     public DeleteThemeHandler(IRepository<Theme> themeRepository, IRepository<Form> formRepository,
         IUnitOfWork unitOfWork, ILogger<DeleteThemeHandler> logger)
         : this(new ThemeRemoval(themeRepository, formRepository, ContentQueryScope.Repository), unitOfWork, logger) { }
 
-    private DeleteThemeHandler(ThemeRemoval removal, IUnitOfWork unitOfWork, ILogger<DeleteThemeHandler> logger) =>
+    private DeleteThemeHandler(ThemeRemoval removal, IUnitOfWork unitOfWork, ILogger logger) =>
         (_removal, _unitOfWork, _logger) = (removal, unitOfWork, logger);
 
     /// <summary>
@@ -73,7 +74,7 @@ public class DeleteThemeHandler : ICommandHandler<DeleteThemeCommand, Result<str
         return Result.Success(removedId.ToString());
     }
 
-    internal sealed class Registered(ThemeRemoval removal, IUnitOfWork unitOfWork, ILoggerFactory loggers)
+    internal sealed class Registered(ThemeRemoval removal, IUnitOfWork unitOfWork, [FromKeyedServices(typeof(DeleteThemeHandler))] ILogger logger)
         : RegisteredContentHandler<DeleteThemeCommand, Result<string>>(
-            new DeleteThemeHandler(removal, unitOfWork, loggers.CreateLogger<DeleteThemeHandler>()));
+            new DeleteThemeHandler(removal, unitOfWork, logger));
 }

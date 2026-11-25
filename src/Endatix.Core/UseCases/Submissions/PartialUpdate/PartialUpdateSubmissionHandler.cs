@@ -17,17 +17,15 @@ namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 [DirectCallOnly]
 public class PartialUpdateSubmissionHandler : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
 {
-    private readonly SubmissionTargets _targets;
     private readonly SubmissionChangeSaver _saver;
     private readonly IMediator _mediator;
 
     /// <summary>Uses the supplied repositories for direct calls.</summary>
     public PartialUpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator)
-        : this(new SubmissionTargets(repository, ContentQueryScope.Repository), new SubmissionChangeSaver(repository, versions), mediator) { }
+        : this(new SubmissionChangeSaver(repository, versions, ContentQueryScope.Repository), mediator) { }
 
-    private PartialUpdateSubmissionHandler(SubmissionTargets targets, SubmissionChangeSaver saver, IMediator mediator)
+    private PartialUpdateSubmissionHandler(SubmissionChangeSaver saver, IMediator mediator)
     {
-        _targets = targets;
         _saver = saver;
         _mediator = mediator;
     }
@@ -38,7 +36,7 @@ public class PartialUpdateSubmissionHandler : ICommandHandler<PartialUpdateSubmi
     /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submission = await _targets.FindForUpdateAsync(request, cancellationToken);
+        var submission = await _saver.FindForUpdateAsync(request, cancellationToken);
         if (submission == null)
         {
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
@@ -114,7 +112,7 @@ public class PartialUpdateSubmissionHandler : ICommandHandler<PartialUpdateSubmi
         return "This submission cannot be completed.";
     }
 
-    internal sealed class Registered(SubmissionTargets targets, SubmissionChangeSaver saver, IMediator mediator)
+    internal sealed class Registered(SubmissionChangeSaver saver, IMediator mediator)
         : RegisteredContentHandler<PartialUpdateSubmissionCommand, Result<Submission>>(
-            new PartialUpdateSubmissionHandler(targets, saver, mediator));
+            new PartialUpdateSubmissionHandler(saver, mediator));
 }

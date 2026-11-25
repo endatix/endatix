@@ -15,17 +15,15 @@ namespace Endatix.Core.UseCases.Submissions;
 [DirectCallOnly]
 public class UpdateSubmissionHandler : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
 {
-    private readonly SubmissionTargets _targets;
     private readonly SubmissionChangeSaver _saver;
     private readonly IMediator _mediator;
 
     /// <summary>Uses the supplied repositories for direct calls.</summary>
     public UpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator)
-        : this(new SubmissionTargets(repository, ContentQueryScope.Repository), new SubmissionChangeSaver(repository, versions), mediator) { }
+        : this(new SubmissionChangeSaver(repository, versions, ContentQueryScope.Repository), mediator) { }
 
-    private UpdateSubmissionHandler(SubmissionTargets targets, SubmissionChangeSaver saver, IMediator mediator)
+    private UpdateSubmissionHandler(SubmissionChangeSaver saver, IMediator mediator)
     {
-        _targets = targets;
         _saver = saver;
         _mediator = mediator;
     }
@@ -38,7 +36,7 @@ public class UpdateSubmissionHandler : ICommandHandler<UpdateSubmissionCommand, 
     /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submission = await _targets.FindAsync(request.FormId, request.SubmissionId, cancellationToken);
+        var submission = await _saver.FindAsync(request.FormId, request.SubmissionId, cancellationToken);
 
         if (submission == null)
         {
@@ -81,7 +79,7 @@ public class UpdateSubmissionHandler : ICommandHandler<UpdateSubmissionCommand, 
         return Result.Success(submission);
     }
 
-    internal sealed class Registered(SubmissionTargets targets, SubmissionChangeSaver saver, IMediator mediator)
+    internal sealed class Registered(SubmissionChangeSaver saver, IMediator mediator)
         : RegisteredContentHandler<UpdateSubmissionCommand, Result<Submission>>(
-            new UpdateSubmissionHandler(targets, saver, mediator));
+            new UpdateSubmissionHandler(saver, mediator));
 }

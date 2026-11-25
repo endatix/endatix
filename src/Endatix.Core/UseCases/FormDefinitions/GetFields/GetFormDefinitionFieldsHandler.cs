@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
@@ -17,14 +18,14 @@ namespace Endatix.Core.UseCases.FormDefinitions.GetFields;
 public partial class GetFormDefinitionFieldsHandler : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
 {
     private readonly FormFieldDefinitions _source;
-    private readonly ILogger<GetFormDefinitionFieldsHandler> _logger;
+    private readonly ILogger _logger;
 
     /// <summary>Uses the supplied repositories for direct calls.</summary>
     public GetFormDefinitionFieldsHandler(IRepository<FormDefinition> formDefinitionsRepository, IFormsRepository formsRepository,
         ILogger<GetFormDefinitionFieldsHandler> logger)
         : this(new FormFieldDefinitions(formsRepository, formDefinitionsRepository, ContentQueryScope.Repository), logger) { }
 
-    private GetFormDefinitionFieldsHandler(FormFieldDefinitions source, ILogger<GetFormDefinitionFieldsHandler> logger) =>
+    private GetFormDefinitionFieldsHandler(FormFieldDefinitions source, ILogger logger) =>
         (_source, _logger) = (source, logger);
 
     /// <inheritdoc/>
@@ -271,7 +272,7 @@ public partial class GetFormDefinitionFieldsHandler : IQueryHandler<GetFormDefin
         Message = "Error parsing JSON for form definition {DefinitionId}")]
     private partial void LogJsonParsingError(long definitionId, JsonException ex);
 
-    internal sealed class Registered(FormFieldDefinitions source, ILoggerFactory loggers)
+    internal sealed class Registered(FormFieldDefinitions source, [FromKeyedServices(typeof(GetFormDefinitionFieldsHandler))] ILogger logger)
         : RegisteredContentHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>(
-            new GetFormDefinitionFieldsHandler(source, loggers.CreateLogger<GetFormDefinitionFieldsHandler>()));
+            new GetFormDefinitionFieldsHandler(source, logger));
 }

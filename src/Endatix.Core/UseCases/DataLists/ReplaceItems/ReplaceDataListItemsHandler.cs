@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
@@ -20,7 +21,7 @@ public sealed class ReplaceDataListItemsHandler : ICommandHandler<ReplaceDataLis
 {
     private readonly DataListRows _lists;
     private readonly IMediator _mediator;
-    private readonly ILogger<ReplaceDataListItemsHandler> _logger;
+    private readonly ILogger _logger;
 
     /// <summary>Uses the supplied repositories for direct calls.</summary>
     public ReplaceDataListItemsHandler(IRepository<DataList> repository,
@@ -28,7 +29,7 @@ public sealed class ReplaceDataListItemsHandler : ICommandHandler<ReplaceDataLis
         ILogger<ReplaceDataListItemsHandler> logger)
         : this(new DataListRows(repository, ContentQueryScope.Repository), mediator, logger) { }
 
-    private ReplaceDataListItemsHandler(DataListRows lists, IMediator mediator, ILogger<ReplaceDataListItemsHandler> logger)
+    private ReplaceDataListItemsHandler(DataListRows lists, IMediator mediator, ILogger logger)
     {
         _lists = lists;
         _mediator = mediator;
@@ -246,7 +247,7 @@ public sealed class ReplaceDataListItemsHandler : ICommandHandler<ReplaceDataLis
         }
     }
 
-    internal sealed class Registered(DataListRows lists, IMediator mediator, ILoggerFactory loggers)
+    internal sealed class Registered(DataListRows lists, IMediator mediator, [FromKeyedServices(typeof(ReplaceDataListItemsHandler))] ILogger logger)
         : RegisteredContentHandler<ReplaceDataListItemsCommand, Result<DataListDto>>(
-            new ReplaceDataListItemsHandler(lists, mediator, loggers.CreateLogger<ReplaceDataListItemsHandler>()));
+            new ReplaceDataListItemsHandler(lists, mediator, logger));
 }

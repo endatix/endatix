@@ -55,24 +55,11 @@ public class PartialUpdateFormHandler : ICommandHandler<PartialUpdateFormCommand
             return conflict;
         }
 
-        form.SetEnabled(request.IsEnabled ?? form.IsEnabled); // raises form.enabled_state_changed (outbox) on a change
-
-        var theme = await ApplyThemeAsync(form, request.ThemeId, cancellationToken);
-        if (theme is not null)
+        if (await ApplyAssignmentsAsync(form, request, cancellationToken) is { } refused)
         {
-            return theme;
+            return refused;
         }
-
-        if (request.WebHookSettingsJson != null)
-        {
-            UpdateWebHookSettings(request, form);
-        }
-
-        var folder = await ApplyFolderAsync(form, request, cancellationToken);
-        if (folder is not null)
-        {
-            return folder;
-        }
+        form.SetEnabled(request.IsEnabled ?? form.IsEnabled);
 
         // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
         // before save so the capture is atomic. Omitted fields keep their current value.
@@ -88,25 +75,43 @@ public class PartialUpdateFormHandler : ICommandHandler<PartialUpdateFormCommand
         return Result.Success(form);
     }
 
-    private async Task<Result<Form>?> ApplyThemeAsync(Form form, long? themeId, CancellationToken cancellationToken)
+    private async Task<Result<Form>?> ApplyAssignmentsAsync(Form form, PartialUpdateFormCommand request, CancellationToken cancellationToken)
     {
-        if (!themeId.HasValue || form.ThemeId == themeId)
+        var theme = await ResolveThemeAsync(form, request.ThemeId, cancellationToken);
+        if (!theme.IsSuccess)
         {
-            return null;
+            return theme.ToErrorResult<Form>();
         }
-        if (themeId.Value == DEFAULT_THEME_ID)
+        var webhook = UpdateFormWebhooks.Parse(request.WebHookSettingsJson);
+        if (await ApplyFolderAsync(form, request, cancellationToken) is { } folder)
         {
-            form.SetTheme(null);
-            return null;
-        }
-        var theme = await _themeRepository.FindAsync(themeId.Value, cancellationToken);
-        if (theme is null)
-        {
-            return Result.NotFound("Form Theme not found.");
+            return folder;
         }
 
-        form.SetTheme(theme);
+        ApplyTheme(form, request.ThemeId, theme.Value);
+        if (request.WebHookSettingsJson is not null)
+        {
+            form.UpdateWebHookSettings(webhook);
+        }
         return null;
+    }
+
+    private static void ApplyTheme(Form form, long? id, Theme? theme)
+    {
+        if (id.HasValue && id != form.ThemeId)
+        {
+            form.SetTheme(theme);
+        }
+    }
+
+    private async Task<Result<Theme?>> ResolveThemeAsync(Form form, long? themeId, CancellationToken ct)
+    {
+        if (themeId is null or DEFAULT_THEME_ID || themeId == form.ThemeId)
+        {
+            return Result<Theme?>.Success(null);
+        }
+        var theme = await _themeRepository.FindAsync(themeId.Value, ct);
+        return theme is null ? Result.NotFound("Form Theme not found.") : Result<Theme?>.Success(theme);
     }
 
     private async Task<Result<Form>?> ApplyFolderAsync(Form form, PartialUpdateFormCommand request, CancellationToken cancellationToken)
@@ -134,27 +139,6 @@ public class PartialUpdateFormHandler : ICommandHandler<PartialUpdateFormCommand
         }
 
         return request.SubmissionTokenExpiryHours ?? form.SubmissionTokenExpiryHours;
-    }
-
-    private static void UpdateWebHookSettings(PartialUpdateFormCommand request, Form form)
-    {
-        WebHookConfiguration? webHookConfig;
-
-        if (request.WebHookSettingsJson!.Trim() == string.Empty)
-        {
-            webHookConfig = null;
-        }
-        else
-        {
-            webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(request.WebHookSettingsJson);
-
-            if (webHookConfig?.Events == null || webHookConfig.Events.Count == 0)
-            {
-                webHookConfig = null;
-            }
-        }
-
-        form.UpdateWebHookSettings(webHookConfig);
     }
 
     internal sealed class Registered(FormEdits forms, EditableContent<Theme> themeRepository, FolderAssignmentPolicy folderAssignmentPolicy)
