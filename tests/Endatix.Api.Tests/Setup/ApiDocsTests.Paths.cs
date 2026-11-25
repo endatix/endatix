@@ -137,6 +137,21 @@ public sealed partial class ApiDocsTests
     }
 
     [Theory]
+    [InlineData("/docs", "/docs")]
+    [InlineData("/", "/api-docs")]
+    public async Task Adding_the_docs_logs_the_page_they_serve_at(string apiDocsPath, string expected)
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await StartWithWarningsAsync(new ApiOptions { ApiDocsPath = apiDocsPath }, log);
+
+        // Assert
+        log.Information.Should().ContainSingle(line => line == $"Serving the API docs at {expected}");
+    }
+
+    [Theory]
     [InlineData(null, null, "/api-docs")]
     [InlineData("", null, "/api-docs")]
     [InlineData(null, "/old-docs/", "/old-docs")]
