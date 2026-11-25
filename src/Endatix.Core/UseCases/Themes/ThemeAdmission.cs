@@ -46,7 +46,8 @@ internal sealed class ThemeAdmission(IRepository<Theme> themes, ManagedContentSc
         }
         if (change.RequiresName)
         {
-            Guard.Against.NullOrEmpty(change.Name, "name");
+            var name = change.Name;
+            Guard.Against.NullOrEmpty(name);
         }
         var data = change.Json is null ? null : ThemeJsonData.Create(change.Json);
         if (data is { IsSuccess: false })
