@@ -7,6 +7,53 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 public sealed partial class AuthorizationCacheHybridTests
 {
     [Fact]
+    public async Task GetOrCreateAsync_MandatoryReportExpiresDuringCacheWrite_ReturnsUnavailable()
+    {
+        // Arrange
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.FailClosed.Returns(true);
+        provider.CacheFor.Returns(TimeSpan.FromSeconds(5));
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(true, provider);
+        var first = await SnapshotAsync(cache);
+        _clock.Now.Returns(_start.AddSeconds(5));
+        _sharedL2.Written = () => _clock.Now.Returns(_start.AddSeconds(11));
+
+        // Act
+        var expired = await SnapshotAsync(cache);
+
+        // Assert
+        first.RequiredActionsUnavailable.Should().BeFalse();
+        expired.RequiredActionsUnavailable.Should().BeTrue();
+        expired.ETag.Should().NotBe(first.ETag);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_TokenMapsToAnotherTenant_UsesTheHydratedTenantsVersion()
+    {
+        // Arrange
+        const long localTenant = 99;
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(false, provider);
+        var principal = CreatePrincipal();
+        var data = CreateData(default) with { TenantId = localTenant };
+        Task<AuthorizationData> ReadAsync() => cache.GetOrCreateAsync(principal,
+            _ => Task.FromResult(Result.Success(data)), TestContext.Current.CancellationToken);
+        var original = await ReadAsync();
+
+        // Act
+        var action = new RequiredAction { Key = "setup", ResolvePath = "/setup", Scope = RequiredActionScope.Tenant, Severity = RequiredActionSeverity.Blocking };
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([action]);
+        _versionStore.TenantVersions[localTenant] = Guid.NewGuid();
+        var refreshed = await ReadAsync();
+
+        // Assert
+        original.RequiredActions.Should().BeEmpty();
+        refreshed.RequiredActions.Should().ContainSingle().Which.Key.Should().Be("setup");
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_MandatoryClearanceExpiresDuringAnotherProviderRead_ReturnsUnavailable()
     {
         // Arrange

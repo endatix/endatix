@@ -10,6 +10,8 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
     RequiredActionProviderCache reports)
 {
     private readonly IRequiredActionProvider[] _providers = registrations.ToArray();
+    internal bool HasProviders => _providers.Length > 0;
+    internal bool HasMandatory { get; } = registrations.Any(p => p.FailClosed);
     internal string ConfigurationKey { get; } = GetConfigurationKey(registrations.ToArray());
 
     private static string GetConfigurationKey(IRequiredActionProvider[] providers)

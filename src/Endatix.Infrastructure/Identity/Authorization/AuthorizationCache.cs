@@ -51,7 +51,7 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey),
+            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId),
             dataFactory,
             cancellationToken);
     }
@@ -62,7 +62,7 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey),
+            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId),
             dataFactory,
             cancellationToken);
     }
@@ -85,7 +85,8 @@ internal class AuthorizationCache(
             entry.Tags,
             cancellationToken);
         // Report a fresh conflict once; on a cache hit, re-evaluate it rather than serving it as usable standing.
-        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime && (!cached.RequiredActionsUnavailable || ReferenceEquals(cached, built))
+        var mustRehydrate = cached.RequiredActionsUnavailable || NeedsHydratedVersion(entry, cached);
+        return cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime && (!mustRehydrate || ReferenceEquals(cached, built))
             ? cached
             : await RebuildAsync(entry, dataFactory, cancellationToken);
     }
@@ -98,7 +99,13 @@ internal class AuthorizationCache(
     {
         var rebuilt = await BuildAsync(dataFactory, entry, cancellationToken);
         await hybridCache.SetAsync(entry.Key, rebuilt, entry.Options, entry.Tags, cancellationToken);
-        return rebuilt;
+        if (!actions.HasMandatory || rebuilt.ExpiresAt > dateTimeProvider.Now.UtcDateTime || rebuilt.RequiredActionsUnavailable)
+        {
+            return rebuilt;
+        }
+        // A slow distributed write may outlive the clearance we just built.
+        var unavailable = rebuilt with { RequiredActionsUnavailable = true, RequiredActions = [] };
+        return unavailable with { ETag = GenerateETag(unavailable) };
     }
 
     /// <summary>Builds the data and stamps it with the time it stops being served.</summary>
@@ -114,7 +121,9 @@ internal class AuthorizationCache(
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
 
-        var data = await actions.ApplyAsync(result.Value, entry, cancellationToken);
+        var subjectEntry = NeedsHydratedVersion(entry, result.Value)
+            ? entry with { Versions = await accessVersionStore.ReadAsync(result.Value.TenantId, cancellationToken) } : entry;
+        var data = await actions.ApplyAsync(result.Value, subjectEntry, cancellationToken);
         var expiresAt = EarlierOf(now.Add(entry.Lifetime), data.ExpiresAt);
         expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, now));
         return data.WithCacheMetadata(now, expiresAt, GenerateETag(data));
@@ -124,8 +133,12 @@ internal class AuthorizationCache(
     private static DateTime EarlierOf(DateTime entryEnd, DateTime permissionsExpireAt) =>
         permissionsExpireAt != default && permissionsExpireAt < entryEnd ? permissionsExpireAt : entryEnd;
 
-    /// <summary>One cache entry's key, lifetime and tags.</summary>
-    internal readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags, AccessVersionKey Versions, string Configuration)
+    // External authorization strategies can map a positive token tenant to a different local tenant.
+    private bool NeedsHydratedVersion(CacheEntry entry, AuthorizationData data) =>
+        actions.HasProviders && entry.LookupTenant > 0 && entry.LookupTenant != data.TenantId;
+
+    /// <summary>One cache entry's key, lifetime, tags and version scope.</summary>
+    internal readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags, AccessVersionKey Versions, string Configuration, long LookupTenant)
     {
         /// <summary>The entry lives <see cref="Lifetime"/> in both cache levels.</summary>
         public HybridCacheEntryOptions Options => new() { Expiration = Lifetime, LocalCacheExpiration = Lifetime };

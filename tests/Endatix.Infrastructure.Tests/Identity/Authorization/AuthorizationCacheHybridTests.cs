@@ -30,6 +30,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
     private readonly IDateTimeProvider _clock = Substitute.For<IDateTimeProvider>();
     private readonly SharedDistributedCache _sharedL2 = new();
     private readonly List<ServiceProvider> _instances = [];
+    private readonly FixedAccessVersionStore _versionStore = new();
 
     public AuthorizationCacheHybridTests()
     {
@@ -379,7 +380,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
             provider.GetRequiredService<HybridCache>(),
             _clock,
             new(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, jwtOptions),
-            new FixedAccessVersionStore(),
+            _versionStore,
             provider.GetRequiredService<RequiredActionEvaluation>());
     }
 
@@ -406,6 +407,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
     private sealed class SharedDistributedCache : IDistributedCache
     {
         private readonly MemoryDistributedCache _inner = new(Options.Create(new MemoryDistributedCacheOptions()));
+        internal Action? Written { get; set; }
 
         public byte[]? Get(string key) => _inner.Get(key);
 
@@ -413,8 +415,11 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
 
         public void Set(string key, byte[] value, DistributedCacheEntryOptions options) => _inner.Set(key, value, options);
 
-        public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default) =>
-            _inner.SetAsync(key, value, options, token);
+        public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
+        {
+            await _inner.SetAsync(key, value, options, token);
+            Written?.Invoke();
+        }
 
         public void Refresh(string key) => _inner.Refresh(key);
 
@@ -427,8 +432,9 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
 
     private sealed class FixedAccessVersionStore : IAccessVersionStore
     {
+        internal Dictionary<long, Guid> TenantVersions { get; } = [];
         public Task<AccessVersionKey> ReadAsync(long tenantId, CancellationToken cancellationToken) =>
-            Task.FromResult(_versions);
+            Task.FromResult(TenantVersions.TryGetValue(tenantId, out var version) ? _versions with { Scope = version } : _versions);
 
         public void Change(IReadOnlyCollection<long> tenantIds) => throw new NotSupportedException();
 

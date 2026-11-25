@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
@@ -129,6 +130,7 @@ internal sealed class RequiredActionExecution(IServiceScopeFactory scopes, ILogg
         RequiredActionProviderCache.Query query, CancellationToken ct)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var started = Stopwatch.GetTimestamp();
         timeout.CancelAfter(query.Policy.Timeout);
         var token = timeout.Token;
         var work = Task.Run(() => InvokeAsync(query, token), token);
@@ -138,6 +140,10 @@ internal sealed class RequiredActionExecution(IServiceScopeFactory scopes, ILogg
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         var actions = await work.WaitAsync(token);
         token.ThrowIfCancellationRequested();
+        if (Stopwatch.GetElapsedTime(started) >= query.Policy.Timeout)
+        {
+            throw new TimeoutException();
+        }
         return actions;
     }
 
