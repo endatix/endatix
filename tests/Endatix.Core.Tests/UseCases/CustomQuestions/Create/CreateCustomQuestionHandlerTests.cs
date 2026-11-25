@@ -54,9 +54,9 @@ public class CreateCustomQuestionHandlerTests
         result.Value.Description.Should().Be(request.Description);
         result.Value.JsonData.Should().Be(request.JsonData);
         result.Value.TenantId.Should().Be(SampleData.TENANT_ID);
-        
+
         await _repository.Received(1).AddAsync(
-            Arg.Is<CustomQuestion>(q => 
+            Arg.Is<CustomQuestion>(q =>
                 q.Name == request.Name &&
                 q.Description == request.Description &&
                 q.JsonData == request.JsonData &&
@@ -95,17 +95,10 @@ public class CreateCustomQuestionHandlerTests
             "Test Description"
         );
 
-        var existingQuestion = new CustomQuestion(
-            SampleData.TENANT_ID,
-            request.Name,
-            "{ \"type\": \"number\" }",
-            "Existing Description"
-        );
-
-        _repository.FirstOrDefaultAsync(
+        _repository.AnyAsync(
             Arg.Any<CustomQuestionSpecifications.ByName>(),
             Arg.Any<CancellationToken>()
-        ).Returns(existingQuestion);
+        ).Returns(true);
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
         // Act
@@ -116,4 +109,4 @@ public class CreateCustomQuestionHandlerTests
         result.Status.Should().Be(ResultStatus.Invalid);
         result.ValidationErrors.Should().ContainSingle(e => e.ErrorMessage.Contains($"A custom question with the name '{request.Name}' already exists"));
     }
-} 
+}

@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.CustomQuestions.Create;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.CustomQuestions.Create;
 
 namespace Endatix.Api.Endpoints.CustomQuestions;
 
@@ -25,25 +25,32 @@ public class Create(IMediator mediator)
         {
             s.Summary = "Create a new custom question";
             s.Description = "Creates a new custom question with the provided data.";
-            s.ExampleRequest = new CreateCustomQuestionRequest
-            {
-                Name = "NPS score",
-                Description = "Net promoter score question.",
-                JsonData = "{ \"type\": \"rating\" }",
-            };
-            s.ResponseExamples[201] = new CreateCustomQuestionResponse
-            {
-                Id = "1",
-                Name = "NPS score",
-                Description = "Net promoter score question.",
-                JsonData = "{ \"type\": \"rating\" }",
-            };
+            AddExamples(s);
             s.Responses[201] = "Custom question created successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<CreateCustomQuestionResponse>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
+    }
+
+    private static void AddExamples(EndpointSummary summary)
+    {
+        var question = new CreateCustomQuestionRequest
+        {
+            Name = "NPS score",
+            Description = "Net promoter score question.",
+            JsonData = "{ \"type\": \"rating\" }",
+        };
+        summary.ExampleRequest = question;
+        summary.ResponseExamples[201] = new CreateCustomQuestionResponse
+        {
+            Id = "1",
+            Name = question.Name,
+            Description = question.Description,
+            JsonData = question.JsonData,
+        };
     }
 
     /// <inheritdoc/>
