@@ -70,8 +70,8 @@ internal static class ApiDocs
 
     /// <summary>
     /// Maps Scalar over the document. Scalar takes the document path from the browser's address, so the page finds the
-    /// document under a path base too. Telemetry, Scalar's hosted fonts, its AI chat and its
-    /// developer toolbar are off, so the page calls no third party.
+    /// document under a path base too. Telemetry, Scalar's hosted fonts, its AI chat, its
+    /// developer toolbar and its hosted client button are off, so the page calls no third party.
     /// </summary>
     private static void MapScalar(IEndpointRouteBuilder routes, string pagePath, string documentPath) =>
         routes.MapScalarApiReference(pagePath, scalar => scalar
@@ -82,6 +82,7 @@ internal static class ApiDocs
             .DisableAgent()
             .DisableMcp()
             .HideDeveloperTools()
+            .HideClientButton()
             .WithOpenApiRoutePattern(documentPath)
             .AddDocument(DOCUMENT_NAME)
             .AddPreferredSecuritySchemes(BEARER_SCHEME));

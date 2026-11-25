@@ -265,6 +265,7 @@ public sealed partial class ApiDocsTests
         page.Configuration.GetProperty("agent").GetProperty("disabled").GetBoolean().Should().BeTrue(page.Html);
         page.Configuration.GetProperty("mcp").GetProperty("disabled").GetBoolean().Should().BeTrue();
         page.Configuration.GetProperty("showDeveloperTools").GetString().Should().Be("never");
+        page.Configuration.GetProperty("hideClientButton").GetBoolean().Should().BeTrue();
     }
 
     [Fact]
