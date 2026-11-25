@@ -6,6 +6,33 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
 public sealed partial class AuthorizationCacheHybridTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task GetOrCreateAsync_OptionalFallbackExpiresDuringWrite_DropsOnlyItsActions(bool hasMandatory)
+    {
+        // Arrange
+        var optional = NoticeProvider("Creator", false);
+        optional.CacheFor.Returns(TimeSpan.FromSeconds(5));
+        var mandatory = Substitute.For<IRequiredActionProvider>();
+        mandatory.CacheFor.Returns(TimeSpan.FromSeconds(30));
+        mandatory.FailClosed.Returns(true);
+        mandatory.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(true, hasMandatory ? [mandatory, optional] : [optional]);
+        (await SnapshotAsync(cache)).RequiredActions.Should().ContainSingle();
+        optional.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<IReadOnlyList<RequiredAction>>(new HttpRequestException()));
+        _clock.Now.Returns(_start.AddSeconds(55));
+        _sharedL2.Written = () => _clock.Now.Returns(_start.AddSeconds(61));
+
+        // Act
+        var refreshed = await SnapshotAsync(cache);
+
+        // Assert
+        refreshed.RequiredActions.Should().BeEmpty();
+        refreshed.RequiredActionsUnavailable.Should().BeFalse();
+    }
+
     [Fact]
     public async Task GetOrCreateAsync_MandatoryReportExpiresDuringCacheWrite_ReturnsUnavailable()
     {

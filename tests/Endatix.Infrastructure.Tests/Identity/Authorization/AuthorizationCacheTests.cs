@@ -38,7 +38,7 @@ public sealed class AuthorizationCacheTests
             SigningKey = "test-signing-key-32-characters",
         });
         _versionStore = new StubAccessVersionStore(Guid.Parse("11111111-1111-1111-1111-111111111111"));
-        _cache = new(_hybridCache, _dateTimeProvider, new(_httpContextAccessor, jwtOptions), _versionStore, new([], _dateTimeProvider, null!));
+        _cache = new(_hybridCache, _dateTimeProvider, new(_httpContextAccessor, jwtOptions), _versionStore, new([], null!));
     }
 
     [Fact]

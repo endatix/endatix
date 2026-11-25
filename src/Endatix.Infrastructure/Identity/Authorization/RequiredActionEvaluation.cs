@@ -1,17 +1,14 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using static Endatix.Infrastructure.Identity.Authorization.RequiredActionProviderCache;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
-internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> registrations, IDateTimeProvider clock,
-    RequiredActionProviderCache reports)
+internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> registrations, RequiredActionProviderCache reports)
 {
     private readonly IRequiredActionProvider[] _providers = registrations.ToArray();
     internal bool HasProviders => _providers.Length > 0;
-    internal bool HasMandatory { get; } = registrations.Any(p => p.FailClosed);
     internal string ConfigurationKey { get; } = GetConfigurationKey(registrations.ToArray());
 
     private static string GetConfigurationKey(IRequiredActionProvider[] providers)
@@ -35,23 +32,26 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
         return "standing-v3:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
     }
 
-    internal async Task<AuthorizationData> ApplyAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
+    internal async Task<Func<DateTime, AuthorizationData>> EvaluateAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {
         if (_providers.Length == 0)
         {
-            return data;
+            return _ => data;
         }
 
         var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles);
         var epoch = await reports.SubjectEpochAsync(subject, entry, ct);
         var queries = _providers.Select((p, i) => new Query(epoch, i, subject, Policy.For(p))).ToArray();
         var results = await Task.WhenAll(queries.Select(q => reports.ReadAsync(q, ct)));
-        return Combine(data, queries, results);
+        var evaluated = new ProviderReports(queries, results);
+        return now => Combine(data, evaluated, now);
     }
 
-    private AuthorizationData Combine(AuthorizationData data, Query[] queries, Report[] results)
+    private sealed record ProviderReports(Query[] Queries, Report[] Results);
+
+    private AuthorizationData Combine(AuthorizationData data, ProviderReports providers, DateTime now)
     {
-        var now = clock.Now.UtcDateTime;
+        var (queries, results) = providers;
         if (queries.Any(q => results[q.Index].Unavailable || (q.Policy.FailClosed && results[q.Index].Until <= now)))
         {
             return BoundExpiry(data with { RequiredActionsUnavailable = true, RequiredActions = [] }, results);

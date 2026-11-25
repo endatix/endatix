@@ -80,7 +80,7 @@ internal class AuthorizationCache(
         AuthorizationData? built = null;
         var cached = await hybridCache.GetOrCreateAsync(
             entry.Key,
-            async _ => built = await BuildAsync(dataFactory, entry, cancellationToken),
+            async _ => built = (await BuildAsync(dataFactory, entry, cancellationToken))(),
             entry.Options,
             entry.Tags,
             cancellationToken);
@@ -97,19 +97,15 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
-        var rebuilt = await BuildAsync(dataFactory, entry, cancellationToken);
+        var project = await BuildAsync(dataFactory, entry, cancellationToken);
+        var rebuilt = project();
         await hybridCache.SetAsync(entry.Key, rebuilt, entry.Options, entry.Tags, cancellationToken);
-        if (!actions.HasMandatory || rebuilt.ExpiresAt > dateTimeProvider.Now.UtcDateTime || rebuilt.RequiredActionsUnavailable)
-        {
-            return rebuilt;
-        }
-        // A slow distributed write may outlive the clearance we just built.
-        var unavailable = rebuilt with { RequiredActionsUnavailable = true, RequiredActions = [] };
-        return unavailable with { ETag = GenerateETag(unavailable) };
+        // If the write crossed a deadline, project each original report against its own policy at return time.
+        return actions.HasProviders && rebuilt.ExpiresAt <= dateTimeProvider.Now.UtcDateTime ? project() : rebuilt;
     }
 
     /// <summary>Builds the data and stamps it with the time it stops being served.</summary>
-    private async Task<AuthorizationData> BuildAsync(
+    private async Task<Func<AuthorizationData>> BuildAsync(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CacheEntry entry,
         CancellationToken cancellationToken)
@@ -123,10 +119,15 @@ internal class AuthorizationCache(
 
         var subjectEntry = NeedsHydratedVersion(entry, result.Value)
             ? entry with { Versions = await accessVersionStore.ReadAsync(result.Value.TenantId, cancellationToken) } : entry;
-        var data = await actions.ApplyAsync(result.Value, subjectEntry, cancellationToken);
-        var expiresAt = EarlierOf(now.Add(entry.Lifetime), data.ExpiresAt);
-        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, now));
-        return data.WithCacheMetadata(now, expiresAt, GenerateETag(data));
+        var project = await actions.EvaluateAsync(result.Value, subjectEntry, cancellationToken);
+        return () => Stamp(project(dateTimeProvider.Now.UtcDateTime), now, entry.Lifetime);
+    }
+
+    private static AuthorizationData Stamp(AuthorizationData data, DateTime builtAt, TimeSpan lifetime)
+    {
+        var expiresAt = EarlierOf(builtAt.Add(lifetime), data.ExpiresAt);
+        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, builtAt));
+        return data.WithCacheMetadata(builtAt, expiresAt, GenerateETag(data));
     }
 
     /// <summary>The entry's end, or the earliest permission expiry the data carries when that comes first.</summary>
