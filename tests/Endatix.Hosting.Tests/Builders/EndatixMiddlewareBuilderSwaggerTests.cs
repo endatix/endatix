@@ -1,6 +1,5 @@
 using System.Text;
 using Endatix.Api.Builders;
-using Endatix.Api.Configuration;
 using Endatix.Api.Setup;
 using Endatix.Hosting.Builders;
 using Microsoft.AspNetCore.Builder;
@@ -119,33 +118,6 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
         // Assert
         RoutePatterns(app).Should().Equal("/api-docs/{documentName?}");
         (await GetAsync(app, "/swagger/index.html")).Body.Should().Contain("swagger-ui");
-    }
-
-    /// <summary>
-    /// The legacy members still compile without a warning, so a host that treats warnings as errors builds unchanged.
-    /// Marking one of them obsolete again shows here as a CS0618 warning.
-    /// </summary>
-    [Fact]
-    public async Task UseSwagger_WithLegacyApiOptionsMembers_BuildsAndMapsTheDocsPage()
-    {
-        // Arrange
-        var builder = WebApplication.CreateBuilder();
-        builder.Services.Configure<ApiOptions>(options =>
-        {
-            options.UseSwagger = true;
-            options.SwaggerPath = "/legacy";
-            options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list";
-        });
-        await using var app = builder.Build();
-
-        // Act
-        new EndatixMiddlewareBuilder(app).UseSwagger(null, settings => settings.Path = "/swagger/{documentName}/swagger.json", null);
-
-        bool configuredUseSwagger = new ApiConfigurationOptions().UseSwagger;
-
-        // Assert
-        RoutePatterns(app).Should().Equal("/legacy/{documentName?}");
-        configuredUseSwagger.Should().BeTrue();
     }
 
     /// <summary>Runs one GET through the app's middleware. Swagger UI is middleware, not an endpoint.</summary>

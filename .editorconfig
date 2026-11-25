@@ -350,3 +350,7 @@ dotnet_naming_style.instance_field_style.required_prefix = _
 dotnet_diagnostic.CA2012.severity = none
 # Test helpers take the interface the code under test exposes, on purpose.
 dotnet_diagnostic.CA1859.severity = none
+
+# The legacy API docs members must not become obsolete while hosts still use them (endatix/endatix#1846).
+[tests/Endatix.Hosting.Tests/Builders/LegacyApiDocsMembersCompatibilityTests.cs]
+dotnet_diagnostic.CS0618.severity = error
