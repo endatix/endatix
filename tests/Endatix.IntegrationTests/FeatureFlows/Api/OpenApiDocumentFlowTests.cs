@@ -60,6 +60,12 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 
         // Act
         var paths = Paths(document);
+        var brandingTags = document.RootElement.GetProperty("paths").EnumerateObject()
+            .Where(path => path.Name.Contains(BRANDING_ROUTE, StringComparison.Ordinal))
+            .SelectMany(path => path.Value.EnumerateObject())
+            .SelectMany(operation => operation.Value.GetProperty("tags").EnumerateArray().Select(tag => tag.GetString()))
+            .Distinct()
+            .ToList();
 
         // Assert
         paths.Where(path => path.Contains(BRANDING_ROUTE, StringComparison.Ordinal))
@@ -67,6 +73,8 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
             .Should().BeEquivalentTo(
                 BRANDING_ROUTE, "/tenant-branding/versions", "/tenant-branding/published", "/tenant-branding/restore",
                 "/tenant-branding/rollback", "/tenant-branding/reset");
+        brandingTags.Should().Equal("Tenant-Branding");
+        paths.Should().Contain(path => path.EndsWith("/public/tenants/{slug}", StringComparison.Ordinal));
     }
 
     /// <summary>
