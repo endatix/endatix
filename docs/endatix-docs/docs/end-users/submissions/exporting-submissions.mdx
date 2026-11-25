@@ -182,7 +182,7 @@ A 0 can still appear for a choice the respondent did not see in two cases: a que
 
 A **Codebook (Shoji)** file is unchanged: Crunch.io imports an empty cell as No Data.
 
-**Older submissions keep their stored 0s.** Rows saved before Endatix 0.9.2 or 0.9.3 change only when an administrator with `forms.edit` refreshes them. A Hub rebuild without **Full recompile** skips unchanged submissions, so most forms need the API. See [Copied choices export empty cells](/docs/guides/upgrading/v0-9-2#copied-choices-export-empty-cells) for 0.9.2 and [Refresh stored rows](/docs/guides/upgrading/v0-9-3#refresh-stored-rows) for 0.9.3.
+**Older submissions keep their stored 0s.** Rows saved before Endatix 0.9.2 or 0.9.3 change only when an administrator with `forms.edit` refreshes them. A Hub rebuild without **Full recompile**, and the draft refresh before an **Incomplete** or **All** download, both skip unchanged submissions: to merge the schema and force a backfill, use the API. See [Copied choices export empty cells](/docs/guides/upgrading/v0-9-2#copied-choices-export-empty-cells) for 0.9.2 and [Refresh stored rows](/docs/guides/upgrading/v0-9-3#refresh-stored-rows) for 0.9.3.
 
 ## Important Considerations
 
