@@ -1,14 +1,14 @@
-using MediatR;
-using FastEndpoints;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.UseCases.FormTemplates.List;
-using Endatix.Api.Infrastructure;
 using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormTemplates;
+using Endatix.Core.UseCases.FormTemplates.List;
+using FastEndpoints;
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 

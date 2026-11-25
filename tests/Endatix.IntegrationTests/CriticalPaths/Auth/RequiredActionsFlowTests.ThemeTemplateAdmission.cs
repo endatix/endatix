@@ -53,6 +53,9 @@ public sealed partial class RequiredActionsFlowTests
         using var neighbor = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var own = await ManagedAsset.CreateAsync(owner, collection, ct);
         var other = await ManagedAsset.CreateAsync(neighbor, collection, ct);
+        var page = await owner.GetFromJsonAsync<JsonElement>(own.Path, ct);
+        Assert.Equal(1, page.GetProperty("totalRecords").GetInt32());
+        Assert.Equal(own.Id, Assert.Single(page.GetProperty("items").EnumerateArray()).GetProperty("id").GetString());
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
             .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));

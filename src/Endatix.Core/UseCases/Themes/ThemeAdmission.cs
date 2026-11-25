@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -39,9 +40,13 @@ internal sealed class ThemeAdmission(IRepository<Theme> themes, ManagedContentSc
 
     internal async Task<Result<ThemeJsonData?>> DataAsync(ThemeChange change, CancellationToken ct)
     {
-        if (!string.IsNullOrEmpty(change.Name) && await NameConflictAsync(change.Name, change.Id, ct) is { } conflict)
+        if (change.CheckName && await NameConflictAsync(change.Name!, change.Id, ct) is { } conflict)
         {
             return conflict.ToErrorResult<ThemeJsonData?>();
+        }
+        if (change.RequiresName)
+        {
+            Guard.Against.NullOrEmpty(change.Name, "name");
         }
         var data = change.Json is null ? null : ThemeJsonData.Create(change.Json);
         if (data is { IsSuccess: false })
@@ -55,7 +60,11 @@ internal sealed class ThemeAdmission(IRepository<Theme> themes, ManagedContentSc
         return Result<ThemeJsonData?>.Success(data?.Value);
     }
 
-    internal sealed record ThemeChange(long? Id, string? Name, string? Json);
+    internal sealed record ThemeChange(long? Id, string? Name, string? Json)
+    {
+        internal bool RequiresName { get; init; }
+        internal bool CheckName => RequiresName || !string.IsNullOrEmpty(Name);
+    }
     internal sealed record Edit(Theme Target, ThemeJsonData? Data);
 
     private async Task<Result<Theme>?> NameConflictAsync(string name, long? id, CancellationToken ct)

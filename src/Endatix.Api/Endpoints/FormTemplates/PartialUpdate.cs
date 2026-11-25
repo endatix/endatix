@@ -1,11 +1,11 @@
+using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -42,12 +42,14 @@ public class PartialUpdate(IMediator mediator)
             s.Responses[200] = "Form template updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form template not found.";
+            s.Responses[409] = "Items in locked folders cannot be moved or cleared.";
             s.DescribeStandingProblems();
         });
         Description(builder => builder.ProducesStandingProblems()
             .Produces<PartialUpdateFormTemplateResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict));
     }
 
     /// <inheritdoc/>

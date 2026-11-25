@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Themes.Delete;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.Themes.Delete;
-using Endatix.Api.Infrastructure;
 
 namespace Endatix.Api.Endpoints.Themes;
 

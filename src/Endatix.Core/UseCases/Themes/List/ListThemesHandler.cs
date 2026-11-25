@@ -32,7 +32,7 @@ public class ListThemesHandler(IRepository<Theme> themeRepository, ManagedConten
         count.InTenant(scope);
         var total = await themeRepository.CountAsync(count, cancellationToken);
         var page = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
-        IReadOnlyList<Theme> items = total == 0 ? [] : await ReadPageAsync(request, page, cancellationToken);
+        var items = total == 0 ? [] : await ReadPageAsync(request, page, cancellationToken);
         return Result.Success(page.ToPaged(items));
     }
 

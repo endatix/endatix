@@ -30,7 +30,7 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository, Mana
         count.InTenant(scope);
         var total = await repository.CountAsync(count, cancellationToken);
         var page = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
-        IReadOnlyList<FormTemplateDto> items = total == 0 ? [] : await ReadPageAsync(request, (page, filters), cancellationToken);
+        var items = total == 0 ? [] : await ReadPageAsync(request, (page, filters), cancellationToken);
         return Result.Success(page.ToPaged(items));
     }
 

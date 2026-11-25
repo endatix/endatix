@@ -1,11 +1,11 @@
+using System.Text.Json;
+using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Models.Themes;
 using Endatix.Core.UseCases.Themes.Update;
 using NSubstitute.ExceptionExtensions;
-using System.Text.Json;
-using Ardalis.Specification;
 
 namespace Endatix.Core.Tests.UseCases.Themes.Update;
 
@@ -18,6 +18,17 @@ public class UpdateThemeHandlerTests
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
         _handler = new UpdateThemeHandler(_themesRepository);
+    }
+
+    [Fact]
+    public async Task Handle_EmptyReplacementNameAndInvalidJson_PreservesNameGuardForDirectCaller()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _themesRepository.GetByIdAsync(1L, ct).Returns(new Theme(1, "Original"));
+
+        var act = () => _handler.Handle(new UpdateThemeCommand(1, "", themeData: "[]"), ct);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithParameterName("name");
     }
 
     [Fact]

@@ -27,7 +27,7 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository, ManagedCont
         Guard.Against.NegativeOrZero(request.ThemeId);
 
         var admission = new ThemeAdmission(themesRepository, scope);
-        var change = new ThemeAdmission.ThemeChange(request.ThemeId, request.Name, request.ThemeData);
+        var change = new ThemeAdmission.ThemeChange(request.ThemeId, request.Name, request.ThemeData) { RequiresName = true };
         var edit = await admission.PrepareEditAsync(change, cancellationToken);
         if (!edit.IsSuccess)
         {

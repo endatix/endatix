@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.FormTemplates.GetById;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.FormTemplates.GetById;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 

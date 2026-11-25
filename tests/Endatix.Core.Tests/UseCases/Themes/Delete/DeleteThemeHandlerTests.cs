@@ -7,9 +7,9 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Microsoft.Extensions.Logging;
 using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Themes.Delete;
+using Microsoft.Extensions.Logging;
 using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Core.Tests.UseCases.Themes.Delete;
