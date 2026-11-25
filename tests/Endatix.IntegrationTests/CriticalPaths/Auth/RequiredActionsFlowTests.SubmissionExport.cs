@@ -41,8 +41,8 @@ public sealed partial class RequiredActionsFlowTests
         await using var host = ReportingHostWithStanding(out var snapshots);
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-        var target = await SubmissionTarget.CreateAsync(admin, ct);
-        var route = $"{target.Collection}/export";
+        var form = await ExportPreparePermissionFlowTests.CreateFormWithSubmissionAsync(admin, ct);
+        var route = $"/api/forms/{form}/submissions/export";
         using var exporter = await RestrictedUserAsync(world, ct);
         var csv = new { exportFormat = "csv" };
         snapshots.ClearReceivedCalls();
@@ -62,7 +62,7 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
         Assert.Equal("attachment", download.Content.Headers.ContentDisposition?.DispositionType);
         Assert.Equal("text/csv", download.Content.Headers.ContentType?.MediaType);
-        Assert.Contains(target.Id, await download.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
+        Assert.Contains("export-fixture-answer", await download.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
         await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
         Assert.Null(refused.Content.Headers.ContentDisposition);
