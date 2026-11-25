@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
-using Ardalis.Specification;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -13,24 +13,16 @@ namespace Endatix.Core.UseCases.FormSettings.PartialUpdate;
 public sealed record ReadConflictingFormSettingsVersion(long FormId) : IQuery<long?>;
 
 internal sealed class ReadConflictingFormSettingsVersionHandler(
-    ITenantContext tenant, IRepository<Form> forms, IRepository<Entities.FormSettings> settings)
+    ITenantContext tenant, IRepository<Form> forms, IFormSettingsRepository settings)
     : IQueryHandler<ReadConflictingFormSettingsVersion, long?>
 {
     public async Task<long?> Handle(ReadConflictingFormSettingsVersion request, CancellationToken cancellationToken)
     {
-        if (tenant.TenantId <= 0 || !await forms.AnyAsync(new FormSpecifications.ByIdForTenant(request.FormId, tenant.TenantId), cancellationToken))
+        if (tenant.TenantId <= 0)
         {
             return null;
         }
-        return await settings.FirstOrDefaultAsync(new Version(request.FormId, tenant.TenantId), cancellationToken)
-            ?? Entities.FormSettings.UNSAVED_VERSION;
-    }
-
-    private sealed class Version : Specification<Entities.FormSettings, long?>
-    {
-        internal Version(long formId, long tenantId)
-        {
-            Query.Where(s => s.FormId == formId && s.TenantId == tenantId).Select(s => s.Version);
-        }
+        var form = await forms.SingleOrDefaultAsync(new FormSpecifications.ByIdForTenant(request.FormId, tenant.TenantId), cancellationToken);
+        return form is null ? null : (await settings.ReadAsync(form, cancellationToken)).Version;
     }
 }
