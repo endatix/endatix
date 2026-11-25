@@ -1,24 +1,20 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data.Querying;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Identity.Users;
 
 public sealed partial class AppUserService
 {
-    private readonly AccountStanding _standing = new();
+    private AccountStanding _standing = new();
 
-    /// <summary>Creates the user service with the host's scoped account standing.</summary>
-    public AppUserService(UserManager<AppUser> userManager, ITenantContext tenantContext,
-        AppIdentityDbContext identityDbContext, IEmailVerificationService emailVerificationService,
-        IUserContext userContext, IRelationalSubstringLikeFilter substringLikeFilter,
-        IAuthorizationCache authorizationCache, IRoleManagementService roleManagementService,
-        ILogger<AppUserService> logger, AccountStanding standing)
-        : this(userManager, tenantContext, identityDbContext, emailVerificationService, userContext,
-            substringLikeFilter, authorizationCache, roleManagementService, logger) => _standing = standing;
+    internal static AppUserService Create(IServiceProvider services)
+    {
+        var users = ActivatorUtilities.CreateInstance<AppUserService>(services);
+        users._standing = services.GetRequiredService<AccountStanding>();
+        return users;
+    }
 
     /// <inheritdoc />
     public Task<Result> LockoutUserAsync(long userId, CancellationToken cancellationToken = default) =>

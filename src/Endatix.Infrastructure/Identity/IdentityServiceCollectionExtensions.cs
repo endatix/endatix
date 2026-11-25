@@ -91,7 +91,7 @@ public static class IdentityServiceCollectionExtensions
     {
         // Register essential identity services
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserService, AppUserService>();
+        services.AddScoped<IUserService>(AppUserService.Create);
         services.AddScoped<IUserContext, UserContext>();
         services.AddSubmitterResolution(configuration);
 
