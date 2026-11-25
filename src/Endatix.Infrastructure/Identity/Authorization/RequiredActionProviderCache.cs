@@ -1,11 +1,9 @@
-using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
@@ -31,7 +29,6 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
         internal SemaphoreSlim Gate { get; } = new(1);
         internal Report? LastGood => Volatile.Read(ref _lastGood);
         internal DateTime RetryAt { get; private set; }
-        internal Task? Running { get; set; }
 
         internal void Forget(Report report) => Interlocked.CompareExchange(ref _lastGood, null, report);
 
@@ -102,56 +99,27 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
     }
 }
 
-internal sealed class RequiredActionExecution(IServiceScopeFactory scopes, ILogger<RequiredActionExecution> logger, IDateTimeProvider clock)
+internal sealed class RequiredActionExecution(RequiredActionInvocations invocations, ILogger<RequiredActionExecution> logger, IDateTimeProvider clock)
 {
     internal DateTime Now => clock.Now.UtcDateTime;
 
     internal async Task<RequiredActionProviderCache.Report> RefreshAsync(RequiredActionProviderCache.Slot slot,
         RequiredActionProviderCache.Query query, CancellationToken ct)
     {
-        if (slot.Running is { IsCompleted: false })
-        {
-            return slot.Failure(query.Policy, Now);
-        }
+        ct.ThrowIfCancellationRequested();
         try
         {
-            var actions = await ReadWithinBudgetAsync(slot, query, ct);
+            var actions = await invocations.TryReadAsync(query, ct);
+            ct.ThrowIfCancellationRequested();
             var now = Now;
-            return slot.Success(new(actions, now + query.Policy.CacheFor, now.AddMinutes(1)));
+            return actions is null ? slot.Failure(query.Policy, now)
+                : slot.Success(new(actions, now + query.Policy.CacheFor, now.AddMinutes(1)));
         }
-        catch (Exception error) when (!ct.IsCancellationRequested)
+        catch (Exception error)
         {
+            ct.ThrowIfCancellationRequested();
             logger.LogWarning(error, "Required action provider {Registration} failed; retrying in 15 seconds.", query.Index);
             return slot.Failure(query.Policy, Now);
         }
-    }
-
-    private async Task<IReadOnlyList<RequiredAction>> ReadWithinBudgetAsync(RequiredActionProviderCache.Slot slot,
-        RequiredActionProviderCache.Query query, CancellationToken ct)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var started = Stopwatch.GetTimestamp();
-        timeout.CancelAfter(query.Policy.Timeout);
-        var token = timeout.Token;
-        var work = Task.Run(() => InvokeAsync(query, token), token);
-        slot.Running = work;
-        // A provider that ignores cancellation still owns its scope and may fault after our waiter has returned.
-        _ = work.ContinueWith(t => _ = t.Exception, CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        var actions = await work.WaitAsync(token);
-        token.ThrowIfCancellationRequested();
-        if (Stopwatch.GetElapsedTime(started) >= query.Policy.Timeout)
-        {
-            throw new TimeoutException();
-        }
-        return actions;
-    }
-
-    private async Task<IReadOnlyList<RequiredAction>> InvokeAsync(RequiredActionProviderCache.Query query, CancellationToken token)
-    {
-        // Each concurrent call owns its scoped dependencies until it actually finishes, even past its timeout.
-        await using var scope = scopes.CreateAsyncScope();
-        var provider = scope.ServiceProvider.GetServices<IRequiredActionProvider>().ElementAt(query.Index);
-        return await provider.GetPendingAsync(query.Subject, token);
     }
 }

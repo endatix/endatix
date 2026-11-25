@@ -371,6 +371,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
         register(services);
         services.AddSingleton<RequiredActionProviderCache>();
         services.AddSingleton<RequiredActionExecution>();
+        services.AddSingleton<RequiredActionInvocations>();
         services.AddScoped<RequiredActionEvaluation>();
         var provider = services.BuildServiceProvider();
         _instances.Add(provider);
@@ -433,8 +434,9 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
     private sealed class FixedAccessVersionStore : IAccessVersionStore
     {
         internal Dictionary<long, Guid> TenantVersions { get; } = [];
+        internal Guid SystemVersion { get; set; } = _versions.System;
         public Task<AccessVersionKey> ReadAsync(long tenantId, CancellationToken cancellationToken) =>
-            Task.FromResult(TenantVersions.TryGetValue(tenantId, out var version) ? _versions with { Scope = version } : _versions);
+            Task.FromResult(_versions with { Scope = TenantVersions.GetValueOrDefault(tenantId, _versions.Scope), System = SystemVersion });
 
         public void Change(IReadOnlyCollection<long> tenantIds) => throw new NotSupportedException();
 

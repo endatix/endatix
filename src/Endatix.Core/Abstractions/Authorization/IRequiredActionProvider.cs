@@ -16,6 +16,8 @@ public sealed record RequiredActionSubject(string UserId, long TenantId, IReadOn
 /// An ambient tenant of zero is not isolation. If a mandatory provider cannot establish tenant standing,
 /// it must fail the check rather than return an empty list. Honor cancellation; the invocation scope is
 /// disposed when the provider finishes, and results arriving after its deadline are discarded.
+/// While an invocation or its cleanup is outstanding, the host will not start another for the same
+/// user, tenant and registration, even after a refresh. Other users and registrations can proceed.
 /// Keep DI factories, constructors and configuration properties local and free of I/O: the host needs
 /// the policy before it can enforce a timeout or decide how to handle an unavailable remote service.
 /// Perform remote checks only inside <see cref="GetPendingAsync"/>.</remarks>
