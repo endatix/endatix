@@ -1,12 +1,12 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Attributes;
+using Endatix.Core.UseCases.Submissions.Delete;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Submissions.Delete;
-using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Attributes;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -23,15 +23,20 @@ public class Delete(IMediator mediator) : Endpoint<DeleteSubmissionRequest, Resu
     {
         Delete("forms/{formId}/submissions/{submissionId}");
         Permissions(Actions.Submissions.Delete, Actions.Submissions.DeleteOwned);
+        PreProcessor<ManagedSubmissionStanding<DeleteSubmissionRequest>>();
         Summary(s =>
         {
             s.Summary = "Delete a submission";
             s.Description = "Deletes a submission.";
-            s.Responses[204] = "Submission deleted successfully.";
+            s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[503] = "Required action status is unavailable; try again.";
+            s.Responses[200] = "Submission deleted successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Submission not found.";
         });
         Description(builder => builder
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .Produces<string>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

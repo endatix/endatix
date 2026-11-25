@@ -5,6 +5,7 @@ using Endatix.Infrastructure.Utils;
 using FastEndpoints;
 using FluentValidation.Results;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Api.Endpoints.Submissions;
@@ -19,14 +20,19 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
     {
         Post("forms/{formId}/submissions/{submissionId}/files");
         Permissions(Actions.Submissions.View);
+        PreProcessor<ManagedSubmissionStanding<GetSubmissionFilesRequest>>();
         Summary(s =>
         {
             s.Summary = "Download files for a submission";
             s.Description = "Downloads use uploaded files for a given submission";
+            s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[503] = "Required action status is unavailable; try again.";
             s.Responses[200] = "The files were successfully downloaded";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Cannot download files";
         });
+        Description(builder => builder.Produces(200, contentType: "application/zip")
+            .ProducesProblem(400).ProducesProblem(403).Produces(404).ProducesProblem(503));
     }
 
     /// <inheritdoc/>

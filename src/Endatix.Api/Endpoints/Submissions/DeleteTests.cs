@@ -31,10 +31,10 @@ public class DeleteTests(IMediator mediator, ITenantContext tenantContext)
             s.ResponseExamples[200] = new DeleteTestSubmissionsResponse(12);
             s.Responses[200] = "The test submissions were deleted; deletedCount says how many.";
             s.Responses[400] = "Invalid input data.";
-            s.Responses[403] = "The caller lacks forms.test or submissions.delete.";
+            s.Responses[403] = "The caller lacks forms.test or submissions.delete, or an account action is required.";
             s.Responses[404] = "Form not found. A form deleted while its test submissions are being deleted may answer 404, " +
                 "or 200 with the count deleted before it.";
-            s.Responses[503] = "Other writes kept deleting the same test submissions, or a save lost a deadlock; " +
+            s.Responses[503] = "Standing is unavailable, other writes kept deleting the same test submissions, or a save lost a deadlock; " +
                 "try again shortly. The pages already deleted stay deleted.";
         });
         Description(builder => builder

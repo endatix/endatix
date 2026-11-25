@@ -1,6 +1,8 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.SetTest;
 using FastEndpoints;
 using FluentValidation;
@@ -22,6 +24,7 @@ public class SetTest(IMediator mediator, ITenantContext tenantContext) : Endpoin
         // submissions.edit too: marking a real submission as test hides it from exports and frees the person's link,
         // which forms.test alone, a permission for testers, must not allow.
         PermissionsAll(Actions.Forms.Test, Actions.Submissions.Edit);
+        PreProcessor<ManagedSubmissionStanding<SetSubmissionTestRequest>>();
         Summary(s =>
         {
             s.Summary = "Mark a submission as test or real";
@@ -32,12 +35,12 @@ public class SetTest(IMediator mediator, ITenantContext tenantContext) : Endpoin
             s.ExampleRequest = new SetSubmissionTestRequest { FormId = 1, SubmissionId = 2, IsTest = true };
             s.Responses[200] = "The submission was marked.";
             s.Responses[400] = "Invalid input data, or marking real a test submission opened as a person.";
-            s.Responses[403] = "The caller lacks forms.test or submissions.edit.";
+            s.Responses[403] = "The caller lacks forms.test or submissions.edit, or an account action is required.";
             s.Responses[404] = "Form or submission not found, or deleted while it was being marked.";
             s.Responses[409] =
                 "The person already has a real submission on this form, by submitter or through the same personalised link " +
                 "(errorCode submission_exists, submissionId).";
-            s.Responses[503] = "The save lost to a concurrent write; try again shortly.";
+            s.Responses[503] = "Standing is unavailable or the save lost to a concurrent write; try again shortly.";
         });
         Description(builder => builder
             .Produces<SubmissionModel>(StatusCodes.Status200OK, "application/json")
@@ -66,8 +69,11 @@ public class SetTest(IMediator mediator, ITenantContext tenantContext) : Endpoin
 /// <summary>
 /// Request to mark a submission as test or real.
 /// </summary>
-public sealed class SetSubmissionTestRequest
+public sealed class SetSubmissionTestRequest : IManagedSubmissionTarget
 {
+    Task<Result?> IManagedSubmissionTarget.CheckAsync(ManagedSubmissionAccess access, CancellationToken ct) =>
+        access.TestTargetAsync((FormId, SubmissionId), ct);
+
     /// <summary>The form the submission belongs to.</summary>
     public long FormId { get; init; }
 

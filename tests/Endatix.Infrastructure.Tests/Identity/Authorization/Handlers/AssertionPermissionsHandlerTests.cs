@@ -1,5 +1,5 @@
-using System.Security.Claims;
 using System.Reflection;
+using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
@@ -251,16 +251,9 @@ public sealed class AssertionPermissionsHandlerTests
         [
             new Claim(ClaimNames.UserId, "SubjectA")
         ], "test"));
-        Submitter submitter = Submitter.Create(
-            tenantId: 1,
-            authProvider: "Keycloak",
-            externalSubjectId: "subjecta",
-            displayId: null,
-            appUserId: null,
-            profileJson: null,
-            lastSeenAt: DateTimeOffset.UtcNow);
+        var submitter = new AssertionPermissionsHandler.SubmissionOwner(null, "subjecta");
 
-        var result = InvokeUserOwnsSubmitter(user, "not-an-app-user-id", submitter);
+        var result = submitter.Matches(user, "not-an-app-user-id");
 
         result.Should().BeFalse();
     }
@@ -272,16 +265,9 @@ public sealed class AssertionPermissionsHandlerTests
         [
             new Claim(ClaimNames.UserId, "SubjectA")
         ], "test"));
-        Submitter submitter = Submitter.Create(
-            tenantId: 1,
-            authProvider: "Keycloak",
-            externalSubjectId: "SubjectA",
-            displayId: null,
-            appUserId: null,
-            profileJson: null,
-            lastSeenAt: DateTimeOffset.UtcNow);
+        var submitter = new AssertionPermissionsHandler.SubmissionOwner(null, "SubjectA");
 
-        var result = InvokeUserOwnsSubmitter(user, "not-an-app-user-id", submitter);
+        var result = submitter.Matches(user, "not-an-app-user-id");
 
         result.Should().BeTrue();
     }
@@ -344,17 +330,6 @@ public sealed class AssertionPermissionsHandlerTests
         httpContext.GetEndpoint().Returns(endpoint);
 
         _httpContextAccessor.HttpContext.Returns(httpContext);
-    }
-
-    private static bool InvokeUserOwnsSubmitter(ClaimsPrincipal user, string userId, Submitter submitter)
-    {
-        var method = typeof(AssertionPermissionsHandler).GetMethod(
-            "UserOwnsSubmitter",
-            BindingFlags.NonPublic | BindingFlags.Static);
-
-        method.Should().NotBeNull();
-
-        return (bool)method!.Invoke(null, [user, userId, submitter])!;
     }
 
     private sealed class TestEndpointWithoutEntity : Endpoint<object, object>

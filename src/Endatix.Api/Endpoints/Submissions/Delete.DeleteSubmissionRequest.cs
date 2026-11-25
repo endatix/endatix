@@ -3,7 +3,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Request model for deleting a submission.
 /// </summary>
-public class DeleteSubmissionRequest
+public class DeleteSubmissionRequest : IManagedSubmissionTarget
 {
     /// <summary>
     /// The ID of the form.

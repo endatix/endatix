@@ -25,12 +25,16 @@ public class GetSubmissionAccess(
         {
             s.Summary = "Get submission management access";
             s.Description = "Gets permissions for authenticated backend management operations on forms and submissions.";
+            s.Responses[503] = "Required action status is unavailable; try again.";
             s.Responses[200] = "Permissions retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[401] = "Authentication required.";
-            s.Responses[403] = "Forbidden.";
+            s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[404] = "Form or submission not found.";
         });
         Description(builder => builder
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .Produces<GetSubmissionAccessResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -109,4 +113,3 @@ public record GetSubmissionAccessResponse(
     public static GetSubmissionAccessResponse FromCached(ICachedData<SubmissionAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
-

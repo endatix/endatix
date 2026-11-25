@@ -9,6 +9,7 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.DependencyInjection;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
 namespace Endatix.Infrastructure.Tests.Features.AccessControl;
@@ -54,6 +55,28 @@ public sealed class SubmissionAccessPolicyTests
     }
 
     [Fact]
+    public async Task GetAccessData_DormantRepeatedAuthorizedRequest_ReusesVisiblePermissions()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
+        var cache = services.GetRequiredService<HybridCache>();
+        var policy = new SubmissionAccessPolicy(_authorizationService, _submissionRepository, cache, _dateTimeProvider);
+        var now = DateTime.UtcNow;
+        _dateTimeProvider.Now.Returns(new DateTimeOffset(now));
+        var caller = AuthorizationData.ForAuthenticatedUser("reader", 1, [], [Actions.Access.Hub, Actions.Submissions.View], now, now.AddMinutes(5));
+        _authorizationService.GetAuthorizationDataAsync(ct).Returns(Result.Success(caller));
+        var target = new SubmissionAccessContext(10, 20);
+
+        var first = await policy.GetAccessData(target, ct);
+        var next = await policy.GetAccessData(target, ct);
+
+        Assert.True(first.IsSuccess && next.IsSuccess);
+        Assert.Equal(first.Value.ETag, next.Value.ETag);
+        await _authorizationService.Received(2).GetAuthorizationDataAsync(ct);
+        await _submissionRepository.Received(2).AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task GetAccessDataAsync_AdminUser_ReturnsEditAccess_AndCachesWithAuthTtlAndKey()
     {
         // Arrange
@@ -82,7 +105,7 @@ public sealed class SubmissionAccessPolicyTests
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
         var expectedExpiresAt = utcNow.Add(expectedTtl);
-        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
+        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:tenant:{tenantId}:user:{userId}:Edit";
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -130,7 +153,7 @@ public sealed class SubmissionAccessPolicyTests
             .Returns(Result.Success(authData));
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
-        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
+        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:tenant:{tenantId}:user:{userId}:View";
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -177,7 +200,7 @@ public sealed class SubmissionAccessPolicyTests
             .Returns(Result.Success(authData));
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
-        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
+        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:tenant:{tenantId}:user:{userId}:Edit";
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -301,4 +324,3 @@ public sealed class SubmissionAccessPolicyTests
             Arg.Any<CancellationToken>());
     }
 }
-

@@ -75,6 +75,7 @@ public static class MessagingConfiguration
         services.AddScoped<FolderAssignmentPolicy>();
         services.AddScoped<FolderWritePolicy>();
         services.AddScoped<ManagedFormContentAccess>();
+        services.AddScoped<ManagedSubmissionAccess>();
         services.AddScoped<SubmissionFormTheme>();
         services.AddScoped<TenantBrandingAccess>();
     }
