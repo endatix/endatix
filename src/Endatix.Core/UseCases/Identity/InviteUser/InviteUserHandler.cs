@@ -3,7 +3,6 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using MediatR;
 
 namespace Endatix.Core.UseCases.Identity.InviteUser;
 
@@ -14,9 +13,7 @@ public sealed class InviteUserHandler(
     IUserRegistrationService userRegistrationService,
     IRoleManagementService roleManagementService,
     ITenantContext tenantContext,
-    ICurrentUserAuthorizationService currentUserAuthorizationService,
-    AccountStanding standing,
-    ISender sender)
+    ICurrentUserAuthorizationService currentUserAuthorizationService)
     : ICommandHandler<InviteUserCommand, Result<User>>
 {
     /// <inheritdoc/>
@@ -42,22 +39,6 @@ public sealed class InviteUserHandler(
             }
         }
 
-        return await InviteRefusalAsync(request.Email, cancellationToken) ?? await RegisterAndAssignRolesAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<User>?> InviteRefusalAsync(string email, CancellationToken ct)
-    {
-        if (!standing.IsEnforced)
-        {
-            return null;
-        }
-
-        var eligible = await sender.Send(new CheckInviteTarget(email, tenantContext.TenantId), ct);
-        return eligible.IsSuccess ? await standing.RefusalAsync<User>(ct) : eligible.ToErrorResult<User>();
-    }
-
-    private async Task<Result<User>> RegisterAndAssignRolesAsync(InviteUserCommand request, CancellationToken cancellationToken)
-    {
         var registerResult = await userRegistrationService.RegisterInvitedUserAsync(
             request.Email,
             tenantContext.TenantId,
@@ -68,26 +49,24 @@ public sealed class InviteUserHandler(
             return registerResult;
         }
 
-        return await AssignRolesAsync(registerResult.Value, request.RoleNames, cancellationToken);
-    }
-
-    private async Task<Result<User>> AssignRolesAsync(User user, IReadOnlyList<string> roleNames, CancellationToken cancellationToken)
-    {
         var assignedRoleNames = new List<string>();
-        foreach (var roleName in roleNames)
+        foreach (var roleName in request.RoleNames)
         {
-            var assignResult = await roleManagementService.AssignRoleToUserAsync(user.Id, roleName, cancellationToken);
+            var assignResult = await roleManagementService.AssignRoleToUserAsync(
+                registerResult.Value.Id,
+                roleName,
+                cancellationToken);
 
             if (!assignResult.IsSuccess)
             {
-                await RollbackAssignedRolesAsync(user.Id, assignedRoleNames, cancellationToken);
+                await RollbackAssignedRolesAsync(registerResult.Value.Id, assignedRoleNames, cancellationToken);
                 return assignResult.ToErrorResult<User>();
             }
 
             assignedRoleNames.Add(roleName);
         }
 
-        return Result.Success(user);
+        return Result.Success(registerResult.Value);
     }
 
     private async Task RollbackAssignedRolesAsync(

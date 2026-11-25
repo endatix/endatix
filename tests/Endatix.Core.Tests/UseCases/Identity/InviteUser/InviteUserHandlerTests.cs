@@ -30,7 +30,7 @@ public class InviteUserHandlerTests
             _userRegistrationService,
             _roleManagementService,
             _tenantContext,
-            _currentUserAuthorizationService, new(), Substitute.For<MediatR.ISender>());
+            _currentUserAuthorizationService);
     }
 
     [Fact]
