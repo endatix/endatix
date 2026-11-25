@@ -51,7 +51,16 @@ internal static class ApiDocs
         MapScalar(routes, pagePath, documentPath);
         MapOldSwaggerUiBookmark(routes, pagePath);
         RedirectRootWhenPathFallsBack(app, routes, requestedPath);
-        Logger(app)?.LogInformation("Serving the API docs at {ApiDocsPage}", pagePath);
+        LogServing(app, pagePath);
+    }
+
+    private static void LogServing(IApplicationBuilder app, string pagePath)
+    {
+        var logger = Logger(app);
+        if (logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            logger.LogInformation("Serving the API docs at {ApiDocsPage}", pagePath);
+        }
     }
 
     /// <summary>
