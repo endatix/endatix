@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -13,8 +14,7 @@ namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
 /// </summary>
 public class UpdateStatusHandler(
     IRepository<Submission> submissionRepository,
-    ILogger<UpdateStatusHandler> logger
-) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
+    ILogger<UpdateStatusHandler> logger, ITenantContext tenant) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
 {
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Submission not found";
 
@@ -33,9 +33,9 @@ public class UpdateStatusHandler(
         UpdateStatusCommand command,
         CancellationToken cancellationToken)
     {
-        var submission = await submissionRepository.SingleOrDefaultAsync(
-            new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId),
-            cancellationToken);
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId);
+        spec.OnLiveForm(tenant);
+        var submission = await submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
         if (submission == null)
         {
             return Result<SubmissionDto>.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);

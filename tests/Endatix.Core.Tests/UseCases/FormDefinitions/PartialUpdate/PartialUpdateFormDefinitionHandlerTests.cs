@@ -3,6 +3,7 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests.TestUtils;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.FormDefinitions.PartialUpdate;
 using MediatR;
 
@@ -18,7 +19,7 @@ public class PartialUpdateFormDefinitionHandlerTests
     {
         _repository = Substitute.For<IRepository<FormDefinition>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new PartialUpdateFormDefinitionHandler(_repository, _mediator);
+        _handler = new PartialUpdateFormDefinitionHandler(_repository, _mediator, SampleData.Tenant);
     }
 
     [Fact]
@@ -27,8 +28,8 @@ public class PartialUpdateFormDefinitionHandlerTests
         // Arrange
         FormDefinition? notFoundFormDefinition = null;
         var request = new PartialUpdateFormDefinitionCommand(1, 1, null, null);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.FirstOrDefaultAsync(
+            Arg.Any<TenantContentQueries.ById<FormDefinition>>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(notFoundFormDefinition);
 
@@ -52,7 +53,7 @@ public class PartialUpdateFormDefinitionHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, jsonData: SampleData.FORM_DEFINITION_JSON_DATA_1);
         form.AddFormDefinition(formDefinition);
         var request = new PartialUpdateFormDefinitionCommand(nonExistingFormId, 1, null, null);
-        _repository.GetByIdAsync(request.DefinitionId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<FormDefinition>>(), Arg.Any<CancellationToken>())
                    .Returns(formDefinition);
 
         // Act
@@ -78,8 +79,8 @@ public class PartialUpdateFormDefinitionHandlerTests
 
         testForm.AddFormDefinition(formDefinition);
         var request = new PartialUpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.FirstOrDefaultAsync(
+            Arg.Any<TenantContentQueries.ById<FormDefinition>>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(formDefinition);
 
@@ -113,8 +114,8 @@ public class PartialUpdateFormDefinitionHandlerTests
            formDefinitionId: 2
        );
         var request = new PartialUpdateFormDefinitionCommand(1, 1, null, SampleData.FORM_DEFINITION_JSON_DATA_2);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.FirstOrDefaultAsync(
+            Arg.Any<TenantContentQueries.ById<FormDefinition>>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(formDefinition);
 

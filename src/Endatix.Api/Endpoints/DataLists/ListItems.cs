@@ -27,7 +27,6 @@ public sealed class ListItems(IMediator mediator)
     {
         Get("data-lists/{dataListId}/items");
         Permissions(Actions.Forms.View);
-        PreProcessor<ManagedDataListStanding<ListDataListItemsRequest>>();
         Summary(s =>
         {
             s.Summary = "List data list items";
@@ -79,7 +78,7 @@ public sealed class ListItems(IMediator mediator)
                 SortDescending: sort?.IsDescending ?? false,
                 Created: request.ToCreatedRange(),
                 Modified: request.ToModifiedRange()));
-        var result = await mediator.Send(query, ct);
+        var result = await mediator.Send(new SearchManagedDataListItems(query), ct);
         if (!result.IsSuccess)
         {
             return result.ToProblem();
@@ -93,7 +92,7 @@ public sealed class ListItems(IMediator mediator)
 /// <summary>
 /// Request to list/search data list items.
 /// </summary>
-public sealed class ListDataListItemsRequest : IManagedDataListTarget,
+public sealed class ListDataListItemsRequest :
     IPagedRequest,
     ISortableRequest<DataListItemListSortBy>,
     ICreatedRange,

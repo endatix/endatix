@@ -18,7 +18,7 @@ public class SetDataListDefaultLocaleHandlerTests
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _mediator = Substitute.For<IMediator>();
-        _sut = new SetDataListDefaultLocaleHandler(_repository, _mediator);
+        _sut = new SetDataListDefaultLocaleHandler(_repository, _mediator, SampleData.Tenant);
     }
 
     [Fact]

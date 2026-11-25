@@ -1,3 +1,5 @@
+using Ardalis.Specification;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -9,24 +11,19 @@ namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 
 public class ListByFormIdHandler(
     IRepository<Submission> submissionsRepository,
-    IRepository<FormDefinition> formDefinitionsRepository, ManagedSubmissionAccess? access
+    IRepository<Form> forms, ITenantContext tenant
     ) : IQueryHandler<ListByFormIdQuery, Result<Paged<SubmissionDto>>>
 {
-    /// <summary>Retains the form-definition existence check for direct callers. The managed HTTP route
-    /// uses <see cref="ManagedSubmissionAccess"/> to require a live parent form even when standing is dormant.</summary>
-    public ListByFormIdHandler(IRepository<Submission> submissionsRepository, IRepository<FormDefinition> formDefinitionsRepository)
-        : this(submissionsRepository, formDefinitionsRepository, null) { }
-
     public async Task<Result<Paged<SubmissionDto>>> Handle(ListByFormIdQuery request, CancellationToken cancellationToken)
     {
-        if (access is not null)
+        var id = tenant.TenantId;
+        if (id <= 0)
         {
-            if (await access.ListAsync(request.FormId, cancellationToken) is { } refusal)
-            {
-                return refusal;
-            }
+            return Result.NotFound("Form not found.");
         }
-        else if (!await formDefinitionsRepository.AnyAsync(new FormDefinitionsByFormIdSpec(request.FormId), cancellationToken))
+        var parent = new FormSpecifications.ByIdForTenant(request.FormId, id);
+        parent.Query.Where(f => f.FormDefinitions.Any(d => d.TenantId == id));
+        if (!await forms.AnyAsync(parent, cancellationToken))
         {
             return Result.NotFound("Form not found.");
         }
@@ -41,6 +38,7 @@ public class ListByFormIdHandler(
         var listFilter = new SubmissionsListFilter(request.SortBy, request.SortDescending, request.Created,
             request.Modified, request.Started, request.Completed);
         var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter);
+        totalCountSpec.OnLiveForm(tenant);
         var totalCount = await submissionsRepository.CountAsync(totalCountSpec, cancellationToken);
         var resolved = pagingParams.ForTotal(totalCount);
 
@@ -48,6 +46,7 @@ public class ListByFormIdHandler(
         if (totalCount > 0)
         {
             var pageSpec = new SubmissionsByFormIdSpec(request.FormId, new PagingParameters(resolved), filterParams, listFilter);
+            pageSpec.OnLiveForm(tenant);
             submissions = [.. await submissionsRepository.ListAsync(pageSpec, cancellationToken)];
         }
 

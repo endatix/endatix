@@ -33,7 +33,6 @@ public sealed class List(
     {
         Get("data-lists");
         Permissions(Actions.Forms.View);
-        PreProcessor<AuthorizedAccountStanding<DataListsListRequest>>();
         Summary(s =>
         {
             s.Summary = "List data lists";

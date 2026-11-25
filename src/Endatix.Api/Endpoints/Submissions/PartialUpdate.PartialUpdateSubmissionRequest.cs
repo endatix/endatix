@@ -3,10 +3,8 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Request model for partial update of a form submission.
 /// </summary>
-public class PartialUpdateSubmissionRequest : IManagedSubmissionTarget
+public class PartialUpdateSubmissionRequest
 {
-    string IManagedSubmissionTarget.MissingMessage => "Form submission not found.";
-
     /// <summary>
     /// The ID the submission that will be updated
     /// </summary>

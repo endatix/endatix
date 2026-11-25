@@ -23,7 +23,6 @@ public sealed class SetDefaultLocale(IMediator mediator)
     {
         Put("data-lists/{dataListId}/default-locale");
         Permissions(Actions.Forms.Edit);
-        PreProcessor<ManagedDataListStanding<SetDataListDefaultLocaleRequest>>();
         Summary(s =>
         {
             s.Summary = "Set the data list default locale";
@@ -87,7 +86,7 @@ public sealed class SetDataListDefaultLocaleValidator : Validator<SetDataListDef
 /// <summary>
 /// Request to set the default locale for a data list.
 /// </summary>
-public sealed class SetDataListDefaultLocaleRequest : IManagedDataListTarget
+public sealed class SetDataListDefaultLocaleRequest
 {
     /// <summary>
     /// The ID of the data list.

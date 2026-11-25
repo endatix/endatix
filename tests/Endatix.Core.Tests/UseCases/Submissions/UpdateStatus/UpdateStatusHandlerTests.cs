@@ -16,7 +16,7 @@ public class UpdateStatusHandlerTests
     public UpdateStatusHandlerTests()
     {
         _submissionRepository = Substitute.For<IRepository<Submission>>();
-        _handler = new UpdateStatusHandler(_submissionRepository, NullLogger<UpdateStatusHandler>.Instance);
+        _handler = new UpdateStatusHandler(_submissionRepository, NullLogger<UpdateStatusHandler>.Instance, SampleData.Tenant);
     }
 
     [Fact]

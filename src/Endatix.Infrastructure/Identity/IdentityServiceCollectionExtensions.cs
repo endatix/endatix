@@ -40,9 +40,7 @@ public static class IdentityServiceCollectionExtensions
     private static void AddFormManagementAccess(IServiceCollection services)
     {
         services.TryAddScoped<AccountStanding>();
-        services.AddScoped<FormPermissionCache>();
-        services.AddScoped(sp => new FormAccessPolicy(sp.GetRequiredService<ICurrentUserAuthorizationService>(),
-            sp.GetRequiredService<FormPermissionCache>(), sp.GetRequiredService<AccountStanding>()));
+        services.AddScoped<FormAccessPolicy>();
         services.AddScoped<IResourceAccessQuery<FormAccessData, FormAccessContext>>(sp => sp.GetRequiredService<FormAccessPolicy>());
     }
 

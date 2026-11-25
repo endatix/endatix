@@ -18,7 +18,7 @@ public sealed class UpdateDataListDetailsHandler(
     IRepository<DataList> repository,
     IValueNormalizer valueNormalizer,
     IUniqueConstraintViolationChecker uniqueConstraintViolationChecker,
-    IMediator mediator)
+    IMediator mediator, ITenantContext tenant)
     : ICommandHandler<UpdateDataListDetailsCommand, Result<DataListDto>>
 {
     public const string DuplicateNameErrorCode = CreateDataListHandler.DuplicateNameErrorCode;
@@ -28,7 +28,7 @@ public sealed class UpdateDataListDetailsHandler(
         UpdateDataListDetailsCommand request,
         CancellationToken cancellationToken)
     {
-        DataList? dataList = await repository.GetByIdAsync(request.DataListId, cancellationToken);
+        DataList? dataList = await repository.FindAsync(request.DataListId, tenant, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
@@ -60,7 +60,7 @@ public sealed class UpdateDataListDetailsHandler(
 
         if (!string.Equals(dataList.NormalizedName, normalizedName, StringComparison.Ordinal))
         {
-            var byNormalizedNameSpec = new DataListsSpecifications.ByNormalizedNameSpec(normalizedName);
+            var byNormalizedNameSpec = new DataListsSpecifications.ByNormalizedNameSpec(normalizedName, tenant.TenantId);
             DataList? existingDataList = await repository.SingleOrDefaultAsync(
                 byNormalizedNameSpec,
                 cancellationToken);
@@ -110,7 +110,7 @@ public sealed class UpdateDataListDetailsHandler(
         // `Items.Count` would read as 0 regardless of the list's actual item
         // count. Re-fetch via the same no-tracking, SQL-computed-count
         // projection GetDataListByIdHandler uses for `IncludeItems: false`.
-        var metadataSpec = new DataListsSpecifications.ByIdWithoutItemsToDtoSpec(dataList.Id);
+        var metadataSpec = new DataListsSpecifications.ByIdWithoutItemsToDtoSpec(dataList.Id, tenant.TenantId);
         DataListDto? metadata = await repository.FirstOrDefaultAsync(metadataSpec, cancellationToken);
 
         return Result.Success(metadata ?? DataListDtoMapper.FromEntity(dataList, includeItems: false));

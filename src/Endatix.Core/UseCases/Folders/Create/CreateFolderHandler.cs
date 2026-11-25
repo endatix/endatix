@@ -58,11 +58,6 @@ public sealed class CreateFolderHandler(
             return Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(baseSlug, nameof(CreateFolderCommand.Slug)));
         }
 
-        if (folderWritePolicy.Scope is { } scope && await scope.RefusalAsync<Folder>(cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
-
         return await CreateAsync(new Folder(
             tenantContext.TenantId,
             trimmedName,

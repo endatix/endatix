@@ -23,7 +23,6 @@ public sealed class PartialUpdate(IMediator mediator)
     {
         Patch("data-lists/{dataListId}");
         Permissions(Actions.Forms.Edit);
-        PreProcessor<ManagedDataListStanding<PartialUpdateDataListRequest>>();
         Summary(s =>
         {
             s.Summary = "Partially update a data list";
@@ -98,7 +97,7 @@ public sealed class PartialUpdateDataListValidator : Validator<PartialUpdateData
 /// <summary>
 /// Request to partially update a data list.
 /// </summary>
-public sealed class PartialUpdateDataListRequest : IManagedDataListTarget
+public sealed class PartialUpdateDataListRequest
 {
     /// <summary>
     /// The ID of the data list to update.

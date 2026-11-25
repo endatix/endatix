@@ -1,5 +1,6 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -13,11 +14,12 @@ namespace Endatix.Core.UseCases.Submissions.GetById;
 /// </summary>
 public class GetByIdHandler(
     IRepository<Submission> repository,
-    SubmissionFormTheme formTheme) : IQueryHandler<GetByIdQuery, Result<Submission>>
+    SubmissionFormTheme formTheme, ITenantContext tenant) : IQueryHandler<GetByIdQuery, Result<Submission>>
 {
     public async Task<Result<Submission>> Handle(GetByIdQuery request, CancellationToken cancellationToken)
     {
         var singleSubmissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, request.SubmissionId);
+        singleSubmissionSpec.OnLiveForm(tenant);
         var submission = await repository.SingleOrDefaultAsync(singleSubmissionSpec, cancellationToken);
 
         if (submission == null)

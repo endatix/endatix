@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
@@ -16,16 +17,9 @@ namespace Endatix.Core.UseCases.Themes.Delete;
 public class DeleteThemeHandler(IRepository<Theme> themeRepository,
     IRepository<Form> formRepository,
     IUnitOfWork unitOfWork,
-    ILogger<DeleteThemeHandler> logger, ManagedContentScope? scope)
+    ILogger<DeleteThemeHandler> logger, ITenantContext scope)
     : ICommandHandler<DeleteThemeCommand, Result<string>>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public DeleteThemeHandler(IRepository<Theme> themeRepository,
-        IRepository<Form> formRepository,
-        IUnitOfWork unitOfWork,
-        ILogger<DeleteThemeHandler> logger)
-        : this(themeRepository, formRepository, unitOfWork, logger, null) { }
-
     /// <summary>
     /// Handles the deletion of a theme with transaction support.
     /// </summary>
@@ -36,10 +30,6 @@ public class DeleteThemeHandler(IRepository<Theme> themeRepository,
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-        if (scope is not null && await scope.TargetRefusalAsync<Theme, string>(themeRepository, new(request.ThemeId, $"Theme with ID {request.ThemeId} not found"), cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
 
         return await DeleteAsync(request.ThemeId, cancellationToken);
     }

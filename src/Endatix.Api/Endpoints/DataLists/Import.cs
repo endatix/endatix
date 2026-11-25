@@ -32,7 +32,7 @@ public sealed class Import(IMediator mediator)
     {
         Put("data-lists/{dataListId}/import");
         Permissions(Actions.Forms.Edit);
-        Options(builder => builder.AddEndpointFilter<ImportStandingFilter>());
+        Options(builder => builder.AddEndpointFilter<ImportTargetFilter>());
         Summary(s =>
         {
             s.Summary = "Import data list items";

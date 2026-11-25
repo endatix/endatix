@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -14,31 +15,15 @@ namespace Endatix.Core.UseCases.FormDefinitions.GetFields;
 /// </summary>
 public partial class GetFormDefinitionFieldsHandler(IRepository<FormDefinition> formDefinitionsRepository,
     IFormsRepository formsRepository,
-    ILogger<GetFormDefinitionFieldsHandler> logger,
-    ManagedFormContentAccess? access) : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
+    ILogger<GetFormDefinitionFieldsHandler> logger, ITenantContext tenant) : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public GetFormDefinitionFieldsHandler(IRepository<FormDefinition> formDefinitionsRepository, IFormsRepository formsRepository, ILogger<GetFormDefinitionFieldsHandler> logger)
-        : this(formDefinitionsRepository, formsRepository, logger, null) { }
-
     ///  <inheritdoc/>
     public async Task<Result<IEnumerable<DefinitionFieldDto>>> Handle(
         GetFormDefinitionFieldsQuery request,
         CancellationToken cancellationToken)
     {
-        if (access is not null && await access.FormAsync<IEnumerable<DefinitionFieldDto>>(formsRepository, request.FormId, cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
-
-        return await ExecuteAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<IEnumerable<DefinitionFieldDto>>> ExecuteAsync(
-        GetFormDefinitionFieldsQuery request,
-        CancellationToken cancellationToken)
-    {
         var specification = new FormSpecifications.ByIdReadOnly(request.FormId);
+        specification.InTenant(tenant);
         var form = await formsRepository.SingleOrDefaultAsync(specification, cancellationToken);
 
         if (form is null)
@@ -47,53 +32,22 @@ public partial class GetFormDefinitionFieldsHandler(IRepository<FormDefinition> 
         }
 
         var spec = new FormDefinitionsByFormIdSpec(request.FormId);
+        spec.InTenant(tenant);
         var definitions = await formDefinitionsRepository.ListAsync(spec, cancellationToken);
 
-        if (definitions.Count == 0)
-        {
-            return Result.Success(Enumerable.Empty<DefinitionFieldDto>());
-        }
+        return Result.Success(Fields(definitions));
+    }
 
+    private IEnumerable<DefinitionFieldDto> Fields(IEnumerable<FormDefinition> definitions)
+    {
         var seen = new Dictionary<string, (string Title, string Type)>(StringComparer.OrdinalIgnoreCase);
 
         // Union of fields across all definitions; newest definition wins (first pass wins for a given name).
         foreach (var definition in definitions.OrderByDescending(d => d.CreatedAt))
         {
-            if (string.IsNullOrWhiteSpace(definition.JsonData))
-            {
-                continue;
-            }
-
             try
             {
-                using var doc = JsonDocument.Parse(definition.JsonData);
-                var root = doc.RootElement;
-                if (root.ValueKind != JsonValueKind.Object)
-                {
-                    continue;
-                }
-
-                if (!TryGetObjectProperty(root, "pages", out var pages) ||
-                    pages.ValueKind != JsonValueKind.Array)
-                {
-                    continue;
-                }
-
-                foreach (var page in pages.EnumerateArray())
-                {
-                    if (page.ValueKind != JsonValueKind.Object)
-                    {
-                        continue;
-                    }
-
-                    if (!TryGetObjectProperty(page, "elements", out var elements) ||
-                        elements.ValueKind != JsonValueKind.Array)
-                    {
-                        continue;
-                    }
-
-                    ExtractFields(elements, seen);
-                }
+                AddDefinitionFields(definition.JsonData, seen);
             }
             catch (JsonException ex)
             {
@@ -101,8 +55,24 @@ public partial class GetFormDefinitionFieldsHandler(IRepository<FormDefinition> 
             }
         }
 
-        var fields = seen.Select(kvp => new DefinitionFieldDto(kvp.Key, kvp.Value.Title, kvp.Value.Type));
-        return Result.Success(fields);
+        return seen.Select(kvp => new DefinitionFieldDto(kvp.Key, kvp.Value.Title, kvp.Value.Type));
+    }
+
+    private static void AddDefinitionFields(string? json, Dictionary<string, (string Title, string Type)> fields)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return;
+        }
+        using var doc = JsonDocument.Parse(json);
+        if (!TryGetObjectProperty(doc.RootElement, "pages", out var pages) || pages.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+        foreach (var page in pages.EnumerateArray())
+        {
+            TryExtractNestedElementArray(page, "elements", fields);
+        }
     }
 
     /// <summary>

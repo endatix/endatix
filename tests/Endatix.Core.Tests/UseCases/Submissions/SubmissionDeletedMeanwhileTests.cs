@@ -44,7 +44,7 @@ public class SubmissionDeletedMeanwhileTests
     public async Task PartialUpdateHandle_CompletingASubmissionDeletedMeanwhile_ReturnsNotFoundWithoutPublishing()
     {
         // Arrange
-        var handler = new PartialUpdateSubmissionHandler(_submissions, _versions, _mediator);
+        var handler = new PartialUpdateSubmissionHandler(_submissions, _versions, _mediator, SampleData.Tenant);
         var command = new PartialUpdateSubmissionCommand(SubmissionId, FormId, true, null, """{"q":"done"}""", null);
 
         // Act
@@ -59,7 +59,7 @@ public class SubmissionDeletedMeanwhileTests
     public async Task UpdateHandle_SubmissionDeletedMeanwhile_ReturnsNotFoundWithoutPublishing()
     {
         // Arrange
-        var handler = new UpdateSubmissionHandler(_submissions, _versions, _mediator);
+        var handler = new UpdateSubmissionHandler(_submissions, _versions, _mediator, SampleData.Tenant);
         var command = new UpdateSubmissionCommand(SubmissionId, FormId, true, 1, """{"q":"done"}""", null);
 
         // Act
@@ -74,7 +74,7 @@ public class SubmissionDeletedMeanwhileTests
     public async Task UpdateStatusHandle_SubmissionDeletedMeanwhile_ReturnsNotFound()
     {
         // Arrange
-        var handler = new UpdateStatusHandler(_submissions, NullLogger<UpdateStatusHandler>.Instance);
+        var handler = new UpdateStatusHandler(_submissions, NullLogger<UpdateStatusHandler>.Instance, SampleData.Tenant);
         var command = new UpdateStatusCommand(SubmissionId, FormId, SubmissionStatusCodes.Read);
 
         // Act
@@ -88,7 +88,7 @@ public class SubmissionDeletedMeanwhileTests
     public async Task DeleteHandle_SubmissionDeletedMeanwhile_ReturnsNotFound()
     {
         // Arrange
-        var handler = new DeleteSubmissionHandler(_submissions);
+        var handler = new DeleteSubmissionHandler(_submissions, SampleData.Tenant);
         var command = new DeleteSubmissionCommand(formId: FormId, submissionId: SubmissionId);
 
         // Act
@@ -104,7 +104,7 @@ public class SubmissionDeletedMeanwhileTests
         // Arrange
         _submissions.SaveChangesAsync(Arg.Any<CancellationToken>())
             .Returns<int>(_ => throw new DeadlockVictimException("deadlock"));
-        var handler = new UpdateStatusHandler(_submissions, NullLogger<UpdateStatusHandler>.Instance);
+        var handler = new UpdateStatusHandler(_submissions, NullLogger<UpdateStatusHandler>.Instance, SampleData.Tenant);
         var command = new UpdateStatusCommand(SubmissionId, FormId, SubmissionStatusCodes.Read);
 
         // Act
@@ -120,7 +120,7 @@ public class SubmissionDeletedMeanwhileTests
         // Arrange
         _submissions.SaveChangesAsync(Arg.Any<CancellationToken>())
             .Returns<int>(_ => throw new DeadlockVictimException("deadlock"));
-        var handler = new PartialUpdateSubmissionHandler(_submissions, _versions, _mediator);
+        var handler = new PartialUpdateSubmissionHandler(_submissions, _versions, _mediator, SampleData.Tenant);
         var command = new PartialUpdateSubmissionCommand(SubmissionId, FormId, true, null, """{"q":"done"}""", null);
 
         // Act

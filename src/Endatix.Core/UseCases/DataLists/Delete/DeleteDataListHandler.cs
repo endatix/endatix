@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Entities;
@@ -18,12 +19,12 @@ public sealed class DeleteDataListHandler(
     IRepository<DataList> repository,
     IDataListDependencyChecker dependencyChecker,
     IUnitOfWork unitOfWork,
-    IMediator mediator)
+    IMediator mediator, ITenantContext tenant)
     : ICommandHandler<DeleteDataListCommand, Result<DataList>>
 {
     public async Task<Result<DataList>> Handle(DeleteDataListCommand request, CancellationToken cancellationToken)
     {
-        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
+        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId, tenant.TenantId);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

@@ -20,7 +20,7 @@ public class GetSubmissionByIdHandlerTests
     public GetSubmissionByIdHandlerTests()
     {
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
-        _handler = new GetByIdHandler(_submissionsRepository, new SubmissionFormTheme(_formSettings, _themeRepository, _logger));
+        _handler = new GetByIdHandler(_submissionsRepository, new SubmissionFormTheme(_formSettings, _themeRepository, _logger), SampleData.Tenant);
     }
 
     [Fact]

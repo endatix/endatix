@@ -27,7 +27,6 @@ public class List(IMediator mediator)
     {
         Get("questions");
         Permissions(Actions.Questions.View);
-        PreProcessor<AuthorizedAccountStanding<CustomQuestionsListRequest>>();
         Summary(s =>
         {
             s.Summary = "List custom questions";

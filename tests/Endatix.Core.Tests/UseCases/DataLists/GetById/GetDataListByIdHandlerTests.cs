@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -16,7 +17,9 @@ public class GetDataListByIdHandlerTests
     public GetDataListByIdHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
-        _sut = new GetDataListByIdHandler(_repository);
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(SampleData.TENANT_ID);
+        _sut = new GetDataListByIdHandler(_repository, tenant);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
-﻿
+using Endatix.Core.Abstractions;
+
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Helpers;
@@ -13,7 +14,7 @@ namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a form submission.
 /// </summary>
-public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator) : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
+public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator, ITenantContext tenant) : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
 {
     private const int DEFAULT_CURRENT_PAGE = 0;
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
@@ -24,6 +25,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
+        submissionSpec.OnLiveForm(tenant);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         if (submission == null)
         {

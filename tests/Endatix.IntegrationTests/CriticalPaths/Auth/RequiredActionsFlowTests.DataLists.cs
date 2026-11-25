@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.FeatureFlows.DataLists;
@@ -14,6 +15,36 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    [Fact]
+    public async Task Admitted_and_dormant_data_list_reads_do_the_same_product_work()
+    {
+        var dormant = await ReadDataListAsync(false);
+        var admitted = await ReadDataListAsync(true);
+        Assert.True(dormant > 0);
+        Assert.Equal(dormant, admitted);
+    }
+
+    private async Task<int> ReadDataListAsync(bool enforce)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var commands = new DataListCommands();
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.ConfigureDbContext<AppDbContext>(commands.Observe);
+            if (enforce)
+            {
+                EnableStanding(services);
+            }
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var item = await CreateDataListAsync(owner, ct);
+        commands.ProductWork = 0;
+        var list = await owner.GetFromJsonAsync<JsonElement>(item, ct);
+        Assert.Equal("Fruit", list.GetProperty("name").GetString());
+        return commands.ProductWork;
+    }
+
     [Fact]
     public async Task Managed_data_lists_refuse_product_work_and_resume_export_after_clearance()
     {
@@ -86,6 +117,35 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Contains("bound-choice", search);
         Assert.Contains("Bound label", display);
         Assert.Empty(snapshots.ReceivedCalls());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Managed_search_checks_visibility_before_calling_the_search_repository(bool enforced)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var repository = Substitute.For<IDataListRepository>();
+        repository.SearchItemsAsync(Arg.Any<DataListSearchCriteria>(), Arg.Any<CancellationToken>())
+            .Returns(call => new DataListSearchPageResult(call.Arg<DataListSearchCriteria>().DataListId, 0, []));
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddScoped(_ => repository);
+            if (enforced)
+            {
+                EnableStanding(services);
+            }
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var first = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var second = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var local = await CreateDataListAsync(first, ct);
+        var foreign = await CreateDataListAsync(second, ct, "Vegetables");
+        using var ownSearch = await first.GetAsync($"{local}/items", ct);
+        using var foreignSearch = await first.GetAsync($"{foreign}/items", ct);
+        Assert.Equal(HttpStatusCode.OK, ownSearch.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, foreignSearch.StatusCode);
+        await repository.Received(1).SearchItemsAsync(Arg.Any<DataListSearchCriteria>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

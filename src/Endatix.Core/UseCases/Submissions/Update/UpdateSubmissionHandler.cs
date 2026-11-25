@@ -1,4 +1,5 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -11,7 +12,7 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <summary>
 /// Handler for updating a form submission.
 /// </summary>
-public class UpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
+public class UpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator, ITenantContext tenant) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
 {
     private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
@@ -24,6 +25,7 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
         var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
+        submissionSpec.OnLiveForm(tenant);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         var mustPublishEvent = false;
 
@@ -32,7 +34,8 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
-        if(!submission.IsComplete && (request.IsComplete ?? false)) {
+        if (!submission.IsComplete && (request.IsComplete ?? false))
+        {
             mustPublishEvent = true;
         }
 
@@ -62,7 +65,8 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
             return saved.ToErrorResult<Submission>();
         }
 
-        if(mustPublishEvent) {
+        if (mustPublishEvent)
+        {
             await mediator.PublishCompletedAsync(submission, cancellationToken);
         }
 

@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -16,29 +15,22 @@ public class UpdateFormHandler(
     IRepository<Form> repository,
     IRepository<Submission> submissionRepository,
     IMediator mediator,
-    FolderAssignmentPolicy folderAssignmentPolicy,
-    AccountStanding standing) : ICommandHandler<UpdateFormCommand, Result<Form>>
+    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<UpdateFormCommand, Result<Form>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public UpdateFormHandler(IRepository<Form> repository, IRepository<Submission> submissionRepository,
-        IMediator mediator, FolderAssignmentPolicy folderAssignmentPolicy)
-        : this(repository, submissionRepository, mediator, folderAssignmentPolicy, new AccountStanding()) { }
-
     /// <inheritdoc />
     public async Task<Result<Form>> Handle(UpdateFormCommand request, CancellationToken cancellationToken)
     {
-        var access = new ManagedFormEditAccess(repository, folderAssignmentPolicy, standing, submissionRepository);
-        return await access.RefusalAsync(request, cancellationToken) ?? await UpdateAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<Form>> UpdateAsync(UpdateFormCommand request, CancellationToken cancellationToken)
-    {
-        var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
+        var form = await repository.FirstOrDefaultAsync(new TenantContentQueries.ById<Form>(request.FormId, folderAssignmentPolicy.TenantId), cancellationToken);
         if (form is null)
         {
             return Result.NotFound("Form not found.");
         }
 
+        return await UpdateAsync(form, request, cancellationToken);
+    }
+
+    private async Task<Result<Form>> UpdateAsync(Form form, UpdateFormCommand request, CancellationToken cancellationToken)
+    {
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
         var gate = new SingleSubmissionGateChange(form.Id, form.TenantId, form.LimitOnePerUser, requestedLimitOnePerUser, form.IsPublic);
         if (await gate.ConflictAsync(submissionRepository, cancellationToken) is { } conflict)

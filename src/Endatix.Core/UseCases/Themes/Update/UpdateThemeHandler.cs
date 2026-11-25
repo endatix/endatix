@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -9,13 +10,9 @@ namespace Endatix.Core.UseCases.Themes.Update;
 /// <summary>
 /// Handler for updating a theme.
 /// </summary>
-public class UpdateThemeHandler(IRepository<Theme> themesRepository, ManagedContentScope? scope)
+public class UpdateThemeHandler(IRepository<Theme> themesRepository, ITenantContext scope)
     : ICommandHandler<UpdateThemeCommand, Result<Theme>>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public UpdateThemeHandler(IRepository<Theme> themesRepository)
-        : this(themesRepository, null) { }
-
     /// <summary>
     /// Handles the update of an existing theme.
     /// </summary>
@@ -26,9 +23,9 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository, ManagedCont
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-        var admission = new ThemeAdmission(themesRepository, scope);
-        var change = new ThemeAdmission.ThemeChange(request.ThemeId, request.Name, request.ThemeData) { RequiresName = true };
-        var edit = await admission.PrepareEditAsync(change, cancellationToken);
+        var changes = new ThemeChanges(themesRepository, scope);
+        var change = new ThemeChanges.ThemeChange(request.ThemeId, request.Name, request.ThemeData) { RequiresName = true };
+        var edit = await changes.PrepareEditAsync(change, cancellationToken);
         if (!edit.IsSuccess)
         {
             return edit.ToErrorResult<Theme>();

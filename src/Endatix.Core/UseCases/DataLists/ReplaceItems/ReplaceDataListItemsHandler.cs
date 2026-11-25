@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -17,13 +18,13 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 public sealed class ReplaceDataListItemsHandler(
     IRepository<DataList> repository,
     IMediator mediator,
-    ILogger<ReplaceDataListItemsHandler> logger)
+    ILogger<ReplaceDataListItemsHandler> logger, ITenantContext tenant)
     : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(ReplaceDataListItemsCommand request, CancellationToken cancellationToken)
     {
-        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
+        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId, tenant.TenantId);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

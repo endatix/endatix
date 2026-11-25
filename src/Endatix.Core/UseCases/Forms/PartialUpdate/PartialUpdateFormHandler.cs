@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -17,30 +16,23 @@ public class PartialUpdateFormHandler(
     IRepository<Theme> themeRepository,
     IRepository<Submission> submissionRepository,
     IMediator mediator,
-    FolderAssignmentPolicy folderAssignmentPolicy,
-    AccountStanding standing) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
+    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public PartialUpdateFormHandler(IRepository<Form> repository, IRepository<Theme> themeRepository,
-        IRepository<Submission> submissionRepository, IMediator mediator, FolderAssignmentPolicy folderAssignmentPolicy)
-        : this(repository, themeRepository, submissionRepository, mediator, folderAssignmentPolicy, new AccountStanding()) { }
-
     private const long DEFAULT_THEME_ID = 0; // ThemeId of 0 means clear the theme (set to default)
 
     public async Task<Result<Form>> Handle(PartialUpdateFormCommand request, CancellationToken cancellationToken)
     {
-        var access = new ManagedFormEditAccess(repository, folderAssignmentPolicy, standing, submissionRepository);
-        return await access.RefusalAsync(request, themeRepository, cancellationToken) ?? await UpdateAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<Form>> UpdateAsync(PartialUpdateFormCommand request, CancellationToken cancellationToken)
-    {
-        var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
-        if (form == null)
+        var form = await repository.FirstOrDefaultAsync(new TenantContentQueries.ById<Form>(request.FormId, folderAssignmentPolicy.TenantId), cancellationToken);
+        if (form is null)
         {
             return Result.NotFound("Form not found.");
         }
 
+        return await UpdateAsync(form, request, cancellationToken);
+    }
+
+    private async Task<Result<Form>> UpdateAsync(Form form, PartialUpdateFormCommand request, CancellationToken cancellationToken)
+    {
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
         var gate = new SingleSubmissionGateChange(form.Id, form.TenantId, form.LimitOnePerUser, requestedLimitOnePerUser, request.IsPublic ?? form.IsPublic);
         if (await gate.ConflictAsync(submissionRepository, cancellationToken) is { } conflict)
@@ -97,8 +89,8 @@ public class PartialUpdateFormHandler(
             form.SetTheme(null);
             return null;
         }
-        var theme = await themeRepository.GetByIdAsync(themeId.Value, cancellationToken);
-        if (theme == null)
+        var theme = await themeRepository.FirstOrDefaultAsync(new TenantContentQueries.ById<Theme>(themeId.Value, form.TenantId), cancellationToken);
+        if (theme is null)
         {
             return Result.NotFound("Form Theme not found.");
         }

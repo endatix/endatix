@@ -82,11 +82,9 @@ public static class MessagingConfiguration
     private static void AddUseCaseServices(IServiceCollection services)
     {
         services.AddScoped<FolderAssignmentPolicy>();
-        services.AddScoped<FolderWritePolicy>();
-        services.AddScoped<ManagedFormContentAccess>();
-        services.AddScoped<ManagedContentScope>();
-        services.AddScoped<ManagedDataListAccess>();
-        services.AddScoped<ManagedSubmissionAccess>();
+        services.AddScoped(sp => new FolderWritePolicy(sp.GetRequiredService<IRepository<Folder>>(),
+            sp.GetRequiredService<IValueNormalizer>(), sp.GetRequiredService<ITenantContext>()));
+        services.AddScoped<DataListVisibility>();
         services.AddScoped<SubmissionFormTheme>();
         services.AddScoped<TenantBrandingAccess>();
     }

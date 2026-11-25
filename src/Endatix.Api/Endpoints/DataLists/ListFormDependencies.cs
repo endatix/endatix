@@ -24,7 +24,6 @@ public sealed class ListFormDependencies(
     {
         Get("data-lists/{dataListId}/forms");
         Permissions(Actions.Forms.View);
-        PreProcessor<ManagedDataListStanding<ListFormDependenciesRequest>>();
         Summary(s =>
         {
             s.Summary = "List form dependencies for a data list";
@@ -69,7 +68,7 @@ public sealed class ListFormDependencies(
 /// <summary>
 /// Request to list form dependencies.
 /// </summary>
-public sealed class ListFormDependenciesRequest : IManagedDataListTarget
+public sealed class ListFormDependenciesRequest
 {
     /// <summary>
     /// The ID of the data list to list form dependencies for.

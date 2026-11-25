@@ -19,7 +19,7 @@ public class AddDataListLocaleHandlerTests
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _mediator = Substitute.For<IMediator>();
-        _sut = new AddDataListLocaleHandler(_repository, _mediator);
+        _sut = new AddDataListLocaleHandler(_repository, _mediator, SampleData.Tenant);
     }
 
     [Fact]

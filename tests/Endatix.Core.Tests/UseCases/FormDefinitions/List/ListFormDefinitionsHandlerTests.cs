@@ -14,7 +14,7 @@ public class ListFormDefinitionsHandlerTests
     public ListFormDefinitionsHandlerTests()
     {
         _repository = Substitute.For<IRepository<FormDefinition>>();
-        _handler = new ListFormDefinitionsHandler(_repository);
+        _handler = new ListFormDefinitionsHandler(_repository, SampleData.Tenant);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -7,12 +8,14 @@ using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Submissions.Delete;
 
-public class DeleteSubmissionHandler(IRepository<Submission> repository) : ICommandHandler<DeleteSubmissionCommand, Result<Submission>>
+/// <summary>Deletes a submission on its live parent form in the current tenant.</summary>
+public class DeleteSubmissionHandler(IRepository<Submission> repository, ITenantContext tenant) : ICommandHandler<DeleteSubmissionCommand, Result<Submission>>
 {
     public async Task<Result<Submission>> Handle(DeleteSubmissionCommand request, CancellationToken cancellationToken)
     {
         // A submission of a deleted form is not found, as for every other write.
         var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
+        spec.OnLiveForm(tenant);
         var submission = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (submission is null)
         {

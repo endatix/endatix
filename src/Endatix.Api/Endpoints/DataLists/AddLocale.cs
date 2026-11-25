@@ -23,7 +23,6 @@ public sealed class AddLocale(IMediator mediator)
     {
         Post("data-lists/{dataListId}/locales");
         Permissions(Actions.Forms.Edit);
-        PreProcessor<ManagedDataListStanding<AddDataListLocaleRequest>>();
         Summary(s =>
         {
             s.Summary = "Add a data list locale";
@@ -87,7 +86,7 @@ public sealed class AddDataListLocaleValidator : Validator<AddDataListLocaleRequ
 /// <summary>
 /// Request to add a locale to a data list catalog.
 /// </summary>
-public sealed class AddDataListLocaleRequest : IManagedDataListTarget
+public sealed class AddDataListLocaleRequest
 {
     /// <summary>
     /// The ID of the data list.

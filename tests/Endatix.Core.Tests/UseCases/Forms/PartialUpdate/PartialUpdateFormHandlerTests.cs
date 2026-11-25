@@ -1,3 +1,4 @@
+using Endatix.Core.UseCases;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -34,7 +35,7 @@ public class PartialUpdateFormHandlerTests
         // Arrange
         Form? notFoundForm = null;
         var request = new PartialUpdateFormCommand(1);
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(notFoundForm);
 
         // Act
@@ -53,7 +54,7 @@ public class PartialUpdateFormHandlerTests
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: "Test Form"));
         form.Id = 1;
         var request = new PartialUpdateFormCommand(1) { FolderId = 5 };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -81,7 +82,7 @@ public class PartialUpdateFormHandlerTests
             Description = SampleData.FORM_DESCRIPTION_2,
             IsEnabled = false
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -115,9 +116,9 @@ public class PartialUpdateFormHandlerTests
             ThemeId = 4
         };
         form.SetTheme(oldTheme);
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
-        _themeRepository.GetByIdAsync(request.ThemeId!.Value, Arg.Any<CancellationToken>())
+        _themeRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
                     .Returns(newTheme);
 
         // Act
@@ -149,7 +150,7 @@ public class PartialUpdateFormHandlerTests
             Description = SampleData.FORM_DESCRIPTION_2,
             IsEnabled = false
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -173,7 +174,7 @@ public class PartialUpdateFormHandlerTests
         {
             IsEnabled = false
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -210,7 +211,7 @@ public class PartialUpdateFormHandlerTests
         {
             WebHookSettingsJson = webHookJson
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -244,7 +245,7 @@ public class PartialUpdateFormHandlerTests
         {
             WebHookSettingsJson = ""
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -285,7 +286,7 @@ public class PartialUpdateFormHandlerTests
             IsEnabled = false,
             WebHookSettingsJson = webHookJson
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -328,7 +329,7 @@ public class PartialUpdateFormHandlerTests
         {
             Name = SampleData.FORM_NAME_2
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -368,7 +369,7 @@ public class PartialUpdateFormHandlerTests
         {
             WebHookSettingsJson = emptyJson
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -391,7 +392,7 @@ public class PartialUpdateFormHandlerTests
         {
             LimitOnePerUser = false
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
             .Returns(form);
 
         // Act
@@ -412,7 +413,7 @@ public class PartialUpdateFormHandlerTests
         {
             LimitOnePerUser = true
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
                 Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
@@ -437,7 +438,7 @@ public class PartialUpdateFormHandlerTests
         {
             LimitOnePerUser = true
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
                 Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
@@ -462,7 +463,7 @@ public class PartialUpdateFormHandlerTests
         {
             IsPublic = true
         };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
             .Returns(form);
 
         // Act
@@ -491,7 +492,7 @@ public class PartialUpdateFormHandlerTests
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 7));
         form.Id = 1;
         var request = new PartialUpdateFormCommand(1) { ClearFolderId = true };
-        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
+        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
             .Returns(form);
 
         // Act

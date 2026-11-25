@@ -15,7 +15,7 @@ public class ListThemesHandlerTests
     public ListThemesHandlerTests()
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
-        _handler = new ListThemesHandler(_themesRepository);
+        _handler = new ListThemesHandler(_themesRepository, SampleData.Tenant);
     }
 
     [Fact]

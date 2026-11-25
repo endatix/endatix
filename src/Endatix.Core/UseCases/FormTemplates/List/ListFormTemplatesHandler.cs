@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -9,20 +10,17 @@ using Endatix.Core.Specifications.Parameters;
 namespace Endatix.Core.UseCases.FormTemplates.List;
 
 /// <summary>Returns a page of templates for the current tenant.</summary>
-public class ListFormTemplatesHandler(IRepository<FormTemplate> repository, ManagedContentScope? scope)
+public class ListFormTemplatesHandler(IRepository<FormTemplate> repository, ITenantContext scope)
     : IQueryHandler<ListFormTemplatesQuery, Result<Paged<FormTemplateDto>>>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public ListFormTemplatesHandler(IRepository<FormTemplate> repository)
-        : this(repository, null) { }
-
     public async Task<Result<Paged<FormTemplateDto>>> Handle(
         ListFormTemplatesQuery request,
         CancellationToken cancellationToken)
     {
-        if (scope is not null && await scope.RefusalAsync<Paged<FormTemplateDto>>(cancellationToken) is { } refusal)
+
+        if (scope is { TenantId: <= 0 })
         {
-            return refusal;
+            return Result.Unauthorized("Tenant context is required.");
         }
 
         var filters = CreateFilterParameters(request.FilterExpressions, request.FolderId);

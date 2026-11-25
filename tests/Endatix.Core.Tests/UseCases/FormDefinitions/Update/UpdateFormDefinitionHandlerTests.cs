@@ -3,6 +3,7 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Tests.TestUtils;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.FormDefinitions.Update;
 using MediatR;
 
@@ -18,7 +19,7 @@ public class UpdateFormDefinitionHandlerTests
     {
         _repository = Substitute.For<IRepository<FormDefinition>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new UpdateFormDefinitionHandler(_repository, _mediator);
+        _handler = new UpdateFormDefinitionHandler(_repository, _mediator, SampleData.Tenant);
     }
 
     [Fact]
@@ -27,8 +28,8 @@ public class UpdateFormDefinitionHandlerTests
         // Arrange
         FormDefinition? notFoundFormDefinition = null;
         var request = new UpdateFormDefinitionCommand(1, 1, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.FirstOrDefaultAsync(
+            Arg.Any<TenantContentQueries.ById<FormDefinition>>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(notFoundFormDefinition);
 
@@ -58,8 +59,8 @@ public class UpdateFormDefinitionHandlerTests
         };
         form.AddFormDefinition(formDefinition);
 
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.FirstOrDefaultAsync(
+            Arg.Any<TenantContentQueries.ById<FormDefinition>>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(formDefinition);
 
@@ -85,8 +86,8 @@ public class UpdateFormDefinitionHandlerTests
         );
         form.AddFormDefinition(formDefinition);
         var request = new UpdateFormDefinitionCommand(1, 1, false, SampleData.FORM_DEFINITION_JSON_DATA_2);
-        _repository.GetByIdAsync(
-            request.DefinitionId,
+        _repository.FirstOrDefaultAsync(
+            Arg.Any<TenantContentQueries.ById<FormDefinition>>(),
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(formDefinition);
 

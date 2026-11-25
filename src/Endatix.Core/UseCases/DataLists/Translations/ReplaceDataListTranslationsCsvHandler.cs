@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -16,7 +17,7 @@ namespace Endatix.Core.UseCases.DataLists.Translations;
 public sealed class ReplaceDataListTranslationsCsvHandler(
     IRepository<DataList> repository,
     IMediator mediator,
-    ILogger<ReplaceDataListTranslationsCsvHandler> logger)
+    ILogger<ReplaceDataListTranslationsCsvHandler> logger, ITenantContext tenant)
     : ICommandHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
@@ -24,7 +25,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         ReplaceDataListTranslationsCsvCommand request,
         CancellationToken cancellationToken)
     {
-        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
+        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId, tenant.TenantId);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

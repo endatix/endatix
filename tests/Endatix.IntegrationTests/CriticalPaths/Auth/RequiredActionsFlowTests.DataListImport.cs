@@ -12,6 +12,32 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Managed_import_checks_target_visibility_before_reading_invalid_items(bool enforced)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            if (enforced)
+            {
+                EnableStanding(services);
+            }
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var visible = await CreateDataListAsync(owner, ct);
+        var foreign = await CreateDataListAsync(other, ct);
+        var server = Assert.IsType<TestServer>(host.Services.GetRequiredService<IServer>());
+        var upload = new ObservedImport(server, """{"format":"json"}""");
+
+        Assert.Equal((HttpStatusCode.NotFound, false), await upload.SendAsync(owner, foreign, ct));
+        Assert.Equal((HttpStatusCode.NotFound, false), await upload.SendAsync(owner, "/api/data-lists/9223372036854775807", ct));
+        Assert.Equal((HttpStatusCode.BadRequest, true), await upload.SendAsync(owner, visible, ct));
+    }
+
+    [Theory]
     [InlineData("""{"format":"csv","csv":"value,default\r\na,Apple\r\n"}""", HttpStatusCode.OK)]
     [InlineData("""{"format":"json","items":[{"value":"a","label":"Apple"}]}""", HttpStatusCode.OK)]
     [InlineData("""{"format":"json"}""", HttpStatusCode.BadRequest)]

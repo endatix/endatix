@@ -1,10 +1,11 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Infrastructure.Domain;
 
 namespace Endatix.Core.UseCases.Submissions.GetFiles;
 
@@ -14,20 +15,24 @@ public sealed class GetFilesHandler : IQueryHandler<GetFilesQuery, Result<GetFil
     private readonly IFormsRepository _formRepository;
     private readonly ISubmissionFileExtractor _fileExtractor;
 
+    private readonly ITenantContext _tenant;
+
     public GetFilesHandler(
         IRepository<Submission> submissionRepository,
         IFormsRepository formRepository,
-        ISubmissionFileExtractor fileExtractor
+        ISubmissionFileExtractor fileExtractor, ITenantContext tenant
     )
     {
         _submissionRepository = submissionRepository;
         _formRepository = formRepository;
         _fileExtractor = fileExtractor;
+        _tenant = tenant;
     }
 
     public async Task<Result<GetFilesResult>> Handle(GetFilesQuery request, CancellationToken cancellationToken)
     {
         var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
+        spec.OnLiveForm(_tenant);
         var submission = await _submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
         var form = await _formRepository.GetByIdAsync(request.FormId, cancellationToken);
 

@@ -14,13 +14,9 @@ namespace Endatix.Infrastructure.Features.AccessControl;
 public sealed class FormTemplateAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     HybridCache cache,
-    IDateTimeProvider dateTimeProvider, AccountStanding standing
+    IDateTimeProvider dateTimeProvider
 ) : IResourceAccessQuery<FormTemplateAccessData, FormTemplateAccessContext>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public FormTemplateAccessPolicy(ICurrentUserAuthorizationService authorizationService, HybridCache cache, IDateTimeProvider dateTimeProvider)
-        : this(authorizationService, cache, dateTimeProvider, new AccountStanding()) { }
-
     public async Task<Result<ICachedData<FormTemplateAccessData>>> GetAccessData(
         FormTemplateAccessContext context,
         CancellationToken cancellationToken)
@@ -37,8 +33,7 @@ public sealed class FormTemplateAccessPolicy(
         {
             return access.ToErrorResult<ICachedData<FormTemplateAccessData>>();
         }
-        return standing.Refusal<ICachedData<FormTemplateAccessData>>(authData)
-            ?? await ReadAsync(new Grant(context.TemplateId, authData, access.Value), cancellationToken);
+        return await ReadAsync(new Grant(context.TemplateId, authData, access.Value), cancellationToken);
     }
 
     private async Task<Result<ICachedData<FormTemplateAccessData>>> ReadAsync(Grant grant, CancellationToken ct)

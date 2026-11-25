@@ -1,4 +1,5 @@
 using Ardalis.Specification;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -11,14 +12,16 @@ namespace Endatix.Core.Tests.UseCases.Submissions.ListByFormId;
 public class ListByFormIdHandlerTests
 {
     private readonly IRepository<Submission> _submissionsRepository;
-    private readonly IRepository<FormDefinition> _formDefinitionsRepository;
+    private readonly IRepository<Form> _forms;
     private readonly ListByFormIdHandler _handler;
 
     public ListByFormIdHandlerTests()
     {
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
-        _formDefinitionsRepository = Substitute.For<IRepository<FormDefinition>>();
-        _handler = new ListByFormIdHandler(_submissionsRepository, _formDefinitionsRepository);
+        _forms = Substitute.For<IRepository<Form>>();
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(SampleData.TENANT_ID);
+        _handler = new ListByFormIdHandler(_submissionsRepository, _forms, tenant);
     }
 
     [Fact]
@@ -26,7 +29,7 @@ public class ListByFormIdHandlerTests
     {
         // Arrange
         var request = new ListByFormIdQuery(1, 1, 10);
-        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         // Act
@@ -52,7 +55,7 @@ public class ListByFormIdHandlerTests
         };
         var request = new ListByFormIdQuery(1, 1, 10, []);
 
-        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _submissionsRepository.ListAsync(
             Arg.Any<ISpecification<Submission, SubmissionDto>>(),
@@ -88,7 +91,7 @@ public class ListByFormIdHandlerTests
         var formDefinition = new FormDefinition(SampleData.TENANT_ID) { Id = 1 };
         var request = new ListByFormIdQuery(1, 2, 20, []);
 
-        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _submissionsRepository.CountAsync(
             Arg.Any<ISpecification<Submission>>(),
@@ -120,7 +123,7 @@ public class ListByFormIdHandlerTests
         // Arrange
         var request = new ListByFormIdQuery(1, page, 10, []);
 
-        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
             .Returns(true);
         _submissionsRepository.CountAsync(Arg.Any<ISpecification<Submission>>(), Arg.Any<CancellationToken>())
             .Returns(25);
@@ -144,7 +147,7 @@ public class ListByFormIdHandlerTests
         // Arrange
         var request = new ListByFormIdQuery(1, 4, 10, []);
 
-        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         // Act
@@ -164,7 +167,7 @@ public class ListByFormIdHandlerTests
         // Arrange
         var request = new ListByFormIdQuery(1, 2, 20, ["isComplete:true"]);
 
-        _formDefinitionsRepository.AnyAsync(Arg.Any<FormDefinitionsByFormIdSpec>(), Arg.Any<CancellationToken>())
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
         // Act

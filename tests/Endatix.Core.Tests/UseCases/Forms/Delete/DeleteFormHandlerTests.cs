@@ -27,30 +27,9 @@ public class DeleteFormHandlerTests
         var formSubmissionsLock = new FormSubmissionsLockStub();
         _formSubmissionsLock = formSubmissionsLock.Lock;
         _section = formSubmissionsLock.Section;
-        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>()).Returns(true);
+        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>()).Returns(true);
         _mediator = Substitute.For<IMediator>();
-        _handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator);
-    }
-
-    [Fact]
-    public async Task Handle_StandingUnavailable_DoesNotTakeTheLockOrPublish()
-    {
-        // Arrange
-        var ct = TestContext.Current.CancellationToken;
-        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(ct).Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        var tenant = Substitute.For<ITenantContext>();
-        tenant.TenantId.Returns(SampleData.TENANT_ID);
-        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), ct).Returns(true);
-        var handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator, new AccountStanding(snapshots), tenant);
-
-        // Act
-        var result = await handler.Handle(new DeleteFormCommand(1), ct);
-
-        // Assert
-        result.Status.Should().Be(ResultStatus.Unavailable);
-        await _formSubmissionsLock.DidNotReceive().BeginDeletingAsync(Arg.Any<long>(), ct);
-        _mediator.ReceivedCalls().Should().BeEmpty();
+        _handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator, SampleData.Tenant);
     }
 
     [Fact]
@@ -58,7 +37,7 @@ public class DeleteFormHandlerTests
     {
         // Arrange
         var request = new DeleteFormCommand(1);
-        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>()).Returns(false);
+        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

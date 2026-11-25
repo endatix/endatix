@@ -25,7 +25,7 @@ public class PartialUpdateActiveFormDefinitionHandlerTests
         _handler = new PartialUpdateActiveFormDefinitionHandler(
             _formRepository,
             _submissionsRepository,
-            _mediator);
+            _mediator, SampleData.Tenant);
     }
 
     [Fact]

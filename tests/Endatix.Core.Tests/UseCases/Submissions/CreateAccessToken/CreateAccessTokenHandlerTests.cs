@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -21,7 +22,9 @@ public class CreateAccessTokenHandlerTests
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
-        _handler = new CreateAccessTokenHandler(_submissionRepository, _tokenService, _authorizationService);
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(SampleData.TENANT_ID);
+        _handler = new CreateAccessTokenHandler(_submissionRepository, _tokenService, _authorizationService, tenant);
     }
 
     [Fact]
@@ -34,7 +37,6 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "view", "edit" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
         var tokenDto = new SubmissionAccessTokenDto(
             "token123",
             DateTime.UtcNow.AddMinutes(expiryMinutes),
@@ -44,8 +46,8 @@ public class CreateAccessTokenHandlerTests
             .Returns(Result.Success());
         _authorizationService.ValidateAccessAsync("submissions.edit", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
-            .Returns(submission);
+        _submissionRepository.AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         _tokenService.GenerateAccessToken(submissionId, expiryMinutes, permissions)
             .Returns(Result.Success(tokenDto));
 
@@ -60,7 +62,7 @@ public class CreateAccessTokenHandlerTests
 
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>());
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.edit", Arg.Any<CancellationToken>());
-        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.Received(1).AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
         _tokenService.Received(1).GenerateAccessToken(submissionId, expiryMinutes, permissions);
     }
 
@@ -86,7 +88,7 @@ public class CreateAccessTokenHandlerTests
 
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>());
         await _authorizationService.DidNotReceive().ValidateAccessAsync("submissions.edit", Arg.Any<CancellationToken>());
-        await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.DidNotReceive().AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
         _tokenService.DidNotReceive().GenerateAccessToken(Arg.Any<long>(), Arg.Any<int>(), Arg.Any<IEnumerable<string>>());
     }
 
@@ -114,7 +116,7 @@ public class CreateAccessTokenHandlerTests
 
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>());
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.edit", Arg.Any<CancellationToken>());
-        await _submissionRepository.DidNotReceive().SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.DidNotReceive().AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
         _tokenService.DidNotReceive().GenerateAccessToken(Arg.Any<long>(), Arg.Any<int>(), Arg.Any<IEnumerable<string>>());
     }
 
@@ -130,8 +132,8 @@ public class CreateAccessTokenHandlerTests
 
         _authorizationService.ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
-            .Returns((Submission?)null);
+        _submissionRepository.AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(false);
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -142,7 +144,7 @@ public class CreateAccessTokenHandlerTests
         result.Errors.Should().Contain("Submission not found");
 
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>());
-        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.Received(1).AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
         _tokenService.DidNotReceive().GenerateAccessToken(Arg.Any<long>(), Arg.Any<int>(), Arg.Any<IEnumerable<string>>());
     }
 
@@ -156,12 +158,11 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "view" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
 
         _authorizationService.ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
-            .Returns(submission);
+        _submissionRepository.AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         _tokenService.GenerateAccessToken(submissionId, expiryMinutes, permissions)
             .Returns(Result<SubmissionAccessTokenDto>.Invalid(new ValidationError { ErrorMessage = "Invalid permission" }));
 
@@ -173,7 +174,7 @@ public class CreateAccessTokenHandlerTests
         result.Status.Should().Be(ResultStatus.Invalid);
 
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>());
-        await _submissionRepository.Received(1).SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.Received(1).AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
         _tokenService.Received(1).GenerateAccessToken(submissionId, expiryMinutes, permissions);
     }
 
@@ -187,13 +188,12 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "export" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
         var tokenDto = new SubmissionAccessTokenDto("token", DateTime.UtcNow.AddMinutes(expiryMinutes), permissions);
 
         _authorizationService.ValidateAccessAsync("submissions.export", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
-            .Returns(submission);
+        _submissionRepository.AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         _tokenService.GenerateAccessToken(submissionId, expiryMinutes, permissions)
             .Returns(Result.Success(tokenDto));
 
@@ -218,13 +218,12 @@ public class CreateAccessTokenHandlerTests
         var permissions = new[] { "view", "edit", "export" };
         var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
 
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
         var tokenDto = new SubmissionAccessTokenDto("token", DateTime.UtcNow.AddMinutes(expiryMinutes), permissions);
 
         _authorizationService.ValidateAccessAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
-            .Returns(submission);
+        _submissionRepository.AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         _tokenService.GenerateAccessToken(submissionId, expiryMinutes, permissions)
             .Returns(Result.Success(tokenDto));
 
@@ -237,37 +236,5 @@ public class CreateAccessTokenHandlerTests
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>());
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.edit", Arg.Any<CancellationToken>());
         await _authorizationService.Received(1).ValidateAccessAsync("submissions.export", Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Handle_UsesCorrectSpecificationForSubmissionLookup()
-    {
-        // Arrange
-        var formId = 123L;
-        var submissionId = 456L;
-        var expiryMinutes = 60;
-        var permissions = new[] { "view" };
-        var command = new CreateAccessTokenCommand(formId, submissionId, expiryMinutes, permissions);
-
-        var submission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: "{}"));
-        var tokenDto = new SubmissionAccessTokenDto("token", DateTime.UtcNow.AddMinutes(expiryMinutes), permissions);
-
-        _authorizationService.ValidateAccessAsync("submissions.view", Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionSpec>(), Arg.Any<CancellationToken>())
-            .Returns(submission);
-        _tokenService.GenerateAccessToken(submissionId, expiryMinutes, permissions)
-            .Returns(Result.Success(tokenDto));
-
-        // Act
-        var result = await _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        result.IsSuccess.Should().BeTrue();
-
-        await _submissionRepository.Received(1).SingleOrDefaultAsync(
-            Arg.Is<SubmissionWithDefinitionSpec>(spec =>
-                spec != null),
-            Arg.Any<CancellationToken>());
     }
 }

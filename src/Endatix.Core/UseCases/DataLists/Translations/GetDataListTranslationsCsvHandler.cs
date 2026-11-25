@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -10,7 +11,7 @@ namespace Endatix.Core.UseCases.DataLists.Translations;
 /// <summary>
 /// Handler exporting a data list to a SurveyJS-compatible translations CSV.
 /// </summary>
-public sealed class GetDataListTranslationsCsvHandler(IRepository<DataList> repository)
+public sealed class GetDataListTranslationsCsvHandler(IRepository<DataList> repository, ITenantContext tenant)
     : IQueryHandler<GetDataListTranslationsCsvQuery, Result<DataListTranslationsCsvDto>>
 {
     /// <inheritdoc />
@@ -18,7 +19,7 @@ public sealed class GetDataListTranslationsCsvHandler(IRepository<DataList> repo
         GetDataListTranslationsCsvQuery request,
         CancellationToken cancellationToken)
     {
-        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
+        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId, tenant.TenantId);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

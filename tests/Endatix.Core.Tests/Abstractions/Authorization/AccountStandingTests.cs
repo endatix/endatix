@@ -10,14 +10,18 @@ public sealed class AccountStandingTests
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(AuthorizationData.ANONYMOUS_USER_ID)]
-    public void Refusal_SnapshotWithoutAnAccount_IsUnavailable(string subject)
+    public async Task RefusalAsync_SnapshotWithoutAnAccount_IsUnavailable(string subject)
     {
         // Arrange
-        var standing = new AccountStanding(Substitute.For<ICurrentUserAuthorizationService>());
+        var authorization = Substitute.For<ICurrentUserAuthorizationService>();
+        var standing = new AccountStanding(authorization);
         var snapshot = new AuthorizationData { UserId = subject };
 
+        var ct = TestContext.Current.CancellationToken;
+        authorization.GetAuthorizationDataAsync(ct).Returns(Result.Success(snapshot));
+
         // Act
-        var refusal = standing.Refusal<string>(snapshot);
+        var refusal = await standing.RefusalAsync<string>(ct);
 
         // Assert
         Assert.Equal(ResultStatus.Unavailable, refusal?.Status);

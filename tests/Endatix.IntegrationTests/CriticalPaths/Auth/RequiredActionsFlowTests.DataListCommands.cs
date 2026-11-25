@@ -20,8 +20,7 @@ public sealed partial class RequiredActionsFlowTests
             {
                 FormWork++;
             }
-            if (sql.Contains("DataList", StringComparison.OrdinalIgnoreCase)
-                && !sql.Contains("-- Managed data list visibility", StringComparison.Ordinal))
+            if (sql.Contains("DataList", StringComparison.OrdinalIgnoreCase))
             {
                 ProductWork++;
             }

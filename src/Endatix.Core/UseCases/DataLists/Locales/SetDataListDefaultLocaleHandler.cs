@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -14,13 +15,13 @@ namespace Endatix.Core.UseCases.DataLists.Locales;
 /// </summary>
 public sealed class SetDataListDefaultLocaleHandler(
     IRepository<DataList> repository,
-    IMediator mediator)
+    IMediator mediator, ITenantContext tenant)
     : ICommandHandler<SetDataListDefaultLocaleCommand, Result<DataListDto>>
 {
     /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(SetDataListDefaultLocaleCommand request, CancellationToken cancellationToken)
     {
-        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId);
+        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId, tenant.TenantId);
         var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (dataList is null)
         {

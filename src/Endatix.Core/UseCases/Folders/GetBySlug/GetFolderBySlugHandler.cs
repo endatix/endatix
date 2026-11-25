@@ -11,13 +11,9 @@ namespace Endatix.Core.UseCases.Folders.GetBySlug;
 /// <summary>
 /// Handler for getting a folder by slug
 /// </summary>
-public sealed class GetFolderBySlugHandler(IRepository<Folder> repository, ITenantContext tenantContext, ManagedContentScope? scope)
+public sealed class GetFolderBySlugHandler(IRepository<Folder> repository, ITenantContext tenantContext)
     : IQueryHandler<GetFolderBySlugQuery, Result<FolderDto>>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public GetFolderBySlugHandler(IRepository<Folder> repository, ITenantContext tenantContext)
-        : this(repository, tenantContext, null) { }
-
     /// <inheritdoc/>
     public async Task<Result<FolderDto>> Handle(GetFolderBySlugQuery request, CancellationToken cancellationToken)
     {
@@ -25,18 +21,7 @@ public sealed class GetFolderBySlugHandler(IRepository<Folder> repository, ITena
         Guard.Against.NullOrWhiteSpace(request.Slug);
 
         var spec = new FolderSpecifications.FolderBySlugSpec(request.Slug);
-        spec.InTenant(scope);
-        if (scope is { IsEnforced: true })
-        {
-            if (!await repository.AnyAsync(spec, cancellationToken))
-            {
-                return Result.NotFound("Folder not found.");
-            }
-            if (await scope.RefusalAsync<FolderDto>(cancellationToken) is { } refusal)
-            {
-                return refusal;
-            }
-        }
+        spec.InTenant(tenantContext);
         return await ReadAsync(spec, cancellationToken);
     }
 

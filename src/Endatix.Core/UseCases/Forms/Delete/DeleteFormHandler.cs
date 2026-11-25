@@ -21,12 +21,8 @@ public class DeleteFormHandler(
     IFormsRepository forms,
     IFormSubmissionsLock formSubmissionsLock,
     IMediator mediator,
-    AccountStanding standing, ITenantContext? tenant) : ICommandHandler<DeleteFormCommand, Result<Form>>
+    ITenantContext tenant) : ICommandHandler<DeleteFormCommand, Result<Form>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public DeleteFormHandler(IFormsRepository forms, IFormSubmissionsLock formSubmissionsLock, IMediator mediator)
-        : this(forms, formSubmissionsLock, mediator, new AccountStanding(), null) { }
-
     private const string FORM_NOT_FOUND_MESSAGE = "Form not found.";
     private const string BUSY_MESSAGE = "The form is busy; try again shortly.";
 
@@ -39,15 +35,11 @@ public class DeleteFormHandler(
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
 
-        return await standing.RefusalAsync<Form>(cancellationToken) ?? await DeleteAsync(request.FormId, cancellationToken);
+        return await DeleteAsync(request.FormId, cancellationToken);
     }
 
     private Task<bool> IsVisibleAsync(long id, CancellationToken ct)
     {
-        if (!standing.IsEnforced)
-        {
-            return forms.AnyAsync(new FormSpecifications.ByIdReadOnly(id), ct);
-        }
         return tenant is { TenantId: > 0 }
             ? forms.AnyAsync(new FormSpecifications.ByIdForTenant(id, tenant.TenantId), ct)
             : Task.FromResult(false);
@@ -99,7 +91,9 @@ public class DeleteFormHandler(
         IFormSubmissionsSection section,
         CancellationToken cancellationToken)
     {
-        var form = await forms.SingleOrDefaultAsync(new FormWithDefinitionsSpec(formId), cancellationToken);
+        var spec = new FormWithDefinitionsSpec(formId);
+        spec.InTenant(tenant);
+        var form = await forms.SingleOrDefaultAsync(spec, cancellationToken);
         if (form is null)
         {
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
