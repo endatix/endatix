@@ -73,7 +73,7 @@ public sealed class SubmissionAccessPolicyTests
         Assert.True(first.IsSuccess && next.IsSuccess);
         Assert.Equal(first.Value.ETag, next.Value.ETag);
         await _authorizationService.Received(2).GetAuthorizationDataAsync(ct);
-        await _submissionRepository.Received(1).AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
+        await _submissionRepository.Received(2).AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

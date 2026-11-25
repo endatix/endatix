@@ -44,27 +44,19 @@ public sealed class SubmissionAccessPolicy(
     private async Task<Result<ICachedData<SubmissionAccessData>>> ResolveAsync(
         SubmissionAccessContext context, AuthorizationData authData, CancellationToken cancellationToken)
     {
-        var access = AuthorizedAccess(authData);
-        if (!standing.IsEnforced && access.IsSuccess)
-        {
-            var grant = new Grant(context, authData, access.Value);
-            return await ReadAsync(grant, ct => VisiblePermissionsAsync(grant, ct), cancellationToken);
-        }
         if (!await IsVisibleAsync(context, authData, cancellationToken))
         {
             return Result.NotFound("Submission not found");
         }
+        var access = AuthorizedAccess(authData);
         if (!access.IsSuccess)
         {
             return access.ToErrorResult<ICachedData<SubmissionAccessData>>();
         }
         var authorized = new Grant(context, authData, access.Value);
         return standing.Refusal<ICachedData<SubmissionAccessData>>(authData)
-            ?? await ReadAsync(authorized, _ => Task.FromResult(Result.Success(authorized.Permissions())), cancellationToken);
+            ?? await ReadAsync(authorized, cancellationToken);
     }
-
-    private async Task<Result<SubmissionAccessData>> VisiblePermissionsAsync(Grant grant, CancellationToken ct) =>
-        await IsVisibleAsync(grant.Target, grant.Auth, ct) ? grant.Permissions() : Result.NotFound("Submission not found");
 
     private Task<bool> IsVisibleAsync(SubmissionAccessContext context, AuthorizationData auth, CancellationToken ct)
     {
@@ -73,15 +65,17 @@ public sealed class SubmissionAccessPolicy(
         return submissionRepository.AnyAsync(spec, ct);
     }
 
-    private async Task<Result<ICachedData<SubmissionAccessData>>> ReadAsync(Grant grant,
-        Func<CancellationToken, Task<Result<SubmissionAccessData>>> permissions, CancellationToken ct)
+    private async Task<Result<ICachedData<SubmissionAccessData>>> ReadAsync(Grant grant, CancellationToken ct)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
-        var cached = await cache.GetOrCreateCachedResultAsync(grant.Key, permissions, grant.Auth.ComputeAuthTtl(now), now,
+        var ttl = grant.Auth.ComputeAuthTtl(now);
+        var cached = await cache.GetOrCreateAsync(grant.Key,
+            _ => ValueTask.FromResult(new Cached<SubmissionAccessData>(grant.Permissions(), now, ttl)),
+            new HybridCacheEntryOptions { Expiration = ttl },
             tags: ["permissions", FormAccessCacheTags.ForForm(grant.Target.FormId), $"submission:{grant.Target.SubmissionId}"], cancellationToken: ct);
         var deadline = grant.Auth.ExpiresAt;
-        return cached.IsSuccess && cached.Value is Cached<SubmissionAccessData> entry && deadline != default && deadline < entry.ExpiresAt
-            ? Result.Success<ICachedData<SubmissionAccessData>>(entry with { ExpiresAt = deadline }) : cached;
+        return Result.Success<ICachedData<SubmissionAccessData>>(deadline != default && deadline < cached.ExpiresAt
+            ? cached with { ExpiresAt = deadline } : cached);
     }
 
     private sealed record Grant(SubmissionAccessContext Target, AuthorizationData Auth, AccessLevel Level)

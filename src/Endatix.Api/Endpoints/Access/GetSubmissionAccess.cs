@@ -30,9 +30,11 @@ public class GetSubmissionAccess(
             s.Responses[400] = "Invalid input data.";
             s.Responses[401] = "Authentication required.";
             s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[404] = "Form or submission not found.";
         });
         Description(builder => builder
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .Produces<GetSubmissionAccessResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
@@ -111,4 +113,3 @@ public record GetSubmissionAccessResponse(
     public static GetSubmissionAccessResponse FromCached(ICachedData<SubmissionAccessData> cached)
         => new(cached.Data.FormId, cached.Data.SubmissionId, cached.Data.FormPermissions, cached.Data.SubmissionPermissions, cached.CachedAt, cached.ExpiresAt, cached.ETag);
 }
-

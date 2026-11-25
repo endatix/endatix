@@ -24,7 +24,10 @@ public sealed partial class RequiredActionsFlowTests
         var cold = await warm.SiblingAsync(owner, ct);
         await AssertContentStatusAsync(owner, warm.LifecycleRequests(), HttpStatusCode.OK);
 
-        using var deleted = await owner.DeleteAsync(warm.FormRoute, ct);
+        await using var writerHost = new ReportingWebHost(fixture);
+        using var writer = writerHost.CreateClient();
+        writer.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
+        using var deleted = await writer.DeleteAsync(warm.FormRoute, ct);
 
         Assert.Equal(HttpStatusCode.OK, deleted.StatusCode);
         await AssertContentStatusAsync(owner, warm.LifecycleRequests(), HttpStatusCode.NotFound);
