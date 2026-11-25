@@ -122,7 +122,7 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
 
     /// <summary>
     /// The legacy members still compile without a warning, so a host that treats warnings as errors builds unchanged.
-    /// The repo's build gate fails on CS0618 here if one of them is marked obsolete again.
+    /// Marking one of them obsolete again shows here as a CS0618 warning.
     /// </summary>
     [Fact]
     public async Task UseSwagger_WithLegacyApiOptionsMembers_BuildsAndMapsTheDocsPage()

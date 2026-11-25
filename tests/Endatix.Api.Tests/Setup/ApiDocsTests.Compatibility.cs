@@ -1,6 +1,9 @@
 using System.Net;
+using Endatix.Api.Builders;
+using Endatix.Api.Setup;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Tests.Setup;
 
@@ -111,6 +114,24 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
+    public async Task Docs_added_first_with_an_explicit_path_log_no_conflict_for_the_path_they_replaced()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await ApiDocsHost.StartFromConfigAsync(
+            Keys(("Docs:Path", "/new"), ("SwaggerPath", "/old")),
+            beforeApi: app => app.UseEndatixApiDocs(new ApiOptions { Docs = ConfiguredDocs(app).ForExplicitDocs("/given", false) }),
+            log: log);
+        using var client = host.CreateClient();
+
+        // Assert
+        (await ScalarPage.ReadAsync(client, "/given/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        log.Warnings.Should().NotContain(line => line.Contains("Endatix:Api:Docs:Path", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Unset_swagger_ui_setting_logs_that_its_default_changes_next_release()
     {
         // Arrange
@@ -175,6 +196,9 @@ public sealed partial class ApiDocsTests
 
         log.Warnings.Should().ContainSingle(line => line.Contains(warning, StringComparison.Ordinal));
     }
+
+    private static ApiDocsOptions ConfiguredDocs(WebApplication app) =>
+        app.Services.GetRequiredService<IOptions<ApiOptions>>().Value.Docs;
 
     private static Dictionary<string, string?> Keys(params (string Key, string? Value)[] settings) =>
         settings.ToDictionary(setting => $"Endatix:Api:{setting.Key}", setting => setting.Value);

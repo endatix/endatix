@@ -76,9 +76,13 @@ internal static class ApiDocs
         }
     }
 
+    /// <summary>
+    /// Logs the conflicts of the first call only, even an empty list, so a later call with the configured settings does
+    /// not warn about a setting an explicit first call replaced.
+    /// </summary>
     private static void LogConflictsOnce(IApplicationBuilder app, ApiDocsOptions docs)
     {
-        if (docs.Conflicts.Count == 0 || !app.Properties.TryAdd(CONFLICTS_LOGGED_KEY, true))
+        if (!app.Properties.TryAdd(CONFLICTS_LOGGED_KEY, true) || docs.Conflicts.Count == 0)
         {
             return;
         }
