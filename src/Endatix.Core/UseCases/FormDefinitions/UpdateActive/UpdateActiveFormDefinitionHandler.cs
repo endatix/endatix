@@ -8,11 +8,25 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.UpdateActive;
 
-public class UpdateActiveFormDefinitionHandler(
-    IFormsRepository formRepository,
-    IMediator mediator) : ICommandHandler<UpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+public class UpdateActiveFormDefinitionHandler(IFormsRepository formRepository,
+    IMediator mediator,
+    ManagedFormContentAccess? access) : ICommandHandler<UpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
+    public UpdateActiveFormDefinitionHandler(IFormsRepository formRepository, IMediator mediator)
+        : this(formRepository, mediator, null) { }
+
     public async Task<Result<FormDefinition>> Handle(UpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
+    {
+        if (access is not null && await access.ActiveAsync(formRepository, request.FormId, cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await ExecuteAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<FormDefinition>> ExecuteAsync(UpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
         var spec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
         var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(spec, cancellationToken);

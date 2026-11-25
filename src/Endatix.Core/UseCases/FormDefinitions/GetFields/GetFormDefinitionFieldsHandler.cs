@@ -12,14 +12,29 @@ namespace Endatix.Core.UseCases.FormDefinitions.GetFields;
 /// <summary>
 /// Handler for the <c>GetFormDefinitionFieldsQuery</c> class.
 /// </summary>
-public partial class GetFormDefinitionFieldsHandler(
-    IRepository<FormDefinition> formDefinitionsRepository,
+public partial class GetFormDefinitionFieldsHandler(IRepository<FormDefinition> formDefinitionsRepository,
     IFormsRepository formsRepository,
-    ILogger<GetFormDefinitionFieldsHandler> logger
-) : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
+    ILogger<GetFormDefinitionFieldsHandler> logger,
+    ManagedFormContentAccess? access) : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
+    public GetFormDefinitionFieldsHandler(IRepository<FormDefinition> formDefinitionsRepository, IFormsRepository formsRepository, ILogger<GetFormDefinitionFieldsHandler> logger)
+        : this(formDefinitionsRepository, formsRepository, logger, null) { }
+
     ///  <inheritdoc/>
     public async Task<Result<IEnumerable<DefinitionFieldDto>>> Handle(
+        GetFormDefinitionFieldsQuery request,
+        CancellationToken cancellationToken)
+    {
+        if (access is not null && await access.FormAsync<IEnumerable<DefinitionFieldDto>>(formsRepository, request.FormId, cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await ExecuteAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<IEnumerable<DefinitionFieldDto>>> ExecuteAsync(
         GetFormDefinitionFieldsQuery request,
         CancellationToken cancellationToken)
     {

@@ -1,10 +1,10 @@
-﻿using FastEndpoints;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.FormDefinitions.Create;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.FormDefinitions.Create;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
@@ -40,8 +40,9 @@ public class Create(IMediator mediator) : Endpoint<CreateFormDefinitionRequest, 
             s.Responses[201] = "Form definition created successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<CreateFormDefinitionResponse>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

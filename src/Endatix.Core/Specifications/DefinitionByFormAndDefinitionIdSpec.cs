@@ -5,9 +5,12 @@ using Endatix.Core.Entities;
 public class DefinitionByFormAndDefinitionIdSpec : SingleResultSpecification<Form, FormDefinition?>
 {
     /// <summary>Selects the definition with the given id when it belongs to the given form.</summary>
-    public DefinitionByFormAndDefinitionIdSpec(long formId, long definitionId)
+    public DefinitionByFormAndDefinitionIdSpec(long formId, long definitionId) : this(formId, definitionId, null) { }
+
+    internal DefinitionByFormAndDefinitionIdSpec(long formId, long definitionId, long? tenantId)
     {
-        Query.Where(f => f.Id == formId && f.FormDefinitions.Any(fd => fd.Id == definitionId))
+        Query.Where(f => f.Id == formId && (!tenantId.HasValue || f.TenantId == tenantId)
+                && f.FormDefinitions.Any(fd => fd.Id == definitionId && (!tenantId.HasValue || fd.TenantId == tenantId)))
             .Include(f => f.FormDefinitions)
             .AsNoTracking();
 

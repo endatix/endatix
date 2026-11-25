@@ -12,11 +12,26 @@ namespace Endatix.Core.UseCases.FormDefinitions.Update;
 /// </summary>
 /// <param name="repository">The form definitions.</param>
 /// <param name="mediator">Publishes the in-process change notification.</param>
-public class UpdateFormDefinitionHandler(
-    IRepository<FormDefinition> repository,
-    IMediator mediator) : ICommandHandler<UpdateFormDefinitionCommand, Result<FormDefinition>>
+/// <param name="access">The managed operation’s visibility and standing decision.</param>
+public class UpdateFormDefinitionHandler(IRepository<FormDefinition> repository,
+    IMediator mediator,
+    ManagedFormContentAccess? access) : ICommandHandler<UpdateFormDefinitionCommand, Result<FormDefinition>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
+    public UpdateFormDefinitionHandler(IRepository<FormDefinition> repository, IMediator mediator)
+        : this(repository, mediator, null) { }
+
     public async Task<Result<FormDefinition>> Handle(UpdateFormDefinitionCommand request, CancellationToken cancellationToken)
+    {
+        if (access is not null && await access.DefinitionAsync(repository, (request.FormId, request.DefinitionId), cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await ExecuteAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<FormDefinition>> ExecuteAsync(UpdateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
         var formDefinition = await repository.GetByIdAsync(request.DefinitionId, cancellationToken);
         if (formDefinition == null || formDefinition.FormId != request.FormId)

@@ -1,10 +1,10 @@
-﻿using FastEndpoints;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.FormDefinitions.GetById;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.FormDefinitions.GetById;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
@@ -35,8 +35,9 @@ public class GetById(IMediator mediator) : Endpoint<GetFormDefinitionByIdRequest
             s.Responses[200] = "Form definition retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form definition or form not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<FormDefinitionModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

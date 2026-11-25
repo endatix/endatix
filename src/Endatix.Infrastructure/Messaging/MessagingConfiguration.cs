@@ -2,6 +2,7 @@ using System.Reflection;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.UseCases.Folders;
+using Endatix.Core.UseCases.FormDefinitions;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Infrastructure.Identity.Users;
@@ -73,6 +74,7 @@ public static class MessagingConfiguration
     {
         services.AddScoped<FolderAssignmentPolicy>();
         services.AddScoped<FolderWritePolicy>();
+        services.AddScoped<ManagedFormContentAccess>();
         services.AddScoped<SubmissionFormTheme>();
         services.AddScoped<TenantBrandingAccess>();
     }

@@ -9,12 +9,26 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
-public class PartialUpdateActiveFormDefinitionHandler(
-    IFormsRepository formsRepository,
+public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository,
     IRepository<Submission> submissionsRepository,
-    IMediator mediator) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+    IMediator mediator,
+    ManagedFormContentAccess? access) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
+    public PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository, IRepository<Submission> submissionsRepository, IMediator mediator)
+        : this(formsRepository, submissionsRepository, mediator, null) { }
+
     public async Task<Result<FormDefinition>> Handle(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
+    {
+        if (access is not null && await access.ActiveAsync(formsRepository, request.FormId, cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await ExecuteAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<FormDefinition>> ExecuteAsync(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
         var spec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
         var formWithActiveDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
