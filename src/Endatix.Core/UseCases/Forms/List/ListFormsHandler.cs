@@ -1,9 +1,9 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications.Parameters;
 using Endatix.Core.Specifications;
+using Endatix.Core.Specifications.Parameters;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
