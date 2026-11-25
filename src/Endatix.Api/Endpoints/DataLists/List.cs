@@ -23,7 +23,7 @@ public sealed class List(
     IMediator mediator, ITenantContext? tenant)
     : Endpoint<DataListsListRequest, Results<Ok<Paged<DataListModel>>, ProblemHttpResult>>
 {
-    /// <summary>Resolves the tenant from the request services when constructed directly.</summary>
+    /// <summary>Leaves tenant resolution to the scoped handler when constructed directly.</summary>
     public List(IMediator mediator) : this(mediator, null) { }
 
     /// <summary>
@@ -98,7 +98,7 @@ public sealed class List(
     {
         var sort = request.ToSortRequest(DataListListSortBy.CreatedAt, SortDirection.Desc);
         return new(request.Page, request.PageSize, request.HasLocale, request.Search, sort.Field, sort.IsDescending,
-            request.ToCreatedRange(), request.ToModifiedRange()) { TenantId = (tenant ?? Resolve<ITenantContext>()).TenantId };
+            request.ToCreatedRange(), request.ToModifiedRange()) { TenantId = tenant?.TenantId };
     }
 }
 
