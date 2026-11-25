@@ -26,8 +26,18 @@ public class ListDataListsHandlerTests
     [Fact]
     public async Task Handle_WithoutATenant_RefusesBeforeCounting()
     {
-        var handler = new ListDataListsHandler(_repository);
+        var handler = new ListDataListsHandler(_repository, Substitute.For<ITenantContext>());
         var result = await handler.Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        _repository.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_QueryOutsideTheManagedTenant_RefusesBeforeCounting()
+    {
+        var query = new ListDataListsQuery(1, 10) { TenantId = SampleData.TENANT_ID + 1 };
+        var result = await _sut.Handle(query, TestContext.Current.CancellationToken);
 
         result.Status.Should().Be(ResultStatus.Unauthorized);
         _repository.ReceivedCalls().Should().BeEmpty();
@@ -41,18 +51,38 @@ public class ListDataListsHandlerTests
             .Returns(0);
 
         // Act
-        var result = await _sut.Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
+        var result = await new ListDataListsHandler(_repository).Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
         result.Value.Should().NotBeNull();
         result.Value!.TotalRecords.Should().Be(0);
         result.Value.Items.Should().BeEmpty();
+        await _repository.Received(1).CountAsync(Arg.Any<DataListsSpecifications.ListSpec>(), Arg.Any<CancellationToken>());
 
         await _repository.DidNotReceive().ListAsync(
             Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(),
             Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Handle_DirectCallerWithScopedRepository_ReturnsItsCatalog()
+    {
+        DataList fruit = new(SampleData.TENANT_ID, "Fruit");
+        DataListDto row = new(11, "Fruit", null, DateTime.UtcNow, null, true, 0, "en", [], []);
+        var handler = new ListDataListsHandler(_repository);
+        _repository.CountAsync(Arg.Is<DataListsSpecifications.ListSpec>(
+            spec => AllowsRow(spec, fruit)), Arg.Any<CancellationToken>()).Returns(1);
+        _repository.ListAsync(Arg.Is<DataListsSpecifications.ListWithPagingToDtoSpec>(
+            spec => AllowsRow(spec, fruit)), Arg.Any<CancellationToken>()).Returns([row]);
+
+        var result = await handler.Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
+
+        result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Fruit");
+    }
+
+    private static bool AllowsRow(ISpecification<DataList> spec, DataList list) =>
+        spec.WhereExpressions.All(expression => expression.FilterFunc(list));
 
     [Fact]
     public async Task Handle_WithRecords_ReturnsPagedDtos()

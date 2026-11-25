@@ -32,11 +32,16 @@ public sealed partial class RequiredActionsFlowTests
         using var imported = await owner.PutAsJsonAsync($"{item}/import", new { format = "csv", csv = "value,default\r\na,Apple\r\n" }, ct);
         imported.EnsureSuccessStatusCode();
         var before = await owner.GetFromJsonAsync<JsonElement>(item, ct);
+        var formWork = commands.FormWork;
+        using var dependencies = await owner.GetAsync($"{item}/forms", ct);
+        dependencies.EnsureSuccessStatusCode();
+        Assert.True(commands.FormWork > formWork);
         action.Pending = true;
         await InvalidateAsync(world, ct);
         var me = await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
         Assert.True(commands.ProductWork > 0);
         commands.ProductWork = 0;
+        formWork = commands.FormWork;
         foreach (var request in DataListRequests(item))
         {
             using var sent = request;
@@ -45,6 +50,7 @@ public sealed partial class RequiredActionsFlowTests
             Assert.Null(response.Content.Headers.ContentDisposition);
         }
         Assert.Equal(0, commands.ProductWork);
+        Assert.Equal(formWork, commands.FormWork);
         action.Pending = false;
         await InvalidateAsync(world, ct);
         var after = await owner.GetFromJsonAsync<JsonElement>(item, ct);
