@@ -20,7 +20,7 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     [Fact]
-    public async Task Form_access_preserves_the_resource_denial_for_a_pending_user()
+    public async Task Form_access_returns_standing_before_the_resource_denial_for_a_pending_user()
     {
         var ct = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
@@ -38,10 +38,7 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
 
         using var response = await client.GetAsync("/api/access/forms/1", ct);
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Contains("not authorized to access this form", problem.GetProperty("detail").GetString());
-        Assert.False(problem.TryGetProperty("errorCode", out _));
+        await AssertStandingRefusalAsync(response, me, ct);
     }
 
     [Fact]
@@ -121,13 +118,14 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
     }
 
     [Fact]
-    public async Task Pending_editor_gets_no_schema_compile_but_hidden_forms_remain_not_found()
+    public async Task Pending_editor_gets_no_schema_compile_for_either_visible_or_hidden_forms()
     {
         var ct = TestContext.Current.CancellationToken;
         var counter = new CompileCounter();
+        var provider = new MutableProvider("v1", "/profile") { Pending = false };
         await using var host = new ReportingWebHost(fixture, services =>
         {
-            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("v1", "/profile"));
+            services.AddSingleton<IRequiredActionProvider>(provider);
             EnableStanding(services);
             services.AddSingleton<IPipelineBehavior<CompileFormSchemaCommand, Result<CompileFormSchemaResult>>>(counter);
         });
@@ -136,6 +134,8 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var ownForm = await CreateFormAsync(editor, ct);
         var hiddenForm = await CreateFormAsync(other, ct);
+        provider.Pending = true;
+        await InvalidateAsync(world, ct);
         using var exporter = await RestrictedUserAsync(world, ct);
         await AssertChallengesAsync(host, ownForm, ct);
         using var client = host.CreateClient();
@@ -146,14 +146,12 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         using var editDenied = await exporter.PostAsJsonAsync($"/api/forms/{ownForm}/reporting/compile-schema", new { replace = true }, ct);
         using var exportBlocked = await exporter.PostAsJsonAsync($"/api/forms/{ownForm}/reporting/compile-schema", new { }, ct);
 
-        Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        await AssertStandingRefusalAsync(hidden, me, ct);
         Assert.Equal(HttpStatusCode.Forbidden, pending.StatusCode);
         var problem = await pending.Content.ReadFromJsonAsync<JsonElement>(ct);
         Assert.Equal("required_action", problem.GetProperty("errorCode").GetString());
-        Assert.Equal(HttpStatusCode.Forbidden, editDenied.StatusCode);
-        var ordinary = await editDenied.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Contains(Actions.Forms.Edit, ordinary.GetProperty("detail").GetString());
-        Assert.False(ordinary.TryGetProperty("requiredActions", out _));
+        await AssertStandingRefusalAsync(editDenied, me, ct);
         Assert.Equal(HttpStatusCode.Forbidden, exportBlocked.StatusCode);
         var refused = await exportBlocked.Content.ReadFromJsonAsync<JsonElement>(ct);
         Assert.Equal("required_action", refused.GetProperty("errorCode").GetString());

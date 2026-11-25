@@ -161,6 +161,7 @@ public class EndatixMiddlewareBuilder
     {
         _logger?.LogInformation("Adding authorization middleware");
         App.UseAuthorization();
+        App.UseRequiredActionsGate();
     }
 
     /// <summary>

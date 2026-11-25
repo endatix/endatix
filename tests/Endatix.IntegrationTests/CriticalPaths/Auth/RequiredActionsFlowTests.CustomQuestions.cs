@@ -5,7 +5,6 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -56,7 +55,7 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Unavailable_standing_precedes_question_data_access_but_not_ordinary_checks()
+    public async Task Unavailable_standing_precedes_question_validation_and_data_access_after_route_authorization()
     {
         var ct = TestContext.Current.CancellationToken;
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
@@ -78,10 +77,11 @@ public sealed partial class RequiredActionsFlowTests
         using var invalid = await admin.PostAsJsonAsync(route, new { }, ct);
         Assert.Equal(HttpStatusCode.Unauthorized, challenge.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        await AssertUnavailableQuestionsAsync(invalid, ct);
         using var invalidPage = await admin.GetAsync($"{route}?pageSize=0", ct);
-        Assert.Equal(HttpStatusCode.BadRequest, invalidPage.StatusCode);
-        Assert.Empty(snapshots.ReceivedCalls());
+        await AssertUnavailableQuestionsAsync(invalidPage, ct);
+        await snapshots.Received(2).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        snapshots.ClearReceivedCalls();
         Assert.Empty(questions.ReceivedCalls());
 
         using var list = await admin.GetAsync(route, ct);
@@ -92,8 +92,7 @@ public sealed partial class RequiredActionsFlowTests
         using var create = await admin.PostAsJsonAsync(route, new { name = "Example", jsonData = """{"type":"text"}""" }, ct);
         await AssertUnavailableQuestionsAsync(create, ct);
         await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-        await questions.Received(1).AnyAsync(Arg.Any<CustomQuestionSpecifications.ByName>(), Arg.Any<CancellationToken>());
-        Assert.Single(questions.ReceivedCalls());
+        Assert.Empty(questions.ReceivedCalls());
     }
 
     private static async Task AssertUnavailableQuestionsAsync(HttpResponseMessage response, CancellationToken ct)
@@ -125,12 +124,12 @@ public sealed partial class RequiredActionsFlowTests
         var before = await admin.GetFromJsonAsync<JsonElement>(route, ct);
         Assert.Equal(original.name, Assert.Single(before.GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
 
-        provider.Pending = true;
-        await InvalidateAsync(world, ct);
-        var me = await admin.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
         using var duplicate = await admin.PostAsJsonAsync(route, original, ct);
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
         Assert.Contains("already exists", await duplicate.Content.ReadAsStringAsync(ct));
+        provider.Pending = true;
+        await InvalidateAsync(world, ct);
+        var me = await admin.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
         using var blockedRead = await admin.GetAsync(route, ct);
         await AssertStandingRefusalAsync(blockedRead, me, ct);
         using var blockedWrite = await admin.PostAsJsonAsync(route, another, ct);

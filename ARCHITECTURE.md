@@ -307,6 +307,12 @@ When touching a feature, prefer migrating **reads** to Infrastructure feature qu
 
 ---
 
+## Required actions gate
+
+When a host enables `AccountStanding`, authenticated account operations check it immediately after framework authorization, before request binding, resource checks, or product work. A challenge (`401`) or ordinary route permission denial (`403`) therefore takes precedence. Blocking actions return `403 required_action` with the same action objects as `auth/me`. Unknown standing returns a retryable `503`. Notices alone allow the operation to proceed with its usual validation and authorization.
+
+Account operations are gated by default. Anonymous and public respondent/form-token operations do not check account standing. `[AllowWithRequiredActions]` keeps an account operation available to resolve an action or sign out; it grants no permission. A module that routes its own endpoints installs `UseRequiredActionsGate()` immediately after its own `UseAuthorization()`. The default host leaves enforcement dormant.
+
 ## Testing
 
 We do **not** rely on integration or test-database coverage for feature read models. Testability comes from **layered unit tests** and **extracted collaborators**, not from registering mock-friendly interfaces on every query.

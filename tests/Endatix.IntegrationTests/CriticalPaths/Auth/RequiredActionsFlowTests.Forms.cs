@@ -55,7 +55,7 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Unavailable_form_standing_follows_ordinary_visibility_and_permission_checks()
+    public async Task Unavailable_form_standing_precedes_visibility_but_not_route_permission()
     {
         var ct = TestContext.Current.CancellationToken;
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
@@ -72,15 +72,15 @@ public sealed partial class RequiredActionsFlowTests
         client.DefaultRequestHeaders.Authorization = restricted.DefaultRequestHeaders.Authorization;
         using var denied = await client.GetAsync("/api/forms", ct);
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        Assert.Empty(snapshots.ReceivedCalls());
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
         foreach (var operation in new[] { "detail", "replace", "patch", "delete" })
         {
             using var missing = await ManagedFormRequestAsync(client, operation, long.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
             using var invisible = await ManagedFormRequestAsync(client, operation, hidden);
-            Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-            Assert.Equal(HttpStatusCode.NotFound, invisible.StatusCode);
+            await AssertUnavailableQuestionsAsync(missing, ct);
+            await AssertUnavailableQuestionsAsync(invisible, ct);
         }
-        Assert.Empty(snapshots.ReceivedCalls());
         await AssertUnavailableOperationsAsync(client, visible, snapshots);
     }
 
@@ -127,13 +127,14 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Managed_form_writes_preserve_folder_and_theme_availability_before_standing()
+    public async Task Admitted_form_writes_preserve_folder_and_theme_availability()
     {
         var ct = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var form = await CreateFormAsync(owner, ct);
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData()));
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
@@ -149,7 +150,7 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(HttpStatusCode.InternalServerError, replace.StatusCode);
         Assert.Equal(HttpStatusCode.InternalServerError, patch.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, theme.StatusCode);
-        Assert.Empty(snapshots.ReceivedCalls());
+        await snapshots.Received(3).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
     }
 
     private sealed class FormProductReads : DbCommandInterceptor

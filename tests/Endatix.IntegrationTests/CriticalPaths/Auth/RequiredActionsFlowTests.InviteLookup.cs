@@ -40,7 +40,7 @@ public sealed partial class RequiredActionsFlowTests
         reads.Reset();
         using var refused = await admin.PostAsJsonAsync("/api/users", new { email }, ct);
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
-        Assert.Equal(1, reads.Count);
+        Assert.Equal(0, reads.Count);
         provider.Pending = false;
         await InvalidateAsync(world, ct);
 

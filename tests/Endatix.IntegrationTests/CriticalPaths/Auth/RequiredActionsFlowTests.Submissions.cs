@@ -83,13 +83,6 @@ public sealed partial class RequiredActionsFlowTests
             using var sent = request;
             snapshots.ClearReceivedCalls();
             using var response = await owner.SendAsync(sent, ct);
-            if (sent.RequestUri!.AbsolutePath == target.Access)
-            {
-                // The resource policy already holds its real authorized snapshot.
-                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-                Assert.Empty(snapshots.ReceivedCalls());
-                continue;
-            }
             Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
             await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         }
@@ -104,7 +97,7 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Managed_submissions_preserve_hidden_targets_and_missing_grants_before_unavailability()
+    public async Task Admitted_submission_reads_preserve_hidden_targets_and_missing_grants_before_recovery()
     {
         var ct = TestContext.Current.CancellationToken;
         var pending = new MutableProvider("conflict", "/elsewhere") { Pending = false };
@@ -123,12 +116,12 @@ public sealed partial class RequiredActionsFlowTests
         using var restricted = await RestrictedUserAsync(world, ct);
         var visible = await SubmissionTarget.CreateAsync(owner, ct);
         var hidden = await SubmissionTarget.CreateAsync(other, ct);
-        pending.Pending = otherAction.Pending = true;
-        await InvalidateAsync(world, ct);
-
-        commands.Count = 0;
         await AssertContentStatusAsync(owner, hidden.Requests(), HttpStatusCode.NotFound);
         await AssertContentStatusAsync(restricted, visible.Requests(), HttpStatusCode.Forbidden);
+        pending.Pending = otherAction.Pending = true;
+        await InvalidateAsync(world, ct);
+        commands.Count = 0;
+        await AssertContentStatusAsync(owner, hidden.Requests(), HttpStatusCode.ServiceUnavailable);
         await AssertContentStatusAsync(owner, visible.Requests(), HttpStatusCode.ServiceUnavailable);
         Assert.Equal(0, commands.Count);
     }

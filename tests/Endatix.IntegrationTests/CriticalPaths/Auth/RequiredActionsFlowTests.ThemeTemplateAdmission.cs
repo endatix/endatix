@@ -12,7 +12,7 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests
 {
     [Fact]
-    public async Task Template_folder_no_op_and_locked_clear_precede_standing_but_an_unrelated_edit_does_not_check_the_folder()
+    public async Task Admitted_template_moves_preserve_no_op_and_locked_folder_errors()
     {
         var ct = TestContext.Current.CancellationToken;
         var action = new MutableProvider("setup", "/setup") { Pending = false };
@@ -30,10 +30,10 @@ public sealed partial class RequiredActionsFlowTests
         created.EnsureSuccessStatusCode();
         var id = (await created.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("id").GetString();
         var path = $"/api/form-templates/{id}";
-        action.Pending = true;
-        await InvalidateAsync(world, ct);
         using var unchanged = await owner.PatchAsJsonAsync(path, new { folderId }, ct);
         using var clear = await owner.PatchAsJsonAsync(path, new { clearFolderId = true }, ct);
+        action.Pending = true;
+        await InvalidateAsync(world, ct);
         using var edit = await owner.PatchAsJsonAsync(path, new { description = "Changed" }, ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, unchanged.StatusCode);
@@ -58,7 +58,7 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(own.Id, Assert.Single(page.GetProperty("items").EnumerateArray()).GetProperty("id").GetString());
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+            .Returns(Result.Success(new AuthorizationData()));
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();
         using var restricted = await RestrictedUserAsync(world, ct);
@@ -75,7 +75,7 @@ public sealed partial class RequiredActionsFlowTests
             }
         }
         await AssertAssetAssignmentErrorsAsync(owner, client, own);
-        Assert.Empty(snapshots.ReceivedCalls());
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
         foreach (var operation in own.Operations().Where(op => op.Route != own.Read || op.Route == own.Detail))
         {
             snapshots.ClearReceivedCalls();

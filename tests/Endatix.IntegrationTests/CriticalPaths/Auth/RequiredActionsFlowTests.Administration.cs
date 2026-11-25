@@ -88,10 +88,10 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Ordinary_invite_role_denial_precedes_unavailable_standing_and_a_notice_allows_invitation()
+    public async Task Admitted_invites_preserve_role_validation_and_a_notice_allows_invitation()
     {
         var ct = TestContext.Current.CancellationToken;
-        var conflict = new MutableProvider("conflict", "/other");
+        var conflict = new MutableProvider("conflict", "/other") { Pending = false };
         var mail = Substitute.For<IEmailSender>();
         await using var host = new ReportingWebHost(fixture, services =>
         {
@@ -108,6 +108,8 @@ public sealed partial class RequiredActionsFlowTests
         using var existing = await admin.PostAsJsonAsync("/api/users", new { email = world.Tenants[0].Admin.Email }, ct);
         Assert.Equal(HttpStatusCode.BadRequest, existing.StatusCode);
         Assert.Contains("already belongs to this tenant", await existing.Content.ReadAsStringAsync(ct));
+        conflict.Pending = true;
+        await InvalidateAsync(world, ct);
         using var retry = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test" }, ct);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, retry.StatusCode);
         var problem = await retry.Content.ReadFromJsonAsync<JsonElement>(ct);
@@ -137,12 +139,12 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Pending_user_manager_gets_the_ordinary_denial_when_removing_a_more_privileged_user()
+    public async Task Admitted_user_manager_gets_the_ordinary_denial_when_removing_a_more_privileged_user()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var host = new ReportingWebHost(fixture, services =>
         {
-            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("legal", "/legal"));
+            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("legal", "/legal") { Severity = RequiredActionSeverity.Notice });
             EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);

@@ -67,11 +67,11 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Managed_content_unavailability_follows_ordinary_target_and_request_checks()
+    public async Task Admitted_content_preserves_ordinary_target_and_request_checks()
     {
         var ct = TestContext.Current.CancellationToken;
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData()));
         var commands = new ContentCommands();
         await using var host = new ReportingWebHost(fixture, services =>
         {
@@ -92,7 +92,9 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(HttpStatusCode.NotFound, missingDefinition.StatusCode);
         using var empty = await owner.GetAsync($"{Route}/definitions?createdTo=2000-01-01", ct);
         Assert.Equal(HttpStatusCode.NotFound, empty.StatusCode);
-        Assert.Empty(snapshots.ReceivedCalls());
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+        snapshots.ClearReceivedCalls();
+        commands.Count = 0;
         await AssertContentStatusAsync(owner, ContentRequests(Route, Definition), HttpStatusCode.ServiceUnavailable);
         await snapshots.Received(10).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         Assert.Equal(0, commands.Count);

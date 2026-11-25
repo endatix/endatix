@@ -16,7 +16,7 @@ namespace Endatix.IntegrationTests;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
 [Trait("Priority", "P1")]
-public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class RequiredActionInventoryTests(EndatixIntegrationWebHostFixture fixture)
 {
     [Theory]
     [InlineData("core")]
@@ -30,15 +30,7 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
         // Arrange
         var modules = ModulesIn(profile);
         await using var factory = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider);
-        await using var host = factory.WithWebHostBuilder(builder =>
-        {
-            builder.UseSetting("Endatix:FeatureFlags:JobsModule", modules.Contains("jobs").ToString());
-            builder.UseSetting("Endatix:FeatureFlags:PersonalizationModule", modules.Contains("audience").ToString());
-            builder.UseSetting("Endatix:FeatureFlags:ReportingModule", modules.Contains("reporting").ToString());
-            builder.UseSetting("Endatix:FeatureFlags:MultiTenancy", modules.Contains("dashboard").ToString());
-            builder.UseSetting("Endatix:BackgroundJobs:Dashboard:Enabled", modules.Contains("dashboard").ToString());
-            builder.UseSetting("Endatix:BackgroundJobs:Dashboard:AllowWrites", (profile == "dashboard-write").ToString());
-        });
+        await using var host = factory.WithWebHostBuilder(builder => ConfigureProfile(builder, profile));
 
         // Act
         var registrations = host.Services.GetRequiredService<EndpointDataSource>().Endpoints.Cast<RouteEndpoint>();
@@ -109,6 +101,17 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
         _ => throw new ArgumentOutOfRangeException(nameof(profile))
     };
 
+    private static void ConfigureProfile(IWebHostBuilder builder, string profile)
+    {
+        var modules = ModulesIn(profile);
+        builder.UseSetting("Endatix:FeatureFlags:JobsModule", modules.Contains("jobs").ToString());
+        builder.UseSetting("Endatix:FeatureFlags:PersonalizationModule", modules.Contains("audience").ToString());
+        builder.UseSetting("Endatix:FeatureFlags:ReportingModule", modules.Contains("reporting").ToString());
+        builder.UseSetting("Endatix:FeatureFlags:MultiTenancy", modules.Contains("dashboard").ToString());
+        builder.UseSetting("Endatix:BackgroundJobs:Dashboard:Enabled", modules.Contains("dashboard").ToString());
+        builder.UseSetting("Endatix:BackgroundJobs:Dashboard:AllowWrites", (profile == "dashboard-write").ToString());
+    }
+
     private static IEnumerable<string> Reviewed(string[] modules)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Snapshots", "required-action-inventory.txt");
@@ -122,28 +125,18 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
     private static string[] CheckedRow(string line)
     {
         var fields = line.Split(' ', 4);
-        var placement = fields[1].Split('#');
-        Assert.True(_reviewedAccess.TryGetValue(placement[0], out var access) && access.Contains(fields[2])
-            && HasDeliveryOwner(placement) && ModulesIn("dashboard-write").Contains(fields[0]), $"Invalid inventory row: {line}");
+        Assert.True(_reviewedAccess.TryGetValue(fields[1], out var access) && access.Contains(fields[2])
+            && ModulesIn("dashboard-write").Contains(fields[0]), $"Invalid inventory row: {line}");
         return fields;
     }
 
     private static readonly Dictionary<string, string[]> _reviewedAccess = new()
     {
         ["anonymous"] = ["anonymous"],
-        ["resolver"] = ["resolver"],
+        ["open"] = ["resolver", "open-no-policy"],
         ["respondent"] = ["anonymous", "form-token"],
-        ["asset-handler"] = ["no-policy", "platform-admin"],
-        ["package-pending"] = ["platform-admin"],
-        ["policy-pending"] = ["account", "platform-admin"],
-        ["operation-pending"] = ["account", "platform-admin"],
-        ["operation-dormant"] = ["account", "platform-admin"],
+        ["gated"] = ["account", "platform-admin", "no-policy"],
     };
-
-    private static bool HasDeliveryOwner(string[] placement) =>
-        placement[0].EndsWith("-pending", StringComparison.Ordinal)
-            ? placement is [_, "1825" or "1826" or "1827" or "1828" or "1829"]
-            : placement.Length == 1;
 
     private static IEnumerable<string> Differences(IEnumerable<string> actual, IEnumerable<string> reviewed)
     {
@@ -172,7 +165,8 @@ public sealed class RequiredActionInventoryTests(EndatixIntegrationWebHostFixtur
             || metadata.GetMetadata<EndpointDefinition>()?.EndpointType.IsDefined(typeof(AllowWithRequiredActionsAttribute), false) == true;
         if (resolver)
         {
-            return policies.Count > 0 && metadata.GetMetadata<IAllowAnonymous>() is null ? "resolver" : "unprotected-resolver";
+            return metadata.GetMetadata<IAllowAnonymous>() is not null ? "anonymous-resolver"
+                : policies.Count > 0 ? "resolver" : "open-no-policy";
         }
         if (metadata.GetMetadata<IAllowAnonymous>() is not null)
         {
