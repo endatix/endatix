@@ -18,6 +18,21 @@ public sealed partial class RoleManagementService
         return roles;
     }
 
+    private async Task<Result> ChangePlatformRoleAsync(AppUser user, Func<AppUser, string, Task<IdentityResult>> change, CancellationToken ct)
+    {
+        if (await _standing.RefusalAsync(ct) is { } refusal)
+        {
+            return refusal;
+        }
+        var result = await change(user, SystemRole.PlatformAdmin.Name);
+        if (!result.Succeeded)
+        {
+            return Result.Error(new ErrorList(result.Errors.Select(e => e.Description)));
+        }
+        await InvalidateUserAuthorizationAsync(user, ct);
+        return Result.Success();
+    }
+
     private async Task<Result<List<Permission>>> ReadRolePermissionsAsync(List<string> names, CancellationToken ct)
     {
         var permissions = names.Count == 0 ? [] : await _identityDbContext.Permissions.AsNoTracking()

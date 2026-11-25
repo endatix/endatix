@@ -1,11 +1,11 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Email.SendTestEmail;
 using FastEndpoints;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Email.SendTestEmail;
-using Endatix.Core.Abstractions.Authorization;
-using FluentValidation;
 
 namespace Endatix.Api.Endpoints.Admin.Email;
 
@@ -22,6 +22,7 @@ public class SendTestEmail(IMediator mediator)
     {
         Post("/admin/email/test");
         Policies(SystemRole.PlatformAdmin.Name);
+        PreProcessor<AuthorizedAccountStanding<SendTestEmailRequest>>();
         Summary(s =>
         {
             s.Summary = "Send test email";
@@ -34,11 +35,11 @@ public class SendTestEmail(IMediator mediator)
             s.Responses[200] = "Test email sent successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[503] = "Email provider is not configured.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<string>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
+            .ProducesProblem(StatusCodes.Status400BadRequest));
     }
 
     /// <inheritdoc/>

@@ -1,5 +1,5 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Tenants;
 using Endatix.Core.UseCases.Tenants.Create;
 using Endatix.Infrastructure.Data.Config;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -43,13 +43,12 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Multi-tenancy is not enabled on this deployment.";
             s.Responses[503] = "Could not allocate a unique tenant short URL. Retry the request.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantModel>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc />
@@ -57,11 +56,9 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
         CreateTenantRequest request,
         CancellationToken ct)
     {
-        if (!MultiTenancyGate.IsEnabled(configuration))
+        if (await MultiTenancyGate.RefusalAsync(configuration, mediator, new PlatformTenantAccess(), ct) is { } refusal)
         {
-            return TypedResultsBuilder
-                .FromResult(Result<TenantModel>.NotFound(MultiTenancyGate.DisabledMessage))
-                .SetTypedResults<Created<TenantModel>, ProblemHttpResult>();
+            return refusal;
         }
 
         CreateTenantCommand command = new(

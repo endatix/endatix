@@ -8,8 +8,11 @@ internal static class StandingResponseExtensions
 {
     internal static void DescribeStandingProblems(this EndpointSummary summary)
     {
-        summary.Responses[StatusCodes.Status403Forbidden] = "The operation is forbidden or the account has a blocking required action.";
-        summary.Responses[StatusCodes.Status503ServiceUnavailable] = "Account standing is temporarily unavailable.";
+        Append(StatusCodes.Status403Forbidden, "The operation is forbidden or the account has a blocking required action.");
+        Append(StatusCodes.Status503ServiceUnavailable, "Account standing is temporarily unavailable.");
+
+        void Append(int status, string description) => summary.Responses[status] =
+            summary.Responses.TryGetValue(status, out var existing) ? $"{existing} {description}" : description;
     }
 
     internal static RouteHandlerBuilder ProducesStandingProblems(this RouteHandlerBuilder builder) =>

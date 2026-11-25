@@ -23,6 +23,7 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
     {
         Get("/admin/platform-admins");
         Policies(AuthorizationPolicies.PlatformAdminAccess);
+        PreProcessor<AuthorizedAccountStanding<ListPlatformAdminsRequest>>();
         Summary(s =>
         {
             s.Summary = "List platform administrators";
@@ -38,8 +39,9 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
             };
             s.Responses[200] = "Platform administrators retrieved successfully.";
             s.Responses[400] = "Invalid request.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<PlatformAdminUserResponse>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

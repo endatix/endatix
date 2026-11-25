@@ -1,5 +1,5 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Tenants;
 using Endatix.Core.UseCases.Tenants.Update;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Data.Config;
@@ -42,11 +42,11 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
             s.Responses[400] = "Invalid input data.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Tenant not found, or multi-tenancy is not enabled on this deployment.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
@@ -55,11 +55,9 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
         UpdateTenantRequest request,
         CancellationToken ct)
     {
-        if (!MultiTenancyGate.IsEnabled(configuration))
+        if (await MultiTenancyGate.RefusalAsync(configuration, mediator, new PlatformTenantAccess(request.TenantId, request.UpdatesRegistrationPolicy), ct) is { } refusal)
         {
-            return TypedResultsBuilder
-                .FromResult(Result<TenantModel>.NotFound(MultiTenancyGate.DisabledMessage))
-                .SetTypedResults<Ok<TenantModel>, ProblemHttpResult>();
+            return refusal;
         }
 
         UpdateTenantCommand command = new(
@@ -86,6 +84,8 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
 /// </summary>
 public sealed class UpdateTenantRequest
 {
+    internal bool UpdatesRegistrationPolicy => AllowSelfRegistration.HasValue || AllowedAuthProviderKeys is not null || DefaultRegistrationRoleName is not null;
+
     /// <summary>
     /// The tenant to update.
     /// </summary>

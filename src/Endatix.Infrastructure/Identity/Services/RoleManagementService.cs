@@ -266,15 +266,7 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
             });
         }
 
-        var result = await _userManager.AddToRoleAsync(user, SystemRole.PlatformAdmin.Name);
-        if (!result.Succeeded)
-        {
-            var errorMessages = result.Errors.Select(e => e.Description);
-            return Result.Error(new ErrorList(errorMessages));
-        }
-
-        await InvalidateUserAuthorizationAsync(user, cancellationToken);
-        return Result.Success();
+        return await ChangePlatformRoleAsync(user, _userManager.AddToRoleAsync, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -318,15 +310,7 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
             return Result.Conflict("Cannot revoke the last active platform administrator.");
         }
 
-        var result = await _userManager.RemoveFromRoleAsync(user, SystemRole.PlatformAdmin.Name);
-        if (!result.Succeeded)
-        {
-            var errorMessages = result.Errors.Select(e => e.Description);
-            return Result.Error(new ErrorList(errorMessages));
-        }
-
-        await InvalidateUserAuthorizationAsync(user, cancellationToken);
-        return Result.Success();
+        return await ChangePlatformRoleAsync(user, _userManager.RemoveFromRoleAsync, cancellationToken);
     }
 
     /// <inheritdoc/>

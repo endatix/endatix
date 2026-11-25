@@ -16,12 +16,14 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
     {
         Get("/admin/storage");
         Permissions(Actions.Tenant.ViewSettings);
+        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "Get storage statistics dashboard";
             s.Description = "Returns a comprehensive view of database storage usage for the current tenant.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<StorageDashboardModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }
@@ -29,7 +31,7 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
     public override async Task<Results<Ok<StorageDashboardModel>, ProblemHttpResult>> ExecuteAsync(CancellationToken ct)
     {
         var tenantId = tenantContext.TenantId;
-        
+
         var query = new GetStorageDashboardQuery(tenantId == 0 ? null : tenantId);
         var result = await mediator.Send(query, ct);
 

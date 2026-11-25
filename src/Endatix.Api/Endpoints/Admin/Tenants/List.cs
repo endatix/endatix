@@ -20,6 +20,7 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
     {
         Get("/admin/tenants");
         Policies(AuthorizationPolicies.PlatformAdminAccess);
+        PreProcessor<AuthorizedAccountStanding<ListPlatformTenantsRequest>>();
         Summary(s =>
         {
             s.Summary = "List platform tenants";
@@ -27,8 +28,9 @@ public sealed class List(IListPlatformTenants listPlatformTenants)
                 "Returns a platform-scoped paged list of tenants with optional search, sort, and created/modified date bounds.";
             s.Responses[200] = "Tenants retrieved successfully.";
             s.Responses[400] = "Invalid request.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<PlatformTenantListItem>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

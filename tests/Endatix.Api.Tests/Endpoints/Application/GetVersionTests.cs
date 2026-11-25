@@ -18,7 +18,7 @@ public class GetVersionTests
             ?.InformationalVersion;
         var branch = assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => attribute.Key == BuildIdentity.BranchMetadataKey)
+            .FirstOrDefault(attribute => attribute.Key == BuildIdentity.BRANCH_METADATA_KEY)
             ?.Value;
         var expected = BuildIdentity.From(informational, branch);
 
