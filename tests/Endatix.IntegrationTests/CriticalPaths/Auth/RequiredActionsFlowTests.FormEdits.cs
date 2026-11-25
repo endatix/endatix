@@ -1,13 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using NSubstitute;
 
 namespace Endatix.IntegrationTests;
 
@@ -39,40 +33,5 @@ public sealed partial class RequiredActionsFlowTests
             var problem = await result.Content.ReadFromJsonAsync<JsonElement>(ct);
             Assert.Equal("Single submission gate cannot be disabled after it has been enabled.", problem.GetProperty("detail").GetString());
         }
-    }
-
-    [Fact]
-    public async Task Policy_update_committed_during_standing_is_seen_before_create()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
-        await EnsureTenantSettingsAsync(world, ct);
-        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-        var snapshot = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshot.GetAuthorizationDataAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
-        {
-            using var change = await owner.PatchAsJsonAsync("/api/tenant-settings", new { requireFolderAssignment = true }, ct);
-            change.EnsureSuccessStatusCode();
-            return Result.Success(new AuthorizationData());
-        });
-        await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshot)));
-        using var client = host.CreateClient();
-        client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
-        var before = await FormCountsAsync(world, ct);
-
-        using var create = await ManagedFormRequestAsync(client, "create", "");
-
-        Assert.Equal(HttpStatusCode.InternalServerError, create.StatusCode);
-        Assert.Equal(before, await FormCountsAsync(world, ct));
-        await snapshot.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-    }
-
-    private static async Task<(int MatchingForms, int Definitions)> FormCountsAsync(IntegrationTestWorld world, CancellationToken ct)
-    {
-        using var scope = world.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var tenant = world.Tenants[0].Id;
-        return (await db.Forms.CountAsync(f => f.TenantId == tenant && f.Name == "New form name", ct),
-            await db.FormDefinitions.CountAsync(d => d.TenantId == tenant, ct));
     }
 }

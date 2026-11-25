@@ -1,6 +1,5 @@
-using Ardalis.GuardClauses;
+﻿using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
@@ -15,13 +14,8 @@ namespace Endatix.Core.UseCases.Forms.Create;
 public class CreateFormHandler(
     IFormsRepository formsRepository,
     ITenantContext tenantContext,
-    FolderAssignmentPolicy folderAssignmentPolicy,
-    AccountStanding standing) : ICommandHandler<CreateFormCommand, Result<Form>>
+    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<CreateFormCommand, Result<Form>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public CreateFormHandler(IFormsRepository formsRepository, ITenantContext tenantContext, FolderAssignmentPolicy folderAssignmentPolicy)
-        : this(formsRepository, tenantContext, folderAssignmentPolicy, new AccountStanding()) { }
-
     /// <inheritdoc/>
     public async Task<Result<Form>> Handle(CreateFormCommand request, CancellationToken cancellationToken)
     {
@@ -33,21 +27,6 @@ public class CreateFormHandler(
             return check.ToErrorResult<Form>();
         }
 
-        if (standing.IsEnforced)
-        {
-            return await standing.RefusalAsync<Form>(cancellationToken) ?? await CreateAfterStandingAsync(request, cancellationToken);
-        }
-        return await CreateAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<Form>> CreateAfterStandingAsync(CreateFormCommand request, CancellationToken ct)
-    {
-        var folder = await folderAssignmentPolicy.EnsureFolderAssignmentValidAsync(request.FolderId, ct);
-        return folder.IsOk() ? await CreateAsync(request, ct) : folder.ToErrorResult<Form>();
-    }
-
-    private async Task<Result<Form>> CreateAsync(CreateFormCommand request, CancellationToken cancellationToken)
-    {
         FormCreateArgs createArgs = new(
             TenantId: tenantContext.TenantId,
             Name: request.Name,
@@ -59,8 +38,13 @@ public class CreateFormHandler(
             WebHookSettingsJson: request.WebHookSettingsJson,
             FolderId: request.FolderId,
             SubmissionTokenExpiryHours: request.SubmissionTokenExpiryHours);
-        var definition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
-        var form = await formsRepository.CreateFormWithDefinitionAsync(Form.Create(createArgs), definition, cancellationToken);
+        var newForm = Form.Create(createArgs);
+        var newFormDefinition = new FormDefinition(tenantContext.TenantId, isDraft: true, jsonData: request.FormDefinitionJsonData);
+
+        // form.created is captured to the outbox (→ webhook) inside CreateFormWithDefinitionAsync via
+        // form.RaiseCreated(); there are no in-process MediatR subscribers for it, so nothing is published here.
+        var form = await formsRepository.CreateFormWithDefinitionAsync(newForm, newFormDefinition, cancellationToken);
+
         return Result<Form>.Created(form);
     }
 

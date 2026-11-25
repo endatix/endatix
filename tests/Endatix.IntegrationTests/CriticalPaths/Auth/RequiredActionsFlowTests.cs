@@ -125,10 +125,9 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
     {
         var ct = TestContext.Current.CancellationToken;
         var counter = new CompileCounter();
-        var action = new MutableProvider("v1", "/profile") { Pending = false };
         await using var host = new ReportingWebHost(fixture, services =>
         {
-            services.AddSingleton<IRequiredActionProvider>(action);
+            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("v1", "/profile"));
             EnableStanding(services);
             services.AddSingleton<IPipelineBehavior<CompileFormSchemaCommand, Result<CompileFormSchemaResult>>>(counter);
         });
@@ -137,13 +136,13 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var ownForm = await CreateFormAsync(editor, ct);
         var hiddenForm = await CreateFormAsync(other, ct);
-        action.Pending = true;
-        await InvalidateAsync(world, ct);
         using var exporter = await RestrictedUserAsync(world, ct);
         await AssertChallengesAsync(host, ownForm, ct);
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = editor.DefaultRequestHeaders.Authorization;
 
-        using var hidden = await editor.PostAsJsonAsync($"/api/forms/{hiddenForm}/reporting/compile-schema", new { replace = true }, ct);
-        using var pending = await editor.PostAsJsonAsync($"/api/forms/{ownForm}/reporting/compile-schema", new { replace = true }, ct);
+        using var hidden = await client.PostAsJsonAsync($"/api/forms/{hiddenForm}/reporting/compile-schema", new { replace = true }, ct);
+        using var pending = await client.PostAsJsonAsync($"/api/forms/{ownForm}/reporting/compile-schema", new { replace = true }, ct);
         using var editDenied = await exporter.PostAsJsonAsync($"/api/forms/{ownForm}/reporting/compile-schema", new { replace = true }, ct);
         using var exportBlocked = await exporter.PostAsJsonAsync($"/api/forms/{ownForm}/reporting/compile-schema", new { }, ct);
 

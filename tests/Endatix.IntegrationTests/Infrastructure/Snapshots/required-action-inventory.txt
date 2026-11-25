@@ -133,7 +133,7 @@ core operation-pending#1826 account POST /api/data-lists/{dataListId}/export
 core operation-pending#1826 account POST /api/data-lists/{dataListId}/locales
 core operation-pending#1826 account POST /api/folders
 core operation-pending#1826 account POST /api/form-templates
-core operation-dormant account POST /api/forms
+core operation-pending#1826 account POST /api/forms
 core operation-pending#1826 account POST /api/forms/{formId}/definitions
 core operation-pending#1826 account POST /api/forms/{formId}/submissions/test/delete
 core operation-pending#1826 account POST /api/forms/{formId}/submissions/{submissionId}/access-token

@@ -18,7 +18,6 @@ public sealed partial class RequiredActionsFlowTests
     [Theory]
     [InlineData("list")]
     [InlineData("detail")]
-    [InlineData("create")]
     [InlineData("replace")]
     [InlineData("patch")]
     [InlineData("delete")]
@@ -41,24 +40,18 @@ public sealed partial class RequiredActionsFlowTests
         action.Pending = true;
         await InvalidateAsync(world, ct);
         var me = await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
-        var counts = await FormCountsAsync(world, ct);
 
         product.Reset();
         using var blocked = await ManagedFormRequestAsync(owner, operation, id);
         await AssertStandingRefusalAsync(blocked, me, ct);
         Assert.Equal(0, product.Reads);
-        Assert.Equal(counts, await FormCountsAsync(world, ct));
 
         action.Pending = false;
         await InvalidateAsync(world, ct);
         var after = await owner.GetFromJsonAsync<JsonElement>($"/api/forms/{id}", ct);
         Assert.True(JsonElement.DeepEquals(before, after));
         using var resumed = await ManagedFormRequestAsync(owner, operation, id);
-        Assert.Equal(operation == "create" ? HttpStatusCode.Created : HttpStatusCode.OK, resumed.StatusCode);
-        if (operation == "create")
-        {
-            Assert.Equal((counts.MatchingForms + 1, counts.Definitions + 1), await FormCountsAsync(world, ct));
-        }
+        Assert.Equal(HttpStatusCode.OK, resumed.StatusCode);
     }
 
     [Fact]
@@ -94,7 +87,7 @@ public sealed partial class RequiredActionsFlowTests
     private static async Task AssertUnavailableOperationsAsync(HttpClient client, string visible, ICurrentUserAuthorizationService snapshots)
     {
         var ct = TestContext.Current.CancellationToken;
-        foreach (var operation in new[] { "list", "detail", "create", "replace", "patch", "delete" })
+        foreach (var operation in new[] { "list", "detail", "replace", "patch", "delete" })
         {
             snapshots.ClearReceivedCalls();
             using var unavailable = await ManagedFormRequestAsync(client, operation, visible);
@@ -146,15 +139,13 @@ public sealed partial class RequiredActionsFlowTests
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
         var route = $"/api/forms/{form}";
         var absent = long.MaxValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var folder = new { name = "Moved form", folderId = absent, isEnabled = true, formDefinitionSchema = new { } };
+        var folder = new { name = "Moved form", folderId = absent, isEnabled = true };
 
-        using var create = await client.PostAsJsonAsync("/api/forms", folder, ct);
         using var replace = await client.PutAsJsonAsync(route, folder, ct);
         using var patch = await client.PatchAsJsonAsync(route, folder, ct);
         using var theme = await client.PatchAsJsonAsync(route, new { themeId = long.MaxValue }, ct);
 
         // The folder policy's existing error maps to 500; missing themes map to 404.
-        Assert.Equal(HttpStatusCode.InternalServerError, create.StatusCode);
         Assert.Equal(HttpStatusCode.InternalServerError, replace.StatusCode);
         Assert.Equal(HttpStatusCode.InternalServerError, patch.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, theme.StatusCode);
@@ -187,12 +178,11 @@ public sealed partial class RequiredActionsFlowTests
         var ct = TestContext.Current.CancellationToken;
         const string forms = "/api/forms";
         var detail = $"{forms}/{id}";
-        var change = new { name = "New form name", isEnabled = true, formDefinitionSchema = new { pages = Array.Empty<object>() } };
+        var change = new { name = "New form name", isEnabled = true };
         return operation switch
         {
             "list" => owner.GetAsync(forms, ct),
             "detail" => owner.GetAsync(detail, ct),
-            "create" => owner.PostAsJsonAsync(forms, change, ct),
             "replace" => owner.PutAsJsonAsync(detail, change, ct),
             "patch" => owner.PatchAsJsonAsync(detail, change, ct),
             "delete" => owner.DeleteAsync(detail, ct),

@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -21,31 +20,6 @@ public class CreateFormHandlerTests
         _repository = Substitute.For<IFormsRepository>();
         _tenantContext = Substitute.For<ITenantContext>();
         _handler = new CreateFormHandler(_repository, _tenantContext, FolderAssignmentPolicyStub.Relaxed(_tenantContext));
-    }
-
-    [Fact]
-    public async Task Handle_FolderBecomesRequiredDuringStandingCheck_DoesNotCreateForm()
-    {
-        // Arrange
-        var ct = TestContext.Current.CancellationToken;
-        _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
-        var settings = Substitute.For<IRepository<TenantSettingsEntity>>();
-        var folders = new FolderAssignmentPolicy(settings, Substitute.For<IRepository<Folder>>(), _tenantContext);
-        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(ct).Returns(_ =>
-        {
-            settings.AnyAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), ct).Returns(true);
-            return Result.Success(new AuthorizationData());
-        });
-        var handler = new CreateFormHandler(_repository, _tenantContext, folders, new AccountStanding(snapshots));
-        var request = new CreateFormCommand("Form Name", null, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
-
-        // Act
-        var result = await handler.Handle(request, ct);
-
-        // Assert
-        result.Errors.Should().ContainSingle().Which.Should().Be("You must assign a folder.");
-        _repository.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
