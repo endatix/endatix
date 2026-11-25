@@ -18,7 +18,6 @@
     <PackageVersion Include="FastEndpoints" Version="9.0.0" />
     <PackageVersion Include="FastEndpoints.Security" Version="9.0.0" />
     <PackageVersion Include="FastEndpoints.Swagger" Version="9.0.0" />
-    <PackageVersion Include="Scalar.AspNetCore" Version="2.20.0" />
     <PackageVersion Include="FastEndpoints.Testing" Version="9.0.0" />
     <PackageVersion Include="FluentAssertions" Version="7.2.2" />
     <PackageVersion Include="FluentValidation" Version="12.0.0" />
@@ -60,6 +59,7 @@
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="SQLite3MC.PCLRaw.bundle" Version="2.3.5" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.20.0" />
     <PackageVersion Include="SendGrid" Version="9.29.3" />
     <PackageVersion Include="SendGrid.Extensions.DependencyInjection" Version="1.0.1" />
     <PackageVersion Include="coverlet.MTP" Version="10.1.1" />
