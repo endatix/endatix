@@ -23,6 +23,7 @@ public class DeleteRole(IMediator mediator)
         Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Delete a role";
             s.Description = "Deletes the specified role for the current tenant. Admin-only access.";
             s.Responses[200] = "Role deleted successfully.";

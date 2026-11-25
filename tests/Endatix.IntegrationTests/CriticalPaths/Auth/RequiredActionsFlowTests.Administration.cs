@@ -51,10 +51,21 @@ public sealed partial class RequiredActionsFlowTests
 
         provider.Pending = false;
         await InvalidateAsync(world, ct);
+        await AssertRecoveryAsync(admin, requests, ct);
+    }
+
+    private static async Task AssertRecoveryAsync(HttpClient admin, IEnumerable<Func<HttpClient, CancellationToken, Task<HttpResponseMessage>>> requests, CancellationToken ct)
+    {
         foreach (var request in requests)
         {
             using var allowed = await request(admin, ct);
-            allowed.EnsureSuccessStatusCode();
+            Assert.True(allowed.IsSuccessStatusCode, Operation(allowed));
+            if (allowed.RequestMessage is { Method.Method: "PUT", RequestUri.AbsolutePath: "/api/roles/StandingTest" })
+            {
+                var roles = await admin.GetFromJsonAsync<JsonElement>("/api/roles", ct);
+                var updated = Assert.Single(roles.GetProperty("items").EnumerateArray(), r => r.GetProperty("name").GetString() == "StandingTest");
+                Assert.Equal("Recovered role", updated.GetProperty("description").GetString());
+            }
         }
     }
 
@@ -65,12 +76,15 @@ public sealed partial class RequiredActionsFlowTests
         return (await invited.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("id").ToString();
     }
 
+    private static string Operation(HttpResponseMessage response) =>
+        $"{response.RequestMessage?.Method} {response.RequestMessage?.RequestUri?.AbsolutePath}: {response.StatusCode}";
+
     private static async Task AssertStandingRefusalAsync(HttpResponseMessage refused, JsonElement me, CancellationToken ct)
     {
-        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.True(refused.StatusCode == HttpStatusCode.Forbidden, Operation(refused));
         var problem = await refused.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Equal("required_action", problem.GetProperty("errorCode").GetString());
-        Assert.True(JsonElement.DeepEquals(me.GetProperty("requiredActions"), problem.GetProperty("requiredActions")));
+        Assert.True(problem.TryGetProperty("errorCode", out var code) && code.GetString() == "required_action", Operation(refused));
+        Assert.True(problem.TryGetProperty("requiredActions", out var actions) && JsonElement.DeepEquals(me.GetProperty("requiredActions"), actions), Operation(refused));
     }
 
     [Fact]
@@ -91,6 +105,9 @@ public sealed partial class RequiredActionsFlowTests
         var before = await IdentityStateAsync(world, ct);
         using var invalid = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test", roles = _adminInviteRoles }, ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var existing = await admin.PostAsJsonAsync("/api/users", new { email = world.Tenants[0].Admin.Email }, ct);
+        Assert.Equal(HttpStatusCode.BadRequest, existing.StatusCode);
+        Assert.Contains("already belongs to this tenant", await existing.Content.ReadAsStringAsync(ct));
         using var retry = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test" }, ct);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, retry.StatusCode);
         var problem = await retry.Content.ReadFromJsonAsync<JsonElement>(ct);
@@ -143,7 +160,7 @@ public sealed partial class RequiredActionsFlowTests
     {
         var user = $"/api/users/{creator}";
         var pending = $"/api/users/{waiting}";
-        var role = new { name = "StandingNew", permissions = new[] { Actions.Access.Hub } };
+        var role = new { name = "StandingNew", description = "Recovered role", permissions = new[] { Actions.Access.Hub } };
         yield return (c, ct) => c.GetAsync("/api/users", ct);
         yield return (c, ct) => c.GetAsync(user, ct);
         yield return (c, ct) => c.GetAsync("/api/roles", ct);

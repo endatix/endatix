@@ -28,6 +28,7 @@ public sealed class ListRoles(IMediator mediator)
         Permissions(Actions.Tenant.ViewRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "List roles";
             s.Description =
                 "Retrieves roles with paging, optional role type filtering (all, system, custom), and sort.";

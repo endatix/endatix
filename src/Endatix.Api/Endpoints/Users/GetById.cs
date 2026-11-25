@@ -25,6 +25,7 @@ public sealed class GetById(IMediator mediator)
         Permissions(Actions.Tenant.ViewUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Get user by ID";
             s.Description = "Gets a single user for the current tenant, including assigned role names.";
             s.ExampleRequest = new GetUserByIdRequest { UserId = 1507759960832868352L };

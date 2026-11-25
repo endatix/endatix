@@ -28,6 +28,7 @@ public sealed class List(IMediator mediator)
         Permissions(Actions.Tenant.ViewUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "List users";
             s.Description =
                 "Lists users for the current tenant with paging, search, role/status filters, " +

@@ -23,6 +23,7 @@ public sealed class ResendUserInvitation(IMediator mediator)
         Permissions(Actions.Tenant.InviteUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Resend user invite email";
             s.Description = "Resends the activation invitation email to a pending user.";
             s.ExampleRequest = new UserIdRequest { UserId = 1 };

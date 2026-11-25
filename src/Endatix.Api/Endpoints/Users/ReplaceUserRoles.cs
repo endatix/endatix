@@ -24,6 +24,7 @@ public sealed class ReplaceUserRoles(IMediator mediator)
         Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Replace user roles";
             s.Description = "Replaces the user's editable tenant role set in one atomic operation.";
             s.Responses[200] = "User roles updated successfully.";

@@ -2,6 +2,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Identity.Services;
@@ -17,10 +18,27 @@ public sealed partial class RoleManagementService
         return roles;
     }
 
-    private async Task<Result<string>?> CheckRolePermissionsAsync(IReadOnlyCollection<string> names, IReadOnlyCollection<Permission> permissions, CancellationToken ct)
+    private async Task<Result<List<Permission>>> ReadRolePermissionsAsync(List<string> names, CancellationToken ct)
     {
+        var permissions = names.Count == 0 ? [] : await _identityDbContext.Permissions.AsNoTracking()
+            .Where(permission => names.Contains(permission.Name)).ToListAsync(ct);
         var valid = EnsureAllPermissionsExist(names, permissions);
-        return valid.IsSuccess ? await _standing.RefusalAsync<string>(ct) : valid.ToErrorResult<string>();
+        return valid.IsSuccess ? Result.Success(permissions) : valid.ToErrorResult<List<Permission>>();
+    }
+
+    private async Task<Result<long>> AuthorizeRoleRewriteAsync(IQueryable<AppRole> tenantRole, List<string> names, string roleName, CancellationToken ct)
+    {
+        var target = await tenantRole.Select(role => new { role.Id, role.IsSystemDefined }).FirstOrDefaultAsync(ct);
+        if (target is null)
+        {
+            return Result.NotFound($"Role '{roleName}' not found for this tenant.");
+        }
+        if (target.IsSystemDefined)
+        {
+            return Result.Invalid(new ValidationError { Identifier = nameof(roleName), ErrorMessage = $"Cannot update system-defined role '{roleName}'." });
+        }
+        var access = await EnsureCanRewriteRoleAsync(target.Id, names, ct);
+        return access.IsSuccess ? Result.Success(target.Id) : access.ToErrorResult<long>();
     }
 
     private async Task<Result> SaveAssignmentsAsync(IEnumerable<IdentityUserRole<long>> removed, IEnumerable<IdentityUserRole<long>> added, CancellationToken ct)

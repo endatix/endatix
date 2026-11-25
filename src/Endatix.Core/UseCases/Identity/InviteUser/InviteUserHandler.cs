@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using MediatR;
 
 namespace Endatix.Core.UseCases.Identity.InviteUser;
 
@@ -14,7 +15,8 @@ public sealed class InviteUserHandler(
     IRoleManagementService roleManagementService,
     ITenantContext tenantContext,
     ICurrentUserAuthorizationService currentUserAuthorizationService,
-    AccountStanding standing)
+    AccountStanding standing,
+    ISender sender)
     : ICommandHandler<InviteUserCommand, Result<User>>
 {
     /// <inheritdoc/>
@@ -40,7 +42,18 @@ public sealed class InviteUserHandler(
             }
         }
 
-        return await standing.RefusalAsync<User>(cancellationToken) ?? await RegisterAndAssignRolesAsync(request, cancellationToken);
+        return await InviteRefusalAsync(request.Email, cancellationToken) ?? await RegisterAndAssignRolesAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<User>?> InviteRefusalAsync(string email, CancellationToken ct)
+    {
+        if (!standing.IsEnforced)
+        {
+            return null;
+        }
+
+        var eligible = await sender.Send(new CheckInviteTarget(email, tenantContext.TenantId), ct);
+        return eligible.IsSuccess ? await standing.RefusalAsync<User>(ct) : eligible.ToErrorResult<User>();
     }
 
     private async Task<Result<User>> RegisterAndAssignRolesAsync(InviteUserCommand request, CancellationToken cancellationToken)

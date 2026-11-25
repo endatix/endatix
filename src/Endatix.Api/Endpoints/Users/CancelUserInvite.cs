@@ -23,6 +23,7 @@ public sealed class CancelUserInvite(IMediator mediator)
         Permissions(Actions.Tenant.InviteUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Cancel a pending user invite";
             s.Description = "Cancels a pending invitation for a tenant user by user ID.";
             s.ExampleRequest = new UserIdRequest { UserId = 1 };

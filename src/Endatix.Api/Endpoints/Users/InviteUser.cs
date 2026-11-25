@@ -26,6 +26,7 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
         Permissions(Actions.Tenant.InviteUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Invite a user";
             s.Description = "Creates or reattaches a tenant user and sends an activation email when needed.";
             s.ExampleRequest = new InviteUserRequest

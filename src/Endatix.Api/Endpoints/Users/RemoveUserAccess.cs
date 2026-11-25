@@ -23,6 +23,7 @@ public sealed class RemoveUserAccess(IMediator mediator)
         Permissions(Actions.Tenant.ManageUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Remove user access";
             s.Description = "Removes the user's access to the current tenant without deleting their global identity.";
             s.ExampleRequest = new UserIdRequest { UserId = 1 };

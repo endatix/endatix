@@ -24,6 +24,7 @@ public sealed class UpdateRole(IMediator mediator)
         Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Update a role";
             s.Description = "Updates an existing role's description and permission assignments.";
             s.ExampleRequest = new UpdateRoleRequest

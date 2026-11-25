@@ -24,6 +24,7 @@ public sealed class ListPermissions(IMediator mediator)
         Permissions(Actions.Tenant.ViewRoles, Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "List all permissions";
             s.Description = "Retrieves all available permissions in the system, including name, description, category, and whether each is system-defined.";
             s.Responses[200] = "List of permissions returned successfully.";

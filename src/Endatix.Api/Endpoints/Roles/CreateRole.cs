@@ -23,6 +23,7 @@ public class CreateRole(IMediator mediator)
         Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Create a new role with permissions";
             s.Description = "Creates a new role for the current tenant with the specified permissions. Admin-only access.";
             s.Responses[201] = "Role created successfully.";

@@ -14,7 +14,7 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// <summary>
 /// Implements the user registration service.
 /// </summary>
-public sealed class AppUserRegistrationService(
+public sealed partial class AppUserRegistrationService(
     UserManager<AppUser> userManager,
     IUserStore<AppUser> userStore,
     IEmailVerificationService emailVerificationService,
@@ -260,23 +260,16 @@ public sealed class AppUserRegistrationService(
         bool isAnonymous,
         CancellationToken cancellationToken)
     {
-        if (existingUser.TenantId > 0 && existingUser.TenantId != tenantId)
+        if (ExistingTargetError(existingUser.TenantId, existingUser.EmailConfirmed, tenantId) is { } error)
         {
             return isAnonymous
                 ? ExistingAccountSuppressed(email)
-                : Result.Invalid(new ValidationError(EMAIL_ALREADY_REGISTERED_MESSAGE));
+                : Result.Invalid(new ValidationError(error));
         }
 
         if (existingUser.TenantId != tenantId)
         {
             return await AttachExistingUserToTenantAsync(existingUser, email, tenantId, sendInvitationEmail, cancellationToken);
-        }
-
-        if (existingUser.EmailConfirmed)
-        {
-            return isAnonymous
-                ? ExistingAccountSuppressed(email)
-                : Result.Invalid(new ValidationError(USER_ALREADY_BELONGS_TO_TENANT_MESSAGE));
         }
 
         await SendAccountEmailAsync(existingUser.Id, email, sendInvitationEmail, cancellationToken);
