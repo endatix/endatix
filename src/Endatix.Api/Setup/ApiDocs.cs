@@ -32,14 +32,8 @@ internal static class ApiDocs
     /// </summary>
     internal static void Add(IApplicationBuilder app, ApiOptions options)
     {
-        if (!options.UseSwagger)
+        if (!options.UseSwagger || WasAdded(app))
         {
-            return;
-        }
-
-        if (app.Properties.ContainsKey(ADDED_KEY))
-        {
-            Logger(app)?.LogWarning("The API docs were already added. This call's settings are ignored.");
             return;
         }
 
@@ -47,16 +41,19 @@ internal static class ApiDocs
         var pagePath = PagePath(options.SwaggerPath);
         app.Properties[ADDED_KEY] = true;
         var documentPath = AddDocument(app, options);
-        if (options.UseSwaggerUi)
+        AddSwaggerUi(app, options, pagePath);
+        MapScalar(routes, pagePath, documentPath);
+    }
+
+    private static bool WasAdded(IApplicationBuilder app)
+    {
+        if (!app.Properties.ContainsKey(ADDED_KEY))
         {
-            AddSwaggerUi(app, options, pagePath);
-        }
-        else if (options.ConfigureSwaggerUi is not null)
-        {
-            Logger(app)?.LogWarning("ConfigureSwaggerUi is set but UseSwaggerUi is off, so Swagger UI is not served.");
+            return false;
         }
 
-        MapScalar(routes, pagePath, documentPath);
+        Logger(app)?.LogWarning("The API docs were already added. This call's settings are ignored.");
+        return true;
     }
 
     /// <summary>Adds the document middleware and returns its path once the host's settings apply.</summary>
@@ -86,20 +83,38 @@ internal static class ApiDocs
             .AddPreferredSecuritySchemes(BEARER_SCHEME));
 
     /// <summary>
-    /// Adds Swagger UI at <c>/swagger</c>, or where the host's settings move it. It must not take the docs page's path:
+    /// Adds Swagger UI when it is on, at <c>/swagger</c> or where the host's settings move it. It must not take the docs
+    /// page's path:
     /// its middleware runs before endpoints, so it would hide Scalar there.
     /// </summary>
-    private static void AddSwaggerUi(IApplicationBuilder app, ApiOptions options, string pagePath) =>
+    private static void AddSwaggerUi(IApplicationBuilder app, ApiOptions options, string pagePath)
+    {
+        if (!options.UseSwaggerUi)
+        {
+            if (options.ConfigureSwaggerUi is not null)
+            {
+                Logger(app)?.LogWarning("ConfigureSwaggerUi is set but UseSwaggerUi is off, so Swagger UI is not served.");
+            }
+
+            return;
+        }
+
         app.UseSwaggerUi(settings => settings.ConfigureDefaults(ui =>
         {
             ui.Path = SWAGGER_UI_PATH;
             options.ConfigureSwaggerUi?.Invoke(ui);
-            if (string.Equals(PagePath(ui.Path), pagePath, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    $"Swagger UI cannot serve at the API docs page '{pagePath}'. Move SwaggerPath or Swagger UI's path.");
-            }
+            EnsureOffTheDocsPage(ui.Path, pagePath);
         }));
+    }
+
+    private static void EnsureOffTheDocsPage(string swaggerUiPath, string pagePath)
+    {
+        if (string.Equals(PagePath(swaggerUiPath), pagePath, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Swagger UI cannot serve at the API docs page '{pagePath}'. Move SwaggerPath or Swagger UI's path.");
+        }
+    }
 
     /// <summary>
     /// The docs page path without a trailing slash. An empty path or <c>/</c> falls back to the default, since Scalar

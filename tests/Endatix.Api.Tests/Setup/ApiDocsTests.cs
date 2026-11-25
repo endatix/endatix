@@ -103,6 +103,20 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
+    public async Task Swagger_ui_settings_alone_do_not_turn_it_on()
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync(options => options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list");
+        using var client = host.CreateClient();
+
+        // Act
+        var status = await GetStatusAsync(client, SWAGGER_UI_PAGE);
+
+        // Assert
+        status.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Swagger_ui_serves_at_swagger_when_turned_on()
     {
         // Arrange
