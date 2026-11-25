@@ -47,6 +47,7 @@ internal static class ApiDocs
         AddSwaggerUi(app, options, pagePath);
         MapScalar(routes, pagePath, documentPath);
         MapOldSwaggerUiBookmark(routes, pagePath);
+        RedirectRootWhenPathFallsBack(app, routes, options.SwaggerPath);
     }
 
     private static bool WasAdded(IApplicationBuilder app)
@@ -104,6 +105,27 @@ internal static class ApiDocs
             .WithOpenApiRoutePattern(documentPath)
             .AddDocument(DOCUMENT_NAME)
             .AddPreferredSecuritySchemes(BEARER_SCHEME));
+
+    /// <summary>
+    /// An empty or <c>/</c> SwaggerPath asked for the docs at the root, which they cannot take, so they serve at the
+    /// default. The root then redirects there and a warning says so. An unset (null) or other path adds no root route,
+    /// so a host keeps its root.
+    /// </summary>
+    private static void RedirectRootWhenPathFallsBack(
+        IApplicationBuilder app, IEndpointRouteBuilder routes, string? swaggerPath)
+    {
+        if (swaggerPath is null || swaggerPath.Trim().TrimEnd('/').Length > 0)
+        {
+            return;
+        }
+
+        Logger(app)?.LogWarning(
+            "SwaggerPath '{SwaggerPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.",
+            swaggerPath,
+            DEFAULT_PATH);
+        routes.MapGet("/", (HttpRequest request) => Results.Redirect($"{request.PathBase}{DEFAULT_PATH}/"))
+            .ExcludeFromDescription();
+    }
 
     /// <summary>
     /// Sends the old Swagger UI address, <c>{page}/index.html</c>, to the docs page. The literal route outranks Scalar's

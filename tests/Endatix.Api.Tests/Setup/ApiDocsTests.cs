@@ -6,6 +6,7 @@ using Endatix.Api.Setup;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSwag.AspNetCore;
 
@@ -187,6 +188,45 @@ public sealed partial class ApiDocsTests
         // Assert
         scalar.DocumentUrls.Should().Equal(DOCUMENT_URL);
         (await GetStatusAsync(client, "/anything")).Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Theory]
+    [InlineData("", "/")]
+    [InlineData("/", "/")]
+    [InlineData("  ", "/")]
+    [InlineData("/", "/sub/")]
+    public async Task Root_swagger_path_redirects_the_root_to_the_docs_page_with_a_warning(string swaggerPath, string root)
+    {
+        // Arrange
+        var warnings = new List<string>();
+        await using var host = await StartWithWarningsAsync(swaggerPath, warnings);
+        using var client = host.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync(new Uri(root, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.OriginalString.Should().Be(root + "api-docs/");
+        warnings.Should().ContainSingle(warning => warning.Contains("SwaggerPath", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("/docs")]
+    public async Task Set_or_unset_swagger_path_adds_no_root_redirect_and_no_warning(string? swaggerPath)
+    {
+        // Arrange
+        var warnings = new List<string>();
+        await using var host = await StartWithWarningsAsync(swaggerPath, warnings);
+        using var client = host.CreateClient();
+
+        // Act
+        var status = await GetStatusAsync(client, "/");
+
+        // Assert
+        status.Should().Be(HttpStatusCode.NotFound);
+        warnings.Should().NotContain(warning => warning.Contains("SwaggerPath", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -387,6 +427,15 @@ public sealed partial class ApiDocsTests
         options.UseSwaggerUi.Should().BeFalse();
     }
 
+    private static Task<ApiDocsHost> StartWithWarningsAsync(string? swaggerPath, List<string> warnings) =>
+        ApiDocsHost.StartWithPipelineAsync(
+            (app, _) =>
+            {
+                app.UsePathBase("/sub");
+                app.UseEndatixApiDocs(new ApiOptions { SwaggerPath = swaggerPath });
+            },
+            services => services.AddSingleton<ILoggerProvider>(new WarningLoggerProvider(warnings)));
+
     private static async Task<HttpStatusCode> GetStatusAsync(HttpClient client, string path)
     {
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
@@ -424,5 +473,30 @@ public sealed partial class ApiDocsTests
 
         [GeneratedRegex(@"initialize\(\s*'(?<path>[^']*)',\s*\w+,\s*(?<config>\{.*\}),\s*'", RegexOptions.Singleline)]
         private static partial Regex InitializeCall();
+    }
+
+    private sealed class WarningLoggerProvider(List<string> warnings) : ILoggerProvider
+    {
+        public ILogger CreateLogger(string categoryName) => new WarningLogger(warnings);
+
+        public void Dispose()
+        {
+        }
+
+        private sealed class WarningLogger(List<string> warnings) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => logLevel == LogLevel.Warning;
+
+            public void Log<TState>(
+                LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                if (logLevel == LogLevel.Warning)
+                {
+                    warnings.Add(formatter(state, exception));
+                }
+            }
+        }
     }
 }
