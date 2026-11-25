@@ -222,15 +222,19 @@ internal static class ApiDocs
 
     private static void LogRootFallback(IApplicationBuilder app, RequestedDocsPath requestedPath)
     {
-        var deprecation = requestedPath.Key == SWAGGER_PATH_KEY
-            ? " SwaggerPath is deprecated: set ApiDocsPath instead."
-            : string.Empty;
+        if (requestedPath.Key == SWAGGER_PATH_KEY)
+        {
+            Logger(app)?.LogWarning(
+                "SwaggerPath '{SwaggerPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there. SwaggerPath is deprecated: set ApiDocsPath instead.",
+                requestedPath.Value,
+                DEFAULT_PATH);
+            return;
+        }
+
         Logger(app)?.LogWarning(
-            "{Setting} '{RequestedPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.{Deprecation}",
-            requestedPath.Key,
+            "ApiDocsPath '{ApiDocsPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.",
             requestedPath.Value,
-            DEFAULT_PATH,
-            deprecation);
+            DEFAULT_PATH);
     }
 
     private static ILogger? Logger(IApplicationBuilder app) =>
