@@ -27,7 +27,7 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository,
             request.FormId,
             request.Created,
             request.Modified);
-        if (access is not null && await access.ListAsync(countSpec, cancellationToken) is { } refusal)
+        if (access is not null && await access.ListAsync(repository, countSpec, cancellationToken) is { } refusal)
         {
             return refusal;
         }

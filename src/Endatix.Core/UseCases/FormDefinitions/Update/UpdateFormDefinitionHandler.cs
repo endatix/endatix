@@ -23,7 +23,7 @@ public class UpdateFormDefinitionHandler(IRepository<FormDefinition> repository,
 
     public async Task<Result<FormDefinition>> Handle(UpdateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.DefinitionAsync(request.FormId, request.DefinitionId, cancellationToken) is { } refusal)
+        if (access is not null && await access.DefinitionAsync(repository, (request.FormId, request.DefinitionId), cancellationToken) is { } refusal)
         {
             return refusal;
         }

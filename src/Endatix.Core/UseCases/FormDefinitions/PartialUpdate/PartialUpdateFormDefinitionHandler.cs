@@ -23,7 +23,7 @@ public class PartialUpdateFormDefinitionHandler(IRepository<FormDefinition> repo
 
     public async Task<Result<FormDefinition>> Handle(PartialUpdateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.DefinitionAsync(request.FormId, request.DefinitionId, cancellationToken) is { } refusal)
+        if (access is not null && await access.DefinitionAsync(repository, (request.FormId, request.DefinitionId), cancellationToken) is { } refusal)
         {
             return refusal;
         }

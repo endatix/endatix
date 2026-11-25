@@ -26,7 +26,7 @@ public partial class GetFormDefinitionFieldsHandler(IRepository<FormDefinition> 
         GetFormDefinitionFieldsQuery request,
         CancellationToken cancellationToken)
     {
-        if (access is not null && await access.FormAsync<IEnumerable<DefinitionFieldDto>>(request.FormId, cancellationToken) is { } refusal)
+        if (access is not null && await access.FormAsync<IEnumerable<DefinitionFieldDto>>(formsRepository, request.FormId, cancellationToken) is { } refusal)
         {
             return refusal;
         }

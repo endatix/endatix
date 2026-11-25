@@ -192,6 +192,12 @@ public sealed class FormAccessTokenUseFlowTests(EndatixIntegrationWebHostFixture
     private async Task<(IntegrationTestWorld World, long FormId, long ListId)> PrepareAsync(bool isPublic, CancellationToken ct)
     {
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
+        var (form, list) = await SeedRuntimeFormAsync(world, isPublic, ct);
+        return (world, form, list);
+    }
+
+    internal static async Task<(long Form, long List)> SeedRuntimeFormAsync(IntegrationTestWorld world, bool isPublic, CancellationToken ct)
+    {
         var tenantId = world.Tenants[0].Id;
 
         using var scope = world.Services.CreateScope();
@@ -205,6 +211,6 @@ public sealed class FormAccessTokenUseFlowTests(EndatixIntegrationWebHostFixture
         form.AddFormDefinition(new FormDefinition(tenantId, isDraft: false, jsonData: Definition(Question("pick", $"\"{list.Id}\""))));
         await db.SaveChangesAsync(ct);
 
-        return (world, form.Id, list.Id);
+        return (form.Id, list.Id);
     }
 }

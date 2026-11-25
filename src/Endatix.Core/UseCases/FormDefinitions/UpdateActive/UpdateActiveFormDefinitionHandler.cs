@@ -18,7 +18,7 @@ public class UpdateActiveFormDefinitionHandler(IFormsRepository formRepository,
 
     public async Task<Result<FormDefinition>> Handle(UpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.ActiveAsync(request.FormId, cancellationToken) is { } refusal)
+        if (access is not null && await access.ActiveAsync(formRepository, request.FormId, cancellationToken) is { } refusal)
         {
             return refusal;
         }

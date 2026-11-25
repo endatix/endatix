@@ -15,7 +15,7 @@ internal sealed class GetFormSettingsHandler(IRepository<Form> forms, IFormSetti
     /// <inheritdoc/>
     public async Task<Result<FormSettingsDto>> Handle(GetFormSettingsQuery request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.FormAsync<FormSettingsDto>(request.FormId, cancellationToken) is { } refusal)
+        if (access is not null && await access.FormAsync<FormSettingsDto>(forms, request.FormId, cancellationToken) is { } refusal)
         {
             return refusal;
         }

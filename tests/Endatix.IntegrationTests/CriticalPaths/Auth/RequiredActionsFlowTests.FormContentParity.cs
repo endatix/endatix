@@ -68,20 +68,14 @@ public sealed partial class RequiredActionsFlowTests
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
-        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData()));
-        var form = await CreateFormAsync(owner, ct);
-        using var published = await owner.PatchAsJsonAsync($"/api/forms/{form}", new { isPublic = true }, ct);
-        published.EnsureSuccessStatusCode();
+        var (form, list) = await FormAccessTokenUseFlowTests.SeedRuntimeFormAsync(world, true, ct);
         snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        snapshots.ClearReceivedCalls();
         using var anonymous = world.AnonymousClient();
         var definition = await anonymous.GetFromJsonAsync<JsonElement>($"/api/forms/{form}/definition", ct);
-        Assert.Equal(form, definition.GetProperty("formId").GetString());
-        using var respondent = await PublicDataListScopeFlowTests.AnonymousWithFormTokenAsync(world,
-            long.Parse(form, System.Globalization.CultureInfo.InvariantCulture), ct);
-        var tokenRead = await respondent.GetFromJsonAsync<JsonElement>($"/api/forms/{form}/definition", ct);
-        Assert.True(JsonElement.DeepEquals(definition, tokenRead));
+        Assert.Equal(form.ToString(System.Globalization.CultureInfo.InvariantCulture), definition.GetProperty("formId").GetString());
+        using var respondent = await PublicDataListScopeFlowTests.AnonymousWithFormTokenAsync(world, form, ct);
+        var choices = await respondent.GetFromJsonAsync<JsonElement>(PublicDataListScopeFlowTests.SearchUrl(form, list), ct);
+        Assert.Equal("bound-choice", Assert.Single(choices.GetProperty("items").EnumerateArray()).GetProperty("value").GetString());
         Assert.Empty(snapshots.ReceivedCalls());
     }
 }

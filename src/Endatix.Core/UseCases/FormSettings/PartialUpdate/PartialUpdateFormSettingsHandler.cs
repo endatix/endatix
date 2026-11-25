@@ -21,7 +21,7 @@ internal sealed class PartialUpdateFormSettingsHandler(IRepository<Form> forms,
     /// <inheritdoc/>
     public async Task<Result<FormSettingsDto>> Handle(PartialUpdateFormSettingsCommand request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.FormAsync<FormSettingsDto>(request.FormId, cancellationToken) is { } refusal)
+        if (access is not null && await access.FormAsync<FormSettingsDto>(forms, request.FormId, cancellationToken) is { } refusal)
         {
             return refusal;
         }

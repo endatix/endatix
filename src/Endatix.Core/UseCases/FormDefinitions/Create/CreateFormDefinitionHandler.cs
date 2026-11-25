@@ -20,7 +20,7 @@ public class CreateFormDefinitionHandler(IFormsRepository formsRepository,
 
     public async Task<Result<FormDefinition>> Handle(CreateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.FormAsync<FormDefinition>(request.FormId, cancellationToken) is { } refusal)
+        if (access is not null && await access.FormAsync<FormDefinition>(formsRepository, request.FormId, cancellationToken) is { } refusal)
         {
             return refusal;
         }

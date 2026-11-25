@@ -14,7 +14,7 @@ public class GetFormDefinitionByIdHandler(IFormsRepository formsRepository,
 
     public async Task<Result<FormDefinition>> Handle(GetFormDefinitionByIdQuery request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.DefinitionOnFormAsync(request.FormId, request.DefinitionId, cancellationToken) is { } refusal)
+        if (access is not null && await access.DefinitionOnFormAsync(formsRepository, (request.FormId, request.DefinitionId), cancellationToken) is { } refusal)
         {
             return refusal;
         }

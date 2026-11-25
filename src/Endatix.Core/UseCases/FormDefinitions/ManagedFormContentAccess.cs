@@ -12,12 +12,12 @@ namespace Endatix.Core.UseCases.FormDefinitions;
 /// <summary>Resolves managed content visibility without loading the schema or settings.</summary>
 [Experimental("ENDATIX0006")]
 public sealed class ManagedFormContentAccess(
-    ITenantContext tenant, AccountStanding standing, IRepository<Form> forms, IRepository<FormDefinition> definitions)
+    ITenantContext tenant, AccountStanding standing)
 {
-    internal Task<Result<T>?> FormAsync<T>(long id, CancellationToken ct) =>
+    internal Task<Result<T>?> FormAsync<T>(IRepository<Form> forms, long id, CancellationToken ct) =>
         CheckAsync<T>(() => forms.AnyAsync(Form(id), ct), "Form not found.", ct);
 
-    internal Task<Result<FormDefinition>?> ActiveAsync(long id, CancellationToken ct) =>
+    internal Task<Result<FormDefinition>?> ActiveAsync(IRepository<Form> forms, long id, CancellationToken ct) =>
         CheckAsync<FormDefinition>(() =>
         {
             var form = Form(id);
@@ -25,19 +25,19 @@ public sealed class ManagedFormContentAccess(
             return forms.AnyAsync(form, ct);
         }, "Active form definition not found.", ct);
 
-    internal Task<Result<FormDefinition>?> DefinitionOnFormAsync(long id, long definitionId, CancellationToken ct) =>
-        CheckAsync<FormDefinition>(() => forms.AnyAsync(new DefinitionByFormAndDefinitionIdSpec(id, definitionId, tenant.TenantId), ct),
+    internal Task<Result<FormDefinition>?> DefinitionOnFormAsync(IRepository<Form> forms, (long Form, long Definition) id, CancellationToken ct) =>
+        CheckAsync<FormDefinition>(() => forms.AnyAsync(new DefinitionByFormAndDefinitionIdSpec(id.Form, id.Definition, tenant.TenantId), ct),
             "Form definition not found.", ct);
 
-    internal Task<Result<FormDefinition>?> DefinitionAsync(long id, long definitionId, CancellationToken ct) =>
+    internal Task<Result<FormDefinition>?> DefinitionAsync(IRepository<FormDefinition> definitions, (long Form, long Definition) id, CancellationToken ct) =>
         CheckAsync<FormDefinition>(() =>
         {
-            var spec = new FormDefinitionsListFilterSpec(id);
-            spec.Query.Where(d => d.Id == definitionId && d.TenantId == tenant.TenantId);
+            var spec = new FormDefinitionsListFilterSpec(id.Form);
+            spec.Query.Where(d => d.Id == id.Definition && d.TenantId == tenant.TenantId);
             return definitions.AnyAsync(spec, ct);
         }, "Form definition not found.", ct);
 
-    internal Task<Result<Paged<FormDefinition>>?> ListAsync(FormDefinitionsListFilterSpec filter, CancellationToken ct) =>
+    internal Task<Result<Paged<FormDefinition>>?> ListAsync(IRepository<FormDefinition> definitions, FormDefinitionsListFilterSpec filter, CancellationToken ct) =>
         CheckAsync<Paged<FormDefinition>>(() =>
         {
             filter.Query.Where(d => d.TenantId == tenant.TenantId);
