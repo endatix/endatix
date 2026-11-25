@@ -61,14 +61,8 @@ public sealed class CompileSchema(
         }
 
         CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId, request.Replace);
-
         var result = await mediator.Send(command, ct);
-        if (result.IsConflict())
-        {
-            return AliasConflict(command, result.Errors.Single());
-        }
-
-        return Compiled(result);
+        return result.IsConflict() ? AliasConflict(command, result.Errors.Single()) : Compiled(result);
     }
 
     private static Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult> Compiled(Result<CompileFormSchemaResult> result) =>
