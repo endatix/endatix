@@ -79,6 +79,7 @@ public sealed class InviteUserTests
         // Assert
         var problemResult = response.Result.As<ProblemHttpResult>();
         problemResult.StatusCode.Should().Be(409);
+        problemResult.ProblemDetails.Extensions.Should().NotContainKey("errorCode");
     }
 
     [Fact]

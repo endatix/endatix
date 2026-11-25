@@ -46,7 +46,9 @@ public static partial class ResultExtensions
 
         var resolvedTitle = title ?? defaultTitle;
         var messages = new List<string>(result.Errors);
-        var errorCode = result.Existing?.ErrorCode;
+        var errorCode = result is Core.UseCases.Identity.InviteUser.IInviteDeclined
+            ? "invite_declined"
+            : result.Existing?.ErrorCode;
         Dictionary<string, string[]>? fields = null;
 
         if (result.IsInvalid())

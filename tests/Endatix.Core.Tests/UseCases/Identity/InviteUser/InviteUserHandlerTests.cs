@@ -34,6 +34,43 @@ public class InviteUserHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenInviteIsDeclined_DoesNotRegisterTheUser()
+    {
+        // Arrange
+        var eligibility = Substitute.For<IInviteEligibilityProvider>();
+        _tenantContext.TenantId.Returns(10);
+        eligibility.DecideAsync(10, Arg.Any<CancellationToken>()).Returns(InviteEligibility.Declined);
+        var handler = new InviteUserHandler(_userRegistrationService, _roleManagementService,
+            _tenantContext, _currentUserAuthorizationService, eligibility);
+
+        // Act
+        var result = await handler.Handle(new InviteUserCommand("new-user@example.test"), CancellationToken.None);
+
+        // Assert
+        result.IsConflict().Should().BeTrue();
+        _userRegistrationService.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_WhenEligibilityProviderThrows_ReturnsSafeUnavailableWithoutRegistration()
+    {
+        // Arrange
+        var eligibility = Substitute.For<IInviteEligibilityProvider>();
+        eligibility.DecideAsync(Arg.Any<long>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException<InviteEligibility>(new InvalidOperationException("provider diagnostic")));
+        var handler = new InviteUserHandler(_userRegistrationService, _roleManagementService,
+            _tenantContext, _currentUserAuthorizationService, eligibility);
+
+        // Act
+        var result = await handler.Handle(new InviteUserCommand("new-user@example.test"), CancellationToken.None);
+
+        // Assert
+        result.IsUnavailable().Should().BeTrue();
+        result.Errors.Should().ContainSingle().Which.Should().Be("Invite eligibility is unavailable. Try again.");
+        _userRegistrationService.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Handle_WhenPlatformAdminRoleRequested_ReturnsInvalid()
     {
         // Arrange

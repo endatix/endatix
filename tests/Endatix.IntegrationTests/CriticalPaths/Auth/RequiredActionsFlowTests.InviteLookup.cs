@@ -5,6 +5,7 @@ using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Features.Email;
+using Endatix.Core.UseCases.Identity.InviteUser;
 using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -23,11 +24,13 @@ public sealed partial class RequiredActionsFlowTests
         var ct = TestContext.Current.CancellationToken;
         var provider = new MutableProvider("legal", "/legal");
         var reads = new TargetLookups(email);
+        var eligibility = Substitute.For<IInviteEligibilityProvider>();
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.ConfigureDbContext<AppIdentityDbContext>(options => options.AddInterceptors(reads));
             services.AddSingleton(Substitute.For<IEmailSender>());
             services.AddSingleton<IRequiredActionProvider>(provider);
+            services.AddSingleton(eligibility);
             EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
@@ -36,6 +39,7 @@ public sealed partial class RequiredActionsFlowTests
         var provisioning = scope.ServiceProvider.GetRequiredService<IUserRegistrationService>();
         var pending = await provisioning.RegisterInvitedUserAsync(email, world.Tenants[0].Id, ct);
         Assert.True(pending.IsSuccess);
+        Assert.Empty(eligibility.ReceivedCalls());
 
         reads.Reset();
         using var refused = await admin.PostAsJsonAsync("/api/users", new { email }, ct);
@@ -43,6 +47,7 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(0, reads.Count);
         provider.Pending = false;
         await InvalidateAsync(world, ct);
+        eligibility.DecideAsync(world.Tenants[0].Id, Arg.Any<CancellationToken>()).Returns(InviteEligibility.Allowed);
 
         reads.Reset();
         using var allowed = await admin.PostAsJsonAsync("/api/users", new { email }, ct);

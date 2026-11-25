@@ -29,17 +29,16 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
             s.DescribeStandingProblems();
             s.Summary = "Invite a user";
             s.Description = "Creates or reattaches a tenant user and sends an activation email when needed.";
-            s.ExampleRequest = new InviteUserRequest
-            {
-                Email = "newuser@example.com",
-                Roles = ["Editor"]
-            };
+            s.ExampleRequest = new InviteUserRequest { Email = "newuser@example.com", Roles = ["Editor"] };
             s.Responses[200] = "User invited successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.Responses[409] = "Invite declined (invite_declined) or a registration conflict.";
+            s.Responses[503] = "Standing or invite eligibility is unavailable. Try again.";
         });
         Description(builder => builder.ProducesStandingProblems()
             .Produces<InviteUserResponse>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest));
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict));
     }
 
     /// <inheritdoc/>

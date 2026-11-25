@@ -1,8 +1,10 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Identity.InviteUser;
 
@@ -16,6 +18,20 @@ public sealed class InviteUserHandler(
     ICurrentUserAuthorizationService currentUserAuthorizationService)
     : ICommandHandler<InviteUserCommand, Result<User>>
 {
+    private readonly IInviteEligibilityProvider? _eligibility;
+    private readonly ILogger<InviteUserHandler>? _logger;
+
+    /// <summary>Creates the handler with the module's invite eligibility check.</summary>
+    [Experimental("ENDATIX0007")]
+    public InviteUserHandler(IUserRegistrationService userRegistrationService, IRoleManagementService roleManagementService,
+        ITenantContext tenantContext, ICurrentUserAuthorizationService currentUserAuthorizationService,
+        IInviteEligibilityProvider eligibility, ILogger<InviteUserHandler>? logger = null)
+        : this(userRegistrationService, roleManagementService, tenantContext, currentUserAuthorizationService)
+    {
+        _eligibility = eligibility ?? throw new ArgumentNullException(nameof(eligibility));
+        _logger = logger;
+    }
+
     /// <inheritdoc/>
     public async Task<Result<User>> Handle(
         InviteUserCommand request,
@@ -39,6 +55,38 @@ public sealed class InviteUserHandler(
             }
         }
 
+        var refusal = await CheckEligibilityAsync(cancellationToken);
+        return refusal ?? await RegisterAndAssignRolesAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<User>?> CheckEligibilityAsync(CancellationToken cancellationToken)
+    {
+        var decision = _eligibility is null
+            ? InviteEligibility.Allowed
+            : await ReadDecisionAsync(_eligibility, cancellationToken);
+        return decision switch
+        {
+            InviteEligibility.Allowed => null,
+            InviteEligibility.Declined => new InviteDeclined<User>(),
+            _ => Result<User>.Unavailable("Invite eligibility is unavailable. Try again.")
+        };
+    }
+
+    private async Task<InviteEligibility> ReadDecisionAsync(IInviteEligibilityProvider provider, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await provider.DecideAsync(tenantContext.TenantId, cancellationToken);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger?.LogError(ex, "Could not determine teammate invite eligibility.");
+            return InviteEligibility.Unavailable;
+        }
+    }
+
+    private async Task<Result<User>> RegisterAndAssignRolesAsync(InviteUserCommand request, CancellationToken cancellationToken)
+    {
         var registerResult = await userRegistrationService.RegisterInvitedUserAsync(
             request.Email,
             tenantContext.TenantId,
@@ -49,24 +97,25 @@ public sealed class InviteUserHandler(
             return registerResult;
         }
 
-        var assignedRoleNames = new List<string>();
-        foreach (var roleName in request.RoleNames)
-        {
-            var assignResult = await roleManagementService.AssignRoleToUserAsync(
-                registerResult.Value.Id,
-                roleName,
-                cancellationToken);
+        return await AssignRolesAsync(registerResult.Value, request.RoleNames, cancellationToken);
+    }
 
+    private async Task<Result<User>> AssignRolesAsync(User user, IReadOnlyList<string> roles, CancellationToken cancellationToken)
+    {
+        var assignedRoleNames = new List<string>();
+        foreach (var roleName in roles)
+        {
+            var assignResult = await roleManagementService.AssignRoleToUserAsync(user.Id, roleName, cancellationToken);
             if (!assignResult.IsSuccess)
             {
-                await RollbackAssignedRolesAsync(registerResult.Value.Id, assignedRoleNames, cancellationToken);
+                await RollbackAssignedRolesAsync(user.Id, assignedRoleNames, cancellationToken);
                 return assignResult.ToErrorResult<User>();
             }
 
             assignedRoleNames.Add(roleName);
         }
 
-        return Result.Success(registerResult.Value);
+        return Result.Success(user);
     }
 
     private async Task RollbackAssignedRolesAsync(
