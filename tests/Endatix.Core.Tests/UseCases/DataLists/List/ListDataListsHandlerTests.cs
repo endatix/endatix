@@ -1,5 +1,6 @@
-using Endatix.Core.Common.Translations;
 using Ardalis.Specification;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -17,7 +18,19 @@ public class ListDataListsHandlerTests
     public ListDataListsHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
-        _sut = new ListDataListsHandler(_repository);
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(SampleData.TENANT_ID);
+        _sut = new ListDataListsHandler(_repository, tenant);
+    }
+
+    [Fact]
+    public async Task Handle_WithoutATenant_RefusesBeforeCounting()
+    {
+        var handler = new ListDataListsHandler(_repository);
+        var result = await handler.Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        _repository.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -28,7 +41,7 @@ public class ListDataListsHandlerTests
             .Returns(0);
 
         // Act
-        var result = await _sut.Handle(new ListDataListsQuery(1, 10) { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        var result = await _sut.Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
@@ -57,7 +70,7 @@ public class ListDataListsHandlerTests
             .Returns(page);
 
         // Act
-        var result = await _sut.Handle(new ListDataListsQuery(1, 10) { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        var result = await _sut.Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
@@ -86,7 +99,7 @@ public class ListDataListsHandlerTests
             });
 
         // Act
-        await _sut.Handle(new ListDataListsQuery(1, 10, "es") { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        await _sut.Handle(new ListDataListsQuery(1, 10, "es"), TestContext.Current.CancellationToken);
 
         // Assert
         await _repository.Received(1).CountAsync(
@@ -108,7 +121,7 @@ public class ListDataListsHandlerTests
                 new(5, "Cities", null, DateTime.UtcNow, null, true, 1, "en", ["de"], Array.Empty<DataListItemDto>())
             });
 
-        await _sut.Handle(new ListDataListsQuery(1, 10, "es,de") { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        await _sut.Handle(new ListDataListsQuery(1, 10, "es,de"), TestContext.Current.CancellationToken);
 
         await _repository.Received(1).CountAsync(
             Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByAnyLocale(spec, "es", "de")),
@@ -129,7 +142,7 @@ public class ListDataListsHandlerTests
                 new(5, "Cities", null, DateTime.UtcNow, null, true, 0, "es", [], Array.Empty<DataListItemDto>())
             });
 
-        await _sut.Handle(new ListDataListsQuery(1, 10, "es") { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        await _sut.Handle(new ListDataListsQuery(1, 10, "es"), TestContext.Current.CancellationToken);
 
         await _repository.Received(1).CountAsync(
             Arg.Is<DataListsSpecifications.ListSpec>(spec => SpecFiltersByDefaultLocale(spec, "es")),
@@ -152,7 +165,7 @@ public class ListDataListsHandlerTests
             });
 
         // Act
-        await _sut.Handle(new ListDataListsQuery(1, 10, Search: "MaJoR") { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        await _sut.Handle(new ListDataListsQuery(1, 10, Search: "MaJoR"), TestContext.Current.CancellationToken);
 
         // Assert
         await _repository.Received(1).CountAsync(
@@ -176,7 +189,7 @@ public class ListDataListsHandlerTests
             });
 
         // Act
-        var result = await _sut.Handle(new ListDataListsQuery(2, 10) { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        var result = await _sut.Handle(new ListDataListsQuery(2, 10), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Ok);
@@ -196,7 +209,7 @@ public class ListDataListsHandlerTests
             .Returns([]);
 
         // Act
-        var result = await _sut.Handle(new ListDataListsQuery(9, 10) { TenantId = SampleData.TENANT_ID }, TestContext.Current.CancellationToken);
+        var result = await _sut.Handle(new ListDataListsQuery(9, 10), TestContext.Current.CancellationToken);
 
         // Assert
         result.Value!.Page.Should().Be(3);

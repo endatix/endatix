@@ -29,5 +29,6 @@ public sealed record ListDataListsQuery(
     UtcDateTimeRange Modified = default)
     : IQuery<Result<Paged<DataListDto>>>
 {
-    public long TenantId { get; init; }
+    /// <summary>Tenant that owns the catalog. When omitted, use the current request scope.</summary>
+    public long? TenantId { get; init; }
 }

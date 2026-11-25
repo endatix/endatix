@@ -5,6 +5,7 @@ using FastEndpoints;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Endpoints.DataLists;
@@ -67,6 +68,6 @@ internal sealed class ImportStandingFilter : IEndpointFilter
         return (await access.RefusalAsync(target.DataListId, http.RequestAborted))?.ToProblem();
     }
 
-    private static IResult InvalidRoute(HttpContext http, List<ValidationFailure> errors) =>
+    private static ProblemHttpResult InvalidRoute(HttpContext http, List<ValidationFailure> errors) =>
         TypedResults.Problem(EndatixProblemDetails.FromValidationFailures(errors, http, StatusCodes.Status400BadRequest));
 }
