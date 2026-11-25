@@ -341,4 +341,20 @@ public sealed partial class ApiDocsTests
         (await ScalarPage.ReadAsync(client, "/x/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
         log.Warnings.Should().ContainSingle().Which.Should().Contain("ConfigureOpenApiDocument settings are ignored");
     }
+
+    [Fact]
+    public void Docs_without_endpoint_routing_skip_the_Scalar_page_with_a_warning()
+    {
+        // Arrange
+        var log = new WarningLog();
+        using var services = new ServiceCollection().AddLogging().AddSingleton(log.Provider).BuildServiceProvider();
+        var app = new ApplicationBuilder(services);
+
+        // Act
+        var add = () => app.UseEndatixApiDocs(new ApiOptions { Docs = { Path = "" } });
+
+        // Assert
+        add.Should().NotThrow();
+        log.Warnings.Should().ContainSingle().Which.Should().Contain("/api-docs needs endpoint routing, so it is skipped");
+    }
 }

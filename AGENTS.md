@@ -16,8 +16,9 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
   | `ENDATIX0003` | Deployment brand | `DeploymentBrand`, `BrandPackException`, `AddDeploymentBrand` |
   | `ENDATIX0004` | Email sender and variables | `EmailVariables`, `DeploymentSender`, `EmailSenderSettings`, `EmailWithBody.FromName`, `EmailTemplateRenderer.ProviderTemplateData` |
   | `ENDATIX0005` | Form settings | `FormSettings`, `PdfSettings`, `FormSettingsChange`, `IFormSettingsRepository`, `AppDbContext.FormSettings`, `GetFormSettingsQuery`, `PartialUpdateFormSettingsCommand`, `FormSettingsDto`, `SubmissionFormTheme`, `FormSettingsModel`, `PdfSettingsModel`, the `FormSettings` endpoints |
+  | `ENDATIX0006` | API docs settings | `ApiDocsOptions`, `ApiDocsUi`, `ApiOptions.Docs`, `ApiConfigurationOptions.Docs`, `ApiConfigurationOptions.DocsSection`, both `UseEndatixApiDocs` overloads |
 
-  Next free ID: `ENDATIX0006`.
+  Next free ID: `ENDATIX0007`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.
 - Comment a decision, constraint or non-obvious invariant, not what the name already says.
 - Before committing C#, the build must add no new diagnostics of any severity on the lines you changed. SonarCloud imports every result in the build's SARIF log, including the info and suggestion ones (CA2012, CA1859, xUnit1045) that `dotnet build` never prints. To see them, run `dotnet build Endatix.slnx --no-incremental -p:ErrorLog=obj/diagnostics.sarif%2Cversion=2.1` and read each project's `obj/diagnostics.sarif` for results on your lines (the Endatix clean-code skill's `diagnostics.py` does this for you). A rule that is noise in tests gets `severity = none` in `.editorconfig`; `suggestion` still reaches Sonar.

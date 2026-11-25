@@ -98,7 +98,7 @@ Add Serilog configuration to your appsettings.json file:
 
 ### 3. Customizing the API docs
 
-The API docs page shows [Scalar](https://scalar.com) at `/api-docs`. Set `Docs.Ui` to `ApiDocsUi.SwaggerUi` to show Swagger UI there instead, or to `ApiDocsUi.None` to serve only the OpenAPI document. `UseSwagger` and `SwaggerPath` still work as deprecated names of `Docs.Enabled` and `Docs.Path`. Endatix provides several ways to customize the API docs:
+The API docs page shows [Scalar](https://scalar.com) at `/api-docs`. Set `Docs.Ui` to `ApiDocsUi.SwaggerUi` to show Swagger UI there instead, or to `ApiDocsUi.None` to serve only the OpenAPI document. `UseSwagger` and `SwaggerPath` still work as deprecated names of `Docs.Enabled` and `Docs.Path`. The C# `Docs` options and `UseEndatixApiDocs` are experimental: opt in with `<NoWarn>$(NoWarn);ENDATIX0006</NoWarn>`. The `Endatix:Api:Docs` config keys are stable. `UseSwagger()` with no path serves a page at `/swagger`. Endatix provides several ways to customize the API docs:
 
 ```csharp
 // Using app.UseEndatix with options

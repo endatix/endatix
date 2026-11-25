@@ -274,6 +274,22 @@ public sealed class ApiOptionsSettingsTests
         withPath.Ui.Should().Be(ApiDocsUi.SwaggerUi);
     }
 
+    [Fact]
+    public void Docs_ui_members_are_unset_on_fresh_options()
+    {
+        // Arrange
+        var options = new ApiOptions();
+        var configuration = new ApiConfigurationOptions();
+
+        // Act
+        var ui = options.Docs.Ui;
+        var configuredUi = configuration.Docs.Ui;
+
+        // Assert
+        ui.Should().BeNull();
+        configuredUi.Should().BeNull();
+    }
+
     private static IConfiguration Configuration(Dictionary<string, string?> values) =>
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 

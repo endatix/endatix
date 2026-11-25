@@ -67,14 +67,19 @@ internal static class ApiDocs
     }
 
     /// <summary>
-    /// Adds the explicit docs call a host makes in code: it starts from the configured docs settings with the docs on
-    /// and no code delegates, then applies <paramref name="configure"/>. A conflict about a path the call replaced is
+    /// Adds the explicit docs call a host makes in code: it starts from the configured docs settings and Swagger UI
+    /// settings with the docs on, then applies <paramref name="configure"/>. A conflict about a path the call replaced is
     /// dropped, so no warning names a setting the call overrode.
     /// </summary>
     internal static void AddExplicit(IApplicationBuilder app, Action<ApiOptions> configure)
     {
-        var configured = ApiApplicationBuilderExtensions.GetApiOptions(app).Docs;
-        var options = new ApiOptions { Docs = configured.ForExplicitDocs(path: null) };
+        var configuredOptions = ApiApplicationBuilderExtensions.GetApiOptions(app);
+        var configured = configuredOptions.Docs;
+        var options = new ApiOptions
+        {
+            Docs = configured.ForExplicitDocs(path: null),
+            ConfigureSwaggerUi = configuredOptions.ConfigureSwaggerUi,
+        };
         configure(options);
         if (!string.Equals(options.Docs.Path, configured.Path, StringComparison.Ordinal))
         {
@@ -88,9 +93,12 @@ internal static class ApiDocs
     {
         switch (page.Ui)
         {
-            case ApiDocsUi.Scalar:
-                MapScalar(AsRouteBuilder(app), page);
+            case ApiDocsUi.Scalar when app is IEndpointRouteBuilder routes:
+                MapScalar(routes, page);
                 break;
+            case ApiDocsUi.Scalar:
+                WarnNoEndpointRouting(app, page.Path);
+                return;
             case ApiDocsUi.SwaggerUi:
                 ApiDocsSwaggerUi.Add(app, options, page.Path);
                 break;
@@ -315,8 +323,13 @@ internal static class ApiDocs
             return;
         }
 
+        if (app is not IEndpointRouteBuilder routes)
+        {
+            return;
+        }
+
         LogRootFallback(app, requested, page);
-        AsRouteBuilder(app).MapGet("/", (HttpRequest request) => Results.Redirect($"{request.PathBase}{page}/"))
+        routes.MapGet("/", (HttpRequest request) => Results.Redirect($"{request.PathBase}{page}/"))
             .WithOrder(int.MaxValue)
             .ExcludeFromDescription();
     }
@@ -357,10 +370,11 @@ internal static class ApiDocs
     internal static ILogger? Logger(IApplicationBuilder app) =>
         app.ApplicationServices.GetService<ILoggerFactory>()?.CreateLogger(typeof(ApiDocs).FullName!);
 
-    private static IEndpointRouteBuilder AsRouteBuilder(IApplicationBuilder app) =>
-        app as IEndpointRouteBuilder
-        ?? throw new InvalidOperationException(
-            "The API docs page needs endpoint routing. Add the Endatix API to a WebApplication.");
+    /// <summary>Scalar is an endpoint, so without endpoint routing its page is skipped; startup never throws.</summary>
+    private static void WarnNoEndpointRouting(IApplicationBuilder app, string page) =>
+        Logger(app)?.LogWarning(
+            "The API docs page at {Page} needs endpoint routing, so it is skipped. Add the Endatix API to a WebApplication.",
+            page);
 
     /// <summary>A requested docs page path and the setting it came from, so a warning names that setting.</summary>
     private sealed record RequestedDocsPath(string? Value, string Setting);

@@ -1,9 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Endatix.Api.Builders;
 
 /// <summary>
 /// The API docs: the OpenAPI document and the docs page that shows it. Set from <c>Endatix:Api:Docs</c> in
 /// appsettings.json, or in code through <see cref="ApiOptions.Docs"/>.
 /// </summary>
+[Experimental("ENDATIX0006")]
 public sealed class ApiDocsOptions
 {
     internal const string PATH_SETTING = "Endatix:Api:Docs:Path";
@@ -104,6 +107,7 @@ public sealed class ApiDocsOptions
 }
 
 /// <summary>The UI the API docs page shows over the OpenAPI document.</summary>
+[Experimental("ENDATIX0006")]
 public enum ApiDocsUi
 {
     /// <summary>Scalar, the default.</summary>

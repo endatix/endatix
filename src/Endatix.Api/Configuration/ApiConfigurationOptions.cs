@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Framework.Configuration;
 
 namespace Endatix.Api.Configuration;
@@ -20,6 +21,7 @@ public class ApiConfigurationOptions : EndatixOptionsBase
     /// <summary>
     /// Gets or sets the API docs settings: the document, the docs page, and the UI it shows.
     /// </summary>
+    [Experimental("ENDATIX0006")]
     public DocsSection Docs { get; set; } = new();
 
     /// <summary>
@@ -36,13 +38,15 @@ public class ApiConfigurationOptions : EndatixOptionsBase
     public string? SwaggerPath { get; set; } = "/api-docs";
 
     /// <summary>The <c>Endatix:Api:Docs</c> section.</summary>
+    [Experimental("ENDATIX0006")]
     public sealed class DocsSection
     {
         /// <summary>Gets or sets a value indicating whether to serve the API docs. Null means unset (on).</summary>
         public bool? Enabled { get; set; }
 
-        /// <summary>Gets or sets the path of the API docs page. Null means "/api-docs".</summary>
-        [RegularExpression("^/.*", ErrorMessage = "API docs path must start with '/'")]
+        /// <summary>
+        /// Gets or sets the path of the API docs page. Null means "/api-docs". A missing leading slash is added.
+        /// </summary>
         public string? Path { get; set; }
 
         /// <summary>

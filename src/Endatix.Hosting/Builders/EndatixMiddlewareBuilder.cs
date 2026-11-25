@@ -19,6 +19,9 @@ namespace Endatix.Hosting.Builders;
 /// </summary>
 public class EndatixMiddlewareBuilder
 {
+    /// <summary>Where <see cref="UseSwagger"/> serves without a path, as NSwag's Swagger UI did.</summary>
+    private const string SWAGGER_DEFAULT_PATH = "/swagger";
+
     private readonly ILogger? _logger;
 
     /// <summary>
@@ -256,12 +259,13 @@ public class EndatixMiddlewareBuilder
 
     /// <summary>
     /// Adds the API docs with optional custom settings: the OpenAPI document, once per application, and a docs page at
-    /// the path. The settings start from the configured <see cref="ApiOptions.Docs"/>, with the docs on, and use only
-    /// the delegates passed here.
+    /// the path. The settings start from the configured <see cref="ApiOptions.Docs"/> and
+    /// <see cref="ApiOptions.ConfigureSwaggerUi"/>, with the docs on, and the delegates passed here replace them.
     /// <see cref="UseApi(Action{ApiOptions}?)"/> also adds a page at the configured path, so a different path here
     /// serves a second page over the same document.
     /// </summary>
-    /// <param name="path">Optional path for the docs page. Defaults to the configured <see cref="ApiDocsOptions.Path"/>.</param>
+    /// <param name="path">Optional path for the docs page. Defaults to "/swagger", where this call served Swagger UI
+    /// before.</param>
     /// <param name="configureOpenApi">Optional delegate to configure OpenAPI document generation settings.</param>
     /// <param name="configureSwaggerUi">Optional delegate to configure Swagger UI display settings. Passing one shows
     /// Swagger UI on the page unless <see cref="ApiDocsOptions.Ui"/> is set.</param>
@@ -272,13 +276,9 @@ public class EndatixMiddlewareBuilder
 
         App.UseEndatixApiDocs(options =>
         {
-            if (path is not null)
-            {
-                options.Docs.Path = path;
-            }
-
+            options.Docs.Path = path ?? SWAGGER_DEFAULT_PATH;
             options.ConfigureOpenApiDocument = configureOpenApi;
-            options.ConfigureSwaggerUi = configureSwaggerUi;
+            options.ConfigureSwaggerUi = configureSwaggerUi ?? options.ConfigureSwaggerUi;
         });
 
         return this;

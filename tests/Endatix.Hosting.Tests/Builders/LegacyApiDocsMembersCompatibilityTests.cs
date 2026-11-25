@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Api.Builders;
 using Endatix.Api.Configuration;
 using Endatix.Hosting.Builders;
@@ -9,8 +10,8 @@ namespace Endatix.Hosting.Tests.Builders;
 
 /// <summary>
 /// The legacy docs members a host may use still compile with their shipped types. The root .editorconfig makes CS0618
-/// an error in this file only, so marking one of them obsolete fails the build here, as it would for a host that treats
-/// warnings as errors.
+/// and ENDATIX0006 errors in this file only, so marking one of them obsolete or experimental fails the build here, as
+/// it would for a host.
 /// </summary>
 public sealed class LegacyApiDocsMembersCompatibilityTests
 {
@@ -51,16 +52,37 @@ public sealed class LegacyApiDocsMembersCompatibilityTests
         var swaggerPath = Typed<string?>(options.SwaggerPath);
         var configuredUseSwagger = Typed<bool>(configuration.UseSwagger);
         var configuredSwaggerPath = Typed<string?>(configuration.SwaggerPath);
-        var ui = Typed<ApiDocsUi?>(options.Docs.Ui);
-        var configuredUi = Typed<string?>(configuration.Docs.Ui);
 
         // Assert
         useSwagger.Should().BeTrue();
         swaggerPath.Should().Be("/api-docs");
         configuredUseSwagger.Should().BeTrue();
         configuredSwaggerPath.Should().Be("/api-docs");
-        ui.Should().BeNull();
-        configuredUi.Should().BeNull();
+    }
+
+    [Fact]
+    public void Legacy_members_are_not_experimental()
+    {
+        // Arrange
+        System.Reflection.MemberInfo[] legacy =
+        [
+            typeof(ApiOptions).GetProperty(nameof(ApiOptions.UseSwagger))!,
+            typeof(ApiOptions).GetProperty(nameof(ApiOptions.SwaggerPath))!,
+            typeof(ApiOptions).GetProperty(nameof(ApiOptions.ConfigureSwaggerUi))!,
+            typeof(ApiOptions).GetProperty(nameof(ApiOptions.ConfigureOpenApiDocument))!,
+            typeof(ApiConfigurationOptions).GetProperty(nameof(ApiConfigurationOptions.UseSwagger))!,
+            typeof(ApiConfigurationOptions).GetProperty(nameof(ApiConfigurationOptions.SwaggerPath))!,
+            typeof(EndatixMiddlewareBuilder).GetMethod(nameof(EndatixMiddlewareBuilder.UseSwagger))!,
+            typeof(ApiOptions),
+            typeof(ApiConfigurationOptions),
+            typeof(EndatixMiddlewareBuilder),
+        ];
+
+        // Act
+        var experimental = legacy.Where(member => member.IsDefined(typeof(ExperimentalAttribute), inherit: false));
+
+        // Assert
+        experimental.Should().BeEmpty();
     }
 
     /// <summary>Reads a value as the type a host's code expects, so a changed member type fails to compile here.</summary>

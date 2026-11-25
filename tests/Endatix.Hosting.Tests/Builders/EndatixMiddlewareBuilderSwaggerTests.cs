@@ -18,6 +18,8 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
 {
     private const string API_DOCS_PATTERN = "/api-docs/{documentName?}";
 
+    private const string SWAGGER_PATTERN = "/swagger/{documentName?}";
+
     [Fact]
     public async Task UseSwagger_WithPath_MapsTheDocsPageThere()
     {
@@ -32,9 +34,9 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     }
 
     [Theory]
-    [InlineData(null, "/configured/{documentName?}")]
+    [InlineData(null, "/swagger/{documentName?}")]
     [InlineData("/docs", "/docs/{documentName?}")]
-    public async Task UseSwagger_WithConfiguredDeprecatedSwaggerPath_UsesThePathGivenElseTheConfiguredOne(
+    public async Task UseSwagger_WithConfiguredDeprecatedSwaggerPath_UsesThePathGivenElseSwagger(
         string? path, string pattern)
     {
         // Arrange
@@ -80,6 +82,62 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     }
 
     [Fact]
+    public async Task UseSwagger_WithoutAPathAfterUseApi_ServesSwaggerAndApiDocs()
+    {
+        // Arrange
+        await using var app = BuildApiApp();
+        var middleware = new EndatixMiddlewareBuilder(app);
+        middleware.UseApi(WithoutHostServices);
+
+        // Act
+        middleware.UseSwagger();
+
+        // Assert
+        RoutePatterns(app).Should().Equal(API_DOCS_PATTERN, SWAGGER_PATTERN);
+    }
+
+    [Fact]
+    public async Task UseSwagger_WithoutAPathBeforeUseApi_ServesSwaggerAndApiDocs()
+    {
+        // Arrange
+        await using var app = BuildApiApp();
+        var middleware = new EndatixMiddlewareBuilder(app);
+
+        // Act
+        middleware.UseSwagger();
+        middleware.UseApi(WithoutHostServices);
+
+        // Assert
+        RoutePatterns(app).Should().Equal(SWAGGER_PATTERN, API_DOCS_PATTERN);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UseSwagger_WithoutAPathAndConfiguredSwaggerUi_ServesSwaggerUiAtSwaggerAndApiDocs(bool beforeApi)
+    {
+        // Arrange
+        await using var app = BuildApiApp(options => options.Docs.Ui = ApiDocsUi.SwaggerUi);
+        var middleware = new EndatixMiddlewareBuilder(app);
+
+        // Act
+        if (beforeApi)
+        {
+            middleware.UseSwagger();
+        }
+
+        middleware.UseApi(WithoutHostServices);
+        if (!beforeApi)
+        {
+            middleware.UseSwagger();
+        }
+
+        // Assert
+        (await GetAsync(app, "/swagger/index.html")).Body.Should().Contain("swagger-ui");
+        (await GetAsync(app, "/api-docs/index.html")).Body.Should().Contain("swagger-ui");
+    }
+
+    [Fact]
     public async Task UseSwagger_AtAPathAlreadyMapped_MapsNothingMore()
     {
         // Arrange
@@ -94,7 +152,7 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     }
 
     [Fact]
-    public async Task UseSwagger_WithSwaggerUiSettings_ServesSwaggerUiAtTheDocsPage()
+    public async Task UseSwagger_WithSwaggerUiSettingsAndNoPath_ServesSwaggerUiAtSwagger()
     {
         // Arrange
         await using var app = WebApplication.CreateBuilder().Build();
@@ -103,7 +161,7 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
         new EndatixMiddlewareBuilder(app).UseSwagger(configureSwaggerUi: ui => ui.DocExpansion = "list");
 
         // Assert
-        var (status, body) = await GetAsync(app, "/api-docs/index.html");
+        var (status, body) = await GetAsync(app, "/swagger/index.html");
         status.Should().Be(StatusCodes.Status200OK);
         body.Should().Contain("swagger-ui");
         RoutePatterns(app).Should().BeEmpty();
@@ -126,19 +184,19 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     }
 
     [Fact]
-    public async Task UseSwagger_WithConfiguredSwaggerUiSettings_UsesOnlyItsOwnDelegates()
+    public async Task UseSwagger_WithConfiguredSwaggerUiSettings_ServesSwaggerUiWithThem()
     {
         // Arrange
         var builder = WebApplication.CreateBuilder();
-        builder.Services.Configure<ApiOptions>(options => options.ConfigureSwaggerUi = ui => ui.Path = "/ui");
+        builder.Services.Configure<ApiOptions>(options => options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list");
         await using var app = builder.Build();
 
         // Act
         new EndatixMiddlewareBuilder(app).UseSwagger("/docs");
 
         // Assert
-        RoutePatterns(app).Should().Equal("/docs/{documentName?}");
-        (await GetAsync(app, "/ui/index.html")).Status.Should().Be(StatusCodes.Status404NotFound);
+        RoutePatterns(app).Should().BeEmpty();
+        (await GetAsync(app, "/docs/index.html")).Body.Should().Contain("swagger-ui");
     }
 
     private static void WithoutHostServices(ApiOptions options)
@@ -148,9 +206,10 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     }
 
     /// <summary>An app with what <c>UseApi</c> needs: FastEndpoints with one endpoint, and the HTTP context accessor.</summary>
-    private static WebApplication BuildApiApp()
+    private static WebApplication BuildApiApp(Action<ApiOptions>? configure = null)
     {
         var builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<ApiOptions>(options => configure?.Invoke(options));
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddFastEndpoints(discovery =>
         {
