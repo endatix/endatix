@@ -24,16 +24,23 @@ public class ApiOptions
     public string ExceptionHandlerPath { get; set; } = "/error";
 
     /// <summary>
-    /// Gets or sets a value indicating whether to use Swagger middleware.
+    /// Gets or sets a value indicating whether to serve the API docs: the OpenAPI document, the Scalar docs page, and
+    /// Swagger UI when <see cref="UseSwaggerUi"/> is on. When <c>false</c>, none of them is served.
     /// This can be configured via appsettings.json.
     /// </summary>
     public bool UseSwagger { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the custom path for Swagger UI endpoint. Must start with "/".
-    /// Default is "/api-docs". This can be configured via appsettings.json.
+    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/".
+    /// Default is "/api-docs"; an empty path or "/" also means "/api-docs". This can be configured via appsettings.json.
     /// </summary>
     public string? SwaggerPath { get; set; } = "/api-docs";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to also serve Swagger UI, at "/swagger". Off by default.
+    /// It needs <see cref="UseSwagger"/>. This can be configured via appsettings.json.
+    /// </summary>
+    public bool UseSwaggerUi { get; set; }
 
     /// <summary>
     /// Gets or sets a delegate to configure OpenAPI document generation settings.
@@ -42,7 +49,7 @@ public class ApiOptions
     public Action<OpenApiDocumentMiddlewareSettings>? ConfigureOpenApiDocument { get; set; }
 
     /// <summary>
-    /// Gets or sets a delegate to configure Swagger UI display settings.
+    /// Gets or sets a delegate to configure Swagger UI display settings. It applies when <see cref="UseSwaggerUi"/> is on.
     /// more info: https://fast-endpoints.com/docs/swagger-support#describe-endpoints
     /// </summary>
     public Action<SwaggerUiSettings>? ConfigureSwaggerUi { get; set; }

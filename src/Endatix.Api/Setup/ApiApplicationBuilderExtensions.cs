@@ -33,9 +33,10 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}, UseSwaggerUi={UseSwaggerUi}",
                 options.UseSwagger,
-                options.SwaggerPath);
+                options.SwaggerPath,
+                options.UseSwaggerUi);
         }
 
         var result = app.UseEndatixApi(options);
@@ -59,9 +60,10 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}, UseSwaggerUi={UseSwaggerUi}",
                 options.UseSwagger,
-                options.SwaggerPath);
+                options.SwaggerPath,
+                options.UseSwaggerUi);
         }
 
         var result = app.UseEndatixApi(options);
@@ -122,27 +124,27 @@ public static class ApiApplicationBuilderExtensions
             options.ConfigureFastEndpoints?.Invoke(c);
         });
 
-        // Apply Swagger middleware if enabled
-        if (options.UseSwagger)
-        {
-            app.UseSwaggerGen(
-                options.ConfigureOpenApiDocument,
-                swaggerUiSettings =>
-                {
-                    if (options.SwaggerPath is not null)
-                    {
-                        swaggerUiSettings.Path = options.SwaggerPath;
-                    }
-
-                    options.ConfigureSwaggerUi?.Invoke(swaggerUiSettings);
-                });
-        }
+        ApiDocs.Add(app, options);
 
         // Apply CORS middleware if enabled
         if (options.UseCors)
         {
             app.UseCors();
         }
+    }
+
+    /// <summary>
+    /// Adds the API docs when <see cref="ApiOptions.UseSwagger"/> is on: the OpenAPI document, Scalar at
+    /// <see cref="ApiOptions.SwaggerPath"/>, and Swagger UI at <c>/swagger</c> when <see cref="ApiOptions.UseSwaggerUi"/>
+    /// is on. <see cref="UseEndatixApi(IApplicationBuilder, ApiOptions)"/> already adds them; a second call does nothing.
+    /// </summary>
+    /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
+    /// <param name="options">The API options.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseEndatixApiDocs(this IApplicationBuilder app, ApiOptions options)
+    {
+        ApiDocs.Add(app, options);
+        return app;
     }
 
     /// <summary>
@@ -177,7 +179,7 @@ public static class ApiApplicationBuilderExtensions
             "IExceptionHandler is not registered. Call ApiConfigurationBuilder.UseDefaults() (or equivalent) before UseExceptionHandler().");
     }
 
-    private static ApiOptions GetApiOptions(IApplicationBuilder app)
+    internal static ApiOptions GetApiOptions(IApplicationBuilder app)
     {
         var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
         return optionsProvider?.Value ?? new ApiOptions();

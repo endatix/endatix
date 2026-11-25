@@ -96,20 +96,23 @@ Add Serilog configuration to your appsettings.json file:
 }
 ```
 
-### 3. Customizing Swagger Documentation
+### 3. Customizing the API docs
 
-Endatix provides several ways to customize Swagger documentation:
+The API docs page shows [Scalar](https://scalar.com) at `/api-docs`. Swagger UI is off by default; turn it on with `UseSwaggerUi` and open `/swagger`. Endatix provides several ways to customize the API docs:
 
 ```csharp
 // Using app.UseEndatix with options
 app.UseEndatix(options =>
 {
-    // Basic toggle for enabling/disabling Swagger
+    // Turns the OpenAPI document and every docs UI on or off
     options.UseSwagger = true;
     options.EnableSwaggerInProduction = false;
     
-    // Custom path for Swagger UI (default is "/swagger")
+    // Path of the API docs page, which shows Scalar (default is "/api-docs")
     options.SwaggerPath = "/api-docs";
+
+    // Also serve Swagger UI at "/swagger" (default is false)
+    options.UseSwaggerUi = true;
     
     // Advanced Swagger configuration
     options.ConfigureOpenApiDocument = settings => 
@@ -123,7 +126,7 @@ app.UseEndatix(options =>
         };
     };
     
-    // Customize Swagger UI appearance
+    // Customize Swagger UI appearance (applies when UseSwaggerUi is on)
     options.ConfigureSwaggerUi = settings => 
     {
         settings.DocExpansion = "list";
@@ -137,20 +140,21 @@ app.UseEndatix(options =>
 });
 ```
 
-You can also configure Swagger directly using the middleware builder pattern:
+You can also configure the API docs directly when you compose the middleware yourself. The docs are added once per application, so call `UseSwagger` before `UseApi`, which then keeps them:
 
 ```csharp
 // Using the builder pattern for fine-grained control
-app.UseEndatix()
-    .UseSwagger("/api-docs", 
-        openApiSettings => 
+app.UseEndatix(endatix => endatix
+    .UseSwagger("/api-docs",
+        openApiSettings =>
         {
             openApiSettings.DocumentName = "v1";
         },
-        swaggerUiSettings => 
+        swaggerUiSettings =>
         {
             swaggerUiSettings.DocExpansion = "list";
-        });
+        })
+    .UseApi());
 ```
 
 ## Two-Stage Logging

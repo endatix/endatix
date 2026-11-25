@@ -18,13 +18,19 @@ public class ApiConfigurationOptions : EndatixOptionsBase
     public override string SectionPath => "Api";
 
     /// <summary>
-    /// Gets or sets a value indicating whether to use Swagger middleware.
+    /// Gets or sets a value indicating whether to serve the API docs: the OpenAPI document, the Scalar docs page, and
+    /// Swagger UI when <see cref="UseSwaggerUi"/> is on.
     /// </summary>
     public bool UseSwagger { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the custom path for Swagger UI endpoint. Must start with "/".
+    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/".
     /// </summary>
     [RegularExpression("^/.*", ErrorMessage = "Swagger path must start with '/'")]
     public string? SwaggerPath { get; set; } = "/api-docs";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to also serve Swagger UI, at "/swagger". Off by default.
+    /// </summary>
+    public bool UseSwaggerUi { get; set; }
 } 

@@ -58,6 +58,7 @@ public static class ApiServiceCollectionExtensions
                 // Map properties from ApiConfigurationOptions to ApiOptions
                 options.UseSwagger = config.UseSwagger;
                 options.SwaggerPath = config.SwaggerPath;
+                options.UseSwaggerUi = config.UseSwaggerUi;
             });
         });
 

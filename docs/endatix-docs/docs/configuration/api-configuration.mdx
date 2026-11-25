@@ -98,74 +98,56 @@ Configure API versioning in your `appsettings.json`:
 }
 ```
 
-## Swagger / OpenAPI Configuration
+## API docs
 
-Endatix provides built-in support for Swagger/OpenAPI documentation.
+The API serves its OpenAPI document and an interactive reference built with [Scalar](https://scalar.com):
 
-### Basic Swagger Configuration
+| What | Path |
+| --- | --- |
+| API docs page (Scalar) | `/api-docs` |
+| OpenAPI document | `/swagger/alpha-version/swagger.json` |
+| Swagger UI (off by default) | `/swagger` |
 
-Enable Swagger with default settings:
+Scalar reads the document, lists every endpoint, and sends requests from the page. To call an endpoint that needs a
+signed-in user, open **Authentication**, choose `JWTBearerAuth`, and paste an access token. The page never fills in a
+token for you.
 
-```csharp
-builder.Host.ConfigureEndatix(endatix => {
-    endatix.Api.UseSwagger();
-});
-```
-
-### Custom Swagger Configuration
-
-Configure Swagger with custom options:
-
-```csharp
-builder.Host.ConfigureEndatix(endatix => {
-    endatix.Api.UseSwagger(options => {
-        options.Title = "My Endatix API";
-        options.Description = "API for my Endatix application";
-        options.Version = "v1";
-        options.EnableAnnotations = true;
-        
-        // Add JWT authentication support to Swagger UI
-        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-        {
-            Description = "JWT Authorization header using the Bearer scheme",
-            Name = "Authorization",
-            In = ParameterLocation.Header,
-            Type = SecuritySchemeType.ApiKey,
-            Scheme = "Bearer"
-        });
-    });
-});
-```
-
-### Swagger Settings in appsettings.json
-
-Configure Swagger in your `appsettings.json`:
+Configure the docs in `appsettings.json`:
 
 ```json
 {
   "Endatix": {
     "Api": {
-      "Swagger": {
-        "Enabled": true,
-        "Title": "My Endatix API",
-        "Description": "API for my Endatix application",
-        "Contact": {
-          "Name": "API Support",
-          "Email": "support@example.com",
-          "Url": "https://example.com/support"
-        },
-        "License": {
-          "Name": "MIT",
-          "Url": "https://opensource.org/licenses/MIT"
-        },
-        "EnableAnnotations": true,
-        "RoutePrefix": "swagger",
-        "IncludeXmlComments": true
-      }
+      "UseSwagger": true,
+      "SwaggerPath": "/api-docs",
+      "UseSwaggerUi": false
     }
   }
 }
 ```
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `UseSwagger` | `true` | Serves the OpenAPI document, the API docs page, and Swagger UI when it is on. `false` turns all of them off. |
+| `SwaggerPath` | `/api-docs` | The path of the API docs page. It must start with `/`. An empty value or `/` means `/api-docs`. |
+| `UseSwaggerUi` | `false` | Also serves Swagger UI at `/swagger`. It needs `UseSwagger`. |
+
+### Bring back Swagger UI
+
+Earlier releases showed Swagger UI at `/api-docs`. To keep using Swagger UI, turn it on and open `/swagger`:
+
+```json
+{
+  "Endatix": {
+    "Api": {
+      "UseSwaggerUi": true
+    }
+  }
+}
+```
+
+`/api-docs` keeps showing Scalar. Do not set `SwaggerPath` to `/swagger` while Swagger UI is on: both pages would answer
+the same path.
 
 ## Rate Limiting
 
@@ -324,5 +306,5 @@ public class GetCustomerEndpoint : Endpoint<GetCustomerRequest, GetCustomerRespo
 1. **API Versioning:** Always version your API to maintain backward compatibility
 2. **Rate Limiting:** Apply rate limiting to protect your API from abuse
 3. **Response Formatting:** Use consistent response formats across all endpoints
-4. **Documentation:** Keep your Swagger documentation up-to-date with accurate descriptions
+4. **Documentation:** Keep your endpoint summaries and descriptions accurate, since the API docs page shows them
 5. **Security:** Ensure all sensitive API endpoints are properly secured with authentication and authorization 

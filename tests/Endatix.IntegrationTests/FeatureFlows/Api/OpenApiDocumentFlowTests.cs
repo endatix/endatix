@@ -7,7 +7,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Api;
 
 /// <summary>
 /// The OpenAPI document behind the API docs page generates for every endpoint (endatix/endatix#1841), with WhiteLabeling
-/// off (the shared host) and on.
+/// off (the shared host) and on. The page shows Scalar, and Swagger UI is off unless a host turns it on (endatix/endatix#1846).
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -44,6 +44,34 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
+    }
+
+    [Fact]
+    public async Task Docs_page_shows_Scalar_over_the_document()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        using var client = fixture.CreateClient();
+
+        // Act
+        var html = await client.GetStringAsync(new Uri("/api-docs/", UriKind.Relative), ct);
+
+        // Assert
+        html.Should().Contain("scalar.js").And.Contain("\"url\":\"swagger/alpha-version/swagger.json\"");
+    }
+
+    [Fact]
+    public async Task Swagger_ui_is_off_by_default()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        using var client = fixture.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync(new Uri("/swagger/index.html", UriKind.Relative), ct);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     /// <summary>

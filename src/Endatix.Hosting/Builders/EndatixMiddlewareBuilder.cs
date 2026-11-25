@@ -255,9 +255,12 @@ public class EndatixMiddlewareBuilder
     }
 
     /// <summary>
-    /// Adds Swagger middleware with optional custom settings.
+    /// Adds the API docs with optional custom settings: the OpenAPI document, Scalar at the docs page, and Swagger UI at
+    /// "/swagger" when <see cref="ApiOptions.UseSwaggerUi"/> is on. The settings start from the configured
+    /// <see cref="ApiOptions"/>. <see cref="UseApi(Action{ApiOptions}?)"/> already adds the docs, and they are added
+    /// once per application, so after it this call does nothing.
     /// </summary>
-    /// <param name="path">Optional custom path for Swagger UI endpoint. Defaults to "/swagger".</param>
+    /// <param name="path">Optional path for the docs page. Defaults to <see cref="ApiOptions.SwaggerPath"/>.</param>
     /// <param name="configureOpenApi">Optional delegate to configure OpenAPI document generation settings.</param>
     /// <param name="configureSwaggerUi">Optional delegate to configure Swagger UI display settings.</param>
     /// <returns>The builder for chaining.</returns>
@@ -265,13 +268,14 @@ public class EndatixMiddlewareBuilder
     {
         _logger?.LogSwaggerMiddlewareAdded(path ?? "(default)");
 
-        App.UseSwaggerGen(configureOpenApi, uiConfig =>
+        var configured = App.ApplicationServices.GetService<IOptions<ApiOptions>>()?.Value ?? new ApiOptions();
+        App.UseEndatixApiDocs(new ApiOptions
         {
-            if (path != null)
-            {
-                uiConfig.Path = path;
-            }
-            configureSwaggerUi?.Invoke(uiConfig);
+            UseSwagger = true,
+            SwaggerPath = path ?? configured.SwaggerPath,
+            UseSwaggerUi = configured.UseSwaggerUi,
+            ConfigureOpenApiDocument = configureOpenApi ?? configured.ConfigureOpenApiDocument,
+            ConfigureSwaggerUi = configureSwaggerUi ?? configured.ConfigureSwaggerUi,
         });
 
         return this;
