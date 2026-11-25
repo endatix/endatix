@@ -100,12 +100,11 @@ Configure API versioning in your `appsettings.json`:
 
 ## API docs
 
-The API serves its OpenAPI document, an interactive reference built with [Scalar](https://scalar.com), and Swagger UI:
+The API serves its OpenAPI document and an interactive reference built with [Scalar](https://scalar.com):
 
 | What | Path |
 | --- | --- |
 | API docs page (Scalar) | `/api-docs` |
-| Swagger UI | `/swagger` |
 | OpenAPI document | `/swagger/alpha-version/swagger.json` |
 
 Scalar reads the document, lists every endpoint, and sends requests from the page. To call an endpoint that needs a
@@ -121,10 +120,7 @@ Configure the docs in `appsettings.json`:
       "Docs": {
         "Enabled": true,
         "Path": "/api-docs",
-        "SwaggerUi": {
-          "Enabled": true,
-          "Path": "/swagger"
-        }
+        "Ui": "Scalar"
       }
     }
   }
@@ -133,19 +129,14 @@ Configure the docs in `appsettings.json`:
 
 <Settings>
 <Setting name="Endatix:Api:Docs:Enabled" default="true">
-Serves the OpenAPI document, the API docs page, and Swagger UI. `false` turns all of them off.
+Serves the OpenAPI document and the API docs page. `false` turns both off.
 </Setting>
 <Setting name="Endatix:Api:Docs:Path" default="/api-docs">
-The path of the API docs page. Start it with `/`. An empty value or `/` serves the page at `/api-docs` and logs a
-warning at startup. The root `/` then redirects to the page, unless your app maps its own `GET /`, which always wins.
+The path of the API docs page. Start it with `/`.
 </Setting>
-<Setting name="Endatix:Api:Docs:SwaggerUi:Enabled" default="true">
-Serves Swagger UI. It is on by default in this release and turns off by default in the next one. While it is not set,
-the API logs one line at startup about the change. Set it to `true` to keep Swagger UI, or to `false` to turn it off
-now.
-</Setting>
-<Setting name="Endatix:Api:Docs:SwaggerUi:Path" default="/swagger">
-The path of Swagger UI. Start it with `/`.
+<Setting name="Endatix:Api:Docs:Ui" default="Scalar">
+What the API docs page shows: `Scalar`, `SwaggerUi`, or `None`. Case does not matter, and `Swagger` also means
+`SwaggerUi`. An unknown value shows Scalar and logs a warning at startup.
 </Setting>
 <Setting name="Endatix:Api:UseSwagger" status="deprecated" replacedBy="Endatix:Api:Docs:Enabled">
 The old name of `Docs:Enabled`. It still works when `Docs:Enabled` is not set. When both are set to different values,
@@ -157,33 +148,31 @@ The old name of `Docs:Path`. It still works when `Docs:Path` is not set. When bo
 </Setting>
 </Settings>
 
-### Swagger UI during the move to Scalar
+### Use Swagger UI instead of Scalar
 
-Earlier releases showed Swagger UI at `/api-docs`. This release shows Scalar there and keeps Swagger UI at `/swagger`.
-An old bookmark to `/api-docs/index.html` opens Swagger UI while it is on, and the API docs page once it is off.
-
-From the next release, Swagger UI is off unless you turn it on. To keep it, set the setting now:
+Set `Docs:Ui` to `SwaggerUi`. Swagger UI then serves at `/api-docs/index.html`:
 
 ```json
-{
-  "Endatix": {
-    "Api": {
-      "Docs": {
-        "SwaggerUi": { "Enabled": true }
-      }
-    }
-  }
-}
+{ "Endatix": { "Api": { "Docs": { "Ui": "SwaggerUi" } } } }
 ```
 
-### When both pages ask for one path
+If your code sets `ConfigureSwaggerUi` and you leave `Docs:Ui` unset, the page shows Swagger UI with your settings.
 
-If Swagger UI and the API docs page ask for the same path, the API still starts. Swagger UI keeps the path, since that
-address showed Swagger UI before. The API docs page moves to `/api-docs`, or to `/scalar` when the shared path is
-`/api-docs`. A warning at startup names both paths. For example, `"SwaggerPath": "/swagger"` serves Swagger UI at
-`/swagger` and Scalar at `/api-docs`.
+### Serve only the OpenAPI document
 
-To choose the paths yourself, set `Docs:Path` or `Docs:SwaggerUi:Path`.
+Set `Docs:Ui` to `None`. The API serves the document and no docs page:
+
+```json
+{ "Endatix": { "Api": { "Docs": { "Ui": "None" } } } }
+```
+
+### An empty path redirects the root
+
+An empty `Docs:Path`, or `/`, cannot put the page at the root. The page serves at `/api-docs`, the API logs a warning
+at startup, and `GET /` redirects to the page.
+
+Your app's own `GET /` wins over that redirect. An SPA fallback (`MapFallback`) does not, so the root still redirects
+to the docs.
 
 ## Rate Limiting
 
