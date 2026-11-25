@@ -62,6 +62,14 @@ The question's column holds the stored value: a choice value, `other`, `none`, `
 | `"rg": "none"` | `none` | |
 | `"rg": "refused"` | `refused` | |
 
+### Choice comments
+
+A checkbox, tag box, radio button group, or dropdown gets one text column per choice with `showCommentArea: true` (0.9.3): `brands__item2__comment` for choice `item2` of `brands`, `brands--item2--comment` in csv-shoji, where the Shoji codebook declares it a `text` variable. The cell holds the comment stored on that picked choice, and is empty for an unpicked choice or a pick without a comment. Other text keeps its own column. Hub tag boxes do not collect choice comments, so their cells stay empty unless an imported answer carries a `value` and a `comment`.
+
+The export reads the choice from the submitted form definition. When the definition cannot be read, or the answer could belong to another question type, the row is kept and the comment left blank; when it cannot be loaded, the backfill lists the submission in `failedSubmissionIds`.
+
+A comment whose header would collide with another column or a Shoji ranking array takes the first free suffix (`_2`, `_3`, …), and keeps that header once published. A compile that would give a published header a second meaning returns `409` with `errorCode: "ReportingSchemaAliasConflict"` and keeps the previous schema (`previousSchemaRetained: true`). The same code also refuses a merge that cannot match a legacy matrix codebook to a historical definition; `detail` says which. For a header clash, rename the question or choice named in `detail`, then compile again.
+
 ### Answers kept as stored
 
 Two kinds of question keep the answer in one column as SurveyJS stored it, so a special item appears as its value:
