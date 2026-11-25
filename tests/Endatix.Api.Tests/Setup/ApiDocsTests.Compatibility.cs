@@ -157,7 +157,7 @@ public sealed partial class ApiDocsTests
         // Act
         await using var host = await ApiDocsHost.StartFromConfigAsync(
             Keys(("Docs:Path", "/new"), ("SwaggerPath", "/old")),
-            beforeApi: app => app.UseEndatixApiDocs(new ApiOptions { Docs = ConfiguredDocs(app).ForExplicitDocs("/given") }),
+            beforeApi: app => app.UseEndatixApiDocs(options => options.Docs.Path = "/given"),
             log: log);
         using var client = host.CreateClient();
 
@@ -165,6 +165,38 @@ public sealed partial class ApiDocsTests
         (await ScalarPage.ReadAsync(client, "/given/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
         (await ScalarPage.ReadAsync(client, "/new/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
         log.Warnings.Should().NotContain(line => line.Contains("Endatix:Api:Docs:Path", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Scalar", "/docs/")]
+    [InlineData("SwaggerUi", "/docs/index.html")]
+    public async Task Docs_path_without_a_leading_slash_serves_at_that_path(string ui, string page)
+    {
+        // Arrange
+        var settings = Keys(("Docs:Path", "docs"), ("Docs:Ui", ui));
+
+        // Act
+        await using var host = await ApiDocsHost.StartFromConfigAsync(settings);
+        using var client = host.CreateClient();
+
+        // Assert
+        (await GetStatusAsync(client, page)).Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Explicit_docs_call_in_code_serves_the_docs_when_the_configuration_turns_them_off()
+    {
+        // Arrange
+        var settings = Keys(("UseSwagger", "false"));
+
+        // Act
+        await using var host = await ApiDocsHost.StartFromConfigAsync(
+            settings, beforeApi: app => app.UseEndatixApiDocs(options => options.Docs.Path = "/x"));
+        using var client = host.CreateClient();
+
+        // Assert
+        (await ScalarPage.ReadAsync(client, "/x/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        (await GetStatusAsync(client, "/api-docs/")).Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -212,9 +244,6 @@ public sealed partial class ApiDocsTests
 
         log.Warnings.Should().ContainSingle(line => line.Contains(warning, StringComparison.Ordinal));
     }
-
-    private static ApiDocsOptions ConfiguredDocs(WebApplication app) =>
-        app.Services.GetRequiredService<IOptions<ApiOptions>>().Value.Docs;
 
     private static Dictionary<string, string?> Keys(params (string Key, string? Value)[] settings) =>
         settings.ToDictionary(setting => $"Endatix:Api:{setting.Key}", setting => setting.Value);

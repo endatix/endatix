@@ -1,6 +1,7 @@
 using Endatix.Api.Builders;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using NSwag.AspNetCore;
 
 namespace Endatix.Api.Setup;
 
@@ -8,19 +9,29 @@ namespace Endatix.Api.Setup;
 internal static class ApiDocsSwaggerUi
 {
     /// <summary>
-    /// Adds Swagger UI at the page path and returns the path it serves at, without a trailing slash, once the host's
-    /// <see cref="ApiOptions.ConfigureSwaggerUi"/> ran, since it may move the path. NSwag runs the settings callback
-    /// while the middleware is added, so the path is known on return.
+    /// The path Swagger UI serves at once the host's <see cref="ApiOptions.ConfigureSwaggerUi"/> ran, since it may move
+    /// the path: normalized, and <see cref="ApiDocs.ROOT_PATH"/> for the root. The settings are applied to a scratch
+    /// copy, so the path is known before anything is registered.
     /// </summary>
-    internal static string Add(IApplicationBuilder app, ApiOptions options, string pagePath)
+    internal static string ServedPath(ApiOptions options, string pagePath)
     {
-        var path = pagePath;
-        app.UseSwaggerUi(ui => ui.ConfigureDefaults(swaggerUi =>
+        var scratch = new SwaggerUiSettings();
+        Configure(scratch, options, pagePath);
+        return ApiDocs.NormalizePath(scratch.Path) ?? ApiDocs.ROOT_PATH;
+    }
+
+    /// <summary>Adds Swagger UI with the host's settings, at the path <see cref="ServedPath"/> resolved.</summary>
+    internal static void Add(IApplicationBuilder app, ApiOptions options, string servedPath) =>
+        app.UseSwaggerUi(ui =>
+        {
+            Configure(ui, options, servedPath);
+            ui.Path = servedPath == ApiDocs.ROOT_PATH ? string.Empty : servedPath;
+        });
+
+    private static void Configure(SwaggerUiSettings ui, ApiOptions options, string pagePath) =>
+        ui.ConfigureDefaults(swaggerUi =>
         {
             swaggerUi.Path = pagePath;
             options.ConfigureSwaggerUi?.Invoke(swaggerUi);
-            path = swaggerUi.Path;
-        }));
-        return ApiDocs.PagePath(path);
-    }
+        });
 }

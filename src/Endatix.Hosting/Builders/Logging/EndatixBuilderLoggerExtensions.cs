@@ -143,8 +143,8 @@ internal static partial class EndatixBuilderLoggerExtensions
     [LoggerMessage(
         EventId = EndatixEventIds.Hosting.SwaggerMiddlewareAdded,
         Level = LogLevel.Information,
-        Message = "Adding Swagger middleware with path: {Path}")]
-    public static partial void LogSwaggerMiddlewareAdded(this ILogger logger, string path);
+        Message = "Adding the API docs through UseSwagger")]
+    public static partial void LogSwaggerMiddlewareAdded(this ILogger logger);
 
     [LoggerMessage(
         EventId = EndatixEventIds.Hosting.HealthChecksMiddlewareAdded,

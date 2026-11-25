@@ -125,6 +125,22 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
         (await GetAsync(app, "/docs/index.html")).Body.Should().NotContain("swagger-ui");
     }
 
+    [Fact]
+    public async Task UseSwagger_WithConfiguredSwaggerUiSettings_UsesOnlyItsOwnDelegates()
+    {
+        // Arrange
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<ApiOptions>(options => options.ConfigureSwaggerUi = ui => ui.Path = "/ui");
+        await using var app = builder.Build();
+
+        // Act
+        new EndatixMiddlewareBuilder(app).UseSwagger("/docs");
+
+        // Assert
+        RoutePatterns(app).Should().Equal("/docs/{documentName?}");
+        (await GetAsync(app, "/ui/index.html")).Status.Should().Be(StatusCodes.Status404NotFound);
+    }
+
     private static void WithoutHostServices(ApiOptions options)
     {
         options.UseExceptionHandler = false;

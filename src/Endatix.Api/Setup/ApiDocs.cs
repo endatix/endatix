@@ -24,7 +24,12 @@ internal static class ApiDocs
 
     internal const string DEFAULT_PATH = ApiDocsOptions.DEFAULT_PATH;
 
+    /// <summary>The served path of a page Swagger UI settings moved to the root.</summary>
+    internal const string ROOT_PATH = "/";
+
     private const string DOCUMENT_PATH_KEY = "Endatix.Api.ApiDocsDocumentPath";
+
+    private const string DOCUMENT_SETTINGS_KEY = "Endatix.Api.ApiDocsDocumentSettings";
 
     private const string PAGES_KEY = "Endatix.Api.ApiDocsPages";
 
@@ -43,65 +48,116 @@ internal static class ApiDocs
             return;
         }
 
-        var documentPath = AddDocumentOnce(app, options);
-        var requested = new RequestedDocsPath(options.Docs.Path, options.Docs.PathSetting);
-        var page = new DocsPage(requested, PagePath(requested.Value), documentPath);
+        var page = ResolvePage(options, AddDocumentOnce(app, options));
         if (!MarkMapped(app, page.Path))
         {
-            LogAlreadyMapped(app, page.Path);
+            LogAlreadyMapped(app, page);
             return;
         }
 
+        WarnAboutUi(app, options);
         AddPage(app, options, page);
+    }
+
+    private static DocsPage ResolvePage(ApiOptions options, string documentPath)
+    {
+        var requested = new RequestedDocsPath(options.Docs.Path, options.Docs.PathSetting);
+        var ui = ResolveUi(options);
+        return new DocsPage(requested, ServedPath(ui, options, requested.Value), documentPath, ui);
+    }
+
+    /// <summary>
+    /// Adds the explicit docs call a host makes in code: it starts from the configured docs settings with the docs on
+    /// and no code delegates, then applies <paramref name="configure"/>. A conflict about a path the call replaced is
+    /// dropped, so no warning names a setting the call overrode.
+    /// </summary>
+    internal static void AddExplicit(IApplicationBuilder app, Action<ApiOptions> configure)
+    {
+        var configured = ApiApplicationBuilderExtensions.GetApiOptions(app).Docs;
+        var options = new ApiOptions { Docs = configured.ForExplicitDocs(path: null) };
+        configure(options);
+        if (!string.Equals(options.Docs.Path, configured.Path, StringComparison.Ordinal))
+        {
+            options.Docs.Conflicts = [];
+        }
+
+        Add(app, options);
     }
 
     private static void AddPage(IApplicationBuilder app, ApiOptions options, DocsPage page)
     {
-        var ui = EffectiveUi(app, options);
-        var servedAt = ui switch
+        switch (page.Ui)
         {
-            ApiDocsUi.Scalar => MapScalar(AsRouteBuilder(app), page),
-            ApiDocsUi.SwaggerUi => ApiDocsSwaggerUi.Add(app, options, page.Path),
-            _ => null,
-        };
-        if (servedAt is null)
-        {
-            return;
+            case ApiDocsUi.Scalar:
+                MapScalar(AsRouteBuilder(app), page);
+                break;
+            case ApiDocsUi.SwaggerUi:
+                ApiDocsSwaggerUi.Add(app, options, page.Path);
+                break;
+            default:
+                return;
         }
 
-        MarkMapped(app, servedAt);
-        RedirectRootWhenPathFallsBack(app, page.Requested, servedAt);
-        LogServing(app, servedAt, ui);
+        RedirectRootWhenPathFallsBack(app, page.Requested, page.Path);
+        LogServing(app, page.Path, page.Ui);
     }
 
     /// <summary>
-    /// The UI the settings ask for. Unset, a host that customized Swagger UI in code gets Swagger UI, and any other host
-    /// gets Scalar. A set UI wins, and a warning says when it leaves the host's Swagger UI settings unused.
+    /// The path the page serves at: the normalized settings path, or for Swagger UI the path the host's Swagger UI
+    /// settings leave it on, which is <c>/</c> when they move it to the root.
     /// </summary>
-    private static ApiDocsUi EffectiveUi(IApplicationBuilder app, ApiOptions options)
+    private static string ServedPath(ApiDocsUi ui, ApiOptions options, string? requestedPath) =>
+        ui == ApiDocsUi.SwaggerUi
+            ? ApiDocsSwaggerUi.ServedPath(options, PagePath(requestedPath))
+            : PagePath(requestedPath);
+
+    /// <summary>
+    /// The UI the settings ask for. Unset, a host that customized Swagger UI in code gets Swagger UI, and any other host
+    /// gets Scalar. A value outside the enum shows Scalar too.
+    /// </summary>
+    private static ApiDocsUi ResolveUi(ApiOptions options) => options.Docs.Ui switch
     {
-        if (options.Docs.Ui is not { } ui)
+        null => options.ConfigureSwaggerUi is null ? ApiDocsUi.Scalar : ApiDocsUi.SwaggerUi,
+        { } ui when Enum.IsDefined(ui) => ui,
+        _ => ApiDocsUi.Scalar,
+    };
+
+    /// <summary>Warns when the set UI is not one, or leaves the host's Swagger UI settings unused.</summary>
+    private static void WarnAboutUi(IApplicationBuilder app, ApiOptions options)
+    {
+        if (options.Docs.Ui is { } undefined && !Enum.IsDefined(undefined))
         {
-            return options.ConfigureSwaggerUi is null ? ApiDocsUi.Scalar : ApiDocsUi.SwaggerUi;
+            LogUnknownUi(app, ((int)undefined).ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return;
         }
 
-        if (ui != ApiDocsUi.SwaggerUi && options.ConfigureSwaggerUi is not null)
+        if (options.Docs.Ui is { } ui && ui != ApiDocsUi.SwaggerUi && options.ConfigureSwaggerUi is not null)
         {
             Logger(app)?.LogWarning(
                 "ConfigureSwaggerUi is set, but {Setting} is {Ui}, so the Swagger UI settings are unused.",
                 ApiDocsOptions.UI_SETTING,
                 ui);
         }
-
-        return ui;
     }
 
-    private static void LogAlreadyMapped(IApplicationBuilder app, string page)
+    /// <summary>
+    /// A repeated call for a mapped path is routine and logs at Debug. Swagger UI settings that move the page onto a
+    /// path another page has would hide that page, so that page is skipped with a warning.
+    /// </summary>
+    private static void LogAlreadyMapped(IApplicationBuilder app, DocsPage page)
     {
         var logger = Logger(app);
+        if (!string.Equals(page.Path, PagePath(page.Requested.Value), StringComparison.OrdinalIgnoreCase))
+        {
+            logger?.LogWarning(
+                "The Swagger UI settings move the API docs page to {Page}, which already has a docs page. This page is skipped.",
+                page.Path);
+            return;
+        }
+
         if (logger?.IsEnabled(LogLevel.Debug) == true)
         {
-            logger.LogDebug("The API docs page at {Page} is already mapped. This call changes nothing.", page);
+            logger.LogDebug("The API docs page at {Page} is already mapped. This call changes nothing.", page.Path);
         }
     }
 
@@ -159,20 +215,35 @@ internal static class ApiDocs
             app.Properties[PAGES_KEY] = pages;
         }
 
-        return pages.Add(PagePath(path));
+        return pages.Add(NormalizePath(path) ?? ROOT_PATH);
     }
 
-    /// <summary>Adds the document middleware on the first call and returns its path, on every call.</summary>
+    /// <summary>
+    /// Adds the document middleware on the first call and returns its path, on every call. A later call's own
+    /// <see cref="ApiOptions.ConfigureOpenApiDocument"/> cannot change the document, so a warning says it is ignored.
+    /// </summary>
     private static string AddDocumentOnce(IApplicationBuilder app, ApiOptions options)
     {
         if (app.Properties.TryGetValue(DOCUMENT_PATH_KEY, out var stored) && stored is string added)
         {
+            WarnWhenDocumentSettingsIgnored(app, options);
             return added;
         }
 
         var documentPath = AddDocument(app, options);
         app.Properties[DOCUMENT_PATH_KEY] = documentPath;
+        app.Properties[DOCUMENT_SETTINGS_KEY] = options.ConfigureOpenApiDocument;
         return documentPath;
+    }
+
+    private static void WarnWhenDocumentSettingsIgnored(IApplicationBuilder app, ApiOptions options)
+    {
+        app.Properties.TryGetValue(DOCUMENT_SETTINGS_KEY, out var used);
+        if (options.ConfigureOpenApiDocument is { } configure && !ReferenceEquals(configure, used))
+        {
+            Logger(app)?.LogWarning(
+                "The OpenAPI document was already added, so this call's ConfigureOpenApiDocument settings are ignored.");
+        }
     }
 
     /// <summary>
@@ -202,11 +273,11 @@ internal static class ApiDocs
         ?? new OpenApiDocumentMiddlewareSettings();
 
     /// <summary>
-    /// Maps Scalar over the document and returns its path. Scalar takes the document path from the browser's address,
+    /// Maps Scalar over the document. Scalar takes the document path from the browser's address,
     /// so the page finds the document under a path base too. Telemetry, Scalar's hosted fonts, its AI chat, its
     /// developer toolbar and its hosted client button are off, so the page calls no third party.
     /// </summary>
-    private static string MapScalar(IEndpointRouteBuilder routes, DocsPage page)
+    private static void MapScalar(IEndpointRouteBuilder routes, DocsPage page)
     {
         routes.MapScalarApiReference(page.Path, scalar => scalar
             .WithTitle("API Reference")
@@ -221,7 +292,6 @@ internal static class ApiDocs
             .AddDocument(DOCUMENT_NAME)
             .AddPreferredSecuritySchemes(BEARER_SCHEME));
         MapIndexRedirect(routes, page.Path);
-        return page.Path;
     }
 
     /// <summary>
@@ -236,11 +306,11 @@ internal static class ApiDocs
     /// An empty or <c>/</c> requested path asked for the docs at the root, which they cannot take, so they serve at the
     /// default. The root then redirects there and a warning names the setting that asked. The redirect takes the last
     /// route order, so a host's own <c>GET /</c> wins without an ambiguous match. An unset (null) or other path adds no
-    /// root route.
+    /// root route, and neither does a page Swagger UI settings moved to the root.
     /// </summary>
     private static void RedirectRootWhenPathFallsBack(IApplicationBuilder app, RequestedDocsPath requested, string page)
     {
-        if (requested.Value is null || requested.Value.Trim().TrimEnd('/').Length > 0)
+        if (requested.Value is null || NormalizePath(requested.Value) is not null || page == ROOT_PATH)
         {
             return;
         }
@@ -252,13 +322,17 @@ internal static class ApiDocs
     }
 
     /// <summary>
-    /// The docs page path without a trailing slash. An empty path or <c>/</c> falls back to the default, since Scalar
-    /// maps <c>{path}/{documentName?}</c> and a root page would answer every one-segment path.
+    /// The docs page path: trimmed, with a leading slash and without a trailing one. An empty path or <c>/</c> falls back
+    /// to the default, since Scalar maps <c>{path}/{documentName?}</c> and a root page would answer every one-segment
+    /// path.
     /// </summary>
-    internal static string PagePath(string? requestedPath)
+    internal static string PagePath(string? requestedPath) => NormalizePath(requestedPath) ?? DEFAULT_PATH;
+
+    /// <summary>A path trimmed, with one leading slash and no trailing one; null for an empty path or the root.</summary>
+    internal static string? NormalizePath(string? path)
     {
-        var path = requestedPath?.Trim().TrimEnd('/');
-        return string.IsNullOrEmpty(path) ? DEFAULT_PATH : path;
+        var trimmed = path?.Trim().Trim('/');
+        return string.IsNullOrEmpty(trimmed) ? null : "/" + trimmed;
     }
 
     private static void LogRootFallback(IApplicationBuilder app, RequestedDocsPath requested, string page)
@@ -291,6 +365,6 @@ internal static class ApiDocs
     /// <summary>A requested docs page path and the setting it came from, so a warning names that setting.</summary>
     private sealed record RequestedDocsPath(string? Value, string Setting);
 
-    /// <summary>A docs page to map: what was asked, the page path it resolved to, and the document it shows.</summary>
-    private sealed record DocsPage(RequestedDocsPath Requested, string Path, string DocumentPath);
+    /// <summary>A docs page to map: what was asked, the path it serves at, the document it shows, and its UI.</summary>
+    private sealed record DocsPage(RequestedDocsPath Requested, string Path, string DocumentPath, ApiDocsUi Ui);
 }

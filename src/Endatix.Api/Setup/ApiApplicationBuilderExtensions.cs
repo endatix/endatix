@@ -33,9 +33,8 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-                options.UseSwagger,
-                options.SwaggerPath);
+                "Configuring Endatix API middleware. DocsEnabled={DocsEnabled}",
+                options.Docs.Enabled);
         }
 
         var result = app.UseEndatixApi(options);
@@ -59,9 +58,8 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-                options.UseSwagger,
-                options.SwaggerPath);
+                "Configuring Endatix API middleware with custom options. DocsEnabled={DocsEnabled}",
+                options.Docs.Enabled);
         }
 
         var result = app.UseEndatixApi(options);
@@ -143,6 +141,21 @@ public static class ApiApplicationBuilderExtensions
     public static IApplicationBuilder UseEndatixApiDocs(this IApplicationBuilder app, ApiOptions options)
     {
         ApiDocs.Add(app, options);
+        return app;
+    }
+
+    /// <summary>
+    /// Adds a docs page the way an explicit call in code does: it starts from the configured
+    /// <see cref="ApiOptions.Docs"/> with the docs on, even when the configuration turns them off, and with no
+    /// <see cref="ApiOptions.ConfigureOpenApiDocument"/> or <see cref="ApiOptions.ConfigureSwaggerUi"/>; then
+    /// <paramref name="configure"/> changes what this call needs. The document is added once per application.
+    /// </summary>
+    /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
+    /// <param name="configure">A delegate that sets this call's docs settings.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseEndatixApiDocs(this IApplicationBuilder app, Action<ApiOptions> configure)
+    {
+        ApiDocs.AddExplicit(app, configure);
         return app;
     }
 

@@ -239,4 +239,106 @@ public sealed partial class ApiDocsTests
         log.Information.Should().ContainSingle(line => line.StartsWith("Serving the API docs", StringComparison.Ordinal));
         log.Warnings.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Paths_that_differ_only_in_slashes_map_one_page()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await ApiDocsHost.StartWithPipelineAsync(
+            (app, _) =>
+            {
+                app.UseEndatixApiDocs(new ApiOptions { Docs = { Path = "docs" } });
+                app.UseEndatixApiDocs(new ApiOptions { Docs = { Path = " /docs/ " } });
+            },
+            services => services.AddSingleton(log.Provider));
+        using var client = host.CreateClient();
+
+        // Assert
+        (await ScalarPage.ReadAsync(client, "/docs/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        log.Information.Should().ContainSingle(line => line.StartsWith("Serving the API docs", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Swagger_ui_settings_that_move_it_onto_a_mapped_page_skip_it_with_a_warning()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await ApiDocsHost.StartWithPipelineAsync(
+            (app, _) =>
+            {
+                app.UseEndatixApiDocs(new ApiOptions());
+                app.UseEndatixApiDocs(new ApiOptions { Docs = { Path = "/other" }, ConfigureSwaggerUi = ui => ui.Path = "/api-docs" });
+            },
+            services => services.AddSingleton(log.Provider));
+        using var client = host.CreateClient();
+
+        // Assert
+        (await ScalarPage.ReadAsync(client, "/api-docs/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        (await GetStatusAsync(client, "/api-docs/index.html")).Should().Be(HttpStatusCode.Redirect);
+        log.Warnings.Should().ContainSingle()
+            .Which.Should().Contain("move the API docs page to /api-docs, which already has a docs page");
+    }
+
+    [Fact]
+    public async Task Swagger_ui_settings_that_move_it_to_the_root_serve_it_there_without_a_root_redirect()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await StartWithWarningsAsync(
+            new ApiOptions { Docs = { Path = "" }, ConfigureSwaggerUi = ui => ui.Path = string.Empty }, log);
+        using var client = host.CreateClient();
+
+        // Assert
+        (await client.GetStringAsync(new Uri("/sub/index.html", UriKind.Relative), TestContext.Current.CancellationToken))
+            .Should().Contain("swagger-ui");
+        log.Information.Should().Contain("Serving the API docs at / with SwaggerUi");
+        log.Warnings.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Undefined_ui_value_in_code_shows_Scalar_with_a_warning()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await StartWithWarningsAsync(new ApiOptions { Docs = { Ui = (ApiDocsUi)99 } }, log);
+        using var client = host.CreateClient();
+
+        // Assert
+        (await ScalarPage.ReadAsync(client, "/sub/api-docs/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        log.Warnings.Should().ContainSingle().Which.Should().StartWith("Endatix:Api:Docs:Ui '99' is not a docs UI.");
+    }
+
+    [Fact]
+    public async Task Document_settings_of_a_later_call_are_ignored_with_a_warning()
+    {
+        // Arrange
+        var log = new WarningLog();
+
+        // Act
+        await using var host = await ApiDocsHost.StartWithPipelineAsync(
+            (app, _) =>
+            {
+                app.UseEndatixApiDocs(new ApiOptions());
+                app.UseEndatixApiDocs(new ApiOptions
+                {
+                    Docs = { Path = "/x" },
+                    ConfigureOpenApiDocument = settings => settings.Path = "/other/{documentName}.json",
+                });
+            },
+            services => services.AddSingleton(log.Provider));
+        using var client = host.CreateClient();
+
+        // Assert
+        (await ScalarPage.ReadAsync(client, "/x/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        log.Warnings.Should().ContainSingle().Which.Should().Contain("ConfigureOpenApiDocument settings are ignored");
+    }
 }

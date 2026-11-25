@@ -221,9 +221,10 @@ public class EndatixMiddlewareBuilder
         var optionsProvider = App.ApplicationServices.GetService<IOptions<ApiOptions>>();
         var options = optionsProvider?.Value ?? new ApiOptions();
 
-        _logger?.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-            options.UseSwagger,
-            options.SwaggerPath);
+        if (_logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            _logger.LogInformation("Loaded ApiOptions from configuration: DocsEnabled={DocsEnabled}", options.Docs.Enabled);
+        }
 
         // Apply any additional configuration if provided
         configureApi?.Invoke(options);
@@ -234,9 +235,8 @@ public class EndatixMiddlewareBuilder
     internal EndatixMiddlewareBuilder UseApi(ApiOptions options)
     {
         _logger?.LogInformation(
-            "Adding API middleware with resolved options: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-            options.UseSwagger,
-            options.SwaggerPath);
+            "Adding API middleware with resolved options: DocsEnabled={DocsEnabled}",
+            options.Docs.Enabled);
 
         App.UseEndatixApi(options);
         return this;
@@ -256,7 +256,8 @@ public class EndatixMiddlewareBuilder
 
     /// <summary>
     /// Adds the API docs with optional custom settings: the OpenAPI document, once per application, and a docs page at
-    /// the path. The settings start from the configured <see cref="ApiOptions.Docs"/>.
+    /// the path. The settings start from the configured <see cref="ApiOptions.Docs"/>, with the docs on, and use only
+    /// the delegates passed here.
     /// <see cref="UseApi(Action{ApiOptions}?)"/> also adds a page at the configured path, so a different path here
     /// serves a second page over the same document.
     /// </summary>
@@ -267,14 +268,17 @@ public class EndatixMiddlewareBuilder
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseSwagger(string? path = null, Action<OpenApiDocumentMiddlewareSettings>? configureOpenApi = null, Action<SwaggerUiSettings>? configureSwaggerUi = null)
     {
-        _logger?.LogSwaggerMiddlewareAdded(path ?? "(default)");
+        _logger?.LogSwaggerMiddlewareAdded();
 
-        var configured = App.ApplicationServices.GetService<IOptions<ApiOptions>>()?.Value ?? new ApiOptions();
-        App.UseEndatixApiDocs(new ApiOptions
+        App.UseEndatixApiDocs(options =>
         {
-            Docs = configured.Docs.ForExplicitDocs(path),
-            ConfigureOpenApiDocument = configureOpenApi ?? configured.ConfigureOpenApiDocument,
-            ConfigureSwaggerUi = configureSwaggerUi ?? configured.ConfigureSwaggerUi,
+            if (path is not null)
+            {
+                options.Docs.Path = path;
+            }
+
+            options.ConfigureOpenApiDocument = configureOpenApi;
+            options.ConfigureSwaggerUi = configureSwaggerUi;
         });
 
         return this;
