@@ -29,17 +29,16 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
             s.DescribeStandingProblems();
             s.Summary = "Invite a user";
             s.Description = "Creates or reattaches a tenant user and sends an activation email when needed.";
-            s.ExampleRequest = new InviteUserRequest
-            {
-                Email = "newuser@example.com",
-                Roles = ["Editor"]
-            };
+            s.ExampleRequest = new InviteUserRequest { Email = "newuser@example.com", Roles = ["Editor"] };
             s.Responses[200] = "User invited successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.Responses[409] = "Invite declined (invite_declined) or a registration conflict.";
+            s.Responses[503] = "Standing or invite eligibility is unavailable. Try again.";
         });
         Description(builder => builder.ProducesStandingProblems()
             .Produces<InviteUserResponse>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest));
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict));
     }
 
     /// <inheritdoc/>
@@ -48,25 +47,31 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
         CancellationToken ct)
     {
         var result = await mediator.Send(new InviteUserCommand(request.Email!, request.Roles), ct);
-
-        IReadOnlyList<string> roles = [];
-        if (result.IsSuccess && result.Value is not null)
+        if (!result.IsSuccess)
         {
-            var rolesResult = await roleManagementService.GetUserRolesAsync(result.Value.Id, ct);
+            return InviteProblem(result);
+        }
 
-            if (!rolesResult.IsSuccess)
-            {
-                return TypedResults.Problem(
-                    detail: "User was invited, but assigned roles could not be loaded.",
-                    statusCode: StatusCodes.Status500InternalServerError);
-            }
-
-            roles = [.. rolesResult.Value];
+        var roles = await roleManagementService.GetUserRolesAsync(result.Value.Id, ct);
+        if (!roles.IsSuccess)
+        {
+            return TypedResults.Problem(detail: "User was invited, but assigned roles could not be loaded.",
+                statusCode: StatusCodes.Status500InternalServerError);
         }
 
         return TypedResultsBuilder
-            .MapResult(result, user => Map(user, roles))
+            .MapResult(result, user => Map(user, [.. roles.Value]))
             .SetTypedResults<Ok<InviteUserResponse>, ProblemHttpResult>();
+    }
+
+    private static ProblemHttpResult InviteProblem(Core.Infrastructure.Result.Result<User> result)
+    {
+        var problem = result.ToProblem();
+        if (result is InviteDeclined)
+        {
+            problem.ProblemDetails.Extensions["errorCode"] = "invite_declined";
+        }
+        return problem;
     }
 
     private static InviteUserResponse Map(User user, IReadOnlyList<string> roles)

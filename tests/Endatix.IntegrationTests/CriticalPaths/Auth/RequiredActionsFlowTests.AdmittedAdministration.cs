@@ -5,6 +5,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Identity.InviteUser;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -62,6 +63,12 @@ public sealed partial class RequiredActionsFlowTests
             {
                 services.AddTransient(_ => new AccountStanding(snapshots));
             }
+            if (notice)
+            {
+                var eligibility = Substitute.For<IInviteEligibilityProvider>();
+                eligibility.DecideAsync(Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(InviteEligibility.Allowed);
+                services.AddSingleton(eligibility);
+            }
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         var tenant = world.Tenants[0];
@@ -87,11 +94,13 @@ public sealed partial class RequiredActionsFlowTests
         var registration = Substitute.For<IUserRegistrationService>();
         var provider = new MutableProvider("legal", "/legal");
         var conflict = new MutableProvider("conflict", "/other") { Pending = false };
+        var eligibility = Substitute.For<IInviteEligibilityProvider>();
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.AddSingleton(registration);
             services.AddSingleton<IRequiredActionProvider>(provider);
             services.AddSingleton<IRequiredActionProvider>(conflict);
+            services.AddSingleton(eligibility);
             EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
@@ -112,5 +121,6 @@ public sealed partial class RequiredActionsFlowTests
         using var invalid = await admin.PostAsJsonAsync("/api/users", new { email, roles = _adminInviteRoles }, ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         Assert.Empty(registration.ReceivedCalls());
+        Assert.Empty(eligibility.ReceivedCalls());
     }
 }

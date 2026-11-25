@@ -63,6 +63,36 @@ Tenant-specific management permissions:
 | `tenant.settings.manage` | Manage tenant settings |
 | `tenant.usage.view` | View tenant usage statistics |
 
+#### Teammate invite eligibility
+
+For `POST /api/users`, a module can register a scoped `IInviteEligibilityProvider`.
+The invite command calls `DecideAsync` for the current tenant after checking
+`tenant.users.invite` and the requested roles. The provider can use the request's
+`IUserContext` to identify the caller. With no provider, or when it returns
+`Allowed`, the invite proceeds through the configured registration service.
+This check does not run during initial owner registration.
+
+Two example responses (`application/problem+json`; selected fields):
+
+```json
+{
+  "status": 409,
+  "errorCode": "invite_declined",
+  "detail": "This workspace is not eligible to invite teammates yet."
+}
+```
+
+```json
+{
+  "status": 503,
+  "detail": "Invite eligibility is unavailable. Try again."
+}
+```
+
+Neither response sends the invite. Use `invite_declined` to show feedback on
+the invite action; other conflicts do not imply ineligibility. A `503` can be
+retried and is not an instruction to redirect the user.
+
 ### Resource Permissions
 
 #### Forms
