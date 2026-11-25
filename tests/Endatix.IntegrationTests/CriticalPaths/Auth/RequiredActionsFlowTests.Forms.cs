@@ -41,11 +41,13 @@ public sealed partial class RequiredActionsFlowTests
         action.Pending = true;
         await InvalidateAsync(world, ct);
         var me = await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        var counts = await FormCountsAsync(world, ct);
 
         product.Reset();
         using var blocked = await ManagedFormRequestAsync(owner, operation, id);
         await AssertStandingRefusalAsync(blocked, me, ct);
         Assert.Equal(0, product.Reads);
+        Assert.Equal(counts, await FormCountsAsync(world, ct));
 
         action.Pending = false;
         await InvalidateAsync(world, ct);
@@ -53,6 +55,10 @@ public sealed partial class RequiredActionsFlowTests
         Assert.True(JsonElement.DeepEquals(before, after));
         using var resumed = await ManagedFormRequestAsync(owner, operation, id);
         Assert.Equal(operation == "create" ? HttpStatusCode.Created : HttpStatusCode.OK, resumed.StatusCode);
+        if (operation == "create")
+        {
+            Assert.Equal((counts.MatchingForms + 1, counts.Definitions + 1), await FormCountsAsync(world, ct));
+        }
     }
 
     [Fact]

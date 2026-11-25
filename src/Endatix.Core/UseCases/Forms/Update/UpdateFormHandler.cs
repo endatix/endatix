@@ -24,14 +24,10 @@ public class UpdateFormHandler(
         IMediator mediator, FolderAssignmentPolicy folderAssignmentPolicy)
         : this(repository, submissionRepository, mediator, folderAssignmentPolicy, new AccountStanding()) { }
 
-    private const string ENABLE_CONFLICT_MESSAGE = "Cannot enable single submission gate because this form already has duplicate submissions.";
-    private const string DISABLE_CONFLICT_MESSAGE = "Single submission gate cannot be disabled after it has been enabled.";
-    private const string PUBLIC_CONFLICT_MESSAGE = "A single-submission form cannot be made public.";
-
     /// <inheritdoc />
     public async Task<Result<Form>> Handle(UpdateFormCommand request, CancellationToken cancellationToken)
     {
-        var access = new ManagedFormEditAccess(repository, folderAssignmentPolicy, standing);
+        var access = new ManagedFormEditAccess(repository, folderAssignmentPolicy, standing, submissionRepository);
         return await access.RefusalAsync(request, cancellationToken) ?? await UpdateAsync(request, cancellationToken);
     }
 
@@ -44,10 +40,10 @@ public class UpdateFormHandler(
         }
 
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
-        var gateCheck = await EnsureSingleSubmissionGateAllowedAsync(form, requestedLimitOnePerUser, cancellationToken);
-        if (!gateCheck.IsSuccess)
+        var gate = new SingleSubmissionGateChange(form.Id, form.TenantId, form.LimitOnePerUser, requestedLimitOnePerUser, form.IsPublic);
+        if (await gate.ConflictAsync(submissionRepository, cancellationToken) is { } conflict)
         {
-            return gateCheck;
+            return conflict;
         }
 
         form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
@@ -83,36 +79,6 @@ public class UpdateFormHandler(
         // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no
         // in-process subscriber, so it is not published here.
         await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
-
-        return Result.Success(form);
-    }
-
-    private async Task<Result<Form>> EnsureSingleSubmissionGateAllowedAsync(
-        Form form,
-        bool requestedLimitOnePerUser,
-        CancellationToken cancellationToken)
-    {
-        if (form.LimitOnePerUser && !requestedLimitOnePerUser)
-        {
-            return Result<Form>.Conflict(DISABLE_CONFLICT_MESSAGE);
-        }
-
-        if (form.IsPublic && requestedLimitOnePerUser)
-        {
-            return Result<Form>.Conflict(PUBLIC_CONFLICT_MESSAGE);
-        }
-
-        if (!form.LimitOnePerUser && requestedLimitOnePerUser)
-        {
-            var hasDuplicates = await SingleSubmissionGateDuplicateChecker.HasDuplicateEligibleSubmissionsAsync(
-                form.Id,
-                submissionRepository,
-                cancellationToken);
-            if (hasDuplicates)
-            {
-                return Result<Form>.Conflict(ENABLE_CONFLICT_MESSAGE);
-            }
-        }
 
         return Result.Success(form);
     }

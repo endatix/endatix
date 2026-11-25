@@ -17,6 +17,7 @@ public sealed class FolderAssignmentPolicy(
 {
     private const string IMMUTABLE_FOLDER_MOVE_ERROR = "Items in locked folders cannot be moved or cleared.";
     private const string NO_OP_FOLDER_MOVE_ERROR = "Folder assignment is unchanged.";
+    internal long TenantId => tenantContext.TenantId;
 
     /// <summary>
     /// Ensures the folder assignment is valid for the current tenant.
@@ -46,7 +47,11 @@ public sealed class FolderAssignmentPolicy(
             return Result.Success();
         }
 
-        if (currentFolderId is > 0 && await folderRepository.AnyAsync(new LockedFolder(currentFolderId.Value), cancellationToken))
+        if (TenantId <= 0)
+        {
+            return Result.Forbidden();
+        }
+        if (currentFolderId is > 0 && await folderRepository.AnyAsync(new LockedFolder(currentFolderId.Value, TenantId), cancellationToken))
         {
             return Result.Conflict(IMMUTABLE_FOLDER_MOVE_ERROR);
         }
@@ -62,7 +67,7 @@ public sealed class FolderAssignmentPolicy(
             return Result.Success();
         }
 
-        var active = await folderRepository.FirstOrDefaultAsync(new FolderActive(requestedFolderId.Value), cancellationToken);
+        var active = await folderRepository.FirstOrDefaultAsync(new FolderActive(requestedFolderId.Value, TenantId), cancellationToken);
 
         if (active is null)
         {
@@ -84,12 +89,12 @@ public sealed class FolderAssignmentPolicy(
 
     private sealed class LockedFolder : Specification<Folder>
     {
-        internal LockedFolder(long id) => Query.Where(folder => folder.Id == id && folder.Immutable);
+        internal LockedFolder(long id, long tenant) => Query.Where(folder => folder.Id == id && folder.TenantId == tenant && folder.Immutable);
     }
 
     private sealed class FolderActive : SingleResultSpecification<Folder, bool?>
     {
-        internal FolderActive(long id) => Query.Where(folder => folder.Id == id).Select(folder => (bool?)folder.IsActive);
+        internal FolderActive(long id, long tenant) => Query.Where(folder => folder.Id == id && folder.TenantId == tenant).Select(folder => (bool?)folder.IsActive);
     }
 
     /// <summary>

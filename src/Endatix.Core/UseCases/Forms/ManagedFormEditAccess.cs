@@ -3,13 +3,15 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using Endatix.Core.UseCases.Forms.Update;
 
 namespace Endatix.Core.UseCases.Forms;
 
-internal sealed class ManagedFormEditAccess(IRepository<Form> forms, FolderAssignmentPolicy folders, AccountStanding standing)
+internal sealed class ManagedFormEditAccess(IRepository<Form> forms, FolderAssignmentPolicy folders, AccountStanding standing,
+    IRepository<Submission> submissions)
 {
     internal async Task<Result<Form>?> RefusalAsync(UpdateFormCommand request, CancellationToken ct)
     {
@@ -19,7 +21,12 @@ internal sealed class ManagedFormEditAccess(IRepository<Form> forms, FolderAssig
         }
 
         var target = await FindAsync(request.FormId, ct);
-        return target is null ? Result.NotFound("Form not found.") : await CheckMoveAsync(target, request.FolderId, ct);
+        if (target is null)
+        {
+            return Result.NotFound("Form not found.");
+        }
+        var move = await folders.CheckMoveAsync(target.FolderId, request.FolderId, ct);
+        return await DecideAsync(move, target.Change(request.LimitOnePerUser), ct);
     }
 
     internal async Task<Result<Form>?> RefusalAsync(PartialUpdateFormCommand request, IRepository<Theme> themes, CancellationToken ct)
@@ -35,42 +42,50 @@ internal sealed class ManagedFormEditAccess(IRepository<Form> forms, FolderAssig
             return Result.NotFound("Form not found.");
         }
 
-        if (request.ThemeId is long id && id > 0 && id != target.ThemeId && !await themes.AnyAsync(new ThemeById(id), ct))
+        var assignment = await CheckAssignmentsAsync(target, request, themes, ct);
+        return await DecideAsync(assignment, target.Change(request.LimitOnePerUser, request.IsPublic), ct);
+    }
+
+    private async Task<Result> CheckAssignmentsAsync(Assignments current, PartialUpdateFormCommand request, IRepository<Theme> themes, CancellationToken ct)
+    {
+        if (request.ThemeId is long id && id > 0 && id != current.ThemeId && !await themes.AnyAsync(new ThemeById(id, folders.TenantId), ct))
         {
             return Result.NotFound("Form Theme not found.");
         }
-
-        return await CheckPatchMoveAsync(target, request, ct);
-    }
-
-    private Task<Result<Form>?> CheckPatchMoveAsync(Assignments current, PartialUpdateFormCommand request, CancellationToken ct)
-    {
         if (!request.ClearFolderId && !request.FolderId.HasValue)
         {
-            return standing.RefusalAsync<Form>(ct);
+            return Result.Success();
         }
-        return CheckMoveAsync(current, request.ClearFolderId ? null : request.FolderId, ct);
+        return await folders.CheckMoveAsync(current.FolderId, request.ClearFolderId ? null : request.FolderId, ct);
     }
 
-    private Task<Assignments?> FindAsync(long id, CancellationToken ct) =>
-        forms.FirstOrDefaultAsync(new AssignmentsById(id), ct);
+    private Task<Assignments?> FindAsync(long id, CancellationToken ct) => folders.TenantId <= 0
+        ? Task.FromResult<Assignments?>(null)
+        : forms.FirstOrDefaultAsync(new FormSpecifications.ByIdForTenant(id, folders.TenantId).WithProjectionOf(new EditState()), ct);
 
-    private async Task<Result<Form>?> CheckMoveAsync(Assignments current, long? folderId, CancellationToken ct)
+    private async Task<Result<Form>?> DecideAsync(Result assignment, SingleSubmissionGateChange change, CancellationToken ct)
     {
-        var move = await folders.CheckMoveAsync(current.FolderId, folderId, ct);
-        return move.IsOk() ? await standing.RefusalAsync<Form>(ct) : move.ToErrorResult<Form>();
+        // An invalid assignment already rules out standing. The ordinary write reports its gate conflict first.
+        if (!assignment.IsOk())
+        {
+            return await change.ConflictAsync(submissions, ct) ?? assignment.ToErrorResult<Form>();
+        }
+        return await standing.RefusalAsync<Form>(ct);
     }
 
-    private sealed record Assignments(long? FolderId, long? ThemeId);
-
-    private sealed class AssignmentsById : SingleResultSpecification<Form, Assignments>
+    private sealed record Assignments(long Id, long TenantId, long? FolderId, long? ThemeId, bool Limited, bool Public)
     {
-        internal AssignmentsById(long id) =>
-            Query.Where(form => form.Id == id).Select(form => new Assignments(form.FolderId, form.ThemeId));
+        internal SingleSubmissionGateChange Change(bool? limit, bool? isPublic = null) =>
+            new(Id, TenantId, Limited, limit ?? Limited, isPublic ?? Public);
+    }
+
+    private sealed class EditState : Specification<Form, Assignments>
+    {
+        internal EditState() => Query.Select(f => new Assignments(f.Id, f.TenantId, f.FolderId, f.ThemeId, f.LimitOnePerUser, f.IsPublic));
     }
 
     private sealed class ThemeById : Specification<Theme>
     {
-        internal ThemeById(long id) => Query.Where(theme => theme.Id == id);
+        internal ThemeById(long id, long tenant) => Query.Where(theme => theme.Id == id && theme.TenantId == tenant);
     }
 }
