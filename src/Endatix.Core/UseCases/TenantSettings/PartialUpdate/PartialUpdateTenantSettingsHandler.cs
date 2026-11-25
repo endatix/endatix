@@ -4,8 +4,8 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.TenantSettings.Get;
-using Entities = Endatix.Core.Entities;
 using MediatR;
+using Entities = Endatix.Core.Entities;
 
 namespace Endatix.Core.UseCases.TenantSettings.PartialUpdate;
 
