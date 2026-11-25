@@ -1,5 +1,6 @@
 using System.Text;
 using Endatix.Api.Builders;
+using Endatix.Api.Configuration;
 using Endatix.Api.Setup;
 using Endatix.Hosting.Builders;
 using Microsoft.AspNetCore.Builder;
@@ -140,8 +141,11 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
         // Act
         new EndatixMiddlewareBuilder(app).UseSwagger(null, settings => settings.Path = "/swagger/{documentName}/swagger.json", null);
 
+        bool configuredUseSwagger = new ApiConfigurationOptions().UseSwagger;
+
         // Assert
         RoutePatterns(app).Should().Equal("/legacy/{documentName?}");
+        configuredUseSwagger.Should().BeTrue();
     }
 
     /// <summary>Runs one GET through the app's middleware. Swagger UI is middleware, not an endpoint.</summary>

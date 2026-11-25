@@ -53,7 +53,9 @@ public static class ApiServiceCollectionExtensions
         services.AddTransient<IConfigureOptions<ApiOptions>>(provider =>
         {
             var config = provider.GetRequiredService<IOptions<ApiConfigurationOptions>>().Value;
-            return new ConfigureNamedOptions<ApiOptions>(Options.DefaultName, options => MapApiOptions(config, options));
+            var useSwaggerSet = IsUseSwaggerSet(configuration);
+            return new ConfigureNamedOptions<ApiOptions>(
+                Options.DefaultName, options => MapApiOptions(config, useSwaggerSet, options));
         });
 
         return services;
@@ -63,10 +65,10 @@ public static class ApiServiceCollectionExtensions
     /// Maps the docs settings: each nested <c>Docs</c> key wins over its legacy key, and a pair set to different values
     /// is recorded, so the API docs warn about it at startup.
     /// </summary>
-    private static void MapApiOptions(ApiConfigurationOptions config, ApiOptions options)
+    private static void MapApiOptions(ApiConfigurationOptions config, bool useSwaggerSet, ApiOptions options)
     {
         var docs = config.Docs;
-        options.Docs.Enabled = docs.Enabled ?? config.UseSwagger ?? true;
+        options.Docs.Enabled = docs.Enabled ?? config.UseSwagger;
         if (docs.Path is not null)
         {
             options.Docs.Path = docs.Path;
@@ -78,15 +80,23 @@ public static class ApiServiceCollectionExtensions
 
         options.Docs.SwaggerUi.Enabled = docs.SwaggerUi.Enabled;
         options.Docs.SwaggerUi.Path = docs.SwaggerUi.Path;
-        options.Docs.Conflicts = DocsConflicts(config);
+        options.Docs.Conflicts = DocsConflicts(config, useSwaggerSet);
     }
 
-    private static List<ApiDocsSettingConflict> DocsConflicts(ApiConfigurationOptions config)
+    /// <summary>
+    /// Whether the legacy <c>UseSwagger</c> key is in the configuration. Its property stays a <c>bool</c> that defaults
+    /// to <c>true</c>, its shipped signature, so only the raw key tells a set value from the default.
+    /// </summary>
+    private static bool IsUseSwaggerSet(IConfiguration configuration) =>
+        configuration.GetSection(EndatixOptionsBase.GetSectionName<ApiConfigurationOptions>())[
+            nameof(ApiConfigurationOptions.UseSwagger)] is not null;
+
+    private static List<ApiDocsSettingConflict> DocsConflicts(ApiConfigurationOptions config, bool useSwaggerSet)
     {
         List<ApiDocsSettingConflict> conflicts = [];
-        if (config.Docs.Enabled is { } enabled && config.UseSwagger is { } useSwagger && enabled != useSwagger)
+        if (useSwaggerSet && config.Docs.Enabled is { } enabled && enabled != config.UseSwagger)
         {
-            conflicts.Add(new("Endatix:Api:Docs:Enabled", enabled.ToString(), "Endatix:Api:UseSwagger", useSwagger.ToString()));
+            conflicts.Add(new("Endatix:Api:Docs:Enabled", enabled.ToString(), "Endatix:Api:UseSwagger", config.UseSwagger.ToString()));
         }
 
         if (config.Docs.Path is { } path && config.SwaggerPath is { } swaggerPath

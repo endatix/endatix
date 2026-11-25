@@ -99,6 +99,20 @@ public sealed class ApiOptionsSettingsTests
     }
 
     [Fact]
+    public void Docs_enabled_false_without_use_swagger_records_no_conflict()
+    {
+        // Arrange
+        var configuration = Configuration(new() { ["Endatix:Api:Docs:Enabled"] = "false" });
+
+        // Act
+        var docs = Resolve(configuration).Docs;
+
+        // Assert
+        docs.Enabled.Should().BeFalse();
+        docs.Conflicts.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Equal_nested_and_legacy_keys_record_no_conflict()
     {
         // Arrange

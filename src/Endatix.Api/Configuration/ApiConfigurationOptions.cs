@@ -24,9 +24,9 @@ public class ApiConfigurationOptions : EndatixOptionsBase
 
     /// <summary>
     /// Gets or sets a value indicating whether to serve the API docs. Deprecated: use <c>Docs:Enabled</c>, which wins
-    /// when both are set. Null means unset.
+    /// when both are set.
     /// </summary>
-    public bool? UseSwagger { get; set; }
+    public bool UseSwagger { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the path of the API docs page. Deprecated: use <c>Docs:Path</c>, which wins when both are set.
