@@ -94,7 +94,7 @@ core operation-pending#1826 account DELETE /api/data-lists/{dataListId}
 core operation-pending#1826 account DELETE /api/data-lists/{dataListId}/locales/{locale}
 core operation-pending#1826 account DELETE /api/folders/{folderId}
 core operation-pending#1826 account DELETE /api/form-templates/{formTemplateId}
-core operation-pending#1826 account DELETE /api/forms/{formId}
+core operation-dormant account DELETE /api/forms/{formId}
 core operation-pending#1826 account DELETE /api/forms/{formId}/submissions/{submissionId}
 core operation-pending#1826 account DELETE /api/themes/{themeId}
 core operation-pending#1826 account GET /api/access/form-templates/{templateId}
@@ -108,7 +108,7 @@ core operation-pending#1826 account GET /api/folders
 core operation-pending#1826 account GET /api/folders/by-slug/{slug}
 core operation-pending#1826 account GET /api/form-templates
 core operation-pending#1826 account GET /api/form-templates/{formTemplateId}
-core operation-pending#1826 account GET /api/forms/{formId}
+core operation-dormant account GET /api/forms/{formId}
 core operation-pending#1826 account GET /api/forms/{formId}/definition/fields
 core operation-pending#1826 account GET /api/forms/{formId}/definitions
 core operation-pending#1826 account GET /api/forms/{formId}/definitions/{definitionId}
@@ -121,7 +121,7 @@ core operation-pending#1826 account GET /api/themes/{themeId}
 core operation-pending#1826 account PATCH /api/data-lists/{dataListId}
 core operation-pending#1826 account PATCH /api/folders/{folderId}
 core operation-pending#1826 account PATCH /api/form-templates/{formTemplateId}
-core operation-pending#1826 account PATCH /api/forms/{formId}
+core operation-dormant account PATCH /api/forms/{formId}
 core operation-pending#1826 account PATCH /api/forms/{formId}/definition
 core operation-pending#1826 account PATCH /api/forms/{formId}/definitions/{definitionId}
 core operation-pending#1826 account PATCH /api/forms/{formId}/settings
@@ -143,7 +143,7 @@ core operation-dormant account POST /api/questions
 core operation-pending#1826 account POST /api/themes
 core operation-pending#1826 account PUT /api/data-lists/{dataListId}/default-locale
 core operation-pending#1826 account PUT /api/data-lists/{dataListId}/import
-core operation-pending#1826 account PUT /api/forms/{formId}
+core operation-dormant account PUT /api/forms/{formId}
 core operation-pending#1826 account PUT /api/forms/{formId}/definition
 core operation-pending#1826 account PUT /api/forms/{formId}/definitions/{definitionId}
 core operation-pending#1826 account PUT /api/forms/{formId}/submissions/{submissionId}
@@ -157,7 +157,7 @@ core operation-dormant platform-admin GET /api/admin/auth/settings
 core operation-dormant platform-admin GET /api/admin/email/settings
 core operation-dormant account GET /api/system/version
 
-core policy-pending#1826 account GET /api/forms
+core operation-dormant account GET /api/forms
 
 core resolver resolver GET /api/auth/me
 core resolver resolver POST /api/auth/logout

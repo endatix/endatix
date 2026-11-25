@@ -1,8 +1,10 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Exceptions;
 using Endatix.Core.Events;
+using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -18,8 +20,13 @@ namespace Endatix.Core.UseCases.Forms.Delete;
 public class DeleteFormHandler(
     IFormsRepository forms,
     IFormSubmissionsLock formSubmissionsLock,
-    IMediator mediator) : ICommandHandler<DeleteFormCommand, Result<Form>>
+    IMediator mediator,
+    AccountStanding standing, ITenantContext? tenant) : ICommandHandler<DeleteFormCommand, Result<Form>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
+    public DeleteFormHandler(IFormsRepository forms, IFormSubmissionsLock formSubmissionsLock, IMediator mediator)
+        : this(forms, formSubmissionsLock, mediator, new AccountStanding(), null) { }
+
     private const string FORM_NOT_FOUND_MESSAGE = "Form not found.";
     private const string BUSY_MESSAGE = "The form is busy; try again shortly.";
 
@@ -27,12 +34,28 @@ public class DeleteFormHandler(
     {
         // Unlocked first: the delete of a missing form, or of another tenant's (form ids are public), must not hold up
         // that form's creates.
-        if (!await forms.AnyAsync(new FormSpecifications.ByIdReadOnly(request.FormId), cancellationToken))
+        if (!await IsVisibleAsync(request.FormId, cancellationToken))
         {
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
 
-        var deleted = await DeleteUnderLockAsync(request.FormId, cancellationToken);
+        return await standing.RefusalAsync<Form>(cancellationToken) ?? await DeleteAsync(request.FormId, cancellationToken);
+    }
+
+    private Task<bool> IsVisibleAsync(long id, CancellationToken ct)
+    {
+        if (!standing.IsEnforced)
+        {
+            return forms.AnyAsync(new FormSpecifications.ByIdReadOnly(id), ct);
+        }
+        return tenant is { TenantId: > 0 }
+            ? forms.AnyAsync(new FormSpecifications.ByIdForTenant(id, tenant.TenantId), ct)
+            : Task.FromResult(false);
+    }
+
+    private async Task<Result<Form>> DeleteAsync(long formId, CancellationToken cancellationToken)
+    {
+        var deleted = await DeleteUnderLockAsync(formId, cancellationToken);
         if (deleted.IsSuccess)
         {
             await mediator.Publish(new FormDeletedEvent(deleted.Value), cancellationToken);

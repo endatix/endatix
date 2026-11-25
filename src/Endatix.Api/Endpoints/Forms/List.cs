@@ -23,6 +23,7 @@ public class List(IMediator mediator)
     {
         Get("forms");
         Permissions(Actions.Forms.View);
+        PreProcessor<AuthorizedAccountStanding<FormsListRequest>>();
         Summary(s =>
         {
             s.Summary = "List forms";
@@ -59,8 +60,9 @@ public class List(IMediator mediator)
                 ]);
             s.Responses[200] = "Forms retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<FormModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

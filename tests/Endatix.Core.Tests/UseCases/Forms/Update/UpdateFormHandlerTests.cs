@@ -340,17 +340,9 @@ public class UpdateFormHandlerTests
         tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         var helper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, tenantContext);
 
-        var immutableFolder = new Folder(SampleData.TENANT_ID, "Immutable", "immutable", "IMMUTABLE")
-        {
-            Id = 7,
-            Immutable = true,
-        };
         folderRepo
-            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(immutableFolder);
-        tenantSettingsRepo
-            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns((TenantSettingsEntity?)null);
+            .AnyAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator, helper);
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 7));

@@ -14,4 +14,10 @@ public sealed class EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec : Speci
             !s.IsTestSubmission)
             .Select(s => s.SubmittedBy!);
     }
+
+    internal EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec(long formId, long tenantId) : this(formId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tenantId);
+        Query.Where(submission => submission.TenantId == tenantId);
+    }
 }

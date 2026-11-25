@@ -13,18 +13,15 @@ internal static class FolderAssignmentPolicyStub
 {
     public static FolderAssignmentPolicy Relaxed(long tenantId)
     {
-        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        var tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(tenantId);
         return Relaxed(tenantContext);
     }
 
     public static FolderAssignmentPolicy Relaxed(ITenantContext tenantContext)
     {
-        IRepository<TenantSettings> tenantSettingsRepository = Substitute.For<IRepository<TenantSettings>>();
-        IRepository<Folder> folderRepository = Substitute.For<IRepository<Folder>>();
-        tenantSettingsRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<TenantSettings>>(), Arg.Any<CancellationToken>())
-            .Returns((TenantSettings?)null);
+        var tenantSettingsRepository = Substitute.For<IRepository<TenantSettings>>();
+        var folderRepository = Substitute.For<IRepository<Folder>>();
         return new FolderAssignmentPolicy(tenantSettingsRepository, folderRepository, tenantContext);
     }
 }

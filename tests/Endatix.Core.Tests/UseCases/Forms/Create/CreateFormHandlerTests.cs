@@ -146,11 +146,9 @@ public class CreateFormHandlerTests
 
         var tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
         var folderRepo = Substitute.For<IRepository<Folder>>();
-        var settings = new TenantSettingsEntity(SampleData.TENANT_ID);
-        settings.UpdateRequireFolderAssignment(true);
         tenantSettingsRepo
-            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns(settings);
+            .AnyAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         var strictHelper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, _tenantContext);
         var handler = new CreateFormHandler(_repository, _tenantContext, strictHelper);
 

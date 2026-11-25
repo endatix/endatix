@@ -1,9 +1,11 @@
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases.Forms.GetById;
 using Endatix.Core.UseCases.Forms;
+using Endatix.Core.UseCases.Forms.GetById;
 
 namespace Endatix.Core.Tests.UseCases.Forms.GetById;
 
@@ -16,6 +18,21 @@ public class GetFormByIdHandlerTests
     {
         _repository = Substitute.For<IFormsRepository>();
         _handler = new GetFormByIdHandler(_repository);
+    }
+
+    [Fact]
+    public async Task Handle_NoTenantContext_DoesNotReadStandingOrAForm()
+    {
+        var auth = Substitute.For<ICurrentUserAuthorizationService>();
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(0L);
+        var handler = new GetFormByIdHandler(_repository, new AccountStanding(auth), tenant);
+
+        var result = await handler.Handle(new GetFormByIdQuery(1), TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.NotFound);
+        auth.ReceivedCalls().Should().BeEmpty();
+        _repository.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
