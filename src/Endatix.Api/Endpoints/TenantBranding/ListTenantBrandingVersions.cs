@@ -27,7 +27,7 @@ public sealed class ListTenantBrandingVersions(IMediator mediator)
     {
         Get("tenant-branding/versions");
         Permissions(Actions.Tenant.ManageSettings);
-        Definition.GateOnWhiteLabeling();
+        FeatureFlag<EndpointFeatureGate>(FeatureFlags.WhiteLabeling);
         Summary(s =>
         {
             s.Summary = "List the tenant's branding versions";

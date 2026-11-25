@@ -25,7 +25,7 @@ public sealed class GetTenantBranding(IMediator mediator)
     {
         Get("tenant-branding");
         Permissions(Actions.Access.Hub);
-        Definition.GateOnWhiteLabeling();
+        FeatureFlag<EndpointFeatureGate>(FeatureFlags.WhiteLabeling);
         Summary(s =>
         {
             s.Summary = "Get the tenant's branding";

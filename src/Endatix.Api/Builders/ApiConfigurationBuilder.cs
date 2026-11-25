@@ -1,5 +1,4 @@
 using System.Reflection;
-using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
@@ -152,8 +151,6 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo("Configuring Swagger documentation");
 
-        var whiteLabelingEnabled = WhiteLabelingEndpoints.IsEnabled(_configuration);
-
         Services.SwaggerDocument(options =>
         {
             options.ShortSchemaNames = true;
@@ -166,7 +163,10 @@ public class ApiConfigurationBuilder
                 settings.SchemaSettings.SchemaType = SchemaType.OpenApi3;
             };
             options.EndpointFilter = ep =>
-                ep.EndpointTags?.Contains("hidden") is not true && WhiteLabelingEndpoints.IsDocumented(ep, whiteLabelingEnabled);
+            {
+                var hasHiddenTag = ep.EndpointTags?.Contains("hidden") ?? false;
+                return !hasHiddenTag;
+            };
         });
 
         LogSetupInfo("Swagger documentation configured successfully");

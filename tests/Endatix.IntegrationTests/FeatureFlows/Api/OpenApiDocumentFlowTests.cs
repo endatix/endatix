@@ -6,8 +6,8 @@ using Endatix.IntegrationTests.Shared;
 namespace Endatix.IntegrationTests.FeatureFlows.Api;
 
 /// <summary>
-/// The OpenAPI document behind the API docs page generates for every endpoint (endatix/endatix#1841), and lists the tenant
-/// branding endpoints only when WhiteLabeling is on (endatix/endatix#1843). The shared host has the flag off.
+/// The OpenAPI document behind the API docs page generates for every endpoint (endatix/endatix#1841), with WhiteLabeling
+/// off (the shared host) and on.
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -15,7 +15,6 @@ namespace Endatix.IntegrationTests.FeatureFlows.Api;
 public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string DOCUMENT_PATH = "/swagger/alpha-version/swagger.json";
-    private const string BRANDING_ROUTE = "/tenant-branding";
     private static readonly string[] _objectFields = ["assets", "tokens"];
 
     [Fact]
@@ -45,52 +44,6 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
-    }
-
-    [Fact]
-    public async Task Branding_endpoints_are_not_documented_when_white_labeling_is_off()
-    {
-        // Arrange
-        var ct = TestContext.Current.CancellationToken;
-        using var client = fixture.CreateClient();
-
-        using var document = await ReadDocumentAsync(client, ct);
-
-        // Act
-        var paths = Paths(document);
-
-        // Assert
-        paths.Should().NotContain(path => path.Contains(BRANDING_ROUTE, StringComparison.Ordinal));
-        paths.Should().Contain(path => path.EndsWith("/public/tenants/{slug}", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task Branding_endpoints_are_documented_when_white_labeling_is_on()
-    {
-        // Arrange
-        var ct = TestContext.Current.CancellationToken;
-        await using BrandingWebHost host = new(fixture);
-        using var client = host.CreateClient();
-
-        using var document = await ReadDocumentAsync(client, ct);
-
-        // Act
-        var paths = Paths(document);
-        var brandingTags = document.RootElement.GetProperty("paths").EnumerateObject()
-            .Where(path => path.Name.Contains(BRANDING_ROUTE, StringComparison.Ordinal))
-            .SelectMany(path => path.Value.EnumerateObject())
-            .SelectMany(operation => operation.Value.GetProperty("tags").EnumerateArray().Select(tag => tag.GetString()))
-            .Distinct()
-            .ToList();
-
-        // Assert
-        paths.Where(path => path.Contains(BRANDING_ROUTE, StringComparison.Ordinal))
-            .Select(path => path[path.IndexOf(BRANDING_ROUTE, StringComparison.Ordinal)..])
-            .Should().BeEquivalentTo(
-                BRANDING_ROUTE, "/tenant-branding/versions", "/tenant-branding/published", "/tenant-branding/restore",
-                "/tenant-branding/rollback", "/tenant-branding/reset");
-        brandingTags.Should().Equal("Tenant-Branding");
-        paths.Should().Contain(path => path.EndsWith("/public/tenants/{slug}", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -136,9 +89,6 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 
     private static async Task<JsonDocument> ReadDocumentAsync(HttpClient client, CancellationToken ct) =>
         JsonDocument.Parse(await client.GetStringAsync(new Uri(DOCUMENT_PATH, UriKind.Relative), ct));
-
-    private static List<string> Paths(JsonDocument document) =>
-        document.RootElement.GetProperty("paths").EnumerateObject().Select(path => path.Name).ToList();
 
     /// <summary>NSwag writes a reference beside other keywords as a single <c>allOf</c> or <c>oneOf</c>.</summary>
     private static JsonElement Unwrap(JsonElement schema)
