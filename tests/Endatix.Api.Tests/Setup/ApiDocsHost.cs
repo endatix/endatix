@@ -84,7 +84,7 @@ internal sealed class ApiDocsHost : IAsyncDisposable
             AllowAnonymous();
         }
 
-        public override Task HandleAsync(CancellationToken ct) => Send.OkAsync(ct);
+        public override Task HandleAsync(CancellationToken ct) => Send.NoContentAsync(ct);
     }
 }
 
