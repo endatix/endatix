@@ -86,6 +86,7 @@ public sealed partial class RequiredActionsFlowTests
         var route = $"/api/users/{world.Tenants[0].Creator.Id}";
         using var locked = await admin.PostAsync($"{route}/lockout", null, ct);
         Assert.Equal(HttpStatusCode.OK, locked.StatusCode);
+        var lockedState = await LockStateAsync(world, world.Tenants[0].Creator.Id, ct);
         conflict.Pending = true;
         await InvalidateAsync(world, ct);
 
@@ -94,6 +95,7 @@ public sealed partial class RequiredActionsFlowTests
         var problem = await unknown.Content.ReadFromJsonAsync<JsonElement>(ct);
         Assert.Contains("Try again", problem.GetProperty("detail").GetString());
         Assert.False(problem.TryGetProperty("requiredActions", out _));
+        Assert.Equal(lockedState, await LockStateAsync(world, world.Tenants[0].Creator.Id, ct));
         conflict.Pending = false;
         await InvalidateAsync(world, ct);
 
