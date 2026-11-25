@@ -42,17 +42,9 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
         ListFoldersRequest request,
         CancellationToken ct)
     {
-        if (request.IncludeInactive)
+        if (request.IncludeInactive && await InactiveListDenialAsync(ct) is { } denied)
         {
-            var manageResult = await authorizationService.HasPermissionAsync(Actions.Folders.Manage, ct);
-            if (!manageResult.IsSuccess)
-            {
-                return manageResult.ToProblem();
-            }
-            if (!manageResult.Value)
-            {
-                return Result.Forbidden("Permission 'folders.manage' required to include inactive folders.").ToProblem();
-            }
+            return denied;
         }
 
         var result = await mediator.Send(new ListFoldersQuery(request.IncludeInactive), ct);
@@ -60,6 +52,16 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
         return TypedResultsBuilder
             .MapResult(result, folders => folders.ToModelList())
             .SetTypedResults<Ok<IEnumerable<FolderModel>>, ProblemHttpResult>();
+    }
+
+    private async Task<ProblemHttpResult?> InactiveListDenialAsync(CancellationToken ct)
+    {
+        var permission = await authorizationService.HasPermissionAsync(Actions.Folders.Manage, ct);
+        if (!permission.IsSuccess)
+        {
+            return permission.ToProblem();
+        }
+        return permission.Value ? null : Result.Forbidden("Permission 'folders.manage' required to include inactive folders.").ToProblem();
     }
 }
 
