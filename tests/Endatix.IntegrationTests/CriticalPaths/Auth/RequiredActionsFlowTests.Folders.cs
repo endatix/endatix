@@ -4,6 +4,7 @@ using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.IntegrationTests.Shared;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -11,6 +12,20 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    [Fact]
+    public void Folder_edit_and_delete_describe_their_distinct_locked_outcomes()
+    {
+        var api = fixture.Factory.Services.GetRequiredService<IApiDescriptionGroupCollectionProvider>();
+        var operations = api.ApiDescriptionGroups.Items.SelectMany(group => group.Items)
+            .Where(operation => operation.RelativePath == "api/folders/{folderId}").ToArray();
+        var patch = Assert.Single(operations, operation => operation.HttpMethod == "PATCH");
+        var delete = Assert.Single(operations, operation => operation.HttpMethod == "DELETE");
+
+        Assert.Contains(patch.SupportedResponseTypes, response => response.StatusCode == 400);
+        Assert.DoesNotContain(patch.SupportedResponseTypes, response => response.StatusCode == 409);
+        Assert.Contains(delete.SupportedResponseTypes, response => response.StatusCode == 409);
+    }
+
     [Fact]
     public async Task Folder_operations_refuse_pending_or_unavailable_standing_and_resume_without_lost_data()
     {
