@@ -106,8 +106,7 @@ public sealed class FormSettingsEndpointsTests
         var endpoint = PartialUpdateEndpoint("\"0\"");
         _mediator.Send(Arg.Any<PartialUpdateFormSettingsCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<FormSettingsDto>.Conflict("The form settings changed since they were read."));
-        _mediator.Send(new GetFormSettingsQuery(FORM_ID), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new FormSettingsDto(1, new PdfSettings())));
+        _mediator.Send(new ReadConflictingFormSettingsVersion(FORM_ID), Arg.Any<CancellationToken>()).Returns(1L);
 
         // Act
         var response = await endpoint.ExecuteAsync(ThemeOn(), Cancellation);

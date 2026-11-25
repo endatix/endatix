@@ -27,8 +27,9 @@ public sealed class Get(IMediator mediator) : Endpoint<GetFormSettingsRequest, R
                 "version. The ETag header holds the version a write names in If-Match: \"0\" before the first write.";
             s.Responses[200] = "The form's settings.";
             s.Responses[404] = "Form not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<FormSettingsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status404NotFound));
     }

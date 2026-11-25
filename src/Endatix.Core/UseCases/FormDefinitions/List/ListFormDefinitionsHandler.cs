@@ -11,25 +11,38 @@ namespace Endatix.Core.UseCases.FormDefinitions.List;
 /// Handler for retrieving form definitions as a paged envelope.
 /// Returns NotFound when the form has no matching definitions.
 /// </summary>
-public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository)
+public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository,
+    ManagedFormContentAccess? access)
     : IQueryHandler<ListFormDefinitionsQuery, Result<Paged<FormDefinition>>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
+    public ListFormDefinitionsHandler(IRepository<FormDefinition> repository)
+        : this(repository, null) { }
+
     public async Task<Result<Paged<FormDefinition>>> Handle(
         ListFormDefinitionsQuery request,
         CancellationToken cancellationToken)
     {
-        var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var countSpec = new FormDefinitionsListFilterSpec(
             request.FormId,
             request.Created,
             request.Modified);
+        if (access is not null && await access.ListAsync(countSpec, cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
         var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
         if (totalRecords == 0)
         {
             return Result.NotFound("Form not found.");
         }
 
-        var resolved = pagingParams.ForTotal(totalRecords);
+        return Result.Success(await ReadPageAsync(request, totalRecords, cancellationToken));
+    }
+
+    private async Task<Paged<FormDefinition>> ReadPageAsync(ListFormDefinitionsQuery request, int totalRecords, CancellationToken cancellationToken)
+    {
+        var resolved = new PagingParameters(request.Page, request.PageSize).ForTotal(totalRecords);
 
         var spec = new FormDefinitionsListSpec(
             request.FormId,
@@ -40,6 +53,6 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository)
             request.Modified);
         IReadOnlyList<FormDefinition> items = [.. await repository.ListAsync(spec, cancellationToken)];
 
-        return Result.Success(resolved.ToPaged(items));
+        return resolved.ToPaged(items);
     }
 }

@@ -6,7 +6,6 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormSettings;
-using Endatix.Core.UseCases.FormSettings.Get;
 using Endatix.Core.UseCases.FormSettings.PartialUpdate;
 using FastEndpoints;
 using FluentValidation;
@@ -42,8 +41,9 @@ public sealed class PartialUpdate(IMediator mediator)
             s.Responses[404] = "Form not found.";
             s.Responses[412] = "If-Match names a version that is no longer current; the ETag header and version hold the current one.";
             s.Responses[428] = "If-Match is missing.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<FormSettingsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -85,11 +85,10 @@ public sealed class PartialUpdate(IMediator mediator)
     {
         var problem = TypedResults.Problem(EndatixProblemDetails.Create(
             StatusCodes.Status412PreconditionFailed, "Precondition failed", string.Join('\n', result.Errors)));
-        var current = await mediator.Send(new GetFormSettingsQuery(formId), ct);
-        if (current.IsSuccess)
+        if (await mediator.Send(new ReadConflictingFormSettingsVersion(formId), ct) is long version)
         {
-            EntityTagHeader.SetETag(HttpContext.Response, current.Value.Version);
-            problem.ProblemDetails.Extensions["version"] = current.Value.Version.ToString(CultureInfo.InvariantCulture);
+            EntityTagHeader.SetETag(HttpContext.Response, version);
+            problem.ProblemDetails.Extensions["version"] = version.ToString(CultureInfo.InvariantCulture);
         }
 
         return problem;

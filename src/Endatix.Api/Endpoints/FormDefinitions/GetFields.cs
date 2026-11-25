@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.FormDefinitions.GetFields;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.FormDefinitions.GetFields;
 
 namespace Endatix.Api.Endpoints.FormDefinitions;
 
@@ -26,8 +26,9 @@ public class GetFields(IMediator mediator) : Endpoint<GetFieldsRequest, Results<
             s.Responses[200] = "List of definition fields.";
             s.Responses[400] = "Invalid form ID.";
             s.Responses[404] = "Form not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<IEnumerable<DefinitionFieldModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
