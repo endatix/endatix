@@ -27,4 +27,7 @@ public sealed record ListDataListsQuery(
     bool SortDescending = true,
     UtcDateTimeRange Created = default,
     UtcDateTimeRange Modified = default)
-    : IQuery<Result<Paged<DataListDto>>>;
+    : IQuery<Result<Paged<DataListDto>>>
+{
+    public long TenantId { get; init; }
+}

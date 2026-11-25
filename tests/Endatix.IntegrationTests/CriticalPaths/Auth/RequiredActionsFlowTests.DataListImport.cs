@@ -42,6 +42,8 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal((HttpStatusCode.ServiceUnavailable, false), await upload.SendAsync(owner, item, ct));
         Assert.Equal((HttpStatusCode.Forbidden, false), await upload.SendAsync(limited, item, ct));
         Assert.Equal((HttpStatusCode.NotFound, false), await upload.SendAsync(owner, otherTenantItem, ct));
+        Assert.Equal((HttpStatusCode.BadRequest, false), await upload.SendAsync(owner, "/api/data-lists/0", ct));
+        Assert.Equal((HttpStatusCode.BadRequest, false), await upload.SendAsync(owner, "/api/data-lists/invalid", ct));
         pending.Pending = conflict.Pending = false;
         await InvalidateAsync(world, ct);
         Assert.Equal((admitted, true), await upload.SendAsync(owner, item, ct));

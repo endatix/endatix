@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
@@ -20,6 +21,7 @@ public sealed class ManagedDataListAccess(ITenantContext tenant, IRepository<Dat
             return null;
         }
         var visible = new DataListsSpecifications.ByIdsForTenantSpec([id], tenant.TenantId);
+        visible.Query.TagWith("Managed data list visibility");
         return tenant.TenantId > 0 && await lists.AnyAsync(visible, ct)
             ? await standing.RefusalAsync(ct)
             : Result.NotFound("Data list not found.");

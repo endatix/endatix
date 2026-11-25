@@ -1,3 +1,4 @@
+using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -16,6 +17,10 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
     /// <inheritdoc />
     public async Task<Result<Paged<DataListDto>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
     {
+        if (request.TenantId <= 0)
+        {
+            return Result.Unauthorized("Tenant context is required.");
+        }
         PagingParameters pagingParams = new(request.Page, request.PageSize);
         var filter = new DataListsSpecifications.ListFilter(
             request.HasLocale,
@@ -25,6 +30,7 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
             request.Created,
             request.Modified);
         var listSpec = new DataListsSpecifications.ListSpec(filter);
+        listSpec.Query.Where(list => list.TenantId == request.TenantId);
         var totalRecords = await repository.CountAsync(listSpec, cancellationToken);
         var resolved = pagingParams.ForTotal(totalRecords);
 
@@ -32,6 +38,7 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
         if (totalRecords > 0)
         {
             var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(new PagingParameters(resolved), filter);
+            pagedSpec.Query.Where(list => list.TenantId == request.TenantId);
             items = [.. await repository.ListAsync(pagedSpec, cancellationToken)];
         }
 

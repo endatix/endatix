@@ -1,6 +1,9 @@
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.UseCases.DataLists;
 using FastEndpoints;
+using FluentValidation;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,17 +34,25 @@ internal sealed class ManagedDataListStanding<TRequest> : IPreProcessor<TRequest
 // FastEndpoints binds the entire import payload before its preprocessors run.
 internal sealed class ImportStandingFilter : IEndpointFilter
 {
+    private static readonly RequestBinder<ImportDataListRequest> _routeBinder = new(BindingSource.RouteValues);
+
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var http = context.HttpContext;
-        if (long.TryParse(http.Request.RouteValues["dataListId"]?.ToString(), out var id) && id > 0)
+        if (!http.RequestServices.GetRequiredService<AccountStanding>().IsEnforced)
         {
-            var access = http.RequestServices.GetRequiredService<ManagedDataListAccess>();
-            if (await access.RefusalAsync(id, http.RequestAborted) is { } refusal)
-            {
-                return refusal.ToProblem();
-            }
+            return await next(context);
         }
-        return await next(context);
+        List<ValidationFailure> errors = [];
+        var target = await _routeBinder.BindAsync(new BinderContext(http, errors, null!, false, []), http.RequestAborted);
+        if (target.DataListId <= 0 || errors.Count > 0)
+        {
+            var validation = new ImportDataListValidator().Validate(target, options => options.IncludeProperties(x => x.DataListId));
+            errors.AddRange(validation.Errors);
+            return TypedResults.Problem(EndatixProblemDetails.FromValidationFailures(errors, http, StatusCodes.Status400BadRequest));
+        }
+        var access = http.RequestServices.GetRequiredService<ManagedDataListAccess>();
+        return await access.RefusalAsync(target.DataListId, http.RequestAborted) is { } refusal
+            ? refusal.ToProblem() : await next(context);
     }
 }

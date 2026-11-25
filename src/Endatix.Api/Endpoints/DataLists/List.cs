@@ -1,6 +1,7 @@
 using Endatix.Api.Common;
 using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
@@ -17,7 +18,7 @@ namespace Endatix.Api.Endpoints.DataLists;
 /// Endpoint to list data lists.
 /// </summary>
 public sealed class List(
-    IMediator mediator)
+    IMediator mediator, ITenantContext tenant)
     : Endpoint<DataListsListRequest, Results<Ok<Paged<DataListModel>>, ProblemHttpResult>>
 {
     /// <summary>
@@ -86,7 +87,8 @@ public sealed class List(
                 sort.Field,
                 sort.IsDescending,
                 request.ToCreatedRange(),
-                request.ToModifiedRange()),
+                request.ToModifiedRange())
+            { TenantId = tenant.TenantId },
             ct);
 
         if (!result.IsSuccess)

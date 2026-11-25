@@ -22,7 +22,7 @@ public sealed partial class RequiredActionsFlowTests
         var commands = new DataListCommands();
         await using var host = new ReportingWebHost(fixture, services =>
         {
-            services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(commands));
+            services.ConfigureDbContext<AppDbContext>(commands.Observe);
             services.AddSingleton<IRequiredActionProvider>(action);
             EnableStanding(services);
         });
@@ -31,6 +31,7 @@ public sealed partial class RequiredActionsFlowTests
         var item = await CreateDataListAsync(owner, ct);
         using var imported = await owner.PutAsJsonAsync($"{item}/import", new { format = "csv", csv = "value,default\r\na,Apple\r\n" }, ct);
         imported.EnsureSuccessStatusCode();
+        var before = await owner.GetFromJsonAsync<JsonElement>(item, ct);
         action.Pending = true;
         await InvalidateAsync(world, ct);
         var me = await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
@@ -46,6 +47,8 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(0, commands.ProductWork);
         action.Pending = false;
         await InvalidateAsync(world, ct);
+        var after = await owner.GetFromJsonAsync<JsonElement>(item, ct);
+        Assert.True(JsonElement.DeepEquals(before, after));
         using var exported = await owner.PostAsJsonAsync($"{item}/export", new { format = "csv" }, ct);
         exported.EnsureSuccessStatusCode();
         Assert.Contains("a,Apple", await exported.Content.ReadAsStringAsync(ct));
@@ -79,9 +82,28 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Empty(snapshots.ReceivedCalls());
     }
 
-    private static async Task<string> CreateDataListAsync(HttpClient owner, CancellationToken ct)
+    [Fact]
+    public async Task Managed_data_list_catalogs_return_only_the_current_tenants_lists_and_locales()
     {
-        using var created = await owner.PostAsJsonAsync("/api/data-lists", new { name = "Fruit" }, ct);
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = new ReportingWebHost(fixture, EnableStanding);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var first = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var second = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        await CreateDataListAsync(first, ct);
+        var foreign = await CreateDataListAsync(second, ct, "Vegetables");
+        using var added = await second.PostAsJsonAsync($"{foreign}/locales", new { locale = "fr" }, ct);
+        added.EnsureSuccessStatusCode();
+        var catalog = await first.GetFromJsonAsync<JsonElement>("/api/data-lists", ct);
+        var locales = await first.GetFromJsonAsync<string[]>("/api/data-lists/locales", ct);
+        Assert.Equal("Fruit", Assert.Single(catalog.GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
+        Assert.NotNull(locales);
+        Assert.Equal(["en"], locales);
+    }
+
+    private static async Task<string> CreateDataListAsync(HttpClient owner, CancellationToken ct, string name = "Fruit")
+    {
+        using var created = await owner.PostAsJsonAsync("/api/data-lists", new { name }, ct);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var list = await created.Content.ReadFromJsonAsync<JsonElement>(ct);
         return $"/api/data-lists/{list.GetProperty("id")}";

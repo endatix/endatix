@@ -134,7 +134,13 @@ public sealed class DataListRepository(
     public async Task<IReadOnlyList<string>> ListDistinctLocalesAsync(
         CancellationToken cancellationToken = default)
     {
+        var tenantId = dbContext.GetTenantId();
+        if (tenantId <= 0)
+        {
+            return [];
+        }
         var rows = await dbContext.DataLists
+            .Where(list => list.TenantId == tenantId)
             .AsNoTracking()
             .Select(dataList => new
             {
