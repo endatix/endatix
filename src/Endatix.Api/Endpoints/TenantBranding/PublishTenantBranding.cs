@@ -39,7 +39,7 @@ public sealed class PublishTenantBranding(
     /// <inheritdoc/>
     protected override void ConfigureBody()
     {
-        Description(builder => builder.Accepts<object>("application/json"));
+        Description(builder => builder.Accepts<BrandOverrideBody>("application/json"));
         RequestBinder(new BoundedBrandOverrideBinder());
     }
 
@@ -59,4 +59,25 @@ public sealed class PublishTenantBrandingRequest
     /// The brand override as sent, before it is parsed; cut one character past the parser's bound when longer.
     /// </summary>
     public string Content { get; set; } = "";
+}
+
+/// <summary>
+/// The publish body as the OpenAPI document shows it: the brand override's root fields. Only the document uses it; the
+/// body is read as text and checked by the brand override's own parser.
+/// </summary>
+/// <remarks>
+/// FastEndpoints describes a body by a type with public properties, so <c>Accepts&lt;object&gt;</c> fails the whole
+/// document (endatix/endatix#1841). <c>OpenApiDocumentFlowTests</c> ties these names to the parser's root fields.
+/// </remarks>
+[Experimental("ENDATIX0002")]
+internal sealed class BrandOverrideBody
+{
+    /// <summary>The brand pack version the override follows; 1.</summary>
+    public int Version { get; init; }
+
+    /// <summary>The logo (<c>light</c>, optional <c>dark</c>) and the icon, as storage keys under the tenant's brand folder.</summary>
+    public object? Assets { get; init; }
+
+    /// <summary>The accent: <c>color.primary</c> and optional <c>color.primary-on-dark</c>, each <c>{"$type": "color", "$value"}</c>.</summary>
+    public object? Tokens { get; init; }
 }
