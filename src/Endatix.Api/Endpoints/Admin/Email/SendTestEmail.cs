@@ -22,7 +22,6 @@ public class SendTestEmail(IMediator mediator)
     {
         Post("/admin/email/test");
         Policies(SystemRole.PlatformAdmin.Name);
-        PreProcessor<AuthorizedAccountStanding<SendTestEmailRequest>>();
         Summary(s =>
         {
             s.Summary = "Send test email";

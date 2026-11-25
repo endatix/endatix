@@ -12,7 +12,6 @@ using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.FormDefinitions;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.TenantBranding;
-using Endatix.Infrastructure.Identity.Users;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -61,7 +60,6 @@ public static class MessagingConfiguration
             mediatRAssemblies = [.. mediatRAssemblies, .. options.AdditionalAssemblies];
         }
 
-        TeammateRegistration.AddInviteHandler(services);
         // Never activate the direct, repository-scoped constructor for a managed query.
         services.TryAddScoped<IRequestHandler<ListDataListsQuery, Result<Paged<DataListDto>>>>(sp =>
             new ListDataListsHandler(sp.GetRequiredService<IRepository<DataList>>(), sp.GetRequiredService<ITenantContext>()));

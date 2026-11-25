@@ -1,5 +1,4 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Tenants;
 using Endatix.Core.UseCases.Tenants.Update;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Data.Config;
@@ -20,8 +19,6 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class Update(IMediator mediator, IConfiguration configuration, HybridCache cache)
     : Endpoint<UpdateTenantRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
-    private readonly MultiTenancyGate _access = new(configuration, mediator);
-
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -58,7 +55,7 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
         CancellationToken ct)
     {
         var command = request.ToCommand();
-        if (await _access.RefusalAsync(new PlatformTenantAccess(command.TenantId, command.UpdatesRegistrationPolicy), ct) is { } refusal)
+        if (MultiTenancyGate.Refusal(configuration) is { } refusal)
         {
             return refusal;
         }

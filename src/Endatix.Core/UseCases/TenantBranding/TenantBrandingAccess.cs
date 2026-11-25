@@ -1,20 +1,14 @@
 using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.TenantBranding;
 
-/// <summary>Account access to the current tenant's brand. Only writes require the branding entitlement.</summary>
+/// <summary>Checks tenant scope and entitlement for branding writes.</summary>
 [Experimental("ENDATIX0006")]
-public sealed class TenantBrandingAccess(ITenantContext tenant, ITenantEntitlements entitlements, AccountStanding standing)
+public sealed class TenantBrandingAccess(ITenantContext tenant, ITenantEntitlements entitlements)
 {
     internal long TenantId => tenant.TenantId;
-
-    /// <summary>Checks a signed-in read before any brand or history is fetched.</summary>
-    public Task<Result?> ReadRefusalAsync(CancellationToken ct) => TenantId > 0
-        ? standing.RefusalAsync(ct)
-        : Task.FromResult<Result?>(Result.Unauthorized());
 
     internal async Task<Result<TenantBrandingDto>?> WriteRefusalAsync(CancellationToken ct)
     {
@@ -24,7 +18,7 @@ public sealed class TenantBrandingAccess(ITenantContext tenant, ITenantEntitleme
         }
 
         return await entitlements.IsEntitledAsync(TenantId, EntitlementNames.BRANDING, ct)
-            ? await standing.RefusalAsync<TenantBrandingDto>(ct)
+            ? null
             : Result<TenantBrandingDto>.Forbidden("The tenant's plan does not include branding.");
     }
 }

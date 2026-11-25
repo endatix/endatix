@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Infrastructure.Result;
 
@@ -6,13 +5,6 @@ namespace Endatix.Infrastructure.Identity.Users;
 
 public sealed partial class AppUserRegistrationService
 {
-    internal async Task<Result<User>> RegisterTeammateAsync(string email, long tenantId, AccountStanding standing, CancellationToken ct)
-    {
-        var target = await ResolveRegistrationTargetAsync(email, tenantId, isAnonymous: false);
-        return target.Refusal ?? await standing.RefusalAsync<User>(ct)
-            ?? await RegisterEligibleUserAsync(target, GenerateTemporaryInvitePassword(), isEmailConfirmed: false, sendInvitationEmail: true, ct);
-    }
-
     private async Task<RegistrationTarget> ResolveRegistrationTargetAsync(string email, long tenantId, bool isAnonymous)
     {
         if (!userManager.SupportsUserEmail)

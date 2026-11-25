@@ -4,8 +4,8 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.TenantSettings.Get;
-using Entities = Endatix.Core.Entities;
 using MediatR;
+using Entities = Endatix.Core.Entities;
 
 namespace Endatix.Core.UseCases.TenantSettings.PartialUpdate;
 
@@ -23,8 +23,7 @@ public sealed class PartialUpdateTenantSettingsHandler(
         PartialUpdateTenantSettingsCommand request,
         CancellationToken cancellationToken)
     {
-        var spec = new TenantSettingsByTenantIdSpec(tenantContext.TenantId);
-        var entity = await repository.FirstOrDefaultAsync(spec, cancellationToken);
+        var entity = await FindSettingsAsync(tenantContext.TenantId, cancellationToken);
         if (entity is null)
         {
             return Result.NotFound("Tenant settings not found.");
@@ -56,4 +55,8 @@ public sealed class PartialUpdateTenantSettingsHandler(
 
         return await mediator.Send(new GetTenantSettingsQuery(), cancellationToken);
     }
+
+    private Task<Entities.TenantSettings?> FindSettingsAsync(long tenantId, CancellationToken ct) => tenantId > 0
+        ? repository.FirstOrDefaultAsync(new TenantSettingsByTenantIdSpec(tenantId), ct)
+        : Task.FromResult<Entities.TenantSettings?>(null);
 }

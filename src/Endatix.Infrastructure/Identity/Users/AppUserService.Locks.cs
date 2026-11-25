@@ -1,21 +1,10 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Infrastructure.Identity.Users;
 
 public sealed partial class AppUserService
 {
-    private AccountStanding _standing = new();
-
-    internal static AppUserService Create(IServiceProvider services)
-    {
-        var users = ActivatorUtilities.CreateInstance<AppUserService>(services);
-        users._standing = services.GetRequiredService<AccountStanding>();
-        return users;
-    }
-
     /// <inheritdoc />
     public Task<Result> LockoutUserAsync(long userId, CancellationToken cancellationToken = default) =>
         userId > 0 && IsCurrentUser(userId)
@@ -45,7 +34,7 @@ public sealed partial class AppUserService
         {
             return access;
         }
-        return await _standing.RefusalAsync(ct) ?? await ApplyLockChangeAsync(user, change, ct);
+        return await ApplyLockChangeAsync(user, change, ct);
     }
 
     private async Task<Result> ApplyLockChangeAsync(AppUser user, Func<AppUser, Task<IdentityResult>> change, CancellationToken ct)

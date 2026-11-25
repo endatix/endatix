@@ -23,7 +23,6 @@ public sealed class List(ListPlatformAdmins listPlatformAdmins)
     {
         Get("/admin/platform-admins");
         Policies(AuthorizationPolicies.PlatformAdminAccess);
-        PreProcessor<AuthorizedAccountStanding<ListPlatformAdminsRequest>>();
         Summary(s =>
         {
             s.Summary = "List platform administrators";

@@ -1,5 +1,4 @@
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Logging;
@@ -18,8 +17,7 @@ public sealed class ResendUserInvitationHandler(
     IEmailVerificationService emailVerificationService,
     IEmailSender emailSender,
     IEmailTemplateService emailTemplateService,
-    ILogger<ResendUserInvitationHandler> logger,
-    AccountStanding standing) : ICommandHandler<ResendUserInvitationCommand, Result>
+    ILogger<ResendUserInvitationHandler> logger) : ICommandHandler<ResendUserInvitationCommand, Result>
 {
     /// <inheritdoc/>
     public async Task<Result> Handle(ResendUserInvitationCommand request, CancellationToken cancellationToken)
@@ -40,7 +38,7 @@ public sealed class ResendUserInvitationHandler(
             return Result.Invalid(new ValidationError("The user has already verified their email."));
         }
 
-        return await standing.RefusalAsync(cancellationToken) ?? await SendInvitationAsync(userResult.Value, cancellationToken);
+        return await SendInvitationAsync(userResult.Value, cancellationToken);
     }
 
     private async Task<Result> SendInvitationAsync(User user, CancellationToken cancellationToken)

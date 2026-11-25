@@ -15,8 +15,6 @@ public sealed class CreateTests
 {
     private readonly IMediator _mediator = Substitute.For<IMediator>();
 
-    public CreateTests() => _mediator.Send(Arg.Any<PlatformTenantAccess>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
-
     [Fact]
     public async Task ExecuteAsync_MultiTenancyDisabled_ReturnsNotFoundWithoutSendingCommand()
     {

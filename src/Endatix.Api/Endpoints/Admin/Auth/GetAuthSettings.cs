@@ -19,7 +19,6 @@ public sealed class GetAuthSettings(IMediator mediator)
     {
         Get("/admin/auth/settings");
         Policies(AuthorizationPolicies.PlatformAdminAccess);
-        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "Get auth settings";

@@ -3,7 +3,6 @@ using Endatix.Api.Common;
 using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.Get;
 using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
@@ -19,7 +18,7 @@ namespace Endatix.Api.Endpoints.TenantBranding;
 /// need <c>tenant.settings.manage</c>.
 /// </summary>
 [Experimental("ENDATIX0002")]
-public sealed class GetTenantBranding(IMediator mediator, TenantBrandingAccess access)
+public sealed class GetTenantBranding(IMediator mediator)
     : EndpointWithoutRequest<Results<Ok<TenantBrandingModel>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
@@ -46,11 +45,6 @@ public sealed class GetTenantBranding(IMediator mediator, TenantBrandingAccess a
     /// <inheritdoc/>
     public override async Task<Results<Ok<TenantBrandingModel>, ProblemHttpResult>> ExecuteAsync(CancellationToken ct)
     {
-        if (await access.ReadRefusalAsync(ct) is { } refusal)
-        {
-            return refusal.ToProblem();
-        }
-
         var result = await mediator.Send(new GetTenantBrandingQuery(), ct);
         if (!result.IsSuccess)
         {

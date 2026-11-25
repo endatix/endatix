@@ -16,7 +16,6 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
     {
         Get("/admin/storage");
         Permissions(Actions.Tenant.ViewSettings);
-        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "Get storage statistics dashboard";

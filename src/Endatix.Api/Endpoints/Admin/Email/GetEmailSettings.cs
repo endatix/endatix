@@ -21,7 +21,6 @@ public class GetEmailSettings(IMediator mediator)
     {
         Get("/admin/email/settings");
         Policies(SystemRole.PlatformAdmin.Name);
-        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "Get email settings";

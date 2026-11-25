@@ -1,5 +1,4 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Tenants;
 using Endatix.Core.UseCases.Tenants.Create;
 using Endatix.Infrastructure.Data.Config;
 using Endatix.Infrastructure.Identity.Authorization;
@@ -18,8 +17,6 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class Create(IMediator mediator, IConfiguration configuration)
     : Endpoint<CreateTenantRequest, Results<Created<TenantModel>, ProblemHttpResult>>
 {
-    private readonly MultiTenancyGate _access = new(configuration, mediator);
-
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -58,7 +55,7 @@ public sealed class Create(IMediator mediator, IConfiguration configuration)
         CreateTenantRequest request,
         CancellationToken ct)
     {
-        if (await _access.RefusalAsync(new PlatformTenantAccess(), ct) is { } refusal)
+        if (MultiTenancyGate.Refusal(configuration) is { } refusal)
         {
             return refusal;
         }

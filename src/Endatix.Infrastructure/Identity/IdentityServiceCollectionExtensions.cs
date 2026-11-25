@@ -91,7 +91,7 @@ public static class IdentityServiceCollectionExtensions
     {
         // Register essential identity services
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserService>(AppUserService.Create);
+        services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserContext, UserContext>();
         services.AddSubmitterResolution(configuration);
 
@@ -101,7 +101,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserPasswordManageService, UserPasswordManageService>();
         services.AddScoped<IUserTokenService, JwtTokenService>();
         services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
-        services.AddScoped(RoleManagementService.Create);
+        services.AddScoped<RoleManagementService>();
         services.AddScoped<IRoleManagementService>(sp => sp.GetRequiredService<RoleManagementService>());
         services.AddScoped<ISystemRoleAssignment>(sp => sp.GetRequiredService<RoleManagementService>());
 

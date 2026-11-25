@@ -14,7 +14,7 @@ public class ListUsersHandlerTests
     public ListUsersHandlerTests()
     {
         _userService = Substitute.For<IUserService>();
-        _handler = new ListUsersHandler(_userService, new());
+        _handler = new ListUsersHandler(_userService);
     }
 
     private static ListUsersQuery Query(
