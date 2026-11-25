@@ -24,6 +24,7 @@ public sealed class GetById(
     {
         Get("data-lists/{dataListId}");
         Permissions(Actions.Forms.View);
+        PreProcessor<ManagedDataListStanding<GetDataListRequest>>();
         Summary(s =>
         {
             s.Summary = "Get a data list by ID";
@@ -44,8 +45,9 @@ public sealed class GetById(
             s.Responses[200] = "Data list retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<DataListDetailsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -81,7 +83,7 @@ public sealed class GetDataListValidator : Validator<GetDataListRequest>
 /// <summary>
 /// Request to get a data list by ID.
 /// </summary>
-public sealed class GetDataListRequest
+public sealed class GetDataListRequest : IManagedDataListTarget
 {
     /// <summary>
     /// The ID of the data list to get.

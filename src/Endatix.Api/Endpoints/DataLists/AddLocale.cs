@@ -23,6 +23,7 @@ public sealed class AddLocale(IMediator mediator)
     {
         Post("data-lists/{dataListId}/locales");
         Permissions(Actions.Forms.Edit);
+        PreProcessor<ManagedDataListStanding<AddDataListLocaleRequest>>();
         Summary(s =>
         {
             s.Summary = "Add a data list locale";
@@ -46,8 +47,9 @@ public sealed class AddLocale(IMediator mediator)
             s.Responses[200] = "Locale added successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<DataListDetailsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -85,7 +87,7 @@ public sealed class AddDataListLocaleValidator : Validator<AddDataListLocaleRequ
 /// <summary>
 /// Request to add a locale to a data list catalog.
 /// </summary>
-public sealed class AddDataListLocaleRequest
+public sealed class AddDataListLocaleRequest : IManagedDataListTarget
 {
     /// <summary>
     /// The ID of the data list.

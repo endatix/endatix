@@ -23,6 +23,7 @@ public sealed class SetDefaultLocale(IMediator mediator)
     {
         Put("data-lists/{dataListId}/default-locale");
         Permissions(Actions.Forms.Edit);
+        PreProcessor<ManagedDataListStanding<SetDataListDefaultLocaleRequest>>();
         Summary(s =>
         {
             s.Summary = "Set the data list default locale";
@@ -46,8 +47,9 @@ public sealed class SetDefaultLocale(IMediator mediator)
             s.Responses[200] = "Default locale updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<DataListDetailsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -85,7 +87,7 @@ public sealed class SetDataListDefaultLocaleValidator : Validator<SetDataListDef
 /// <summary>
 /// Request to set the default locale for a data list.
 /// </summary>
-public sealed class SetDataListDefaultLocaleRequest
+public sealed class SetDataListDefaultLocaleRequest : IManagedDataListTarget
 {
     /// <summary>
     /// The ID of the data list.

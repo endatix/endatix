@@ -20,14 +20,16 @@ public sealed class ListLocales(IMediator mediator)
     {
         Get("data-lists/locales");
         Permissions(Actions.Forms.View);
+        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "List distinct data list locales";
             s.Description =
                 "Returns distinct culture codes from DefaultLocale and AvailableLocales across all tenant data lists.";
             s.Responses[200] = "Distinct locales retrieved successfully.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<IReadOnlyList<string>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

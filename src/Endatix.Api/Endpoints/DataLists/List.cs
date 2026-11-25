@@ -27,6 +27,7 @@ public sealed class List(
     {
         Get("data-lists");
         Permissions(Actions.Forms.View);
+        PreProcessor<AuthorizedAccountStanding<DataListsListRequest>>();
         Summary(s =>
         {
             s.Summary = "List data lists";
@@ -63,8 +64,9 @@ public sealed class List(
                 ]);
             s.Responses[200] = "Data lists retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<DataListModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

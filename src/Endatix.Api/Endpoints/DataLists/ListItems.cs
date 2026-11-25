@@ -27,6 +27,7 @@ public sealed class ListItems(IMediator mediator)
     {
         Get("data-lists/{dataListId}/items");
         Permissions(Actions.Forms.View);
+        PreProcessor<ManagedDataListStanding<ListDataListItemsRequest>>();
         Summary(s =>
         {
             s.Summary = "List data list items";
@@ -48,8 +49,9 @@ public sealed class ListItems(IMediator mediator)
             s.Responses[200] = "Data list items retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<DataListItemModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -91,7 +93,7 @@ public sealed class ListItems(IMediator mediator)
 /// <summary>
 /// Request to list/search data list items.
 /// </summary>
-public sealed class ListDataListItemsRequest :
+public sealed class ListDataListItemsRequest : IManagedDataListTarget,
     IPagedRequest,
     ISortableRequest<DataListItemListSortBy>,
     ICreatedRange,

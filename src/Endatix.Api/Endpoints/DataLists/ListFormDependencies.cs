@@ -24,6 +24,7 @@ public sealed class ListFormDependencies(
     {
         Get("data-lists/{dataListId}/forms");
         Permissions(Actions.Forms.View);
+        PreProcessor<ManagedDataListStanding<ListFormDependenciesRequest>>();
         Summary(s =>
         {
             s.Summary = "List form dependencies for a data list";
@@ -43,8 +44,9 @@ public sealed class ListFormDependencies(
             s.Responses[200] = "Form dependencies listed successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<IEnumerable<FormModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -67,7 +69,7 @@ public sealed class ListFormDependencies(
 /// <summary>
 /// Request to list form dependencies.
 /// </summary>
-public sealed class ListFormDependenciesRequest
+public sealed class ListFormDependenciesRequest : IManagedDataListTarget
 {
     /// <summary>
     /// The ID of the data list to list form dependencies for.

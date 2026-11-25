@@ -8,6 +8,7 @@ using Endatix.Infrastructure.Data.Config;
 using FastEndpoints;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -31,6 +32,7 @@ public sealed class Import(IMediator mediator)
     {
         Put("data-lists/{dataListId}/import");
         Permissions(Actions.Forms.Edit);
+        Options(builder => builder.AddEndpointFilter<ImportStandingFilter>());
         Summary(s =>
         {
             s.Summary = "Import data list items";
@@ -58,8 +60,9 @@ public sealed class Import(IMediator mediator)
             s.Responses[200] = "Items imported successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<DataListDetailsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -175,6 +178,7 @@ public sealed class ImportDataListRequest
     /// <summary>
     /// The data list ID.
     /// </summary>
+    [RouteParam]
     public long DataListId { get; init; }
 
     /// <summary>

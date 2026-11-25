@@ -90,8 +90,8 @@ core operation-dormant account PUT /api/roles/{roleName}
 core operation-dormant account PUT /api/tenant-branding/published
 core operation-dormant account PUT /api/users/{userId}/roles
 
-core operation-pending#1826 account DELETE /api/data-lists/{dataListId}
-core operation-pending#1826 account DELETE /api/data-lists/{dataListId}/locales/{locale}
+core operation-dormant account DELETE /api/data-lists/{dataListId}
+core operation-dormant account DELETE /api/data-lists/{dataListId}/locales/{locale}
 core operation-pending#1826 account DELETE /api/folders/{folderId}
 core operation-pending#1826 account DELETE /api/form-templates/{formTemplateId}
 core operation-dormant account DELETE /api/forms/{formId}
@@ -99,11 +99,11 @@ core operation-dormant account DELETE /api/forms/{formId}/submissions/{submissio
 core operation-pending#1826 account DELETE /api/themes/{themeId}
 core operation-pending#1826 account GET /api/access/form-templates/{templateId}
 core operation-dormant account GET /api/access/forms/{formId}/submissions/{submissionId}
-core operation-pending#1826 account GET /api/data-lists
-core operation-pending#1826 account GET /api/data-lists/locales
-core operation-pending#1826 account GET /api/data-lists/{dataListId}
-core operation-pending#1826 account GET /api/data-lists/{dataListId}/forms
-core operation-pending#1826 account GET /api/data-lists/{dataListId}/items
+core operation-dormant account GET /api/data-lists
+core operation-dormant account GET /api/data-lists/locales
+core operation-dormant account GET /api/data-lists/{dataListId}
+core operation-dormant account GET /api/data-lists/{dataListId}/forms
+core operation-dormant account GET /api/data-lists/{dataListId}/items
 core operation-pending#1826 account GET /api/folders
 core operation-pending#1826 account GET /api/folders/by-slug/{slug}
 core operation-pending#1826 account GET /api/form-templates
@@ -118,7 +118,7 @@ core operation-dormant account GET /api/forms/{formId}/submissions/{submissionId
 core operation-dormant account GET /api/questions
 core operation-pending#1826 account GET /api/themes
 core operation-pending#1826 account GET /api/themes/{themeId}
-core operation-pending#1826 account PATCH /api/data-lists/{dataListId}
+core operation-dormant account PATCH /api/data-lists/{dataListId}
 core operation-pending#1826 account PATCH /api/folders/{folderId}
 core operation-pending#1826 account PATCH /api/form-templates/{formTemplateId}
 core operation-dormant account PATCH /api/forms/{formId}
@@ -128,9 +128,9 @@ core operation-dormant account PATCH /api/forms/{formId}/settings
 core operation-dormant account PATCH /api/forms/{formId}/submissions/{submissionId}
 core operation-dormant account PATCH /api/forms/{formId}/submissions/{submissionId}/test
 core operation-pending#1826 account PATCH /api/themes/{themeId}
-core operation-pending#1826 account POST /api/data-lists
-core operation-pending#1826 account POST /api/data-lists/{dataListId}/export
-core operation-pending#1826 account POST /api/data-lists/{dataListId}/locales
+core operation-dormant account POST /api/data-lists
+core operation-dormant account POST /api/data-lists/{dataListId}/export
+core operation-dormant account POST /api/data-lists/{dataListId}/locales
 core operation-pending#1826 account POST /api/folders
 core operation-pending#1826 account POST /api/form-templates
 core operation-pending#1826 account POST /api/forms
@@ -141,8 +141,8 @@ core operation-dormant account POST /api/forms/{formId}/submissions/{submissionI
 core operation-dormant account POST /api/forms/{formId}/submissions/{submissionId}/status
 core operation-dormant account POST /api/questions
 core operation-pending#1826 account POST /api/themes
-core operation-pending#1826 account PUT /api/data-lists/{dataListId}/default-locale
-core operation-pending#1826 account PUT /api/data-lists/{dataListId}/import
+core operation-dormant account PUT /api/data-lists/{dataListId}/default-locale
+core operation-dormant account PUT /api/data-lists/{dataListId}/import
 core operation-dormant account PUT /api/forms/{formId}
 core operation-dormant account PUT /api/forms/{formId}/definition
 core operation-dormant account PUT /api/forms/{formId}/definitions/{definitionId}
