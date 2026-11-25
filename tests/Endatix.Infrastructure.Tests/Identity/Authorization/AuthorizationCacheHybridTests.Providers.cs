@@ -7,6 +7,34 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 public sealed partial class AuthorizationCacheHybridTests
 {
     [Fact]
+    public async Task GetOrCreateAsync_MandatoryClearanceExpiresDuringAnotherProviderRead_ReturnsUnavailable()
+    {
+        // Arrange
+        var mandatory = Substitute.For<IRequiredActionProvider>();
+        mandatory.FailClosed.Returns(true);
+        mandatory.CacheFor.Returns(TimeSpan.FromSeconds(10));
+        mandatory.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var remote = Substitute.For<IRequiredActionProvider>();
+        remote.CacheFor.Returns(TimeSpan.FromSeconds(5));
+        remote.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(false, mandatory, remote);
+        (await SnapshotAsync(cache)).RequiredActionsUnavailable.Should().BeFalse();
+        _clock.Now.Returns(_start.AddSeconds(5));
+        remote.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            _clock.Now.Returns(_start.AddSeconds(11));
+            return Array.Empty<RequiredAction>();
+        });
+
+        // Act
+        var snapshot = await SnapshotAsync(cache);
+
+        // Assert
+        snapshot.RequiredActionsUnavailable.Should().BeTrue();
+        snapshot.RequiredActions.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_ProvidersAwaitEachOther_BothCompleteWithinTheirBudgets()
     {
         // Arrange

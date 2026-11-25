@@ -49,11 +49,12 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
 
     private AuthorizationData Combine(AuthorizationData data, Query[] queries, Report[] results)
     {
-        if (results.Any(r => r.Unavailable))
+        var now = clock.Now.UtcDateTime;
+        if (queries.Any(q => results[q.Index].Unavailable || (q.Policy.FailClosed && results[q.Index].Until <= now)))
         {
             return BoundExpiry(data with { RequiredActionsUnavailable = true, RequiredActions = [] }, results);
         }
-        var projected = Project(data, results.SelectMany(r => r.Actions), clock.Now.UtcDateTime);
+        var projected = Project(data, results.Where(r => r.UsableUntil > now).SelectMany(r => r.Actions), now);
         if (projected.RequiredActionsUnavailable)
         {
             foreach (var q in queries)

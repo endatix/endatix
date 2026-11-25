@@ -137,7 +137,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
         read.RequiredActions.Select(a => a.Key).Should().Equal(secondRevision is null ? Array.Empty<string>() : [secondRevision]);
         read.Permissions.Should().BeEquivalentTo(authorization.Permissions);
         read.Roles.Should().BeEquivalentTo(authorization.Roles);
-        read.ExpiresAt.Should().Be(expiresAt);
+        read.ExpiresAt.Should().Be(secondRevision is null ? expiresAt : _start.UtcDateTime.AddSeconds(30));
     }
 
     [Fact]
@@ -348,6 +348,15 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
     }
 
     private AuthorizationCache CreateInstance(bool withSharedL2, params IRequiredActionProvider[] actionProviders)
+        => CreateInstance(withSharedL2, services =>
+        {
+            foreach (var registration in actionProviders)
+            {
+                services.AddSingleton(registration);
+            }
+        });
+
+    private AuthorizationCache CreateInstance(bool withSharedL2, Action<IServiceCollection> register)
     {
         ServiceCollection services = new();
         if (withSharedL2)
@@ -358,10 +367,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
         services.AddHybridCache();
         services.AddLogging();
         services.AddSingleton(_clock);
-        foreach (var registration in actionProviders)
-        {
-            services.AddSingleton(registration);
-        }
+        register(services);
         services.AddSingleton<RequiredActionProviderCache>();
         services.AddSingleton<RequiredActionExecution>();
         services.AddScoped<RequiredActionEvaluation>();

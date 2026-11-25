@@ -10,6 +10,12 @@ namespace Endatix.Core.Abstractions.Authorization;
 public sealed record RequiredActionSubject(string UserId, long TenantId, IReadOnlyCollection<string> Roles);
 
 /// <summary>Reports pending actions when authorization data is built for a signed-in user.</summary>
+/// <remarks>Each concurrent invocation has its own dependency-injection scope. Use <see cref="RequiredActionSubject"/>
+/// for the caller's identity, tenant and roles; request-initialized scoped state is not available here.
+/// A provider reading tenant-owned data must explicitly bind the read to the subject's positive tenant ID.
+/// An ambient tenant of zero is not isolation. If a mandatory provider cannot establish tenant standing,
+/// it must fail the check rather than return an empty list. Honor cancellation; the invocation scope is
+/// disposed when the provider finishes, and results arriving after its deadline are discarded.</remarks>
 [Experimental("ENDATIX0006")]
 public interface IRequiredActionProvider
 {

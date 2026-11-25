@@ -15,7 +15,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
     private readonly Lock _creation = new();
 
     internal sealed record Query(Guid Epoch, int Index, RequiredActionSubject Subject, Policy Policy);
-    internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, bool Unavailable = false);
+    internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, DateTime UsableUntil, bool Unavailable = false);
     internal sealed record Policy(TimeSpan CacheFor, TimeSpan Timeout, bool FailClosed)
     {
         internal static Policy For(IRequiredActionProvider provider) => new(
@@ -29,15 +29,13 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
         private Report? _lastGood;
         internal SemaphoreSlim Gate { get; } = new(1);
         internal Report? LastGood => Volatile.Read(ref _lastGood);
-        internal DateTime GoodUntil { get; private set; }
         internal DateTime RetryAt { get; private set; }
         internal Task? Running { get; set; }
 
         internal void Forget(Report report) => Interlocked.CompareExchange(ref _lastGood, null, report);
 
-        internal Report Success(Report report, DateTime now)
+        internal Report Success(Report report)
         {
-            GoodUntil = now.AddMinutes(1);
             Volatile.Write(ref _lastGood, report);
             return report;
         }
@@ -95,11 +93,11 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
     internal static Report Fallback(Slot slot, Policy policy, DateTime now)
     {
-        if (policy.FailClosed || slot.LastGood is not { } good || slot.GoodUntil <= now)
+        if (policy.FailClosed || slot.LastGood is not { } good || good.UsableUntil <= now)
         {
-            return new([], slot.RetryAt, policy.FailClosed);
+            return new([], slot.RetryAt, slot.RetryAt, policy.FailClosed);
         }
-        return good with { Until = slot.GoodUntil < slot.RetryAt ? slot.GoodUntil : slot.RetryAt };
+        return good with { Until = good.UsableUntil < slot.RetryAt ? good.UsableUntil : slot.RetryAt };
     }
 }
 
@@ -118,7 +116,7 @@ internal sealed class RequiredActionExecution(IServiceScopeFactory scopes, ILogg
         {
             var actions = await ReadWithinBudgetAsync(slot, query, ct);
             var now = Now;
-            return slot.Success(new(actions, now + query.Policy.CacheFor), now);
+            return slot.Success(new(actions, now + query.Policy.CacheFor, now.AddMinutes(1)));
         }
         catch (Exception error) when (!ct.IsCancellationRequested)
         {
@@ -138,7 +136,9 @@ internal sealed class RequiredActionExecution(IServiceScopeFactory scopes, ILogg
         // A provider that ignores cancellation still owns its scope and may fault after our waiter has returned.
         _ = work.ContinueWith(t => _ = t.Exception, CancellationToken.None,
             TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-        return await work.WaitAsync(token);
+        var actions = await work.WaitAsync(token);
+        token.ThrowIfCancellationRequested();
+        return actions;
     }
 
     private async Task<IReadOnlyList<RequiredAction>> InvokeAsync(RequiredActionProviderCache.Query query, CancellationToken token)
