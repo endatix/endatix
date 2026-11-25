@@ -1,10 +1,10 @@
-﻿using FastEndpoints;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Submissions.PartialUpdate;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Submissions.PartialUpdate;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -25,11 +25,15 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
         {
             s.Summary = "Update a form submission";
             s.Description = "Updates a form submission for a given form.";
+            s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[503] = "Required action status is unavailable; try again.";
             s.Responses[200] = "The form submission was updated successfully.";
             s.Responses[400] = "Bad request";
             s.Responses[404] = "Form submission not found";
         });
         Description(builder => builder
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .Produces<PartialUpdateSubmissionResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

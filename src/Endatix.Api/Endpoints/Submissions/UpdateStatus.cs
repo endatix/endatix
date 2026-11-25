@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Submissions.UpdateStatus;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Submissions.UpdateStatus;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -25,11 +25,15 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Re
         {
             s.Summary = "Update submission status";
             s.Description = "Updates the status of a form submission.";
+            s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[503] = "Required action status is unavailable; try again.";
             s.Responses[200] = "The submission status was updated successfully.";
             s.Responses[400] = "Invalid status or business rule violation";
             s.Responses[404] = "Submission not found";
         });
         Description(builder => builder
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .Produces<UpdateStatusResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

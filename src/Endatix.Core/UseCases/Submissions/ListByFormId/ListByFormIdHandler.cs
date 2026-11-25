@@ -19,7 +19,7 @@ public class ListByFormIdHandler(
     {
         if (access is { IsEnforced: true })
         {
-            if (await access.ListAsync(formDefinitionsRepository, request.FormId, cancellationToken) is { } refusal)
+            if (await access.ListAsync(request.FormId, cancellationToken) is { } refusal)
             {
                 return refusal;
             }
@@ -36,13 +36,8 @@ public class ListByFormIdHandler(
     {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var filterParams = new FilterParameters(request.FilterExpressions ?? Array.Empty<string>());
-        var listFilter = new SubmissionsListFilter(
-            request.SortBy,
-            request.SortDescending,
-            request.Created,
-            request.Modified,
-            request.Started,
-            request.Completed);
+        var listFilter = new SubmissionsListFilter(request.SortBy, request.SortDescending, request.Created,
+            request.Modified, request.Started, request.Completed);
         var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter);
         var totalCount = await submissionsRepository.CountAsync(totalCountSpec, cancellationToken);
         var resolved = pagingParams.ForTotal(totalCount);

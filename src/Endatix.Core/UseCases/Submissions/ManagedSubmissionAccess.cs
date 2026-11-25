@@ -48,23 +48,17 @@ public sealed class ManagedSubmissionAccess(ITenantContext tenant, AccountStandi
             : Result.NotFound("Submission not found");
     }
 
-    internal async Task<Result<Paged<SubmissionDto>>?> ListAsync(IRepository<FormDefinition> definitions, long form, CancellationToken ct)
+    internal async Task<Result<Paged<SubmissionDto>>?> ListAsync(long form, CancellationToken ct)
     {
-        var spec = new FormDefinitionsByFormIdSpec(form);
-        spec.Query.Where(d => d.TenantId == tenant.TenantId);
-        return tenant.TenantId <= 0 || !await definitions.AnyAsync(spec, ct)
-            ? Result.NotFound("Form not found.")
-            : await standing.RefusalAsync<Paged<SubmissionDto>>(ct);
+        if (tenant.TenantId <= 0)
+        {
+            return Result.NotFound("Form not found.");
+        }
+        var spec = new FormSpecifications.ByIdForTenant(form, tenant.TenantId);
+        spec.Query.Where(f => f.FormDefinitions.Any(d => d.TenantId == tenant.TenantId));
+        return await forms.AnyAsync(spec, ct) ? await standing.RefusalAsync<Paged<SubmissionDto>>(ct) : Result.NotFound("Form not found.");
     }
 
     internal bool IsEnforced => standing.IsEnforced;
 
-    internal async Task<Result?> TokenAsync((long Form, long Submission) id, CancellationToken ct)
-    {
-        var spec = new SubmissionWithDefinitionSpec(id.Form, id.Submission);
-        spec.Query.Where(s => s.TenantId == tenant.TenantId && s.FormDefinition.TenantId == tenant.TenantId);
-        return tenant.TenantId <= 0 || !await submissions.AnyAsync(spec, ct)
-            ? Result.NotFound("Submission not found")
-            : await standing.RefusalAsync(ct);
-    }
 }

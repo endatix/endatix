@@ -38,34 +38,58 @@ public sealed class SubmissionAccessPolicy(
             return identityResult.ToErrorResult<ICachedData<SubmissionAccessData>>();
         }
 
-        var authData = identityResult.Value;
-        var spec = new SubmissionByFormIdAndSubmissionIdSpec(context.FormId, context.SubmissionId);
-        spec.Query.Where(s => s.TenantId == authData.TenantId && s.Form.TenantId == authData.TenantId);
-        if (!await submissionRepository.AnyAsync(spec, cancellationToken))
+        return await ResolveAsync(context, identityResult.Value, cancellationToken);
+    }
+
+    private async Task<Result<ICachedData<SubmissionAccessData>>> ResolveAsync(
+        SubmissionAccessContext context, AuthorizationData authData, CancellationToken cancellationToken)
+    {
+        var access = AuthorizedAccess(authData);
+        if (!standing.IsEnforced && access.IsSuccess)
+        {
+            var grant = new Grant(context, authData, access.Value);
+            return await ReadAsync(grant, ct => VisiblePermissionsAsync(grant, ct), cancellationToken);
+        }
+        if (!await IsVisibleAsync(context, authData, cancellationToken))
         {
             return Result.NotFound("Submission not found");
         }
-        var access = AuthorizedAccess(authData);
         if (!access.IsSuccess)
         {
             return access.ToErrorResult<ICachedData<SubmissionAccessData>>();
         }
+        var authorized = new Grant(context, authData, access.Value);
         return standing.Refusal<ICachedData<SubmissionAccessData>>(authData)
-            ?? await ReadAsync(context, (authData, access.Value), cancellationToken);
+            ?? await ReadAsync(authorized, _ => Task.FromResult(Result.Success(authorized.Permissions())), cancellationToken);
     }
 
-    private async Task<Result<ICachedData<SubmissionAccessData>>> ReadAsync(SubmissionAccessContext context,
-        (AuthorizationData Auth, AccessLevel Level) access, CancellationToken ct)
+    private async Task<Result<SubmissionAccessData>> VisiblePermissionsAsync(Grant grant, CancellationToken ct) =>
+        await IsVisibleAsync(grant.Target, grant.Auth, ct) ? grant.Permissions() : Result.NotFound("Submission not found");
+
+    private Task<bool> IsVisibleAsync(SubmissionAccessContext context, AuthorizationData auth, CancellationToken ct)
+    {
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(context.FormId, context.SubmissionId);
+        spec.Query.Where(s => s.TenantId == auth.TenantId && s.Form.TenantId == auth.TenantId);
+        return submissionRepository.AnyAsync(spec, ct);
+    }
+
+    private async Task<Result<ICachedData<SubmissionAccessData>>> ReadAsync(Grant grant,
+        Func<CancellationToken, Task<Result<SubmissionAccessData>>> permissions, CancellationToken ct)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
-        var ttl = access.Auth.ComputeAuthTtl(now);
-        var cacheKey = $"auth:sb_mgmt:form:{context.FormId}:sub:{context.SubmissionId}:tenant:{access.Auth.TenantId}:user:{access.Auth.UserId}:{access.Level}";
-        var cached = await cache.GetOrCreateCachedResultAsync<SubmissionAccessData>(cacheKey,
-            _ => Task.FromResult(Result.Success(access.Level == AccessLevel.Edit
-                ? SubmissionAccessData.CreateWithEditAccess(context.FormId, context.SubmissionId)
-                : SubmissionAccessData.CreateWithViewAccess(context.FormId, context.SubmissionId))),
-            ttl, now, tags: ["permissions", $"submission:{context.SubmissionId}"], cancellationToken: ct);
-        return cached;
+        var cached = await cache.GetOrCreateCachedResultAsync(grant.Key, permissions, grant.Auth.ComputeAuthTtl(now), now,
+            tags: ["permissions", $"submission:{grant.Target.SubmissionId}"], cancellationToken: ct);
+        var deadline = grant.Auth.ExpiresAt;
+        return cached.IsSuccess && cached.Value is Cached<SubmissionAccessData> entry && deadline != default && deadline < entry.ExpiresAt
+            ? Result.Success<ICachedData<SubmissionAccessData>>(entry with { ExpiresAt = deadline }) : cached;
+    }
+
+    private sealed record Grant(SubmissionAccessContext Target, AuthorizationData Auth, AccessLevel Level)
+    {
+        internal string Key => $"auth:sb_mgmt:form:{Target.FormId}:sub:{Target.SubmissionId}:tenant:{Auth.TenantId}:user:{Auth.UserId}:{Level}";
+        internal SubmissionAccessData Permissions() => Level == AccessLevel.Edit
+            ? SubmissionAccessData.CreateWithEditAccess(Target.FormId, Target.SubmissionId)
+            : SubmissionAccessData.CreateWithViewAccess(Target.FormId, Target.SubmissionId);
     }
 
     private static Result<AccessLevel> AuthorizedAccess(AuthorizationData authData)

@@ -1,13 +1,13 @@
+using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Paging;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Submissions.ListByFormId;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Common;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Submissions.ListByFormId;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Infrastructure.Paging;
 
 namespace Endatix.Api.Endpoints.Submissions;
 
@@ -26,11 +26,15 @@ public class ListByFormId(IMediator mediator) : Endpoint<ListByFormIdRequest, Re
             s.Description =
                 "Returns submissions for a form given formId. Supports paging, facet filters, " +
                 "sortBy/sortDir, and created/modified/started/completed UTC calendar day bounds.";
+            s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[503] = "Required action status is unavailable; try again.";
             s.Responses[200] = "List of form Submissions";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found. Pass correct formId";
         });
         Description(builder => builder
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .Produces<Paged<SubmissionModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

@@ -1,5 +1,5 @@
-using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -137,9 +137,7 @@ public sealed class DeleteTestSubmissionsHandler(
     }
 
     private async Task<bool> FormExistsAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
-        standing.IsEnforced
-            ? await forms.AnyAsync(new FormSpecifications.ByIdForTenant(formId, tenantId), cancellationToken)
-            : await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdForTenant(formId, tenantId), cancellationToken) is not null;
+        await forms.AnyAsync(new FormSpecifications.ByIdForTenant(formId, tenantId), cancellationToken);
 
     /// <summary>Where the next page starts: after <paramref name="AfterId"/>, or at the start for 0.</summary>
     private sealed record PageStart(long TenantId, long FormId, long AfterId);

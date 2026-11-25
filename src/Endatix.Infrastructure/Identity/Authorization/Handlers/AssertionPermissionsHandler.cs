@@ -196,13 +196,11 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
 
         if (entityType == typeof(Submission))
         {
-            var submission = await _dbContext.Submissions
-                .AsNoTracking()
-                .Include(s => s.Submitter)
-                .FirstOrDefaultAsync(s => s.Id == parsedEntityId);
-
-            return submission?.Submitter is not null &&
-                UserOwnsSubmitter(currentUser, userId, submission.Submitter);
+            var owner = await _dbContext.Submissions
+                .Where(s => s.Id == parsedEntityId && s.Submitter != null)
+                .Select(s => new SubmissionOwner(s.Submitter!.AppUserId, s.Submitter.ExternalSubjectId))
+                .FirstOrDefaultAsync();
+            return owner?.Matches(currentUser, userId) == true;
         }
 
         var entity = await _dbContext.FindAsync(entityType, parsedEntityId);
@@ -219,17 +217,16 @@ public sealed class AssertionPermissionsHandler : AuthorizationHandler<Assertion
         return false;
     }
 
-    private static bool UserOwnsSubmitter(ClaimsPrincipal currentUser, string userId, Submitter submitter)
+    internal sealed record SubmissionOwner(long? AppUserId, string? ExternalSubjectId)
     {
-        if (submitter.AppUserId is not null &&
-            long.TryParse(userId, out var appUserId) &&
-            submitter.AppUserId.Value == appUserId)
+        internal bool Matches(ClaimsPrincipal currentUser, string userId)
         {
-            return true;
+            if (AppUserId is not null && long.TryParse(userId, out var id) && AppUserId == id)
+            {
+                return true;
+            }
+            var subject = currentUser.FindFirst(ClaimNames.UserId)?.Value;
+            return !string.IsNullOrWhiteSpace(subject) && string.Equals(ExternalSubjectId, subject, StringComparison.Ordinal);
         }
-
-        var subject = currentUser.FindFirst(ClaimNames.UserId)?.Value;
-        return !string.IsNullOrWhiteSpace(subject) &&
-            string.Equals(submitter.ExternalSubjectId, subject, StringComparison.Ordinal);
     }
 }

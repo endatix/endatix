@@ -22,4 +22,4 @@ public record UpdateStatusRequest(
     /// The status of the submission.
     /// </summary>
     public string Status { get; init; } = Status;
-} 
+}

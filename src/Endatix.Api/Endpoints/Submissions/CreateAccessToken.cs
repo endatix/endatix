@@ -40,11 +40,15 @@ public class CreateAccessToken(IMediator mediator)
                 "42.1769113804.rw.qRHaddrBDolnRRMq",
                 DateTime.UtcNow.AddDays(1),
                 ["view", "edit"]);
+            s.Responses[403] = "Permission denied or an account action is required.";
+            s.Responses[503] = "Required action status is unavailable; try again.";
             s.Responses[200] = "Access token generated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Submission not found.";
         });
         Description(builder => builder
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .Produces<CreateAccessTokenResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

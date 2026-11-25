@@ -42,7 +42,7 @@ public class CreateAccessTokenHandler(
     {
         if (access is { IsEnforced: true })
         {
-            return await access.TokenAsync((request.FormId, request.SubmissionId), ct);
+            return await access.SubmissionAsync((request.FormId, request.SubmissionId), "Submission not found", ct);
         }
         var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
         return await submissionRepository.SingleOrDefaultAsync(spec, ct) is null ? Result.NotFound("Submission not found") : null;

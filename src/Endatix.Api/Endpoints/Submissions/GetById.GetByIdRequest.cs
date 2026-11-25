@@ -1,4 +1,4 @@
-﻿namespace Endatix.Api.Endpoints.Submissions;
+namespace Endatix.Api.Endpoints.Submissions;
 
 /// <summary>
 /// Request model for getting a form submission by ID.

@@ -11,8 +11,8 @@ namespace Endatix.Core.Tests.UseCases.Submissions.DeleteTests;
 
 public class DeleteTestSubmissionsHandlerTests
 {
-    private const long TenantId = SampleData.TENANT_ID;
-    private const long FormId = 10;
+    private const long TENANT_ID = SampleData.TENANT_ID;
+    private const long FORM_ID = 10;
 
     private readonly IRepository<Submission> _submissions = Substitute.For<IRepository<Submission>>();
     private readonly IRepository<Form> _forms = Substitute.For<IRepository<Form>>();
@@ -22,20 +22,20 @@ public class DeleteTestSubmissionsHandlerTests
     public DeleteTestSubmissionsHandlerTests()
     {
         _handler = new DeleteTestSubmissionsHandler(_submissions, _forms, _unitOfWork);
-        var form = Form.Create(FormId, new FormCreateArgs(TenantId: TenantId, Name: "Form"));
-        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
-            .Returns(call => call.Arg<FormSpecifications.ByIdForTenant>().IsSatisfiedBy(form) ? form : null);
+        var form = Form.Create(FORM_ID, new FormCreateArgs(TenantId: TENANT_ID, Name: "Form"));
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<FormSpecifications.ByIdForTenant>().IsSatisfiedBy(form));
     }
 
     private static Submission TestSubmission(long id) =>
         Submission.Create(id, new SubmissionCreateArgs(
-            TenantId: TenantId, FormId: FormId, FormDefinitionId: 1, JsonData: "{}", IsTestSubmission: true));
+            TenantId: TENANT_ID, FormId: FORM_ID, FormDefinitionId: 1, JsonData: "{}", IsTestSubmission: true));
 
     [Fact]
     public async Task Handle_NoTenant_IsUnauthorizedAndDeletesNothing()
     {
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(0, FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(0, FORM_ID), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Unauthorized);
@@ -46,7 +46,7 @@ public class DeleteTestSubmissionsHandlerTests
     public async Task Handle_FormOfAnotherTenant_ReturnsNotFoundAndDeletesNothing()
     {
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId + 1, FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID + 1, FORM_ID), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -57,11 +57,11 @@ public class DeleteTestSubmissionsHandlerTests
     public async Task Handle_FormMissing_ReturnsNotFound()
     {
         // Arrange
-        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
-            .Returns((Form?)null);
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(false);
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), CancellationToken.None);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -77,7 +77,7 @@ public class DeleteTestSubmissionsHandlerTests
             .Returns(firstPage, secondPage);
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), CancellationToken.None);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -97,7 +97,7 @@ public class DeleteTestSubmissionsHandlerTests
             .Returns(firstPage, secondPage);
 
         // Act
-        await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
+        await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), CancellationToken.None);
 
         // Assert
         Received.InOrder(() =>
@@ -117,7 +117,7 @@ public class DeleteTestSubmissionsHandlerTests
             .Returns(new List<Submission>());
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), CancellationToken.None);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), CancellationToken.None);
 
         // Assert
         result.Value.Count.Should().Be(0);
@@ -136,7 +136,7 @@ public class DeleteTestSubmissionsHandlerTests
             .Returns(_ => throw DeletedMeanwhile(), _ => Task.FromResult(1));
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.Should().BeTrue();
@@ -149,15 +149,14 @@ public class DeleteTestSubmissionsHandlerTests
     public async Task Handle_FormDeletedWhileAPageSaves_ReturnsNotFound()
     {
         // Arrange
-        var form = Form.Create(FormId, new FormCreateArgs(TenantId: TenantId, Name: "Form"));
-        _forms.FirstOrDefaultAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
-            .Returns(form, (Form?)null);
+        _forms.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>())
+            .Returns(true, false);
         _submissions.ListAsync(Arg.Any<TestSubmissionsByFormIdPageSpec>(), Arg.Any<CancellationToken>())
             .Returns(new List<Submission> { TestSubmission(1) });
         _submissions.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns<Task<int>>(_ => throw DeletedMeanwhile());
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.NotFound);
@@ -173,7 +172,7 @@ public class DeleteTestSubmissionsHandlerTests
         _submissions.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns<Task<int>>(_ => throw DeletedMeanwhile());
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Unavailable);
@@ -190,7 +189,7 @@ public class DeleteTestSubmissionsHandlerTests
             .Returns<Task<int>>(_ => throw new DeadlockVictimException("deadlock"));
 
         // Act
-        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TenantId, FormId), TestContext.Current.CancellationToken);
+        var result = await _handler.Handle(new DeleteTestSubmissionsCommand(TENANT_ID, FORM_ID), TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Unavailable);
