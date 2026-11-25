@@ -44,8 +44,13 @@ internal sealed class ApiDocsHost : IAsyncDisposable
             afterApi?.Invoke(app, used!);
         });
 
-    /// <summary>Starts the host with a pipeline the test composes, given the builder that registered the API.</summary>
-    public static async Task<ApiDocsHost> StartWithPipelineAsync(Action<WebApplication, ApiConfigurationBuilder> pipeline)
+    /// <summary>
+    /// Starts the host with a pipeline the test composes, given the builder that registered the API, and any services
+    /// the test registers as a host would.
+    /// </summary>
+    public static async Task<ApiDocsHost> StartWithPipelineAsync(
+        Action<WebApplication, ApiConfigurationBuilder> pipeline,
+        Action<IServiceCollection>? services = null)
     {
         var globals = ValidatorGlobals.Capture();
         var builder = WebApplication.CreateBuilder();
@@ -58,6 +63,7 @@ internal sealed class ApiDocsHost : IAsyncDisposable
             discovery.Filter = type => type == typeof(PingEndpoint);
         });
         var api = new ApiConfigurationBuilder(builder.Services).AddSwagger();
+        services?.Invoke(builder.Services);
 
         var app = builder.Build();
         pipeline(app, api);

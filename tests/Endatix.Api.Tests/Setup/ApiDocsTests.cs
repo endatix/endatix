@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using NSwag.AspNetCore;
 
 namespace Endatix.Api.Tests.Setup;
 
@@ -239,6 +240,28 @@ public sealed partial class ApiDocsTests
         // Arrange
         await using var host = await ApiDocsHost.StartAsync(options =>
             options.ConfigureOpenApiDocument = settings => settings.Path = "/openapi/{documentName}.json");
+        using var client = host.CreateClient();
+
+        // Act
+        var page = await ScalarPage.ReadAsync(client, "/api-docs/");
+
+        // Assert
+        page.DocumentUrls.Should().Equal("openapi/alpha-version.json");
+        (await GetStatusAsync(client, page.ResolveDocument())).Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Scalar_follows_a_document_path_the_host_moves_through_its_settings()
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartWithPipelineAsync(
+            (app, _) => app.UseEndatixApi(options =>
+            {
+                options.UseExceptionHandler = false;
+                options.UseCors = false;
+            }),
+            services => services.Configure<OpenApiDocumentMiddlewareSettings>(
+                settings => settings.Path = "/openapi/{documentName}.json"));
         using var client = host.CreateClient();
 
         // Act

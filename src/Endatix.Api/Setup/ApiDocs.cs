@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NSwag.AspNetCore;
 using Scalar.AspNetCore;
 
 namespace Endatix.Api.Setup;
@@ -56,17 +58,31 @@ internal static class ApiDocs
         return true;
     }
 
-    /// <summary>Adds the document middleware and returns its path once the host's settings apply.</summary>
+    /// <summary>
+    /// Adds the document middleware and returns its path once the host's settings apply. NSwag reads a host's
+    /// <c>Configure&lt;OpenApiDocumentMiddlewareSettings&gt;</c> only when no delegate is passed, so the delegate is
+    /// passed only when the host set one.
+    /// </summary>
     private static string AddDocument(IApplicationBuilder app, ApiOptions options)
     {
+        if (options.ConfigureOpenApiDocument is null)
+        {
+            app.UseOpenApi();
+            return RegisteredDocumentSettings(app).Path;
+        }
+
         var documentPath = string.Empty;
         app.UseOpenApi(settings =>
         {
-            options.ConfigureOpenApiDocument?.Invoke(settings);
+            options.ConfigureOpenApiDocument(settings);
             documentPath = settings.Path;
         });
         return documentPath;
     }
+
+    private static OpenApiDocumentMiddlewareSettings RegisteredDocumentSettings(IApplicationBuilder app) =>
+        app.ApplicationServices.GetService<IOptions<OpenApiDocumentMiddlewareSettings>>()?.Value
+        ?? new OpenApiDocumentMiddlewareSettings();
 
     /// <summary>
     /// Maps Scalar over the document. Scalar takes the document path from the browser's address, so the page finds the
