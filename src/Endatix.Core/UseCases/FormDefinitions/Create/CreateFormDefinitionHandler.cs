@@ -23,16 +23,22 @@ public class CreateFormDefinitionHandler(IFormsRepository formsRepository,
             return Result.NotFound("Form not found.");
         }
 
-        var newFormDefinition = new FormDefinition(tenantContext.TenantId, request.IsDraft, request.JsonData);
+        var newFormDefinition = AddDefinition(form, request);
+        await formsRepository.UpdateAsync(form, cancellationToken);
+        await mediator.Publish(new FormDefinitionChangedEvent(form.Id), cancellationToken);
+
+        return Result<FormDefinition>.Created(newFormDefinition);
+    }
+
+    private static FormDefinition AddDefinition(Form form, CreateFormDefinitionCommand request)
+    {
+        var newFormDefinition = new FormDefinition(form.TenantId, request.IsDraft, request.JsonData);
         form.AddFormDefinition(newFormDefinition);
         if (!newFormDefinition.IsDraft)
         {
             form.SetActiveFormDefinition(newFormDefinition);
         }
 
-        await formsRepository.UpdateAsync(form, cancellationToken);
-        await mediator.Publish(new FormDefinitionChangedEvent(form.Id), cancellationToken);
-
-        return Result<FormDefinition>.Created(newFormDefinition);
+        return newFormDefinition;
     }
 }

@@ -24,8 +24,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
     /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
-        submissionSpec.OnLiveForm(tenant);
+        var submissionSpec = request.Target(tenant.TenantId);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
         if (submission == null)
         {

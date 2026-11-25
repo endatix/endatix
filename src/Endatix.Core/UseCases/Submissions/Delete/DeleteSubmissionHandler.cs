@@ -14,8 +14,7 @@ public class DeleteSubmissionHandler(IRepository<Submission> repository, ITenant
     public async Task<Result<Submission>> Handle(DeleteSubmissionCommand request, CancellationToken cancellationToken)
     {
         // A submission of a deleted form is not found, as for every other write.
-        var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
-        spec.OnLiveForm(tenant);
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId).OnLiveForm(tenant.TenantId);
         var submission = await repository.SingleOrDefaultAsync(spec, cancellationToken);
         if (submission is null)
         {

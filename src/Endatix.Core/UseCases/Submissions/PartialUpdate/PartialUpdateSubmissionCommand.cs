@@ -1,6 +1,7 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 
@@ -9,5 +10,8 @@ namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 /// </summary>
 public record PartialUpdateSubmissionCommand(long SubmissionId, long FormId, bool? IsComplete, int? CurrentPage, string? JsonData, string? Metadata, string? CollectionOutcome = null) : ICommand<Result<Submission>>
 {
+    internal long? TokenTenantId { get; init; }
 
+    internal SubmissionByFormIdAndSubmissionIdSpec Target(long accountTenant) =>
+        new SubmissionByFormIdAndSubmissionIdSpec(FormId, SubmissionId).OnLiveForm(TokenTenantId ?? accountTenant);
 }

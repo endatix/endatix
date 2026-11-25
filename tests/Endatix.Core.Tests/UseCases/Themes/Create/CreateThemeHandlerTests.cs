@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -6,7 +8,6 @@ using Endatix.Core.Models.Themes;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Themes.Create;
 using NSubstitute.ExceptionExtensions;
-using System.Text.Json;
 using static Endatix.Core.Tests.ErrorMessages;
 using static Endatix.Core.Tests.ErrorType;
 
@@ -33,9 +34,9 @@ public class CreateThemeHandlerTests
         var request = new CreateThemeCommand("Test Theme", "Test Description", JsonSerializer.Serialize(themeData));
 
         _themesRepository.FirstOrDefaultAsync(
-            Arg.Any<ThemeSpecifications.ByName>(),
+            Arg.Any<ISpecification<Theme, long?>>(),
             Arg.Any<CancellationToken>())
-            .Returns((Theme?)null);
+            .Returns((long?)null);
 
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
@@ -89,9 +90,9 @@ public class CreateThemeHandlerTests
 
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         _themesRepository.FirstOrDefaultAsync(
-            Arg.Any<ThemeSpecifications.ByName>(),
+            Arg.Any<ISpecification<Theme, long?>>(),
             Arg.Any<CancellationToken>())
-            .Returns(existingTheme);
+            .Returns(existingTheme.Id);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -111,9 +112,9 @@ public class CreateThemeHandlerTests
 
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         _themesRepository.FirstOrDefaultAsync(
-            Arg.Any<ThemeSpecifications.ByName>(),
+            Arg.Any<ISpecification<Theme, long?>>(),
             Arg.Any<CancellationToken>())
-            .Returns((Theme?)null);
+            .Returns((long?)null);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

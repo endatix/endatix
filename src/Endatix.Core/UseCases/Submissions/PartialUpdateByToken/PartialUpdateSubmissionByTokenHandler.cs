@@ -1,11 +1,11 @@
-using MediatR;
+using Endatix.Core.Abstractions.Repositories;
+using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
+using Endatix.Core.Features.ReCaptcha;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
-using Endatix.Core.Abstractions.Submissions;
-using Endatix.Core.Features.ReCaptcha;
-using Endatix.Core.Abstractions.Repositories;
+using MediatR;
 
 namespace Endatix.Core.UseCases.Submissions.PartialUpdateByToken;
 
@@ -43,7 +43,6 @@ public class PartialUpdateSubmissionByTokenHandler(
 
         await tokenService.ObtainTokenAsync(submissionId, cancellationToken);
 
-
         var partialUpdateSubmissionCommand = new PartialUpdateSubmissionCommand(
             SubmissionId: submissionId,
             FormId: request.FormId,
@@ -51,7 +50,7 @@ public class PartialUpdateSubmissionByTokenHandler(
             CurrentPage: request.CurrentPage,
             JsonData: request.JsonData,
             Metadata: request.Metadata,
-            CollectionOutcome: request.CollectionOutcome);
+            CollectionOutcome: request.CollectionOutcome) { TokenTenantId = form.TenantId };
 
         return await sender.Send(partialUpdateSubmissionCommand, cancellationToken);
     }

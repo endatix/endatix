@@ -28,7 +28,7 @@ public sealed class UpdateDataListDetailsHandler(
         UpdateDataListDetailsCommand request,
         CancellationToken cancellationToken)
     {
-        DataList? dataList = await repository.FindAsync(request.DataListId, tenant, cancellationToken);
+        var dataList = await repository.FindAsync(request.DataListId, tenant, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
@@ -61,7 +61,7 @@ public sealed class UpdateDataListDetailsHandler(
         if (!string.Equals(dataList.NormalizedName, normalizedName, StringComparison.Ordinal))
         {
             var byNormalizedNameSpec = new DataListsSpecifications.ByNormalizedNameSpec(normalizedName, tenant.TenantId);
-            DataList? existingDataList = await repository.SingleOrDefaultAsync(
+            var existingDataList = await repository.SingleOrDefaultAsync(
                 byNormalizedNameSpec,
                 cancellationToken);
             if (existingDataList is not null && existingDataList.Id != dataList.Id)
@@ -111,7 +111,7 @@ public sealed class UpdateDataListDetailsHandler(
         // count. Re-fetch via the same no-tracking, SQL-computed-count
         // projection GetDataListByIdHandler uses for `IncludeItems: false`.
         var metadataSpec = new DataListsSpecifications.ByIdWithoutItemsToDtoSpec(dataList.Id, tenant.TenantId);
-        DataListDto? metadata = await repository.FirstOrDefaultAsync(metadataSpec, cancellationToken);
+        var metadata = await repository.FirstOrDefaultAsync(metadataSpec, cancellationToken);
 
         return Result.Success(metadata ?? DataListDtoMapper.FromEntity(dataList, includeItems: false));
     }

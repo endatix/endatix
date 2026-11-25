@@ -1,14 +1,12 @@
-using Endatix.Core.Abstractions;
-using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
+using System.Diagnostics.CodeAnalysis;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
 using MediatR;
 
 namespace Endatix.Core.UseCases.DataLists.Search;
 
 /// <summary>Searches a visible list for the authenticated tenant.</summary>
+[Experimental("ENDATIX0006")]
 public sealed record SearchManagedDataListItems(SearchDataListItemsQuery Search) : IQuery<Result<Paged<DataListItemDto>>>;
 
 internal sealed class SearchManagedDataListItemsHandler(DataListVisibility visibility, ISender sender)

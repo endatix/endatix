@@ -58,7 +58,7 @@ internal sealed class ThemeChanges(IRepository<Theme> themes, ITenantContext sco
         var named = new ThemeSpecifications.ByName(name);
         named.InTenant(scope);
         // Match the ordinary first-by-name check, including packs with repeated names.
-        var first = (await themes.FirstOrDefaultAsync(named, ct))?.Id;
+        var first = await themes.FirstOrDefaultAsync(named.WithProjectionOf(new ThemeId()), ct);
         return first is not null && first != id ? Duplicate(name, id) : null;
     }
 
@@ -66,4 +66,8 @@ internal sealed class ThemeChanges(IRepository<Theme> themes, ITenantContext sco
         ? Result<Theme>.Error($"Another theme with the name '{name}' already exists")
         : Result.Invalid(new ValidationError($"A theme with the name '{name}' already exists"));
 
+    private sealed class ThemeId : Specification<Theme, long?>
+    {
+        internal ThemeId() => Query.Select(theme => (long?)theme.Id);
+    }
 }

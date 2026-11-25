@@ -43,7 +43,7 @@ public class GetDataListByIdHandlerTests
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Major cities") { Id = 7 };
         dataList.AddCulture(CultureCode.Parse("es"));
-        DataListItem nyc = dataList.AddItem(
+        var nyc = dataList.AddItem(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 [SurveyJsTranslationKeys.DefaultKey] = "New York",
@@ -51,7 +51,7 @@ public class GetDataListByIdHandlerTests
             },
             "NYC");
         nyc.Id = 101;
-        DataListItem la = dataList.AddItem("Los Angeles", "LA");
+        var la = dataList.AddItem("Los Angeles", "LA");
         la.Id = 102;
 
         _repository.FirstOrDefaultAsync(

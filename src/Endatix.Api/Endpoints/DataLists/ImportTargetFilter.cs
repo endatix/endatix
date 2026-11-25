@@ -35,8 +35,7 @@ internal sealed class ImportTargetFilter : IEndpointFilter
         }
         if (target.DataListId <= 0)
         {
-            var validation = new ImportDataListValidator().Validate(target, options => options.IncludeProperties(x => x.DataListId));
-            return InvalidRoute(http, validation.Errors);
+            return InvalidRoute(http, new ImportDataListValidator().Validate(target, options => options.IncludeProperties(x => x.DataListId)).Errors);
         }
         var access = http.RequestServices.GetRequiredService<DataListVisibility>();
         return await access.ContainsAsync(target.DataListId, http.RequestAborted)

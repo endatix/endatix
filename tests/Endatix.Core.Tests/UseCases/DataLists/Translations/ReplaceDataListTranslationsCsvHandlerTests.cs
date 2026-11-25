@@ -65,7 +65,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     public async Task Handle_ValidCsv_ReplacesItemsWithTranslations()
     {
         // Arrange
-        DataList dataList = GivenDataList("es");
+        var dataList = GivenDataList("es");
         dataList.AddItem("Stale", "stale");
 
         // Act
@@ -110,7 +110,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     public async Task Handle_DefaultLocaleColumn_IsTreatedAsDefaultKey()
     {
         // Arrange
-        DataList dataList = GivenDataList();
+        var dataList = GivenDataList();
 
         // Act
         var result = await _sut.Handle(
@@ -126,7 +126,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     public async Task Handle_UnknownLocaleColumn_ReturnsInvalid()
     {
         // Arrange
-        DataList dataList = GivenDataList("es");
+        var dataList = GivenDataList("es");
 
         // Act
         var result = await _sut.Handle(
@@ -143,7 +143,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     [Fact]
     public async Task Handle_EnsureLocales_AddsCultureThenImports()
     {
-        DataList dataList = GivenDataList();
+        var dataList = GivenDataList();
 
         var result = await _sut.Handle(
             new ReplaceDataListTranslationsCsvCommand(

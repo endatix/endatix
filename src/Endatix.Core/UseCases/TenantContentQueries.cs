@@ -20,10 +20,10 @@ internal static class TenantContentQueries
         }
     }
 
-    internal static void OnLiveForm(this Specification<Submission> spec, ITenantContext tenant)
+    internal static TSpec OnLiveForm<TSpec>(this TSpec spec, long id) where TSpec : Specification<Submission>
     {
-        var id = tenant.TenantId;
         spec.Query.Where(s => id > 0 && s.TenantId == id && s.Form.TenantId == id && !s.Form.IsDeleted);
+        return spec;
     }
 
     internal sealed class ById<T> : Specification<T> where T : TenantEntity

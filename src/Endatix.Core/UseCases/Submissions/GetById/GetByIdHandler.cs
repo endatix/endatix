@@ -18,8 +18,7 @@ public class GetByIdHandler(
 {
     public async Task<Result<Submission>> Handle(GetByIdQuery request, CancellationToken cancellationToken)
     {
-        var singleSubmissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, request.SubmissionId);
-        singleSubmissionSpec.OnLiveForm(tenant);
+        var singleSubmissionSpec = new SubmissionWithDefinitionAndFormSpec(request.FormId, request.SubmissionId).OnLiveForm(tenant.TenantId);
         var submission = await repository.SingleOrDefaultAsync(singleSubmissionSpec, cancellationToken);
 
         if (submission == null)

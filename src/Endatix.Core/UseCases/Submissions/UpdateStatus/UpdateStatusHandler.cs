@@ -33,8 +33,7 @@ public class UpdateStatusHandler(
         UpdateStatusCommand command,
         CancellationToken cancellationToken)
     {
-        var spec = new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId);
-        spec.OnLiveForm(tenant);
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId).OnLiveForm(tenant.TenantId);
         var submission = await submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
         if (submission == null)
         {

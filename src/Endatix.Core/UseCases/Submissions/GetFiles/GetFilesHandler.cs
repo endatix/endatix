@@ -31,8 +31,7 @@ public sealed class GetFilesHandler : IQueryHandler<GetFilesQuery, Result<GetFil
 
     public async Task<Result<GetFilesResult>> Handle(GetFilesQuery request, CancellationToken cancellationToken)
     {
-        var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
-        spec.OnLiveForm(_tenant);
+        var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId).OnLiveForm(_tenant.TenantId);
         var submission = await _submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
         var form = await _formRepository.GetByIdAsync(request.FormId, cancellationToken);
 

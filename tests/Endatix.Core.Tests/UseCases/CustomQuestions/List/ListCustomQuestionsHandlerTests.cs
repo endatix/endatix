@@ -14,7 +14,7 @@ public class ListCustomQuestionsHandlerTests
     public ListCustomQuestionsHandlerTests()
     {
         _repository = Substitute.For<IRepository<CustomQuestion>>();
-        _handler = new ListCustomQuestionsHandler(_repository);
+        _handler = new ListCustomQuestionsHandler(_repository, SampleData.Tenant);
     }
 
     [Fact]

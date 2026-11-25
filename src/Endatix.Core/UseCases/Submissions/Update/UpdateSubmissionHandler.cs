@@ -24,20 +24,15 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
     /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
-        submissionSpec.OnLiveForm(tenant);
+        var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId).OnLiveForm(tenant.TenantId);
         var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
-        var mustPublishEvent = false;
 
         if (submission == null)
         {
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
-        if (!submission.IsComplete && (request.IsComplete ?? false))
-        {
-            mustPublishEvent = true;
-        }
+        var mustPublishEvent = !submission.IsComplete && (request.IsComplete ?? false);
 
         var originalJson = submission.JsonData;
         var previousStatus = submission.CollectionStatus;

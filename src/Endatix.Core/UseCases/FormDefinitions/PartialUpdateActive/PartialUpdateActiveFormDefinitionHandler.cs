@@ -25,42 +25,38 @@ public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepo
             return Result.NotFound("Active form definition not found.");
         }
 
-        if (await ShouldCreateNewFormDefinitionAsync(activeDefinition, request))
-        {
-            var newFormDefinition = new FormDefinition(
-                formWithActiveDefinition.TenantId,
-                request.IsDraft ?? false,
-                request.JsonData);
-            formWithActiveDefinition.AddFormDefinition(newFormDefinition);
-
-            if (!newFormDefinition.IsDraft)
-            {
-                formWithActiveDefinition.SetActiveFormDefinition(newFormDefinition);
-            }
-
-            activeDefinition = newFormDefinition;
-        }
-        else
-        {
-            formWithActiveDefinition.UpdateActiveDefinitionSchema(request.JsonData, request.IsDraft);
-        }
-
+        activeDefinition = await ApplyAsync(formWithActiveDefinition, activeDefinition, request);
         await formsRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
         await mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
 
         return Result.Success(activeDefinition);
     }
 
-    private async Task<bool> FormDefinitionHasSubmissions(long definitionId)
+    private async Task<FormDefinition> ApplyAsync(Form form, FormDefinition activeDefinition, PartialUpdateActiveFormDefinitionCommand request)
     {
-        var spec = new SubmissionsTotalCountByFormDefinitionIdSpec(definitionId);
-        return await submissionsRepository.AnyAsync(spec);
+        if (await ShouldCreateNewFormDefinitionAsync(activeDefinition, request))
+        {
+            return AddDefinition(form, request);
+        }
+        form.UpdateActiveDefinitionSchema(request.JsonData, request.IsDraft);
+        return activeDefinition;
+    }
+
+    private static FormDefinition AddDefinition(Form form, PartialUpdateActiveFormDefinitionCommand request)
+    {
+        var definition = new FormDefinition(form.TenantId, request.IsDraft ?? false, request.JsonData);
+        form.AddFormDefinition(definition);
+        if (!definition.IsDraft)
+        {
+            form.SetActiveFormDefinition(definition);
+        }
+        return definition;
     }
 
     private async Task<bool> ShouldCreateNewFormDefinitionAsync(
         FormDefinition formDefinition,
         PartialUpdateActiveFormDefinitionCommand request)
     {
-        return formDefinition.JsonData != request.JsonData && await FormDefinitionHasSubmissions(formDefinition.Id);
+        return formDefinition.JsonData != request.JsonData && await submissionsRepository.AnyAsync(new SubmissionsTotalCountByFormDefinitionIdSpec(formDefinition.Id));
     }
 }

@@ -75,9 +75,9 @@ public sealed class ReplaceDataListItemsHandler(
         errors = [];
         resolvedItems = [];
 
-        foreach ((int i, ReplaceDataListItemInput item) in items.Index())
+        foreach ((int i, var item) in items.Index())
         {
-            IReadOnlyDictionary<string, string>? labels = item.ResolveLabels();
+            var labels = item.ResolveLabels();
             CollectItemErrors(dataList, i, item, labels, errors);
 
             if (labels is not null && !string.IsNullOrWhiteSpace(item.Value))

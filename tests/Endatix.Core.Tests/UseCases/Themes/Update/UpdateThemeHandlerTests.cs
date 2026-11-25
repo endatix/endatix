@@ -176,8 +176,8 @@ public class UpdateThemeHandlerTests
         _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme>>(), Arg.Any<CancellationToken>())
-                     .Returns(existingTheme);
+        _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme, long?>>(), Arg.Any<CancellationToken>())
+                     .Returns(existingTheme.Id);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

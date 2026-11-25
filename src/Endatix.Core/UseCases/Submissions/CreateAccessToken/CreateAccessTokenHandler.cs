@@ -31,8 +31,7 @@ public class CreateAccessTokenHandler(
             }
         }
 
-        var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
-        spec.OnLiveForm(tenant);
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId).OnLiveForm(tenant.TenantId);
         return tenant.TenantId > 0 && await submissionRepository.AnyAsync(spec, cancellationToken)
             ? tokenService.GenerateAccessToken(request.SubmissionId, request.ExpiryMinutes, request.Permissions)
             : Result.NotFound("Submission not found");

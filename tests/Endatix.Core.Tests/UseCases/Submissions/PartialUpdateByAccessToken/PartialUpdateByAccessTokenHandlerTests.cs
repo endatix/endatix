@@ -240,6 +240,7 @@ public class PartialUpdateByAccessTokenHandlerTests
             Arg.Is<PartialUpdateSubmissionCommand>(cmd =>
                 cmd.SubmissionId == submissionId &&
                 cmd.FormId == formId &&
+                cmd.TokenTenantId == submission.TenantId &&
                 cmd.IsComplete == isComplete &&
                 cmd.CurrentPage == currentPage &&
                 cmd.JsonData == jsonData &&

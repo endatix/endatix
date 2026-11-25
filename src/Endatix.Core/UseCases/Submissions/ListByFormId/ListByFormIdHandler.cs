@@ -37,16 +37,14 @@ public class ListByFormIdHandler(
         var filterParams = new FilterParameters(request.FilterExpressions ?? Array.Empty<string>());
         var listFilter = new SubmissionsListFilter(request.SortBy, request.SortDescending, request.Created,
             request.Modified, request.Started, request.Completed);
-        var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter);
-        totalCountSpec.OnLiveForm(tenant);
+        var totalCountSpec = new SubmissionsByFormIdCountSpec(request.FormId, filterParams, listFilter).OnLiveForm(tenant.TenantId);
         var totalCount = await submissionsRepository.CountAsync(totalCountSpec, cancellationToken);
         var resolved = pagingParams.ForTotal(totalCount);
 
         IReadOnlyList<SubmissionDto> submissions = [];
         if (totalCount > 0)
         {
-            var pageSpec = new SubmissionsByFormIdSpec(request.FormId, new PagingParameters(resolved), filterParams, listFilter);
-            pageSpec.OnLiveForm(tenant);
+            var pageSpec = new SubmissionsByFormIdSpec(request.FormId, new PagingParameters(resolved), filterParams, listFilter).OnLiveForm(tenant.TenantId);
             submissions = [.. await submissionsRepository.ListAsync(pageSpec, cancellationToken)];
         }
 
