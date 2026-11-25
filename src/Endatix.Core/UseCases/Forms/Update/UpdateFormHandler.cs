@@ -19,6 +19,7 @@ public class UpdateFormHandler(
     FolderAssignmentPolicy folderAssignmentPolicy,
     AccountStanding standing) : ICommandHandler<UpdateFormCommand, Result<Form>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
     public UpdateFormHandler(IRepository<Form> repository, IRepository<Submission> submissionRepository,
         IMediator mediator, FolderAssignmentPolicy folderAssignmentPolicy)
         : this(repository, submissionRepository, mediator, folderAssignmentPolicy, new AccountStanding()) { }

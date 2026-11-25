@@ -22,6 +22,7 @@ public class DeleteFormHandler(
     IMediator mediator,
     AccountStanding standing) : ICommandHandler<DeleteFormCommand, Result<Form>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
     public DeleteFormHandler(IFormsRepository forms, IFormSubmissionsLock formSubmissionsLock, IMediator mediator)
         : this(forms, formSubmissionsLock, mediator, new AccountStanding()) { }
 

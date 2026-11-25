@@ -20,6 +20,7 @@ public class PartialUpdateFormHandler(
     FolderAssignmentPolicy folderAssignmentPolicy,
     AccountStanding standing) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
     public PartialUpdateFormHandler(IRepository<Form> repository, IRepository<Theme> themeRepository,
         IRepository<Submission> submissionRepository, IMediator mediator, FolderAssignmentPolicy folderAssignmentPolicy)
         : this(repository, themeRepository, submissionRepository, mediator, folderAssignmentPolicy, new AccountStanding()) { }

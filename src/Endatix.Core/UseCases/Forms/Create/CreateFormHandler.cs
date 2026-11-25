@@ -18,6 +18,7 @@ public class CreateFormHandler(
     FolderAssignmentPolicy folderAssignmentPolicy,
     AccountStanding standing) : ICommandHandler<CreateFormCommand, Result<Form>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
     public CreateFormHandler(IFormsRepository formsRepository, ITenantContext tenantContext, FolderAssignmentPolicy folderAssignmentPolicy)
         : this(formsRepository, tenantContext, folderAssignmentPolicy, new AccountStanding()) { }
 

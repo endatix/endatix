@@ -6,8 +6,10 @@ using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Forms.GetById;
 
+/// <summary>Reads a visible form with its submission count.</summary>
 public class GetFormByIdHandler(IFormsRepository repository, AccountStanding standing) : IQueryHandler<GetFormByIdQuery, Result<FormDto>>
 {
+    /// <summary>Creates a handler with dormant account standing.</summary>
     public GetFormByIdHandler(IFormsRepository repository) : this(repository, new AccountStanding()) { }
 
     public async Task<Result<FormDto>> Handle(GetFormByIdQuery request, CancellationToken cancellationToken)
