@@ -80,11 +80,7 @@ public sealed partial class RequiredActionsFlowTests
         var restrictedMe = await restricted.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
         Assert.Equal("blocking", Assert.Single(restrictedMe.GetProperty("requiredActions").EnumerateArray()).GetProperty("severity").GetString());
         using var denied = await restricted.GetAsync(absentPath, ct);
-        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
-        var ordinary = await denied.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Equal("You are not authorized to access this form template.", ordinary.GetProperty("detail").GetString());
-        Assert.False(ordinary.TryGetProperty("requiredActions", out _));
-        Assert.False(ordinary.TryGetProperty("errorCode", out _));
+        await AssertStandingRefusalAsync(denied, restrictedMe, ct);
     }
 
     private sealed record ManagedAsset(string Collection, string Id)

@@ -1,3 +1,5 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Infrastructure.Attributes;
 using Endatix.Modules.Jobs.Runtime;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -20,11 +22,11 @@ namespace Endatix.Modules.Jobs.Endpoints;
 /// </remarks>
 internal static class QuartzDashboard
 {
-    public const string DashboardPath = "/quartz";
-    public const string ApiPath = "/quartz-api";
-    public const string AuthorizationPolicy = "PlatformAdmin";
+    private const string DASHBOARD_PATH = "/quartz";
+    private const string API_PATH = "/quartz-api";
+    private const string AUTHORIZATION_POLICY = "PlatformAdmin";
 
-    private const string AttachedStoreDiscoveryType = "Quartz.Configuration.AttachedStoreDiscovery";
+    private const string ATTACHED_STORE_DISCOVERY_TYPE = "Quartz.Configuration.AttachedStoreDiscovery";
 
     private static readonly string _endatixJobClass = typeof(BackgroundJobExecution).FullName!;
 
@@ -48,16 +50,16 @@ internal static class QuartzDashboard
 
     private static void ConfigureApi(QuartzHttpApiOptions api, bool readOnly)
     {
-        api.ApiPath = ApiPath;
+        api.ApiPath = API_PATH;
         api.ReadOnly = readOnly;
         api.IsJobTypeAllowed = IsEndatixJobClass;
     }
 
     private static void ConfigureDashboard(QuartzDashboardOptions dashboard, bool readOnly)
     {
-        dashboard.DashboardPath = DashboardPath;
+        dashboard.DashboardPath = DASHBOARD_PATH;
         dashboard.ReadOnly = readOnly;
-        dashboard.AuthorizationPolicy = AuthorizationPolicy;
+        dashboard.AuthorizationPolicy = AUTHORIZATION_POLICY;
         dashboard.IsJobTypeAllowed = IsEndatixJobClass;
     }
 
@@ -79,7 +81,7 @@ internal static class QuartzDashboard
         descriptor.ServiceType == typeof(IHostedService)
         && !descriptor.IsKeyedService
         && (descriptor.ImplementationType ?? descriptor.ImplementationFactory?.GetType().GenericTypeArguments[^1])?.FullName
-            == AttachedStoreDiscoveryType;
+            == ATTACHED_STORE_DISCOVERY_TYPE;
 
     // The job type arrives as the name the caller wrote, with or without its assembly. A bare prefix match would
     // also admit any other type whose name merely starts with this one's.
@@ -99,15 +101,16 @@ internal static class QuartzDashboard
 
             app.UseRouting();
             app.UseAuthorization();
+            app.UseRequiredActionsGate();
             app.UseAntiforgery();
             app.UseEndpoints(endpoints =>
             {
                 // Since .NET 10 nothing else serves _framework/blazor.web.js, without which the dashboard renders but
                 // stays inert; the host maps no static files of its own. The assets are public framework and package
                 // files, so they carry no policy.
-                endpoints.MapStaticAssets();
-                endpoints.MapQuartzHttpApi(ApiPath).RequireAuthorization(AuthorizationPolicy);
-                endpoints.MapQuartzDashboard(DashboardPath).RequireAuthorization(AuthorizationPolicy);
+                endpoints.MapGroup("").WithMetadata(new AllowWithRequiredActionsAttribute()).MapStaticAssets();
+                endpoints.MapQuartzHttpApi(API_PATH).RequireAuthorization(AUTHORIZATION_POLICY);
+                endpoints.MapQuartzDashboard(DASHBOARD_PATH).RequireAuthorization(AUTHORIZATION_POLICY);
             });
         };
     }

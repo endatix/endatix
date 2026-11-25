@@ -13,13 +13,13 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests
 {
     [Fact]
-    public async Task Pending_user_manager_gets_the_ordinary_role_denial_before_standing()
+    public async Task Admitted_user_manager_gets_the_ordinary_role_denial()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         await using var host = new ReportingWebHost(fixture, services =>
         {
-            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("profile", "/profile"));
+            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("profile", "/profile") { Severity = RequiredActionSeverity.Notice });
             EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
@@ -48,8 +48,8 @@ public sealed partial class RequiredActionsFlowTests
         var id = world.Tenants[0].Creator.Id;
         using var allowed = await admin.PostAsync($"/api/users/{id}/lockout", null, ct);
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
-        var persisted = await LockStateAsync(world, id, ct);
-        Assert.True(persisted.Enabled && persisted.End > DateTimeOffset.UtcNow);
+        var (enabled, end) = await LockStateAsync(world, id, ct);
+        Assert.True(enabled && end > DateTimeOffset.UtcNow);
     }
 
     private static async Task<(bool Enabled, DateTimeOffset? End)> LockStateAsync(IntegrationTestWorld world, long id, CancellationToken ct)
@@ -111,10 +111,10 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Lockout_preserves_self_denial_and_hidden_users_before_checking_standing()
+    public async Task Lockout_preserves_self_denial_and_hidden_users_for_admitted_callers()
     {
         var ct = TestContext.Current.CancellationToken;
-        var provider = new MutableProvider("profile", "/profile");
+        var provider = new MutableProvider("profile", "/profile") { Pending = false };
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.AddSingleton<IRequiredActionProvider>(provider);
@@ -129,15 +129,14 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Contains("your own account", denied.GetProperty("detail").GetString());
         using var hidden = await admin.PostAsync($"/api/users/{world.Tenants[1].Creator.Id}/lockout", null, ct);
         Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+        provider.Pending = true;
+        await InvalidateAsync(world, ct);
 
         var me = await admin.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
         var route = $"/api/users/{own.Creator.Id}";
         await DisableLockoutAsync(world, own.Creator.Id, ct);
         using var refused = await admin.PostAsync($"{route}/lockout", null, ct);
-        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
-        var problem = await refused.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Equal("required_action", problem.GetProperty("errorCode").GetString());
-        Assert.True(JsonElement.DeepEquals(me.GetProperty("requiredActions"), problem.GetProperty("requiredActions")));
+        await AssertStandingRefusalAsync(refused, me, ct);
         Assert.Equal((false, (DateTimeOffset?)null), await LockStateAsync(world, own.Creator.Id, ct));
 
         provider.Pending = false;

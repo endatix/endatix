@@ -92,11 +92,11 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Ordinary_tenant_denials_take_precedence_over_unavailable_standing()
+    public async Task Admitted_tenant_operations_preserve_entitlement_and_settings_checks()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var conflict = new MutableProvider("conflict", "/other");
+        var conflict = new MutableProvider("conflict", "/other") { Pending = false };
         await using var host = new BrandingWebHost(fixture, entitled: false, configure: services =>
         {
             services.AddSingleton<IRequiredActionProvider>(new MutableProvider("terms", "/terms") { Severity = RequiredActionSeverity.Notice });
@@ -116,6 +116,8 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Contains("plan does not include branding", await noEntitlement.Content.ReadAsStringAsync(ct));
         using var missing = await admin.GetAsync("/api/tenant-settings", ct);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        conflict.Pending = true;
+        await InvalidateAsync(world, ct);
         await EnsureTenantSettingsAsync(world, ct);
         using var retry = await admin.PatchAsJsonAsync("/api/tenant-settings", new { requireFolderAssignment = true }, ct);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, retry.StatusCode);
@@ -142,7 +144,7 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Unavailable_standing_allows_only_the_settings_existence_check()
+    public async Task Unavailable_standing_does_not_read_settings_or_branding()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
@@ -176,7 +178,6 @@ public sealed partial class RequiredActionsFlowTests
         // Assert
         Assert.Empty(branding.ReceivedCalls());
         Assert.Empty(cache.ReceivedCalls());
-        Assert.Equal([nameof(settings.AnyAsync), nameof(settings.AnyAsync)],
-            settings.ReceivedCalls().Select(call => call.GetMethodInfo().Name));
+        Assert.Empty(settings.ReceivedCalls());
     }
 }

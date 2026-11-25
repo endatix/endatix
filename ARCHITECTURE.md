@@ -307,6 +307,16 @@ When touching a feature, prefer migrating **reads** to Infrastructure feature qu
 
 ---
 
+## Required actions gate
+
+When a host enables `AccountStanding`, authenticated account operations check it after framework authorization and configured transport middleware, before request binding, resource checks, or product work. A challenge (`401`) or ordinary route permission denial (`403`) therefore takes precedence. An otherwise authorized HTTP request still redirects when HTTPS redirection is configured. On HTTPS, HSTS and CORS decorate refusals under the same policies as other API responses. CORS controls whether the browser may read a response; it grants no API access.
+
+Blocking actions return `403 required_action` with the same action objects as `auth/me`. Unknown standing returns a retryable `503`. Notices alone allow the operation to proceed with its usual validation and authorization.
+
+Account operations are gated by default. Anonymous and public respondent/form-token operations do not check account standing. `[AllowWithRequiredActions]` keeps an account operation available to resolve an action or sign out; it grants no permission. The default host leaves enforcement dormant.
+
+`UseEndatix()` and its options overload install the gate when security is enabled, before `ConfigureAdditionalMiddleware` can run custom product code. Configure transport through the hosting and API options. In manual `UseEndatix(builder => …)` composition, `UseSecurity()` arranges the gate at the end of the callback. If the callback itself calls `UseEndpoints` or dispatches a nested branch, install `UseRequiredActionsGate()` in that pipeline after its authorization and transport middleware and before its dispatch. The same rule applies to a separately routed module.
+
 ## Testing
 
 We do **not** rely on integration or test-database coverage for feature read models. Testability comes from **layered unit tests** and **extracted collaborators**, not from registering mock-friendly interfaces on every query.

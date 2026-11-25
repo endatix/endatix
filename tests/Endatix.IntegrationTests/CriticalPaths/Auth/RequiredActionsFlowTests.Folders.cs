@@ -103,7 +103,7 @@ public sealed partial class RequiredActionsFlowTests
          ("POST", folder.Path), ("PATCH", folder.Detail), ("DELETE", folder.Detail)];
 
     [Fact]
-    public async Task Folder_admission_preserves_validation_and_visibility_before_standing()
+    public async Task Admitted_folder_operations_preserve_validation_and_visibility()
     {
         var ct = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
@@ -111,7 +111,7 @@ public sealed partial class RequiredActionsFlowTests
         using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+            .Returns(Result.Success(AdmittedSnapshot()));
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
@@ -133,7 +133,9 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
-        Assert.Empty(snapshots.ReceivedCalls());
+        await snapshots.Received(7).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+        snapshots.ClearReceivedCalls();
         using var unlocked = await client.PatchAsJsonAsync(own.Detail, new { immutable = false, name = "Changed" }, ct);
         await AssertUnavailableQuestionsAsync(unlocked, ct);
         await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
@@ -153,7 +155,7 @@ public sealed partial class RequiredActionsFlowTests
         {
             using var locked = await owner.PatchAsJsonAsync(folder.Detail, new { immutable = true }, ct);
             locked.EnsureSuccessStatusCode();
-            return Result.Success(new AuthorizationData());
+            return Result.Success(AdmittedSnapshot());
         });
         await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         using var client = host.CreateClient();
@@ -192,8 +194,8 @@ public sealed partial class RequiredActionsFlowTests
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = reader.DefaultRequestHeaders.Authorization;
         using var denied = await client.GetAsync(inactive, ct);
-        await AssertOrdinaryFolderDenialAsync(denied, ct);
-        Assert.Empty(snapshots.ReceivedCalls());
+        await AssertUnavailableQuestionsAsync(denied, ct);
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         using var active = await client.GetAsync("/api/folders", ct);
         await AssertUnavailableQuestionsAsync(active, ct);
     }

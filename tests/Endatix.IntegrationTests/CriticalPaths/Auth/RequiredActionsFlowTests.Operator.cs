@@ -44,9 +44,9 @@ public sealed partial class RequiredActionsFlowTests
             await AssertStandingRefusalAsync(result, me, ct);
         }
         using var hidden = await admin.GetAsync("/api/admin/tenants/999999", ct);
-        Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
+        await AssertStandingRefusalAsync(hidden, me, ct);
         using var home = await admin.PostAsync("/api/auth/exit-assume", null, ct);
-        Assert.Equal(HttpStatusCode.BadRequest, home.StatusCode);
+        await AssertStandingRefusalAsync(home, me, ct);
         Assert.Equal(before, await OperatorStateAsync(world, ct));
         Assert.Empty(mail.ReceivedCalls());
         Assert.Empty(storage.ReceivedCalls());
@@ -151,7 +151,7 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Ordinary_platform_and_tenant_denials_precede_unavailable_standing()
+    public async Task Ordinary_platform_policy_denials_precede_standing_but_self_revocation_does_not()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var host = new ReportingWebHost(fixture, services =>
@@ -171,8 +171,7 @@ public sealed partial class RequiredActionsFlowTests
         using var storage = await reader.GetAsync("/api/admin/storage", ct);
         Assert.Equal(HttpStatusCode.Forbidden, storage.StatusCode);
         using var self = await admin.DeleteAsync($"/api/admin/platform-admins/{world.Tenants[0].PlatformAdmin.Id}", ct);
-        Assert.Equal(HttpStatusCode.Forbidden, self.StatusCode);
-        Assert.Contains("cannot revoke your own", await self.Content.ReadAsStringAsync(ct));
+        await AssertUnavailableQuestionsAsync(self, ct);
         using var retry = await admin.GetAsync("/api/admin/auth/settings", ct);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, retry.StatusCode);
         Assert.Contains("Try again", await retry.Content.ReadAsStringAsync(ct));
@@ -198,16 +197,15 @@ public sealed partial class RequiredActionsFlowTests
             snapshots.ClearReceivedCalls();
         }
         using var missing = await admin.PatchAsJsonAsync("/api/admin/tenants/999999", new { name = "missing" }, ct);
-        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
-        Assert.Empty(snapshots.ReceivedCalls());
+        await AssertUnavailableQuestionsAsync(missing, ct);
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         var patch = $"/api/admin/tenants/{world.Tenants[1].Id}";
         foreach (var field in new object[] { new { allowSelfRegistration = false },
                      new { allowedAuthProviderKeys = Array.Empty<string>() }, new { defaultRegistrationRoleName = "Respondent" } })
         {
             using var settings = await admin.PatchAsJsonAsync(patch, field, ct);
-            Assert.Equal(HttpStatusCode.NotFound, settings.StatusCode);
-            Assert.Contains("Tenant settings not found", await settings.Content.ReadAsStringAsync(ct));
+            await AssertUnavailableQuestionsAsync(settings, ct);
         }
-        Assert.Empty(snapshots.ReceivedCalls());
+        await snapshots.Received(4).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
     }
 }
