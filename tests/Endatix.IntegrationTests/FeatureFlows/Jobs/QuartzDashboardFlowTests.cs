@@ -76,6 +76,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         var world = await host.PrepareWorldAsync(
             IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
         var jobId = await EnqueueWaitingJobAsync(host, world.SeedResult!.TenantIds[0], cancellationToken);
+        (await TriggerStateAsync(jobId, cancellationToken)).Should().Be("WAITING");
 
         using var platformAdmin = await world.AsAsync(TestPersona.PlatformAdmin, cancellationToken: cancellationToken);
         snapshots.ClearReceivedCalls();
@@ -101,7 +102,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         else
         {
             response.StatusCode.Should().BeOneOf(HttpStatusCode.Forbidden, HttpStatusCode.MethodNotAllowed);
-            (await TriggerStateAsync(jobId, cancellationToken)).Should().NotBe("PAUSED");
+            (await TriggerStateAsync(jobId, cancellationToken)).Should().Be("WAITING");
         }
     }
 
@@ -121,7 +122,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     }
 
     [Fact]
-    public async Task Dashboard_negotiation_checks_standing_only_for_platform_admins_and_static_assets_stay_open()
+    public async Task Scheduler_authorization_precedes_standing_and_static_assets_stay_open()
     {
         var ct = TestContext.Current.CancellationToken;
         var snapshots = AdmittedSnapshots();
@@ -133,10 +134,16 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
 
         using var denied = await member.PostAsync("/quartz/hub/negotiate", null, ct);
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        using var deniedApi = await member.GetAsync("/quartz-api/schedulers", ct);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedApi.StatusCode);
         using var script = await admin.GetAsync("/_framework/blazor.web.js", ct);
         Assert.Equal(HttpStatusCode.OK, script.StatusCode);
         await snapshots.DidNotReceive().GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
 
+        using var page = await admin.GetAsync("/quartz", ct);
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        snapshots.ClearReceivedCalls();
         using var negotiation = await admin.PostAsync("/quartz/hub/negotiate", null, ct);
         Assert.Equal(HttpStatusCode.OK, negotiation.StatusCode);
         await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
