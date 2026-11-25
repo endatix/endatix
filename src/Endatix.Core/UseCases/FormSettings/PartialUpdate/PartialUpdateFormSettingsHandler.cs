@@ -4,7 +4,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases.FormDefinitions;
 
 namespace Endatix.Core.UseCases.FormSettings.PartialUpdate;
 
@@ -14,24 +13,13 @@ namespace Endatix.Core.UseCases.FormSettings.PartialUpdate;
 /// </summary>
 internal sealed class PartialUpdateFormSettingsHandler(IRepository<Form> forms,
     IFormSettingsRepository repository,
-    IDateTimeProvider dateTimeProvider,
-    ManagedFormContentAccess? access = null)
+    IDateTimeProvider dateTimeProvider, ITenantContext tenant)
     : ICommandHandler<PartialUpdateFormSettingsCommand, Result<FormSettingsDto>>
 {
     /// <inheritdoc/>
     public async Task<Result<FormSettingsDto>> Handle(PartialUpdateFormSettingsCommand request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.FormAsync<FormSettingsDto>(forms, request.FormId, cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
-
-        return await ExecuteAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<FormSettingsDto>> ExecuteAsync(PartialUpdateFormSettingsCommand request, CancellationToken cancellationToken)
-    {
-        var form = await forms.GetByIdAsync(request.FormId, cancellationToken);
+        var form = await forms.FindAsync(request.FormId, tenant, cancellationToken);
         return form is null
             ? Result.NotFound("Form not found.")
             : await ApplyAsync(form, request, cancellationToken);

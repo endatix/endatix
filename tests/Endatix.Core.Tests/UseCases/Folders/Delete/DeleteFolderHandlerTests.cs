@@ -44,32 +44,6 @@ public class DeleteFolderHandlerTests
     }
 
     [Fact]
-    public async Task Handle_StandingUnavailable_DoesNotOpenTransactionOrLoadAssignments()
-    {
-        // Arrange
-        _tenantContext.TenantId.Returns(1);
-        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        _folderRepository.FirstOrDefaultAsync(Arg.Any<FolderEditTarget.ById>(), Arg.Any<CancellationToken>())
-            .Returns(new FolderEditTarget(false, ""));
-        var handler = new DeleteFolderHandler(_folderRepository, _formRepository, _formTemplateRepository,
-            _tenantContext, _unitOfWork, _mediator, NullLogger<DeleteFolderHandler>.Instance,
-            new ManagedContentScope(_tenantContext, new AccountStanding(snapshots)));
-
-        // Act
-        var result = await handler.Handle(new DeleteFolderCommand(10), TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.Equal(ResultStatus.Unavailable, result.Status);
-        Assert.Empty(_unitOfWork.ReceivedCalls());
-        Assert.Empty(_formRepository.ReceivedCalls());
-        Assert.Empty(_formTemplateRepository.ReceivedCalls());
-        Assert.Empty(_mediator.ReceivedCalls());
-        Assert.Single(_folderRepository.ReceivedCalls());
-    }
-
-    [Fact]
     public async Task Handle_InvalidTenantId_ThrowsArgumentException()
     {
         _tenantContext.TenantId.Returns(0);

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -11,42 +12,45 @@ namespace Endatix.Core.UseCases.Submissions.CreateAccessToken;
 /// <summary>
 /// Handler for generating submission access tokens.
 /// </summary>
-public class CreateAccessTokenHandler(
-    IRepository<Submission> submissionRepository,
-    ISubmissionAccessTokenService tokenService,
-    ICurrentUserAuthorizationService authorizationService, ManagedSubmissionAccess? access
-    ) : ICommandHandler<CreateAccessTokenCommand, Result<SubmissionAccessTokenDto>>
+[DirectCallOnly]
+public class CreateAccessTokenHandler : ICommandHandler<CreateAccessTokenCommand, Result<SubmissionAccessTokenDto>>
 {
-    private const string SUBMISSIONS_PREFIX = "submissions.";
+    private readonly SubmissionTargets _targets;
+    private readonly ISubmissionAccessTokenService _tokenService;
+    private readonly ICurrentUserAuthorizationService _authorizationService;
 
-    /// <summary>Retains the submission-with-definition lookup for direct callers. The managed HTTP route
-    /// uses <see cref="ManagedSubmissionAccess"/> to require a live parent form even when standing is dormant.</summary>
-    public CreateAccessTokenHandler(IRepository<Submission> submissionRepository, ISubmissionAccessTokenService tokenService,
-        ICurrentUserAuthorizationService authorizationService) : this(submissionRepository, tokenService, authorizationService, null) { }
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public CreateAccessTokenHandler(IRepository<Submission> submissionRepository,
+        ISubmissionAccessTokenService tokenService,
+        ICurrentUserAuthorizationService authorizationService)
+        : this(new SubmissionTargets(submissionRepository, ContentQueryScope.Repository), tokenService, authorizationService) { }
+
+    private CreateAccessTokenHandler(SubmissionTargets targets, ISubmissionAccessTokenService tokenService, ICurrentUserAuthorizationService authorizationService)
+    {
+        _targets = targets;
+        _tokenService = tokenService;
+        _authorizationService = authorizationService;
+    }
+
+    private const string SUBMISSIONS_PREFIX = "submissions.";
 
     public async Task<Result<SubmissionAccessTokenDto>> Handle(CreateAccessTokenCommand request, CancellationToken cancellationToken)
     {
         foreach (var requiredPermission in request.Permissions.Select(p => SUBMISSIONS_PREFIX + p))
         {
-            var accessResult = await authorizationService.ValidateAccessAsync(requiredPermission, cancellationToken);
+            var accessResult = await _authorizationService.ValidateAccessAsync(requiredPermission, cancellationToken);
             if (!accessResult.IsSuccess)
             {
                 return accessResult;
             }
         }
 
-        var refusal = await CheckTargetAsync(request, cancellationToken);
-        return refusal is null ? tokenService.GenerateAccessToken(request.SubmissionId, request.ExpiryMinutes, request.Permissions)
-            : refusal.ToErrorResult<SubmissionAccessTokenDto>();
+        return await _targets.CanIssueTokenAsync(request.FormId, request.SubmissionId, cancellationToken)
+            ? _tokenService.GenerateAccessToken(request.SubmissionId, request.ExpiryMinutes, request.Permissions)
+            : Result.NotFound("Submission not found");
     }
 
-    private async Task<Result?> CheckTargetAsync(CreateAccessTokenCommand request, CancellationToken ct)
-    {
-        if (access is not null)
-        {
-            return await access.VisibleSubmissionAsync((request.FormId, request.SubmissionId), "Submission not found", ct);
-        }
-        var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
-        return await submissionRepository.SingleOrDefaultAsync(spec, ct) is null ? Result.NotFound("Submission not found") : null;
-    }
+    internal sealed class Registered(SubmissionTargets targets, ISubmissionAccessTokenService tokenService, ICurrentUserAuthorizationService authorizationService)
+        : RegisteredContentHandler<CreateAccessTokenCommand, Result<SubmissionAccessTokenDto>>(
+            new CreateAccessTokenHandler(targets, tokenService, authorizationService));
 }

@@ -1,5 +1,5 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists;
 using FastEndpoints;
 using FluentValidation;
@@ -10,44 +10,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Endpoints.DataLists;
 
-internal interface IManagedDataListTarget
-{
-    long DataListId { get; }
-}
-
-internal sealed class ManagedDataListStanding<TRequest> : IPreProcessor<TRequest>
-    where TRequest : class, IManagedDataListTarget
-{
-    public async Task PreProcessAsync(IPreProcessorContext<TRequest> context, CancellationToken ct)
-    {
-        if (context.HasValidationFailures || context.Request is not { } request)
-        {
-            return;
-        }
-        var access = context.HttpContext.RequestServices.GetRequiredService<ManagedDataListAccess>();
-        if (await access.RefusalAsync(request.DataListId, ct) is { } refusal)
-        {
-            await context.HttpContext.Response.SendResultAsync(refusal.ToProblem());
-        }
-    }
-}
-
 // FastEndpoints binds the entire import payload before its preprocessors run.
-internal sealed class ImportStandingFilter : IEndpointFilter
+internal sealed class ImportTargetFilter : IEndpointFilter
 {
     private static readonly RequestBinder<ImportDataListRequest> _routeBinder = new(BindingSource.RouteValues);
 
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var http = context.HttpContext;
-        if (!http.RequestServices.GetRequiredService<AccountStanding>().IsEnforced)
-        {
-            return await next(context);
-        }
         return await CheckTargetAsync(http) is { } problem ? problem : await next(context);
     }
 
-    private static async Task<IResult?> CheckTargetAsync(HttpContext http)
+    private static async Task<ProblemHttpResult?> CheckTargetAsync(HttpContext http)
     {
         List<ValidationFailure> errors = [];
         ImportDataListRequest target;
@@ -61,11 +35,11 @@ internal sealed class ImportStandingFilter : IEndpointFilter
         }
         if (target.DataListId <= 0)
         {
-            var validation = new ImportDataListValidator().Validate(target, options => options.IncludeProperties(x => x.DataListId));
-            return InvalidRoute(http, validation.Errors);
+            return InvalidRoute(http, new ImportDataListValidator().Validate(target, options => options.IncludeProperties(x => x.DataListId)).Errors);
         }
-        var access = http.RequestServices.GetRequiredService<ManagedDataListAccess>();
-        return (await access.RefusalAsync(target.DataListId, http.RequestAborted))?.ToProblem();
+        var access = http.RequestServices.GetRequiredService<DataListVisibility>();
+        return await access.ContainsAsync(target.DataListId, http.RequestAborted)
+            ? null : Result.NotFound("Data list not found.").ToProblem();
     }
 
     private static ProblemHttpResult InvalidRoute(HttpContext http, List<ValidationFailure> errors) =>

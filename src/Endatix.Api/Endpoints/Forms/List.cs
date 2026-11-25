@@ -23,7 +23,6 @@ public class List(IMediator mediator)
     {
         Get("forms");
         Permissions(Actions.Forms.View);
-        PreProcessor<AuthorizedAccountStanding<FormsListRequest>>();
         Summary(s =>
         {
             s.Summary = "List forms";

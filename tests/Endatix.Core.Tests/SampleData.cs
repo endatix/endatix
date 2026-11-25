@@ -1,8 +1,16 @@
+using Endatix.Core.Abstractions;
+
 namespace Endatix.Core.Tests;
 
 public static class SampleData
 {
     public const long TENANT_ID = 1;
+    internal static ITenantContext Tenant { get; } = new SampleTenant();
+
+    private sealed class SampleTenant : ITenantContext
+    {
+        public long TenantId => TENANT_ID;
+    }
     public const string FORM_NAME_1 = "Product Form";
     public const string FORM_NAME_2 = "Insurance Form";
     public const string FORM_DESCRIPTION_1 = "Product Form Description";

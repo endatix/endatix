@@ -20,7 +20,6 @@ public sealed class ListLocales(IMediator mediator)
     {
         Get("data-lists/locales");
         Permissions(Actions.Forms.View);
-        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "List distinct data list locales";

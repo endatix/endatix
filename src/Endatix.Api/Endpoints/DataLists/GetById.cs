@@ -24,7 +24,6 @@ public sealed class GetById(
     {
         Get("data-lists/{dataListId}");
         Permissions(Actions.Forms.View);
-        PreProcessor<ManagedDataListStanding<GetDataListRequest>>();
         Summary(s =>
         {
             s.Summary = "Get a data list by ID";
@@ -83,7 +82,7 @@ public sealed class GetDataListValidator : Validator<GetDataListRequest>
 /// <summary>
 /// Request to get a data list by ID.
 /// </summary>
-public sealed class GetDataListRequest : IManagedDataListTarget
+public sealed class GetDataListRequest
 {
     /// <summary>
     /// The ID of the data list to get.

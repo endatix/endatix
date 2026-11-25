@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -9,12 +10,10 @@ namespace Endatix.Core.UseCases.Themes.Update;
 /// <summary>
 /// Handler for updating a theme.
 /// </summary>
-public class UpdateThemeHandler(IRepository<Theme> themesRepository, ManagedContentScope? scope)
-    : ICommandHandler<UpdateThemeCommand, Result<Theme>>
+[DirectCallOnly]
+public class UpdateThemeHandler(IRepository<Theme> themesRepository) : ICommandHandler<UpdateThemeCommand, Result<Theme>>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public UpdateThemeHandler(IRepository<Theme> themesRepository)
-        : this(themesRepository, null) { }
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
 
     /// <summary>
     /// Handles the update of an existing theme.
@@ -26,9 +25,9 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository, ManagedCont
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-        var admission = new ThemeAdmission(themesRepository, scope);
-        var change = new ThemeAdmission.ThemeChange(request.ThemeId, request.Name, request.ThemeData) { RequiresName = true };
-        var edit = await admission.PrepareEditAsync(change, cancellationToken);
+        var changes = new ThemeChanges(themesRepository, Selection);
+        var change = new ThemeChanges.ThemeChange(request.ThemeId, request.Name, request.ThemeData) { RequiresName = true };
+        var edit = await changes.PrepareEditAsync(change, cancellationToken);
         if (!edit.IsSuccess)
         {
             return edit.ToErrorResult<Theme>();
@@ -44,4 +43,8 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository, ManagedCont
         await themesRepository.SaveChangesAsync(cancellationToken);
         return Result.Success(theme);
     }
+
+    internal sealed class Registered(IRepository<Theme> themesRepository, ContentQueryScope scope)
+        : RegisteredContentHandler<UpdateThemeCommand, Result<Theme>>(
+            new UpdateThemeHandler(themesRepository) { Selection = scope });
 }

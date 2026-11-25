@@ -9,45 +9,43 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.Create;
 
+[DirectCallOnly]
 public class CreateFormDefinitionHandler(IFormsRepository formsRepository,
     ITenantContext tenantContext,
-    IMediator mediator,
-    ManagedFormContentAccess? access) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
+    IMediator mediator) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public CreateFormDefinitionHandler(IFormsRepository formsRepository, ITenantContext tenantContext, IMediator mediator)
-        : this(formsRepository, tenantContext, mediator, null) { }
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
 
     public async Task<Result<FormDefinition>> Handle(CreateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        if (access is not null && await access.FormAsync<FormDefinition>(formsRepository, request.FormId, cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
-
-        return await ExecuteAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<FormDefinition>> ExecuteAsync(CreateFormDefinitionCommand request, CancellationToken cancellationToken)
-    {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        var form = await formsRepository.GetByIdAsync(request.FormId, cancellationToken);
+        var form = await Selection.FindAsync(formsRepository, request.FormId, cancellationToken);
         if (form == null)
         {
             return Result.NotFound("Form not found.");
         }
 
-        var newFormDefinition = new FormDefinition(tenantContext.TenantId, request.IsDraft, request.JsonData);
+        var newFormDefinition = AddDefinition(form, request);
+        await formsRepository.UpdateAsync(form, cancellationToken);
+        await mediator.Publish(new FormDefinitionChangedEvent(form.Id), cancellationToken);
+
+        return Result<FormDefinition>.Created(newFormDefinition);
+    }
+
+    private static FormDefinition AddDefinition(Form form, CreateFormDefinitionCommand request)
+    {
+        var newFormDefinition = new FormDefinition(form.TenantId, request.IsDraft, request.JsonData);
         form.AddFormDefinition(newFormDefinition);
         if (!newFormDefinition.IsDraft)
         {
             form.SetActiveFormDefinition(newFormDefinition);
         }
 
-        await formsRepository.UpdateAsync(form, cancellationToken);
-        await mediator.Publish(new FormDefinitionChangedEvent(form.Id), cancellationToken);
-
-        return Result<FormDefinition>.Created(newFormDefinition);
+        return newFormDefinition;
     }
+
+    internal sealed class Registered(IFormsRepository formsRepository, ITenantContext tenantContext, IMediator mediator)
+        : RegisteredContentHandler<CreateFormDefinitionCommand, Result<FormDefinition>>(
+            new CreateFormDefinitionHandler(formsRepository, tenantContext, mediator) { Selection = new ContentQueryScope(tenantContext) });
 }

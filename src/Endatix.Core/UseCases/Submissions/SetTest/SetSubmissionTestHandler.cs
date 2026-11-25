@@ -24,26 +24,37 @@ namespace Endatix.Core.UseCases.Submissions.SetTest;
 /// submission's deletion, or its form's, is not found. A mark that changes nothing is not saved. The link check has
 /// no index behind it: a link open that commits between the check and the save is not refused.
 /// </remarks>
-public sealed class SetSubmissionTestHandler(
-    IRepository<Submission> submissions,
-    IRepository<Form> forms) : ICommandHandler<SetSubmissionTestCommand, Result<SubmissionDto>>
+[DirectCallOnly]
+public sealed class SetSubmissionTestHandler : ICommandHandler<SetSubmissionTestCommand, Result<SubmissionDto>>
 {
+    private readonly IRepository<Submission> _submissions;
+    private readonly SubmissionTestForms _forms;
+
+    /// <summary>Uses the tenant and repositories supplied by the caller.</summary>
+    public SetSubmissionTestHandler(IRepository<Submission> submissions, IRepository<Form> forms)
+        : this(submissions, new SubmissionTestForms(forms, ContentQueryScope.Repository)) { }
+
+    private SetSubmissionTestHandler(IRepository<Submission> submissions, SubmissionTestForms forms)
+    {
+        _submissions = submissions;
+        _forms = forms;
+    }
+
     /// <inheritdoc />
     public async Task<Result<SubmissionDto>> Handle(SetSubmissionTestCommand request, CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        if (!_forms.Allows(request.TenantId))
         {
             return Result.Unauthorized("Tenant context is required.");
         }
 
-        var form = await forms.FirstOrDefaultAsync(
-            new FormSpecifications.ByIdForTenant(request.FormId, request.TenantId), cancellationToken);
+        var form = await _forms.ReadAsync(request.TenantId, request.FormId, cancellationToken);
         if (form is null)
         {
             return Result.NotFound("Form not found");
         }
 
-        var submission = await submissions.FirstOrDefaultAsync(
+        var submission = await _submissions.FirstOrDefaultAsync(
             new SubmissionByIdForTenantSpec(request.TenantId, request.FormId, request.SubmissionId), cancellationToken);
         if (submission is null)
         {
@@ -98,7 +109,7 @@ public sealed class SetSubmissionTestHandler(
         }
         catch (DuplicateSubmissionException)
         {
-            return await SingleSubmissionConflict.ResultAsync<SubmissionDto>(submissions, Spec(submission), cancellationToken);
+            return await SingleSubmissionConflict.ResultAsync<SubmissionDto>(_submissions, Spec(submission), cancellationToken);
         }
     }
 
@@ -108,7 +119,7 @@ public sealed class SetSubmissionTestHandler(
     /// </summary>
     private async Task<Result<SubmissionDto>> SaveAsync(Submission submission, CancellationToken cancellationToken)
     {
-        var saved = await submissions.TrySaveChangesAsync(cancellationToken);
+        var saved = await _submissions.TrySaveChangesAsync(cancellationToken);
         return saved.IsSuccess
             ? Result.Success(SubmissionDto.FromSubmission(submission))
             : saved.ToErrorResult<SubmissionDto>();
@@ -123,13 +134,13 @@ public sealed class SetSubmissionTestHandler(
         bool enforceGate,
         CancellationToken cancellationToken)
     {
-        if (enforceGate && await submissions.FirstOrDefaultAsync(Spec(submission), cancellationToken) is { } bySubmitter)
+        if (enforceGate && await _submissions.FirstOrDefaultAsync(Spec(submission), cancellationToken) is { } bySubmitter)
         {
             return bySubmitter;
         }
 
         return submission.AudienceLinkId is long linkId
-            ? await submissions.FirstOrDefaultAsync(new OtherRealSubmissionOfLinkSpec(submission, linkId), cancellationToken)
+            ? await _submissions.FirstOrDefaultAsync(new OtherRealSubmissionOfLinkSpec(submission, linkId), cancellationToken)
             : null;
     }
 
@@ -146,4 +157,8 @@ public sealed class SetSubmissionTestHandler(
                     && !other.IsTestSubmission)
                 .AsNoTracking();
     }
+
+    internal sealed class Registered(IRepository<Submission> submissions, SubmissionTestForms forms)
+        : RegisteredContentHandler<SetSubmissionTestCommand, Result<SubmissionDto>>(
+            new SetSubmissionTestHandler(submissions, forms));
 }

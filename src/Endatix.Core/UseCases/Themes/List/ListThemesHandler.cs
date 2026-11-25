@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -11,25 +12,24 @@ namespace Endatix.Core.UseCases.Themes.List;
 /// <summary>
 /// Handler for retrieving themes as a paged envelope.
 /// </summary>
-public class ListThemesHandler(IRepository<Theme> themeRepository, ManagedContentScope? scope)
-    : IQueryHandler<ListThemesQuery, Result<Paged<Theme>>>
+[DirectCallOnly]
+public class ListThemesHandler(IRepository<Theme> themeRepository) : IQueryHandler<ListThemesQuery, Result<Paged<Theme>>>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public ListThemesHandler(IRepository<Theme> themeRepository)
-        : this(themeRepository, null) { }
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
 
     /// <inheritdoc />
     public async Task<Result<Paged<Theme>>> Handle(
         ListThemesQuery request,
         CancellationToken cancellationToken)
     {
-        if (scope is not null && await scope.RefusalAsync<Paged<Theme>>(cancellationToken) is { } refusal)
+
+        if (Selection is { TenantId: <= 0 })
         {
-            return refusal;
+            return Result.Unauthorized("Tenant context is required.");
         }
 
         var count = new ThemeSpecifications.ListFilter(request.Created, request.Modified);
-        count.InTenant(scope);
+        Selection.Apply(count);
         var total = await themeRepository.CountAsync(count, cancellationToken);
         var page = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
         var items = total == 0 ? [] : await ReadPageAsync(request, page, cancellationToken);
@@ -40,7 +40,11 @@ public class ListThemesHandler(IRepository<Theme> themeRepository, ManagedConten
     {
         var spec = new ThemeSpecifications.Paginated(new PagingParameters(page), request.SortBy,
             request.SortDescending, request.Created, request.Modified);
-        spec.InTenant(scope);
+        Selection.Apply(spec);
         return await themeRepository.ListAsync(spec, ct);
     }
+
+    internal sealed class Registered(IRepository<Theme> themeRepository, ContentQueryScope scope)
+        : RegisteredContentHandler<ListThemesQuery, Result<Paged<Theme>>>(
+            new ListThemesHandler(themeRepository) { Selection = scope });
 }

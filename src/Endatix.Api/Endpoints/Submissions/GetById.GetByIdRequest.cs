@@ -3,7 +3,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Request model for getting a form submission by ID.
 /// </summary>
-public class GetByIdRequest : IManagedSubmissionTarget
+public class GetByIdRequest
 {
     /// <summary>
     /// The ID of the form.

@@ -23,7 +23,6 @@ public sealed class RemoveLocale(IMediator mediator)
     {
         Delete("data-lists/{dataListId}/locales/{locale}");
         Permissions(Actions.Forms.Edit);
-        PreProcessor<ManagedDataListStanding<RemoveDataListLocaleRequest>>();
         Summary(s =>
         {
             s.Summary = "Remove a data list locale";
@@ -87,7 +86,7 @@ public sealed class RemoveDataListLocaleValidator : Validator<RemoveDataListLoca
 /// <summary>
 /// Request to remove a locale from a data list catalog.
 /// </summary>
-public sealed class RemoveDataListLocaleRequest : IManagedDataListTarget
+public sealed class RemoveDataListLocaleRequest
 {
     /// <summary>
     /// The ID of the data list.

@@ -8,9 +8,12 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// <summary>
 /// Handler for <see cref="ListDistinctDataListLocalesQuery"/>.
 /// </summary>
+[DirectCallOnly]
 public sealed class ListDistinctDataListLocalesHandler(IDataListRepository repository, ITenantContext? tenant)
-    : IQueryHandler<ListDistinctDataListLocalesQuery, Result<IReadOnlyList<string>>>
+    : IQueryHandler<ListDistinctDataListLocalesQuery, Result<IReadOnlyList<string>>>, IExplicitTenantBinding
 {
+    bool IExplicitTenantBinding.IsTenantBound => tenant is not null;
+
     /// <summary>Uses the repository's tenant scope when constructed directly.</summary>
     public ListDistinctDataListLocalesHandler(IDataListRepository repository) : this(repository, null) { }
 
@@ -26,4 +29,8 @@ public sealed class ListDistinctDataListLocalesHandler(IDataListRepository repos
         var locales = await repository.ListDistinctLocalesAsync(cancellationToken);
         return Result.Success(locales);
     }
+
+    internal sealed class Registered(IDataListRepository repository, ITenantContext tenant)
+        : RegisteredContentHandler<ListDistinctDataListLocalesQuery, Result<IReadOnlyList<string>>>(
+            new ListDistinctDataListLocalesHandler(repository, tenant));
 }

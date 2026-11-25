@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -8,39 +9,41 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.UpdateActive;
 
-public class UpdateActiveFormDefinitionHandler(IFormsRepository formRepository,
-    IMediator mediator,
-    ManagedFormContentAccess? access) : ICommandHandler<UpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+/// <summary>Replaces the active definition schema.</summary>
+[DirectCallOnly]
+public class UpdateActiveFormDefinitionHandler : ICommandHandler<UpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
+    private readonly ActiveDefinitions _definitions;
+    private readonly IMediator _mediator;
+
     public UpdateActiveFormDefinitionHandler(IFormsRepository formRepository, IMediator mediator)
-        : this(formRepository, mediator, null) { }
+        : this(new ActiveDefinitions(formRepository, ContentQueryScope.Repository), mediator) { }
 
-    public async Task<Result<FormDefinition>> Handle(UpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
+    private UpdateActiveFormDefinitionHandler(ActiveDefinitions definitions, IMediator mediator)
     {
-        if (access is not null && await access.ActiveAsync(formRepository, request.FormId, cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
-
-        return await ExecuteAsync(request, cancellationToken);
+        _definitions = definitions;
+        _mediator = mediator;
     }
 
-    private async Task<Result<FormDefinition>> ExecuteAsync(UpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<Result<FormDefinition>> Handle(UpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        var spec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
-        var formWithActiveDefinition = await formRepository.SingleOrDefaultAsync(spec, cancellationToken);
+        var formWithActiveDefinition = await _definitions.FindFormAsync(request.FormId, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
-        if (formWithActiveDefinition == null || activeDefinition == null)
+        if (formWithActiveDefinition is null || activeDefinition is null)
         {
             return Result.NotFound("Active form definition not found.");
         }
 
         formWithActiveDefinition.UpdateActiveDefinitionSchema(request.JsonData, request.IsDraft);
 
-        await formRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
-        await mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
+        await _definitions.UpdateAsync(formWithActiveDefinition, cancellationToken);
+        await _mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
 
         return Result.Success(activeDefinition);
     }
+
+    internal sealed class Registered(ActiveDefinitions definitions, IMediator mediator)
+        : RegisteredContentHandler<UpdateActiveFormDefinitionCommand, Result<FormDefinition>>(
+            new UpdateActiveFormDefinitionHandler(definitions, mediator));
 }

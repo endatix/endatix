@@ -20,13 +20,9 @@ public sealed class SubmissionAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     IRepository<Submission> submissionRepository,
     HybridCache cache,
-    IDateTimeProvider dateTimeProvider, AccountStanding standing
+    IDateTimeProvider dateTimeProvider
 ) : IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>
 {
-    public SubmissionAccessPolicy(ICurrentUserAuthorizationService authorizationService, IRepository<Submission> submissionRepository,
-        HybridCache cache, IDateTimeProvider dateTimeProvider)
-        : this(authorizationService, submissionRepository, cache, dateTimeProvider, new AccountStanding()) { }
-
     /// <inheritdoc/>
     public async Task<Result<ICachedData<SubmissionAccessData>>> GetAccessData(
         SubmissionAccessContext context,
@@ -54,8 +50,7 @@ public sealed class SubmissionAccessPolicy(
             return access.ToErrorResult<ICachedData<SubmissionAccessData>>();
         }
         var authorized = new Grant(context, authData, access.Value);
-        return standing.Refusal<ICachedData<SubmissionAccessData>>(authData)
-            ?? await ReadAsync(authorized, cancellationToken);
+        return await ReadAsync(authorized, cancellationToken);
     }
 
     private Task<bool> IsVisibleAsync(SubmissionAccessContext context, AuthorizationData auth, CancellationToken ct)

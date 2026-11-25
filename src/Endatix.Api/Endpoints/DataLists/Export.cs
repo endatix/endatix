@@ -34,7 +34,6 @@ public sealed class Export(IMediator mediator) : Endpoint<ExportDataListRequest>
     {
         Post("data-lists/{dataListId}/export");
         Permissions(Actions.Forms.View);
-        PreProcessor<ManagedDataListStanding<ExportDataListRequest>>();
         Summary(s =>
         {
             s.Summary = "Export data list items";
@@ -127,7 +126,7 @@ public sealed class ExportDataListValidator : Validator<ExportDataListRequest>
 /// <summary>
 /// Request to export data list items.
 /// </summary>
-public sealed class ExportDataListRequest : IManagedDataListTarget
+public sealed class ExportDataListRequest
 {
     /// <summary>
     /// The data list ID.

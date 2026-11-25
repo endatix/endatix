@@ -12,10 +12,12 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// <summary>
 /// Handler for listing data lists.
 /// </summary>
+[DirectCallOnly]
 public sealed class ListDataListsHandler(IRepository<DataList> repository)
-    : IQueryHandler<ListDataListsQuery, Result<Paged<DataListDto>>>
+    : IQueryHandler<ListDataListsQuery, Result<Paged<DataListDto>>>, IExplicitTenantBinding
 {
     private readonly ITenantContext? _tenant;
+    bool IExplicitTenantBinding.IsTenantBound => _tenant is not null;
 
     /// <summary>The managed handler requires a tenant; direct repository-only callers supply their own scoped repository.</summary>
     public ListDataListsHandler(IRepository<DataList> repository, ITenantContext tenant) : this(repository) =>
@@ -42,4 +44,7 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
         IReadOnlyList<DataListDto> items = totalRecords > 0 ? await repository.ListAsync(pagedSpec, cancellationToken) : [];
         return Result.Success(resolved.ToPaged(items));
     }
+
+    internal sealed class Registered(IRepository<DataList> repository, ITenantContext tenant)
+        : RegisteredContentHandler<ListDataListsQuery, Result<Paged<DataListDto>>>(new ListDataListsHandler(repository, tenant));
 }

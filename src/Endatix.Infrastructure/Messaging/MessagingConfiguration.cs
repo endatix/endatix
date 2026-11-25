@@ -60,13 +60,7 @@ public static class MessagingConfiguration
             mediatRAssemblies = [.. mediatRAssemblies, .. options.AdditionalAssemblies];
         }
 
-        // Never activate the direct, repository-scoped constructor for a managed query.
-        services.TryAddScoped<IRequestHandler<ListDataListsQuery, Result<Paged<DataListDto>>>>(sp =>
-            new ListDataListsHandler(sp.GetRequiredService<IRepository<DataList>>(), sp.GetRequiredService<ITenantContext>()));
-        services.AddMediatR(config =>
-        {
-            config.RegisterServicesFromAssemblies(mediatRAssemblies);
-        });
+        services.AddMediatR(config => RegisterHandlers(services, config, mediatRAssemblies));
 
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
         AddUseCaseServices(services);
@@ -79,14 +73,18 @@ public static class MessagingConfiguration
         return services;
     }
 
+    private static void RegisterHandlers(IServiceCollection services, MediatRServiceConfiguration config, Assembly[] assemblies)
+    {
+        ManagedContentHandlers.Configure(services, config);
+        config.RegisterServicesFromAssemblies(assemblies);
+    }
+
     private static void AddUseCaseServices(IServiceCollection services)
     {
         services.AddScoped<FolderAssignmentPolicy>();
-        services.AddScoped<FolderWritePolicy>();
-        services.AddScoped<ManagedFormContentAccess>();
-        services.AddScoped<ManagedContentScope>();
-        services.AddScoped<ManagedDataListAccess>();
-        services.AddScoped<ManagedSubmissionAccess>();
+        services.AddScoped(sp => new FolderWritePolicy(sp.GetRequiredService<IRepository<Folder>>(),
+            sp.GetRequiredService<IValueNormalizer>(), sp.GetRequiredService<ITenantContext>()));
+        services.AddScoped<DataListVisibility>();
         services.AddScoped<SubmissionFormTheme>();
         services.AddScoped<TenantBrandingAccess>();
     }

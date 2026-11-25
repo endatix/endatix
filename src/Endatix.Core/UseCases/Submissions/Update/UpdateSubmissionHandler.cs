@@ -1,4 +1,5 @@
-﻿using Endatix.Core.Entities;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -11,30 +12,38 @@ namespace Endatix.Core.UseCases.Submissions;
 /// <summary>
 /// Handler for updating a form submission.
 /// </summary>
-public class UpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator) : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
+[DirectCallOnly]
+public class UpdateSubmissionHandler : ICommandHandler<UpdateSubmissionCommand, Result<Submission>>
 {
+    private readonly SubmissionChangeSaver _saver;
+    private readonly IMediator _mediator;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public UpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator)
+        : this(new SubmissionChangeSaver(repository, versions, ContentQueryScope.Repository), mediator) { }
+
+    private UpdateSubmissionHandler(SubmissionChangeSaver saver, IMediator mediator)
+    {
+        _saver = saver;
+        _mediator = mediator;
+    }
+
     private const bool DEFAULT_IS_COMPLETE = false;
     private const int DEFAULT_CURRENT_PAGE = 1;
     private const string DEFAULT_METADATA = null;
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
 
-    private SubmissionChangeSaver Saver => new(repository, versions);
-
     /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(UpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submissionSpec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId);
-        var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
-        var mustPublishEvent = false;
+        var submission = await _saver.FindAsync(request.FormId, request.SubmissionId, cancellationToken);
 
         if (submission == null)
         {
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
         }
 
-        if(!submission.IsComplete && (request.IsComplete ?? false)) {
-            mustPublishEvent = true;
-        }
+        var mustPublishEvent = !submission.IsComplete && (request.IsComplete ?? false);
 
         var originalJson = submission.JsonData;
         var previousStatus = submission.CollectionStatus;
@@ -56,16 +65,21 @@ public class UpdateSubmissionHandler(IRepository<Submission> repository, IReposi
             return Result.Invalid(new ValidationError(message));
         }
 
-        var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
+        var saved = await _saver.TrySaveAsync(submission, originalJson, cancellationToken);
         if (!saved.IsSuccess)
         {
             return saved.ToErrorResult<Submission>();
         }
 
-        if(mustPublishEvent) {
-            await mediator.PublishCompletedAsync(submission, cancellationToken);
+        if (mustPublishEvent)
+        {
+            await _mediator.PublishCompletedAsync(submission, cancellationToken);
         }
 
         return Result.Success(submission);
     }
+
+    internal sealed class Registered(SubmissionChangeSaver saver, IMediator mediator)
+        : RegisteredContentHandler<UpdateSubmissionCommand, Result<Submission>>(
+            new UpdateSubmissionHandler(saver, mediator));
 }

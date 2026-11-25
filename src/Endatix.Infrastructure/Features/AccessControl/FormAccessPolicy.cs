@@ -15,18 +15,16 @@ public sealed class FormAccessPolicy : IResourceAccessQuery<FormAccessData, Form
 {
     private readonly ICurrentUserAuthorizationService _authorizationService;
     private readonly FormPermissionCache _permissions;
-    private readonly AccountStanding _standing;
 
-    internal FormAccessPolicy(ICurrentUserAuthorizationService authorizationService, FormPermissionCache permissions, AccountStanding standing)
+    private FormAccessPolicy(ICurrentUserAuthorizationService authorizationService, FormPermissionCache permissions)
     {
         _authorizationService = authorizationService;
         _permissions = permissions;
-        _standing = standing;
     }
 
-    /// <summary>Constructs the ordinary access policy without enabling required-action enforcement.</summary>
+    /// <summary>Constructs the form permission policy.</summary>
     public FormAccessPolicy(ICurrentUserAuthorizationService authorizationService, HybridCache cache, IDateTimeProvider dateTimeProvider)
-        : this(authorizationService, new FormPermissionCache(cache, dateTimeProvider), new AccountStanding()) { }
+        : this(authorizationService, new FormPermissionCache(cache, dateTimeProvider)) { }
 
     public async Task<Result<ICachedData<FormAccessData>>> GetAccessData(
         FormAccessContext context,
@@ -45,8 +43,7 @@ public sealed class FormAccessPolicy : IResourceAccessQuery<FormAccessData, Form
             return access.ToErrorResult<ICachedData<FormAccessData>>();
         }
 
-        return _standing.Refusal<ICachedData<FormAccessData>>(authData)
-            ?? await _permissions.ReadAsync(new AuthorizedForm(context.FormId, access.Value), authData, cancellationToken);
+        return await _permissions.ReadAsync(new AuthorizedForm(context.FormId, access.Value), authData, cancellationToken);
     }
 
     private static Result<AccessLevel> AuthorizedProjection(AuthorizationData authData)

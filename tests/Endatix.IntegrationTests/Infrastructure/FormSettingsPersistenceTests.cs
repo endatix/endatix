@@ -94,7 +94,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         var (tenantId, formId) = await InsertFormAsync();
         await using var slowDb = CreateDb(tenantId);
         var slowForms = new EfRepository<Form>(slowDb, new EndatixSpecificationEvaluator([]));
-        var slow = new PartialUpdateFormSettingsHandler(slowForms, new RacingRepository(Repository(slowDb), () => UpdateAsync((tenantId, formId), _themeOn, 0)), new DateTimeProvider());
+        var slow = new PartialUpdateFormSettingsHandler(slowForms, new RacingRepository(Repository(slowDb), () => UpdateAsync((tenantId, formId), _themeOn, 0)), new DateTimeProvider(), new IntegrationTenantContext(tenantId));
 
         // Act
         var result = await slow.Handle(new PartialUpdateFormSettingsCommand(formId, 0, _themeOn), Cancellation);
@@ -176,7 +176,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
     {
         var (tenantId, formId) = form;
         await using var db = CreateDb(tenantId);
-        return await new PartialUpdateFormSettingsHandler(new EfRepository<Form>(db, new EndatixSpecificationEvaluator([])), Repository(db), new DateTimeProvider())
+        return await new PartialUpdateFormSettingsHandler(new EfRepository<Form>(db, new EndatixSpecificationEvaluator([])), Repository(db), new DateTimeProvider(), new IntegrationTenantContext(tenantId))
             .Handle(new PartialUpdateFormSettingsCommand(formId, version, change), Cancellation);
     }
 

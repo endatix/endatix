@@ -10,12 +10,18 @@ namespace Endatix.Core.UseCases.Submissions.GetByAccessToken;
 /// <summary>
 /// Handler for retrieving a submission using an access token.
 /// </summary>
-public class GetByAccessTokenHandler(
-    IRepository<Submission> submissionRepository,
-    SubmissionFormTheme formTheme,
-    ISubmissionAccessTokenService tokenService
-    ) : IQueryHandler<GetByAccessTokenQuery, Result<Submission>>
+[DirectCallOnly]
+public class GetByAccessTokenHandler(IRepository<Submission> submissionRepository,
+    ISubmissionAccessTokenService tokenService) : IQueryHandler<GetByAccessTokenQuery, Result<Submission>>
 {
+    private readonly Func<Submission, CancellationToken, Task> _loadTheme = static (_, _) => Task.CompletedTask;
+
+    /// <summary>Reads a submission with its configured form theme.</summary>
+    public GetByAccessTokenHandler(IRepository<Submission> submissionRepository,
+        SubmissionFormTheme formTheme,
+        ISubmissionAccessTokenService tokenService) : this(submissionRepository, tokenService) =>
+        _loadTheme = formTheme.LoadAsync;
+
     public async Task<Result<Submission>> Handle(GetByAccessTokenQuery request, CancellationToken cancellationToken)
     {
         var tokenValidationResult = await tokenService.ValidateAccessTokenAsync(request.Token, cancellationToken);
@@ -46,7 +52,13 @@ public class GetByAccessTokenHandler(
             return Result.NotFound("Form not found");
         }
 
-        await formTheme.LoadAsync(submission, cancellationToken);
+        await _loadTheme(submission, cancellationToken);
         return Result.Success(submission);
     }
+
+    internal sealed class Registered(IRepository<Submission> submissionRepository,
+    SubmissionFormTheme formTheme,
+    ISubmissionAccessTokenService tokenService)
+        : RegisteredContentHandler<GetByAccessTokenQuery, Result<Submission>>(
+            new GetByAccessTokenHandler(submissionRepository, formTheme, tokenService));
 }

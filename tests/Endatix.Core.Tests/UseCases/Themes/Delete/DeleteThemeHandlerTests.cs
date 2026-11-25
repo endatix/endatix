@@ -35,26 +35,6 @@ public class DeleteThemeHandlerTests
     }
 
     [Fact]
-    public async Task Handle_VisibleThemeWithUnknownStanding_DoesNotStartTransactionOrReadAssignedForms()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var tenant = Substitute.For<ITenantContext>();
-        tenant.TenantId.Returns(SampleData.TENANT_ID);
-        var identity = Substitute.For<ICurrentUserAuthorizationService>();
-        identity.GetAuthorizationDataAsync(ct).Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        _themesRepository.AnyAsync(Arg.Any<ISpecification<Theme>>(), ct).Returns(true);
-        var scope = new ManagedContentScope(tenant, new AccountStanding(identity));
-        var handler = new DeleteThemeHandler(_themesRepository, _formsRepository, _unitOfWork, _logger, scope);
-
-        var result = await handler.Handle(new DeleteThemeCommand(1), ct);
-
-        result.Status.Should().Be(ResultStatus.Unavailable);
-        _formsRepository.ReceivedCalls().Should().BeEmpty();
-        _unitOfWork.ReceivedCalls().Should().BeEmpty();
-        _themesRepository.ReceivedCalls().Should().ContainSingle();
-    }
-
-    [Fact]
     public async Task Handle_ThemeNotFound_ReturnsNotFoundResult()
     {
         // Arrange

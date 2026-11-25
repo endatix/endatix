@@ -9,7 +9,7 @@ public class DefinitionByFormAndDefinitionIdSpec : SingleResultSpecification<For
 
     internal DefinitionByFormAndDefinitionIdSpec(long formId, long definitionId, long? tenantId)
     {
-        Query.Where(f => f.Id == formId && (!tenantId.HasValue || f.TenantId == tenantId)
+        Query.Where(f => f.Id == formId && (!tenantId.HasValue || (tenantId > 0 && f.TenantId == tenantId))
                 && f.FormDefinitions.Any(fd => fd.Id == definitionId && (!tenantId.HasValue || fd.TenantId == tenantId)))
             .Include(f => f.FormDefinitions)
             .AsNoTracking();

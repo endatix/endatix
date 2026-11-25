@@ -22,17 +22,6 @@ public sealed class UpdateFolderHandler(
     /// <inheritdoc/>
     public async Task<Result<Folder>> Handle(UpdateFolderCommand request, CancellationToken cancellationToken)
     {
-        if (folderWritePolicy.Scope is { IsEnforced: true } scope &&
-            await RefusalAsync(scope, request, cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
-
-        return await UpdateAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<Folder>> UpdateAsync(UpdateFolderCommand request, CancellationToken cancellationToken)
-    {
         var spec = new FolderSpecifications.FolderByIdSpec(request.FolderId);
         spec.InTenant(folderWritePolicy.Scope);
         var folder = await folderRepository.FirstOrDefaultAsync(spec, cancellationToken);
@@ -41,7 +30,7 @@ public sealed class UpdateFolderHandler(
             return Result.NotFound("Folder not found.");
         }
 
-        var edit = await PrepareAsync(new(folder.Immutable, folder.Name), request, cancellationToken);
+        var edit = await PrepareAsync(folder, request, cancellationToken);
         if (!edit.IsSuccess)
         {
             return edit.ToErrorResult<Folder>();
@@ -51,19 +40,7 @@ public sealed class UpdateFolderHandler(
         return await SaveAndPublishAsync(folder, cancellationToken);
     }
 
-    private async Task<Result<Folder>?> RefusalAsync(ManagedContentScope scope, UpdateFolderCommand request, CancellationToken ct)
-    {
-        var needsName = request.Name is null && request.Slug is not null && string.IsNullOrWhiteSpace(request.Slug);
-        var target = await folderRepository.FirstOrDefaultAsync(new FolderEditTarget.ById(request.FolderId, scope.TenantId, needsName), ct);
-        if (target is null)
-        {
-            return Result.NotFound("Folder not found.");
-        }
-        var edit = await PrepareAsync(target, request, ct);
-        return edit.IsSuccess ? await scope.RefusalAsync<Folder>(ct) : edit.ToErrorResult<Folder>();
-    }
-
-    private async Task<Result<Edit>> PrepareAsync(FolderEditTarget target, UpdateFolderCommand request, CancellationToken ct)
+    private async Task<Result<Edit>> PrepareAsync(Folder target, UpdateFolderCommand request, CancellationToken ct)
     {
         if (target.Immutable && request.Immutable is not false &&
             Folder.ChangesMutableFields((request.Name, request.Slug, request.Description, request.Metadata)))
@@ -75,7 +52,7 @@ public sealed class UpdateFolderHandler(
         {
             return name.ToErrorResult<Edit>();
         }
-        var slug = await SlugAsync(request, name.Value?.Name ?? target.FallbackName, ct);
+        var slug = await SlugAsync(request, name.Value?.Name ?? target.Name, ct);
         return slug.IsSuccess ? new Edit(name.Value, slug.Value) : slug.ToErrorResult<Edit>();
     }
 

@@ -14,13 +14,13 @@ namespace Endatix.Core.UseCases.Folders;
 public sealed class FolderWritePolicy(
     IRepository<Folder> folderRepository,
     IValueNormalizer valueNormalizer,
-    ManagedContentScope? scope)
+    ITenantContext? scope)
 {
-    /// <summary>Constructs the ordinary folder write policy without a standing provider.</summary>
+    /// <summary>Constructs the ordinary folder write policy without an explicit tenant context.</summary>
     public FolderWritePolicy(IRepository<Folder> folderRepository, IValueNormalizer valueNormalizer)
         : this(folderRepository, valueNormalizer, null) { }
 
-    internal ManagedContentScope? Scope => scope;
+    internal ITenantContext? Scope => scope;
 
     internal Task<bool> NameExistsAsync(string normalizedName, long? excludeFolderId, CancellationToken ct)
     {

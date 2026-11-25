@@ -1,4 +1,5 @@
 using Ardalis.GuardClauses;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -9,12 +10,10 @@ namespace Endatix.Core.UseCases.Themes.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a theme.
 /// </summary>
-public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository, ManagedContentScope? scope)
-    : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
+[DirectCallOnly]
+public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository) : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
 {
-    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
-    public PartialUpdateThemeHandler(IRepository<Theme> themeRepository)
-        : this(themeRepository, null) { }
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
 
     /// <summary>
     /// Handles the partial update of a theme.
@@ -26,9 +25,9 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository, Manag
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-        var admission = new ThemeAdmission(themeRepository, scope);
-        var change = new ThemeAdmission.ThemeChange(request.ThemeId, request.Name, request.ThemeData);
-        var edit = await admission.PrepareEditAsync(change, cancellationToken);
+        var changes = new ThemeChanges(themeRepository, Selection);
+        var change = new ThemeChanges.ThemeChange(request.ThemeId, request.Name, request.ThemeData);
+        var edit = await changes.PrepareEditAsync(change, cancellationToken);
         if (!edit.IsSuccess)
         {
             return edit.ToErrorResult<Theme>();
@@ -50,4 +49,8 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository, Manag
         await themeRepository.SaveChangesAsync(cancellationToken);
         return Result.Success(theme);
     }
+
+    internal sealed class Registered(IRepository<Theme> themeRepository, ContentQueryScope scope)
+        : RegisteredContentHandler<PartialUpdateThemeCommand, Result<Theme>>(
+            new PartialUpdateThemeHandler(themeRepository) { Selection = scope });
 }

@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -12,54 +11,60 @@ namespace Endatix.Core.UseCases.Forms.Update;
 /// <summary>
 /// Handler for updating a form.
 /// </summary>
-public class UpdateFormHandler(
-    IRepository<Form> repository,
-    IRepository<Submission> submissionRepository,
-    IMediator mediator,
-    FolderAssignmentPolicy folderAssignmentPolicy,
-    AccountStanding standing) : ICommandHandler<UpdateFormCommand, Result<Form>>
+[DirectCallOnly]
+public class UpdateFormHandler : ICommandHandler<UpdateFormCommand, Result<Form>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public UpdateFormHandler(IRepository<Form> repository, IRepository<Submission> submissionRepository,
-        IMediator mediator, FolderAssignmentPolicy folderAssignmentPolicy)
-        : this(repository, submissionRepository, mediator, folderAssignmentPolicy, new AccountStanding()) { }
+    private readonly FormEdits _forms;
+    private readonly FolderAssignmentPolicy _folderAssignmentPolicy;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public UpdateFormHandler(IRepository<Form> repository,
+        IRepository<Submission> submissionRepository,
+        IMediator mediator,
+        FolderAssignmentPolicy folderAssignmentPolicy)
+        : this(new FormEdits(new EditableContent<Form>(repository, ContentQueryScope.Repository), submissionRepository, mediator), folderAssignmentPolicy) { }
+
+    private UpdateFormHandler(FormEdits forms, FolderAssignmentPolicy folderAssignmentPolicy)
+    {
+        _forms = forms;
+        _folderAssignmentPolicy = folderAssignmentPolicy;
+    }
 
     /// <inheritdoc />
     public async Task<Result<Form>> Handle(UpdateFormCommand request, CancellationToken cancellationToken)
     {
-        var access = new ManagedFormEditAccess(repository, folderAssignmentPolicy, standing, submissionRepository);
-        return await access.RefusalAsync(request, cancellationToken) ?? await UpdateAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<Form>> UpdateAsync(UpdateFormCommand request, CancellationToken cancellationToken)
-    {
-        var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
+        var form = await _forms.FindAsync(request.FormId, cancellationToken);
         if (form is null)
         {
             return Result.NotFound("Form not found.");
         }
 
+        return await UpdateAsync(form, request, cancellationToken);
+    }
+
+    private async Task<Result<Form>> UpdateAsync(Form form, UpdateFormCommand request, CancellationToken cancellationToken)
+    {
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
         var gate = new SingleSubmissionGateChange(form.Id, form.TenantId, form.LimitOnePerUser, requestedLimitOnePerUser, form.IsPublic);
-        if (await gate.ConflictAsync(submissionRepository, cancellationToken) is { } conflict)
+        if (await _forms.ConflictAsync(gate, cancellationToken) is { } conflict)
         {
             return conflict;
         }
 
-        form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
-
-        var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
-            form.FolderId,
-            request.FolderId,
-            targetFolderId => form.MoveToFolder(targetFolderId),
-            "Form cannot be moved to the requested folder.",
-            cancellationToken);
+        var folderCheck = await _folderAssignmentPolicy.CheckMoveAsync(form.FolderId, request.FolderId, cancellationToken);
         if (!folderCheck.IsOk())
         {
             return folderCheck.ToErrorResult<Form>();
         }
 
-        form.UpdateWebHookSettings(ParseWebHookSettings(request.WebHookSettingsJson));
+        if (!form.CanMoveToFolder(request.FolderId))
+        {
+            return Result.Error("Form cannot be moved to the requested folder.");
+        }
+        var webhook = UpdateFormWebhooks.Parse(request.WebHookSettingsJson);
+        form.MoveToFolder(request.FolderId);
+        form.SetEnabled(request.IsEnabled);
+        form.UpdateWebHookSettings(webhook);
 
         // Applies the editable details, bumps the revision and raises form.updated (outbox) in one step —
         // before save so the capture is atomic. (UpdateFormCommand doesn't change IsPublic, so it's preserved.)
@@ -73,30 +78,9 @@ public class UpdateFormHandler(
                 form.SubmissionTokenExpiryHours,
                 request.SubmissionTokenExpiryHours,
                 request.ClearSubmissionTokenExpiryHours));
-        await repository.UpdateAsync(form, cancellationToken);
-
-        // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
-        // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no
-        // in-process subscriber, so it is not published here.
-        await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
+        await _forms.SaveAsync(form, cancellationToken);
 
         return Result.Success(form);
-    }
-
-    private static WebHookConfiguration? ParseWebHookSettings(string? webHookSettingsJson)
-    {
-        if (string.IsNullOrWhiteSpace(webHookSettingsJson))
-        {
-            return null;
-        }
-
-        var webHookConfig = System.Text.Json.JsonSerializer.Deserialize<WebHookConfiguration>(webHookSettingsJson);
-        if (webHookConfig?.Events is null || webHookConfig.Events.Count == 0)
-        {
-            return null;
-        }
-
-        return webHookConfig;
     }
 
     private static int? ResolveSubmissionTokenExpiryHours(
@@ -111,4 +95,8 @@ public class UpdateFormHandler(
 
         return requestedHours ?? currentHours;
     }
+
+    internal sealed class Registered(FormEdits forms, FolderAssignmentPolicy folderAssignmentPolicy)
+        : RegisteredContentHandler<UpdateFormCommand, Result<Form>>(
+            new UpdateFormHandler(forms, folderAssignmentPolicy));
 }

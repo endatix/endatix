@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -7,6 +8,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
@@ -14,24 +16,37 @@ namespace Endatix.Core.UseCases.DataLists.ReplaceItems;
 /// <summary>
 /// Handler for replacing items in a data list.
 /// </summary>
-public sealed class ReplaceDataListItemsHandler(
-    IRepository<DataList> repository,
-    IMediator mediator,
-    ILogger<ReplaceDataListItemsHandler> logger)
-    : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
+[DirectCallOnly]
+public sealed class ReplaceDataListItemsHandler : ICommandHandler<ReplaceDataListItemsCommand, Result<DataListDto>>
 {
+    private readonly DataListRows _lists;
+    private readonly IMediator _mediator;
+    private readonly ILogger _logger;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public ReplaceDataListItemsHandler(IRepository<DataList> repository,
+        IMediator mediator,
+        ILogger<ReplaceDataListItemsHandler> logger)
+        : this(new DataListRows(repository, ContentQueryScope.Repository), mediator, logger) { }
+
+    private ReplaceDataListItemsHandler(DataListRows lists, IMediator mediator, ILogger logger)
+    {
+        _lists = lists;
+        _mediator = mediator;
+        _logger = logger;
+    }
+
     /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(ReplaceDataListItemsCommand request, CancellationToken cancellationToken)
     {
-        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
-        var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
+        var dataList = await _lists.WithItemsAsync(request.DataListId, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
         }
 
         var ensureErrors =
-            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, logger);
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, _logger);
         if (ensureErrors is not null)
         {
             return Result.Invalid(ensureErrors);
@@ -50,15 +65,15 @@ public sealed class ReplaceDataListItemsHandler(
 
         try
         {
-            await repository.UpdateAsync(dataList, cancellationToken);
+            await _lists.UpdateAsync(dataList, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogError(ex, "Failed to persist data list items for data list {DataListId}", dataList.Id);
+            _logger.LogError(ex, "Failed to persist data list items for data list {DataListId}", dataList.Id);
             return Result.Error("Failed to persist data list items.");
         }
 
-        await mediator.Publish(
+        await _mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.ItemsReplaced),
             cancellationToken);
 
@@ -74,9 +89,9 @@ public sealed class ReplaceDataListItemsHandler(
         errors = [];
         resolvedItems = [];
 
-        foreach ((int i, ReplaceDataListItemInput item) in items.Index())
+        foreach ((int i, var item) in items.Index())
         {
-            IReadOnlyDictionary<string, string>? labels = item.ResolveLabels();
+            var labels = item.ResolveLabels();
             CollectItemErrors(dataList, i, item, labels, errors);
 
             if (labels is not null && !string.IsNullOrWhiteSpace(item.Value))
@@ -172,7 +187,7 @@ public sealed class ReplaceDataListItemsHandler(
         {
             Identifier = ResolveLabelErrorIdentifier(labelsPrefix, ex),
             ErrorMessage = SafeError.LogAndResolve(
-                logger,
+                _logger,
                 ex,
                 "Labels are not valid for this item.",
                 $"normalizing labels for item {index} of data list {dataList.Id}")
@@ -214,7 +229,7 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
+            _logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
             return Result.Invalid(new ValidationError
             {
                 Identifier = "Items",
@@ -223,7 +238,7 @@ public sealed class ReplaceDataListItemsHandler(
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
+            _logger.LogWarning(ex, "Data list items were rejected for data list {DataListId}", dataList.Id);
             return Result.Invalid(new ValidationError
             {
                 Identifier = "Items",
@@ -231,4 +246,8 @@ public sealed class ReplaceDataListItemsHandler(
             });
         }
     }
+
+    internal sealed class Registered(DataListRows lists, IMediator mediator, [FromKeyedServices(typeof(ReplaceDataListItemsHandler))] ILogger logger)
+        : RegisteredContentHandler<ReplaceDataListItemsCommand, Result<DataListDto>>(
+            new ReplaceDataListItemsHandler(lists, mediator, logger));
 }

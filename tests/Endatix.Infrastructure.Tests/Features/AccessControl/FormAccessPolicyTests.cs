@@ -39,7 +39,7 @@ public class FormAccessPolicyTests
                 return factory(ct);
             });
 
-        _policy = new FormAccessPolicy(_authorizationService, new FormPermissionCache(_cache, _dateTimeProvider), new AccountStanding(_authorizationService));
+        _policy = new FormAccessPolicy(_authorizationService, _cache, _dateTimeProvider);
     }
 
     #region Authorization Failure
@@ -256,25 +256,6 @@ public class FormAccessPolicyTests
     #endregion
 
     #region Caching
-
-    [Fact]
-    public async Task GetAccessData_PendingAuthorizedViewer_DoesNotReadOrPopulateProductCache()
-    {
-        // Arrange
-        var snapshot = AuthorizationData.ForAuthenticatedUser("viewer", 1, [], [Actions.Access.Hub, Actions.Forms.View]) with
-        {
-            RequiredActions = [new RequiredAction { Key = "profile", ResolvePath = "/profile", Scope = RequiredActionScope.User,
-                Severity = RequiredActionSeverity.Blocking }]
-        };
-        _authorizationService.GetAuthorizationDataAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(snapshot));
-
-        // Act
-        var result = await _policy.GetAccessData(new FormAccessContext(1), TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.IsType<IRequiredActionRefusal>(result, exactMatch: false);
-        Assert.Empty(_cache.ReceivedCalls());
-    }
 
     [Fact]
     public async Task GetAccessDataAsync_AuthenticatedUser_CachesWithCorrectKey()

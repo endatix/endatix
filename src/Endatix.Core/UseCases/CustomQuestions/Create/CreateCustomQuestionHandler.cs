@@ -1,6 +1,5 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -14,14 +13,9 @@ namespace Endatix.Core.UseCases.CustomQuestions.Create;
 /// </summary>
 public class CreateCustomQuestionHandler(
     IRepository<CustomQuestion> customQuestionsRepository,
-    ITenantContext tenantContext,
-    AccountStanding standing
+    ITenantContext tenantContext
 ) : ICommandHandler<CreateCustomQuestionCommand, Result<CustomQuestion>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
-    public CreateCustomQuestionHandler(IRepository<CustomQuestion> customQuestionsRepository, ITenantContext tenantContext)
-        : this(customQuestionsRepository, tenantContext, new AccountStanding()) { }
-
     /// <summary>
     /// Handles the creation of a new custom question.
     /// </summary>
@@ -40,7 +34,7 @@ public class CreateCustomQuestionHandler(
             return Result.Invalid(new ValidationError($"A custom question with the name '{request.Name}' already exists"));
         }
 
-        return await standing.RefusalAsync<CustomQuestion>(cancellationToken) ?? await CreateAsync(request, cancellationToken);
+        return await CreateAsync(request, cancellationToken);
     }
 
     private async Task<Result<CustomQuestion>> CreateAsync(CreateCustomQuestionCommand request, CancellationToken cancellationToken)

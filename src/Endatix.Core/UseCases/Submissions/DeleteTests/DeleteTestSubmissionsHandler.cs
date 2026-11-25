@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
@@ -23,13 +22,23 @@ namespace Endatix.Core.UseCases.Submissions.DeleteTests;
 /// nothing. The page is read again from the same <c>afterId</c>, a bounded number of times, unless the form itself
 /// was deleted meanwhile, which is not found.
 /// </remarks>
-public sealed class DeleteTestSubmissionsHandler(
-    IRepository<Submission> submissions,
-    IRepository<Form> forms,
-    IUnitOfWork unitOfWork, AccountStanding standing) : ICommandHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>
+[DirectCallOnly]
+public sealed class DeleteTestSubmissionsHandler : ICommandHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>
 {
+    private readonly IRepository<Submission> _submissions;
+    private readonly SubmissionTestForms _forms;
+    private readonly IUnitOfWork _unitOfWork;
+
+    /// <summary>Uses the tenant and repositories supplied by the caller.</summary>
     public DeleteTestSubmissionsHandler(IRepository<Submission> submissions, IRepository<Form> forms, IUnitOfWork unitOfWork)
-        : this(submissions, forms, unitOfWork, new AccountStanding()) { }
+        : this(submissions, new SubmissionTestForms(forms, ContentQueryScope.Repository), unitOfWork) { }
+
+    private DeleteTestSubmissionsHandler(IRepository<Submission> submissions, SubmissionTestForms forms, IUnitOfWork unitOfWork)
+    {
+        _submissions = submissions;
+        _forms = forms;
+        _unitOfWork = unitOfWork;
+    }
 
     /// <summary>Submissions loaded and saved per round trip, which bounds each query and each save.</summary>
     internal const int PAGE_SIZE = 500;
@@ -44,19 +53,14 @@ public sealed class DeleteTestSubmissionsHandler(
     /// <inheritdoc />
     public async Task<Result<DeletedTestSubmissions>> Handle(DeleteTestSubmissionsCommand request, CancellationToken cancellationToken)
     {
-        if (request.TenantId <= 0)
+        if (!_forms.Allows(request.TenantId))
         {
             return Result.Unauthorized("Tenant context is required.");
         }
 
-        if (!await FormExistsAsync(request.TenantId, request.FormId, cancellationToken))
+        if (!await _forms.ExistsAsync(request.TenantId, request.FormId, cancellationToken))
         {
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
-        }
-
-        if (await standing.RefusalAsync<DeletedTestSubmissions>(cancellationToken) is { } refusal)
-        {
-            return refusal;
         }
 
         var deleted = await DeleteAllAsync(request.TenantId, request.FormId, cancellationToken);
@@ -101,7 +105,7 @@ public sealed class DeleteTestSubmissionsHandler(
                 return page;
             }
 
-            if (!await FormExistsAsync(start.TenantId, start.FormId, cancellationToken))
+            if (!await _forms.ExistsAsync(start.TenantId, start.FormId, cancellationToken))
             {
                 return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
             }
@@ -116,7 +120,7 @@ public sealed class DeleteTestSubmissionsHandler(
     /// </summary>
     private async Task<Result<DeletedPage>> TryDeletePageAsync(PageStart start, CancellationToken cancellationToken)
     {
-        var page = await submissions.ListAsync(
+        var page = await _submissions.ListAsync(
             new TestSubmissionsByFormIdPageSpec(start.TenantId, start.FormId, start.AfterId, PAGE_SIZE),
             cancellationToken);
         if (page.Count == 0)
@@ -129,19 +133,20 @@ public sealed class DeleteTestSubmissionsHandler(
             submission.Delete();
         }
 
-        var saved = await submissions.TrySaveChangesAsync(cancellationToken);
-        unitOfWork.ClearChangeTracker();
+        var saved = await _submissions.TrySaveChangesAsync(cancellationToken);
+        _unitOfWork.ClearChangeTracker();
         return saved.IsSuccess
             ? Result.Success(new DeletedPage(page.Count, page[^1].Id))
             : saved.ToErrorResult<DeletedPage>();
     }
-
-    private async Task<bool> FormExistsAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
-        await forms.AnyAsync(new FormSpecifications.ByIdForTenant(formId, tenantId), cancellationToken);
 
     /// <summary>Where the next page starts: after <paramref name="AfterId"/>, or at the start for 0.</summary>
     private sealed record PageStart(long TenantId, long FormId, long AfterId);
 
     /// <summary>How many submissions a page deleted, and the last id it read.</summary>
     private sealed record DeletedPage(int Count, long LastId);
+
+    internal sealed class Registered(IRepository<Submission> submissions, SubmissionTestForms forms, IUnitOfWork unitOfWork)
+        : RegisteredContentHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>(
+            new DeleteTestSubmissionsHandler(submissions, forms, unitOfWork));
 }

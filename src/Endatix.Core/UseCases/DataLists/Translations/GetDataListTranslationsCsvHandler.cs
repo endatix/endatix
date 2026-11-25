@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -10,16 +11,26 @@ namespace Endatix.Core.UseCases.DataLists.Translations;
 /// <summary>
 /// Handler exporting a data list to a SurveyJS-compatible translations CSV.
 /// </summary>
-public sealed class GetDataListTranslationsCsvHandler(IRepository<DataList> repository)
-    : IQueryHandler<GetDataListTranslationsCsvQuery, Result<DataListTranslationsCsvDto>>
+[DirectCallOnly]
+public sealed class GetDataListTranslationsCsvHandler : IQueryHandler<GetDataListTranslationsCsvQuery, Result<DataListTranslationsCsvDto>>
 {
+    private readonly DataListRows _lists;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public GetDataListTranslationsCsvHandler(IRepository<DataList> repository)
+        : this(new DataListRows(repository, ContentQueryScope.Repository)) { }
+
+    private GetDataListTranslationsCsvHandler(DataListRows lists)
+    {
+        _lists = lists;
+    }
+
     /// <inheritdoc />
     public async Task<Result<DataListTranslationsCsvDto>> Handle(
         GetDataListTranslationsCsvQuery request,
         CancellationToken cancellationToken)
     {
-        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
-        var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
+        var dataList = await _lists.WithItemsAsync(request.DataListId, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
@@ -43,4 +54,8 @@ public sealed class GetDataListTranslationsCsvHandler(IRepository<DataList> repo
             ? $"data-list-{dataList.Id}-translations.csv"
             : $"{slug}-translations.csv";
     }
+
+    internal sealed class Registered(DataListRows lists)
+        : RegisteredContentHandler<GetDataListTranslationsCsvQuery, Result<DataListTranslationsCsvDto>>(
+            new GetDataListTranslationsCsvHandler(lists));
 }

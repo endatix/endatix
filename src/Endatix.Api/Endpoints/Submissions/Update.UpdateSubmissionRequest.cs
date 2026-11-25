@@ -3,10 +3,8 @@ namespace Endatix.Api.Endpoints.Submissions;
 /// <summary>
 /// Request model for updating a form submission.
 /// </summary>
-public class UpdateSubmissionRequest : IManagedSubmissionTarget
+public class UpdateSubmissionRequest
 {
-    string IManagedSubmissionTarget.MissingMessage => "Form submission not found.";
-
     /// <summary>
     /// The ID the submission that will be updated
     /// </summary>

@@ -46,7 +46,7 @@ public class ListItemsTests
                     "NYC",
                     "New York")
             ]));
-        _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Any<SearchManagedDataListItems>(), Arg.Any<CancellationToken>())
             .Returns(result);
 
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
@@ -56,15 +56,15 @@ public class ListItemsTests
         ok.Value.Items.Should().ContainSingle(x => x.Value == "NYC" && x.Id == 3);
 
         await _mediator.Received(1).Send(
-            Arg.Is<SearchDataListItemsQuery>(x =>
-                x.DataListId == 42 &&
-                x.Query == "york" &&
-                x.Skip == 10 &&
-                x.Take == 10 &&
-                x.MatchMode == DataListSearchMatchMode.StartsWith &&
-                x.Locale != null &&
-                x.IncludeLocales.Count == 1 &&
-                x.RequireActive == false),
+            Arg.Is<SearchManagedDataListItems>(x =>
+                x.Search.DataListId == 42 &&
+                x.Search.Query == "york" &&
+                x.Search.Skip == 10 &&
+                x.Search.Take == 10 &&
+                x.Search.MatchMode == DataListSearchMatchMode.StartsWith &&
+                x.Search.Locale != null &&
+                x.Search.IncludeLocales.Count == 1 &&
+                x.Search.RequireActive == false),
             Arg.Any<CancellationToken>());
     }
 
@@ -72,24 +72,24 @@ public class ListItemsTests
     public async Task ExecuteAsync_NullPaging_UsesDefaultPageSizeAndZeroSkip()
     {
         ListDataListItemsRequest request = new() { DataListId = 5 };
-        _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Any<SearchManagedDataListItems>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new Paged<DataListItemDto>(1, ListItems.DefaultPageSize, 0, 0, [])));
 
         await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         await _mediator.Received(1).Send(
-            Arg.Is<SearchDataListItemsQuery>(x =>
-                x.DataListId == 5 &&
-                x.Skip == 0 &&
-                x.Take == ListItems.DefaultPageSize &&
-                x.RequireActive == false),
+            Arg.Is<SearchManagedDataListItems>(x =>
+                x.Search.DataListId == 5 &&
+                x.Search.Skip == 0 &&
+                x.Search.Take == ListItems.DefaultPageSize &&
+                x.Search.RequireActive == false),
             Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_NotFound_ReturnsProblem()
     {
-        _mediator.Send(Arg.Any<SearchDataListItemsQuery>(), Arg.Any<CancellationToken>())
+        _mediator.Send(Arg.Any<SearchManagedDataListItems>(), Arg.Any<CancellationToken>())
             .Returns(Result<Paged<DataListItemDto>>.NotFound("Data list not found."));
 
         var response = await _endpoint.ExecuteAsync(

@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.FormSettings.Get;
 using Endatix.Core.UseCases.FormSettings.PartialUpdate;
 
@@ -149,10 +150,10 @@ public sealed class FormSettingsHandlerTests
 
     private static PartialUpdateFormSettingsCommand Command(long expectedVersion) => new(FORM_ID, expectedVersion, _themeOn);
 
-    private GetFormSettingsHandler GetHandler() => new(_forms, _settings);
+    private GetFormSettingsHandler GetHandler() => new(_forms, _settings, SampleData.Tenant);
 
-    private PartialUpdateFormSettingsHandler UpdateHandler() => new(_forms, _settings, _clock);
+    private PartialUpdateFormSettingsHandler UpdateHandler() => new(_forms, _settings, _clock, SampleData.Tenant);
 
     private void StoredForm() =>
-        _forms.GetByIdAsync(FORM_ID, Arg.Any<CancellationToken>()).Returns(_form);
+        _forms.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>()).Returns(_form);
 }

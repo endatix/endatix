@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -6,6 +7,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.DataLists.Translations;
@@ -13,26 +15,39 @@ namespace Endatix.Core.UseCases.DataLists.Translations;
 /// <summary>
 /// Handler replacing data list items and translations from a CSV document.
 /// </summary>
-public sealed class ReplaceDataListTranslationsCsvHandler(
-    IRepository<DataList> repository,
-    IMediator mediator,
-    ILogger<ReplaceDataListTranslationsCsvHandler> logger)
-    : ICommandHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>
+[DirectCallOnly]
+public sealed class ReplaceDataListTranslationsCsvHandler : ICommandHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>
 {
+    private readonly DataListRows _lists;
+    private readonly IMediator _mediator;
+    private readonly ILogger _logger;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public ReplaceDataListTranslationsCsvHandler(IRepository<DataList> repository,
+        IMediator mediator,
+        ILogger<ReplaceDataListTranslationsCsvHandler> logger)
+        : this(new DataListRows(repository, ContentQueryScope.Repository), mediator, logger) { }
+
+    private ReplaceDataListTranslationsCsvHandler(DataListRows lists, IMediator mediator, ILogger logger)
+    {
+        _lists = lists;
+        _mediator = mediator;
+        _logger = logger;
+    }
+
     /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(
         ReplaceDataListTranslationsCsvCommand request,
         CancellationToken cancellationToken)
     {
-        DataListsSpecifications.ByIdWithItemsSpec spec = new(request.DataListId);
-        var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
+        var dataList = await _lists.WithItemsAsync(request.DataListId, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
         }
 
         var ensureErrors =
-            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, logger);
+            DataListEnsureLocales.TryEnsure(dataList, request.EnsureLocales, _logger);
         if (ensureErrors is not null)
         {
             return Result.Invalid(ensureErrors);
@@ -45,7 +60,7 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         }
         catch (FormatException ex)
         {
-            logger.LogWarning(ex, "Failed to parse data list translations CSV for data list {DataListId}", request.DataListId);
+            _logger.LogWarning(ex, "Failed to parse data list translations CSV for data list {DataListId}", request.DataListId);
             return Invalid("Csv", "The translations CSV is invalid.");
         }
 
@@ -70,26 +85,26 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Data list translations CSV was rejected for data list {DataListId}", request.DataListId);
+            _logger.LogWarning(ex, "Data list translations CSV was rejected for data list {DataListId}", request.DataListId);
             return Invalid("Csv", "The translations CSV is invalid.");
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogWarning(ex, "Data list translations CSV was rejected for data list {DataListId}", request.DataListId);
+            _logger.LogWarning(ex, "Data list translations CSV was rejected for data list {DataListId}", request.DataListId);
             return Invalid("Csv", "The translations CSV is invalid.");
         }
 
         try
         {
-            await repository.UpdateAsync(dataList, cancellationToken);
+            await _lists.UpdateAsync(dataList, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogError(ex, "Failed to persist data list translations for data list {DataListId}", request.DataListId);
+            _logger.LogError(ex, "Failed to persist data list translations for data list {DataListId}", request.DataListId);
             return Result.Error("Failed to persist data list items.");
         }
 
-        await mediator.Publish(
+        await _mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.ItemsReplaced),
             cancellationToken);
 
@@ -235,4 +250,8 @@ public sealed class ReplaceDataListTranslationsCsvHandler(
             Identifier = identifier,
             ErrorMessage = message
         });
+
+    internal sealed class Registered(DataListRows lists, IMediator mediator, [FromKeyedServices(typeof(ReplaceDataListTranslationsCsvHandler))] ILogger logger)
+        : RegisteredContentHandler<ReplaceDataListTranslationsCsvCommand, Result<DataListDto>>(
+            new ReplaceDataListTranslationsCsvHandler(lists, mediator, logger));
 }

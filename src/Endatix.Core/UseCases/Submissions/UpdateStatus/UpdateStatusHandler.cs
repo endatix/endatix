@@ -1,9 +1,11 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
@@ -11,11 +13,25 @@ namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
 /// <summary>
 /// Handles updating the status of a submission.
 /// </summary>
-public class UpdateStatusHandler(
-    IRepository<Submission> submissionRepository,
-    ILogger<UpdateStatusHandler> logger
-) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
+[DirectCallOnly]
+public class UpdateStatusHandler : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
 {
+    private readonly IRepository<Submission> _submissionRepository;
+    private readonly ILogger _logger;
+    private readonly ContentQueryScope _scope;
+
+    /// <summary>Uses the caller’s repository and logger for direct calls.</summary>
+    public UpdateStatusHandler(IRepository<Submission> submissionRepository,
+    ILogger<UpdateStatusHandler> logger)
+        : this(submissionRepository, logger, ContentQueryScope.Repository) { }
+
+    private UpdateStatusHandler(IRepository<Submission> submissionRepository, ILogger logger, ContentQueryScope scope)
+    {
+        _submissionRepository = submissionRepository;
+        _logger = logger;
+        _scope = scope;
+    }
+
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Submission not found";
 
     /// <summary>
@@ -33,9 +49,8 @@ public class UpdateStatusHandler(
         UpdateStatusCommand command,
         CancellationToken cancellationToken)
     {
-        var submission = await submissionRepository.SingleOrDefaultAsync(
-            new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId),
-            cancellationToken);
+        var spec = _scope.Submission(new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId));
+        var submission = await _submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
         if (submission == null)
         {
             return Result<SubmissionDto>.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
@@ -58,7 +73,7 @@ public class UpdateStatusHandler(
     /// </summary>
     private async Task<Result<SubmissionDto>> SaveAsync(Submission submission, CancellationToken cancellationToken)
     {
-        var saved = await submissionRepository.TrySaveChangesAsync(cancellationToken);
+        var saved = await _submissionRepository.TrySaveChangesAsync(cancellationToken);
         return saved.IsSuccess
             ? Result<SubmissionDto>.Success(SubmissionDto.FromSubmission(submission))
             : saved.ToErrorResult<SubmissionDto>();
@@ -74,13 +89,17 @@ public class UpdateStatusHandler(
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Invalid submission status code {StatusCode}", command.StatusCode);
+            _logger.LogWarning(ex, "Invalid submission status code {StatusCode}", command.StatusCode);
             return Result<SubmissionDto>.Invalid(new ValidationError("Invalid status code."));
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogWarning(ex, "Submission status transition rejected for submission {SubmissionId}", command.SubmissionId);
+            _logger.LogWarning(ex, "Submission status transition rejected for submission {SubmissionId}", command.SubmissionId);
             return Result<SubmissionDto>.Invalid(new ValidationError("Status transition is not allowed."));
         }
     }
+
+    internal sealed class Registered(IRepository<Submission> submissionRepository, [FromKeyedServices(typeof(UpdateStatusHandler))] ILogger logger, ContentQueryScope tenant)
+        : RegisteredContentHandler<UpdateStatusCommand, Result<SubmissionDto>>(
+            new UpdateStatusHandler(submissionRepository, logger, tenant));
 }

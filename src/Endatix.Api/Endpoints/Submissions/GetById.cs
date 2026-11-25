@@ -20,7 +20,6 @@ public class GetById(IMediator mediator) : Endpoint<GetByIdRequest, Results<Ok<S
     {
         Get("forms/{formId}/submissions/{submissionId}");
         Permissions(Actions.Submissions.View);
-        PreProcessor<ManagedSubmissionStanding<GetByIdRequest>>();
         Summary(s =>
         {
             s.Summary = "Get a single submission";

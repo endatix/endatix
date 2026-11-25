@@ -23,13 +23,15 @@ public sealed class PartialUpdateFormHandlerBranchTests
     [Fact]
     public async Task Handle_UnknownTheme_ReturnsNotFound()
     {
-        StoredForm();
+        var form = StoredForm();
         _themes.GetByIdAsync(99L, Arg.Any<CancellationToken>()).Returns((Theme?)null);
 
-        var result = await _handler.Handle(new PartialUpdateFormCommand(1) { ThemeId = 99 }, CancellationToken.None);
+        var result = await _handler.Handle(new PartialUpdateFormCommand(1) { IsEnabled = true, ThemeId = 99 }, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.NotFound);
         result.Errors.Should().Contain("Form Theme not found.");
+        form.IsEnabled.Should().BeFalse();
+        form.DomainEvents.Should().BeEmpty();
     }
 
     [Fact]

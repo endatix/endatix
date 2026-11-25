@@ -1,8 +1,10 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Core.UseCases.Forms.List;
@@ -10,72 +12,67 @@ namespace Endatix.Core.UseCases.Forms.List;
 /// <summary>
 /// Handler for listing forms.
 /// </summary>
-public sealed class ListFormsHandler(
-    IFormsRepository repository,
-    ILogger<ListFormsHandler> logger)
-    : IQueryHandler<ListFormsQuery, Result<Paged<FormDto>>>
+[DirectCallOnly]
+public sealed class ListFormsHandler : IQueryHandler<ListFormsQuery, Result<Paged<FormDto>>>
 {
+    private readonly IFormsRepository _repository;
+    private readonly ILogger _logger;
+    private readonly ContentQueryScope _scope;
+
+    /// <summary>Uses the caller’s repository and logger for direct calls.</summary>
+    public ListFormsHandler(IFormsRepository repository,
+    ILogger<ListFormsHandler> logger)
+        : this(repository, logger, ContentQueryScope.Repository) { }
+
+    private ListFormsHandler(IFormsRepository repository, ILogger logger, ContentQueryScope scope)
+    {
+        _repository = repository;
+        _logger = logger;
+        _scope = scope;
+    }
+
     /// <inheritdoc/>
     public async Task<Result<Paged<FormDto>>> Handle(
         ListFormsQuery request,
         CancellationToken cancellationToken)
     {
+        if (_scope.TenantId <= 0)
+        {
+            return Result.Unauthorized("Tenant context is required.");
+        }
+
         try
         {
-            var pagingParams = new PagingParameters(request.Page, request.PageSize);
-            var filterParams = CreateFilterParameters(request);
-            var search = request.Search?.Trim();
-
-            var countSpec = new FormsListFilterSpec(
-                filterParams,
-                search,
-                request.Created,
-                request.Modified);
-            var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
-
-            var resolved = pagingParams.ForTotal(totalRecords);
-            var queryPagingParams = new PagingParameters(resolved);
-
-            var forms = await LoadFormsPageAsync(
-                totalRecords,
-                queryPagingParams,
-                filterParams,
-                search,
-                request,
-                cancellationToken);
-
+            var filter = CreateFilterParameters(request);
+            var count = new FormsListFilterSpec(filter, request.Search?.Trim(), request.Created, request.Modified);
+            _scope.Apply(count);
+            var total = await _repository.CountAsync(count, cancellationToken);
+            var resolved = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
+            var forms = total == 0 ? [] : await LoadFormsPageAsync(new PagingParameters(resolved), (request, filter), cancellationToken);
             return Result.Success(resolved.ToPaged([.. forms]));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to list forms");
+            _logger.LogError(ex, "Failed to list forms");
             return Result.Error("Failed to list forms.");
         }
     }
 
     private async Task<IEnumerable<FormDto>> LoadFormsPageAsync(
-        int totalRecords,
-        PagingParameters pagingParams,
-        FilterParameters filterParams,
-        string? search,
-        ListFormsQuery request,
-        CancellationToken cancellationToken)
+        PagingParameters pagingParams, (ListFormsQuery Request, FilterParameters Filter) page, CancellationToken cancellationToken)
     {
-        if (totalRecords <= 0)
-        {
-            return [];
-        }
-
+        var (request, filterParams) = page;
         var searchFormSpec = new FormsWithSubmissionsCountSpec(
             pagingParams,
             filterParams,
-            search,
+            request.Search?.Trim(),
             request.SortBy,
             request.SortDescending,
             request.Created,
             request.Modified);
 
-        return await repository.ListAsync(searchFormSpec, cancellationToken);
+        _scope.Apply(searchFormSpec);
+        return await _repository.ListAsync(searchFormSpec, cancellationToken);
     }
 
     private static FilterParameters CreateFilterParameters(ListFormsQuery request)
@@ -103,4 +100,8 @@ public sealed class ListFormsHandler(
 
         return new FilterParameters(filterList);
     }
+
+    internal sealed class Registered(IFormsRepository repository, [FromKeyedServices(typeof(ListFormsHandler))] ILogger logger, ContentQueryScope tenant)
+        : RegisteredContentHandler<ListFormsQuery, Result<Paged<FormDto>>>(
+            new ListFormsHandler(repository, logger, tenant));
 }

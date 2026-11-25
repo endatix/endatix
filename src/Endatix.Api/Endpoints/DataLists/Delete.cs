@@ -23,7 +23,6 @@ public sealed class Delete(
     {
         Delete("data-lists/{dataListId}");
         Permissions(Actions.Forms.Delete);
-        PreProcessor<ManagedDataListStanding<DeleteDataListRequest>>();
         Summary(s =>
         {
             s.Summary = "Delete a data list";
@@ -71,7 +70,7 @@ public sealed class DeleteDataListValidator : Validator<DeleteDataListRequest>
 /// <summary>
 /// Request to delete a data list.
 /// </summary>
-public sealed class DeleteDataListRequest : IManagedDataListTarget
+public sealed class DeleteDataListRequest
 {
     /// <summary>
     /// The ID of the data list to delete.

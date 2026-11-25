@@ -1,4 +1,3 @@
-using MediatR;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -6,6 +5,7 @@ using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.Submissions.PartialUpdate;
+using MediatR;
 
 namespace Endatix.Core.UseCases.Submissions.PartialUpdateByAccessToken;
 
@@ -48,15 +48,14 @@ public class PartialUpdateByAccessTokenHandler(
             return Result.NotFound("Form not found");
         }
 
-        var partialUpdateSubmissionCommand = new PartialUpdateSubmissionCommand(
+        return await sender.Send(new PartialUpdateSubmissionCommand(
             SubmissionId: tokenClaims.SubmissionId,
             FormId: request.FormId,
             IsComplete: request.IsComplete,
             CurrentPage: request.CurrentPage,
             JsonData: request.JsonData,
             Metadata: request.Metadata,
-            CollectionOutcome: request.CollectionOutcome);
-
-        return await sender.Send(partialUpdateSubmissionCommand, cancellationToken);
+            CollectionOutcome: request.CollectionOutcome)
+        { TokenTenantId = submission.TenantId }, cancellationToken);
     }
 }

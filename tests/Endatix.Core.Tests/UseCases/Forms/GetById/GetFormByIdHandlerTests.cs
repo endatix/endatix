@@ -21,21 +21,6 @@ public class GetFormByIdHandlerTests
     }
 
     [Fact]
-    public async Task Handle_NoTenantContext_DoesNotReadStandingOrAForm()
-    {
-        var auth = Substitute.For<ICurrentUserAuthorizationService>();
-        var tenant = Substitute.For<ITenantContext>();
-        tenant.TenantId.Returns(0L);
-        var handler = new GetFormByIdHandler(_repository, new AccountStanding(auth), tenant);
-
-        var result = await handler.Handle(new GetFormByIdQuery(1), TestContext.Current.CancellationToken);
-
-        result.Status.Should().Be(ResultStatus.NotFound);
-        auth.ReceivedCalls().Should().BeEmpty();
-        _repository.ReceivedCalls().Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task Handle_FormNotFound_ReturnsNotFoundResult()
     {
         // Arrange

@@ -19,14 +19,8 @@ public sealed class AccountStanding
     /// <summary>Whether an operation needs its standing preflight. No shipped host enables it yet.</summary>
     public bool IsEnforced => _authorization is not null;
 
-    /// <summary>Uses a snapshot the ordinary resource authorization already read.</summary>
-    public Result<T>? Refusal<T>(AuthorizationData snapshot)
+    private Result<T>? Refusal<T>(AuthorizationData snapshot)
     {
-        if (_authorization is null || _admitted)
-        {
-            return null;
-        }
-
         if (snapshot.RequiredActionsUnavailable || string.IsNullOrWhiteSpace(snapshot.UserId) || snapshot.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
             return Result<T>.Unavailable(UNAVAILABLE_MESSAGE);

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
@@ -9,71 +10,70 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
-public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository,
-    IRepository<Submission> submissionsRepository,
-    IMediator mediator,
-    ManagedFormContentAccess? access) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+/// <summary>Applies a partial update to the active definition.</summary>
+[DirectCallOnly]
+public class PartialUpdateActiveFormDefinitionHandler : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
-    /// <summary>Creates a handler with dormant account standing.</summary>
+    private readonly ActiveDefinitions _definitions;
+    private readonly IMediator _mediator;
+    private readonly IRepository<Submission> _submissionsRepository;
+
     public PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository, IRepository<Submission> submissionsRepository, IMediator mediator)
-        : this(formsRepository, submissionsRepository, mediator, null) { }
+        : this(new ActiveDefinitions(formsRepository, ContentQueryScope.Repository), submissionsRepository, mediator) { }
 
-    public async Task<Result<FormDefinition>> Handle(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
+    private PartialUpdateActiveFormDefinitionHandler(ActiveDefinitions definitions, IRepository<Submission> submissionsRepository, IMediator mediator)
     {
-        if (access is not null && await access.ActiveAsync(formsRepository, request.FormId, cancellationToken) is { } refusal)
-        {
-            return refusal;
-        }
-
-        return await ExecuteAsync(request, cancellationToken);
+        _definitions = definitions;
+        _mediator = mediator;
+        _submissionsRepository = submissionsRepository;
     }
 
-    private async Task<Result<FormDefinition>> ExecuteAsync(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<Result<FormDefinition>> Handle(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        var spec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
-        var formWithActiveDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
+        var formWithActiveDefinition = await _definitions.FindFormAsync(request.FormId, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
-        if (formWithActiveDefinition == null || activeDefinition == null)
+        if (formWithActiveDefinition is null || activeDefinition is null)
         {
             return Result.NotFound("Active form definition not found.");
         }
 
-        if (await ShouldCreateNewFormDefinitionAsync(activeDefinition, request))
-        {
-            var newFormDefinition = new FormDefinition(
-                formWithActiveDefinition.TenantId,
-                request.IsDraft ?? false,
-                request.JsonData);
-            formWithActiveDefinition.AddFormDefinition(newFormDefinition);
-
-            if (!newFormDefinition.IsDraft)
-            {
-                formWithActiveDefinition.SetActiveFormDefinition(newFormDefinition);
-            }
-
-            activeDefinition = newFormDefinition;
-        }
-        else
-        {
-            formWithActiveDefinition.UpdateActiveDefinitionSchema(request.JsonData, request.IsDraft);
-        }
-
-        await formsRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
-        await mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
+        activeDefinition = await ApplyAsync(formWithActiveDefinition, activeDefinition, request);
+        await _definitions.UpdateAsync(formWithActiveDefinition, cancellationToken);
+        await _mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
 
         return Result.Success(activeDefinition);
     }
 
-    private async Task<bool> FormDefinitionHasSubmissions(long definitionId)
+    private async Task<FormDefinition> ApplyAsync(Form form, FormDefinition activeDefinition, PartialUpdateActiveFormDefinitionCommand request)
     {
-        var spec = new SubmissionsTotalCountByFormDefinitionIdSpec(definitionId);
-        return await submissionsRepository.AnyAsync(spec);
+        if (await ShouldCreateNewFormDefinitionAsync(activeDefinition, request))
+        {
+            return AddDefinition(form, request);
+        }
+        form.UpdateActiveDefinitionSchema(request.JsonData, request.IsDraft);
+        return activeDefinition;
+    }
+
+    private static FormDefinition AddDefinition(Form form, PartialUpdateActiveFormDefinitionCommand request)
+    {
+        var definition = new FormDefinition(form.TenantId, request.IsDraft ?? false, request.JsonData);
+        form.AddFormDefinition(definition);
+        if (!definition.IsDraft)
+        {
+            form.SetActiveFormDefinition(definition);
+        }
+        return definition;
     }
 
     private async Task<bool> ShouldCreateNewFormDefinitionAsync(
         FormDefinition formDefinition,
         PartialUpdateActiveFormDefinitionCommand request)
     {
-        return formDefinition.JsonData != request.JsonData && await FormDefinitionHasSubmissions(formDefinition.Id);
+        return formDefinition.JsonData != request.JsonData && await _submissionsRepository.AnyAsync(new SubmissionsTotalCountByFormDefinitionIdSpec(formDefinition.Id));
     }
+
+    internal sealed class Registered(ActiveDefinitions definitions, IRepository<Submission> submissionsRepository, IMediator mediator)
+        : RegisteredContentHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>(
+            new PartialUpdateActiveFormDefinitionHandler(definitions, submissionsRepository, mediator));
 }

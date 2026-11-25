@@ -33,27 +33,6 @@ public class DeleteFormHandlerTests
     }
 
     [Fact]
-    public async Task Handle_StandingUnavailable_DoesNotTakeTheLockOrPublish()
-    {
-        // Arrange
-        var ct = TestContext.Current.CancellationToken;
-        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(ct).Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        var tenant = Substitute.For<ITenantContext>();
-        tenant.TenantId.Returns(SampleData.TENANT_ID);
-        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), ct).Returns(true);
-        var handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator, new AccountStanding(snapshots), tenant);
-
-        // Act
-        var result = await handler.Handle(new DeleteFormCommand(1), ct);
-
-        // Assert
-        result.Status.Should().Be(ResultStatus.Unavailable);
-        await _formSubmissionsLock.DidNotReceive().BeginDeletingAsync(Arg.Any<long>(), ct);
-        _mediator.ReceivedCalls().Should().BeEmpty();
-    }
-
-    [Fact]
     public async Task Handle_FormNotFound_ReturnsNotFoundWithoutTakingTheLock()
     {
         // Arrange

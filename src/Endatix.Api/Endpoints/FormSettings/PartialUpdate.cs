@@ -6,6 +6,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormSettings;
+using Endatix.Core.UseCases.FormSettings.Get;
 using Endatix.Core.UseCases.FormSettings.PartialUpdate;
 using FastEndpoints;
 using FluentValidation;
@@ -85,10 +86,11 @@ public sealed class PartialUpdate(IMediator mediator)
     {
         var problem = TypedResults.Problem(EndatixProblemDetails.Create(
             StatusCodes.Status412PreconditionFailed, "Precondition failed", string.Join('\n', result.Errors)));
-        if (await mediator.Send(new ReadConflictingFormSettingsVersion(formId), ct) is long version)
+        var current = await mediator.Send(new GetFormSettingsQuery(formId), ct);
+        if (current.IsSuccess)
         {
-            EntityTagHeader.SetETag(HttpContext.Response, version);
-            problem.ProblemDetails.Extensions["version"] = version.ToString(CultureInfo.InvariantCulture);
+            EntityTagHeader.SetETag(HttpContext.Response, current.Value.Version);
+            problem.ProblemDetails.Extensions["version"] = current.Value.Version.ToString(CultureInfo.InvariantCulture);
         }
 
         return problem;

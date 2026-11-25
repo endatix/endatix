@@ -1,5 +1,6 @@
 using Ardalis.GuardClauses;
 using Ardalis.Specification;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
@@ -8,34 +9,22 @@ using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Themes;
 
-internal sealed class ThemeAdmission(IRepository<Theme> themes, ManagedContentScope? scope)
+internal sealed class ThemeChanges(IRepository<Theme> themes, ContentQueryScope scope)
 {
     internal async Task<Result<Edit>> PrepareEditAsync(ThemeChange change, CancellationToken ct)
     {
         var id = change.Id!.Value;
-        var visible = await VisibleTargetAsync(id, ct);
-        if (!visible.IsSuccess)
+        var target = await scope.FindAsync(themes, id, ct);
+        if (target is null)
         {
-            return visible.ToErrorResult<Edit>();
+            return Result.NotFound("Theme not found");
         }
         var data = await DataAsync(change, ct);
         if (!data.IsSuccess)
         {
             return data.ToErrorResult<Edit>();
         }
-        var target = visible.Value ?? await themes.FindAsync(id, scope, ct);
-        return target is null ? Result.NotFound("Theme not found") : new Edit(target, data.Value);
-    }
-
-    private async Task<Result<Theme?>> VisibleTargetAsync(long id, CancellationToken ct)
-    {
-        if (scope is { IsEnforced: true })
-        {
-            return await themes.AnyAsync(scope.ById<Theme>(id), ct)
-                ? Result<Theme?>.Success(null) : Result.NotFound("Theme not found");
-        }
-        var target = await themes.FindAsync(id, scope, ct);
-        return target is null ? Result.NotFound("Theme not found") : Result<Theme?>.Success(target);
+        return new Edit(target, data.Value);
     }
 
     internal async Task<Result<ThemeJsonData?>> DataAsync(ThemeChange change, CancellationToken ct)
@@ -54,8 +43,7 @@ internal sealed class ThemeAdmission(IRepository<Theme> themes, ManagedContentSc
         {
             return data.ToErrorResult<ThemeJsonData?>();
         }
-        return scope is not null && await scope.RefusalAsync<ThemeJsonData?>(ct) is { } refusal
-            ? refusal : Result<ThemeJsonData?>.Success(data?.Value);
+        return Result<ThemeJsonData?>.Success(data?.Value);
     }
 
     internal sealed record ThemeChange(long? Id, string? Name, string? Json)
@@ -68,10 +56,10 @@ internal sealed class ThemeAdmission(IRepository<Theme> themes, ManagedContentSc
     private async Task<Result<Theme>?> NameConflictAsync(string name, long? id, CancellationToken ct)
     {
         var named = new ThemeSpecifications.ByName(name);
-        named.InTenant(scope);
+        scope.Apply(named);
         // Match the ordinary first-by-name check, including packs with repeated names.
-        var first = scope is null ? (await themes.FirstOrDefaultAsync(named, ct))?.Id
-            : await themes.FirstOrDefaultAsync(named.WithProjectionOf(new ThemeId()), ct);
+        var first = scope.TenantId.HasValue ? await themes.FirstOrDefaultAsync(named.WithProjectionOf(new ThemeId()), ct)
+            : (await themes.FirstOrDefaultAsync(named, ct))?.Id;
         return first is not null && first != id ? Duplicate(name, id) : null;
     }
 
