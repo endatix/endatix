@@ -43,16 +43,15 @@ public class PartialUpdateSubmissionByTokenHandler(
 
         await tokenService.ObtainTokenAsync(submissionId, cancellationToken);
 
-        var partialUpdateSubmissionCommand = new PartialUpdateSubmissionCommand(
+        return await sender.Send(new PartialUpdateSubmissionCommand(
             SubmissionId: submissionId,
             FormId: request.FormId,
             IsComplete: request.IsComplete,
             CurrentPage: request.CurrentPage,
             JsonData: request.JsonData,
             Metadata: request.Metadata,
-            CollectionOutcome: request.CollectionOutcome) { TokenTenantId = form.TenantId };
-
-        return await sender.Send(partialUpdateSubmissionCommand, cancellationToken);
+            CollectionOutcome: request.CollectionOutcome)
+        { TokenTenantId = form.TenantId }, cancellationToken);
     }
 
     private async Task<Result> ValidateReCaptchaAsync(Form form, PartialUpdateSubmissionByTokenCommand request, CancellationToken cancellationToken)

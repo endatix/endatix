@@ -48,15 +48,14 @@ public class PartialUpdateByAccessTokenHandler(
             return Result.NotFound("Form not found");
         }
 
-        var partialUpdateSubmissionCommand = new PartialUpdateSubmissionCommand(
+        return await sender.Send(new PartialUpdateSubmissionCommand(
             SubmissionId: tokenClaims.SubmissionId,
             FormId: request.FormId,
             IsComplete: request.IsComplete,
             CurrentPage: request.CurrentPage,
             JsonData: request.JsonData,
             Metadata: request.Metadata,
-            CollectionOutcome: request.CollectionOutcome) { TokenTenantId = submission.TenantId };
-
-        return await sender.Send(partialUpdateSubmissionCommand, cancellationToken);
+            CollectionOutcome: request.CollectionOutcome)
+        { TokenTenantId = submission.TenantId }, cancellationToken);
     }
 }

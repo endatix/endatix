@@ -216,19 +216,15 @@ public class PartialUpdateByAccessTokenHandlerTests
         var metadata = "{\"meta\":\"data\"}";
         var command = new PartialUpdateByAccessTokenCommand(token, formId, isComplete, currentPage, jsonData, metadata);
 
-        var tokenClaims = new SubmissionAccessTokenClaims(
-            submissionId,
-            new[] { "edit" },
-            DateTime.UtcNow.AddHours(1));
+        var tokenClaims = new SubmissionAccessTokenClaims(submissionId, ["edit"], DateTime.UtcNow.AddHours(1));
         var submission = CreateSubmissionWithForm(formId, 1L, isFormEnabled: true);
-        var updatedSubmission = Submission.Create(new SubmissionCreateArgs(TenantId: SampleData.TENANT_ID, FormId: formId, FormDefinitionId: 1L, JsonData: jsonData));
 
         _tokenService.ValidateAccessTokenAsync(token, Arg.Any<CancellationToken>())
             .Returns(Result.Success(tokenClaims));
         _submissionRepository.SingleOrDefaultAsync(Arg.Any<SubmissionWithDefinitionAndFormSpec>(), Arg.Any<CancellationToken>())
             .Returns(submission);
         _sender.Send(Arg.Any<PartialUpdateSubmissionCommand>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success(updatedSubmission));
+            .Returns(Result.Success(submission));
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
@@ -239,8 +235,7 @@ public class PartialUpdateByAccessTokenHandlerTests
         await _sender.Received(1).Send(
             Arg.Is<PartialUpdateSubmissionCommand>(cmd =>
                 cmd.SubmissionId == submissionId &&
-                cmd.FormId == formId &&
-                cmd.TokenTenantId == submission.TenantId &&
+                cmd.FormId == formId && cmd.TokenTenantId == submission.TenantId &&
                 cmd.IsComplete == isComplete &&
                 cmd.CurrentPage == currentPage &&
                 cmd.JsonData == jsonData &&

@@ -8,7 +8,6 @@ using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
-using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.Forms.PartialUpdate;
 
@@ -478,7 +477,7 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_ClearingImmutableFolder_ReturnsConflict()
     {
         // Arrange
-        var tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
+        var tenantSettingsRepo = Substitute.For<IRepository<Entities.TenantSettings>>();
         var folderRepo = Substitute.For<IRepository<Folder>>();
         var tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(SampleData.TENANT_ID);
