@@ -477,7 +477,7 @@ public class PartialUpdateFormHandlerTests
     public async Task Handle_ClearingImmutableFolder_ReturnsConflict()
     {
         // Arrange
-        var tenantSettingsRepo = Substitute.For<IRepository<Entities.TenantSettings>>();
+        var tenantSettingsRepo = Substitute.For<IRepository<Endatix.Core.Entities.TenantSettings>>();
         var folderRepo = Substitute.For<IRepository<Folder>>();
         var tenantContext = Substitute.For<ITenantContext>();
         tenantContext.TenantId.Returns(SampleData.TENANT_ID);
