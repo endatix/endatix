@@ -166,7 +166,8 @@ internal static class ApiDocs
         if (string.Equals(PagePath(swaggerUiPath), pagePath, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                $"Swagger UI cannot serve at the API docs page '{pagePath}'. Move SwaggerPath or Swagger UI's path.");
+                $"Swagger UI cannot serve at the API docs page '{pagePath}'. Set SwaggerPath to another path, such as " +
+                $"{DEFAULT_PATH}, move Swagger UI with ConfigureSwaggerUi (set its Path), or turn UseSwaggerUi off.");
         }
     }
 

@@ -147,7 +147,9 @@ Earlier releases showed Swagger UI at `/api-docs`. To keep using Swagger UI, tur
 ```
 
 `/api-docs` keeps showing Scalar. `SwaggerPath` cannot be `/swagger` while Swagger UI is on, since both pages would answer
-the same path. The API then refuses to start with `Swagger UI cannot serve at the API docs page '/swagger'`.
+the same path. The API then refuses to start with `Swagger UI cannot serve at the API docs page '/swagger'`, and the
+message names the fix: set `SwaggerPath` to another path such as `/api-docs`, move Swagger UI with `ConfigureSwaggerUi`
+(its `Path`), or turn `UseSwaggerUi` off.
 
 ## Rate Limiting
 
