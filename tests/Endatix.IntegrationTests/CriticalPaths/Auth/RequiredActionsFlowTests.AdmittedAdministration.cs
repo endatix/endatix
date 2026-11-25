@@ -14,7 +14,7 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests
 {
     [Fact]
-    public async Task Admitted_administration_reads_use_only_the_gate_decision()
+    public async Task Admitted_administration_operations_use_only_the_gate_decision()
     {
         var ct = TestContext.Current.CancellationToken;
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
@@ -33,6 +33,11 @@ public sealed partial class RequiredActionsFlowTests
             response.EnsureSuccessStatusCode();
             await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         }
+
+        snapshots.ClearReceivedCalls();
+        using var created = await admin.PostAsJsonAsync("/api/roles", new { name = "Reviewers", permissions = new[] { Actions.Access.Hub } }, ct);
+        created.EnsureSuccessStatusCode();
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
     }
 
     [Theory]
