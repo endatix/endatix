@@ -126,11 +126,19 @@ Configure the docs in `appsettings.json`:
 }
 ```
 
-| Key | Default | What it does |
-| --- | --- | --- |
-| `UseSwagger` | `true` | Serves the OpenAPI document, the API docs page, and Swagger UI when it is on. `false` turns all of them off. |
-| `SwaggerPath` | `/api-docs` | The path of the API docs page. It must start with `/`. An empty value or `/` means `/api-docs`. |
-| `UseSwaggerUi` | `false` | Also serves Swagger UI at `/swagger`. It needs `UseSwagger`. |
+<Settings>
+<Setting name="Endatix:Api:UseSwagger" default="true">
+Serves the OpenAPI document, the API docs page, and Swagger UI when it is on. `false` turns all of them off.
+</Setting>
+<Setting name="Endatix:Api:SwaggerPath" default="/api-docs">
+The path of the API docs page. It must start with `/`. An empty value or `/` serves the page at `/api-docs`, logs a
+warning at startup, and redirects `/` to the page. The old Swagger UI address, `index.html` under the page (such as
+`/api-docs/index.html`), redirects to the page too.
+</Setting>
+<Setting name="Endatix:Api:UseSwaggerUi" default="false">
+Also serves Swagger UI at `/swagger`. It needs `UseSwagger`.
+</Setting>
+</Settings>
 
 ### Bring back Swagger UI
 
