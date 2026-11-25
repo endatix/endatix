@@ -262,6 +262,9 @@ public sealed partial class ApiDocsTests
         // Assert
         page.Configuration.GetProperty("telemetry").GetBoolean().Should().BeFalse();
         page.Configuration.GetProperty("withDefaultFonts").GetBoolean().Should().BeFalse();
+        page.Configuration.GetProperty("agent").GetProperty("disabled").GetBoolean().Should().BeTrue(page.Html);
+        page.Configuration.GetProperty("mcp").GetProperty("disabled").GetBoolean().Should().BeTrue();
+        page.Configuration.GetProperty("showDeveloperTools").GetString().Should().Be("never");
     }
 
     [Fact]
