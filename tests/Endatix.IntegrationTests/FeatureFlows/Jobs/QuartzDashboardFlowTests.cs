@@ -26,7 +26,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 [Trait("Lane", "Jobs")]
 public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string SeedPassword = "Password123!";
+    private const string SEED_PASSWORD = "Password123!";
 
     [Fact]
     public async Task Quartz_dashboard_is_unmapped_by_default()
@@ -34,7 +34,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, cancellationToken);
         using var client = await world.AsAsync(TestPersona.PlatformAdmin, cancellationToken: cancellationToken);
 
         // Act
@@ -51,7 +51,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         var world = await host.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, cancellationToken);
         using var tenantAdmin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
         using var anonymous = world.AnonymousClient();
 
@@ -74,7 +74,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         var snapshots = AdmittedSnapshots();
         await using var host = new DashboardHost(fixture, allowWrites, snapshots);
         var world = await host.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, cancellationToken);
         var jobId = await EnqueueWaitingJobAsync(host, world.SeedResult!.TenantIds[0], cancellationToken);
         (await TriggerStateAsync(jobId, cancellationToken)).Should().Be("WAITING");
 
