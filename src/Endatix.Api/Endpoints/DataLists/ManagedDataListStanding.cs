@@ -43,16 +43,30 @@ internal sealed class ImportStandingFilter : IEndpointFilter
         {
             return await next(context);
         }
+        return await CheckTargetAsync(http) is { } problem ? problem : await next(context);
+    }
+
+    private static async Task<IResult?> CheckTargetAsync(HttpContext http)
+    {
         List<ValidationFailure> errors = [];
-        var target = await _routeBinder.BindAsync(new BinderContext(http, errors, null!, false, []), http.RequestAborted);
-        if (target.DataListId <= 0 || errors.Count > 0)
+        ImportDataListRequest target;
+        try
+        {
+            target = await _routeBinder.BindAsync(new BinderContext(http, errors, null!, false, []), http.RequestAborted);
+        }
+        catch (ValidationFailureException) when (errors.Count > 0)
+        {
+            return InvalidRoute(http, errors);
+        }
+        if (target.DataListId <= 0)
         {
             var validation = new ImportDataListValidator().Validate(target, options => options.IncludeProperties(x => x.DataListId));
-            errors.AddRange(validation.Errors);
-            return TypedResults.Problem(EndatixProblemDetails.FromValidationFailures(errors, http, StatusCodes.Status400BadRequest));
+            return InvalidRoute(http, validation.Errors);
         }
         var access = http.RequestServices.GetRequiredService<ManagedDataListAccess>();
-        return await access.RefusalAsync(target.DataListId, http.RequestAborted) is { } refusal
-            ? refusal.ToProblem() : await next(context);
+        return (await access.RefusalAsync(target.DataListId, http.RequestAborted))?.ToProblem();
     }
+
+    private static IResult InvalidRoute(HttpContext http, List<ValidationFailure> errors) =>
+        TypedResults.Problem(EndatixProblemDetails.FromValidationFailures(errors, http, StatusCodes.Status400BadRequest));
 }
