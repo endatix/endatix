@@ -265,11 +265,20 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     /// Updates the webhook configuration settings for this form.
     /// </summary>
     /// <exception cref="ArgumentException">The settings use a retired event key.</exception>
-    public void UpdateWebHookSettings(WebHookConfiguration? settings)
+    public void UpdateWebHookSettings(WebHookConfiguration? settings) =>
+        new WebHookSettingsChange(settings).ApplyTo(this);
+
+    internal readonly struct WebHookSettingsChange
     {
-        DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(settings), nameof(settings));
-        _webHookSettings = settings;
-        WebHookSettingsJson = settings != null ? JsonSerializer.Serialize(settings) : null;
+        private readonly string? _json;
+
+        internal WebHookSettingsChange(WebHookConfiguration? settings)
+        {
+            DomainValidationException.ThrowIfError(WebHookConfiguration.RetiredKeyError(settings), nameof(settings));
+            _json = settings is null ? null : JsonSerializer.Serialize(settings);
+        }
+
+        internal void ApplyTo(Form form) => form.WebHookSettingsJson = _json;
     }
 
     private WebHookConfiguration DeserializeWebHookSettings()

@@ -82,7 +82,7 @@ public class PartialUpdateFormHandler : ICommandHandler<PartialUpdateFormCommand
         {
             return theme.ToErrorResult<Form>();
         }
-        var webhook = UpdateFormWebhooks.Parse(request.WebHookSettingsJson);
+        var webhook = new Form.WebHookSettingsChange(UpdateFormWebhooks.Parse(request.WebHookSettingsJson));
         if (await ApplyFolderAsync(form, request, cancellationToken) is { } folder)
         {
             return folder;
@@ -91,7 +91,7 @@ public class PartialUpdateFormHandler : ICommandHandler<PartialUpdateFormCommand
         ApplyTheme(form, request.ThemeId, theme.Value);
         if (request.WebHookSettingsJson is not null)
         {
-            form.UpdateWebHookSettings(webhook);
+            webhook.ApplyTo(form);
         }
         return null;
     }
