@@ -5,6 +5,7 @@ using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Core.UseCases.TenantBranding.History;
 using Endatix.Framework.FeatureFlags;
 using FastEndpoints;
@@ -19,7 +20,7 @@ namespace Endatix.Api.Endpoints.TenantBranding;
 /// Lists the current tenant's branding versions, newest first, so an admin can pick one to restore.
 /// </summary>
 [Experimental("ENDATIX0002")]
-public sealed class ListTenantBrandingVersions(IMediator mediator)
+public sealed class ListTenantBrandingVersions(IMediator mediator, TenantBrandingAccess access)
     : Endpoint<ListTenantBrandingVersionsRequest, Results<Ok<Paged<TenantBrandingVersionModel>>, ProblemHttpResult>>
 {
     /// <inheritdoc/>
@@ -30,15 +31,15 @@ public sealed class ListTenantBrandingVersions(IMediator mediator)
         FeatureFlag<EndpointFeatureGate>(FeatureFlags.WhiteLabeling);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "List the tenant's branding versions";
-            s.Description = "A paged list (items) of the tenant's branding versions, newest first: number, createdAt, " +
-                "createdBy, source (publish, restore or reset) and restoredFromNumber; ids and numbers are strings. Empty, not " +
-                "403, when the tenant's plan does not include branding, as every read shows no brand then.";
+            s.Description = "Lists number, createdAt, createdBy, source and restoredFromNumber, newest first. IDs and numbers are strings. " +
+                "The page is empty when the tenant's plan does not include branding.";
             s.Responses[200] = "The versions.";
             s.Responses[400] = $"Page below 1, or page size outside 1..{PagedRequestLimits.MAX_PAGE_SIZE}.";
             s.Responses[404] = "White-labeling is not enabled on this deployment.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<TenantBrandingVersionModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -49,6 +50,11 @@ public sealed class ListTenantBrandingVersions(IMediator mediator)
         ListTenantBrandingVersionsRequest request,
         CancellationToken ct)
     {
+        if (await access.ReadRefusalAsync(ct) is { } refusal)
+        {
+            return refusal.ToProblem();
+        }
+
         var result = await mediator.Send(new ListTenantBrandingVersionsQuery(request.ResolvePage(), request.ResolvePageSize()), ct);
         return result.IsSuccess
             ? TypedResults.Ok(result.Value.MapToPaged(TenantBrandingVersionModel.Map))

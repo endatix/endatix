@@ -59,16 +59,16 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
             s.Description = Route.Description;
             s.Responses[200] = "The tenant's branding after the write. The ETag header holds the new version.";
             s.Responses[400] = "Invalid request or If-Match; problems lists each refusal as {path, code, detail}.";
-            s.Responses[403] = "The caller may not manage tenant settings, or the tenant's plan does not include branding.";
+            s.Responses[403] = "The caller may not manage tenant settings, the plan lacks branding, or the account has a blocking required action.";
+            s.Responses[503] = "Account standing is temporarily unavailable.";
             s.Responses[404] = "White-labeling is not enabled on this deployment.";
             s.Responses[412] = "If-Match names a version that is no longer current; the ETag header and version hold the " +
                 "current one. A write whose content is already live succeeds whatever If-Match names.";
             s.Responses[428] = "If-Match is missing.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantBrandingModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status412PreconditionFailed)
             .ProducesProblem(StatusCodes.Status428PreconditionRequired));

@@ -14,8 +14,7 @@ namespace Endatix.Core.UseCases.TenantBranding.Restoring;
 /// </summary>
 internal sealed class RestoreTenantBrandingHandler(
     ITenantBrandingRepository repository,
-    ITenantContext tenantContext,
-    ITenantEntitlements entitlements,
+    TenantBrandingAccess access,
     IDateTimeProvider dateTimeProvider)
     : ICommandHandler<RestoreTenantBrandingCommand, Result<TenantBrandingDto>>,
       ICommandHandler<RollbackTenantBrandingCommand, Result<TenantBrandingDto>>,
@@ -41,14 +40,13 @@ internal sealed class RestoreTenantBrandingHandler(
         Func<TenantBrandingWriter, Task<Result<TenantBrandingDto>>> write,
         CancellationToken cancellationToken)
     {
-        var tenantId = tenantContext.TenantId;
-        if (await TenantBrandingWriter.RefusalAsync(tenantId, entitlements, cancellationToken) is { } refusal)
+        if (await access.WriteRefusalAsync(cancellationToken) is { } refusal)
         {
             return refusal;
         }
 
         var stamp = new ContentVersionStamp(dateTimeProvider.Now.UtcDateTime, userId);
-        return await write(new TenantBrandingWriter(repository, tenantId, stamp));
+        return await write(new TenantBrandingWriter(repository, access.TenantId, stamp));
     }
 
     /// <summary>A restore of <see cref="Number"/>, or a rollback when it is null.</summary>

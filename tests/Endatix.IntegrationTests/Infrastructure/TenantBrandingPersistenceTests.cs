@@ -136,15 +136,18 @@ public sealed class TenantBrandingPersistenceTests(EndatixIntegrationWebHostFixt
     }
 
     private static Task<Result<TenantBrandingDto>> PublishAsync(AppDbContext db, long tenantId, PublishTenantBrandingCommand command) =>
-        new PublishTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new DateTimeProvider())
+        new PublishTenantBrandingHandler(Repository(db), Access(tenantId), new DateTimeProvider())
             .Handle(command, Cancellation);
 
     private async Task<Result<TenantBrandingDto>> RollbackAsync(long tenantId, long version)
     {
         await using var db = CreateDb(tenantId);
-        return await new RestoreTenantBrandingHandler(Repository(db), new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new DateTimeProvider())
+        return await new RestoreTenantBrandingHandler(Repository(db), Access(tenantId), new DateTimeProvider())
             .Handle(new RollbackTenantBrandingCommand(version), Cancellation);
     }
+
+    private static TenantBrandingAccess Access(long tenantId) =>
+        new(new IntegrationTenantContext(tenantId), new AllowAllTenantEntitlements(), new());
 
     private async Task<TenantBranding> ReadAsync(long tenantId)
     {
