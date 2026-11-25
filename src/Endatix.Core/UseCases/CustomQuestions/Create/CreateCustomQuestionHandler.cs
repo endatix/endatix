@@ -34,7 +34,8 @@ public class CreateCustomQuestionHandler(
         Guard.Against.NullOrEmpty(request.JsonData);
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        if (await customQuestionsRepository.AnyAsync(new CustomQuestionSpecifications.ByName(request.Name), cancellationToken))
+        var duplicate = new CustomQuestionSpecifications.ByName(tenantContext.TenantId, request.Name);
+        if (await customQuestionsRepository.AnyAsync(duplicate, cancellationToken))
         {
             return Result.Invalid(new ValidationError($"A custom question with the name '{request.Name}' already exists"));
         }

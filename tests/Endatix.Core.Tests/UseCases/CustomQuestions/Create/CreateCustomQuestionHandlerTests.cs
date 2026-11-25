@@ -86,6 +86,25 @@ public class CreateCustomQuestionHandlerTests
     }
 
     [Fact]
+    public async Task Handle_NameUsedByAnotherTenant_CreatesQuestionForCurrentTenant()
+    {
+        // Arrange
+        var tenantId = SampleData.TENANT_ID;
+        var otherQuestion = new CustomQuestion(tenantId + 1, "Rating", """{"type":"rating"}""");
+        _tenantContext.TenantId.Returns(tenantId);
+        _repository.AnyAsync(Arg.Any<CustomQuestionSpecifications.ByName>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<CustomQuestionSpecifications.ByName>().IsSatisfiedBy(otherQuestion));
+        var request = new CreateCustomQuestionCommand("Rating", """{"type":"rating"}""");
+
+        // Act
+        var result = await _handler.Handle(request, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Created);
+        result.Value.TenantId.Should().Be(tenantId);
+    }
+
+    [Fact]
     public async Task Handle_DuplicateName_ReturnsInvalidResult()
     {
         // Arrange

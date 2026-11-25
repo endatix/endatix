@@ -14,6 +14,24 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    [Fact]
+    public async Task Two_tenants_can_each_create_a_custom_question_with_the_same_name()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        var question = new { name = "Service rating", jsonData = """{"type":"rating"}""" };
+        foreach (var tenantIndex in new[] { 0, 1 })
+        {
+            using var admin = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+            using var created = await admin.PostAsJsonAsync("/api/questions", question, ct);
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            var page = await admin.GetFromJsonAsync<JsonElement>("/api/questions", ct);
+            var item = Assert.Single(page.GetProperty("items").EnumerateArray());
+            var saved = await created.Content.ReadFromJsonAsync<JsonElement>(ct);
+            Assert.Equal(saved.GetProperty("id").GetString(), item.GetProperty("id").GetString());
+        }
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -61,7 +79,10 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(HttpStatusCode.Unauthorized, challenge.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        using var invalidPage = await admin.GetAsync($"{route}?pageSize=0", ct);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidPage.StatusCode);
         Assert.Empty(snapshots.ReceivedCalls());
+        Assert.Empty(questions.ReceivedCalls());
 
         using var list = await admin.GetAsync(route, ct);
         await AssertUnavailableQuestionsAsync(list, ct);
