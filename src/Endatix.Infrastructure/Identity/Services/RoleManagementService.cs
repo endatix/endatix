@@ -850,22 +850,11 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
             return permissionNamesGuard.ToErrorResult<string>();
         }
 
-        var tenantId = _tenantContext.TenantId;
-        var trimmedRoleName = roleName.Trim();
-        var normalizedRoleName = NormalizeRoleName(trimmedRoleName);
         var distinctPermissionNames = GetDistinctPermissionNames(permissionNames);
-
-        var tenantRole = _identityDbContext.Roles.Where(role => role.NormalizedName == normalizedRoleName && role.TenantId == tenantId);
-        var target = await AuthorizeRoleRewriteAsync(tenantRole, distinctPermissionNames, trimmedRoleName, cancellationToken);
+        var target = await GetAuthorizedRoleForUpdateAsync(roleName.Trim(), distinctPermissionNames, cancellationToken);
         if (!target.IsSuccess)
         {
             return target.ToErrorResult<string>();
-        }
-
-        var role = await tenantRole.FirstOrDefaultAsync(role => role.Id == target.Value && !role.IsSystemDefined, cancellationToken);
-        if (role is null)
-        {
-            return Result.NotFound($"Role '{trimmedRoleName}' not found for this tenant.");
         }
 
         var permissions = await ReadRolePermissionsAsync(distinctPermissionNames, cancellationToken);
@@ -874,6 +863,7 @@ public sealed partial class RoleManagementService : IRoleManagementService, ISys
             return permissions.ToErrorResult<string>();
         }
 
+        var role = target.Value;
         role.UpdateDescription(description);
 
         var rolePermissions = await _identityDbContext.RolePermissions

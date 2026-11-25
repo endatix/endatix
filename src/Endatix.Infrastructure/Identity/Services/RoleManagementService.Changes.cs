@@ -27,9 +27,12 @@ public sealed partial class RoleManagementService
         return valid.IsSuccess ? Result.Success(permissions) : valid.ToErrorResult<List<Permission>>();
     }
 
-    private async Task<Result<long>> AuthorizeRoleRewriteAsync(IQueryable<AppRole> tenantRole, List<string> names, string roleName, CancellationToken ct)
+    private async Task<Result<AppRole>> GetAuthorizedRoleForUpdateAsync(string roleName, List<string> names, CancellationToken ct)
     {
-        var target = await tenantRole.Select(role => new { role.Id, role.IsSystemDefined }).FirstOrDefaultAsync(ct);
+        var normalizedName = NormalizeRoleName(roleName);
+        var tenantId = _tenantContext.TenantId;
+        var target = await _identityDbContext.Roles.FirstOrDefaultAsync(
+            role => role.NormalizedName == normalizedName && role.TenantId == tenantId, ct);
         if (target is null)
         {
             return Result.NotFound($"Role '{roleName}' not found for this tenant.");
@@ -39,7 +42,7 @@ public sealed partial class RoleManagementService
             return Result.Invalid(new ValidationError { Identifier = nameof(roleName), ErrorMessage = $"Cannot update system-defined role '{roleName}'." });
         }
         var access = await EnsureCanRewriteRoleAsync(target.Id, names, ct);
-        return access.IsSuccess ? Result.Success(target.Id) : access.ToErrorResult<long>();
+        return access.IsSuccess ? Result.Success(target) : access.ToErrorResult<AppRole>();
     }
 
     private async Task<Result> SaveAssignmentsAsync(IEnumerable<IdentityUserRole<long>> removed, IEnumerable<IdentityUserRole<long>> added, CancellationToken ct)
