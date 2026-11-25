@@ -52,4 +52,4 @@ public class GetThemeByIdHandlerTests
         result.Value.Should().Be(theme);
         result.Value.Forms.Should().BeEmpty();
     }
-}
+} 

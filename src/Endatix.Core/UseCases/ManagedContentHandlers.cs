@@ -24,6 +24,11 @@ namespace Endatix.Core.UseCases;
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 internal sealed class DirectCallOnlyAttribute : Attribute;
 
+internal interface IExplicitTenantBinding
+{
+    bool IsTenantBound { get; }
+}
+
 /// <summary>Registers tenant-bound reads for managed content without changing the public, direct-call handlers.</summary>
 [Experimental("ENDATIX0006")]
 public static class ManagedContentHandlers
@@ -61,6 +66,7 @@ public static class ManagedContentHandlers
     {
         var direct = services.Where(descriptor => !descriptor.IsKeyedService && descriptor.ServiceType.IsGenericType
             && descriptor.ServiceType.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)
+            && descriptor.ImplementationInstance is not IExplicitTenantBinding { IsTenantBound: true }
             && (descriptor.ImplementationType ?? descriptor.ImplementationInstance?.GetType())?.IsDefined(typeof(DirectCallOnlyAttribute), false) == true);
         foreach (var descriptor in direct.ToArray())
         {

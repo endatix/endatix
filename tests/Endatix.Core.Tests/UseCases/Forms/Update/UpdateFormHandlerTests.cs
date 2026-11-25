@@ -331,6 +331,21 @@ public class UpdateFormHandlerTests
     }
 
     [Fact]
+    public async Task Handle_DeletedFormFromSuppliedRepository_RefusesMoveBeforeParsingWebhook()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var form = Form.Create(new FormCreateArgs(SampleData.TENANT_ID, "Draft"));
+        form.Delete();
+        _repository.GetByIdAsync(1L, ct).Returns(form);
+
+        var result = await _handler.Handle(new UpdateFormCommand(1, "Renamed", null, true, "{"), ct);
+
+        result.Status.Should().Be(ResultStatus.Error);
+        result.Errors.Should().ContainSingle().Which.Should().Be("Form cannot be moved to the requested folder.");
+        form.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Handle_MovingFromImmutableFolder_ReturnsConflict()
     {
         // Arrange

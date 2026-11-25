@@ -52,4 +52,4 @@ public class GetFormTemplateByIdHandlerTests
         result.Value.Should().NotBeNull();
         result.Value.Should().Be(formTemplate);
     }
-}
+} 

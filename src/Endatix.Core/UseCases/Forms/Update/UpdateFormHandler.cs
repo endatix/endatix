@@ -57,11 +57,12 @@ public class UpdateFormHandler : ICommandHandler<UpdateFormCommand, Result<Form>
             return folderCheck.ToErrorResult<Form>();
         }
 
-        var webhook = UpdateFormWebhooks.Parse(request.WebHookSettingsJson);
-        if (!form.MoveToFolder(request.FolderId))
+        if (!form.CanMoveToFolder(request.FolderId))
         {
             return Result.Error("Form cannot be moved to the requested folder.");
         }
+        var webhook = UpdateFormWebhooks.Parse(request.WebHookSettingsJson);
+        form.MoveToFolder(request.FolderId);
         form.SetEnabled(request.IsEnabled);
         form.UpdateWebHookSettings(webhook);
 

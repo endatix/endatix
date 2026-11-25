@@ -10,8 +10,10 @@ namespace Endatix.Core.UseCases.DataLists.List;
 /// </summary>
 [DirectCallOnly]
 public sealed class ListDistinctDataListLocalesHandler(IDataListRepository repository, ITenantContext? tenant)
-    : IQueryHandler<ListDistinctDataListLocalesQuery, Result<IReadOnlyList<string>>>
+    : IQueryHandler<ListDistinctDataListLocalesQuery, Result<IReadOnlyList<string>>>, IExplicitTenantBinding
 {
+    bool IExplicitTenantBinding.IsTenantBound => tenant is not null;
+
     /// <summary>Uses the repository's tenant scope when constructed directly.</summary>
     public ListDistinctDataListLocalesHandler(IDataListRepository repository) : this(repository, null) { }
 

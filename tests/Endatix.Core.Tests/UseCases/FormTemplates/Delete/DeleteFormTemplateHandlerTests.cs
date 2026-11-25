@@ -44,7 +44,7 @@ public class DeleteFormTemplateHandlerTests
             JsonData = SampleData.FORM_DEFINITION_JSON_DATA_1
         };
         var request = new DeleteFormTemplateCommand(1);
-
+        
         _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns(formTemplate);
 
@@ -59,11 +59,11 @@ public class DeleteFormTemplateHandlerTests
         result.Value.IsDeleted.Should().BeTrue();
 
         await _repository.Received(1).UpdateAsync(
-            Arg.Is<FormTemplate>(ft =>
-                ft.Id == formTemplate.Id &&
+            Arg.Is<FormTemplate>(ft => 
+                ft.Id == formTemplate.Id && 
                 ft.IsDeleted
             ),
             Arg.Any<CancellationToken>()
         );
     }
-}
+} 

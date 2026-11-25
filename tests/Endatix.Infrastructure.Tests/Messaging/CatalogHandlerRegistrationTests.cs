@@ -17,6 +17,19 @@ namespace Endatix.Infrastructure.Tests.Messaging;
 public class CatalogHandlerRegistrationTests
 {
     [Fact]
+    public void Explicit_tenant_bound_catalog_instance_is_preserved()
+    {
+        var repository = Substitute.For<IRepository<DataList>>();
+        var handler = new ListDataListsHandler(repository, Substitute.For<ITenantContext>());
+        var services = new ServiceCollection();
+        services.AddSingleton<IRequestHandler<ListDataListsQuery, Result<Paged<DataListDto>>>>(handler);
+        services.AddMediatRMessaging();
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Same(handler, provider.GetRequiredService<IRequestHandler<ListDataListsQuery, Result<Paged<DataListDto>>>>());
+    }
+
+    [Fact]
     public void Resolve_locales_without_tenant_does_not_use_the_direct_repository()
     {
         var services = new ServiceCollection();
@@ -50,7 +63,9 @@ public class CatalogHandlerRegistrationTests
     public void Resolve_WithoutTenantContext_DoesNotActivateRepositoryOnlyHandler()
     {
         var services = new ServiceCollection();
-        services.AddSingleton(Substitute.For<IRepository<DataList>>());
+        var repository = Substitute.For<IRepository<DataList>>();
+        services.AddSingleton(repository);
+        services.AddSingleton<IRequestHandler<ListDataListsQuery, Result<Paged<DataListDto>>>>(new ListDataListsHandler(repository));
         services.AddMediatRMessaging();
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
