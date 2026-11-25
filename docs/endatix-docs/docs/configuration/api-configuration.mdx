@@ -100,13 +100,13 @@ Configure API versioning in your `appsettings.json`:
 
 ## API docs
 
-The API serves its OpenAPI document and an interactive reference built with [Scalar](https://scalar.com):
+The API serves its OpenAPI document, an interactive reference built with [Scalar](https://scalar.com), and Swagger UI:
 
 | What | Path |
 | --- | --- |
 | API docs page (Scalar) | `/api-docs` |
+| Swagger UI | `/swagger` |
 | OpenAPI document | `/swagger/alpha-version/swagger.json` |
-| Swagger UI (off by default) | `/swagger` |
 
 Scalar reads the document, lists every endpoint, and sends requests from the page. To call an endpoint that needs a
 signed-in user, open **Authentication**, choose `JWTBearerAuth`, and paste an access token. The page never fills in a
@@ -118,50 +118,72 @@ Configure the docs in `appsettings.json`:
 {
   "Endatix": {
     "Api": {
-      "UseSwagger": true,
-      "ApiDocsPath": "/api-docs",
-      "UseSwaggerUi": false
+      "Docs": {
+        "Enabled": true,
+        "Path": "/api-docs",
+        "SwaggerUi": {
+          "Enabled": true,
+          "Path": "/swagger"
+        }
+      }
     }
   }
 }
 ```
 
 <Settings>
-<Setting name="Endatix:Api:UseSwagger" default="true">
-Serves the OpenAPI document, the API docs page, and Swagger UI when it is on. `false` turns all of them off.
+<Setting name="Endatix:Api:Docs:Enabled" default="true">
+Serves the OpenAPI document, the API docs page, and Swagger UI. `false` turns all of them off.
 </Setting>
-<Setting name="Endatix:Api:ApiDocsPath" default="/api-docs">
-The path of the API docs page. It must start with `/`. An empty value or `/` serves the page at `/api-docs`, logs a
-warning at startup, and redirects `/` to the page. The old Swagger UI address, `index.html` under the page (such as
-`/api-docs/index.html`), redirects to the page too.
+<Setting name="Endatix:Api:Docs:Path" default="/api-docs">
+The path of the API docs page. It must start with `/`. An empty value or `/` serves the page at `/api-docs` and logs a
+warning at startup. The root `/` then redirects to the page, unless your app maps its own `GET /`, which always wins.
 </Setting>
-<Setting name="Endatix:Api:SwaggerPath" status="deprecated" replacedBy="Endatix:Api:ApiDocsPath">
-The old name of `ApiDocsPath`. It still works when `ApiDocsPath` is not set. When both are set to different paths,
-`ApiDocsPath` wins and the API logs a warning at startup. Rename the key to `ApiDocsPath`.
+<Setting name="Endatix:Api:Docs:SwaggerUi:Enabled" default="true">
+Serves Swagger UI. It is on by default in this release and turns off by default in the next one. While it is not set,
+the API logs one line at startup about the change. Set it to `true` to keep Swagger UI, or to `false` to turn it off
+now.
 </Setting>
-<Setting name="Endatix:Api:UseSwaggerUi" default="false">
-Also serves Swagger UI at `/swagger`. It needs `UseSwagger`.
+<Setting name="Endatix:Api:Docs:SwaggerUi:Path" default="/swagger">
+The path of Swagger UI. It must start with `/`.
+</Setting>
+<Setting name="Endatix:Api:UseSwagger" status="deprecated" replacedBy="Endatix:Api:Docs:Enabled">
+The old name of `Docs:Enabled`. It still works when `Docs:Enabled` is not set. When both are set to different values,
+`Docs:Enabled` wins and the API logs a warning at startup.
+</Setting>
+<Setting name="Endatix:Api:SwaggerPath" status="deprecated" replacedBy="Endatix:Api:Docs:Path">
+The old name of `Docs:Path`. It still works when `Docs:Path` is not set. When both are set to different paths,
+`Docs:Path` wins and the API logs a warning at startup.
 </Setting>
 </Settings>
 
-### Bring back Swagger UI
+### Swagger UI during the move to Scalar
 
-Earlier releases showed Swagger UI at `/api-docs`. To keep using Swagger UI, turn it on and open `/swagger`:
+Earlier releases showed Swagger UI at `/api-docs`. This release shows Scalar there and keeps Swagger UI at `/swagger`.
+An old bookmark to `/api-docs/index.html` opens Swagger UI while it is on, and the API docs page once it is off.
+
+From the next release, Swagger UI is off unless you turn it on. To keep it, set the setting now:
 
 ```json
 {
   "Endatix": {
     "Api": {
-      "UseSwaggerUi": true
+      "Docs": {
+        "SwaggerUi": { "Enabled": true }
+      }
     }
   }
 }
 ```
 
-`/api-docs` keeps showing Scalar. `ApiDocsPath` cannot be `/swagger` while Swagger UI is on, since both pages would answer
-the same path. The API then refuses to start with `Swagger UI cannot serve at the API docs page '/swagger'`, and the
-message names the fix: set `ApiDocsPath` to another path such as `/api-docs`, move Swagger UI with `ConfigureSwaggerUi`
-(its `Path`), or turn `UseSwaggerUi` off.
+### When both pages ask for one path
+
+If Swagger UI and the API docs page ask for the same path, the API still starts. Swagger UI keeps the path, since that
+address showed Swagger UI before. The API docs page moves to `/api-docs`, or to `/scalar` when the shared path is
+`/api-docs`. A warning at startup names both paths. For example, `"SwaggerPath": "/swagger"` serves Swagger UI at
+`/swagger` and Scalar at `/api-docs`.
+
+To choose the paths yourself, set `Docs:Path` or `Docs:SwaggerUi:Path`.
 
 ## Rate Limiting
 
