@@ -53,9 +53,9 @@ public static class ApiServiceCollectionExtensions
         services.AddTransient<IConfigureOptions<ApiOptions>>(provider =>
         {
             var config = provider.GetRequiredService<IOptions<ApiConfigurationOptions>>().Value;
-            var useSwaggerSet = IsUseSwaggerSet(configuration);
+            var legacy = LegacyDocsKeys.Read(configuration);
             return new ConfigureNamedOptions<ApiOptions>(
-                Options.DefaultName, options => MapApiOptions(config, useSwaggerSet, options));
+                Options.DefaultName, options => MapApiOptions(config, legacy, options));
         });
 
         return services;
@@ -65,7 +65,7 @@ public static class ApiServiceCollectionExtensions
     /// Maps the docs settings: each nested <c>Docs</c> key wins over its legacy key, and a pair set to different values
     /// is recorded, so the API docs warn about it at startup.
     /// </summary>
-    private static void MapApiOptions(ApiConfigurationOptions config, bool useSwaggerSet, ApiOptions options)
+    private static void MapApiOptions(ApiConfigurationOptions config, LegacyDocsKeys legacy, ApiOptions options)
     {
         var docs = config.Docs;
         options.Docs.Enabled = docs.Enabled ?? config.UseSwagger;
@@ -73,33 +73,25 @@ public static class ApiServiceCollectionExtensions
         {
             options.Docs.Path = docs.Path;
         }
-        else if (config.SwaggerPath is not null)
+        else if (legacy.SwaggerPath is not null)
         {
-            options.SwaggerPath = config.SwaggerPath;
+            options.SwaggerPath = legacy.SwaggerPath;
         }
 
         options.Docs.SwaggerUi.Enabled = docs.SwaggerUi.Enabled;
         options.Docs.SwaggerUi.Path = docs.SwaggerUi.Path;
-        options.Docs.Conflicts = DocsConflicts(config, useSwaggerSet);
+        options.Docs.Conflicts = DocsConflicts(config, legacy);
     }
 
-    /// <summary>
-    /// Whether the legacy <c>UseSwagger</c> key is in the configuration. Its property stays a <c>bool</c> that defaults
-    /// to <c>true</c>, its shipped signature, so only the raw key tells a set value from the default.
-    /// </summary>
-    private static bool IsUseSwaggerSet(IConfiguration configuration) =>
-        configuration.GetSection(EndatixOptionsBase.GetSectionName<ApiConfigurationOptions>())[
-            nameof(ApiConfigurationOptions.UseSwagger)] is not null;
-
-    private static List<ApiDocsSettingConflict> DocsConflicts(ApiConfigurationOptions config, bool useSwaggerSet)
+    private static List<ApiDocsSettingConflict> DocsConflicts(ApiConfigurationOptions config, LegacyDocsKeys legacy)
     {
         List<ApiDocsSettingConflict> conflicts = [];
-        if (useSwaggerSet && config.Docs.Enabled is { } enabled && enabled != config.UseSwagger)
+        if (legacy.UseSwaggerSet && config.Docs.Enabled is { } enabled && enabled != config.UseSwagger)
         {
             conflicts.Add(new("Endatix:Api:Docs:Enabled", enabled.ToString(), "Endatix:Api:UseSwagger", config.UseSwagger.ToString()));
         }
 
-        if (config.Docs.Path is { } path && config.SwaggerPath is { } swaggerPath
+        if (config.Docs.Path is { } path && legacy.SwaggerPath is { } swaggerPath
             && !string.Equals(path, swaggerPath, StringComparison.Ordinal))
         {
             conflicts.Add(new(ApiDocsOptions.PATH_SETTING, path, ApiDocsOptions.SWAGGER_PATH_SETTING, swaggerPath));
@@ -322,5 +314,21 @@ public static class ApiServiceCollectionExtensions
         public string EnvironmentName => _environment.EnvironmentName;
 
         public bool IsDevelopment() => _environment.EnvironmentName == "Development";
+    }
+
+    /// <summary>
+    /// Which legacy docs keys the configuration holds, and the raw <c>SwaggerPath</c>. Their properties keep their
+    /// shipped defaults (<c>true</c> and <c>"/api-docs"</c>), so only the raw keys tell a set value from the default.
+    /// An empty value counts as set, so <c>SwaggerPath: ""</c> still asks for the root.
+    /// </summary>
+    private sealed record LegacyDocsKeys(bool UseSwaggerSet, string? SwaggerPath)
+    {
+        public static LegacyDocsKeys Read(IConfiguration configuration)
+        {
+            var section = configuration.GetSection(EndatixOptionsBase.GetSectionName<ApiConfigurationOptions>());
+            return new(
+                section[nameof(ApiConfigurationOptions.UseSwagger)] is not null,
+                section[nameof(ApiConfigurationOptions.SwaggerPath)]);
+        }
     }
 }

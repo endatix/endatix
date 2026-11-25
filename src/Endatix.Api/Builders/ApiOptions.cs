@@ -41,11 +41,11 @@ public class ApiOptions
 
     /// <summary>
     /// Gets or sets the path of the API docs page. Deprecated: use <see cref="ApiDocsOptions.Path"/> on
-    /// <see cref="Docs"/>, which this property reads and writes.
+    /// <see cref="Docs"/>, which this property writes. It reads that path, or "/api-docs" while it is unset.
     /// </summary>
     public string? SwaggerPath
     {
-        get => Docs.Path;
+        get => Docs.Path ?? ApiDocsOptions.DEFAULT_PATH;
         set => Docs.SetPath(value, ApiDocsOptions.SWAGGER_PATH_SETTING);
     }
 

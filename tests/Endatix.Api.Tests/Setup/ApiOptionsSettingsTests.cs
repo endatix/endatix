@@ -1,4 +1,5 @@
 using Endatix.Api.Builders;
+using Endatix.Api.Configuration;
 using Endatix.Api.Setup;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,23 @@ public sealed class ApiOptionsSettingsTests
         docs.SwaggerUi.Enabled.Should().BeNull();
         docs.SwaggerUi.Path.Should().BeNull();
         docs.Conflicts.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Fresh_options_read_the_shipped_swagger_path_default()
+    {
+        // Arrange
+        var options = new ApiOptions();
+        var configuration = new ApiConfigurationOptions();
+
+        // Act
+        string? optionsPath = options.SwaggerPath;
+        string? configurationPath = configuration.SwaggerPath;
+
+        // Assert
+        optionsPath.Should().Be("/api-docs");
+        configurationPath.Should().Be("/api-docs");
+        options.Docs.Path.Should().BeNull();
     }
 
     [Fact]

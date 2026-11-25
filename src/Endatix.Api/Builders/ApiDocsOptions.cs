@@ -8,6 +8,8 @@ public sealed class ApiDocsOptions
 {
     internal const string PATH_SETTING = "Endatix:Api:Docs:Path";
 
+    internal const string DEFAULT_PATH = "/api-docs";
+
     internal const string SWAGGER_PATH_SETTING = "Endatix:Api:SwaggerPath";
 
     private string? _path;

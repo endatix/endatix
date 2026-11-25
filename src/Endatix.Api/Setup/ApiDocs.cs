@@ -23,7 +23,7 @@ internal static class ApiDocs
     /// <summary>The JWT bearer scheme FastEndpoints adds to the document.</summary>
     internal const string BEARER_SCHEME = "JWTBearerAuth";
 
-    internal const string DEFAULT_PATH = "/api-docs";
+    internal const string DEFAULT_PATH = ApiDocsOptions.DEFAULT_PATH;
 
     /// <summary>Where Scalar serves when Swagger UI keeps <see cref="DEFAULT_PATH"/>.</summary>
     internal const string SCALAR_FALLBACK_PATH = "/scalar";

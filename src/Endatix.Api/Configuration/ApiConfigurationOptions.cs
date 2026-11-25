@@ -30,9 +30,10 @@ public class ApiConfigurationOptions : EndatixOptionsBase
 
     /// <summary>
     /// Gets or sets the path of the API docs page. Deprecated: use <c>Docs:Path</c>, which wins when both are set.
+    /// Defaults to "/api-docs"; it applies only when the key is in the configuration.
     /// </summary>
     [RegularExpression("^/.*", ErrorMessage = "Swagger path must start with '/'")]
-    public string? SwaggerPath { get; set; }
+    public string? SwaggerPath { get; set; } = "/api-docs";
 
     /// <summary>The <c>Endatix:Api:Docs</c> section.</summary>
     public sealed class DocsSection
