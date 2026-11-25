@@ -42,7 +42,7 @@ public sealed class CompileSchemaTests
         var response =
             await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
-        ProblemHttpResult? problem = response.Result as ProblemHttpResult;
+        var problem = response.Result as ProblemHttpResult;
         problem.Should().NotBeNull();
         problem!.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
@@ -62,7 +62,7 @@ public sealed class CompileSchemaTests
         var response =
             await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
-        Ok<CompileFormSchemaResponse>? ok = response.Result as Ok<CompileFormSchemaResponse>;
+        var ok = response.Result as Ok<CompileFormSchemaResponse>;
         ok.Should().NotBeNull();
         ok!.Value!.FormId.Should().Be(formId);
         ok.Value.FormDefinitionId.Should().Be(formDefinitionId);
@@ -88,7 +88,7 @@ public sealed class CompileSchemaTests
         var response =
             await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
-        Ok<CompileFormSchemaResponse>? ok = response.Result as Ok<CompileFormSchemaResponse>;
+        var ok = response.Result as Ok<CompileFormSchemaResponse>;
         ok.Should().NotBeNull();
 
         await _mediator.Received(1).Send(
@@ -108,7 +108,7 @@ public sealed class CompileSchemaTests
 
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
-        ProblemHttpResult? problem = response.Result as ProblemHttpResult;
+        var problem = response.Result as ProblemHttpResult;
         problem.Should().NotBeNull();
         problem!.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         await _mediator.DidNotReceive().Send(Arg.Any<CompileFormSchemaCommand>(), Arg.Any<CancellationToken>());
