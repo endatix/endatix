@@ -26,10 +26,14 @@ public sealed class UnlockUser(IMediator mediator)
             s.ExampleRequest = new UserIdRequest { UserId = 1 };
             s.Responses[200] = "User unlocked successfully.";
             s.Responses[404] = "User not found.";
+            s.Responses[403] = "The caller cannot unlock this user.";
+            s.Responses[503] = "Account standing is temporarily unavailable.";
         });
         Description(builder => builder
             .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable));
     }
 
     /// <inheritdoc />

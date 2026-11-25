@@ -735,7 +735,7 @@ public sealed class RoleGrantCeilingFlowTests(EndatixIntegrationWebHostFixture f
     private static Task<HttpClient> ManagerClientAsync(IntegrationTestWorld world, CancellationToken ct) =>
         world.AsAsync(TestPersona.CustomRole(MANAGER_ROLE), userName: MANAGER_USER, cancellationToken: ct);
 
-    private static async Task<HttpClient> UserManagerClientAsync(IntegrationTestWorld world, CancellationToken ct)
+    internal static async Task<HttpClient> UserManagerClientAsync(IntegrationTestWorld world, CancellationToken ct)
     {
         var tenantId = world.Tenants[0].Id;
         const string userManagerRole = "UserManagerOnly";
