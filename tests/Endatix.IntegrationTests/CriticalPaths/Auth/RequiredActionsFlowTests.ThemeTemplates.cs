@@ -51,14 +51,40 @@ public sealed partial class RequiredActionsFlowTests
     public async Task Template_permissions_describe_the_caller_for_existing_and_missing_ids()
     {
         var ct = TestContext.Current.CancellationToken;
-        await using var host = new ReportingWebHost(fixture, EnableStanding);
+        const string absentPath = "/api/access/form-templates/9223372036854775807";
+        var action = new MutableProvider("setup", "/setup") { Pending = false };
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton<IRequiredActionProvider>(action);
+            EnableStanding(services);
+        });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var template = await ManagedAsset.CreateAsync(client, "form-templates", ct);
         var existing = await client.GetFromJsonAsync<JsonElement>(template.Read, ct);
-        var absent = await client.GetFromJsonAsync<JsonElement>("/api/access/form-templates/9223372036854775807", ct);
+        using var admitted = await client.GetAsync(absentPath, ct);
+        Assert.Equal(HttpStatusCode.OK, admitted.StatusCode);
+        var absent = await admitted.Content.ReadFromJsonAsync<JsonElement>(ct);
         Assert.Equal("9223372036854775807", absent.GetProperty("templateId").GetString());
         Assert.True(JsonElement.DeepEquals(existing.GetProperty("permissions"), absent.GetProperty("permissions")));
+        var warm = await client.GetFromJsonAsync<JsonElement>(absentPath, ct);
+        Assert.Equal(absent.GetProperty("eTag").GetString(), warm.GetProperty("eTag").GetString());
+
+        action.Pending = true;
+        await InvalidateAsync(world, ct);
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        using var blocked = await client.GetAsync(absentPath, ct);
+        await AssertStandingRefusalAsync(blocked, me, ct);
+
+        using var restricted = await RestrictedUserAsync(world, ct);
+        var restrictedMe = await restricted.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        Assert.Equal("blocking", Assert.Single(restrictedMe.GetProperty("requiredActions").EnumerateArray()).GetProperty("severity").GetString());
+        using var denied = await restricted.GetAsync(absentPath, ct);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        var ordinary = await denied.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.Equal("You are not authorized to access this form template.", ordinary.GetProperty("detail").GetString());
+        Assert.False(ordinary.TryGetProperty("requiredActions", out _));
+        Assert.False(ordinary.TryGetProperty("errorCode", out _));
     }
 
     private sealed record ManagedAsset(string Collection, string Id)

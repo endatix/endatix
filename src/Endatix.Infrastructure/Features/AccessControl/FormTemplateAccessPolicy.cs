@@ -44,13 +44,11 @@ public sealed class FormTemplateAccessPolicy(
     private async Task<Result<ICachedData<FormTemplateAccessData>>> ReadAsync(Grant grant, CancellationToken ct)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
-        var ttl = grant.Auth.ComputeAuthTtl(now);
+        var lifetime = new PermissionCacheLifetime(grant.Auth, now);
         var entry = await cache.GetOrCreateAsync(grant.Key,
-            _ => ValueTask.FromResult(new Cached<FormTemplateAccessData>(grant.Permissions(), now, ttl)),
-            new HybridCacheEntryOptions { Expiration = ttl }, tags: ["permissions", $"template:{grant.Id}"], cancellationToken: ct);
-        var deadline = grant.Auth.ExpiresAt;
-        return Result.Success<ICachedData<FormTemplateAccessData>>(deadline != default && deadline < entry.ExpiresAt
-            ? entry with { ExpiresAt = deadline } : entry);
+            _ => ValueTask.FromResult(new Cached<FormTemplateAccessData>(grant.Permissions(), now, lifetime.Ttl)),
+            new HybridCacheEntryOptions { Expiration = lifetime.Ttl }, tags: ["permissions", $"template:{grant.Id}"], cancellationToken: ct);
+        return Result.Success<ICachedData<FormTemplateAccessData>>(lifetime.Cap(entry));
     }
 
     private sealed record Grant(long Id, AuthorizationData Auth, AccessLevel Level)
