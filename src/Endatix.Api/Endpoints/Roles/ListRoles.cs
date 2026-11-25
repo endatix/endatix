@@ -28,6 +28,7 @@ public sealed class ListRoles(IMediator mediator)
         Permissions(Actions.Tenant.ViewRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "List roles";
             s.Description =
                 "Retrieves roles with paging, optional role type filtering (all, system, custom), and sort.";
@@ -41,7 +42,7 @@ public sealed class ListRoles(IMediator mediator)
             s.Responses[200] = "Roles retrieved successfully.";
             s.Responses[400] = "Invalid request.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<ListRolesResponse>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

@@ -21,7 +21,7 @@ public class DeleteRoleHandler(IRoleManagementService roleManagementService) : I
 
         if (!result.IsSuccess)
         {
-            return result;
+            return result.ToErrorResult<string>();
         }
 
         return Result.Success($"Role '{request.RoleName}' successfully deleted.");

@@ -25,6 +25,7 @@ public sealed class GetById(IMediator mediator)
         Permissions(Actions.Tenant.ViewUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Get user by ID";
             s.Description = "Gets a single user for the current tenant, including assigned role names.";
             s.ExampleRequest = new GetUserByIdRequest { UserId = 1507759960832868352L };
@@ -32,7 +33,7 @@ public sealed class GetById(IMediator mediator)
             s.Responses[400] = "Invalid user ID.";
             s.Responses[404] = "User not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<GetUserByIdResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

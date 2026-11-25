@@ -23,6 +23,7 @@ public sealed class ResendUserInvitation(IMediator mediator)
         Permissions(Actions.Tenant.InviteUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Resend user invite email";
             s.Description = "Resends the activation invitation email to a pending user.";
             s.ExampleRequest = new UserIdRequest { UserId = 1 };
@@ -30,7 +31,7 @@ public sealed class ResendUserInvitation(IMediator mediator)
             s.Responses[400] = "Invalid request or user already verified.";
             s.Responses[404] = "User not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

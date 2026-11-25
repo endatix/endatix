@@ -23,13 +23,14 @@ public sealed class RemoveUserAccess(IMediator mediator)
         Permissions(Actions.Tenant.ManageUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Remove user access";
             s.Description = "Removes the user's access to the current tenant without deleting their global identity.";
             s.ExampleRequest = new UserIdRequest { UserId = 1 };
             s.Responses[200] = "User access removed successfully.";
             s.Responses[404] = "User not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status404NotFound));
     }

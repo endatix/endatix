@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Submissions;
+using Endatix.Infrastructure.Identity.Users;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -50,6 +51,7 @@ public static class MessagingConfiguration
             mediatRAssemblies = [.. mediatRAssemblies, .. options.AdditionalAssemblies];
         }
 
+        TeammateRegistration.AddInviteHandler(services);
         services.AddMediatR(config =>
         {
             config.RegisterServicesFromAssemblies(mediatRAssemblies);

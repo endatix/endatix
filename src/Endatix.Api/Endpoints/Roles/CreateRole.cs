@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Identity.CreateRole;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.Identity.CreateRole;
-using Endatix.Api.Infrastructure;
 
 namespace Endatix.Api.Endpoints.Roles;
 
@@ -23,12 +23,13 @@ public class CreateRole(IMediator mediator)
         Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Create a new role with permissions";
             s.Description = "Creates a new role for the current tenant with the specified permissions. Admin-only access.";
             s.Responses[201] = "Role created successfully.";
             s.Responses[400] = "Invalid request or role creation failed.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<CreateRoleResponse>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

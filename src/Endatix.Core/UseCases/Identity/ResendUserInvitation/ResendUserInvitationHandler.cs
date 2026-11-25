@@ -1,4 +1,6 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Entities.Identity;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
@@ -16,7 +18,8 @@ public sealed class ResendUserInvitationHandler(
     IEmailVerificationService emailVerificationService,
     IEmailSender emailSender,
     IEmailTemplateService emailTemplateService,
-    ILogger<ResendUserInvitationHandler> logger) : ICommandHandler<ResendUserInvitationCommand, Result>
+    ILogger<ResendUserInvitationHandler> logger,
+    AccountStanding standing) : ICommandHandler<ResendUserInvitationCommand, Result>
 {
     /// <inheritdoc/>
     public async Task<Result> Handle(ResendUserInvitationCommand request, CancellationToken cancellationToken)
@@ -37,7 +40,12 @@ public sealed class ResendUserInvitationHandler(
             return Result.Invalid(new ValidationError("The user has already verified their email."));
         }
 
-        var tokenResult = await emailVerificationService.CreateVerificationTokenAsync(userResult.Value.Id, cancellationToken);
+        return await standing.RefusalAsync(cancellationToken) ?? await SendInvitationAsync(userResult.Value, cancellationToken);
+    }
+
+    private async Task<Result> SendInvitationAsync(User user, CancellationToken cancellationToken)
+    {
+        var tokenResult = await emailVerificationService.CreateVerificationTokenAsync(user.Id, cancellationToken);
         if (!tokenResult.IsSuccess || tokenResult.Value is null)
         {
             return tokenResult.Status switch
@@ -50,27 +58,33 @@ public sealed class ResendUserInvitationHandler(
             };
         }
 
+        return await DeliverInvitationAsync(user.Email, tokenResult.Value.RawToken!, cancellationToken);
+    }
+
+    private async Task<Result> DeliverInvitationAsync(string email, string token, CancellationToken cancellationToken)
+    {
         try
         {
-            var emailModel = emailTemplateService.CreateInvitationEmail(
-                userResult.Value.Email,
-                tokenResult.Value.RawToken!);
+            var emailModel = emailTemplateService.CreateInvitationEmail(email, token);
 
             await emailSender.SendEmailAsync(emailModel, cancellationToken);
-            logger.LogInformation(
-                "Invitation email resent successfully to {Email}",
-                PiiRedactor.RedactEmail(userResult.Value.Email));
+            LogDelivery(email);
 
             return Result.Success();
         }
         catch (Exception ex)
         {
-            logger.LogError(
-                ex,
-                "Failed to resend invitation email to {Email}",
-                PiiRedactor.RedactEmail(userResult.Value.Email));
+            logger.LogError(ex, "Failed to resend invitation email to {Email}", PiiRedactor.RedactEmail(email));
 
             return Result.Error("Failed to resend invitation email.");
+        }
+    }
+
+    private void LogDelivery(string email)
+    {
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Invitation email resent successfully to {Email}", PiiRedactor.RedactEmail(email));
         }
     }
 }

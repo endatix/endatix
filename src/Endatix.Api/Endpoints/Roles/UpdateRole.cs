@@ -24,6 +24,7 @@ public sealed class UpdateRole(IMediator mediator)
         Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Update a role";
             s.Description = "Updates an existing role's description and permission assignments.";
             s.ExampleRequest = new UpdateRoleRequest
@@ -36,7 +37,7 @@ public sealed class UpdateRole(IMediator mediator)
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Role not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<UpdateRoleResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

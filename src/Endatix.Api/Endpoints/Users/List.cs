@@ -28,6 +28,7 @@ public sealed class List(IMediator mediator)
         Permissions(Actions.Tenant.ViewUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "List users";
             s.Description =
                 "Lists users for the current tenant with paging, search, role/status filters, " +
@@ -45,7 +46,7 @@ public sealed class List(IMediator mediator)
             s.Responses[200] = "Users retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<ListUsersResponse>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

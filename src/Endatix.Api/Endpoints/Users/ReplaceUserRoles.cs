@@ -24,13 +24,14 @@ public sealed class ReplaceUserRoles(IMediator mediator)
         Permissions(Actions.Tenant.ManageRoles);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Replace user roles";
             s.Description = "Replaces the user's editable tenant role set in one atomic operation.";
             s.Responses[200] = "User roles updated successfully.";
             s.Responses[400] = "Invalid request or role replacement failed.";
             s.Responses[404] = "User not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

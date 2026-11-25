@@ -23,13 +23,14 @@ public sealed class CancelUserInvite(IMediator mediator)
         Permissions(Actions.Tenant.InviteUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Cancel a pending user invite";
             s.Description = "Cancels a pending invitation for a tenant user by user ID.";
             s.ExampleRequest = new UserIdRequest { UserId = 1 };
             s.Responses[200] = "Invite cancelled successfully.";
             s.Responses[404] = "User or invite not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status404NotFound));
     }

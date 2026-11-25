@@ -26,6 +26,7 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
         Permissions(Actions.Tenant.InviteUsers);
         Summary(s =>
         {
+            s.DescribeStandingProblems();
             s.Summary = "Invite a user";
             s.Description = "Creates or reattaches a tenant user and sends an activation email when needed.";
             s.ExampleRequest = new InviteUserRequest
@@ -36,7 +37,7 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
             s.Responses[200] = "User invited successfully.";
             s.Responses[400] = "Invalid input data.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<InviteUserResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

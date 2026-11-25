@@ -14,7 +14,7 @@ namespace Endatix.Infrastructure.Identity.Users;
 /// <summary>
 /// Implements the user registration service.
 /// </summary>
-public sealed class AppUserRegistrationService(
+public sealed partial class AppUserRegistrationService(
     UserManager<AppUser> userManager,
     IUserStore<AppUser> userStore,
     IEmailVerificationService emailVerificationService,
@@ -184,27 +184,21 @@ public sealed class AppUserRegistrationService(
         bool isAnonymous,
         CancellationToken cancellationToken)
     {
-        if (!userManager.SupportsUserEmail)
+        var target = await ResolveRegistrationTargetAsync(email, tenantId, isAnonymous);
+        return target.Refusal ?? await RegisterEligibleUserAsync(target, password, isEmailConfirmed, sendInvitationEmail, cancellationToken);
+    }
+
+    private async Task<Result<User>> RegisterEligibleUserAsync(RegistrationTarget target, string password, bool isEmailConfirmed, bool sendInvitationEmail, CancellationToken cancellationToken)
+    {
+        if (target.Existing is not null)
         {
-            throw new NotSupportedException($"Registration logic requires a user store with email support. Please check your email settings");
+            return await HandleExistingUserAsync(target.Existing, target.Email, target.TenantId, sendInvitationEmail, cancellationToken);
         }
 
-        var emailGuard = ValidateRegistrationEmail(email);
-        if (!emailGuard.IsSuccess)
-        {
-            return emailGuard.ToErrorResult<User>();
-        }
-
-        var normalizedEmail = email.Trim();
-        var existingUser = await userManager.FindByEmailAsync(normalizedEmail);
-        if (existingUser is not null)
-        {
-            return await HandleExistingUserAsync(existingUser, normalizedEmail, tenantId, sendInvitationEmail, isAnonymous, cancellationToken);
-        }
-
+        var normalizedEmail = target.Email;
         var newUser = new AppUser
         {
-            TenantId = tenantId,
+            TenantId = target.TenantId,
             EmailConfirmed = isEmailConfirmed
         };
 
@@ -257,26 +251,11 @@ public sealed class AppUserRegistrationService(
         string email,
         long tenantId,
         bool sendInvitationEmail,
-        bool isAnonymous,
         CancellationToken cancellationToken)
     {
-        if (existingUser.TenantId > 0 && existingUser.TenantId != tenantId)
-        {
-            return isAnonymous
-                ? ExistingAccountSuppressed(email)
-                : Result.Invalid(new ValidationError(EMAIL_ALREADY_REGISTERED_MESSAGE));
-        }
-
         if (existingUser.TenantId != tenantId)
         {
             return await AttachExistingUserToTenantAsync(existingUser, email, tenantId, sendInvitationEmail, cancellationToken);
-        }
-
-        if (existingUser.EmailConfirmed)
-        {
-            return isAnonymous
-                ? ExistingAccountSuppressed(email)
-                : Result.Invalid(new ValidationError(USER_ALREADY_BELONGS_TO_TENANT_MESSAGE));
         }
 
         await SendAccountEmailAsync(existingUser.Id, email, sendInvitationEmail, cancellationToken);
