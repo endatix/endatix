@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.Data;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -25,8 +26,11 @@ namespace Endatix.Core.UseCases.Submissions.DeleteTests;
 public sealed class DeleteTestSubmissionsHandler(
     IRepository<Submission> submissions,
     IRepository<Form> forms,
-    IUnitOfWork unitOfWork) : ICommandHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>
+    IUnitOfWork unitOfWork, AccountStanding standing) : ICommandHandler<DeleteTestSubmissionsCommand, Result<DeletedTestSubmissions>>
 {
+    public DeleteTestSubmissionsHandler(IRepository<Submission> submissions, IRepository<Form> forms, IUnitOfWork unitOfWork)
+        : this(submissions, forms, unitOfWork, new AccountStanding()) { }
+
     /// <summary>Submissions loaded and saved per round trip, which bounds each query and each save.</summary>
     internal const int PAGE_SIZE = 500;
 
@@ -48,6 +52,11 @@ public sealed class DeleteTestSubmissionsHandler(
         if (!await FormExistsAsync(request.TenantId, request.FormId, cancellationToken))
         {
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
+        }
+
+        if (await standing.RefusalAsync<DeletedTestSubmissions>(cancellationToken) is { } refusal)
+        {
+            return refusal;
         }
 
         var deleted = await DeleteAllAsync(request.TenantId, request.FormId, cancellationToken);
@@ -128,7 +137,9 @@ public sealed class DeleteTestSubmissionsHandler(
     }
 
     private async Task<bool> FormExistsAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
-        await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdForTenant(formId, tenantId), cancellationToken) is not null;
+        standing.IsEnforced
+            ? await forms.AnyAsync(new FormSpecifications.ByIdForTenant(formId, tenantId), cancellationToken)
+            : await forms.FirstOrDefaultAsync(new FormSpecifications.ByIdForTenant(formId, tenantId), cancellationToken) is not null;
 
     /// <summary>Where the next page starts: after <paramref name="AfterId"/>, or at the start for 0.</summary>
     private sealed record PageStart(long TenantId, long FormId, long AfterId);

@@ -6,7 +6,7 @@ namespace Endatix.Api.Endpoints.Submissions;
 public record UpdateStatusRequest(
     long SubmissionId,
     long FormId,
-    string Status)
+    string Status) : IManagedSubmissionTarget
 {
     /// <summary>
     /// The ID of the submission to update.

@@ -3,8 +3,10 @@
 /// <summary>
 /// Request model for updating a form submission.
 /// </summary>
-public class UpdateSubmissionRequest
+public class UpdateSubmissionRequest : IManagedSubmissionTarget
 {
+    string IManagedSubmissionTarget.MissingMessage => "Form submission not found.";
+
     /// <summary>
     /// The ID the submission that will be updated
     /// </summary>

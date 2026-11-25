@@ -20,6 +20,7 @@ public class UpdateStatus(IMediator mediator) : Endpoint<UpdateStatusRequest, Re
     {
         Post("forms/{formId}/submissions/{submissionId}/status");
         Permissions(Actions.Submissions.Edit);
+        PreProcessor<ManagedSubmissionStanding<UpdateStatusRequest>>();
         Summary(s =>
         {
             s.Summary = "Update submission status";

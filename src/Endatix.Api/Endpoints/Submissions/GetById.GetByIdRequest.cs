@@ -3,7 +3,7 @@
 /// <summary>
 /// Request model for getting a form submission by ID.
 /// </summary>
-public class GetByIdRequest
+public class GetByIdRequest : IManagedSubmissionTarget
 {
     /// <summary>
     /// The ID of the form.

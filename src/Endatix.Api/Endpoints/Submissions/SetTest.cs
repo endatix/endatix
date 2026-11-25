@@ -1,3 +1,5 @@
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
@@ -22,6 +24,7 @@ public class SetTest(IMediator mediator, ITenantContext tenantContext) : Endpoin
         // submissions.edit too: marking a real submission as test hides it from exports and frees the person's link,
         // which forms.test alone, a permission for testers, must not allow.
         PermissionsAll(Actions.Forms.Test, Actions.Submissions.Edit);
+        PreProcessor<ManagedSubmissionStanding<SetSubmissionTestRequest>>();
         Summary(s =>
         {
             s.Summary = "Mark a submission as test or real";
@@ -66,8 +69,11 @@ public class SetTest(IMediator mediator, ITenantContext tenantContext) : Endpoin
 /// <summary>
 /// Request to mark a submission as test or real.
 /// </summary>
-public sealed class SetSubmissionTestRequest
+public sealed class SetSubmissionTestRequest : IManagedSubmissionTarget
 {
+    Task<Result?> IManagedSubmissionTarget.CheckAsync(ManagedSubmissionAccess access, CancellationToken ct) =>
+        access.TestTargetAsync((FormId, SubmissionId), ct);
+
     /// <summary>The form the submission belongs to.</summary>
     public long FormId { get; init; }
 

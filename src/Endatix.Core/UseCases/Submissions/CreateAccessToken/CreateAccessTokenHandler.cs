@@ -14,10 +14,13 @@ namespace Endatix.Core.UseCases.Submissions.CreateAccessToken;
 public class CreateAccessTokenHandler(
     IRepository<Submission> submissionRepository,
     ISubmissionAccessTokenService tokenService,
-    ICurrentUserAuthorizationService authorizationService
+    ICurrentUserAuthorizationService authorizationService, ManagedSubmissionAccess? access
     ) : ICommandHandler<CreateAccessTokenCommand, Result<SubmissionAccessTokenDto>>
 {
     private const string SUBMISSIONS_PREFIX = "submissions.";
+
+    public CreateAccessTokenHandler(IRepository<Submission> submissionRepository, ISubmissionAccessTokenService tokenService,
+        ICurrentUserAuthorizationService authorizationService) : this(submissionRepository, tokenService, authorizationService, null) { }
 
     public async Task<Result<SubmissionAccessTokenDto>> Handle(CreateAccessTokenCommand request, CancellationToken cancellationToken)
     {
@@ -30,17 +33,18 @@ public class CreateAccessTokenHandler(
             }
         }
 
-        var submissionSpec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
-        var submission = await submissionRepository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
+        var refusal = await CheckTargetAsync(request, cancellationToken);
+        return refusal is null ? tokenService.GenerateAccessToken(request.SubmissionId, request.ExpiryMinutes, request.Permissions)
+            : refusal.ToErrorResult<SubmissionAccessTokenDto>();
+    }
 
-        if (submission == null)
+    private async Task<Result?> CheckTargetAsync(CreateAccessTokenCommand request, CancellationToken ct)
+    {
+        if (access is { IsEnforced: true })
         {
-            return Result.NotFound("Submission not found");
+            return await access.TokenAsync((request.FormId, request.SubmissionId), ct);
         }
-
-        return tokenService.GenerateAccessToken(
-            request.SubmissionId,
-            request.ExpiryMinutes,
-            request.Permissions);
+        var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
+        return await submissionRepository.SingleOrDefaultAsync(spec, ct) is null ? Result.NotFound("Submission not found") : null;
     }
 }

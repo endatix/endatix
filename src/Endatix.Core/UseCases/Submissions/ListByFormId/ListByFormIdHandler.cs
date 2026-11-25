@@ -9,19 +9,31 @@ namespace Endatix.Core.UseCases.Submissions.ListByFormId;
 
 public class ListByFormIdHandler(
     IRepository<Submission> submissionsRepository,
-    IRepository<FormDefinition> formDefinitionsRepository
+    IRepository<FormDefinition> formDefinitionsRepository, ManagedSubmissionAccess? access
     ) : IQueryHandler<ListByFormIdQuery, Result<Paged<SubmissionDto>>>
 {
+    public ListByFormIdHandler(IRepository<Submission> submissionsRepository, IRepository<FormDefinition> formDefinitionsRepository)
+        : this(submissionsRepository, formDefinitionsRepository, null) { }
+
     public async Task<Result<Paged<SubmissionDto>>> Handle(ListByFormIdQuery request, CancellationToken cancellationToken)
     {
-        var formDefinitionsSpec = new FormDefinitionsByFormIdSpec(request.FormId);
-        var formDefinitionsExist = await formDefinitionsRepository.AnyAsync(formDefinitionsSpec, cancellationToken);
-
-        if (!formDefinitionsExist)
+        if (access is { IsEnforced: true })
+        {
+            if (await access.ListAsync(formDefinitionsRepository, request.FormId, cancellationToken) is { } refusal)
+            {
+                return refusal;
+            }
+        }
+        else if (!await formDefinitionsRepository.AnyAsync(new FormDefinitionsByFormIdSpec(request.FormId), cancellationToken))
         {
             return Result.NotFound("Form not found.");
         }
 
+        return await ReadPageAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<Paged<SubmissionDto>>> ReadPageAsync(ListByFormIdQuery request, CancellationToken cancellationToken)
+    {
         var pagingParams = new PagingParameters(request.Page, request.PageSize);
         var filterParams = new FilterParameters(request.FilterExpressions ?? Array.Empty<string>());
         var listFilter = new SubmissionsListFilter(

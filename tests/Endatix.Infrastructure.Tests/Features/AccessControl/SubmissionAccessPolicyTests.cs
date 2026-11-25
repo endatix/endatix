@@ -82,7 +82,7 @@ public sealed class SubmissionAccessPolicyTests
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
         var expectedExpiresAt = utcNow.Add(expectedTtl);
-        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
+        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:tenant:{tenantId}:user:{userId}:Edit";
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -130,7 +130,7 @@ public sealed class SubmissionAccessPolicyTests
             .Returns(Result.Success(authData));
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
-        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
+        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:tenant:{tenantId}:user:{userId}:View";
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);
@@ -177,7 +177,7 @@ public sealed class SubmissionAccessPolicyTests
             .Returns(Result.Success(authData));
 
         var expectedTtl = authData.ComputeAuthTtl(utcNow);
-        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:user:{userId}";
+        var expectedCacheKey = $"auth:sb_mgmt:form:{formId}:sub:{submissionId}:tenant:{tenantId}:user:{userId}:Edit";
 
         // Act
         var result = await _policy.GetAccessData(context, TestContext.Current.CancellationToken);

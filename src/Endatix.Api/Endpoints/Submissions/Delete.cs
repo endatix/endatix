@@ -23,6 +23,7 @@ public class Delete(IMediator mediator) : Endpoint<DeleteSubmissionRequest, Resu
     {
         Delete("forms/{formId}/submissions/{submissionId}");
         Permissions(Actions.Submissions.Delete, Actions.Submissions.DeleteOwned);
+        PreProcessor<ManagedSubmissionStanding<DeleteSubmissionRequest>>();
         Summary(s =>
         {
             s.Summary = "Delete a submission";

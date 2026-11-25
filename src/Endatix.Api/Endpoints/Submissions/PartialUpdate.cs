@@ -20,6 +20,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateSubmissio
     {
         Patch("forms/{formId}/submissions/{submissionId}");
         Permissions(Actions.Submissions.Edit);
+        PreProcessor<ManagedSubmissionStanding<PartialUpdateSubmissionRequest>>();
         Summary(s =>
         {
             s.Summary = "Update a form submission";

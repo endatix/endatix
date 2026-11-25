@@ -1,3 +1,4 @@
+using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
@@ -19,9 +20,13 @@ public sealed class SubmissionAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     IRepository<Submission> submissionRepository,
     HybridCache cache,
-    IDateTimeProvider dateTimeProvider
+    IDateTimeProvider dateTimeProvider, AccountStanding standing
 ) : IResourceAccessQuery<SubmissionAccessData, SubmissionAccessContext>
 {
+    public SubmissionAccessPolicy(ICurrentUserAuthorizationService authorizationService, IRepository<Submission> submissionRepository,
+        HybridCache cache, IDateTimeProvider dateTimeProvider)
+        : this(authorizationService, submissionRepository, cache, dateTimeProvider, new AccountStanding()) { }
+
     /// <inheritdoc/>
     public async Task<Result<ICachedData<SubmissionAccessData>>> GetAccessData(
         SubmissionAccessContext context,
@@ -34,35 +39,37 @@ public sealed class SubmissionAccessPolicy(
         }
 
         var authData = identityResult.Value;
-        var now = dateTimeProvider.Now.UtcDateTime;
-        var ttl = authData.ComputeAuthTtl(now);
-        var cacheKey =
-            $"auth:sb_mgmt:form:{context.FormId}:sub:{context.SubmissionId}:user:{authData.UserId}";
-
-        return await cache.GetOrCreateCachedResultAsync(
-            key: cacheKey,
-            factory: ct => ComputeResourceAccessAsync(context, authData, ct),
-            ttl: ttl,
-            utcNow: now,
-            tags: ["permissions", $"submission:{context.SubmissionId}"],
-            cancellationToken: cancellationToken
-        );
+        var spec = new SubmissionByFormIdAndSubmissionIdSpec(context.FormId, context.SubmissionId);
+        spec.Query.Where(s => s.TenantId == authData.TenantId && s.Form.TenantId == authData.TenantId);
+        if (!await submissionRepository.AnyAsync(spec, cancellationToken))
+        {
+            return Result.NotFound("Submission not found");
+        }
+        var access = AuthorizedAccess(authData);
+        if (!access.IsSuccess)
+        {
+            return access.ToErrorResult<ICachedData<SubmissionAccessData>>();
+        }
+        return standing.Refusal<ICachedData<SubmissionAccessData>>(authData)
+            ?? await ReadAsync(context, (authData, access.Value), cancellationToken);
     }
 
-    private async Task<Result<SubmissionAccessData>> ComputeResourceAccessAsync(
-        SubmissionAccessContext context,
-        AuthorizationData authData,
-        CancellationToken cancellationToken)
+    private async Task<Result<ICachedData<SubmissionAccessData>>> ReadAsync(SubmissionAccessContext context,
+        (AuthorizationData Auth, AccessLevel Level) access, CancellationToken ct)
     {
-        var relationResult = await ValidateSubmissionRelationAsync(
-            context.FormId,
-            context.SubmissionId,
-            cancellationToken);
-        if (!relationResult.IsSuccess)
-        {
-            return relationResult.ToErrorResult<SubmissionAccessData>();
-        }
+        var now = dateTimeProvider.Now.UtcDateTime;
+        var ttl = access.Auth.ComputeAuthTtl(now);
+        var cacheKey = $"auth:sb_mgmt:form:{context.FormId}:sub:{context.SubmissionId}:tenant:{access.Auth.TenantId}:user:{access.Auth.UserId}:{access.Level}";
+        var cached = await cache.GetOrCreateCachedResultAsync<SubmissionAccessData>(cacheKey,
+            _ => Task.FromResult(Result.Success(access.Level == AccessLevel.Edit
+                ? SubmissionAccessData.CreateWithEditAccess(context.FormId, context.SubmissionId)
+                : SubmissionAccessData.CreateWithViewAccess(context.FormId, context.SubmissionId))),
+            ttl, now, tags: ["permissions", $"submission:{context.SubmissionId}"], cancellationToken: ct);
+        return cached;
+    }
 
+    private static Result<AccessLevel> AuthorizedAccess(AuthorizationData authData)
+    {
         if (authData is null || authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
             return Result.Unauthorized("You are not authorized to access this submission.");
@@ -75,26 +82,9 @@ public sealed class SubmissionAccessPolicy(
 
         if (authData.HasPermission(Actions.Submissions.Edit))
         {
-            return SubmissionAccessData.CreateWithEditAccess(context.FormId, context.SubmissionId);
+            return AccessLevel.Edit;
         }
-
-        if (authData.HasPermission(Actions.Submissions.View))
-        {
-            return SubmissionAccessData.CreateWithViewAccess(context.FormId, context.SubmissionId);
-        }
-
-        return Result.Forbidden("You are not authorized to access this submission.");
-    }
-
-    private async Task<Result<bool>> ValidateSubmissionRelationAsync(
-        long formId,
-        long submissionId,
-        CancellationToken cancellationToken)
-    {
-        var spec = new SubmissionByFormIdAndSubmissionIdSpec(formId, submissionId);
-        var relationExists = await submissionRepository.AnyAsync(spec, cancellationToken);
-        return relationExists
-            ? Result.Success(true)
-            : Result.NotFound("Submission not found");
+        return authData.HasPermission(Actions.Submissions.View) ? Result.Success(AccessLevel.View)
+            : Result.Forbidden("You are not authorized to access this submission.");
     }
 }

@@ -19,6 +19,7 @@ public class GetSubmissionFiles(IMediator mediator, ILogger<GetSubmissionFiles> 
     {
         Post("forms/{formId}/submissions/{submissionId}/files");
         Permissions(Actions.Submissions.View);
+        PreProcessor<ManagedSubmissionStanding<GetSubmissionFilesRequest>>();
         Summary(s =>
         {
             s.Summary = "Download files for a submission";
