@@ -2,10 +2,13 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Attributes;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Reporting.Features.FormSchema;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -224,6 +227,62 @@ public sealed class RequiredActionsFlowTests(EndatixIntegrationWebHostFixture fi
     }
 
     [Fact]
+    public async Task Warm_form_permissions_expire_at_the_earlier_cache_or_standing_deadline()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var provider = new MutableProvider("notice", "/profile") { Severity = RequiredActionSeverity.Notice };
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton<IRequiredActionProvider>(provider);
+            EnableStanding(services);
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        const string route = "/api/access/forms/1";
+        var warm = await client.GetFromJsonAsync<JsonElement>(route, ct);
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        Assert.True(warm.GetProperty("expiresAt").GetDateTime() > deadline);
+
+        // Act
+        provider.BlockingFrom = deadline;
+        await InvalidateAsync(world, ct);
+        var shortened = await client.GetFromJsonAsync<JsonElement>(route, ct);
+        provider.BlockingFrom = null;
+        await InvalidateAsync(world, ct);
+        var restored = await client.GetFromJsonAsync<JsonElement>(route, ct);
+
+        // Assert
+        Assert.Equal(warm.GetProperty("eTag").GetString(), shortened.GetProperty("eTag").GetString());
+        Assert.Equal(deadline, shortened.GetProperty("expiresAt").GetDateTime());
+        Assert.Equal(warm.GetProperty("eTag").GetString(), restored.GetProperty("eTag").GetString());
+        Assert.Equal(warm.GetProperty("expiresAt").GetDateTime(), restored.GetProperty("expiresAt").GetDateTime());
+    }
+
+    [Fact]
+    public async Task Registered_account_operations_mark_only_the_resolvers_as_exempt()
+    {
+        // Arrange
+        await using var host = new ReportingWebHost(fixture);
+        var routes = host.Services.GetServices<EndpointDataSource>().SelectMany(source => source.Endpoints).OfType<RouteEndpoint>();
+
+        // Act / Assert
+        Assert.True(IsMarked("GET", "/api/auth/me"));
+        Assert.True(IsMarked("POST", "/api/auth/logout"));
+        Assert.True(IsMarked("POST", "/api/my-account/change-password"));
+        Assert.False(IsMarked("GET", "/api/access/forms/{formId}"));
+        Assert.False(IsMarked("POST", "/api/forms/{formId}/reporting/compile-schema"));
+
+        bool IsMarked(string method, string pattern)
+        {
+            var endpoint = Assert.Single(routes, e => e.RoutePattern.RawText == pattern &&
+                e.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods.Contains(method) == true);
+            var definition = Assert.IsType<FastEndpoints.EndpointDefinition>(endpoint.Metadata.GetMetadata<FastEndpoints.EndpointDefinition>());
+            return definition.EndpointAttributes?.OfType<AllowWithRequiredActionsAttribute>().Any() == true;
+        }
+    }
+
+    [Fact]
     public async Task Resolver_operations_require_sign_in_and_allow_a_pending_user_to_change_password_and_leave()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -341,12 +400,13 @@ public sealed class RequiredActionsFlowTests(EndatixIntegrationWebHostFixture fi
         public bool Pending { get; set; } = true;
         public string Key { get; init; } = "profile.complete";
         public RequiredActionSeverity Severity { get; init; } = RequiredActionSeverity.Blocking;
+        public DateTimeOffset? BlockingFrom { get; set; }
 
         public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<RequiredAction>>(Pending ? [new()
             {
                 Key = Key, ResolvePath = path,
-                Scope = RequiredActionScope.User, Severity = Severity
+                Scope = RequiredActionScope.User, Severity = Severity, BlockingFrom = BlockingFrom
             }] : []);
     }
 

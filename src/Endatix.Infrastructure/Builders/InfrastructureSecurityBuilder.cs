@@ -276,7 +276,6 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<AuthorizationTokenFingerprint>();
         Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
-        Services.AddScoped<AccountStanding>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
 

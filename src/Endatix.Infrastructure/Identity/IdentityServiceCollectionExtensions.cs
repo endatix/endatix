@@ -26,6 +26,7 @@ using Endatix.Infrastructure.Identity.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Endatix.Infrastructure.Identity;
 
@@ -38,6 +39,7 @@ public static class IdentityServiceCollectionExtensions
 
     private static void AddFormManagementAccess(IServiceCollection services)
     {
+        services.TryAddScoped<AccountStanding>();
         services.AddScoped<FormPermissionCache>();
         services.AddScoped(sp => new FormAccessPolicy(sp.GetRequiredService<ICurrentUserAuthorizationService>(),
             sp.GetRequiredService<FormPermissionCache>(), sp.GetRequiredService<AccountStanding>()));

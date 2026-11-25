@@ -79,7 +79,7 @@ internal sealed record AuthorizedForm(long Id, AccessLevel Access)
 
 internal sealed class FormPermissionCache(HybridCache cache, IDateTimeProvider dateTimeProvider)
 {
-    internal Task<Result<ICachedData<FormAccessData>>> ReadAsync(AuthorizedForm form, AuthorizationData authData,
+    internal async Task<Result<ICachedData<FormAccessData>>> ReadAsync(AuthorizedForm form, AuthorizationData authData,
         CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
@@ -87,13 +87,16 @@ internal sealed class FormPermissionCache(HybridCache cache, IDateTimeProvider d
 
         var cacheKey = $"auth:form_mgmt:{form.Id}:tenant:{authData.TenantId}:user:{authData.UserId}:{form.Access}";
 
-        return cache.GetOrCreateCachedResultAsync(
-            key: cacheKey,
-            factory: _ => Task.FromResult(Result.Success(form.Permissions())),
-            ttl: ttl,
-            utcNow: now,
+        var entry = await cache.GetOrCreateAsync(cacheKey,
+            _ => ValueTask.FromResult(new Cached<FormAccessData>(form.Permissions(), now, ttl)),
+            options: new HybridCacheEntryOptions { Expiration = ttl },
             tags: ["permissions", .. FormAccessCacheTags.ForFormAndAccess(form.Id)],
             cancellationToken: cancellationToken);
-    }
 
+        // A refreshed snapshot can shorten this caller's deadline without changing the cached permissions.
+        var deadline = authData.ExpiresAt;
+        return Result.Success<ICachedData<FormAccessData>>(deadline != default && deadline < entry.ExpiresAt
+            ? entry with { ExpiresAt = deadline }
+            : entry);
+    }
 }

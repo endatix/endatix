@@ -25,7 +25,7 @@ using Microsoft.Extensions.Options;
 
 namespace Endatix.Infrastructure.Tests.Builders;
 
-public class InfrastructureSecurityBuilderTests
+public partial class InfrastructureSecurityBuilderTests
 {
     private readonly InfrastructureBuilder _parentBuilder;
     private readonly ILoggerFactory _loggerFactory;
