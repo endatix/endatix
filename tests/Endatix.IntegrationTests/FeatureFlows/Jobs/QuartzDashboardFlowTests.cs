@@ -2,14 +2,18 @@ extern alias EndatixWebHost;
 
 using System.Data.Common;
 using System.Net;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using NSubstitute;
 
 namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 
@@ -22,7 +26,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Jobs;
 [Trait("Lane", "Jobs")]
 public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
-    private const string SeedPassword = "Password123!";
+    private const string SEED_PASSWORD = "Password123!";
 
     [Fact]
     public async Task Quartz_dashboard_is_unmapped_by_default()
@@ -30,7 +34,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         // Arrange
         var cancellationToken = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, cancellationToken);
         using var client = await world.AsAsync(TestPersona.PlatformAdmin, cancellationToken: cancellationToken);
 
         // Act
@@ -47,7 +51,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         var cancellationToken = TestContext.Current.CancellationToken;
         await using var host = new DashboardHost(fixture, allowWrites: false);
         var world = await host.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, cancellationToken);
         using var tenantAdmin = await world.AsAsync(TestPersona.TenantAdmin, cancellationToken: cancellationToken);
         using var anonymous = world.AnonymousClient();
 
@@ -60,36 +64,89 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
         asAnonymous.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
-    [Fact]
-    public async Task Quartz_dashboard_is_read_only_by_default()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Admitted_scheduler_requests_check_standing_once_and_respect_write_mode(bool allowWrites)
     {
         // Arrange — a job of a type no host handles, so its trigger stays waiting for the whole test.
         var cancellationToken = TestContext.Current.CancellationToken;
-        await using var host = new DashboardHost(fixture, allowWrites: false);
+        var snapshots = AdmittedSnapshots();
+        await using var host = new DashboardHost(fixture, allowWrites, snapshots);
         var world = await host.PrepareWorldAsync(
-            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SeedPassword }, cancellationToken);
-        long jobId;
-        await using (var scope = host.Services.CreateAsyncScope())
-        {
-            jobId = await scope.ServiceProvider.GetRequiredService<IBackgroundJobQueue>().EnqueueAsync(
-                new BackgroundJobRequest("DashboardReadOnlyProbe", "{}", world.SeedResult!.TenantIds[0]),
-                cancellationToken);
-        }
+            IntegrationWorldOptions.SingleTenant with { DefaultPassword = SEED_PASSWORD }, cancellationToken);
+        var jobId = await EnqueueWaitingJobAsync(host, world.SeedResult!.TenantIds[0], cancellationToken);
+        (await TriggerStateAsync(jobId, cancellationToken)).Should().Be("WAITING");
 
         using var platformAdmin = await world.AsAsync(TestPersona.PlatformAdmin, cancellationToken: cancellationToken);
+        snapshots.ClearReceivedCalls();
 
         // Act
         using var read = await platformAdmin.GetAsync(
             new Uri("/quartz-api/schedulers/endatix-jobs", UriKind.Relative), cancellationToken);
+        read.EnsureSuccessStatusCode();
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        snapshots.ClearReceivedCalls();
         using var response = await platformAdmin.PostAsync(
             new Uri($"/quartz-api/schedulers/endatix-jobs/triggers/DashboardReadOnlyProbe/{jobId}/pause", UriKind.Relative),
             content: null,
             cancellationToken);
 
-        // Assert — the platform admin may read, so the refusal is the read-only mode's, not authorization's.
-        read.StatusCode.Should().Be(HttpStatusCode.OK);
-        response.StatusCode.Should().BeOneOf(HttpStatusCode.Forbidden, HttpStatusCode.MethodNotAllowed);
-        (await TriggerStateAsync(jobId, cancellationToken)).Should().NotBe("PAUSED");
+        // Assert
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        if (allowWrites)
+        {
+            response.EnsureSuccessStatusCode();
+            (await TriggerStateAsync(jobId, cancellationToken)).Should().Be("PAUSED");
+        }
+        else
+        {
+            response.StatusCode.Should().BeOneOf(HttpStatusCode.Forbidden, HttpStatusCode.MethodNotAllowed);
+            (await TriggerStateAsync(jobId, cancellationToken)).Should().Be("WAITING");
+        }
+    }
+
+    private static async Task<long> EnqueueWaitingJobAsync(DashboardHost host, long tenantId, CancellationToken cancellationToken)
+    {
+        await using var scope = host.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IBackgroundJobQueue>().EnqueueAsync(
+            new BackgroundJobRequest("DashboardReadOnlyProbe", "{}", tenantId), cancellationToken);
+    }
+
+    private static ICurrentUserAuthorizationService AdmittedSnapshots()
+    {
+        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
+        snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success(AuthorizationData.ForAuthenticatedUser("operator", 1, [], [])));
+        return snapshots;
+    }
+
+    [Fact]
+    public async Task Scheduler_authorization_precedes_standing_and_static_assets_stay_open()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var snapshots = AdmittedSnapshots();
+        await using var host = new DashboardHost(fixture, allowWrites: false, snapshots);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var admin = await world.AsAsync(TestPersona.PlatformAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var member = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        snapshots.ClearReceivedCalls();
+
+        using var denied = await member.PostAsync("/quartz/hub/negotiate", null, ct);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        using var deniedApi = await member.GetAsync("/quartz-api/schedulers", ct);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedApi.StatusCode);
+        using var script = await admin.GetAsync("/_framework/blazor.web.js", ct);
+        Assert.Equal(HttpStatusCode.OK, script.StatusCode);
+        await snapshots.DidNotReceive().GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+
+        using var page = await admin.GetAsync("/quartz", ct);
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        snapshots.ClearReceivedCalls();
+        using var negotiation = await admin.PostAsync("/quartz/hub/negotiate", null, ct);
+        Assert.Equal(HttpStatusCode.OK, negotiation.StatusCode);
+        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -130,7 +187,7 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
     {
         private readonly WebApplicationFactory<EndatixWebHost::Program> _factory;
 
-        public DashboardHost(EndatixIntegrationWebHostFixture fixture, bool allowWrites)
+        public DashboardHost(EndatixIntegrationWebHostFixture fixture, bool allowWrites, ICurrentUserAuthorizationService? snapshots = null)
         {
             Database = fixture.Database;
             _factory = new EndatixWebApplicationFactory(fixture.Database.ConnectionString, fixture.Database.Provider)
@@ -141,6 +198,10 @@ public sealed class QuartzDashboardFlowTests(EndatixIntegrationWebHostFixture fi
                     // The host runs from build output, where no web root holds the assets yet: outside Development
                     // only publish copies them there, so without this they are found by route but not on disk.
                     builder.UseStaticWebAssets();
+                    if (snapshots is not null)
+                    {
+                        builder.ConfigureTestServices(services => services.AddTransient(_ => new AccountStanding(snapshots)));
+                    }
                 });
             Seed = new IntegrationSeedBuilder(_factory.Services);
         }
