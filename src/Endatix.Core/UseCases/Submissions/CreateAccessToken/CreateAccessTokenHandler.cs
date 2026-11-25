@@ -19,6 +19,8 @@ public class CreateAccessTokenHandler(
 {
     private const string SUBMISSIONS_PREFIX = "submissions.";
 
+    /// <summary>Retains the submission-with-definition lookup for direct callers. The managed HTTP route
+    /// uses <see cref="ManagedSubmissionAccess"/> to require a live parent form even when standing is dormant.</summary>
     public CreateAccessTokenHandler(IRepository<Submission> submissionRepository, ISubmissionAccessTokenService tokenService,
         ICurrentUserAuthorizationService authorizationService) : this(submissionRepository, tokenService, authorizationService, null) { }
 

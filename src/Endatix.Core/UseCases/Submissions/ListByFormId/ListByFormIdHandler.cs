@@ -12,6 +12,8 @@ public class ListByFormIdHandler(
     IRepository<FormDefinition> formDefinitionsRepository, ManagedSubmissionAccess? access
     ) : IQueryHandler<ListByFormIdQuery, Result<Paged<SubmissionDto>>>
 {
+    /// <summary>Retains the form-definition existence check for direct callers. The managed HTTP route
+    /// uses <see cref="ManagedSubmissionAccess"/> to require a live parent form even when standing is dormant.</summary>
     public ListByFormIdHandler(IRepository<Submission> submissionsRepository, IRepository<FormDefinition> formDefinitionsRepository)
         : this(submissionsRepository, formDefinitionsRepository, null) { }
 
