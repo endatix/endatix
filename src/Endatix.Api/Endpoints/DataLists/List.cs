@@ -98,7 +98,8 @@ public sealed class List(
     {
         var sort = request.ToSortRequest(DataListListSortBy.CreatedAt, SortDirection.Desc);
         return new(request.Page, request.PageSize, request.HasLocale, request.Search, sort.Field, sort.IsDescending,
-            request.ToCreatedRange(), request.ToModifiedRange()) { TenantId = tenant?.TenantId };
+            request.ToCreatedRange(), request.ToModifiedRange())
+        { TenantId = tenant?.TenantId };
     }
 }
 
