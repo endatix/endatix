@@ -35,12 +35,12 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
             s.Responses[404] = "Multi-tenancy is disabled, or the tenant was not found.";
             s.Responses[409] = "The session is already in the target tenant.";
             s.Responses[500] = "The session could not be persisted.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantSessionResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError));
@@ -54,7 +54,7 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
         if (!MultiTenancyGate.IsEnabled(configuration))
         {
             return TypedResultsBuilder
-                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DisabledMessage))
+                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DISABLED_MESSAGE))
                 .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
         }
 

@@ -30,11 +30,11 @@ public sealed class ExitAssume(IMediator mediator, IConfiguration configuration)
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Multi-tenancy is not enabled on this deployment.";
             s.Responses[500] = "The session could not be persisted.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantSessionResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status500InternalServerError));
     }
@@ -45,7 +45,7 @@ public sealed class ExitAssume(IMediator mediator, IConfiguration configuration)
         if (!MultiTenancyGate.IsEnabled(configuration))
         {
             return TypedResultsBuilder
-                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DisabledMessage))
+                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DISABLED_MESSAGE))
                 .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
         }
 

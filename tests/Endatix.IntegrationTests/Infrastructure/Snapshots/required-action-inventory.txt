@@ -56,15 +56,15 @@ core operation-dormant account GET /api/access/forms/{formId}
 core operation-dormant account POST /api/users/{userId}/lockout
 core operation-dormant account POST /api/users/{userId}/unlock
 
-core operation-pending#1825 platform-admin DELETE /api/admin/platform-admins/{userId}
+core operation-dormant platform-admin DELETE /api/admin/platform-admins/{userId}
 core operation-dormant account DELETE /api/roles/{roleName}
 core operation-dormant account DELETE /api/users/{userId}
 core operation-dormant account DELETE /api/users/{userId}/invite
-core operation-pending#1825 platform-admin GET /api/admin/email/templates
-core operation-pending#1825 platform-admin GET /api/admin/platform-admins
-core operation-pending#1825 account GET /api/admin/storage
-core operation-pending#1825 platform-admin GET /api/admin/tenants
-core operation-pending#1825 platform-admin GET /api/admin/tenants/{tenantId}
+core operation-dormant platform-admin GET /api/admin/email/templates
+core operation-dormant platform-admin GET /api/admin/platform-admins
+core operation-dormant account GET /api/admin/storage
+core operation-dormant platform-admin GET /api/admin/tenants
+core operation-dormant platform-admin GET /api/admin/tenants/{tenantId}
 core operation-dormant account GET /api/permissions
 core operation-dormant account GET /api/roles
 core operation-dormant account GET /api/tenant-branding
@@ -73,13 +73,13 @@ core operation-dormant account GET /api/tenant-settings
 core operation-dormant account GET /api/users
 core operation-dormant account GET /api/users/{userId}
 core operation-pending#1825 account GET /api/users/{userId}/roles
-core operation-pending#1825 platform-admin PATCH /api/admin/tenants/{tenantId}
+core operation-dormant platform-admin PATCH /api/admin/tenants/{tenantId}
 core operation-dormant account PATCH /api/tenant-settings
-core operation-pending#1825 platform-admin POST /api/admin/email/test
-core operation-pending#1825 platform-admin POST /api/admin/platform-admins/{userId}
-core operation-pending#1825 platform-admin POST /api/admin/tenants
-core operation-pending#1825 platform-admin POST /api/auth/assume-tenant
-core operation-pending#1825 platform-admin POST /api/auth/exit-assume
+core operation-dormant platform-admin POST /api/admin/email/test
+core operation-dormant platform-admin POST /api/admin/platform-admins/{userId}
+core operation-dormant platform-admin POST /api/admin/tenants
+core operation-dormant platform-admin POST /api/auth/assume-tenant
+core operation-dormant platform-admin POST /api/auth/exit-assume
 core operation-dormant account POST /api/roles
 core operation-dormant account POST /api/tenant-branding/reset
 core operation-dormant account POST /api/tenant-branding/restore
@@ -153,9 +153,9 @@ core operation-pending#1827 account POST /api/forms/{formId}/submissions/onbehal
 
 core operation-pending#1828 account POST /api/forms/{formId}/submissions/export
 
-core policy-pending#1825 platform-admin GET /api/admin/auth/settings
-core policy-pending#1825 platform-admin GET /api/admin/email/settings
-core policy-pending#1825 account GET /api/system/version
+core operation-dormant platform-admin GET /api/admin/auth/settings
+core operation-dormant platform-admin GET /api/admin/email/settings
+core operation-dormant account GET /api/system/version
 
 core policy-pending#1826 account GET /api/forms
 

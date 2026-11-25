@@ -1,4 +1,5 @@
 using System.Reflection;
+using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
 using FastEndpoints;
 using Microsoft.AspNetCore.Http;
@@ -12,11 +13,12 @@ namespace Endatix.Api.Endpoints.Application;
 /// </summary>
 public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionResponse>>
 {
-    private static readonly ProductVersionResponse Current = Read();
+    private static readonly ProductVersionResponse _current = Read();
     public override void Configure()
     {
         Get("system/version");
         Permissions(Actions.Access.Hub);
+        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "Get API version";
@@ -24,15 +26,15 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
             s.Responses[200] = "Version retrieved successfully.";
             s.Responses[401] = "Authentication required.";
             s.Responses[403] = "Hub access is required.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<ProductVersionResponse>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden));
+            .ProducesProblem(StatusCodes.Status401Unauthorized));
     }
 
     public override Task<Ok<ProductVersionResponse>> ExecuteAsync(CancellationToken ct) =>
-        Task.FromResult(TypedResults.Ok(Current));
+        Task.FromResult(TypedResults.Ok(_current));
 
     private static ProductVersionResponse Read()
     {
@@ -42,7 +44,7 @@ public sealed class GetVersion : EndpointWithoutRequest<Ok<ProductVersionRespons
             ?.InformationalVersion;
         var branch = assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => attribute.Key == BuildIdentity.BranchMetadataKey)
+            .FirstOrDefault(attribute => attribute.Key == BuildIdentity.BRANCH_METADATA_KEY)
             ?.Value;
 
         return BuildIdentity.From(informational, branch);
@@ -57,10 +59,10 @@ public sealed record ProductVersionResponse(string? Version, string? Branch, str
 internal static class BuildIdentity
 {
     /// <summary>Written by the <c>ResolveLocalVersion</c> target in <c>Directory.Build.props</c>.</summary>
-    public const string BranchMetadataKey = "GitBranch";
+    public const string BRANCH_METADATA_KEY = "GitBranch";
 
     /// <summary>The placeholder in <c>Directory.Build.props</c>; never a release.</summary>
-    private const string LocalVersionPrefix = "0.0.0";
+    private const string LOCAL_VERSION_PREFIX = "0.0.0";
 
     /// <summary>
     /// Splits an InformationalVersion such as <c>0.8.0+abc123</c> (SourceLink appends the commit) into the
@@ -70,7 +72,7 @@ internal static class BuildIdentity
     public static ProductVersionResponse From(string? informationalVersion, string? branch)
     {
         var (version, commit) = Split(informationalVersion);
-        var isRelease = version is not null && !version.StartsWith(LocalVersionPrefix, StringComparison.Ordinal);
+        var isRelease = version is not null && !version.StartsWith(LOCAL_VERSION_PREFIX, StringComparison.Ordinal);
 
         return new ProductVersionResponse(
             isRelease ? version : null,

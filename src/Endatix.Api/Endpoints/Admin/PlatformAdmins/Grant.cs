@@ -27,11 +27,11 @@ public sealed class Grant(IMediator mediator)
             s.Responses[400] = "Invalid request or role mutation failed.";
             s.Responses[403] = "The current user is not allowed to grant platform administrator access.";
             s.Responses[404] = "User not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<PlatformAdminOperation>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound));
     }
 

@@ -1,5 +1,5 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Tenants;
 using Endatix.Core.UseCases.Tenants.Update;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Data.Config;
@@ -20,6 +20,8 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class Update(IMediator mediator, IConfiguration configuration, HybridCache cache)
     : Endpoint<UpdateTenantRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
+    private readonly MultiTenancyGate _access = new(configuration, mediator);
+
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -42,11 +44,11 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
             s.Responses[400] = "Invalid input data.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Tenant not found, or multi-tenancy is not enabled on this deployment.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
@@ -55,20 +57,12 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
         UpdateTenantRequest request,
         CancellationToken ct)
     {
-        if (!MultiTenancyGate.IsEnabled(configuration))
+        var command = request.ToCommand();
+        if (await _access.RefusalAsync(new PlatformTenantAccess(command.TenantId, command.UpdatesRegistrationPolicy), ct) is { } refusal)
         {
-            return TypedResultsBuilder
-                .FromResult(Result<TenantModel>.NotFound(MultiTenancyGate.DisabledMessage))
-                .SetTypedResults<Ok<TenantModel>, ProblemHttpResult>();
+            return refusal;
         }
 
-        UpdateTenantCommand command = new(
-            request.TenantId,
-            request.Name,
-            request.Description,
-            request.AllowSelfRegistration,
-            request.AllowedAuthProviderKeys,
-            request.DefaultRegistrationRoleName);
         var result = await mediator.Send(command, ct);
         if (result.IsSuccess)
         {
@@ -86,6 +80,8 @@ public sealed class Update(IMediator mediator, IConfiguration configuration, Hyb
 /// </summary>
 public sealed class UpdateTenantRequest
 {
+    internal UpdateTenantCommand ToCommand() => new(TenantId, Name, Description, AllowSelfRegistration, AllowedAuthProviderKeys, DefaultRegistrationRoleName);
+
     /// <summary>
     /// The tenant to update.
     /// </summary>

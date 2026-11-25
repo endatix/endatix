@@ -28,11 +28,11 @@ public sealed class Revoke(IMediator mediator)
             s.Responses[403] = "The current user is not allowed to revoke platform administrator access.";
             s.Responses[404] = "User not found.";
             s.Responses[409] = "Revocation would leave the platform without an active platform administrator.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<PlatformAdminOperation>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict));
     }

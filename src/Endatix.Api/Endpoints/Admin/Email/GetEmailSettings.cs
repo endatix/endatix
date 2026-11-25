@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Email.GetSettings;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.Email.GetSettings;
 
 namespace Endatix.Api.Endpoints.Admin.Email;
 
@@ -21,14 +21,16 @@ public class GetEmailSettings(IMediator mediator)
     {
         Get("/admin/email/settings");
         Policies(SystemRole.PlatformAdmin.Name);
+        PreProcessor<AuthorizedAccountStanding<EmptyRequest>>();
         Summary(s =>
         {
             s.Summary = "Get email settings";
             s.Description = "Returns the active email provider settings.";
             s.Responses[200] = "Email settings retrieved successfully.";
             s.Responses[400] = "Invalid request or tenant context.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<EmailSettingsDto>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

@@ -1,5 +1,5 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Tenants;
 using Endatix.Core.UseCases.Tenants.GetById;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
@@ -17,6 +17,8 @@ namespace Endatix.Api.Endpoints.Admin.Tenants;
 public sealed class GetById(IMediator mediator, IConfiguration configuration)
     : Endpoint<GetTenantByIdRequest, Results<Ok<TenantModel>, ProblemHttpResult>>
 {
+    private readonly MultiTenancyGate _access = new(configuration, mediator);
+
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -33,10 +35,10 @@ public sealed class GetById(IMediator mediator, IConfiguration configuration)
             s.Responses[200] = "Tenant retrieved successfully.";
             s.Responses[403] = "The current user is not a platform administrator.";
             s.Responses[404] = "Tenant not found, or multi-tenancy is not enabled on this deployment.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<TenantModel>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
@@ -45,11 +47,9 @@ public sealed class GetById(IMediator mediator, IConfiguration configuration)
         GetTenantByIdRequest request,
         CancellationToken ct)
     {
-        if (!MultiTenancyGate.IsEnabled(configuration))
+        if (await _access.RefusalAsync(new PlatformTenantAccess(request.TenantId), ct) is { } refusal)
         {
-            return TypedResultsBuilder
-                .FromResult(Result<TenantModel>.NotFound(MultiTenancyGate.DisabledMessage))
-                .SetTypedResults<Ok<TenantModel>, ProblemHttpResult>();
+            return refusal;
         }
 
         GetTenantByIdQuery query = new(request.TenantId);

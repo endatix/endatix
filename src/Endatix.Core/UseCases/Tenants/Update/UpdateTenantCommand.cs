@@ -18,4 +18,9 @@ public sealed record UpdateTenantCommand(
     string? Description = null,
     bool? AllowSelfRegistration = null,
     IReadOnlyList<string>? AllowedAuthProviderKeys = null,
-    string? DefaultRegistrationRoleName = null) : ICommand<Result<TenantDto>>;
+    string? DefaultRegistrationRoleName = null) : ICommand<Result<TenantDto>>
+{
+    /// <summary>Whether applying the patch requires the tenant's settings row.</summary>
+    public bool UpdatesRegistrationPolicy => AllowSelfRegistration.HasValue
+        || AllowedAuthProviderKeys is not null || DefaultRegistrationRoleName is not null;
+}

@@ -19,10 +19,22 @@ public sealed class AssumeTenantHandler(
     IUserTokenService tokenService,
     IAuthService authService,
     ICurrentUserAuthorizationService authorizationService,
-    IDateTimeProvider dateTimeProvider)
+    IDateTimeProvider dateTimeProvider,
+    AccountStanding standing)
     : ICommandHandler<AssumeTenantCommand, Result<AuthTokensDto>>
 {
     public const string ALREADY_IN_TENANT_MESSAGE = "You cannot assume a tenant you are already in.";
+
+    /// <summary>Creates the handler with dormant account standing.</summary>
+    public AssumeTenantHandler(
+        IUserContext userContext,
+        IUserService userService,
+        IRepository<Tenant> tenantRepository,
+        IUserTokenService tokenService,
+        IAuthService authService,
+        ICurrentUserAuthorizationService authorizationService,
+        IDateTimeProvider dateTimeProvider)
+        : this(userContext, userService, tenantRepository, tokenService, authService, authorizationService, dateTimeProvider, new AccountStanding()) { }
 
     /// <inheritdoc />
     public async Task<Result<AuthTokensDto>> Handle(AssumeTenantCommand request, CancellationToken cancellationToken)
@@ -48,6 +60,15 @@ public sealed class AssumeTenantHandler(
         if (!userResult.IsSuccess)
         {
             return Result.Unauthorized();
+        }
+
+        if (standing.IsEnforced && !await tenantRepository.AnyAsync(new TenantSpecifications.ByIdSpec(request.TenantId), cancellationToken))
+        {
+            return Result.NotFound("Tenant not found.");
+        }
+        if (await standing.RefusalAsync<AuthTokensDto>(cancellationToken) is { } refusal)
+        {
+            return refusal;
         }
 
         var user = userResult.Value;
