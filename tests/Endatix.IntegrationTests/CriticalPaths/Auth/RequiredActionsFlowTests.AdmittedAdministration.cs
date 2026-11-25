@@ -41,33 +41,69 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Theory]
-    [InlineData(true, HttpStatusCode.ServiceUnavailable, 0)]
-    [InlineData(false, HttpStatusCode.OK, 1)]
-    public async Task Custom_registration_preserves_invite_admission_and_role_checks(bool enforced, HttpStatusCode expected, int dispatches)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Eligible_invites_call_custom_registration_once(bool enforced, bool notice)
+    {
+        const string email = "invited@example.test";
+        var ct = TestContext.Current.CancellationToken;
+        var registration = Substitute.For<IUserRegistrationService>();
+        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
+        var snapshot = AdmittedSnapshot() with
+        {
+            RequiredActions = notice ? [new() { Key = "legal", ResolvePath = "/legal", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Notice }] : []
+        };
+        snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(snapshot));
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton(registration);
+            if (enforced)
+            {
+                services.AddTransient(_ => new AccountStanding(snapshots));
+            }
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        var tenant = world.Tenants[0];
+        await world.Seed.SeedRoleAsync(tenant.Id, "Reviewer", ct);
+        registration.RegisterInvitedUserAsync(email, tenant.Id, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new User(tenant.Creator.Id, tenant.Id, email, email, false)));
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        snapshots.ClearReceivedCalls();
+        using var valid = await admin.PostAsJsonAsync("/api/users", new { email, roles = new[] { "Reviewer" } }, ct);
+
+        Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
+        var invited = await valid.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.Contains(invited.GetProperty("roles").EnumerateArray(), role => role.GetString() == "Reviewer");
+        await registration.Received(1).RegisterInvitedUserAsync(email, tenant.Id, Arg.Any<CancellationToken>());
+        await snapshots.Received(enforced ? 1 : 0).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Standing_and_ordinary_invite_refusals_never_call_custom_registration()
     {
         const string email = "invited@example.test";
         var ct = TestContext.Current.CancellationToken;
         var registration = Substitute.For<IUserRegistrationService>();
         var provider = new MutableProvider("legal", "/legal");
+        var conflict = new MutableProvider("conflict", "/other") { Pending = false };
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.AddSingleton(registration);
             services.AddSingleton<IRequiredActionProvider>(provider);
-            if (enforced)
-            {
-                EnableStanding(services);
-            }
+            services.AddSingleton<IRequiredActionProvider>(conflict);
+            EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
-        var tenant = world.Tenants[0];
-        registration.RegisterInvitedUserAsync(email, tenant.Id, Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new User(tenant.Creator.Id, tenant.Id, email, email, false)));
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-        if (enforced)
-        {
-            using var refused = await admin.PostAsJsonAsync("/api/users", new { email }, ct);
-            await AssertStandingRefusalAsync(refused, await admin.GetFromJsonAsync<JsonElement>("/api/auth/me", ct), ct);
-        }
+        using var refused = await admin.PostAsJsonAsync("/api/users", new { email }, ct);
+        await AssertStandingRefusalAsync(refused, await admin.GetFromJsonAsync<JsonElement>("/api/auth/me", ct), ct);
+        conflict.Pending = true;
+        await InvalidateAsync(world, ct);
+        using var unavailable = await admin.PostAsJsonAsync("/api/users", new { email }, ct);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, unavailable.StatusCode);
+        Assert.Contains("Try again", await unavailable.Content.ReadAsStringAsync(ct));
+        conflict.Pending = false;
         provider.Pending = false;
         await InvalidateAsync(world, ct);
         using var reader = await RestrictedUserAsync(world, ct);
@@ -76,8 +112,5 @@ public sealed partial class RequiredActionsFlowTests
         using var invalid = await admin.PostAsJsonAsync("/api/users", new { email, roles = _adminInviteRoles }, ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         Assert.Empty(registration.ReceivedCalls());
-        using var valid = await admin.PostAsJsonAsync("/api/users", new { email }, ct);
-        Assert.Equal(expected, valid.StatusCode);
-        await registration.Received(dispatches).RegisterInvitedUserAsync(email, world.Tenants[0].Id, Arg.Any<CancellationToken>());
     }
 }
