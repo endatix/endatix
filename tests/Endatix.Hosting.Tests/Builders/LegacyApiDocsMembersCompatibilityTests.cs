@@ -2,7 +2,7 @@ using Endatix.Api.Builders;
 using Endatix.Api.Configuration;
 using Endatix.Hosting.Builders;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Hosting.Tests.Builders;
@@ -15,7 +15,7 @@ namespace Endatix.Hosting.Tests.Builders;
 public sealed class LegacyApiDocsMembersCompatibilityTests
 {
     [Fact]
-    public async Task UseSwagger_WithLegacyApiOptionsMembers_BuildsAndMapsTheDocsPage()
+    public async Task UseSwagger_WithLegacyApiOptionsMembers_BuildsAndServesSwaggerUiAtThePath()
     {
         // Arrange
         var builder = WebApplication.CreateBuilder();
@@ -24,18 +24,19 @@ public sealed class LegacyApiDocsMembersCompatibilityTests
             options.UseSwagger = true;
             options.SwaggerPath = "/legacy";
             options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list";
-            options.Docs.Ui = ApiDocsUi.Scalar;
         });
         await using var app = builder.Build();
+        var context = new DefaultHttpContext { RequestServices = app.Services };
+        context.Request.Method = HttpMethods.Get;
+        context.Request.Path = "/docs/index.html";
 
         // Act
         new EndatixMiddlewareBuilder(app).UseSwagger(
             "/docs", settings => settings.Path = "/swagger/{documentName}/swagger.json", ui => ui.DocExpansion = "list");
+        await ((IApplicationBuilder)app).Build()(context);
 
         // Assert
-        ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>()
-            .Select(endpoint => endpoint.RoutePattern.RawText)
-            .Should().Contain("/docs/{documentName?}");
+        context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
     }
 
     [Fact]
