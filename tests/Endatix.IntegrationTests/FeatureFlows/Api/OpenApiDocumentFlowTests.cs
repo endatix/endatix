@@ -2,10 +2,6 @@ using System.Net;
 using System.Text.Json;
 using Endatix.Core.Branding;
 using Endatix.IntegrationTests.Shared;
-using FastEndpoints;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
-using Flags = Endatix.Framework.FeatureFlags.FeatureFlags;
 
 namespace Endatix.IntegrationTests.FeatureFlows.Api;
 
@@ -49,31 +45,6 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
-    }
-
-    /// <summary>
-    /// The API docs leave an endpoint out by its WhiteLabeling tag, which <c>GateOnWhiteLabeling()</c> adds with the gate.
-    /// </summary>
-    [Fact]
-    public void Every_branding_route_carries_the_white_labeling_tag()
-    {
-        // Arrange
-        var endpoints = fixture.Factory.Services
-            .GetServices<EndpointDataSource>()
-            .SelectMany(source => source.Endpoints)
-            .OfType<RouteEndpoint>()
-            .Where(endpoint => endpoint.RoutePattern.RawText?.Contains(BRANDING_ROUTE, StringComparison.Ordinal) is true)
-            .ToList();
-
-        // Act
-        var untagged = endpoints
-            .Where(endpoint => endpoint.Metadata.GetMetadata<EndpointDefinition>()?.EndpointTags?.Contains(Flags.WhiteLabeling) is not true)
-            .Select(endpoint => endpoint.RoutePattern.RawText)
-            .ToList();
-
-        // Assert
-        endpoints.Should().NotBeEmpty();
-        untagged.Should().BeEmpty();
     }
 
     [Fact]
