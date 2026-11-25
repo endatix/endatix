@@ -27,16 +27,14 @@ public sealed class PartialUpdate(IMediator mediator)
             s.Summary = "Partially update folder";
             s.Description = "Partially updates folder fields (name, slug, description, metadata, active, immutable).";
             s.Responses[200] = "Folder updated successfully.";
-            s.Responses[400] = "Invalid input data.";
+            s.Responses[400] = "Invalid input or an attempt to change a locked folder's mutable fields.";
             s.Responses[404] = "Folder not found.";
-            s.Responses[409] = "Folder is locked and cannot be updated.";
             s.DescribeStandingProblems();
         });
         Description(builder => builder.ProducesStandingProblems()
             .Produces<FolderModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict));
+            .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
     /// <inheritdoc/>
