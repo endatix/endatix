@@ -129,7 +129,8 @@ Configure the docs in `appsettings.json`:
 
 <Settings>
 <Setting name="Endatix:Api:Docs:Enabled" default="true">
-Serves the OpenAPI document and the API docs page. `false` turns both off.
+Serves the OpenAPI document and the API docs page. `false` turns both off. A `UseSwagger(...)` call in your code
+still serves its docs page.
 </Setting>
 <Setting name="Endatix:Api:Docs:Path" default="/api-docs">
 The path of the API docs page. Start it with `/`.
