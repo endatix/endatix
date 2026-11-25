@@ -40,9 +40,9 @@ public class CreateAccessTokenHandler(
 
     private async Task<Result?> CheckTargetAsync(CreateAccessTokenCommand request, CancellationToken ct)
     {
-        if (access is { IsEnforced: true })
+        if (access is not null)
         {
-            return await access.SubmissionAsync((request.FormId, request.SubmissionId), "Submission not found", ct);
+            return await access.VisibleSubmissionAsync((request.FormId, request.SubmissionId), "Submission not found", ct);
         }
         var spec = new SubmissionWithDefinitionSpec(request.FormId, request.SubmissionId);
         return await submissionRepository.SingleOrDefaultAsync(spec, ct) is null ? Result.NotFound("Submission not found") : null;

@@ -78,7 +78,7 @@ public sealed class SubmissionAccessPolicy(
     {
         var now = dateTimeProvider.Now.UtcDateTime;
         var cached = await cache.GetOrCreateCachedResultAsync(grant.Key, permissions, grant.Auth.ComputeAuthTtl(now), now,
-            tags: ["permissions", $"submission:{grant.Target.SubmissionId}"], cancellationToken: ct);
+            tags: ["permissions", FormAccessCacheTags.ForForm(grant.Target.FormId), $"submission:{grant.Target.SubmissionId}"], cancellationToken: ct);
         var deadline = grant.Auth.ExpiresAt;
         return cached.IsSuccess && cached.Value is Cached<SubmissionAccessData> entry && deadline != default && deadline < entry.ExpiresAt
             ? Result.Success<ICachedData<SubmissionAccessData>>(entry with { ExpiresAt = deadline }) : cached;

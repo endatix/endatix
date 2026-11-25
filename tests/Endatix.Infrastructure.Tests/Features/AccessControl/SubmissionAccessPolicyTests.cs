@@ -9,6 +9,7 @@ using Endatix.Core.Specifications;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Features.AccessControl;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.DependencyInjection;
 using ResourcePermissions = Endatix.Core.Authorization.Access.ResourcePermissions;
 
 namespace Endatix.Infrastructure.Tests.Features.AccessControl;
@@ -51,6 +52,28 @@ public sealed class SubmissionAccessPolicyTests
         _submissionRepository
             .AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(true);
+    }
+
+    [Fact]
+    public async Task GetAccessData_DormantRepeatedAuthorizedRequest_ReusesVisiblePermissions()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
+        var cache = services.GetRequiredService<HybridCache>();
+        var policy = new SubmissionAccessPolicy(_authorizationService, _submissionRepository, cache, _dateTimeProvider);
+        var now = DateTime.UtcNow;
+        _dateTimeProvider.Now.Returns(new DateTimeOffset(now));
+        var caller = AuthorizationData.ForAuthenticatedUser("reader", 1, [], [Actions.Access.Hub, Actions.Submissions.View], now, now.AddMinutes(5));
+        _authorizationService.GetAuthorizationDataAsync(ct).Returns(Result.Success(caller));
+        var target = new SubmissionAccessContext(10, 20);
+
+        var first = await policy.GetAccessData(target, ct);
+        var next = await policy.GetAccessData(target, ct);
+
+        Assert.True(first.IsSuccess && next.IsSuccess);
+        Assert.Equal(first.Value.ETag, next.Value.ETag);
+        await _authorizationService.Received(2).GetAuthorizationDataAsync(ct);
+        await _submissionRepository.Received(1).AnyAsync(Arg.Any<SubmissionByFormIdAndSubmissionIdSpec>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -301,4 +324,3 @@ public sealed class SubmissionAccessPolicyTests
             Arg.Any<CancellationToken>());
     }
 }
-

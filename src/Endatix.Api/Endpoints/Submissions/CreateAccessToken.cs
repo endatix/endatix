@@ -79,7 +79,9 @@ public class CreateAccessToken(IMediator mediator)
 public class CreateAccessTokenValidator : Validator<CreateAccessTokenRequest>
 {
     /// <summary>Maximum allowed token lifetime: 60 days.</summary>
+#pragma warning disable IDE1006 // Preserve the published constant name for consumers of the validator.
     public const int MaxExpiryMinutes = ISubmissionAccessTokenService.MAX_EXPIRY_MINUTES;
+#pragma warning restore IDE1006
 
     /// <summary>
     /// Default constructor

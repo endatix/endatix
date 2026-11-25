@@ -17,7 +17,7 @@ public class ListByFormIdHandler(
 
     public async Task<Result<Paged<SubmissionDto>>> Handle(ListByFormIdQuery request, CancellationToken cancellationToken)
     {
-        if (access is { IsEnforced: true })
+        if (access is not null)
         {
             if (await access.ListAsync(request.FormId, cancellationToken) is { } refusal)
             {

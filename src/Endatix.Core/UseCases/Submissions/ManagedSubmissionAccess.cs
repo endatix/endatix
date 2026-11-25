@@ -15,12 +15,11 @@ public sealed class ManagedSubmissionAccess(ITenantContext tenant, AccountStandi
     IRepository<Submission> submissions, IRepository<Form> forms)
 {
     /// <summary>A visible submission on its live form; the caller retains its normal read or write-time checks.</summary>
-    public async Task<Result?> SubmissionAsync((long Form, long Submission) id, string missing, CancellationToken ct)
+    public Task<Result?> SubmissionAsync((long Form, long Submission) id, string missing, CancellationToken ct) =>
+        standing.IsEnforced ? VisibleSubmissionAsync(id, missing, ct) : Task.FromResult<Result?>(null);
+
+    internal async Task<Result?> VisibleSubmissionAsync((long Form, long Submission) id, string missing, CancellationToken ct)
     {
-        if (!standing.IsEnforced)
-        {
-            return null;
-        }
         var spec = new SubmissionByFormIdAndSubmissionIdSpec(id.Form, id.Submission);
         spec.Query.Where(s => s.TenantId == tenant.TenantId && s.Form.TenantId == tenant.TenantId);
         return tenant.TenantId <= 0 || !await submissions.AnyAsync(spec, ct)
@@ -58,7 +57,5 @@ public sealed class ManagedSubmissionAccess(ITenantContext tenant, AccountStandi
         spec.Query.Where(f => f.FormDefinitions.Any(d => d.TenantId == tenant.TenantId));
         return await forms.AnyAsync(spec, ct) ? await standing.RefusalAsync<Paged<SubmissionDto>>(ct) : Result.NotFound("Form not found.");
     }
-
-    internal bool IsEnforced => standing.IsEnforced;
 
 }

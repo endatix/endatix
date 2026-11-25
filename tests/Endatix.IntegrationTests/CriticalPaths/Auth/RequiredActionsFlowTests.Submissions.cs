@@ -157,29 +157,45 @@ public sealed partial class RequiredActionsFlowTests
         await AssertContentStatusAsync(owner, target.Requests(), HttpStatusCode.OK);
     }
 
-    private sealed record SubmissionTarget(string Collection, string Item, string Access)
+    private sealed record SubmissionTarget(string Form, string Id)
     {
-        internal static async Task<SubmissionTarget> CreateAsync(HttpClient owner, CancellationToken ct)
+        internal string FormRoute => $"/api/forms/{Form}";
+        internal string Collection => $"{FormRoute}/submissions";
+        internal string Item => $"{Collection}/{Id}";
+        internal string Access => $"/api/access/forms/{Form}/submissions/{Id}";
+
+        internal static async Task<SubmissionTarget> CreateAsync(HttpClient owner, CancellationToken ct) =>
+            await OnFormAsync(owner, await CreateFormAsync(owner, ct), ct);
+
+        internal Task<SubmissionTarget> SiblingAsync(HttpClient owner, CancellationToken ct) => OnFormAsync(owner, Form, ct);
+
+        private static async Task<SubmissionTarget> OnFormAsync(HttpClient owner, string form, CancellationToken ct)
         {
-            var form = await CreateFormAsync(owner, ct);
             var collection = $"/api/forms/{form}/submissions";
             using var created = await owner.PostAsJsonAsync(collection, new { jsonData = """{"a":"sample"}""" }, ct);
             created.EnsureSuccessStatusCode();
-            var id = (await created.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("id").GetString();
-            var access = $"/api/access/forms/{form}/submissions/{id}";
-            return new(collection, $"{collection}/{id}", access);
+            var id = (await created.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("id").GetString()!;
+            return new(form, id);
+        }
+
+        internal IEnumerable<HttpRequestMessage> LifecycleRequests()
+        {
+            yield return new(HttpMethod.Get, Access);
+            yield return new(HttpMethod.Get, Collection);
+            yield return new(HttpMethod.Post, $"{Item}/access-token") { Content = JsonContent.Create(new { expiryMinutes = 60, permissions = new[] { "view" } }) };
         }
 
         internal IEnumerable<HttpRequestMessage> Requests()
         {
+            foreach (var request in LifecycleRequests())
+            {
+                yield return request;
+            }
             var change = new { jsonData = """{"a":"changed"}""" };
-            yield return new(HttpMethod.Get, Access);
-            yield return new(HttpMethod.Get, Collection);
             yield return new(HttpMethod.Get, Item);
             yield return new(HttpMethod.Patch, Item) { Content = JsonContent.Create(change) };
             yield return new(HttpMethod.Put, Item) { Content = JsonContent.Create(change) };
             yield return new(HttpMethod.Post, $"{Item}/files") { Content = JsonContent.Create(new { }) };
-            yield return new(HttpMethod.Post, $"{Item}/access-token") { Content = JsonContent.Create(new { expiryMinutes = 60, permissions = new[] { "view" } }) };
             yield return new(HttpMethod.Post, $"{Item}/status") { Content = JsonContent.Create(new { status = "read" }) };
             yield return new(HttpMethod.Patch, $"{Item}/test") { Content = JsonContent.Create(new { isTest = false }) };
             yield return new(HttpMethod.Post, $"{Collection}/test/delete") { Content = JsonContent.Create(new { }) };
