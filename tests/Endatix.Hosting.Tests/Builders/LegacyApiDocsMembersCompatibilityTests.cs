@@ -10,8 +10,9 @@ namespace Endatix.Hosting.Tests.Builders;
 
 /// <summary>
 /// The legacy docs members a host may use still compile with their shipped types. The root .editorconfig makes CS0618
-/// and ENDATIX0006 errors in this file only, so marking one of them obsolete or experimental fails the build here, as
-/// it would for a host.
+/// an error in this file only, so marking one of them obsolete fails the build here, as it would for a host that treats
+/// warnings as errors. Endatix's own projects suppress the Experimental IDs, so
+/// <see cref="Legacy_members_are_not_experimental"/> reads the attribute instead.
 /// </summary>
 public sealed class LegacyApiDocsMembersCompatibilityTests
 {

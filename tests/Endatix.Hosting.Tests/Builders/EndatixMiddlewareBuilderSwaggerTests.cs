@@ -184,19 +184,25 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     }
 
     [Fact]
-    public async Task UseSwagger_WithConfiguredSwaggerUiSettings_ServesSwaggerUiWithThem()
+    public async Task UseSwagger_WithConfiguredSwaggerUiSettingsThatMoveThePath_KeepsItsPathAndTheOtherSettings()
     {
         // Arrange
         var builder = WebApplication.CreateBuilder();
-        builder.Services.Configure<ApiOptions>(options => options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list");
+        builder.Services.Configure<ApiOptions>(options => options.ConfigureSwaggerUi = ui =>
+        {
+            ui.Path = "/ui";
+            ui.DocExpansion = "list";
+        });
         await using var app = builder.Build();
 
         // Act
         new EndatixMiddlewareBuilder(app).UseSwagger("/docs");
 
         // Assert
-        RoutePatterns(app).Should().BeEmpty();
-        (await GetAsync(app, "/docs/index.html")).Body.Should().Contain("swagger-ui");
+        var (status, body) = await GetAsync(app, "/docs/index.html");
+        status.Should().Be(StatusCodes.Status200OK);
+        body.Should().Contain("swagger-ui").And.Contain("\"list\"");
+        (await GetAsync(app, "/ui/index.html")).Status.Should().Be(StatusCodes.Status404NotFound);
     }
 
     private static void WithoutHostServices(ApiOptions options)

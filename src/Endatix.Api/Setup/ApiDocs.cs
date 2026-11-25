@@ -84,9 +84,29 @@ internal static class ApiDocs
         if (!string.Equals(options.Docs.Path, configured.Path, StringComparison.Ordinal))
         {
             options.Docs.Conflicts = [];
+            KeepExplicitPath(options, configuredOptions.ConfigureSwaggerUi);
         }
 
         Add(app, options);
+    }
+
+    /// <summary>
+    /// An explicit page path wins over a <c>Path</c> the configured Swagger UI settings set, as it did on main; their
+    /// other settings still apply. A delegate the call passes itself may still move the path.
+    /// </summary>
+    private static void KeepExplicitPath(ApiOptions options, Action<SwaggerUiSettings>? configured)
+    {
+        if (configured is null || !ReferenceEquals(options.ConfigureSwaggerUi, configured))
+        {
+            return;
+        }
+
+        var pagePath = PagePath(options.Docs.Path);
+        options.ConfigureSwaggerUi = ui =>
+        {
+            configured(ui);
+            ui.Path = pagePath;
+        };
     }
 
     private static void AddPage(IApplicationBuilder app, ApiOptions options, DocsPage page)
@@ -325,6 +345,7 @@ internal static class ApiDocs
 
         if (app is not IEndpointRouteBuilder routes)
         {
+            WarnNoEndpointRouting(app, ROOT_PATH);
             return;
         }
 
