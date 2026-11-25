@@ -33,6 +33,21 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
     }
 
     [Fact]
+    public async Task Document_generates_for_every_endpoint_when_white_labeling_is_on()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using BrandingWebHost host = new(fixture);
+        using var client = host.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync(new Uri(DOCUMENT_PATH, UriKind.Relative), ct);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(ct));
+    }
+
+    [Fact]
     public async Task Branding_endpoints_are_not_documented_when_white_labeling_is_off()
     {
         // Arrange
