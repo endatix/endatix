@@ -1,12 +1,11 @@
 using System.Reflection;
+using Endatix.Api.Common.FeatureFlags;
 using Endatix.Api.Endpoints.Submissions;
 using Endatix.Api.Infrastructure;
 using Endatix.Api.Infrastructure.Cors;
 using Endatix.Api.Setup;
 using Endatix.Core.Common;
-using Endatix.Framework.FeatureFlags;
 using Endatix.Framework.Hosting;
-using Endatix.Framework.Modules;
 using Endatix.Framework.Serialization;
 using Endatix.Framework.Setup;
 using FastEndpoints;
@@ -153,10 +152,7 @@ public class ApiConfigurationBuilder
     {
         LogSetupInfo("Configuring Swagger documentation");
 
-        // WhiteLabeling is deployment-scoped, so it is read once here. Its endpoints still answer 404 per request when off.
-        // Without a configuration nothing is hidden, as before.
-        var hideWhiteLabeling = _configuration is not null &&
-            !EndatixModuleRegistration.IsFeatureFlagEnabled(_configuration, FeatureFlags.WhiteLabeling);
+        var whiteLabelingEnabled = WhiteLabelingEndpoints.IsEnabled(_configuration);
 
         Services.SwaggerDocument(options =>
         {
@@ -170,11 +166,7 @@ public class ApiConfigurationBuilder
                 settings.SchemaSettings.SchemaType = SchemaType.OpenApi3;
             };
             options.EndpointFilter = ep =>
-            {
-                var hasHiddenTag = ep.EndpointTags?.Contains("hidden") ?? false;
-                var isHiddenWhiteLabeling = hideWhiteLabeling && (ep.EndpointTags?.Contains(FeatureFlags.WhiteLabeling) ?? false);
-                return !hasHiddenTag && !isHiddenWhiteLabeling;
-            };
+                ep.EndpointTags?.Contains("hidden") is not true && WhiteLabelingEndpoints.IsDocumented(ep, whiteLabelingEnabled);
         });
 
         LogSetupInfo("Swagger documentation configured successfully");

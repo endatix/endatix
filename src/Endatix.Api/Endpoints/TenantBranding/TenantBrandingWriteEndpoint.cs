@@ -51,8 +51,7 @@ public abstract class TenantBrandingWriteEndpoint<TRequest>(
         Verbs(Route.Verb);
         Routes(Route.Path);
         Permissions(Actions.Tenant.ManageSettings);
-        FeatureFlag<EndpointFeatureGate>(FeatureFlags.WhiteLabeling);
-        Tags(FeatureFlags.WhiteLabeling);
+        Definition.GateOnWhiteLabeling();
         ConfigureBody();
         Summary(s =>
         {
