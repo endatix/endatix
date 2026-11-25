@@ -68,7 +68,7 @@ public sealed class ResendUserInvitationHandler(
             var emailModel = emailTemplateService.CreateInvitationEmail(email, token);
 
             await emailSender.SendEmailAsync(emailModel, cancellationToken);
-            logger.LogInformation("Invitation email resent successfully to {Email}", PiiRedactor.RedactEmail(email));
+            LogDelivery(email);
 
             return Result.Success();
         }
@@ -77,6 +77,14 @@ public sealed class ResendUserInvitationHandler(
             logger.LogError(ex, "Failed to resend invitation email to {Email}", PiiRedactor.RedactEmail(email));
 
             return Result.Error("Failed to resend invitation email.");
+        }
+    }
+
+    private void LogDelivery(string email)
+    {
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Invitation email resent successfully to {Email}", PiiRedactor.RedactEmail(email));
         }
     }
 }

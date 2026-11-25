@@ -15,6 +15,8 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    private static readonly string[] _adminInviteRoles = ["Admin"];
+
     [Fact]
     public async Task Tenant_administration_resumes_in_the_same_session_after_standing_clears()
     {
@@ -87,7 +89,7 @@ public sealed partial class RequiredActionsFlowTests
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var before = await IdentityStateAsync(world, ct);
-        using var invalid = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test", roles = new[] { "Admin" } }, ct);
+        using var invalid = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test", roles = _adminInviteRoles }, ct);
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         using var retry = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test" }, ct);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, retry.StatusCode);
