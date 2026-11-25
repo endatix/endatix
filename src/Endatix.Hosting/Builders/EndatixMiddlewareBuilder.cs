@@ -262,7 +262,8 @@ public class EndatixMiddlewareBuilder
     /// </summary>
     /// <param name="path">Optional path for the docs page. Defaults to <see cref="ApiOptions.SwaggerPath"/>.</param>
     /// <param name="configureOpenApi">Optional delegate to configure OpenAPI document generation settings.</param>
-    /// <param name="configureSwaggerUi">Optional delegate to configure Swagger UI display settings.</param>
+    /// <param name="configureSwaggerUi">Optional delegate to configure Swagger UI display settings. Passing one turns
+    /// Swagger UI on.</param>
     /// <returns>The builder for chaining.</returns>
     public EndatixMiddlewareBuilder UseSwagger(string? path = null, Action<OpenApiDocumentMiddlewareSettings>? configureOpenApi = null, Action<SwaggerUiSettings>? configureSwaggerUi = null)
     {
@@ -273,7 +274,7 @@ public class EndatixMiddlewareBuilder
         {
             UseSwagger = true,
             SwaggerPath = path ?? configured.SwaggerPath,
-            UseSwaggerUi = configured.UseSwaggerUi,
+            UseSwaggerUi = configured.UseSwaggerUi || configureSwaggerUi is not null,
             ConfigureOpenApiDocument = configureOpenApi ?? configured.ConfigureOpenApiDocument,
             ConfigureSwaggerUi = configureSwaggerUi ?? configured.ConfigureSwaggerUi,
         });

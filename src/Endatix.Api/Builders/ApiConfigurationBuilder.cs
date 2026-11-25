@@ -274,9 +274,9 @@ public class ApiConfigurationBuilder
         // Use FastEndpoints middleware
         app.UseFastEndpoints();
 
-        // Check if Swagger is registered by looking for Swagger services. The API docs are added once per application,
-        // so a host that also calls UseEndatixApi does not get them twice.
-        if (Services.Any(sd => sd.ServiceType.Name.Contains("Swagger")))
+        // AddSwagger registers an OpenAPI document. The API docs are added once per application, so a host that also
+        // adds them another way does not get them twice.
+        if (Services.Any(sd => sd.ServiceType == typeof(NSwag.AspNetCore.OpenApiDocumentRegistration)))
         {
             app.UseEndatixApiDocs(ApiApplicationBuilderExtensions.GetApiOptions(app));
         }

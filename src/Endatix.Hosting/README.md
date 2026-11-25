@@ -102,22 +102,20 @@ The API docs page shows [Scalar](https://scalar.com) at `/api-docs`. Swagger UI 
 
 ```csharp
 // Using app.UseEndatix with options
-app.UseEndatix(options =>
+app.UseEndatix((EndatixMiddlewareOptions options) =>
 {
     // Turns the OpenAPI document and every docs UI on or off
-    options.UseSwagger = true;
-    options.EnableSwaggerInProduction = false;
+    options.ApiOptions.UseSwagger = true;
     
     // Path of the API docs page, which shows Scalar (default is "/api-docs")
-    options.SwaggerPath = "/api-docs";
+    options.ApiOptions.SwaggerPath = "/api-docs";
 
     // Also serve Swagger UI at "/swagger" (default is false)
-    options.UseSwaggerUi = true;
+    options.ApiOptions.UseSwaggerUi = true;
     
-    // Advanced Swagger configuration
-    options.ConfigureOpenApiDocument = settings => 
+    // Advanced OpenAPI document configuration
+    options.ApiOptions.ConfigureOpenApiDocument = settings =>
     {
-        settings.DocumentName = "v1";
         settings.PostProcess = (document, _) => 
         {
             document.Info.Title = "My Custom API";
@@ -127,7 +125,7 @@ app.UseEndatix(options =>
     };
     
     // Customize Swagger UI appearance (applies when UseSwaggerUi is on)
-    options.ConfigureSwaggerUi = settings => 
+    options.ApiOptions.ConfigureSwaggerUi = settings =>
     {
         settings.DocExpansion = "list";
         settings.DefaultModelsExpandDepth = 1;
@@ -148,7 +146,7 @@ app.UseEndatix(endatix => endatix
     .UseSwagger("/api-docs",
         openApiSettings =>
         {
-            openApiSettings.DocumentName = "v1";
+            openApiSettings.PostProcess = (document, _) => document.Info.Title = "My Custom API";
         },
         swaggerUiSettings =>
         {

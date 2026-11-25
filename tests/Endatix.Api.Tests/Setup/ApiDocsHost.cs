@@ -25,10 +25,27 @@ internal sealed class ApiDocsHost : IAsyncDisposable
         _globals = globals;
     }
 
-    public static async Task<ApiDocsHost> StartAsync(
+    /// <summary>Starts the host with <c>UseEndatixApi</c>, around which a test can add its own calls.</summary>
+    public static Task<ApiDocsHost> StartAsync(
         Action<ApiOptions>? configure = null,
         Action<WebApplication>? beforeApi = null,
-        Action<WebApplication, ApiOptions>? afterApi = null)
+        Action<WebApplication, ApiOptions>? afterApi = null) =>
+        StartWithPipelineAsync((app, _) =>
+        {
+            ApiOptions? used = null;
+            beforeApi?.Invoke(app);
+            app.UseEndatixApi(options =>
+            {
+                options.UseExceptionHandler = false;
+                options.UseCors = false;
+                configure?.Invoke(options);
+                used = options;
+            });
+            afterApi?.Invoke(app, used!);
+        });
+
+    /// <summary>Starts the host with a pipeline the test composes, given the builder that registered the API.</summary>
+    public static async Task<ApiDocsHost> StartWithPipelineAsync(Action<WebApplication, ApiConfigurationBuilder> pipeline)
     {
         var globals = ValidatorGlobals.Capture();
         var builder = WebApplication.CreateBuilder();
@@ -40,15 +57,10 @@ internal sealed class ApiDocsHost : IAsyncDisposable
             discovery.Assemblies = [typeof(PingEndpoint).Assembly];
             discovery.Filter = type => type == typeof(PingEndpoint);
         });
-        new ApiConfigurationBuilder(builder.Services).AddSwagger();
+        var api = new ApiConfigurationBuilder(builder.Services).AddSwagger();
 
         var app = builder.Build();
-        var options = new ApiOptions { UseExceptionHandler = false, UseCors = false };
-        configure?.Invoke(options);
-        beforeApi?.Invoke(app);
-        app.UseEndatixApi(options);
-        afterApi?.Invoke(app, options);
-
+        pipeline(app, api);
         await app.StartAsync(TestContext.Current.CancellationToken);
         return new ApiDocsHost(app, globals);
     }

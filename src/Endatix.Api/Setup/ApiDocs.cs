@@ -2,6 +2,8 @@ using Endatix.Api.Builders;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Scalar.AspNetCore;
 
 namespace Endatix.Api.Setup;
@@ -25,55 +27,78 @@ internal static class ApiDocs
     private const string ADDED_KEY = "Endatix.Api.ApiDocsAdded";
 
     /// <summary>
-    /// Adds the document, Scalar and the opt-in Swagger UI once per application. A second call changes nothing, so a
-    /// host that adds the docs through two builders does not map the docs page twice.
+    /// Adds the document, Scalar and the opt-in Swagger UI once per application. A later call changes nothing and logs a
+    /// warning, so a host that adds the docs through two builders does not map the docs page twice.
     /// </summary>
     internal static void Add(IApplicationBuilder app, ApiOptions options)
     {
-        if (!options.UseSwagger || app.Properties.ContainsKey(ADDED_KEY))
+        if (!options.UseSwagger)
         {
             return;
         }
 
+        if (app.Properties.ContainsKey(ADDED_KEY))
+        {
+            Logger(app)?.LogWarning("The API docs were already added. This call's settings are ignored.");
+            return;
+        }
+
+        var routes = AsRouteBuilder(app);
+        var pagePath = PagePath(options.SwaggerPath);
         app.Properties[ADDED_KEY] = true;
         var documentPath = AddDocument(app, options);
         if (options.UseSwaggerUi)
         {
-            AddSwaggerUi(app, options);
+            AddSwaggerUi(app, options, pagePath);
+        }
+        else if (options.ConfigureSwaggerUi is not null)
+        {
+            Logger(app)?.LogWarning("ConfigureSwaggerUi is set but UseSwaggerUi is off, so Swagger UI is not served.");
         }
 
-        MapScalar(app, PagePath(options.SwaggerPath), documentPath);
+        MapScalar(routes, pagePath, documentPath);
     }
 
-    /// <summary>Adds the document middleware and returns its path, read after the host's settings apply.</summary>
-    private static Func<string> AddDocument(IApplicationBuilder app, ApiOptions options)
+    /// <summary>Adds the document middleware and returns its path once the host's settings apply.</summary>
+    private static string AddDocument(IApplicationBuilder app, ApiOptions options)
     {
-        var documentPath = new NSwag.AspNetCore.OpenApiDocumentMiddlewareSettings().Path;
+        var documentPath = string.Empty;
         app.UseOpenApi(settings =>
         {
             options.ConfigureOpenApiDocument?.Invoke(settings);
             documentPath = settings.Path;
         });
-        return () => documentPath;
+        return documentPath;
     }
 
     /// <summary>
     /// Maps Scalar over the document. Scalar takes the document path from the browser's address, so the page finds the
-    /// document under a path base too.
+    /// document under a path base too. Telemetry and Scalar's hosted fonts are off, so the page calls no third party.
     /// </summary>
-    private static void MapScalar(IApplicationBuilder app, string pagePath, Func<string> documentPath) =>
-        AsRouteBuilder(app).MapScalarApiReference(pagePath, scalar => scalar
+    private static void MapScalar(IEndpointRouteBuilder routes, string pagePath, string documentPath) =>
+        routes.MapScalarApiReference(pagePath, scalar => scalar
             .WithTitle("API Reference")
             .WithTheme(ScalarTheme.Default)
-            .WithOpenApiRoutePattern(documentPath())
+            .DisableTelemetry()
+            .DisableDefaultFonts()
+            .WithOpenApiRoutePattern(documentPath)
             .AddDocument(DOCUMENT_NAME)
             .AddPreferredSecuritySchemes(BEARER_SCHEME));
 
-    private static void AddSwaggerUi(IApplicationBuilder app, ApiOptions options) =>
+    /// <summary>
+    /// Adds Swagger UI at <c>/swagger</c>, or where the host's settings move it. It must not take the docs page's path:
+    /// its middleware runs before endpoints, so it would hide Scalar there.
+    /// </summary>
+    private static void AddSwaggerUi(IApplicationBuilder app, ApiOptions options, string pagePath) =>
         app.UseSwaggerUi(settings => settings.ConfigureDefaults(ui =>
         {
             ui.Path = SWAGGER_UI_PATH;
             options.ConfigureSwaggerUi?.Invoke(ui);
+            if (string.Equals(PagePath(ui.Path), pagePath, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Swagger UI cannot serve at the API docs page '{pagePath}'. Move SwaggerPath or Swagger UI's path.");
+            }
         }));
 
     /// <summary>
@@ -85,6 +110,9 @@ internal static class ApiDocs
         var path = swaggerPath?.Trim().TrimEnd('/');
         return string.IsNullOrEmpty(path) ? DEFAULT_PATH : path;
     }
+
+    private static ILogger? Logger(IApplicationBuilder app) =>
+        app.ApplicationServices.GetService<ILoggerFactory>()?.CreateLogger(typeof(ApiDocs).FullName!);
 
     private static IEndpointRouteBuilder AsRouteBuilder(IApplicationBuilder app) =>
         app as IEndpointRouteBuilder

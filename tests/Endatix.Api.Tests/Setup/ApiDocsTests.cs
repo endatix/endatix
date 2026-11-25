@@ -205,6 +205,99 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
+    public async Task Docs_page_under_a_path_base_redirects_to_its_trailing_slash()
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync(beforeApi: app => app.UsePathBase("/sub"));
+        using var client = host.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync(new Uri("/sub/api-docs", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        response.Headers.Location!.OriginalString.Should().Be("api-docs/");
+    }
+
+    [Fact]
+    public async Task Scalar_follows_a_document_path_the_host_moves()
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync(options =>
+            options.ConfigureOpenApiDocument = settings => settings.Path = "/openapi/{documentName}.json");
+        using var client = host.CreateClient();
+
+        // Act
+        var page = await ScalarPage.ReadAsync(client, "/api-docs/");
+
+        // Assert
+        page.DocumentUrls.Should().Equal("openapi/alpha-version.json");
+        (await GetStatusAsync(client, page.ResolveDocument())).Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Scalar_calls_no_third_party()
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync();
+        using var client = host.CreateClient();
+
+        // Act
+        var page = await ScalarPage.ReadAsync(client, "/api-docs/");
+
+        // Assert
+        page.Configuration.GetProperty("telemetry").GetBoolean().Should().BeFalse();
+        page.Configuration.GetProperty("withDefaultFonts").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Docs_page_at_the_swagger_ui_path_fails_at_startup()
+    {
+        // Act
+        var start = () => ApiDocsHost.StartAsync(options =>
+        {
+            options.UseSwaggerUi = true;
+            options.SwaggerPath = "/swagger/";
+        });
+
+        // Assert
+        await start.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Swagger UI*");
+    }
+
+    [Fact]
+    public async Task Configure_application_and_a_second_docs_call_keep_one_docs_page()
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartWithPipelineAsync((app, api) =>
+        {
+            api.ConfigureApplication(app);
+            app.UseEndatixApiDocs(new ApiOptions { SwaggerPath = "/docs" });
+        });
+        using var client = host.CreateClient();
+
+        // Act
+        var page = await ScalarPage.ReadAsync(client, "/api-docs/");
+
+        // Assert
+        page.DocumentUrls.Should().Equal(DOCUMENT_URL);
+        (await GetStatusAsync(client, "/docs/")).Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Swagger_ui_moved_onto_the_docs_page_fails_at_startup()
+    {
+        // Act
+        var start = () => ApiDocsHost.StartAsync(options =>
+        {
+            options.UseSwaggerUi = true;
+            options.ConfigureSwaggerUi = ui => ui.Path = "/api-docs";
+        });
+
+        // Assert
+        await start.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Swagger UI*");
+    }
+
+    [Fact]
     public void Use_swagger_ui_setting_maps_to_api_options()
     {
         // Arrange
