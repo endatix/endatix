@@ -63,10 +63,7 @@ public static class MessagingConfiguration
         // Never activate the direct, repository-scoped constructor for a managed query.
         services.TryAddScoped<IRequestHandler<ListDataListsQuery, Result<Paged<DataListDto>>>>(sp =>
             new ListDataListsHandler(sp.GetRequiredService<IRepository<DataList>>(), sp.GetRequiredService<ITenantContext>()));
-        services.AddMediatR(config =>
-        {
-            config.RegisterServicesFromAssemblies(mediatRAssemblies);
-        });
+        services.AddMediatR(config => RegisterHandlers(services, config, mediatRAssemblies));
 
         services.AddScoped<IDomainEventDispatcher, MediatRDomainEventDispatcher>();
         AddUseCaseServices(services);
@@ -77,6 +74,12 @@ public static class MessagingConfiguration
         }
 
         return services;
+    }
+
+    private static void RegisterHandlers(IServiceCollection services, MediatRServiceConfiguration config, Assembly[] assemblies)
+    {
+        ManagedContentHandlers.Configure(services, config);
+        config.RegisterServicesFromAssemblies(assemblies);
     }
 
     private static void AddUseCaseServices(IServiceCollection services)

@@ -12,6 +12,4 @@ public record PartialUpdateSubmissionCommand(long SubmissionId, long FormId, boo
 {
     internal long? TokenTenantId { get; init; }
 
-    internal SubmissionByFormIdAndSubmissionIdSpec Target(long accountTenant) =>
-        new SubmissionByFormIdAndSubmissionIdSpec(FormId, SubmissionId).OnLiveForm(TokenTenantId ?? accountTenant);
 }

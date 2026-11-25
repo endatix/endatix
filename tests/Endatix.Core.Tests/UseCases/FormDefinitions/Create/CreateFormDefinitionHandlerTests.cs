@@ -1,4 +1,3 @@
-using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
@@ -31,8 +30,8 @@ public class CreateFormDefinitionHandlerTests
         // Arrange
         Form? notFoundForm = null;
         var request = new CreateFormDefinitionCommand(SampleData.TENANT_ID, true, SampleData.FORM_DEFINITION_JSON_DATA_1);
-        _formsRepository.FirstOrDefaultAsync(
-            Arg.Any<ISpecification<Form>>(),
+        _formsRepository.GetByIdAsync(
+            request.FormId,
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(notFoundForm);
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
@@ -61,8 +60,8 @@ public class CreateFormDefinitionHandlerTests
       );
         form.AddFormDefinition(formDefinition);
 
-        _formsRepository.FirstOrDefaultAsync(
-            Arg.Any<ISpecification<Form>>(),
+        _formsRepository.GetByIdAsync(
+            request.FormId,
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(form);
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
@@ -101,8 +100,8 @@ public class CreateFormDefinitionHandlerTests
         );
         form.AddFormDefinition(formDefinition);
 
-        _formsRepository.FirstOrDefaultAsync(
-            Arg.Any<ISpecification<Form>>(),
+        _formsRepository.GetByIdAsync(
+            request.FormId,
             cancellationToken: Arg.Any<CancellationToken>()
         ).Returns(form);
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);

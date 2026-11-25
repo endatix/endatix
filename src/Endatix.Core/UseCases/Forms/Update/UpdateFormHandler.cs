@@ -11,16 +11,29 @@ namespace Endatix.Core.UseCases.Forms.Update;
 /// <summary>
 /// Handler for updating a form.
 /// </summary>
-public class UpdateFormHandler(
-    IRepository<Form> repository,
-    IRepository<Submission> submissionRepository,
-    IMediator mediator,
-    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<UpdateFormCommand, Result<Form>>
+[DirectCallOnly]
+public class UpdateFormHandler : ICommandHandler<UpdateFormCommand, Result<Form>>
 {
+    private readonly FormEdits _forms;
+    private readonly FolderAssignmentPolicy _folderAssignmentPolicy;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public UpdateFormHandler(IRepository<Form> repository,
+        IRepository<Submission> submissionRepository,
+        IMediator mediator,
+        FolderAssignmentPolicy folderAssignmentPolicy)
+        : this(new FormEdits(new EditableContent<Form>(repository, ContentQueryScope.Repository), submissionRepository, mediator), folderAssignmentPolicy) { }
+
+    private UpdateFormHandler(FormEdits forms, FolderAssignmentPolicy folderAssignmentPolicy)
+    {
+        _forms = forms;
+        _folderAssignmentPolicy = folderAssignmentPolicy;
+    }
+
     /// <inheritdoc />
     public async Task<Result<Form>> Handle(UpdateFormCommand request, CancellationToken cancellationToken)
     {
-        var form = await repository.FirstOrDefaultAsync(new TenantContentQueries.ById<Form>(request.FormId, folderAssignmentPolicy.TenantId), cancellationToken);
+        var form = await _forms.FindAsync(request.FormId, cancellationToken);
         if (form is null)
         {
             return Result.NotFound("Form not found.");
@@ -33,14 +46,14 @@ public class UpdateFormHandler(
     {
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
         var gate = new SingleSubmissionGateChange(form.Id, form.TenantId, form.LimitOnePerUser, requestedLimitOnePerUser, form.IsPublic);
-        if (await gate.ConflictAsync(submissionRepository, cancellationToken) is { } conflict)
+        if (await _forms.ConflictAsync(gate, cancellationToken) is { } conflict)
         {
             return conflict;
         }
 
         form.SetEnabled(request.IsEnabled); // raises form.enabled_state_changed (outbox) on an actual change
 
-        var folderCheck = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
+        var folderCheck = await _folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
             form.FolderId,
             request.FolderId,
             targetFolderId => form.MoveToFolder(targetFolderId),
@@ -65,12 +78,7 @@ public class UpdateFormHandler(
                 form.SubmissionTokenExpiryHours,
                 request.SubmissionTokenExpiryHours,
                 request.ClearSubmissionTokenExpiryHours));
-        await repository.UpdateAsync(form, cancellationToken);
-
-        // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
-        // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no
-        // in-process subscriber, so it is not published here.
-        await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
+        await _forms.SaveAsync(form, cancellationToken);
 
         return Result.Success(form);
     }
@@ -103,4 +111,8 @@ public class UpdateFormHandler(
 
         return requestedHours ?? currentHours;
     }
+
+    internal sealed class Registered(FormEdits forms, FolderAssignmentPolicy folderAssignmentPolicy)
+        : RegisteredContentHandler<UpdateFormCommand, Result<Form>>(
+            new UpdateFormHandler(forms, folderAssignmentPolicy));
 }

@@ -8,16 +8,19 @@ using Endatix.Core.Specifications;
 namespace Endatix.Core.UseCases.Forms.GetById;
 
 /// <summary>Reads a visible form with its submission count.</summary>
-public class GetFormByIdHandler(IFormsRepository repository, ITenantContext tenant) : IQueryHandler<GetFormByIdQuery, Result<FormDto>>
+[DirectCallOnly]
+public class GetFormByIdHandler(IFormsRepository repository) : IQueryHandler<GetFormByIdQuery, Result<FormDto>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     public async Task<Result<FormDto>> Handle(GetFormByIdQuery request, CancellationToken cancellationToken)
     {
-        if (tenant is { TenantId: <= 0 })
+        if (Selection is { TenantId: <= 0 })
         {
             return Result.NotFound("Form not found.");
         }
         var spec = new FormByIdWithSubmissionsCountSpec(request.FormId);
-        spec.InTenant(tenant);
+        Selection.Apply(spec);
         var form = await repository.FirstOrDefaultAsync(spec, cancellationToken);
         if (form == null)
         {
@@ -25,4 +28,8 @@ public class GetFormByIdHandler(IFormsRepository repository, ITenantContext tena
         }
         return Result.Success(form);
     }
+
+    internal sealed class Registered(IFormsRepository repository, ContentQueryScope tenant)
+        : RegisteredContentHandler<GetFormByIdQuery, Result<FormDto>>(
+            new GetFormByIdHandler(repository) { Selection = tenant });
 }

@@ -12,28 +12,45 @@ namespace Endatix.Core.UseCases.Submissions.CreateAccessToken;
 /// <summary>
 /// Handler for generating submission access tokens.
 /// </summary>
-public class CreateAccessTokenHandler(
-    IRepository<Submission> submissionRepository,
-    ISubmissionAccessTokenService tokenService,
-    ICurrentUserAuthorizationService authorizationService, ITenantContext tenant
-    ) : ICommandHandler<CreateAccessTokenCommand, Result<SubmissionAccessTokenDto>>
+[DirectCallOnly]
+public class CreateAccessTokenHandler : ICommandHandler<CreateAccessTokenCommand, Result<SubmissionAccessTokenDto>>
 {
+    private readonly SubmissionTargets _targets;
+    private readonly ISubmissionAccessTokenService _tokenService;
+    private readonly ICurrentUserAuthorizationService _authorizationService;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public CreateAccessTokenHandler(IRepository<Submission> submissionRepository,
+        ISubmissionAccessTokenService tokenService,
+        ICurrentUserAuthorizationService authorizationService)
+        : this(new SubmissionTargets(submissionRepository, ContentQueryScope.Repository), tokenService, authorizationService) { }
+
+    private CreateAccessTokenHandler(SubmissionTargets targets, ISubmissionAccessTokenService tokenService, ICurrentUserAuthorizationService authorizationService)
+    {
+        _targets = targets;
+        _tokenService = tokenService;
+        _authorizationService = authorizationService;
+    }
+
     private const string SUBMISSIONS_PREFIX = "submissions.";
 
     public async Task<Result<SubmissionAccessTokenDto>> Handle(CreateAccessTokenCommand request, CancellationToken cancellationToken)
     {
         foreach (var requiredPermission in request.Permissions.Select(p => SUBMISSIONS_PREFIX + p))
         {
-            var accessResult = await authorizationService.ValidateAccessAsync(requiredPermission, cancellationToken);
+            var accessResult = await _authorizationService.ValidateAccessAsync(requiredPermission, cancellationToken);
             if (!accessResult.IsSuccess)
             {
                 return accessResult;
             }
         }
 
-        var spec = new SubmissionByFormIdAndSubmissionIdSpec(request.FormId, request.SubmissionId).OnLiveForm(tenant.TenantId);
-        return tenant.TenantId > 0 && await submissionRepository.AnyAsync(spec, cancellationToken)
-            ? tokenService.GenerateAccessToken(request.SubmissionId, request.ExpiryMinutes, request.Permissions)
+        return await _targets.CanIssueTokenAsync(request.FormId, request.SubmissionId, cancellationToken)
+            ? _tokenService.GenerateAccessToken(request.SubmissionId, request.ExpiryMinutes, request.Permissions)
             : Result.NotFound("Submission not found");
     }
+
+    internal sealed class Registered(SubmissionTargets targets, ISubmissionAccessTokenService tokenService, ICurrentUserAuthorizationService authorizationService)
+        : RegisteredContentHandler<CreateAccessTokenCommand, Result<SubmissionAccessTokenDto>>(
+            new CreateAccessTokenHandler(targets, tokenService, authorizationService));
 }

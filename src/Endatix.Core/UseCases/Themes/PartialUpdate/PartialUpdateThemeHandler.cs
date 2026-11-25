@@ -10,9 +10,11 @@ namespace Endatix.Core.UseCases.Themes.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a theme.
 /// </summary>
-public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository, ITenantContext scope)
-    : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
+[DirectCallOnly]
+public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository) : ICommandHandler<PartialUpdateThemeCommand, Result<Theme>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     /// <summary>
     /// Handles the partial update of a theme.
     /// </summary>
@@ -23,7 +25,7 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository, ITena
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-        var changes = new ThemeChanges(themeRepository, scope);
+        var changes = new ThemeChanges(themeRepository, Selection);
         var change = new ThemeChanges.ThemeChange(request.ThemeId, request.Name, request.ThemeData);
         var edit = await changes.PrepareEditAsync(change, cancellationToken);
         if (!edit.IsSuccess)
@@ -47,4 +49,8 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository, ITena
         await themeRepository.SaveChangesAsync(cancellationToken);
         return Result.Success(theme);
     }
+
+    internal sealed class Registered(IRepository<Theme> themeRepository, ContentQueryScope scope)
+        : RegisteredContentHandler<PartialUpdateThemeCommand, Result<Theme>>(
+            new PartialUpdateThemeHandler(themeRepository) { Selection = scope });
 }

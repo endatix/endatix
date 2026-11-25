@@ -15,7 +15,7 @@ public class ListFormTemplatesHandlerTests
     public ListFormTemplatesHandlerTests()
     {
         _repository = Substitute.For<IRepository<FormTemplate>>();
-        _handler = new ListFormTemplatesHandler(_repository, SampleData.Tenant);
+        _handler = new ListFormTemplatesHandler(_repository);
     }
 
     [Fact]

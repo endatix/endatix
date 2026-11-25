@@ -4,7 +4,6 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Forms.Update;
 using MediatR;
@@ -32,7 +31,7 @@ public class UpdateFormHandlerTests
     {
         // Arrange
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns((Form?)null);
 
         // Act
@@ -53,7 +52,7 @@ public class UpdateFormHandlerTests
         form.Description = SampleData.FORM_DESCRIPTION_1;
         form.IsEnabled = true;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -78,7 +77,7 @@ public class UpdateFormHandlerTests
         form.Description = SampleData.FORM_DESCRIPTION_1;
         form.IsEnabled = true;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, false);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -98,7 +97,7 @@ public class UpdateFormHandlerTests
         form.Description = SampleData.FORM_DESCRIPTION_1;
         form.IsEnabled = true;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, false);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -132,7 +131,7 @@ public class UpdateFormHandlerTests
         }
         """;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, webHookJson);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -163,7 +162,7 @@ public class UpdateFormHandlerTests
         form.UpdateWebHookSettings(webHookConfig);
 
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, "");
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -192,7 +191,7 @@ public class UpdateFormHandlerTests
         form.UpdateWebHookSettings(webHookConfig);
 
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -212,7 +211,7 @@ public class UpdateFormHandlerTests
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: true));
         form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: false));
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
                    .Returns(form);
 
         // Act
@@ -230,7 +229,7 @@ public class UpdateFormHandlerTests
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
         form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
                 Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
@@ -252,7 +251,7 @@ public class UpdateFormHandlerTests
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
         form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
                 Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
@@ -274,7 +273,7 @@ public class UpdateFormHandlerTests
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: false, LimitOnePerUser: false));
         form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
         _submissionRepository.ListAsync(
                 Arg.Any<EligibleSingleSubmissionGateSubmitterIdsByFormIdSpec>(),
@@ -296,7 +295,7 @@ public class UpdateFormHandlerTests
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, IsPublic: true, LimitOnePerUser: false));
         form.Id = 1;
         var request = new UpdateFormCommand(1, SampleData.FORM_NAME_1, SampleData.FORM_DESCRIPTION_1, true, null, new UpdateFormOptions(LimitOnePerUser: true));
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
 
         // Act
@@ -320,7 +319,7 @@ public class UpdateFormHandlerTests
             isEnabled: true,
             webHookSettingsJson: null,
             options: new UpdateFormOptions(LimitOnePerUser: null));
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
 
         // Act
@@ -354,7 +353,7 @@ public class UpdateFormHandlerTests
             SampleData.FORM_DESCRIPTION_1,
             true,
             options: new UpdateFormOptions(FolderId: 9));
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>())
             .Returns(form);
 
         // Act

@@ -2,7 +2,6 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.FormTemplates.PartialUpdate;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
@@ -17,7 +16,7 @@ public class PartialUpdateFormTemplateHandlerTests
     public PartialUpdateFormTemplateHandlerTests()
     {
         _repository = Substitute.For<IRepository<FormTemplate>>();
-        _handler = new PartialUpdateFormTemplateHandler(_repository, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID), SampleData.Tenant);
+        _handler = new PartialUpdateFormTemplateHandler(_repository, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
     }
 
     [Fact]
@@ -26,7 +25,7 @@ public class PartialUpdateFormTemplateHandlerTests
         // Arrange
         FormTemplate? notFoundTemplate = null;
         var request = new PartialUpdateFormTemplateCommand(1, null, null, null);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<FormTemplate>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns(notFoundTemplate);
 
         // Act
@@ -56,7 +55,7 @@ public class PartialUpdateFormTemplateHandlerTests
             SampleData.FORM_DEFINITION_JSON_DATA_2
         );
 
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<FormTemplate>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns(formTemplate);
 
         // Act
@@ -94,7 +93,7 @@ public class PartialUpdateFormTemplateHandlerTests
 
         var request = new PartialUpdateFormTemplateCommand(1, null, SampleData.FORM_DESCRIPTION_2, null);
 
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<FormTemplate>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns(formTemplate);
 
         // Act
@@ -123,10 +122,10 @@ public class PartialUpdateFormTemplateHandlerTests
             .AnyAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
-        var handler = new PartialUpdateFormTemplateHandler(_repository, helper, SampleData.Tenant);
+        var handler = new PartialUpdateFormTemplateHandler(_repository, helper);
         var formTemplate = new FormTemplate(SampleData.TENANT_ID, SampleData.FORM_NAME_1, folderId: 7) { Id = 1 };
         var request = new PartialUpdateFormTemplateCommand(1, null, null, null) { FolderId = 9 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<FormTemplate>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
             .Returns(formTemplate);
 
         // Act

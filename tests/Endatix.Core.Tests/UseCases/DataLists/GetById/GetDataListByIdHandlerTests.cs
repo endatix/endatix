@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions;
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -17,9 +16,7 @@ public class GetDataListByIdHandlerTests
     public GetDataListByIdHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
-        var tenant = Substitute.For<ITenantContext>();
-        tenant.TenantId.Returns(SampleData.TENANT_ID);
-        _sut = new GetDataListByIdHandler(_repository, tenant);
+        _sut = new GetDataListByIdHandler(_repository);
     }
 
     [Fact]
@@ -43,7 +40,7 @@ public class GetDataListByIdHandlerTests
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Major cities") { Id = 7 };
         dataList.AddCulture(CultureCode.Parse("es"));
-        var nyc = dataList.AddItem(
+        DataListItem nyc = dataList.AddItem(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 [SurveyJsTranslationKeys.DefaultKey] = "New York",
@@ -51,7 +48,7 @@ public class GetDataListByIdHandlerTests
             },
             "NYC");
         nyc.Id = 101;
-        var la = dataList.AddItem("Los Angeles", "LA");
+        DataListItem la = dataList.AddItem("Los Angeles", "LA");
         la.Id = 102;
 
         _repository.FirstOrDefaultAsync(

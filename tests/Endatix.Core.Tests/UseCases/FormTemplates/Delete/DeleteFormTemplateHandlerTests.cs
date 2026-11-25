@@ -1,7 +1,6 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.FormTemplates.Delete;
 
 namespace Endatix.Core.Tests.UseCases.FormTemplates.Delete;
@@ -14,7 +13,7 @@ public class DeleteFormTemplateHandlerTests
     public DeleteFormTemplateHandlerTests()
     {
         _repository = Substitute.For<IRepository<FormTemplate>>();
-        _handler = new DeleteFormTemplateHandler(_repository, SampleData.Tenant);
+        _handler = new DeleteFormTemplateHandler(_repository);
     }
 
     [Fact]
@@ -22,7 +21,7 @@ public class DeleteFormTemplateHandlerTests
     {
         // Arrange
         var request = new DeleteFormTemplateCommand(1);
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<FormTemplate>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns((FormTemplate?)null);
 
         // Act
@@ -46,7 +45,7 @@ public class DeleteFormTemplateHandlerTests
         };
         var request = new DeleteFormTemplateCommand(1);
 
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<FormTemplate>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(request.FormTemplateId, Arg.Any<CancellationToken>())
                    .Returns(formTemplate);
 
         // Act

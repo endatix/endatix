@@ -12,9 +12,11 @@ namespace Endatix.Core.UseCases.FormDefinitions.List;
 /// Handler for retrieving form definitions as a paged envelope.
 /// Returns NotFound when the form has no matching definitions.
 /// </summary>
-public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository, ITenantContext tenant)
-    : IQueryHandler<ListFormDefinitionsQuery, Result<Paged<FormDefinition>>>
+[DirectCallOnly]
+public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository) : IQueryHandler<ListFormDefinitionsQuery, Result<Paged<FormDefinition>>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     public async Task<Result<Paged<FormDefinition>>> Handle(
         ListFormDefinitionsQuery request,
         CancellationToken cancellationToken)
@@ -23,7 +25,7 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository, 
             request.FormId,
             request.Created,
             request.Modified);
-        countSpec.InTenant(tenant);
+        Selection.Apply(countSpec);
         var totalRecords = await repository.CountAsync(countSpec, cancellationToken);
         if (totalRecords == 0)
         {
@@ -44,9 +46,13 @@ public class ListFormDefinitionsHandler(IRepository<FormDefinition> repository, 
             request.SortDescending,
             request.Created,
             request.Modified);
-        spec.InTenant(tenant);
+        Selection.Apply(spec);
         IReadOnlyList<FormDefinition> items = [.. await repository.ListAsync(spec, cancellationToken)];
 
         return resolved.ToPaged(items);
     }
+
+    internal sealed class Registered(IRepository<FormDefinition> repository, ContentQueryScope tenant)
+        : RegisteredContentHandler<ListFormDefinitionsQuery, Result<Paged<FormDefinition>>>(
+            new ListFormDefinitionsHandler(repository) { Selection = tenant });
 }

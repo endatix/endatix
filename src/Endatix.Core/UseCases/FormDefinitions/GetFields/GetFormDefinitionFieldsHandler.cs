@@ -13,29 +13,27 @@ namespace Endatix.Core.UseCases.FormDefinitions.GetFields;
 /// <summary>
 /// Handler for the <c>GetFormDefinitionFieldsQuery</c> class.
 /// </summary>
-public partial class GetFormDefinitionFieldsHandler(IRepository<FormDefinition> formDefinitionsRepository,
-    IFormsRepository formsRepository,
-    ILogger<GetFormDefinitionFieldsHandler> logger, ITenantContext tenant) : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
+[DirectCallOnly]
+public partial class GetFormDefinitionFieldsHandler : IQueryHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>
 {
-    ///  <inheritdoc/>
+    private readonly FormFieldDefinitions _source;
+    private readonly ILogger<GetFormDefinitionFieldsHandler> _logger;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public GetFormDefinitionFieldsHandler(IRepository<FormDefinition> formDefinitionsRepository, IFormsRepository formsRepository,
+        ILogger<GetFormDefinitionFieldsHandler> logger)
+        : this(new FormFieldDefinitions(formsRepository, formDefinitionsRepository, ContentQueryScope.Repository), logger) { }
+
+    private GetFormDefinitionFieldsHandler(FormFieldDefinitions source, ILogger<GetFormDefinitionFieldsHandler> logger) =>
+        (_source, _logger) = (source, logger);
+
+    /// <inheritdoc/>
     public async Task<Result<IEnumerable<DefinitionFieldDto>>> Handle(
         GetFormDefinitionFieldsQuery request,
         CancellationToken cancellationToken)
     {
-        var specification = new FormSpecifications.ByIdReadOnly(request.FormId);
-        specification.InTenant(tenant);
-        var form = await formsRepository.SingleOrDefaultAsync(specification, cancellationToken);
-
-        if (form is null)
-        {
-            return Result.NotFound("Form not found.");
-        }
-
-        var spec = new FormDefinitionsByFormIdSpec(request.FormId);
-        spec.InTenant(tenant);
-        var definitions = await formDefinitionsRepository.ListAsync(spec, cancellationToken);
-
-        return Result.Success(Fields(definitions));
+        var definitions = await _source.ReadAsync(request.FormId, cancellationToken);
+        return definitions is null ? Result.NotFound("Form not found.") : Result.Success(Fields(definitions));
     }
 
     private IEnumerable<DefinitionFieldDto> Fields(IEnumerable<FormDefinition> definitions)
@@ -272,4 +270,8 @@ public partial class GetFormDefinitionFieldsHandler(IRepository<FormDefinition> 
         EventName = "FormDefinitionJsonParseFailed",
         Message = "Error parsing JSON for form definition {DefinitionId}")]
     private partial void LogJsonParsingError(long definitionId, JsonException ex);
+
+    internal sealed class Registered(FormFieldDefinitions source, ILoggerFactory loggers)
+        : RegisteredContentHandler<GetFormDefinitionFieldsQuery, Result<IEnumerable<DefinitionFieldDto>>>(
+            new GetFormDefinitionFieldsHandler(source, loggers.CreateLogger<GetFormDefinitionFieldsHandler>()));
 }

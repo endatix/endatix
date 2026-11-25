@@ -17,12 +17,19 @@ namespace Endatix.Core.UseCases.Forms.Delete;
 /// <see cref="IFormSubmissionsLock"/>. Creates under way finish first and are deleted with the form; creates that
 /// start meanwhile are refused, so once the deletion commits none of the form's submissions is live.
 /// </summary>
-public class DeleteFormHandler(
-    IFormsRepository forms,
-    IFormSubmissionsLock formSubmissionsLock,
-    IMediator mediator,
-    ITenantContext tenant) : ICommandHandler<DeleteFormCommand, Result<Form>>
+[DirectCallOnly]
+public class DeleteFormHandler : ICommandHandler<DeleteFormCommand, Result<Form>>
 {
+    private readonly DeletableForms _forms;
+    private readonly IFormSubmissionsLock _formSubmissionsLock;
+    private readonly IMediator _mediator;
+
+    public DeleteFormHandler(IFormsRepository forms, IFormSubmissionsLock formSubmissionsLock, IMediator mediator)
+        : this(new DeletableForms(forms, ContentQueryScope.Repository), formSubmissionsLock, mediator) { }
+
+    private DeleteFormHandler(DeletableForms forms, IFormSubmissionsLock formSubmissionsLock, IMediator mediator) =>
+        (_forms, _formSubmissionsLock, _mediator) = (forms, formSubmissionsLock, mediator);
+
     private const string FORM_NOT_FOUND_MESSAGE = "Form not found.";
     private const string BUSY_MESSAGE = "The form is busy; try again shortly.";
 
@@ -30,7 +37,7 @@ public class DeleteFormHandler(
     {
         // Unlocked first: the delete of a missing form, or of another tenant's (form ids are public), must not hold up
         // that form's creates.
-        if (!await IsVisibleAsync(request.FormId, cancellationToken))
+        if (!await _forms.ExistsAsync(request.FormId, cancellationToken))
         {
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
@@ -38,19 +45,12 @@ public class DeleteFormHandler(
         return await DeleteAsync(request.FormId, cancellationToken);
     }
 
-    private Task<bool> IsVisibleAsync(long id, CancellationToken ct)
-    {
-        return tenant is { TenantId: > 0 }
-            ? forms.AnyAsync(new FormSpecifications.ByIdForTenant(id, tenant.TenantId), ct)
-            : Task.FromResult(false);
-    }
-
     private async Task<Result<Form>> DeleteAsync(long formId, CancellationToken cancellationToken)
     {
         var deleted = await DeleteUnderLockAsync(formId, cancellationToken);
         if (deleted.IsSuccess)
         {
-            await mediator.Publish(new FormDeletedEvent(deleted.Value), cancellationToken);
+            await _mediator.Publish(new FormDeletedEvent(deleted.Value), cancellationToken);
         }
 
         return deleted;
@@ -59,7 +59,7 @@ public class DeleteFormHandler(
     /// <summary>Returns once the lock is released, so the in-process handlers of the deletion never run under it.</summary>
     private async Task<Result<Form>> DeleteUnderLockAsync(long formId, CancellationToken cancellationToken)
     {
-        var locked = await formSubmissionsLock.BeginDeletingAsync(formId, cancellationToken);
+        var locked = await _formSubmissionsLock.BeginDeletingAsync(formId, cancellationToken);
         if (!locked.IsSuccess)
         {
             return locked.ToErrorResult<Form>();
@@ -91,18 +91,16 @@ public class DeleteFormHandler(
         IFormSubmissionsSection section,
         CancellationToken cancellationToken)
     {
-        var spec = new FormWithDefinitionsSpec(formId);
-        spec.InTenant(tenant);
-        var form = await forms.SingleOrDefaultAsync(spec, cancellationToken);
+        var form = await _forms.DeleteAsync(formId, cancellationToken);
         if (form is null)
         {
             return Result.NotFound(FORM_NOT_FOUND_MESSAGE);
         }
-
-        await forms.DeleteSubmissionsAsync(form, cancellationToken);
-        form.Delete();
-        await forms.SaveChangesAsync(cancellationToken);
         await section.CommitAsync(cancellationToken);
         return Result.Success(form);
     }
+
+    internal sealed class Registered(DeletableForms forms, IFormSubmissionsLock formSubmissionsLock, IMediator mediator)
+        : RegisteredContentHandler<DeleteFormCommand, Result<Form>>(
+            new DeleteFormHandler(forms, formSubmissionsLock, mediator));
 }

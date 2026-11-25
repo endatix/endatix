@@ -14,18 +14,31 @@ namespace Endatix.Core.UseCases.Submissions.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a form submission.
 /// </summary>
-public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator, ITenantContext tenant) : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
+[DirectCallOnly]
+public class PartialUpdateSubmissionHandler : ICommandHandler<PartialUpdateSubmissionCommand, Result<Submission>>
 {
+    private readonly SubmissionTargets _targets;
+    private readonly SubmissionChangeSaver _saver;
+    private readonly IMediator _mediator;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public PartialUpdateSubmissionHandler(IRepository<Submission> repository, IRepository<SubmissionVersion> versions, IMediator mediator)
+        : this(new SubmissionTargets(repository, ContentQueryScope.Repository), new SubmissionChangeSaver(repository, versions), mediator) { }
+
+    private PartialUpdateSubmissionHandler(SubmissionTargets targets, SubmissionChangeSaver saver, IMediator mediator)
+    {
+        _targets = targets;
+        _saver = saver;
+        _mediator = mediator;
+    }
+
     private const int DEFAULT_CURRENT_PAGE = 0;
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Form submission not found.";
-
-    private SubmissionChangeSaver Saver => new(repository, versions);
 
     /// <inheritdoc/>
     public async Task<Result<Submission>> Handle(PartialUpdateSubmissionCommand request, CancellationToken cancellationToken)
     {
-        var submissionSpec = request.Target(tenant.TenantId);
-        var submission = await repository.SingleOrDefaultAsync(submissionSpec, cancellationToken);
+        var submission = await _targets.FindForUpdateAsync(request, cancellationToken);
         if (submission == null)
         {
             return Result.NotFound(SUBMISSION_NOT_FOUND_MESSAGE);
@@ -72,7 +85,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
             return Result.Invalid(new ValidationError(RejectionMessage(previousStatus, outcome is not null)));
         }
 
-        var saved = await Saver.TrySaveAsync(submission, originalJson, cancellationToken);
+        var saved = await _saver.TrySaveAsync(submission, originalJson, cancellationToken);
         if (!saved.IsSuccess)
         {
             return saved.ToErrorResult<Submission>();
@@ -80,7 +93,7 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         if (mustPublishEvent)
         {
-            await mediator.PublishCompletedAsync(submission, cancellationToken);
+            await _mediator.PublishCompletedAsync(submission, cancellationToken);
         }
 
         return Result.Success(submission);
@@ -100,4 +113,8 @@ public class PartialUpdateSubmissionHandler(IRepository<Submission> repository, 
 
         return "This submission cannot be completed.";
     }
+
+    internal sealed class Registered(SubmissionTargets targets, SubmissionChangeSaver saver, IMediator mediator)
+        : RegisteredContentHandler<PartialUpdateSubmissionCommand, Result<Submission>>(
+            new PartialUpdateSubmissionHandler(targets, saver, mediator));
 }

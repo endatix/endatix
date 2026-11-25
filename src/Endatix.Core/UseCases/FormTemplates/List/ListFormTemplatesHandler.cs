@@ -10,22 +10,24 @@ using Endatix.Core.Specifications.Parameters;
 namespace Endatix.Core.UseCases.FormTemplates.List;
 
 /// <summary>Returns a page of templates for the current tenant.</summary>
-public class ListFormTemplatesHandler(IRepository<FormTemplate> repository, ITenantContext scope)
-    : IQueryHandler<ListFormTemplatesQuery, Result<Paged<FormTemplateDto>>>
+[DirectCallOnly]
+public class ListFormTemplatesHandler(IRepository<FormTemplate> repository) : IQueryHandler<ListFormTemplatesQuery, Result<Paged<FormTemplateDto>>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     public async Task<Result<Paged<FormTemplateDto>>> Handle(
         ListFormTemplatesQuery request,
         CancellationToken cancellationToken)
     {
 
-        if (scope is { TenantId: <= 0 })
+        if (Selection is { TenantId: <= 0 })
         {
             return Result.Unauthorized("Tenant context is required.");
         }
 
         var filters = CreateFilterParameters(request.FilterExpressions, request.FolderId);
         var count = new FormTemplatesListFilterSpec(filters, request.Created, request.Modified);
-        count.InTenant(scope);
+        Selection.Apply(count);
         var total = await repository.CountAsync(count, cancellationToken);
         var page = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
         var items = total == 0 ? [] : await ReadPageAsync(request, (page, filters), cancellationToken);
@@ -36,7 +38,7 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository, ITen
     {
         var spec = new FormTemplatesSpec(new PagingParameters(page.Window), page.Filters, request.SortBy,
             request.SortDescending, request.Created, request.Modified);
-        spec.InTenant(scope);
+        Selection.Apply(spec);
         return await repository.ListAsync(spec, ct);
     }
 
@@ -57,4 +59,8 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository, ITen
 
         return new FilterParameters(filterList);
     }
+
+    internal sealed class Registered(IRepository<FormTemplate> repository, ContentQueryScope scope)
+        : RegisteredContentHandler<ListFormTemplatesQuery, Result<Paged<FormTemplateDto>>>(
+            new ListFormTemplatesHandler(repository) { Selection = scope });
 }

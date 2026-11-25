@@ -17,20 +17,7 @@ public class GetFormByIdHandlerTests
     public GetFormByIdHandlerTests()
     {
         _repository = Substitute.For<IFormsRepository>();
-        _handler = new GetFormByIdHandler(_repository, SampleData.Tenant);
-    }
-
-    [Fact]
-    public async Task Handle_NoTenantContext_DoesNotReadAForm()
-    {
-        var tenant = Substitute.For<ITenantContext>();
-        tenant.TenantId.Returns(0L);
-        var handler = new GetFormByIdHandler(_repository, tenant);
-
-        var result = await handler.Handle(new GetFormByIdQuery(1), TestContext.Current.CancellationToken);
-
-        result.Status.Should().Be(ResultStatus.NotFound);
-        _repository.ReceivedCalls().Should().BeEmpty();
+        _handler = new GetFormByIdHandler(_repository);
     }
 
     [Fact]

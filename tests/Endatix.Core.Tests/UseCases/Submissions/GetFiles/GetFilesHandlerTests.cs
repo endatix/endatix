@@ -23,7 +23,7 @@ public class GetFilesHandlerTests
 
     public GetFilesHandlerTests()
     {
-        _handler = new GetFilesHandler(_submissionRepo, _formRepo, _extractor, SampleData.Tenant);
+        _handler = new GetFilesHandler(_submissionRepo, _formRepo, _extractor);
     }
 
     [Fact]

@@ -22,7 +22,7 @@ public class GetFormDefinitionFieldsHandlerTests
         _formsRepository = Substitute.For<IFormsRepository>();
         _logger = Substitute.For<ILogger<GetFormDefinitionFieldsHandler>>();
         _logger.IsEnabled(Arg.Any<LogLevel>()).Returns(true);
-        _handler = new GetFormDefinitionFieldsHandler(_formDefinitionsRepository, _formsRepository, _logger, SampleData.Tenant);
+        _handler = new GetFormDefinitionFieldsHandler(_formDefinitionsRepository, _formsRepository, _logger);
     }
 
     private void ArrangeFormExists(long formId = 1)

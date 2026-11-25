@@ -27,9 +27,9 @@ public class DeleteFormHandlerTests
         var formSubmissionsLock = new FormSubmissionsLockStub();
         _formSubmissionsLock = formSubmissionsLock.Lock;
         _section = formSubmissionsLock.Section;
-        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>()).Returns(true);
+        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>()).Returns(true);
         _mediator = Substitute.For<IMediator>();
-        _handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator, SampleData.Tenant);
+        _handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public class DeleteFormHandlerTests
     {
         // Arrange
         var request = new DeleteFormCommand(1);
-        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdForTenant>(), Arg.Any<CancellationToken>()).Returns(false);
+        _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>()).Returns(false);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);

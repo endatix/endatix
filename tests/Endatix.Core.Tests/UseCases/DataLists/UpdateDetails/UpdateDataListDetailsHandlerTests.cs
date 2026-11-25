@@ -5,7 +5,6 @@ using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.DataLists;
 using Endatix.Core.UseCases.DataLists.UpdateDetails;
 using MediatR;
@@ -31,14 +30,14 @@ public class UpdateDataListDetailsHandlerTests
             _repository,
             _valueNormalizer,
             _uniqueConstraintViolationChecker,
-            _mediator, SampleData.Tenant);
+            _mediator);
     }
 
     [Fact]
     public async Task Handle_DataListNotFound_ReturnsNotFound()
     {
         // Arrange
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>())
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>())
             .Returns((DataList?)null);
 
         // Act
@@ -56,7 +55,7 @@ public class UpdateDataListDetailsHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Old", "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(),
                 Arg.Any<CancellationToken>())
@@ -85,7 +84,7 @@ public class UpdateDataListDetailsHandlerTests
         // regression guard that the handler re-fetches the count instead of
         // trusting the unloaded collection on the tracked entity.
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Old", "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
         _repository.FirstOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByIdWithoutItemsToDtoSpec>(),
                 Arg.Any<CancellationToken>())
@@ -106,7 +105,7 @@ public class UpdateDataListDetailsHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", null, "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
 
         // Act
         await _sut.Handle(
@@ -127,7 +126,7 @@ public class UpdateDataListDetailsHandlerTests
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", null, "CITIES") { Id = 1 };
         DataList other = new(SampleData.TENANT_ID, "Metros", null, "METROS") { Id = 2 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(),
                 Arg.Any<CancellationToken>())
@@ -151,7 +150,7 @@ public class UpdateDataListDetailsHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Old", "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
 
         // Act
         var result = await _sut.Handle(
@@ -171,7 +170,7 @@ public class UpdateDataListDetailsHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", null, "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(),
                 Arg.Any<CancellationToken>())
@@ -199,7 +198,7 @@ public class UpdateDataListDetailsHandlerTests
         // doesn't match the name constraint should not be mislabeled as a
         // duplicate-name error.
         DataList dataList = new(SampleData.TENANT_ID, "Cities", null, "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
         _repository.SingleOrDefaultAsync(
                 Arg.Any<DataListsSpecifications.ByNormalizedNameSpec>(),
                 Arg.Any<CancellationToken>())
@@ -226,7 +225,7 @@ public class UpdateDataListDetailsHandlerTests
         // Arrange: matches CreateDataListHandler's `Description?.Trim()`
         // behavior -- whitespace-only input becomes "", not null.
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Old", "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
 
         // Act
         var result = await _sut.Handle(
@@ -243,7 +242,7 @@ public class UpdateDataListDetailsHandlerTests
     {
         // Arrange
         DataList dataList = new(SampleData.TENANT_ID, "Cities", "Old", "CITIES") { Id = 1 };
-        _repository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<DataList>>(), Arg.Any<CancellationToken>()).Returns(dataList);
+        _repository.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(dataList);
 
         // Act
         var result = await _sut.Handle(

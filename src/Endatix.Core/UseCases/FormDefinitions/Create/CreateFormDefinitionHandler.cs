@@ -9,15 +9,18 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.Create;
 
+[DirectCallOnly]
 public class CreateFormDefinitionHandler(IFormsRepository formsRepository,
     ITenantContext tenantContext,
     IMediator mediator) : ICommandHandler<CreateFormDefinitionCommand, Result<FormDefinition>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     public async Task<Result<FormDefinition>> Handle(CreateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        var form = await formsRepository.FindAsync(request.FormId, tenantContext, cancellationToken);
+        var form = await Selection.FindAsync(formsRepository, request.FormId, cancellationToken);
         if (form == null)
         {
             return Result.NotFound("Form not found.");
@@ -41,4 +44,8 @@ public class CreateFormDefinitionHandler(IFormsRepository formsRepository,
 
         return newFormDefinition;
     }
+
+    internal sealed class Registered(IFormsRepository formsRepository, ITenantContext tenantContext, IMediator mediator)
+        : RegisteredContentHandler<CreateFormDefinitionCommand, Result<FormDefinition>>(
+            new CreateFormDefinitionHandler(formsRepository, tenantContext, mediator) { Selection = new ContentQueryScope(tenantContext) });
 }

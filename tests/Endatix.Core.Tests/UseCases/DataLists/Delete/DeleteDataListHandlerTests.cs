@@ -24,7 +24,7 @@ public class DeleteDataListHandlerTests
         _dependencyChecker = Substitute.For<IDataListDependencyChecker>();
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _mediator = Substitute.For<IMediator>();
-        _sut = new DeleteDataListHandler(_repository, _dependencyChecker, _unitOfWork, _mediator, SampleData.Tenant);
+        _sut = new DeleteDataListHandler(_repository, _dependencyChecker, _unitOfWork, _mediator);
     }
 
     [Fact]

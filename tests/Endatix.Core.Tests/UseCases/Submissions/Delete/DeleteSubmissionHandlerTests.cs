@@ -16,7 +16,7 @@ public class DeleteSubmissionHandlerTests
     public DeleteSubmissionHandlerTests()
     {
         _repository = Substitute.For<IRepository<Submission>>();
-        _handler = new DeleteSubmissionHandler(_repository, SampleData.Tenant);
+        _handler = new DeleteSubmissionHandler(_repository);
     }
 
     [Fact]

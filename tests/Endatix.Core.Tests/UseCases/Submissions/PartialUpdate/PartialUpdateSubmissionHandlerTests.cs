@@ -22,7 +22,7 @@ public class PartialUpdateSubmissionHandlerTests
         _repository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
         _versions = Substitute.For<IRepository<SubmissionVersion>>();
-        _handler = new PartialUpdateSubmissionHandler(_repository, _versions, _mediator, SampleData.Tenant);
+        _handler = new PartialUpdateSubmissionHandler(_repository, _versions, _mediator);
     }
 
     [Fact]

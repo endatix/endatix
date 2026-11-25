@@ -9,12 +9,12 @@ using Endatix.Core.Specifications;
 
 namespace Endatix.Core.UseCases.Themes;
 
-internal sealed class ThemeChanges(IRepository<Theme> themes, ITenantContext scope)
+internal sealed class ThemeChanges(IRepository<Theme> themes, ContentQueryScope scope)
 {
     internal async Task<Result<Edit>> PrepareEditAsync(ThemeChange change, CancellationToken ct)
     {
         var id = change.Id!.Value;
-        var target = await themes.FindAsync(id, scope, ct);
+        var target = await scope.FindAsync(themes, id, ct);
         if (target is null)
         {
             return Result.NotFound("Theme not found");
@@ -56,9 +56,10 @@ internal sealed class ThemeChanges(IRepository<Theme> themes, ITenantContext sco
     private async Task<Result<Theme>?> NameConflictAsync(string name, long? id, CancellationToken ct)
     {
         var named = new ThemeSpecifications.ByName(name);
-        named.InTenant(scope);
+        scope.Apply(named);
         // Match the ordinary first-by-name check, including packs with repeated names.
-        var first = await themes.FirstOrDefaultAsync(named.WithProjectionOf(new ThemeId()), ct);
+        var first = scope.TenantId.HasValue ? await themes.FirstOrDefaultAsync(named.WithProjectionOf(new ThemeId()), ct)
+            : (await themes.FirstOrDefaultAsync(named, ct))?.Id;
         return first is not null && first != id ? Duplicate(name, id) : null;
     }
 

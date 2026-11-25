@@ -14,12 +14,21 @@ namespace Endatix.Core.UseCases.Themes.Delete;
 /// <summary>
 /// Handler for deleting a theme.
 /// </summary>
-public class DeleteThemeHandler(IRepository<Theme> themeRepository,
-    IRepository<Form> formRepository,
-    IUnitOfWork unitOfWork,
-    ILogger<DeleteThemeHandler> logger, ITenantContext scope)
-    : ICommandHandler<DeleteThemeCommand, Result<string>>
+[DirectCallOnly]
+public class DeleteThemeHandler : ICommandHandler<DeleteThemeCommand, Result<string>>
 {
+    private readonly ThemeRemoval _removal;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<DeleteThemeHandler> _logger;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public DeleteThemeHandler(IRepository<Theme> themeRepository, IRepository<Form> formRepository,
+        IUnitOfWork unitOfWork, ILogger<DeleteThemeHandler> logger)
+        : this(new ThemeRemoval(themeRepository, formRepository, ContentQueryScope.Repository), unitOfWork, logger) { }
+
+    private DeleteThemeHandler(ThemeRemoval removal, IUnitOfWork unitOfWork, ILogger<DeleteThemeHandler> logger) =>
+        (_removal, _unitOfWork, _logger) = (removal, unitOfWork, logger);
+
     /// <summary>
     /// Handles the deletion of a theme with transaction support.
     /// </summary>
@@ -30,7 +39,6 @@ public class DeleteThemeHandler(IRepository<Theme> themeRepository,
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-
         return await DeleteAsync(request.ThemeId, cancellationToken);
     }
 
@@ -38,44 +46,34 @@ public class DeleteThemeHandler(IRepository<Theme> themeRepository,
     {
         try
         {
-            await unitOfWork.BeginTransactionAsync(cancellationToken);
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             return await DeleteInTransactionAsync(themeId, cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to delete theme {ThemeId}", themeId);
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            _logger.LogError(ex, "Failed to delete theme {ThemeId}", themeId);
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Error("Failed to delete theme.");
         }
     }
 
     private async Task<Result<string>> DeleteInTransactionAsync(long themeId, CancellationToken cancellationToken)
     {
-        var theme = await themeRepository.FindAsync(themeId, scope, cancellationToken);
-        if (theme == null)
+        if (await _removal.RemoveAsync(themeId, cancellationToken) is not long removedId)
         {
-            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.NotFound($"Theme with ID {themeId} not found");
         }
 
-        await ClearAssignedFormsAsync(themeId, cancellationToken);
-        await themeRepository.DeleteAsync(theme, cancellationToken);
-
         // Single SaveChanges for all modifications
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        await unitOfWork.CommitTransactionAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-        return Result.Success(theme.Id.ToString());
+        return Result.Success(removedId.ToString());
     }
 
-    private async Task ClearAssignedFormsAsync(long themeId, CancellationToken ct)
-    {
-        var assigned = new FormSpecifications.ByThemeId(themeId);
-        assigned.InTenant(scope);
-        foreach (var form in await formRepository.ListAsync(assigned, ct))
-        {
-            form.SetTheme(null);
-        }
-    }
+    internal sealed class Registered(ThemeRemoval removal, IUnitOfWork unitOfWork, ILoggerFactory loggers)
+        : RegisteredContentHandler<DeleteThemeCommand, Result<string>>(
+            new DeleteThemeHandler(removal, unitOfWork, loggers.CreateLogger<DeleteThemeHandler>()));
 }

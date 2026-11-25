@@ -4,7 +4,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Models.Themes;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Themes.Update;
 using NSubstitute.ExceptionExtensions;
 
@@ -18,14 +17,14 @@ public class UpdateThemeHandlerTests
     public UpdateThemeHandlerTests()
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
-        _handler = new UpdateThemeHandler(_themesRepository, SampleData.Tenant);
+        _handler = new UpdateThemeHandler(_themesRepository);
     }
 
     [Fact]
     public async Task Handle_EmptyReplacementNameAndInvalidJson_PreservesNameGuardForDirectCaller()
     {
         var ct = TestContext.Current.CancellationToken;
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), ct).Returns(new Theme(1, "Original"));
+        _themesRepository.GetByIdAsync(1L, ct).Returns(new Theme(1, "Original"));
 
         var act = () => _handler.Handle(new UpdateThemeCommand(1, "", themeData: "[]"), ct);
 
@@ -37,7 +36,7 @@ public class UpdateThemeHandlerTests
     {
         // Arrange
         var request = new UpdateThemeCommand(1, "Updated Theme", "Updated Description", string.Empty);
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns((Theme?)null);
 
         // Act
@@ -65,7 +64,7 @@ public class UpdateThemeHandlerTests
         var themeDataJson = JsonSerializer.Serialize(themeData);
         var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", themeDataJson);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act
@@ -112,7 +111,7 @@ public class UpdateThemeHandlerTests
 
         var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", null);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act
@@ -146,7 +145,7 @@ public class UpdateThemeHandlerTests
             themeData: themeDataPayload
         );
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         _themesRepository.UpdateAsync(Arg.Any<Theme>(), Arg.Any<CancellationToken>())
@@ -173,11 +172,11 @@ public class UpdateThemeHandlerTests
 
         var request = new UpdateThemeCommand(themeId, themeName, "Updated Description", emptyThemeData);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme, long?>>(), Arg.Any<CancellationToken>())
-                     .Returns(existingTheme.Id);
+        _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme>>(), Arg.Any<CancellationToken>())
+                     .Returns(existingTheme);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -201,7 +200,7 @@ public class UpdateThemeHandlerTests
 
         var request = new UpdateThemeCommand(themeId, "Updated Theme", "Updated Description", invalidThemeData);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act

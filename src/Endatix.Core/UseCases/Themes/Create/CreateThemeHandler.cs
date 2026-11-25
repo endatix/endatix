@@ -10,10 +10,12 @@ namespace Endatix.Core.UseCases.Themes.Create;
 /// <summary>
 /// Handler for creating a new theme.
 /// </summary>
+[DirectCallOnly]
 public class CreateThemeHandler(IRepository<Theme> themesRepository,
-    ITenantContext tenantContext)
-    : ICommandHandler<CreateThemeCommand, Result<Theme>>
+    ITenantContext tenantContext) : ICommandHandler<CreateThemeCommand, Result<Theme>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     /// <summary>
     /// Handles the creation of a new theme.
     /// </summary>
@@ -26,7 +28,7 @@ public class CreateThemeHandler(IRepository<Theme> themesRepository,
         var tenantId = tenantContext.TenantId;
         Guard.Against.NegativeOrZero(tenantId);
 
-        var changes = new ThemeChanges(themesRepository, tenantContext);
+        var changes = new ThemeChanges(themesRepository, Selection);
         var change = new ThemeChanges.ThemeChange(null, request.Name, request.ThemeData);
         var data = await changes.DataAsync(change, cancellationToken);
         if (!data.IsSuccess)
@@ -42,4 +44,8 @@ public class CreateThemeHandler(IRepository<Theme> themesRepository,
         await themesRepository.SaveChangesAsync(cancellationToken);
         return Result<Theme>.Created(theme);
     }
+
+    internal sealed class Registered(IRepository<Theme> themesRepository, ITenantContext tenantContext)
+        : RegisteredContentHandler<CreateThemeCommand, Result<Theme>>(
+            new CreateThemeHandler(themesRepository, tenantContext) { Selection = new ContentQueryScope(tenantContext) });
 }

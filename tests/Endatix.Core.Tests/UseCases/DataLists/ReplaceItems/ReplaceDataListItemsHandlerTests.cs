@@ -1,13 +1,13 @@
 using Endatix.Core.Common.Translations;
 using Endatix.Core.Entities;
-using Endatix.Core.Events;
 using Endatix.Core.Exceptions;
+using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.DataLists.ReplaceItems;
-using MediatR;
 using Microsoft.Extensions.Logging;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.ReplaceItems;
 
@@ -25,7 +25,7 @@ public class ReplaceDataListItemsHandlerTests
         _sut = new ReplaceDataListItemsHandler(
             _repository,
             _mediator,
-            _logger, SampleData.Tenant);
+            _logger);
     }
 
     private static ReplaceDataListItemInput Item(string label, string value) =>

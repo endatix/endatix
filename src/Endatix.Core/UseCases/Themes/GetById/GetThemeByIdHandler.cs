@@ -9,9 +9,11 @@ namespace Endatix.Core.UseCases.Themes.GetById;
 /// <summary>
 /// Handler for retrieving a theme by ID.
 /// </summary>
-public class GetThemeByIdHandler(IRepository<Theme> themeRepository, ITenantContext scope)
-    : IQueryHandler<GetThemeByIdQuery, Result<Theme>>
+[DirectCallOnly]
+public class GetThemeByIdHandler(IRepository<Theme> themeRepository) : IQueryHandler<GetThemeByIdQuery, Result<Theme>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     /// <summary>
     /// Handles the retrieval of a theme by ID.
     /// </summary>
@@ -20,7 +22,7 @@ public class GetThemeByIdHandler(IRepository<Theme> themeRepository, ITenantCont
     /// <returns>Result containing the theme if found, or an error if not found.</returns>
     public async Task<Result<Theme>> Handle(GetThemeByIdQuery request, CancellationToken cancellationToken)
     {
-        var theme = await themeRepository.FindAsync(request.ThemeId, scope, cancellationToken);
+        var theme = await Selection.FindAsync(themeRepository, request.ThemeId, cancellationToken);
 
         if (theme == null)
         {
@@ -29,4 +31,8 @@ public class GetThemeByIdHandler(IRepository<Theme> themeRepository, ITenantCont
 
         return Result<Theme>.Success(theme);
     }
+
+    internal sealed class Registered(IRepository<Theme> themeRepository, ContentQueryScope scope)
+        : RegisteredContentHandler<GetThemeByIdQuery, Result<Theme>>(
+            new GetThemeByIdHandler(themeRepository) { Selection = scope });
 }

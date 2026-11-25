@@ -13,13 +13,15 @@ namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdate;
 /// </summary>
 /// <param name="repository">The form definitions.</param>
 /// <param name="mediator">Publishes the in-process change notification.</param>
-/// <param name="tenant">The current tenant.</param>
+[DirectCallOnly]
 public class PartialUpdateFormDefinitionHandler(IRepository<FormDefinition> repository,
-    IMediator mediator, ITenantContext tenant) : ICommandHandler<PartialUpdateFormDefinitionCommand, Result<FormDefinition>>
+    IMediator mediator) : ICommandHandler<PartialUpdateFormDefinitionCommand, Result<FormDefinition>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     public async Task<Result<FormDefinition>> Handle(PartialUpdateFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        var formDefinition = await repository.FindAsync(request.DefinitionId, tenant, cancellationToken);
+        var formDefinition = await Selection.FindAsync(repository, request.DefinitionId, cancellationToken);
         if (formDefinition == null || formDefinition.FormId != request.FormId)
         {
             return Result.NotFound("Form definition not found.");
@@ -32,4 +34,8 @@ public class PartialUpdateFormDefinitionHandler(IRepository<FormDefinition> repo
         await mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
         return Result.Success(formDefinition);
     }
+
+    internal sealed class Registered(IRepository<FormDefinition> repository, IMediator mediator, ContentQueryScope tenant)
+        : RegisteredContentHandler<PartialUpdateFormDefinitionCommand, Result<FormDefinition>>(
+            new PartialUpdateFormDefinitionHandler(repository, mediator) { Selection = tenant });
 }

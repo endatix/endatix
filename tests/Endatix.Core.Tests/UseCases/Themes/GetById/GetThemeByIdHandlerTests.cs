@@ -1,7 +1,6 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Themes.GetById;
 
 namespace Endatix.Core.Tests.UseCases.Themes.GetById;
@@ -14,7 +13,7 @@ public class GetThemeByIdHandlerTests
     public GetThemeByIdHandlerTests()
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
-        _handler = new GetThemeByIdHandler(_themesRepository, SampleData.Tenant);
+        _handler = new GetThemeByIdHandler(_themesRepository);
     }
 
     [Fact]
@@ -22,7 +21,7 @@ public class GetThemeByIdHandlerTests
     {
         // Arrange
         var request = new GetThemeByIdQuery(1);
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                       .Returns((Theme?)null);
 
         // Act
@@ -40,7 +39,7 @@ public class GetThemeByIdHandlerTests
         // Arrange
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme", "Test Description") { Id = 1 };
         var request = new GetThemeByIdQuery(1);
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                       .Returns(theme);
 
         // Act

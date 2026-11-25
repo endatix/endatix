@@ -1,12 +1,11 @@
-using System.Text.Json;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Models.Themes;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Themes.PartialUpdate;
 using NSubstitute.ExceptionExtensions;
+using System.Text.Json;
 
 namespace Endatix.Core.Tests.UseCases.Themes.PartialUpdate;
 
@@ -18,7 +17,7 @@ public class PartialUpdateThemeHandlerTests
     public PartialUpdateThemeHandlerTests()
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
-        _handler = new PartialUpdateThemeHandler(_themesRepository, SampleData.Tenant);
+        _handler = new PartialUpdateThemeHandler(_themesRepository);
     }
 
     [Fact]
@@ -26,7 +25,7 @@ public class PartialUpdateThemeHandlerTests
     {
         // Arrange
         var request = new PartialUpdateThemeCommand(1, "Updated Theme");
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns((Theme?)null);
 
         // Act
@@ -47,7 +46,7 @@ public class PartialUpdateThemeHandlerTests
 
         var request = new PartialUpdateThemeCommand(themeId, "Updated Theme");
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act
@@ -86,7 +85,7 @@ public class PartialUpdateThemeHandlerTests
 
         var request = new PartialUpdateThemeCommand(themeId, null, "Updated Description");
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act
@@ -135,7 +134,7 @@ public class PartialUpdateThemeHandlerTests
 
         var request = new PartialUpdateThemeCommand(themeId, null, null, newThemeDataJson);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act
@@ -182,7 +181,7 @@ public class PartialUpdateThemeHandlerTests
         var newThemeDataJson = JsonSerializer.Serialize(newThemeData);
         var request = new PartialUpdateThemeCommand(themeId, "Updated Theme", "Updated Description", newThemeDataJson);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act
@@ -220,7 +219,7 @@ public class PartialUpdateThemeHandlerTests
         var originalTheme = new Theme(SampleData.TENANT_ID, "Original Name", "Original Description") { Id = themeId };
         var request = new PartialUpdateThemeCommand(themeId, "Updated Theme");
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         _themesRepository.UpdateAsync(Arg.Any<Theme>(), Arg.Any<CancellationToken>())
@@ -246,11 +245,11 @@ public class PartialUpdateThemeHandlerTests
 
         var request = new PartialUpdateThemeCommand(themeId, name: themeName);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme, long?>>(), Arg.Any<CancellationToken>())
-                     .Returns(existingTheme.Id);
+        _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme>>(), Arg.Any<CancellationToken>())
+                     .Returns(existingTheme);
 
         // Act
         var result = await _handler.Handle(request, CancellationToken.None);
@@ -274,7 +273,7 @@ public class PartialUpdateThemeHandlerTests
 
         var request = new PartialUpdateThemeCommand(themeId, null, null, invalidThemeData);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(originalTheme);
 
         // Act

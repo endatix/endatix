@@ -31,7 +31,7 @@ public class DeleteThemeHandlerTests
             _themesRepository,
             _formsRepository,
             _unitOfWork,
-            _logger, SampleData.Tenant);
+            _logger);
     }
 
     [Fact]
@@ -39,7 +39,7 @@ public class DeleteThemeHandlerTests
     {
         // Arrange
         var request = new DeleteThemeCommand(1);
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns((Theme?)null);
 
         // Act
@@ -68,7 +68,7 @@ public class DeleteThemeHandlerTests
 
         var request = new DeleteThemeCommand(1);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(theme);
 
         _formsRepository.ListAsync(
@@ -101,7 +101,7 @@ public class DeleteThemeHandlerTests
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme") { Id = 1 };
         var request = new DeleteThemeCommand(1);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(theme);
 
         _formsRepository.ListAsync(
@@ -131,7 +131,7 @@ public class DeleteThemeHandlerTests
         var theme = new Theme(SampleData.TENANT_ID, "Test Theme") { Id = 1 };
         var request = new DeleteThemeCommand(1);
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(theme);
 
         _formsRepository.ListAsync(
@@ -165,7 +165,7 @@ public class DeleteThemeHandlerTests
         var request = new DeleteThemeCommand(1);
         var cause = new Exception("Database error");
 
-        _themesRepository.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>())
+        _themesRepository.GetByIdAsync(request.ThemeId, Arg.Any<CancellationToken>())
                      .Returns(theme);
 
         _formsRepository.ListAsync(

@@ -10,9 +10,11 @@ namespace Endatix.Core.UseCases.Themes.Update;
 /// <summary>
 /// Handler for updating a theme.
 /// </summary>
-public class UpdateThemeHandler(IRepository<Theme> themesRepository, ITenantContext scope)
-    : ICommandHandler<UpdateThemeCommand, Result<Theme>>
+[DirectCallOnly]
+public class UpdateThemeHandler(IRepository<Theme> themesRepository) : ICommandHandler<UpdateThemeCommand, Result<Theme>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     /// <summary>
     /// Handles the update of an existing theme.
     /// </summary>
@@ -23,7 +25,7 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository, ITenantCont
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
-        var changes = new ThemeChanges(themesRepository, scope);
+        var changes = new ThemeChanges(themesRepository, Selection);
         var change = new ThemeChanges.ThemeChange(request.ThemeId, request.Name, request.ThemeData) { RequiresName = true };
         var edit = await changes.PrepareEditAsync(change, cancellationToken);
         if (!edit.IsSuccess)
@@ -41,4 +43,8 @@ public class UpdateThemeHandler(IRepository<Theme> themesRepository, ITenantCont
         await themesRepository.SaveChangesAsync(cancellationToken);
         return Result.Success(theme);
     }
+
+    internal sealed class Registered(IRepository<Theme> themesRepository, ContentQueryScope scope)
+        : RegisteredContentHandler<UpdateThemeCommand, Result<Theme>>(
+            new UpdateThemeHandler(themesRepository) { Selection = scope });
 }

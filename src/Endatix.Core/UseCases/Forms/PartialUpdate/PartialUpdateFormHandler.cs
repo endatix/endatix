@@ -11,18 +11,33 @@ namespace Endatix.Core.UseCases.Forms.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a form.
 /// </summary>
-public class PartialUpdateFormHandler(
-    IRepository<Form> repository,
-    IRepository<Theme> themeRepository,
-    IRepository<Submission> submissionRepository,
-    IMediator mediator,
-    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
+[DirectCallOnly]
+public class PartialUpdateFormHandler : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
 {
+    private readonly FormEdits _forms;
+    private readonly EditableContent<Theme> _themeRepository;
+    private readonly FolderAssignmentPolicy _folderAssignmentPolicy;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public PartialUpdateFormHandler(IRepository<Form> repository,
+        IRepository<Theme> themeRepository,
+        IRepository<Submission> submissionRepository,
+        IMediator mediator,
+        FolderAssignmentPolicy folderAssignmentPolicy)
+        : this(new FormEdits(new EditableContent<Form>(repository, ContentQueryScope.Repository), submissionRepository, mediator), new EditableContent<Theme>(themeRepository, ContentQueryScope.Repository), folderAssignmentPolicy) { }
+
+    private PartialUpdateFormHandler(FormEdits forms, EditableContent<Theme> themeRepository, FolderAssignmentPolicy folderAssignmentPolicy)
+    {
+        _forms = forms;
+        _themeRepository = themeRepository;
+        _folderAssignmentPolicy = folderAssignmentPolicy;
+    }
+
     private const long DEFAULT_THEME_ID = 0; // ThemeId of 0 means clear the theme (set to default)
 
     public async Task<Result<Form>> Handle(PartialUpdateFormCommand request, CancellationToken cancellationToken)
     {
-        var form = await repository.FirstOrDefaultAsync(new TenantContentQueries.ById<Form>(request.FormId, folderAssignmentPolicy.TenantId), cancellationToken);
+        var form = await _forms.FindAsync(request.FormId, cancellationToken);
         if (form is null)
         {
             return Result.NotFound("Form not found.");
@@ -35,7 +50,7 @@ public class PartialUpdateFormHandler(
     {
         var requestedLimitOnePerUser = request.LimitOnePerUser ?? form.LimitOnePerUser;
         var gate = new SingleSubmissionGateChange(form.Id, form.TenantId, form.LimitOnePerUser, requestedLimitOnePerUser, request.IsPublic ?? form.IsPublic);
-        if (await gate.ConflictAsync(submissionRepository, cancellationToken) is { } conflict)
+        if (await _forms.ConflictAsync(gate, cancellationToken) is { } conflict)
         {
             return conflict;
         }
@@ -68,12 +83,7 @@ public class PartialUpdateFormHandler(
             requestedLimitOnePerUser,
             request.Metadata ?? form.Metadata,
             ResolveExpiry(form, request));
-        await repository.UpdateAsync(form, cancellationToken);
-
-        // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
-        // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no
-        // in-process subscriber, so it is not published here.
-        await mediator.Publish(new FormUpdatedEvent(form), cancellationToken);
+        await _forms.SaveAsync(form, cancellationToken);
 
         return Result.Success(form);
     }
@@ -89,7 +99,7 @@ public class PartialUpdateFormHandler(
             form.SetTheme(null);
             return null;
         }
-        var theme = await themeRepository.FirstOrDefaultAsync(new TenantContentQueries.ById<Theme>(themeId.Value, form.TenantId), cancellationToken);
+        var theme = await _themeRepository.FindAsync(themeId.Value, cancellationToken);
         if (theme is null)
         {
             return Result.NotFound("Form Theme not found.");
@@ -107,7 +117,7 @@ public class PartialUpdateFormHandler(
         }
 
         var clearing = request.ClearFolderId;
-        var check = await folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
+        var check = await _folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(
             form.FolderId,
             clearing ? null : request.FolderId,
             clearing ? _ => form.ClearFolder() : form.MoveToFolder,
@@ -146,4 +156,8 @@ public class PartialUpdateFormHandler(
 
         form.UpdateWebHookSettings(webHookConfig);
     }
+
+    internal sealed class Registered(FormEdits forms, EditableContent<Theme> themeRepository, FolderAssignmentPolicy folderAssignmentPolicy)
+        : RegisteredContentHandler<PartialUpdateFormCommand, Result<Form>>(
+            new PartialUpdateFormHandler(forms, themeRepository, folderAssignmentPolicy));
 }

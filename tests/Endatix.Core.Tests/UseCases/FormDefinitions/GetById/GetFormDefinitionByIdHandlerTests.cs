@@ -14,7 +14,7 @@ public class GetFormDefinitionByIdHandlerTests
     public GetFormDefinitionByIdHandlerTests()
     {
         _repository = Substitute.For<IFormsRepository>();
-        _handler = new GetFormDefinitionByIdHandler(_repository, SampleData.Tenant);
+        _handler = new GetFormDefinitionByIdHandler(_repository);
     }
 
     [Fact]

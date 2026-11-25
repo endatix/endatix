@@ -5,8 +5,8 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.UseCases.DataLists.Translations;
-using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
+using MediatR;
 
 namespace Endatix.Core.Tests.UseCases.DataLists.Translations;
 
@@ -23,7 +23,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
         _sut = new ReplaceDataListTranslationsCsvHandler(
             _repository,
             _mediator,
-            NullLogger<ReplaceDataListTranslationsCsvHandler>.Instance, SampleData.Tenant);
+            NullLogger<ReplaceDataListTranslationsCsvHandler>.Instance);
     }
 
     private DataList GivenDataList(params string[] locales)
@@ -65,7 +65,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     public async Task Handle_ValidCsv_ReplacesItemsWithTranslations()
     {
         // Arrange
-        var dataList = GivenDataList("es");
+        DataList dataList = GivenDataList("es");
         dataList.AddItem("Stale", "stale");
 
         // Act
@@ -110,7 +110,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     public async Task Handle_DefaultLocaleColumn_IsTreatedAsDefaultKey()
     {
         // Arrange
-        var dataList = GivenDataList();
+        DataList dataList = GivenDataList();
 
         // Act
         var result = await _sut.Handle(
@@ -126,7 +126,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     public async Task Handle_UnknownLocaleColumn_ReturnsInvalid()
     {
         // Arrange
-        var dataList = GivenDataList("es");
+        DataList dataList = GivenDataList("es");
 
         // Act
         var result = await _sut.Handle(
@@ -143,7 +143,7 @@ public class ReplaceDataListTranslationsCsvHandlerTests
     [Fact]
     public async Task Handle_EnsureLocales_AddsCultureThenImports()
     {
-        var dataList = GivenDataList();
+        DataList dataList = GivenDataList();
 
         var result = await _sut.Handle(
             new ReplaceDataListTranslationsCsvCommand(

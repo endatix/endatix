@@ -151,9 +151,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByNormalizedNameSpec : SingleResultSpecification<DataList>
     {
-        internal ByNormalizedNameSpec(string normalizedName, long tenantId) : this(normalizedName) =>
-            Query.Where(list => tenantId > 0 && list.TenantId == tenantId);
-
         public ByNormalizedNameSpec(string normalizedName)
         {
             Query.Where(x => x.NormalizedName == normalizedName);
@@ -190,9 +187,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByIdWithItemsSpec : SingleResultSpecification<DataList>
     {
-        internal ByIdWithItemsSpec(long dataListId, long tenantId) : this(dataListId) =>
-            Query.Where(list => tenantId > 0 && list.TenantId == tenantId);
-
         public ByIdWithItemsSpec(long dataListId)
         {
             Query
@@ -206,9 +200,6 @@ public static class DataListsSpecifications
     /// </summary>
     public sealed class ByIdWithoutItemsToDtoSpec : SingleResultSpecification<DataList, DataListDto>
     {
-        internal ByIdWithoutItemsToDtoSpec(long dataListId, long tenantId) : this(dataListId) =>
-            Query.Where(list => tenantId > 0 && list.TenantId == tenantId);
-
         public ByIdWithoutItemsToDtoSpec(long dataListId)
         {
             Query

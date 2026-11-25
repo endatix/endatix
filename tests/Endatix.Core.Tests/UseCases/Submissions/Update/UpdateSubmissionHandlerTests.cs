@@ -20,7 +20,7 @@ public class UpdateSubmissionHandlerTests
         _repository = Substitute.For<IRepository<Submission>>();
         _versions = Substitute.For<IRepository<SubmissionVersion>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new UpdateSubmissionHandler(_repository, _versions, _mediator, SampleData.Tenant);
+        _handler = new UpdateSubmissionHandler(_repository, _versions, _mediator);
     }
 
     [Fact]

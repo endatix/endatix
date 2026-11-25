@@ -11,15 +11,17 @@ namespace Endatix.Core.UseCases.CustomQuestions.List;
 /// <summary>
 /// Handler for retrieving custom questions for the current tenant.
 /// </summary>
-public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuestionsRepository, ITenantContext tenant)
-    : IQueryHandler<ListCustomQuestionsQuery, Result<Paged<CustomQuestion>>>
+[DirectCallOnly]
+public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuestionsRepository) : IQueryHandler<ListCustomQuestionsQuery, Result<Paged<CustomQuestion>>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     /// <inheritdoc />
     public async Task<Result<Paged<CustomQuestion>>> Handle(
         ListCustomQuestionsQuery request,
         CancellationToken cancellationToken)
     {
-        if (tenant.TenantId <= 0)
+        if (Selection.TenantId <= 0)
         {
             return Result.Unauthorized("Tenant context is required.");
         }
@@ -29,7 +31,7 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
         var countSpec = new CustomQuestionSpecifications.ListFilter(
             request.Created,
             request.Modified);
-        countSpec.InTenant(tenant);
+        Selection.Apply(countSpec);
         var totalRecords = await customQuestionsRepository.CountAsync(countSpec, cancellationToken);
 
         var resolved = pagingParams.ForTotal(totalRecords);
@@ -40,7 +42,11 @@ public class ListCustomQuestionsHandler(IRepository<CustomQuestion> customQuesti
     private async Task<IReadOnlyList<CustomQuestion>> ReadPageAsync(ListCustomQuestionsQuery request, PagingParameters page, CancellationToken ct)
     {
         var spec = new CustomQuestionSpecifications.ListSpec(page, request.SortBy, request.SortDescending, request.Created, request.Modified);
-        spec.InTenant(tenant);
+        Selection.Apply(spec);
         return await customQuestionsRepository.ListAsync(spec, ct);
     }
+
+    internal sealed class Registered(IRepository<CustomQuestion> customQuestionsRepository, ContentQueryScope tenant)
+        : RegisteredContentHandler<ListCustomQuestionsQuery, Result<Paged<CustomQuestion>>>(
+            new ListCustomQuestionsHandler(customQuestionsRepository) { Selection = tenant });
 }

@@ -1,7 +1,6 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
 
@@ -25,7 +24,7 @@ public sealed class PartialUpdateFormHandlerBranchTests
     public async Task Handle_UnknownTheme_ReturnsNotFound()
     {
         StoredForm();
-        _themes.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Theme>>(), Arg.Any<CancellationToken>()).Returns((Theme?)null);
+        _themes.GetByIdAsync(99L, Arg.Any<CancellationToken>()).Returns((Theme?)null);
 
         var result = await _handler.Handle(new PartialUpdateFormCommand(1) { ThemeId = 99 }, CancellationToken.None);
 
@@ -65,7 +64,7 @@ public sealed class PartialUpdateFormHandlerBranchTests
             Name: "Test Form",
             SubmissionTokenExpiryHours: expiryHours));
         form.Id = 1;
-        _forms.FirstOrDefaultAsync(Arg.Any<TenantContentQueries.ById<Form>>(), Arg.Any<CancellationToken>()).Returns(form);
+        _forms.GetByIdAsync(1L, Arg.Any<CancellationToken>()).Returns(form);
         return form;
     }
 }

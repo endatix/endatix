@@ -19,7 +19,7 @@ public class RemoveDataListLocaleHandlerTests
     {
         _repository = Substitute.For<IRepository<DataList>>();
         _mediator = Substitute.For<IMediator>();
-        _sut = new RemoveDataListLocaleHandler(_repository, _mediator, SampleData.Tenant);
+        _sut = new RemoveDataListLocaleHandler(_repository, _mediator);
     }
 
     [Fact]

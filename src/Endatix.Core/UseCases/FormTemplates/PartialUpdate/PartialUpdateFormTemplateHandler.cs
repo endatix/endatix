@@ -10,14 +10,16 @@ namespace Endatix.Core.UseCases.FormTemplates.PartialUpdate;
 /// <summary>
 /// Handler for partially updating a form template.
 /// </summary>
+[DirectCallOnly]
 public class PartialUpdateFormTemplateHandler(IRepository<FormTemplate> repository,
-    FolderAssignmentPolicy folderAssignmentPolicy, ITenantContext scope)
-    : ICommandHandler<PartialUpdateFormTemplateCommand, Result<FormTemplate>>
+    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<PartialUpdateFormTemplateCommand, Result<FormTemplate>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     /// <inheritdoc/>
     public async Task<Result<FormTemplate>> Handle(PartialUpdateFormTemplateCommand request, CancellationToken cancellationToken)
     {
-        var formTemplate = await repository.FindAsync(request.FormTemplateId, scope, cancellationToken);
+        var formTemplate = await Selection.FindAsync(repository, request.FormTemplateId, cancellationToken);
         if (formTemplate == null)
         {
             return Result.NotFound("Form template not found.");
@@ -46,4 +48,8 @@ public class PartialUpdateFormTemplateHandler(IRepository<FormTemplate> reposito
         return folderAssignmentPolicy.EnsureAndApplyFolderMoveAsync(template.FolderId, destination,
             template.MoveToFolder, "Form template cannot be moved to the requested folder.", ct);
     }
+
+    internal sealed class Registered(IRepository<FormTemplate> repository, FolderAssignmentPolicy folderAssignmentPolicy, ContentQueryScope scope)
+        : RegisteredContentHandler<PartialUpdateFormTemplateCommand, Result<FormTemplate>>(
+            new PartialUpdateFormTemplateHandler(repository, folderAssignmentPolicy) { Selection = scope });
 }

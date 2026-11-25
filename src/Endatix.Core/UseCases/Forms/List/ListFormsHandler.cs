@@ -11,17 +11,18 @@ namespace Endatix.Core.UseCases.Forms.List;
 /// <summary>
 /// Handler for listing forms.
 /// </summary>
-public sealed class ListFormsHandler(
-    IFormsRepository repository,
-    ILogger<ListFormsHandler> logger, ITenantContext tenant)
-    : IQueryHandler<ListFormsQuery, Result<Paged<FormDto>>>
+[DirectCallOnly]
+public sealed class ListFormsHandler(IFormsRepository repository,
+    ILogger<ListFormsHandler> logger) : IQueryHandler<ListFormsQuery, Result<Paged<FormDto>>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     /// <inheritdoc/>
     public async Task<Result<Paged<FormDto>>> Handle(
         ListFormsQuery request,
         CancellationToken cancellationToken)
     {
-        if (tenant.TenantId <= 0)
+        if (Selection.TenantId <= 0)
         {
             return Result.Unauthorized("Tenant context is required.");
         }
@@ -30,7 +31,7 @@ public sealed class ListFormsHandler(
         {
             var filter = CreateFilterParameters(request);
             var count = new FormsListFilterSpec(filter, request.Search?.Trim(), request.Created, request.Modified);
-            count.InTenant(tenant);
+            Selection.Apply(count);
             var total = await repository.CountAsync(count, cancellationToken);
             var resolved = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
             var forms = total == 0 ? [] : await LoadFormsPageAsync(new PagingParameters(resolved), (request, filter), cancellationToken);
@@ -56,7 +57,7 @@ public sealed class ListFormsHandler(
             request.Created,
             request.Modified);
 
-        searchFormSpec.InTenant(tenant);
+        Selection.Apply(searchFormSpec);
         return await repository.ListAsync(searchFormSpec, cancellationToken);
     }
 
@@ -85,4 +86,8 @@ public sealed class ListFormsHandler(
 
         return new FilterParameters(filterList);
     }
+
+    internal sealed class Registered(IFormsRepository repository, ILoggerFactory loggers, ContentQueryScope tenant)
+        : RegisteredContentHandler<ListFormsQuery, Result<Paged<FormDto>>>(
+            new ListFormsHandler(repository, loggers.CreateLogger<ListFormsHandler>()) { Selection = tenant });
 }

@@ -13,16 +13,27 @@ namespace Endatix.Core.UseCases.DataLists.Locales;
 /// <summary>
 /// Handler for <see cref="RemoveDataListLocaleCommand"/>.
 /// </summary>
-public sealed class RemoveDataListLocaleHandler(
-    IRepository<DataList> repository,
-    IMediator mediator, ITenantContext tenant)
-    : ICommandHandler<RemoveDataListLocaleCommand, Result<DataListDto>>
+[DirectCallOnly]
+public sealed class RemoveDataListLocaleHandler : ICommandHandler<RemoveDataListLocaleCommand, Result<DataListDto>>
 {
+    private readonly DataListRows _lists;
+    private readonly IMediator _mediator;
+
+    /// <summary>Uses the supplied repositories for direct calls.</summary>
+    public RemoveDataListLocaleHandler(IRepository<DataList> repository,
+        IMediator mediator)
+        : this(new DataListRows(repository, ContentQueryScope.Repository), mediator) { }
+
+    private RemoveDataListLocaleHandler(DataListRows lists, IMediator mediator)
+    {
+        _lists = lists;
+        _mediator = mediator;
+    }
+
     /// <inheritdoc />
     public async Task<Result<DataListDto>> Handle(RemoveDataListLocaleCommand request, CancellationToken cancellationToken)
     {
-        var spec = new DataListsSpecifications.ByIdWithItemsSpec(request.DataListId, tenant.TenantId);
-        var dataList = await repository.SingleOrDefaultAsync(spec, cancellationToken);
+        var dataList = await _lists.WithItemsAsync(request.DataListId, cancellationToken);
         if (dataList is null)
         {
             return Result.NotFound("Data list not found.");
@@ -42,11 +53,15 @@ public sealed class RemoveDataListLocaleHandler(
             return Result.Invalid(error);
         }
 
-        await repository.UpdateAsync(dataList, cancellationToken);
-        await mediator.Publish(
+        await _lists.UpdateAsync(dataList, cancellationToken);
+        await _mediator.Publish(
             new DataListUpdatedEvent(dataList, DataListUpdateReasons.LocalesUpdated),
             cancellationToken);
 
         return Result.Success(DataListDtoMapper.FromEntity(dataList));
     }
+
+    internal sealed class Registered(DataListRows lists, IMediator mediator)
+        : RegisteredContentHandler<RemoveDataListLocaleCommand, Result<DataListDto>>(
+            new RemoveDataListLocaleHandler(lists, mediator));
 }

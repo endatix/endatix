@@ -18,7 +18,7 @@ public class UpdateActiveFormDefinitionHandlerTests
     {
         _formsRepository = Substitute.For<IFormsRepository>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new UpdateActiveFormDefinitionHandler(_formsRepository, _mediator, SampleData.Tenant);
+        _handler = new UpdateActiveFormDefinitionHandler(_formsRepository, _mediator);
     }
 
     [Fact]

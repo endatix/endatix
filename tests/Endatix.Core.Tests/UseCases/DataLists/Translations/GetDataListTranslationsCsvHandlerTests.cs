@@ -15,7 +15,7 @@ public class GetDataListTranslationsCsvHandlerTests
     public GetDataListTranslationsCsvHandlerTests()
     {
         _repository = Substitute.For<IRepository<DataList>>();
-        _sut = new GetDataListTranslationsCsvHandler(_repository, SampleData.Tenant);
+        _sut = new GetDataListTranslationsCsvHandler(_repository);
     }
 
     [Fact]

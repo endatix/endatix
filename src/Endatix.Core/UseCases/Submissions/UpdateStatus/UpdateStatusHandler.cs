@@ -12,10 +12,12 @@ namespace Endatix.Core.UseCases.Submissions.UpdateStatus;
 /// <summary>
 /// Handles updating the status of a submission.
 /// </summary>
-public class UpdateStatusHandler(
-    IRepository<Submission> submissionRepository,
-    ILogger<UpdateStatusHandler> logger, ITenantContext tenant) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
+[DirectCallOnly]
+public class UpdateStatusHandler(IRepository<Submission> submissionRepository,
+    ILogger<UpdateStatusHandler> logger) : ICommandHandler<UpdateStatusCommand, Result<SubmissionDto>>
 {
+    private ContentQueryScope Selection { get; init; } = ContentQueryScope.Repository;
+
     private const string SUBMISSION_NOT_FOUND_MESSAGE = "Submission not found";
 
     /// <summary>
@@ -33,7 +35,7 @@ public class UpdateStatusHandler(
         UpdateStatusCommand command,
         CancellationToken cancellationToken)
     {
-        var spec = new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId).OnLiveForm(tenant.TenantId);
+        var spec = Selection.Submission(new SubmissionByFormIdAndSubmissionIdSpec(command.FormId, command.SubmissionId));
         var submission = await submissionRepository.SingleOrDefaultAsync(spec, cancellationToken);
         if (submission == null)
         {
@@ -82,4 +84,8 @@ public class UpdateStatusHandler(
             return Result<SubmissionDto>.Invalid(new ValidationError("Status transition is not allowed."));
         }
     }
+
+    internal sealed class Registered(IRepository<Submission> submissionRepository, ILoggerFactory loggers, ContentQueryScope tenant)
+        : RegisteredContentHandler<UpdateStatusCommand, Result<SubmissionDto>>(
+            new UpdateStatusHandler(submissionRepository, loggers.CreateLogger<UpdateStatusHandler>()) { Selection = tenant });
 }

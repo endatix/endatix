@@ -10,24 +10,37 @@ using MediatR;
 
 namespace Endatix.Core.UseCases.FormDefinitions.PartialUpdateActive;
 
-public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository,
-    IRepository<Submission> submissionsRepository,
-    IMediator mediator, ITenantContext tenant) : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
+/// <summary>Applies a partial update to the active definition.</summary>
+[DirectCallOnly]
+public class PartialUpdateActiveFormDefinitionHandler : ICommandHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>
 {
+    private readonly ActiveDefinitions _definitions;
+    private readonly IMediator _mediator;
+    private readonly IRepository<Submission> _submissionsRepository;
+
+    public PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepository, IRepository<Submission> submissionsRepository, IMediator mediator)
+        : this(new ActiveDefinitions(formsRepository, ContentQueryScope.Repository), submissionsRepository, mediator) { }
+
+    private PartialUpdateActiveFormDefinitionHandler(ActiveDefinitions definitions, IRepository<Submission> submissionsRepository, IMediator mediator)
+    {
+        _definitions = definitions;
+        _mediator = mediator;
+        _submissionsRepository = submissionsRepository;
+    }
+
+    /// <inheritdoc />
     public async Task<Result<FormDefinition>> Handle(PartialUpdateActiveFormDefinitionCommand request, CancellationToken cancellationToken)
     {
-        var spec = new ActiveFormDefinitionByFormIdSpec(request.FormId);
-        spec.InTenant(tenant);
-        var formWithActiveDefinition = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
+        var formWithActiveDefinition = await _definitions.FindFormAsync(request.FormId, cancellationToken);
         var activeDefinition = formWithActiveDefinition?.ActiveDefinition;
-        if (formWithActiveDefinition is null || activeDefinition is null || activeDefinition.TenantId != formWithActiveDefinition.TenantId)
+        if (formWithActiveDefinition is null || activeDefinition is null)
         {
             return Result.NotFound("Active form definition not found.");
         }
 
         activeDefinition = await ApplyAsync(formWithActiveDefinition, activeDefinition, request);
-        await formsRepository.UpdateAsync(formWithActiveDefinition, cancellationToken);
-        await mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
+        await _definitions.UpdateAsync(formWithActiveDefinition, cancellationToken);
+        await _mediator.Publish(new FormDefinitionChangedEvent(request.FormId), cancellationToken);
 
         return Result.Success(activeDefinition);
     }
@@ -57,6 +70,10 @@ public class PartialUpdateActiveFormDefinitionHandler(IFormsRepository formsRepo
         FormDefinition formDefinition,
         PartialUpdateActiveFormDefinitionCommand request)
     {
-        return formDefinition.JsonData != request.JsonData && await submissionsRepository.AnyAsync(new SubmissionsTotalCountByFormDefinitionIdSpec(formDefinition.Id));
+        return formDefinition.JsonData != request.JsonData && await _submissionsRepository.AnyAsync(new SubmissionsTotalCountByFormDefinitionIdSpec(formDefinition.Id));
     }
+
+    internal sealed class Registered(ActiveDefinitions definitions, IRepository<Submission> submissionsRepository, IMediator mediator)
+        : RegisteredContentHandler<PartialUpdateActiveFormDefinitionCommand, Result<FormDefinition>>(
+            new PartialUpdateActiveFormDefinitionHandler(definitions, submissionsRepository, mediator));
 }
