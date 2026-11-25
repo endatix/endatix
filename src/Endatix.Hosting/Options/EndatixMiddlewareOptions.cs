@@ -75,5 +75,7 @@ public class EndatixMiddlewareOptions
     /// <summary>
     /// Gets or sets a delegate to configure additional middleware.
     /// </summary>
+    /// <remarks>Runs downstream of the account standing gate. Configure HTTPS, HSTS and CORS
+    /// through the hosting and API options so they apply to refusal responses as well.</remarks>
     public Action<IApplicationBuilder>? ConfigureAdditionalMiddleware { get; set; }
 }

@@ -315,7 +315,7 @@ Blocking actions return `403 required_action` with the same action objects as `a
 
 Account operations are gated by default. Anonymous and public respondent/form-token operations do not check account standing. `[AllowWithRequiredActions]` keeps an account operation available to resolve an action or sign out; it grants no permission. The default host leaves enforcement dormant.
 
-`UseEndatix()` and its options overload install the gate when security is enabled. The manually composed `UseEndatix(builder => …)` pipeline installs it after the configured middleware when `UseSecurity()` is used. A separately routed module or a hand-built pipeline must install `UseRequiredActionsGate()` after its own route authorization and transport middleware and before endpoint dispatch.
+`UseEndatix()` and its options overload install the gate when security is enabled, before `ConfigureAdditionalMiddleware` can run custom product code. Configure transport through the hosting and API options. In manual `UseEndatix(builder => …)` composition, `UseSecurity()` arranges the gate at the end of the callback. If the callback itself calls `UseEndpoints` or dispatches a nested branch, install `UseRequiredActionsGate()` in that pipeline after its authorization and transport middleware and before its dispatch. The same rule applies to a separately routed module.
 
 ## Testing
 

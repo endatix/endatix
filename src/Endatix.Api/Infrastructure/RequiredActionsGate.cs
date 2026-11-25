@@ -6,6 +6,7 @@ using FastEndpoints;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.StaticAssets;
 
 namespace Endatix.Api.Infrastructure;
@@ -24,7 +25,7 @@ internal sealed class RequiredActionsGate(RequestDelegate next)
     public async Task InvokeAsync(HttpContext context, AccountStanding standing)
     {
         if (standing.IsEnforced && context.User.Identities.Any(identity => identity.IsAuthenticated) &&
-            context.GetEndpoint() is { } endpoint && AppliesTo(endpoint.Metadata) &&
+            context.GetEndpoint() is RouteEndpoint endpoint && AppliesTo(endpoint.Metadata) &&
             await standing.RefusalAsync(context.RequestAborted) is { } refusal)
         {
             await refusal.ToProblem().ExecuteAsync(context);

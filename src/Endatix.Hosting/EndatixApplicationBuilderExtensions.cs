@@ -38,6 +38,8 @@ public static class EndatixApplicationBuilderExtensions
     /// <remarks>
     /// This overload does not apply default middleware automatically. Use <see cref="UseEndatix(IApplicationBuilder)" />
     /// or <see cref="UseEndatix(IApplicationBuilder, Action{EndatixMiddlewareOptions})" /> for default middleware plus overrides.
+    /// If the callback dispatches endpoints itself (rather than mapping them on the host), install
+    /// <c>UseRequiredActionsGate()</c> after transport and authorization but before that dispatch.
     /// </remarks>
     /// <param name="app">The application builder.</param>
     /// <param name="configure">A delegate to configure the middleware builder.</param>
