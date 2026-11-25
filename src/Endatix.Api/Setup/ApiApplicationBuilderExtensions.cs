@@ -33,10 +33,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, ApiDocsPage={ApiDocsPage}, UseSwaggerUi={UseSwaggerUi}",
-                options.UseSwagger,
-                ApiDocs.ResolvedPagePath(options),
-                options.UseSwaggerUi);
+                "Configuring Endatix API middleware. DocsEnabled={DocsEnabled}, SwaggerUiEnabled={SwaggerUiEnabled}",
+                options.Docs.Enabled,
+                options.Docs.SwaggerUi.Enabled);
         }
 
         var result = app.UseEndatixApi(options);
@@ -60,10 +59,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, ApiDocsPage={ApiDocsPage}, UseSwaggerUi={UseSwaggerUi}",
-                options.UseSwagger,
-                ApiDocs.ResolvedPagePath(options),
-                options.UseSwaggerUi);
+                "Configuring Endatix API middleware with custom options. DocsEnabled={DocsEnabled}, SwaggerUiEnabled={SwaggerUiEnabled}",
+                options.Docs.Enabled,
+                options.Docs.SwaggerUi.Enabled);
         }
 
         var result = app.UseEndatixApi(options);
@@ -134,9 +132,8 @@ public static class ApiApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Adds the API docs when <see cref="ApiOptions.UseSwagger"/> is on: the OpenAPI document, Scalar at
-    /// <see cref="ApiOptions.ApiDocsPath"/>, and Swagger UI at <c>/swagger</c> when <see cref="ApiOptions.UseSwaggerUi"/>
-    /// is on. <see cref="UseEndatixApi(IApplicationBuilder, ApiOptions)"/> already adds them; a second call does nothing.
+    /// Adds the API docs while <see cref="ApiDocsOptions.Enabled"/> is on: the OpenAPI document, Scalar at
+    /// <see cref="ApiDocsOptions.Path"/>, and Swagger UI at <see cref="SwaggerUiDocsOptions.Path"/> while it is on. <see cref="UseEndatixApi(IApplicationBuilder, ApiOptions)"/> already adds them; a second call does nothing.
     /// </summary>
     /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
     /// <param name="options">The API options.</param>

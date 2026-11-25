@@ -12,8 +12,8 @@ using Scalar.AspNetCore;
 namespace Endatix.Api.Setup;
 
 /// <summary>
-/// The API docs: the OpenAPI document FastEndpoints generates, Scalar at the docs page, and Swagger UI when a host
-/// turns it on.
+/// The API docs: the OpenAPI document FastEndpoints generates, Scalar at the docs page, and Swagger UI beside it while
+/// it is on.
 /// </summary>
 internal static class ApiDocs
 {
@@ -25,81 +25,74 @@ internal static class ApiDocs
 
     internal const string DEFAULT_PATH = "/api-docs";
 
-    internal const string SWAGGER_UI_PATH = "/swagger";
+    /// <summary>Where Scalar serves when Swagger UI keeps <see cref="DEFAULT_PATH"/>.</summary>
+    internal const string SCALAR_FALLBACK_PATH = "/scalar";
 
     private const string ADDED_KEY = "Endatix.Api.ApiDocsAdded";
 
-    private const string SWAGGER_PATH_KEY = "SwaggerPath";
+    private const string CONFLICTS_LOGGED_KEY = "Endatix.Api.ApiDocsConflictsLogged";
 
     /// <summary>
-    /// Adds the document, Scalar and the opt-in Swagger UI once per application. A later call changes nothing and logs a
-    /// warning, so a host that adds the docs through two builders does not map the docs page twice.
+    /// Adds the document, Scalar and Swagger UI once per application. A later call changes nothing and logs a warning,
+    /// so a host that adds the docs through two builders does not map the docs page twice. Settings set twice under a
+    /// new and a legacy key are logged first, also when the docs are off.
     /// </summary>
     internal static void Add(IApplicationBuilder app, ApiOptions options)
     {
-        if (!options.UseSwagger || WasAdded(app))
+        LogConflictsOnce(app, options.Docs);
+        if (!options.Docs.Enabled || WasAdded(app))
         {
             return;
         }
 
         var routes = AsRouteBuilder(app);
-        var requestedPath = RequestedPath(app, options);
-        var pagePath = PagePath(requestedPath.Value);
         app.Properties[ADDED_KEY] = true;
-        var documentPath = AddDocument(app, options);
-        AddSwaggerUi(app, options, pagePath);
-        MapScalar(routes, pagePath, documentPath);
-        MapOldSwaggerUiBookmark(routes, pagePath);
-        RedirectRootWhenPathFallsBack(app, routes, requestedPath);
-        LogServing(app, pagePath);
+        AddPages(app, routes, options);
     }
 
-    private static void LogServing(IApplicationBuilder app, string pagePath)
+    private static void AddPages(IApplicationBuilder app, IEndpointRouteBuilder routes, ApiOptions options)
+    {
+        var requested = new RequestedDocsPath(options.Docs.Path, options.Docs.PathSetting);
+        var documentPath = AddDocument(app, options);
+        var swaggerUiPath = ApiDocsSwaggerUi.Add(app, options);
+        var docs = new ResolvedDocs(requested, ResolvePagePath(app, PagePath(requested.Value), swaggerUiPath), swaggerUiPath);
+        MapScalar(routes, docs.DocsPage, documentPath);
+        MapOldSwaggerUiBookmark(routes, docs);
+        RedirectRootWhenPathFallsBack(app, routes, docs);
+        LogServing(app, docs);
+    }
+
+    private static void LogServing(IApplicationBuilder app, ResolvedDocs docs)
     {
         var logger = Logger(app);
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
-            logger.LogInformation("Serving the API docs at {ApiDocsPage}", pagePath);
+            logger.LogInformation("Serving the API docs at {ApiDocsPage}", docs.DocsPage);
+        }
+
+        if (docs.SwaggerUiPage is { } swaggerUiPage && logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            logger.LogInformation("Serving Swagger UI at {SwaggerUiPage}", swaggerUiPage);
         }
     }
 
-    /// <summary>
-    /// The docs page path <see cref="Add"/> serves for these options, without logging. Startup logs show it instead of
-    /// the raw settings, which are null when the default or the deprecated <see cref="ApiOptions.SwaggerPath"/> applies.
-    /// </summary>
-    internal static string ResolvedPagePath(ApiOptions options) => PagePath(Requested(options).Value);
-
-    /// <summary>
-    /// <see cref="Requested"/>, and a warning when <see cref="ApiOptions.ApiDocsPath"/> and the deprecated
-    /// <see cref="ApiOptions.SwaggerPath"/> hold two different values, so a host that set both learns which one applies.
-    /// </summary>
-    private static RequestedDocsPath RequestedPath(IApplicationBuilder app, ApiOptions options)
+    private static void LogConflictsOnce(IApplicationBuilder app, ApiDocsOptions docs)
     {
-        var swaggerPath = DeprecatedSwaggerPath(options);
-        if (options.ApiDocsPath is not null && swaggerPath is not null
-            && !string.Equals(options.ApiDocsPath, swaggerPath, StringComparison.Ordinal))
+        if (docs.Conflicts.Count == 0 || !app.Properties.TryAdd(CONFLICTS_LOGGED_KEY, true))
+        {
+            return;
+        }
+
+        foreach (var conflict in docs.Conflicts)
         {
             Logger(app)?.LogWarning(
-                "ApiDocsPath '{ApiDocsPath}' and the deprecated SwaggerPath '{SwaggerPath}' are both set. The API docs use ApiDocsPath.",
-                options.ApiDocsPath,
-                swaggerPath);
+                "{Setting} '{Value}' and the deprecated {LegacySetting} '{LegacyValue}' are both set. The API docs use the first.",
+                conflict.Setting,
+                conflict.Value,
+                conflict.LegacySetting,
+                conflict.LegacyValue);
         }
-
-        return Requested(options);
     }
-
-    /// <summary>
-    /// The docs page path the host asked for and the setting it came from: <see cref="ApiOptions.ApiDocsPath"/>, else
-    /// the deprecated <see cref="ApiOptions.SwaggerPath"/>, else a null value for the default.
-    /// </summary>
-    private static RequestedDocsPath Requested(ApiOptions options) =>
-        options.ApiDocsPath is not null
-            ? new RequestedDocsPath(options.ApiDocsPath, nameof(ApiOptions.ApiDocsPath))
-            : new RequestedDocsPath(DeprecatedSwaggerPath(options), SWAGGER_PATH_KEY);
-
-#pragma warning disable CS0618 // SwaggerPath is the deprecated mirror of ApiDocsPath, still read for older hosts.
-    private static string? DeprecatedSwaggerPath(ApiOptions options) => options.SwaggerPath;
-#pragma warning restore CS0618
 
     private static bool WasAdded(IApplicationBuilder app)
     {
@@ -158,65 +151,56 @@ internal static class ApiDocs
             .AddPreferredSecuritySchemes(BEARER_SCHEME));
 
     /// <summary>
+    /// When Swagger UI asks for the docs page's path, Swagger UI keeps it, since that URL served Swagger UI before, and
+    /// Scalar moves to <see cref="DEFAULT_PATH"/>, or to <see cref="SCALAR_FALLBACK_PATH"/> when the contested path is
+    /// <see cref="DEFAULT_PATH"/>. Swagger UI's middleware runs before endpoints, so it would hide Scalar there.
+    /// </summary>
+    private static string ResolvePagePath(IApplicationBuilder app, string pagePath, string? swaggerUiPath)
+    {
+        if (swaggerUiPath is null || !ApiDocsSwaggerUi.SamePath(swaggerUiPath, pagePath))
+        {
+            return pagePath;
+        }
+
+        var movedTo = ApiDocsSwaggerUi.SamePath(pagePath, DEFAULT_PATH) ? SCALAR_FALLBACK_PATH : DEFAULT_PATH;
+        Logger(app)?.LogWarning(
+            "Swagger UI and the API docs page both asked for {SwaggerUiPage}. Swagger UI keeps it, and the API docs page serves at {ApiDocsPage}. Set Endatix:Api:Docs:Path or Endatix:Api:Docs:SwaggerUi:Path to choose.",
+            swaggerUiPath,
+            movedTo);
+        return movedTo;
+    }
+
+    /// <summary>
     /// An empty or <c>/</c> requested path asked for the docs at the root, which they cannot take, so they serve at the
-    /// default. The root then redirects there and a warning names the setting that asked. An unset (null) or other path
-    /// adds no root route, so a host keeps its root.
+    /// default. The root then redirects there and a warning names the setting that asked. The redirect takes the last
+    /// route order, so a host's own <c>GET /</c> wins without an ambiguous match. An unset (null) or other path adds no
+    /// root route.
     /// </summary>
-    private static void RedirectRootWhenPathFallsBack(
-        IApplicationBuilder app, IEndpointRouteBuilder routes, RequestedDocsPath requestedPath)
+    private static void RedirectRootWhenPathFallsBack(IApplicationBuilder app, IEndpointRouteBuilder routes, ResolvedDocs docs)
     {
-        if (requestedPath.Value is null || requestedPath.Value.Trim().TrimEnd('/').Length > 0)
+        if (docs.Requested.Value is null || docs.Requested.Value.Trim().TrimEnd('/').Length > 0)
         {
             return;
         }
 
-        LogRootFallback(app, requestedPath);
-        routes.MapGet("/", (HttpRequest request) => Results.Redirect($"{request.PathBase}{DEFAULT_PATH}/"))
+        LogRootFallback(app, docs);
+        routes.MapGet("/", (HttpRequest request) => Results.Redirect($"{request.PathBase}{docs.DocsPage}/"))
+            .WithOrder(int.MaxValue)
             .ExcludeFromDescription();
     }
 
     /// <summary>
-    /// Sends the old Swagger UI address, <c>{page}/index.html</c>, to the docs page. The literal route outranks Scalar's
-    /// <c>{page}/{documentName?}</c>, which would take <c>index.html</c> for a document name. The relative target keeps
-    /// the path base.
+    /// Sends the old Swagger UI address, <c>{page}/index.html</c>, to Swagger UI while it is on, since the bookmark meant
+    /// Swagger UI, and to the docs page otherwise. The literal route outranks Scalar's <c>{page}/{documentName?}</c>,
+    /// which would take <c>index.html</c> for a document name. Both targets keep the path base.
     /// </summary>
-    private static void MapOldSwaggerUiBookmark(IEndpointRouteBuilder routes, string pagePath) =>
-        routes.MapGet($"{pagePath}/index.html", () => Results.Redirect("./"))
-            .ExcludeFromDescription();
-
-    /// <summary>
-    /// Adds Swagger UI when it is on, at <c>/swagger</c> or where the host's settings move it. It must not take the docs
-    /// page's path:
-    /// its middleware runs before endpoints, so it would hide Scalar there.
-    /// </summary>
-    private static void AddSwaggerUi(IApplicationBuilder app, ApiOptions options, string pagePath)
+    private static void MapOldSwaggerUiBookmark(IEndpointRouteBuilder routes, ResolvedDocs docs)
     {
-        if (!options.UseSwaggerUi)
-        {
-            if (options.ConfigureSwaggerUi is not null)
-            {
-                Logger(app)?.LogWarning("ConfigureSwaggerUi is set but UseSwaggerUi is off, so Swagger UI is not served.");
-            }
-
-            return;
-        }
-
-        app.UseSwaggerUi(settings => settings.ConfigureDefaults(ui =>
-        {
-            ui.Path = SWAGGER_UI_PATH;
-            options.ConfigureSwaggerUi?.Invoke(ui);
-            EnsureOffTheDocsPage(ui.Path, pagePath);
-        }));
-    }
-
-    private static void EnsureOffTheDocsPage(string swaggerUiPath, string pagePath)
-    {
-        if (string.Equals(PagePath(swaggerUiPath), pagePath, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"Swagger UI cannot serve at the API docs page '{pagePath}'. Set ApiDocsPath to another path, such as " +
-                $"{DEFAULT_PATH}, move Swagger UI with ConfigureSwaggerUi (set its Path), or turn UseSwaggerUi off.");
-        }
+        var bookmark = $"{docs.DocsPage}/index.html";
+        var endpoint = docs.SwaggerUiPage is { } swaggerUiPath
+            ? routes.MapGet(bookmark, (HttpRequest request) => Results.Redirect($"{request.PathBase}{swaggerUiPath}/index.html"))
+            : routes.MapGet(bookmark, () => Results.Redirect("./"));
+        endpoint.ExcludeFromDescription();
     }
 
     /// <summary>
@@ -229,24 +213,26 @@ internal static class ApiDocs
         return string.IsNullOrEmpty(path) ? DEFAULT_PATH : path;
     }
 
-    private static void LogRootFallback(IApplicationBuilder app, RequestedDocsPath requestedPath)
+    private static void LogRootFallback(IApplicationBuilder app, ResolvedDocs docs)
     {
-        if (requestedPath.Key == SWAGGER_PATH_KEY)
+        if (docs.Requested.Setting == ApiDocsOptions.SWAGGER_PATH_SETTING)
         {
             Logger(app)?.LogWarning(
-                "SwaggerPath '{SwaggerPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there. SwaggerPath is deprecated: set ApiDocsPath instead.",
-                requestedPath.Value,
-                DEFAULT_PATH);
+                "{Setting} '{Path}' cannot put the API docs at the root. They serve at {ApiDocsPage}, and the root redirects there unless the host maps its own root. Endatix:Api:SwaggerPath is deprecated: set Endatix:Api:Docs:Path instead.",
+                docs.Requested.Setting,
+                docs.Requested.Value,
+                docs.DocsPage);
             return;
         }
 
         Logger(app)?.LogWarning(
-            "ApiDocsPath '{ApiDocsPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.",
-            requestedPath.Value,
-            DEFAULT_PATH);
+            "{Setting} '{Path}' cannot put the API docs at the root. They serve at {ApiDocsPage}, and the root redirects there unless the host maps its own root.",
+            docs.Requested.Setting,
+            docs.Requested.Value,
+            docs.DocsPage);
     }
 
-    private static ILogger? Logger(IApplicationBuilder app) =>
+    internal static ILogger? Logger(IApplicationBuilder app) =>
         app.ApplicationServices.GetService<ILoggerFactory>()?.CreateLogger(typeof(ApiDocs).FullName!);
 
     private static IEndpointRouteBuilder AsRouteBuilder(IApplicationBuilder app) =>
@@ -255,5 +241,8 @@ internal static class ApiDocs
             "The API docs page needs endpoint routing. Add the Endatix API to a WebApplication.");
 
     /// <summary>A requested docs page path and the setting it came from, so a warning names that setting.</summary>
-    private sealed record RequestedDocsPath(string? Value, string Key);
+    private sealed record RequestedDocsPath(string? Value, string Setting);
+
+    /// <summary>Where the docs serve once the settings apply: the Scalar page, and Swagger UI's path while it is on.</summary>
+    private sealed record ResolvedDocs(RequestedDocsPath Requested, string DocsPage, string? SwaggerUiPage);
 }

@@ -11,7 +11,7 @@ namespace Endatix.Hosting.Tests.Builders;
 
 /// <summary>
 /// <see cref="EndatixMiddlewareBuilder.UseSwagger"/> adds the API docs through the same once-per-application path as
-/// the API middleware (endatix/endatix#1846).
+/// the API middleware, starting from the configured docs settings (endatix/endatix#1846).
 /// </summary>
 public sealed class EndatixMiddlewareBuilderSwaggerTests
 {
@@ -36,9 +36,7 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     {
         // Arrange
         var builder = WebApplication.CreateBuilder();
-#pragma warning disable CS0618 // Subject under test: the deprecated mirror carries over when no path is given.
         builder.Services.Configure<ApiOptions>(options => options.SwaggerPath = "/configured");
-#pragma warning restore CS0618
         await using var app = builder.Build();
 
         // Act
@@ -78,17 +76,72 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     }
 
     [Fact]
-    public async Task UseSwagger_AtTheSwaggerUiPathWithSwaggerUiSettings_ThrowsWithTheFix()
+    public async Task UseSwagger_WithSwaggerUiSettingsWhileConfiguredOff_TurnsSwaggerUiOn()
+    {
+        // Arrange
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<ApiOptions>(options => options.Docs.SwaggerUi.Enabled = false);
+        await using var app = builder.Build();
+
+        // Act
+        new EndatixMiddlewareBuilder(app).UseSwagger(configureSwaggerUi: ui => ui.DocExpansion = "list");
+
+        // Assert
+        (await GetAsync(app, "/swagger/index.html")).Status.Should().Be(StatusCodes.Status200OK);
+    }
+
+    [Fact]
+    public async Task UseSwagger_WithConfiguredSwaggerUiPath_CarriesItOver()
+    {
+        // Arrange
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<ApiOptions>(options => options.Docs.SwaggerUi.Path = "/ui");
+        await using var app = builder.Build();
+
+        // Act
+        new EndatixMiddlewareBuilder(app).UseSwagger("/docs");
+
+        // Assert
+        (await GetAsync(app, "/ui/index.html")).Status.Should().Be(StatusCodes.Status200OK);
+        RoutePatterns(app).Should().Equal("/docs/{documentName?}");
+    }
+
+    [Fact]
+    public async Task UseSwagger_AtTheSwaggerUiPath_LeavesItToSwaggerUiAndMapsTheDocsPageAtApiDocs()
     {
         // Arrange
         await using var app = WebApplication.CreateBuilder().Build();
 
         // Act
-        var useSwagger = () => new EndatixMiddlewareBuilder(app).UseSwagger("/swagger", null, ui => ui.DocExpansion = "list");
+        new EndatixMiddlewareBuilder(app).UseSwagger("/swagger", null, ui => ui.DocExpansion = "list");
 
         // Assert
-        useSwagger.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Set ApiDocsPath to another path, such as /api-docs*ConfigureSwaggerUi*UseSwaggerUi off*");
+        RoutePatterns(app).Should().Equal("/api-docs/{documentName?}");
+        (await GetAsync(app, "/swagger/index.html")).Body.Should().Contain("swagger-ui");
+    }
+
+    /// <summary>
+    /// The legacy members still compile without a warning, so a host that treats warnings as errors builds unchanged.
+    /// The repo's build gate fails on CS0618 here if one of them is marked obsolete again.
+    /// </summary>
+    [Fact]
+    public async Task UseSwagger_WithLegacyApiOptionsMembers_BuildsAndMapsTheDocsPage()
+    {
+        // Arrange
+        var builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<ApiOptions>(options =>
+        {
+            options.UseSwagger = true;
+            options.SwaggerPath = "/legacy";
+            options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list";
+        });
+        await using var app = builder.Build();
+
+        // Act
+        new EndatixMiddlewareBuilder(app).UseSwagger(null, settings => settings.Path = "/swagger/{documentName}/swagger.json", null);
+
+        // Assert
+        RoutePatterns(app).Should().Equal("/legacy/{documentName?}");
     }
 
     /// <summary>Runs one GET through the app's middleware. Swagger UI is middleware, not an endpoint.</summary>

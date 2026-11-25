@@ -59,14 +59,43 @@ public static class ApiServiceCollectionExtensions
         return services;
     }
 
+    /// <summary>
+    /// Maps the docs settings: each nested <c>Docs</c> key wins over its legacy key, and a pair set to different values
+    /// is recorded, so the API docs warn about it at startup.
+    /// </summary>
     private static void MapApiOptions(ApiConfigurationOptions config, ApiOptions options)
     {
-        options.UseSwagger = config.UseSwagger;
-        options.ApiDocsPath = config.ApiDocsPath;
-#pragma warning disable CS0618 // The deprecated key still configures the docs page when ApiDocsPath is unset.
-        options.SwaggerPath = config.SwaggerPath;
-#pragma warning restore CS0618
-        options.UseSwaggerUi = config.UseSwaggerUi;
+        var docs = config.Docs;
+        options.Docs.Enabled = docs.Enabled ?? config.UseSwagger ?? true;
+        if (docs.Path is not null)
+        {
+            options.Docs.Path = docs.Path;
+        }
+        else if (config.SwaggerPath is not null)
+        {
+            options.SwaggerPath = config.SwaggerPath;
+        }
+
+        options.Docs.SwaggerUi.Enabled = docs.SwaggerUi.Enabled;
+        options.Docs.SwaggerUi.Path = docs.SwaggerUi.Path;
+        options.Docs.Conflicts = DocsConflicts(config);
+    }
+
+    private static List<ApiDocsSettingConflict> DocsConflicts(ApiConfigurationOptions config)
+    {
+        List<ApiDocsSettingConflict> conflicts = [];
+        if (config.Docs.Enabled is { } enabled && config.UseSwagger is { } useSwagger && enabled != useSwagger)
+        {
+            conflicts.Add(new("Endatix:Api:Docs:Enabled", enabled.ToString(), "Endatix:Api:UseSwagger", useSwagger.ToString()));
+        }
+
+        if (config.Docs.Path is { } path && config.SwaggerPath is { } swaggerPath
+            && !string.Equals(path, swaggerPath, StringComparison.Ordinal))
+        {
+            conflicts.Add(new(ApiDocsOptions.PATH_SETTING, path, ApiDocsOptions.SWAGGER_PATH_SETTING, swaggerPath));
+        }
+
+        return conflicts;
     }
 
     /// <summary>

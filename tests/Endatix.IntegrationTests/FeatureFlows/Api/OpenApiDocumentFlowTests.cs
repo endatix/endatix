@@ -7,7 +7,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Api;
 
 /// <summary>
 /// The OpenAPI document behind the API docs page generates for every endpoint (endatix/endatix#1841), with WhiteLabeling
-/// off (the shared host) and on. The page shows Scalar, and Swagger UI is off unless a host turns it on (endatix/endatix#1846).
+/// off (the shared host) and on. The page shows Scalar, and Swagger UI is on unless a host turns it off (endatix/endatix#1846).
 /// </summary>
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
@@ -61,7 +61,7 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
     }
 
     [Fact]
-    public async Task Swagger_ui_is_off_by_default()
+    public async Task Swagger_ui_is_on_by_default()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
@@ -71,7 +71,7 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
         using var response = await client.GetAsync(new Uri("/swagger/index.html", UriKind.Relative), ct);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     /// <summary>

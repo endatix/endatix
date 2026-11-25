@@ -5,6 +5,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Tests.Setup;
@@ -43,6 +44,35 @@ internal sealed class ApiDocsHost : IAsyncDisposable
             });
             afterApi?.Invoke(app, used!);
         });
+
+    /// <summary>
+    /// Starts the host as a host that changes nothing in code does: the options come from these settings through
+    /// <c>AddApiOptions</c>, and <c>UseEndatixApi()</c> reads them from DI. Only the exception handler and CORS are off,
+    /// since the test host registers neither.
+    /// </summary>
+    public static Task<ApiDocsHost> StartFromConfigAsync(
+        Dictionary<string, string?> settings,
+        Action<WebApplication>? beforeApi = null,
+        WarningLog? log = null) =>
+        StartWithPipelineAsync(
+            (app, _) =>
+            {
+                beforeApi?.Invoke(app);
+                app.UseEndatixApi();
+            },
+            services =>
+            {
+                services.AddApiOptions(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
+                services.Configure<ApiOptions>(options =>
+                {
+                    options.UseExceptionHandler = false;
+                    options.UseCors = false;
+                });
+                if (log is not null)
+                {
+                    services.AddSingleton(log.Provider);
+                }
+            });
 
     /// <summary>
     /// Starts the host with a pipeline the test composes, given the builder that registered the API, and any services

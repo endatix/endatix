@@ -24,33 +24,30 @@ public class ApiOptions
     public string ExceptionHandlerPath { get; set; } = "/error";
 
     /// <summary>
-    /// Gets or sets a value indicating whether to serve the API docs: the OpenAPI document, the Scalar docs page, and
-    /// Swagger UI when <see cref="UseSwaggerUi"/> is on. When <c>false</c>, none of them is served.
-    /// This can be configured via appsettings.json.
+    /// Gets or sets the API docs settings: the document, the Scalar docs page, and Swagger UI. This can be configured
+    /// via appsettings.json under <c>Endatix:Api:Docs</c>.
     /// </summary>
-    public bool UseSwagger { get; set; } = true;
+    public ApiDocsOptions Docs { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/". Null means "/api-docs", or
-    /// <see cref="SwaggerPath"/> when only that is set. An empty path or "/" also means "/api-docs", and the root then
-    /// redirects there. This can be configured via appsettings.json.
+    /// Gets or sets a value indicating whether to serve the API docs. Deprecated: use <see cref="ApiDocsOptions.Enabled"/>
+    /// on <see cref="Docs"/>, which this property reads and writes.
     /// </summary>
-    public string? ApiDocsPath { get; set; }
+    public bool UseSwagger
+    {
+        get => Docs.Enabled;
+        set => Docs.Enabled = value;
+    }
 
     /// <summary>
-    /// Gets or sets the deprecated name of <see cref="ApiDocsPath"/>. It applies only when
-    /// <see cref="ApiDocsPath"/> is null. Null means "/api-docs".
+    /// Gets or sets the path of the API docs page. Deprecated: use <see cref="ApiDocsOptions.Path"/> on
+    /// <see cref="Docs"/>, which this property reads and writes.
     /// </summary>
-#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
-    [Obsolete("Use ApiDocsPath")]
-    public string? SwaggerPath { get; set; }
-#pragma warning restore S1133
-
-    /// <summary>
-    /// Gets or sets a value indicating whether to also serve Swagger UI, at "/swagger". Off by default.
-    /// It needs <see cref="UseSwagger"/>. This can be configured via appsettings.json.
-    /// </summary>
-    public bool UseSwaggerUi { get; set; }
+    public string? SwaggerPath
+    {
+        get => Docs.Path;
+        set => Docs.SetPath(value, ApiDocsOptions.SWAGGER_PATH_SETTING);
+    }
 
     /// <summary>
     /// Gets or sets a delegate to configure OpenAPI document generation settings.
@@ -59,7 +56,8 @@ public class ApiOptions
     public Action<OpenApiDocumentMiddlewareSettings>? ConfigureOpenApiDocument { get; set; }
 
     /// <summary>
-    /// Gets or sets a delegate to configure Swagger UI display settings. It applies when <see cref="UseSwaggerUi"/> is on.
+    /// Gets or sets a delegate to configure Swagger UI display settings, its <c>Path</c> included. It applies while Swagger
+    /// UI is on (<see cref="SwaggerUiDocsOptions.Enabled"/>).
     /// more info: https://fast-endpoints.com/docs/swagger-support#describe-endpoints
     /// </summary>
     public Action<SwaggerUiSettings>? ConfigureSwaggerUi { get; set; }

@@ -18,30 +18,46 @@ public class ApiConfigurationOptions : EndatixOptionsBase
     public override string SectionPath => "Api";
 
     /// <summary>
-    /// Gets or sets a value indicating whether to serve the API docs: the OpenAPI document, the Scalar docs page, and
-    /// Swagger UI when <see cref="UseSwaggerUi"/> is on.
+    /// Gets or sets the API docs settings: the document, the Scalar docs page, and Swagger UI.
     /// </summary>
-    public bool UseSwagger { get; set; } = true;
+    public DocsSection Docs { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/". Null means "/api-docs", or
-    /// <see cref="SwaggerPath"/> when only that is set.
+    /// Gets or sets a value indicating whether to serve the API docs. Deprecated: use <c>Docs:Enabled</c>, which wins
+    /// when both are set. Null means unset.
     /// </summary>
-    [RegularExpression("^/.*", ErrorMessage = "API docs path must start with '/'")]
-    public string? ApiDocsPath { get; set; }
+    public bool? UseSwagger { get; set; }
 
     /// <summary>
-    /// Gets or sets the deprecated name of <see cref="ApiDocsPath"/>. It applies only when
-    /// <see cref="ApiDocsPath"/> is null. Null means "/api-docs".
+    /// Gets or sets the path of the API docs page. Deprecated: use <c>Docs:Path</c>, which wins when both are set.
     /// </summary>
     [RegularExpression("^/.*", ErrorMessage = "Swagger path must start with '/'")]
-#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
-    [Obsolete("Use ApiDocsPath")]
     public string? SwaggerPath { get; set; }
-#pragma warning restore S1133
 
-    /// <summary>
-    /// Gets or sets a value indicating whether to also serve Swagger UI, at "/swagger". Off by default.
-    /// </summary>
-    public bool UseSwaggerUi { get; set; }
-} 
+    /// <summary>The <c>Endatix:Api:Docs</c> section.</summary>
+    public sealed class DocsSection
+    {
+        /// <summary>Gets or sets a value indicating whether to serve the API docs. Null means unset (on).</summary>
+        public bool? Enabled { get; set; }
+
+        /// <summary>Gets or sets the path of the API docs page, which shows Scalar. Null means "/api-docs".</summary>
+        [RegularExpression("^/.*", ErrorMessage = "API docs path must start with '/'")]
+        public string? Path { get; set; }
+
+        /// <summary>Gets or sets the Swagger UI settings.</summary>
+        public SwaggerUiSection SwaggerUi { get; set; } = new();
+    }
+
+    /// <summary>The <c>Endatix:Api:Docs:SwaggerUi</c> section.</summary>
+    public sealed class SwaggerUiSection
+    {
+        /// <summary>
+        /// Gets or sets a value indicating whether to serve Swagger UI. Null means this release's default, which is on.
+        /// </summary>
+        public bool? Enabled { get; set; }
+
+        /// <summary>Gets or sets the path of Swagger UI. Null means "/swagger".</summary>
+        [RegularExpression("^/.*", ErrorMessage = "Swagger UI path must start with '/'")]
+        public string? Path { get; set; }
+    }
+}

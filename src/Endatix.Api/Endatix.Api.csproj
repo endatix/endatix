@@ -29,5 +29,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Endatix.Api.Tests" />
+    <!-- EndatixMiddlewareBuilder.UseSwagger copies the docs settings with the key each path came from. -->
+    <InternalsVisibleTo Include="Endatix.Hosting" />
   </ItemGroup>
 </Project>

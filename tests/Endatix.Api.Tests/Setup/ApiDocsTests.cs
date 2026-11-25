@@ -10,8 +10,8 @@ using NSwag.AspNetCore;
 namespace Endatix.Api.Tests.Setup;
 
 /// <summary>
-/// The API docs page shows Scalar over the document FastEndpoints generates, and Swagger UI only when a host turns it
-/// on (endatix/endatix#1846).
+/// The API docs page shows Scalar over the document FastEndpoints generates, and Swagger UI beside it unless a host
+/// turns it off (endatix/endatix#1846).
 /// </summary>
 [Collection(nameof(ApiDocsHostCollection))]
 public sealed partial class ApiDocsTests
@@ -51,12 +51,31 @@ public sealed partial class ApiDocsTests
     }
 
     [Theory]
-    [InlineData("/api-docs/index.html")]
-    [InlineData("/sub/api-docs/index.html")]
-    public async Task Old_swagger_ui_bookmark_redirects_to_the_docs_page(string bookmark)
+    [InlineData("/api-docs/index.html", "/swagger/index.html")]
+    [InlineData("/sub/api-docs/index.html", "/sub/swagger/index.html")]
+    public async Task Old_swagger_ui_bookmark_redirects_to_swagger_ui_while_it_is_on(string bookmark, string target)
     {
         // Arrange
         await using var host = await ApiDocsHost.StartAsync(beforeApi: app => app.UsePathBase("/sub"));
+        using var client = host.CreateClient();
+
+        // Act
+        using var response = await client.GetAsync(new Uri(bookmark, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        new Uri(new Uri("http://localhost" + bookmark), response.Headers.Location!).AbsolutePath.Should().Be(target);
+    }
+
+    [Theory]
+    [InlineData("/api-docs/index.html")]
+    [InlineData("/sub/api-docs/index.html")]
+    public async Task Old_swagger_ui_bookmark_redirects_to_the_docs_page_when_swagger_ui_is_off(string bookmark)
+    {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync(
+            options => options.Docs.SwaggerUi.Enabled = false,
+            beforeApi: app => app.UsePathBase("/sub"));
         using var client = host.CreateClient();
 
         // Act
@@ -106,24 +125,28 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
-    public async Task Swagger_ui_is_off_by_default()
+    public async Task Swagger_ui_is_on_by_default_at_swagger()
     {
         // Arrange
         await using var host = await ApiDocsHost.StartAsync();
         using var client = host.CreateClient();
 
         // Act
-        var status = await GetStatusAsync(client, SWAGGER_UI_PAGE);
+        var html = await client.GetStringAsync(new Uri(SWAGGER_UI_PAGE, UriKind.Relative), TestContext.Current.CancellationToken);
 
         // Assert
-        status.Should().Be(HttpStatusCode.NotFound);
+        html.Should().Contain("swagger-ui");
     }
 
     [Fact]
-    public async Task Swagger_ui_settings_alone_do_not_turn_it_on()
+    public async Task Swagger_ui_turned_off_stays_off_with_its_settings()
     {
         // Arrange
-        await using var host = await ApiDocsHost.StartAsync(options => options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list");
+        await using var host = await ApiDocsHost.StartAsync(options =>
+        {
+            options.Docs.SwaggerUi.Enabled = false;
+            options.ConfigureSwaggerUi = ui => ui.DocExpansion = "list";
+        });
         using var client = host.CreateClient();
 
         // Act
@@ -137,7 +160,7 @@ public sealed partial class ApiDocsTests
     public async Task Swagger_ui_serves_at_swagger_when_turned_on()
     {
         // Arrange
-        await using var host = await ApiDocsHost.StartAsync(options => options.UseSwaggerUi = true);
+        await using var host = await ApiDocsHost.StartAsync(options => options.Docs.SwaggerUi.Enabled = true);
         using var client = host.CreateClient();
 
         // Act
@@ -155,7 +178,7 @@ public sealed partial class ApiDocsTests
         await using var host = await ApiDocsHost.StartAsync(options =>
         {
             options.UseSwagger = false;
-            options.UseSwaggerUi = true;
+            options.Docs.SwaggerUi.Enabled = true;
         });
         using var client = host.CreateClient();
 
@@ -173,10 +196,10 @@ public sealed partial class ApiDocsTests
     [InlineData(null, "/api-docs/")]
     [InlineData("", "/api-docs/")]
     [InlineData("/", "/api-docs/")]
-    public async Task Docs_page_serves_at_the_api_docs_path(string? apiDocsPath, string page)
+    public async Task Docs_page_serves_at_the_docs_path(string? docsPath, string page)
     {
         // Arrange
-        await using var host = await ApiDocsHost.StartAsync(options => options.ApiDocsPath = apiDocsPath);
+        await using var host = await ApiDocsHost.StartAsync(options => options.Docs.Path = docsPath);
         using var client = host.CreateClient();
 
         // Act
@@ -207,7 +230,6 @@ public sealed partial class ApiDocsTests
     {
         // Arrange
         await using var host = await ApiDocsHost.StartAsync(
-            options => options.UseSwaggerUi = true,
             afterApi: (app, options) => app.UseEndatixApiDocs(options));
         using var client = host.CreateClient();
 
@@ -224,7 +246,7 @@ public sealed partial class ApiDocsTests
     {
         // Arrange
         await using var host = await ApiDocsHost.StartAsync(
-            beforeApi: app => app.UseEndatixApiDocs(new ApiOptions { ApiDocsPath = "/docs" }));
+            beforeApi: app => app.UseEndatixApiDocs(new ApiOptions { Docs = { Path = "/docs" } }));
         using var client = host.CreateClient();
 
         // Act
@@ -308,17 +330,18 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
-    public async Task Docs_page_at_the_swagger_ui_path_fails_at_startup()
+    public async Task Docs_page_at_the_swagger_ui_path_leaves_it_to_swagger_ui_and_serves_at_api_docs()
     {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync(options => options.Docs.Path = "/swagger/");
+        using var client = host.CreateClient();
+
         // Act
-        var start = () => ApiDocsHost.StartAsync(options =>
-        {
-            options.UseSwaggerUi = true;
-            options.ApiDocsPath = "/swagger/";
-        });
+        var html = await client.GetStringAsync(new Uri(SWAGGER_UI_PAGE, UriKind.Relative), TestContext.Current.CancellationToken);
 
         // Assert
-        await start.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Swagger UI*");
+        html.Should().Contain("swagger-ui");
+        (await ScalarPage.ReadAsync(client, "/api-docs/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
     }
 
     [Fact]
@@ -328,7 +351,7 @@ public sealed partial class ApiDocsTests
         await using var host = await ApiDocsHost.StartWithPipelineAsync((app, api) =>
         {
             api.ConfigureApplication(app);
-            app.UseEndatixApiDocs(new ApiOptions { ApiDocsPath = "/docs" });
+            app.UseEndatixApiDocs(new ApiOptions { Docs = { Path = "/docs" } });
         });
         using var client = host.CreateClient();
 
@@ -341,17 +364,19 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
-    public async Task Swagger_ui_moved_onto_the_docs_page_fails_at_startup()
+    public async Task Swagger_ui_moved_onto_the_docs_page_keeps_it_and_scalar_serves_at_scalar()
     {
+        // Arrange
+        await using var host = await ApiDocsHost.StartAsync(options => options.ConfigureSwaggerUi = ui => ui.Path = "/api-docs");
+        using var client = host.CreateClient();
+
         // Act
-        var start = () => ApiDocsHost.StartAsync(options =>
-        {
-            options.UseSwaggerUi = true;
-            options.ConfigureSwaggerUi = ui => ui.Path = "/api-docs";
-        });
+        var html = await client.GetStringAsync(new Uri("/api-docs/index.html", UriKind.Relative), TestContext.Current.CancellationToken);
 
         // Assert
-        await start.Should().ThrowAsync<InvalidOperationException>().WithMessage("*Swagger UI*");
+        html.Should().Contain("swagger-ui");
+        (await ScalarPage.ReadAsync(client, "/scalar/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        (await GetStatusAsync(client, SWAGGER_UI_PAGE)).Should().Be(HttpStatusCode.NotFound);
     }
 
     private static async Task<HttpStatusCode> GetStatusAsync(HttpClient client, string path)
