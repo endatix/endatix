@@ -25,7 +25,7 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
     // EF Core
     private Folder()
     {
-    } 
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Folder"/> class.
@@ -115,5 +115,8 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
     /// <param name="metadata">The metadata of the folder.</param>
     /// <returns>True if the folder can be modified, false otherwise.</returns>
     public bool CanModifyMutableState(string? name, string? slug, string? description, string? metadata) =>
-        !Immutable || (name is null && slug is null && description is null && metadata is null);
+        !Immutable || !ChangesMutableFields((name, slug, description, metadata));
+
+    internal static bool ChangesMutableFields((string? Name, string? Slug, string? Description, string? Metadata) fields) =>
+        fields is not (null, null, null, null);
 }

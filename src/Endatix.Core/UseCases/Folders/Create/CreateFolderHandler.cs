@@ -34,8 +34,7 @@ public sealed class CreateFolderHandler(
         }
 
         var (trimmedName, normalizedName) = nameResult.Value;
-        var existingByNormalizedName = await FolderWritePolicy.NormalizedNameExistsAsync(
-            folderRepository,
+        var existingByNormalizedName = await folderWritePolicy.NameExistsAsync(
             normalizedName,
             excludeFolderId: null,
             cancellationToken);
@@ -59,20 +58,24 @@ public sealed class CreateFolderHandler(
             return Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(baseSlug, nameof(CreateFolderCommand.Slug)));
         }
 
-        var folder = new Folder(
+        if (folderWritePolicy.Scope is { } scope && await scope.RefusalAsync<Folder>(cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await CreateAsync(new Folder(
             tenantContext.TenantId,
             trimmedName,
             baseSlug,
             normalizedName,
             request.Description?.Trim(),
             null,
-            request.Metadata);
+            request.Metadata)
+        { Immutable = request.Immutable }, cancellationToken);
+    }
 
-        if (request.Immutable)
-        {
-            folder.Immutable = true;
-        }
-
+    private async Task<Result<Folder>> CreateAsync(Folder folder, CancellationToken cancellationToken)
+    {
         try
         {
             await folderRepository.AddAsync(folder, cancellationToken);
@@ -80,25 +83,12 @@ public sealed class CreateFolderHandler(
         catch (Exception exception)
         {
             var violation = uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception);
-            if (!violation.IsUniqueConstraintViolation)
+            if (folderWritePolicy.UniqueViolation(folder, violation) is not { } invalid)
             {
                 throw;
             }
 
-            if (violation.IsFolderSlugViolation())
-            {
-                return Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(baseSlug, nameof(CreateFolderCommand.Slug)));
-            }
-
-            if (violation.IsFolderNameViolation())
-            {
-                return Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(trimmedName, nameof(CreateFolderCommand.Name)));
-            }
-
-            return Result.Invalid(folderWritePolicy.CreateDuplicateFolderConstraintValidationError(
-                trimmedName,
-                baseSlug,
-                nameof(CreateFolderCommand.Name)));
+            return invalid;
         }
 
         await mediator.Publish(new FolderCreatedEvent(folder), cancellationToken);

@@ -8,7 +8,7 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases;
 
-/// <summary>The tenant and account decision for managed theme and template operations.</summary>
+/// <summary>The tenant and account decision for managed content operations.</summary>
 [Experimental("ENDATIX0006")]
 public sealed class ManagedContentScope(ITenantContext tenant, AccountStanding standing)
 {

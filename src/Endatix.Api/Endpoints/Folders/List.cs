@@ -29,11 +29,11 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
             s.Responses[400] = "Invalid input data.";
             s.Responses[403] = "Forbidden. User does not have permission to manage folders.";
             s.Responses[404] = "Not found. The requested resource was not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<IEnumerable<FolderModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
@@ -68,4 +68,3 @@ public sealed class ListFoldersRequest
     /// </summary>
     public bool IncludeInactive { get; set; }
 }
-

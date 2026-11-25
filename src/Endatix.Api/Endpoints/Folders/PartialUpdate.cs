@@ -30,8 +30,9 @@ public sealed class PartialUpdate(IMediator mediator)
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Folder not found.";
             s.Responses[409] = "Folder is locked and cannot be updated.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<FolderModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)

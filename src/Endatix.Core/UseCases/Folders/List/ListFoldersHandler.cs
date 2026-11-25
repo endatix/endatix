@@ -12,34 +12,30 @@ namespace Endatix.Core.UseCases.Folders.List;
 /// <summary>
 /// Handler for listing folders.
 /// </summary>
-public sealed class ListFoldersHandler(IRepository<Folder> repository, ITenantContext tenantContext)
+public sealed class ListFoldersHandler(IRepository<Folder> repository, ITenantContext tenantContext, ManagedContentScope? scope)
     : IQueryHandler<ListFoldersQuery, Result<IEnumerable<FolderDto>>>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public ListFoldersHandler(IRepository<Folder> repository, ITenantContext tenantContext)
+        : this(repository, tenantContext, null) { }
+
     /// <inheritdoc/>
     public async Task<Result<IEnumerable<FolderDto>>> Handle(ListFoldersQuery request, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
-        IEnumerable<Folder> folders;
+        if (scope is not null && await scope.RefusalAsync<IEnumerable<FolderDto>>(cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
         Specification<Folder> spec = request.IncludeInactive
         ? new FolderSpecifications.AllFoldersSpec()
         : new FolderSpecifications.ActiveFoldersSpec();
 
-        folders = await repository.ListAsync(spec, cancellationToken);
+        spec.InTenant(scope);
+        var folders = await repository.ListAsync(spec, cancellationToken);
 
-        var dtos = folders.Select(f => new FolderDto
-        {
-            Id = f.Id,
-            Name = f.Name,
-            Slug = f.UrlSlug,
-            Description = f.Description,
-            Metadata = f.Metadata,
-            IsActive = f.IsActive,
-            Immutable = f.Immutable,
-            CreatedAt = f.CreatedAt,
-            ModifiedAt = f.ModifiedAt
-        });
-
-        return Result.Success(dtos);
+        return Result.Success(folders.Select(FolderDto.From));
     }
 }

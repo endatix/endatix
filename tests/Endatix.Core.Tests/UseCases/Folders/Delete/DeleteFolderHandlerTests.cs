@@ -1,10 +1,13 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases;
+using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Folders.Delete;
 using Microsoft.Extensions.Logging.Abstractions;
 using MediatR;
@@ -38,6 +41,32 @@ public class DeleteFolderHandlerTests
             _unitOfWork,
             _mediator,
             NullLogger<DeleteFolderHandler>.Instance);
+    }
+
+    [Fact]
+    public async Task Handle_StandingUnavailable_DoesNotOpenTransactionOrLoadAssignments()
+    {
+        // Arrange
+        _tenantContext.TenantId.Returns(1);
+        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
+        snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+        _folderRepository.FirstOrDefaultAsync(Arg.Any<FolderEditTarget.ById>(), Arg.Any<CancellationToken>())
+            .Returns(new FolderEditTarget(false, ""));
+        var handler = new DeleteFolderHandler(_folderRepository, _formRepository, _formTemplateRepository,
+            _tenantContext, _unitOfWork, _mediator, NullLogger<DeleteFolderHandler>.Instance,
+            new ManagedContentScope(_tenantContext, new AccountStanding(snapshots)));
+
+        // Act
+        var result = await handler.Handle(new DeleteFolderCommand(10), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, result.Status);
+        Assert.Empty(_unitOfWork.ReceivedCalls());
+        Assert.Empty(_formRepository.ReceivedCalls());
+        Assert.Empty(_formTemplateRepository.ReceivedCalls());
+        Assert.Empty(_mediator.ReceivedCalls());
+        Assert.Single(_folderRepository.ReceivedCalls());
     }
 
     [Fact]
