@@ -1,6 +1,12 @@
 using System.Reflection;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.DataLists;
+using Endatix.Core.UseCases.DataLists.List;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.FormDefinitions;
 using Endatix.Core.UseCases.Submissions;
@@ -8,6 +14,7 @@ using Endatix.Core.UseCases.TenantBranding;
 using Endatix.Infrastructure.Identity.Users;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Endatix.Infrastructure.Messaging;
 
@@ -54,6 +61,9 @@ public static class MessagingConfiguration
         }
 
         TeammateRegistration.AddInviteHandler(services);
+        // Never activate the direct, repository-scoped constructor for a managed query.
+        services.TryAddScoped<IRequestHandler<ListDataListsQuery, Result<Paged<DataListDto>>>>(sp =>
+            new ListDataListsHandler(sp.GetRequiredService<IRepository<DataList>>(), sp.GetRequiredService<ITenantContext>()));
         services.AddMediatR(config =>
         {
             config.RegisterServicesFromAssemblies(mediatRAssemblies);
@@ -75,6 +85,7 @@ public static class MessagingConfiguration
         services.AddScoped<FolderAssignmentPolicy>();
         services.AddScoped<FolderWritePolicy>();
         services.AddScoped<ManagedFormContentAccess>();
+        services.AddScoped<ManagedDataListAccess>();
         services.AddScoped<ManagedSubmissionAccess>();
         services.AddScoped<SubmissionFormTheme>();
         services.AddScoped<TenantBrandingAccess>();

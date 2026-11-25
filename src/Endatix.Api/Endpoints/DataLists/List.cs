@@ -1,6 +1,7 @@
 using Endatix.Api.Common;
 using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
@@ -10,16 +11,21 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Endpoints.DataLists;
 
 /// <summary>
 /// Endpoint to list data lists.
 /// </summary>
+[method: ActivatorUtilitiesConstructor]
 public sealed class List(
-    IMediator mediator)
+    IMediator mediator, ITenantContext? tenant)
     : Endpoint<DataListsListRequest, Results<Ok<Paged<DataListModel>>, ProblemHttpResult>>
 {
+    /// <summary>Leaves tenant resolution to the scoped handler when constructed directly.</summary>
+    public List(IMediator mediator) : this(mediator, null) { }
+
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -27,6 +33,7 @@ public sealed class List(
     {
         Get("data-lists");
         Permissions(Actions.Forms.View);
+        PreProcessor<AuthorizedAccountStanding<DataListsListRequest>>();
         Summary(s =>
         {
             s.Summary = "List data lists";
@@ -63,8 +70,9 @@ public sealed class List(
                 ]);
             s.Responses[200] = "Data lists retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<DataListModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }
@@ -74,18 +82,7 @@ public sealed class List(
         DataListsListRequest request,
         CancellationToken ct)
     {
-        var sort = request.ToSortRequest(DataListListSortBy.CreatedAt, SortDirection.Desc);
-        var result = await mediator.Send(
-            new ListDataListsQuery(
-                request.Page,
-                request.PageSize,
-                request.HasLocale,
-                request.Search,
-                sort.Field,
-                sort.IsDescending,
-                request.ToCreatedRange(),
-                request.ToModifiedRange()),
-            ct);
+        var result = await mediator.Send(ToQuery(request), ct);
 
         if (!result.IsSuccess)
         {
@@ -95,6 +92,14 @@ public sealed class List(
         var mapped = result.Value.MapToPaged(DataListMapper.Map);
 
         return TypedResults.Ok(mapped);
+    }
+
+    private ListDataListsQuery ToQuery(DataListsListRequest request)
+    {
+        var sort = request.ToSortRequest(DataListListSortBy.CreatedAt, SortDirection.Desc);
+        return new(request.Page, request.PageSize, request.HasLocale, request.Search, sort.Field, sort.IsDescending,
+            request.ToCreatedRange(), request.ToModifiedRange())
+        { TenantId = tenant?.TenantId };
     }
 }
 

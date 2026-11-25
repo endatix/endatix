@@ -34,6 +34,7 @@ public sealed class Export(IMediator mediator) : Endpoint<ExportDataListRequest>
     {
         Post("data-lists/{dataListId}/export");
         Permissions(Actions.Forms.View);
+        PreProcessor<ManagedDataListStanding<ExportDataListRequest>>();
         Summary(s =>
         {
             s.Summary = "Export data list items";
@@ -43,8 +44,9 @@ public sealed class Export(IMediator mediator) : Endpoint<ExportDataListRequest>
             s.Responses[200] = "Items exported successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<string>(StatusCodes.Status200OK, "text/csv")
             .Produces<object>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -125,7 +127,7 @@ public sealed class ExportDataListValidator : Validator<ExportDataListRequest>
 /// <summary>
 /// Request to export data list items.
 /// </summary>
-public sealed class ExportDataListRequest
+public sealed class ExportDataListRequest : IManagedDataListTarget
 {
     /// <summary>
     /// The data list ID.

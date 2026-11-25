@@ -3,7 +3,6 @@ using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.DataLists;
 using Endatix.Core.UseCases.DataLists.List;
-using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -17,7 +16,7 @@ public class ListTests
     public ListTests()
     {
         _mediator = Substitute.For<IMediator>();
-        _endpoint = Factory.Create<List>(_mediator);
+        _endpoint = new List(_mediator);
     }
 
     [Fact]

@@ -23,6 +23,7 @@ public sealed class RemoveLocale(IMediator mediator)
     {
         Delete("data-lists/{dataListId}/locales/{locale}");
         Permissions(Actions.Forms.Edit);
+        PreProcessor<ManagedDataListStanding<RemoveDataListLocaleRequest>>();
         Summary(s =>
         {
             s.Summary = "Remove a data list locale";
@@ -46,8 +47,9 @@ public sealed class RemoveLocale(IMediator mediator)
             s.Responses[200] = "Locale removed successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Data list not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<DataListDetailsModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
@@ -85,7 +87,7 @@ public sealed class RemoveDataListLocaleValidator : Validator<RemoveDataListLoca
 /// <summary>
 /// Request to remove a locale from a data list catalog.
 /// </summary>
-public sealed class RemoveDataListLocaleRequest
+public sealed class RemoveDataListLocaleRequest : IManagedDataListTarget
 {
     /// <summary>
     /// The ID of the data list.
