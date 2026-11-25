@@ -32,7 +32,7 @@ public sealed class GetById(IMediator mediator)
             s.Responses[400] = "Invalid user ID.";
             s.Responses[404] = "User not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<GetUserByIdResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

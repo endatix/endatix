@@ -36,7 +36,7 @@ public sealed class InviteUser(IMediator mediator, IRoleManagementService roleMa
             s.Responses[200] = "User invited successfully.";
             s.Responses[400] = "Invalid input data.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<InviteUserResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

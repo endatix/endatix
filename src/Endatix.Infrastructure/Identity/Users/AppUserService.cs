@@ -213,50 +213,6 @@ public sealed partial class AppUserService(
     }
 
     /// <inheritdoc />
-    public async Task<Result<UserWithRoles>> GetUserWithRolesAsync(long userId, CancellationToken cancellationToken = default)
-    {
-        if (userId <= 0)
-        {
-            return Result.NotFound();
-        }
-
-        var tenantId = tenantContext.TenantId;
-        var user = await identityDbContext.Users
-            .AsNoTracking()
-            .Where(user =>
-                user.Id == userId &&
-                user.TenantId == tenantId &&
-                user.UserName != null &&
-                user.UserName != string.Empty)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (user is null)
-        {
-            return Result.NotFound();
-        }
-
-        var roles = user.IsExternal
-            ? ReadExternalRoles(user.Id, user.ExternalRolesJson)
-            : await GetAssignedRoleNamesAsync(user.Id, cancellationToken);
-
-        UserWithRoles userWithRoles = new()
-        {
-            Id = user.Id,
-            UserName = user.UserName!,
-            Email = user.Email,
-            IsVerified = user.IsVerified,
-            AuthProvider = user.AuthProvider,
-            IsExternal = user.IsExternal,
-            IsLockedOut = IsLockedOut(user.LockoutEnd),
-            DisplayName = user.DisplayName,
-            LastLoginAt = user.LastLoginAt,
-            Roles = roles
-        };
-
-        return Result.Success(userWithRoles);
-    }
-
-    /// <inheritdoc />
     public async Task<Result<User>> GetUserAsync(ClaimsPrincipal claimsPrincipal, CancellationToken cancellationToken = default)
     {
         if (claimsPrincipal == null)
@@ -388,7 +344,7 @@ public sealed partial class AppUserService(
 
         return await RemovingUserWouldLeaveTenantWithoutActiveAdminAsync(user, tenantId, cancellationToken)
             ? Result.Conflict(LAST_TENANT_ADMIN_REMOVAL_FORBIDDEN_MESSAGE)
-            : Result.Success();
+            : await _standing.RefusalAsync(cancellationToken) ?? Result.Success();
     }
 
     /// <summary>

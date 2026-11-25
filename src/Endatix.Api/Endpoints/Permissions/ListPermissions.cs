@@ -29,7 +29,7 @@ public sealed class ListPermissions(IMediator mediator)
             s.Responses[200] = "List of permissions returned successfully.";
             s.Responses[400] = "Invalid request.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<IEnumerable<ListPermissionsResponse>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

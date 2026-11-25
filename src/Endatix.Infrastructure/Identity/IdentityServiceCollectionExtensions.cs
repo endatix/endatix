@@ -101,7 +101,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IUserPasswordManageService, UserPasswordManageService>();
         services.AddScoped<IUserTokenService, JwtTokenService>();
         services.AddScoped<IRepository<EmailVerificationToken>, EmailVerificationTokenRepository>();
-        services.AddScoped<RoleManagementService>();
+        services.AddScoped(RoleManagementService.Create);
         services.AddScoped<IRoleManagementService>(sp => sp.GetRequiredService<RoleManagementService>());
         services.AddScoped<ISystemRoleAssignment>(sp => sp.GetRequiredService<RoleManagementService>());
 

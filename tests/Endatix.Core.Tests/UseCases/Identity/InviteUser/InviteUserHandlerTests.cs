@@ -30,7 +30,7 @@ public class InviteUserHandlerTests
             _userRegistrationService,
             _roleManagementService,
             _tenantContext,
-            _currentUserAuthorizationService);
+            _currentUserAuthorizationService, new());
     }
 
     [Fact]

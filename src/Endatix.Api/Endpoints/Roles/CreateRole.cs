@@ -28,7 +28,7 @@ public class CreateRole(IMediator mediator)
             s.Responses[201] = "Role created successfully.";
             s.Responses[400] = "Invalid request or role creation failed.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<CreateRoleResponse>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

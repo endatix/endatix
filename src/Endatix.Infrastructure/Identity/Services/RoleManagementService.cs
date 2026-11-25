@@ -18,7 +18,7 @@ namespace Endatix.Infrastructure.Identity.Services;
 /// <summary>
 /// Service for managing user roles.
 /// </summary>
-public sealed class RoleManagementService : IRoleManagementService, ISystemRoleAssignment
+public sealed partial class RoleManagementService : IRoleManagementService, ISystemRoleAssignment
 {
     private const string PLATFORM_ADMIN_ROLE_MUTATION_FORBIDDEN_MESSAGE = "Only platform administrators can assign or remove the PlatformAdmin role.";
     private const string PLATFORM_ADMIN_USER_MUTATION_FORBIDDEN_MESSAGE = "Only platform administrators can modify users with the PlatformAdmin role.";
@@ -422,18 +422,9 @@ public sealed class RoleManagementService : IRoleManagementService, ISystemRoleA
             return accessGuard;
         }
 
-        _identityDbContext.UserRoles.RemoveRange(staleEditableRoleAssignments);
-        foreach (var roleId in missingEditableRoleIds)
-        {
-            _identityDbContext.UserRoles.Add(new IdentityUserRole<long>
-            {
-                UserId = userId,
-                RoleId = roleId
-            });
-        }
-
-        await _identityDbContext.SaveChangesAsync(cancellationToken);
-        return Result.Success();
+        var newAssignments = missingEditableRoleIds.Select(roleId => new IdentityUserRole<long> { UserId = userId, RoleId = roleId });
+        return await _standing.RefusalAsync(cancellationToken)
+            ?? await SaveAssignmentsAsync(staleEditableRoleAssignments, newAssignments, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -508,10 +499,9 @@ public sealed class RoleManagementService : IRoleManagementService, ISystemRoleA
             .Where(permission => distinctPermissionNames.Contains(permission.Name))
             .ToListAsync(cancellationToken);
 
-        var permissionsGuard = EnsureAllPermissionsExist(distinctPermissionNames, permissions);
-        if (!permissionsGuard.IsSuccess)
+        if (await CheckRolePermissionsAsync(distinctPermissionNames, permissions, cancellationToken) is { } refusal)
         {
-            return permissionsGuard.ToErrorResult<string>();
+            return refusal;
         }
 
         var role = new AppRole
@@ -572,9 +562,7 @@ public sealed class RoleManagementService : IRoleManagementService, ISystemRoleA
             });
         }
 
-        await _rolesRepository.DeleteRoleAsync(role, cancellationToken);
-
-        return Result.Success();
+        return await _standing.RefusalAsync(cancellationToken) ?? await DeleteCustomRoleAsync(role, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -917,10 +905,9 @@ public sealed class RoleManagementService : IRoleManagementService, ISystemRoleA
                 .Where(permission => distinctPermissionNames.Contains(permission.Name))
                 .ToListAsync(cancellationToken);
 
-        var permissionsGuard = EnsureAllPermissionsExist(distinctPermissionNames, permissions);
-        if (!permissionsGuard.IsSuccess)
+        if (await CheckRolePermissionsAsync(distinctPermissionNames, permissions, cancellationToken) is { } refusal)
         {
-            return permissionsGuard.ToErrorResult<string>();
+            return refusal;
         }
 
         role.UpdateDescription(description);

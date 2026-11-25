@@ -13,7 +13,8 @@ public sealed class InviteUserHandler(
     IUserRegistrationService userRegistrationService,
     IRoleManagementService roleManagementService,
     ITenantContext tenantContext,
-    ICurrentUserAuthorizationService currentUserAuthorizationService)
+    ICurrentUserAuthorizationService currentUserAuthorizationService,
+    AccountStanding standing)
     : ICommandHandler<InviteUserCommand, Result<User>>
 {
     /// <inheritdoc/>
@@ -39,6 +40,11 @@ public sealed class InviteUserHandler(
             }
         }
 
+        return await standing.RefusalAsync<User>(cancellationToken) ?? await RegisterAndAssignRolesAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<User>> RegisterAndAssignRolesAsync(InviteUserCommand request, CancellationToken cancellationToken)
+    {
         var registerResult = await userRegistrationService.RegisterInvitedUserAsync(
             request.Email,
             tenantContext.TenantId,
@@ -49,24 +55,26 @@ public sealed class InviteUserHandler(
             return registerResult;
         }
 
+        return await AssignRolesAsync(registerResult.Value, request.RoleNames, cancellationToken);
+    }
+
+    private async Task<Result<User>> AssignRolesAsync(User user, IReadOnlyList<string> roleNames, CancellationToken cancellationToken)
+    {
         var assignedRoleNames = new List<string>();
-        foreach (var roleName in request.RoleNames)
+        foreach (var roleName in roleNames)
         {
-            var assignResult = await roleManagementService.AssignRoleToUserAsync(
-                registerResult.Value.Id,
-                roleName,
-                cancellationToken);
+            var assignResult = await roleManagementService.AssignRoleToUserAsync(user.Id, roleName, cancellationToken);
 
             if (!assignResult.IsSuccess)
             {
-                await RollbackAssignedRolesAsync(registerResult.Value.Id, assignedRoleNames, cancellationToken);
+                await RollbackAssignedRolesAsync(user.Id, assignedRoleNames, cancellationToken);
                 return assignResult.ToErrorResult<User>();
             }
 
             assignedRoleNames.Add(roleName);
         }
 
-        return Result.Success(registerResult.Value);
+        return Result.Success(user);
     }
 
     private async Task RollbackAssignedRolesAsync(

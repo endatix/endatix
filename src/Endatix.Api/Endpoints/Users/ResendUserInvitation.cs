@@ -30,7 +30,7 @@ public sealed class ResendUserInvitation(IMediator mediator)
             s.Responses[400] = "Invalid request or user already verified.";
             s.Responses[404] = "User not found.";
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<UserOperation>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));
