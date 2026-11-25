@@ -1,3 +1,4 @@
+using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
@@ -20,6 +21,7 @@ public sealed class CompileFormSchemaHandler(
         CancellationToken cancellationToken)
     {
         ActiveFormDefinitionByFormIdSpec spec = new(request.FormId);
+        spec.Query.Where(f => request.TenantId > 0 && f.TenantId == request.TenantId);
         var form = await formsRepository.SingleOrDefaultAsync(spec, cancellationToken);
         if (form is null)
         {

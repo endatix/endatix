@@ -13,6 +13,27 @@ public sealed class CompileFormSchemaHandlerTests
     private const long FormId = 100;
     private const long FormDefinitionId = 200;
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(2, TenantId)]
+    public async Task Handle_WhenFormOutsidePositiveTenantScope_ReturnsNotFound(long requestTenant, long formTenant)
+    {
+        // Arrange
+        var form = Form.Create(new FormCreateArgs(TenantId: formTenant, Name: "Report"));
+        form.Id = FormId;
+        var forms = Substitute.For<IRepository<Form>>();
+        forms.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<ActiveFormDefinitionByFormIdSpec>().Evaluate([form]).SingleOrDefault());
+        var handler = new CompileFormSchemaHandler(forms, Substitute.For<IFormSchemaProcessor>());
+
+        // Act
+        var result = await handler.Handle(new CompileFormSchemaCommand(FormId, requestTenant), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        result.Errors.Should().ContainSingle().Which.Should().Be("Form not found.");
+    }
+
     [Fact]
     public async Task Handle_WhenFormMissing_ReturnsNotFound()
     {

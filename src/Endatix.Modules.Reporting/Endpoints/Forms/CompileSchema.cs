@@ -51,10 +51,13 @@ public sealed class CompileSchema(
         CompileFormSchemaRequest request,
         CancellationToken ct)
     {
-        var access = await AuthorizeAsync(request, ct);
-        if (!access.IsSuccess)
+        if (request.Replace)
         {
-            return access.ToProblem();
+            var edit = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, ct);
+            if (!edit.IsSuccess)
+            {
+                return edit.ToProblem();
+            }
         }
 
         CompileFormSchemaCommand command = new(request.FormId, tenantContext.TenantId, request.Replace);
@@ -66,20 +69,6 @@ public sealed class CompileSchema(
         }
 
         return Compiled(result);
-    }
-
-    private async Task<Result<bool>> AuthorizeAsync(CompileFormSchemaRequest request, CancellationToken ct)
-    {
-        if (request.Replace)
-        {
-            var edit = await authorizationService.ValidateAccessAsync(Actions.Forms.Edit, ct);
-            if (!edit.IsSuccess)
-            {
-                return edit.ToErrorResult<bool>();
-            }
-        }
-
-        return await mediator.Send(new AuthorizeSchemaCompile(request.FormId, tenantContext.TenantId), ct);
     }
 
     private static Results<Ok<CompileFormSchemaResponse>, ProblemHttpResult> Compiled(Result<CompileFormSchemaResult> result) =>
