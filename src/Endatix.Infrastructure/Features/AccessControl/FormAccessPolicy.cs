@@ -83,20 +83,16 @@ internal sealed class FormPermissionCache(HybridCache cache, IDateTimeProvider d
         CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
-        var ttl = authData.ComputeAuthTtl(now);
+        var lifetime = new PermissionCacheLifetime(authData, now);
 
         var cacheKey = $"auth:form_mgmt:{form.Id}:tenant:{authData.TenantId}:user:{authData.UserId}:{form.Access}";
 
         var entry = await cache.GetOrCreateAsync(cacheKey,
-            _ => ValueTask.FromResult(new Cached<FormAccessData>(form.Permissions(), now, ttl)),
-            options: new HybridCacheEntryOptions { Expiration = ttl },
+            _ => ValueTask.FromResult(new Cached<FormAccessData>(form.Permissions(), now, lifetime.Ttl)),
+            options: new HybridCacheEntryOptions { Expiration = lifetime.Ttl },
             tags: ["permissions", .. FormAccessCacheTags.ForFormAndAccess(form.Id)],
             cancellationToken: cancellationToken);
 
-        // A refreshed snapshot can shorten this caller's deadline without changing the cached permissions.
-        var deadline = authData.ExpiresAt;
-        return Result.Success<ICachedData<FormAccessData>>(deadline != default && deadline < entry.ExpiresAt
-            ? entry with { ExpiresAt = deadline }
-            : entry);
+        return Result.Success<ICachedData<FormAccessData>>(lifetime.Cap(entry));
     }
 }

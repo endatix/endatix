@@ -1,10 +1,10 @@
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Themes.PartialUpdate;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.Themes.PartialUpdate;
 
 namespace Endatix.Api.Endpoints.Themes;
 
@@ -42,8 +42,9 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateRequest, 
             s.Responses[200] = "Theme updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Theme not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<PartialUpdateResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

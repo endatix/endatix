@@ -14,9 +14,13 @@ namespace Endatix.Infrastructure.Features.AccessControl;
 public sealed class FormTemplateAccessPolicy(
     ICurrentUserAuthorizationService authorizationService,
     HybridCache cache,
-    IDateTimeProvider dateTimeProvider
+    IDateTimeProvider dateTimeProvider, AccountStanding standing
 ) : IResourceAccessQuery<FormTemplateAccessData, FormTemplateAccessContext>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public FormTemplateAccessPolicy(ICurrentUserAuthorizationService authorizationService, HybridCache cache, IDateTimeProvider dateTimeProvider)
+        : this(authorizationService, cache, dateTimeProvider, new AccountStanding()) { }
+
     public async Task<Result<ICachedData<FormTemplateAccessData>>> GetAccessData(
         FormTemplateAccessContext context,
         CancellationToken cancellationToken)
@@ -28,23 +32,33 @@ public sealed class FormTemplateAccessPolicy(
         }
 
         var authData = identityResult.Value;
-        var now = dateTimeProvider.Now.UtcDateTime;
-        var ttl = authData.ComputeAuthTtl(now);
-
-        var cacheKey = $"auth:tpl_mgmt:{context.TemplateId}:user:{authData.UserId}";
-
-        return await cache.GetOrCreateCachedResultAsync(
-            key: cacheKey,
-            factory: _ => Task.FromResult(ComputeResourceAccess(context, authData)),
-            ttl: ttl,
-            utcNow: now,
-            tags: ["permissions", $"template:{context.TemplateId}"],
-            cancellationToken: cancellationToken);
+        var access = AuthorizedAccess(authData);
+        if (!access.IsSuccess)
+        {
+            return access.ToErrorResult<ICachedData<FormTemplateAccessData>>();
+        }
+        return standing.Refusal<ICachedData<FormTemplateAccessData>>(authData)
+            ?? await ReadAsync(new Grant(context.TemplateId, authData, access.Value), cancellationToken);
     }
 
-    private static Result<FormTemplateAccessData> ComputeResourceAccess(
-        FormTemplateAccessContext context,
-        AuthorizationData authData)
+    private async Task<Result<ICachedData<FormTemplateAccessData>>> ReadAsync(Grant grant, CancellationToken ct)
+    {
+        var now = dateTimeProvider.Now.UtcDateTime;
+        var lifetime = new PermissionCacheLifetime(grant.Auth, now);
+        var entry = await cache.GetOrCreateAsync(grant.Key,
+            _ => ValueTask.FromResult(new Cached<FormTemplateAccessData>(grant.Permissions(), now, lifetime.Ttl)),
+            new HybridCacheEntryOptions { Expiration = lifetime.Ttl }, tags: ["permissions", $"template:{grant.Id}"], cancellationToken: ct);
+        return Result.Success<ICachedData<FormTemplateAccessData>>(lifetime.Cap(entry));
+    }
+
+    private sealed record Grant(long Id, AuthorizationData Auth, AccessLevel Level)
+    {
+        internal string Key => $"auth:tpl_mgmt:{Id}:tenant:{Auth.TenantId}:user:{Auth.UserId}:{Level}";
+        internal FormTemplateAccessData Permissions() => Level == AccessLevel.Edit
+            ? FormTemplateAccessData.CreateWithEditAccess(Id) : FormTemplateAccessData.CreateWithViewAccess(Id);
+    }
+
+    private static Result<AccessLevel> AuthorizedAccess(AuthorizationData authData)
     {
         if (authData is null || authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
@@ -58,14 +72,10 @@ public sealed class FormTemplateAccessPolicy(
 
         if (authData.HasPermission(Actions.Templates.Edit))
         {
-            return FormTemplateAccessData.CreateWithEditAccess(context.TemplateId);
+            return AccessLevel.Edit;
         }
 
-        if (authData.HasPermission(Actions.Templates.View))
-        {
-            return FormTemplateAccessData.CreateWithViewAccess(context.TemplateId);
-        }
-
-        return Result.Forbidden("You are not authorized to access this form template.");
+        return authData.HasPermission(Actions.Templates.View) ? Result.Success(AccessLevel.View)
+            : Result.Forbidden("You are not authorized to access this form template.");
     }
 }

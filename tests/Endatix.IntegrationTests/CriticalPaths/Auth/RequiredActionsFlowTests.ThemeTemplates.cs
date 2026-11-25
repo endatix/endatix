@@ -1,0 +1,135 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.IntegrationTests.Shared;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Endatix.IntegrationTests;
+
+public sealed partial class RequiredActionsFlowTests
+{
+    [Theory]
+    [InlineData("themes")]
+    [InlineData("form-templates")]
+    public async Task Pending_owner_cannot_use_managed_theme_or_template_operations(string collection)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var action = new MutableProvider("setup", "/setup") { Pending = false };
+        var conflict = new MutableProvider("other", "/other") { Pending = false };
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton<IRequiredActionProvider>(action);
+            services.AddSingleton<IRequiredActionProvider>(conflict);
+            EnableStanding(services);
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var target = await ManagedAsset.CreateAsync(client, collection, ct);
+        var warm = await client.GetFromJsonAsync<JsonElement>(target.Read, ct);
+        action.Pending = true;
+        await InvalidateAsync(world, ct);
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        foreach (var operation in target.Operations())
+        {
+            using var response = await ManagedAsset.SendAsync(client, operation, ct);
+            await AssertStandingRefusalAsync(response, me, ct);
+        }
+        conflict.Pending = true;
+        await InvalidateAsync(world, ct);
+        foreach (var operation in target.Operations())
+        {
+            using var response = await ManagedAsset.SendAsync(client, operation, ct);
+            await AssertUnavailableQuestionsAsync(response, ct);
+        }
+        action.Pending = conflict.Pending = false;
+        await InvalidateAsync(world, ct);
+        await target.AssertResumedAsync(client, warm, ct);
+    }
+
+    [Fact]
+    public async Task Template_permissions_describe_the_caller_for_existing_and_missing_ids()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const string absentPath = "/api/access/form-templates/9223372036854775807";
+        var action = new MutableProvider("setup", "/setup") { Pending = false };
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton<IRequiredActionProvider>(action);
+            EnableStanding(services);
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var template = await ManagedAsset.CreateAsync(client, "form-templates", ct);
+        var existing = await client.GetFromJsonAsync<JsonElement>(template.Read, ct);
+        using var admitted = await client.GetAsync(absentPath, ct);
+        Assert.Equal(HttpStatusCode.OK, admitted.StatusCode);
+        var absent = await admitted.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.Equal("9223372036854775807", absent.GetProperty("templateId").GetString());
+        Assert.True(JsonElement.DeepEquals(existing.GetProperty("permissions"), absent.GetProperty("permissions")));
+        var warm = await client.GetFromJsonAsync<JsonElement>(absentPath, ct);
+        Assert.Equal(absent.GetProperty("eTag").GetString(), warm.GetProperty("eTag").GetString());
+
+        action.Pending = true;
+        await InvalidateAsync(world, ct);
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        using var blocked = await client.GetAsync(absentPath, ct);
+        await AssertStandingRefusalAsync(blocked, me, ct);
+
+        using var restricted = await RestrictedUserAsync(world, ct);
+        var restrictedMe = await restricted.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        Assert.Equal("blocking", Assert.Single(restrictedMe.GetProperty("requiredActions").EnumerateArray()).GetProperty("severity").GetString());
+        using var denied = await restricted.GetAsync(absentPath, ct);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        var ordinary = await denied.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.Equal("You are not authorized to access this form template.", ordinary.GetProperty("detail").GetString());
+        Assert.False(ordinary.TryGetProperty("requiredActions", out _));
+        Assert.False(ordinary.TryGetProperty("errorCode", out _));
+    }
+
+    private sealed record ManagedAsset(string Collection, string Id)
+    {
+        internal string Path => $"/api/{Collection}";
+        internal string Detail => $"{Path}/{Id}";
+        internal string Read => Collection == "themes" ? Detail : $"/api/access/form-templates/{Id}";
+        internal static async Task<ManagedAsset> CreateAsync(HttpClient client, string collection, CancellationToken ct)
+        {
+            using var created = await client.PostAsJsonAsync($"/api/{collection}", new { name = "Original", jsonData = "{}" }, ct);
+            created.EnsureSuccessStatusCode();
+            return new(collection, (await created.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("id").GetString()!);
+        }
+
+        internal (string Method, string Route)[] Operations() => [("GET", Path), ("GET", Detail), ("POST", Path),
+            ("PATCH", Detail), (Collection == "themes" ? "PUT" : "GET", Read), ("DELETE", Detail)];
+
+        internal static async Task<HttpResponseMessage> SendAsync(HttpClient client, (string Method, string Route) operation, CancellationToken ct)
+        {
+            using var request = new HttpRequestMessage(new HttpMethod(operation.Method), operation.Route);
+            if (operation.Method is "POST" or "PATCH" or "PUT")
+            {
+                request.Content = JsonContent.Create(new { name = operation.Method == "POST" ? "New asset" : "Changed", jsonData = "{}" });
+            }
+            return await client.SendAsync(request, ct);
+        }
+
+        internal async Task AssertResumedAsync(HttpClient client, JsonElement warm, CancellationToken ct)
+        {
+            var recovered = await client.GetFromJsonAsync<JsonElement>(Detail, ct);
+            Assert.Equal("Original", recovered.GetProperty("name").GetString());
+            var read = await client.GetFromJsonAsync<JsonElement>(Read, ct);
+            if (Collection == "form-templates")
+            {
+                Assert.Equal(warm.GetProperty("eTag").GetString(), read.GetProperty("eTag").GetString());
+            }
+            else
+            {
+                Assert.True(JsonElement.DeepEquals(warm, read));
+            }
+            foreach (var operation in Operations())
+            {
+                using var response = await SendAsync(client, operation, ct);
+                response.EnsureSuccessStatusCode();
+            }
+        }
+    }
+}

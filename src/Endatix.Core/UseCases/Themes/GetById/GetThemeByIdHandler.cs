@@ -8,8 +8,13 @@ namespace Endatix.Core.UseCases.Themes.GetById;
 /// <summary>
 /// Handler for retrieving a theme by ID.
 /// </summary>
-public class GetThemeByIdHandler(IRepository<Theme> themeRepository) : IQueryHandler<GetThemeByIdQuery, Result<Theme>>
+public class GetThemeByIdHandler(IRepository<Theme> themeRepository, ManagedContentScope? scope)
+    : IQueryHandler<GetThemeByIdQuery, Result<Theme>>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public GetThemeByIdHandler(IRepository<Theme> themeRepository)
+        : this(themeRepository, null) { }
+
     /// <summary>
     /// Handles the retrieval of a theme by ID.
     /// </summary>
@@ -18,7 +23,12 @@ public class GetThemeByIdHandler(IRepository<Theme> themeRepository) : IQueryHan
     /// <returns>Result containing the theme if found, or an error if not found.</returns>
     public async Task<Result<Theme>> Handle(GetThemeByIdQuery request, CancellationToken cancellationToken)
     {
-        var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
+        if (scope is not null && await scope.TargetRefusalAsync<Theme, Theme>(themeRepository, new(request.ThemeId, "Theme not found."), cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        var theme = await themeRepository.FindAsync(request.ThemeId, scope, cancellationToken);
 
         if (theme == null)
         {

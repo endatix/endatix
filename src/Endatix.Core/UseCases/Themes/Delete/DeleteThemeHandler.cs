@@ -13,13 +13,19 @@ namespace Endatix.Core.UseCases.Themes.Delete;
 /// <summary>
 /// Handler for deleting a theme.
 /// </summary>
-public class DeleteThemeHandler(
-    IRepository<Theme> themeRepository,
+public class DeleteThemeHandler(IRepository<Theme> themeRepository,
     IRepository<Form> formRepository,
     IUnitOfWork unitOfWork,
-    ILogger<DeleteThemeHandler> logger
-) : ICommandHandler<DeleteThemeCommand, Result<string>>
+    ILogger<DeleteThemeHandler> logger, ManagedContentScope? scope)
+    : ICommandHandler<DeleteThemeCommand, Result<string>>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public DeleteThemeHandler(IRepository<Theme> themeRepository,
+        IRepository<Form> formRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<DeleteThemeHandler> logger)
+        : this(themeRepository, formRepository, unitOfWork, logger, null) { }
+
     /// <summary>
     /// Handles the deletion of a theme with transaction support.
     /// </summary>
@@ -30,44 +36,56 @@ public class DeleteThemeHandler(
     {
         Guard.Against.NegativeOrZero(request.ThemeId);
 
+        if (scope is not null && await scope.TargetRefusalAsync<Theme, string>(themeRepository, new(request.ThemeId, $"Theme with ID {request.ThemeId} not found"), cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await DeleteAsync(request.ThemeId, cancellationToken);
+    }
+
+    private async Task<Result<string>> DeleteAsync(long themeId, CancellationToken cancellationToken)
+    {
         try
         {
             await unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var theme = await themeRepository.GetByIdAsync(request.ThemeId, cancellationToken);
-            if (theme == null)
-            {
-                await unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return Result.NotFound($"Theme with ID {request.ThemeId} not found");
-            }
-
-            // Check if there are forms using this theme
-            var forms = await formRepository.ListAsync(
-                new FormSpecifications.ByThemeId(request.ThemeId),
-                cancellationToken);
-
-            if (forms.Any())
-            {
-                // Remove theme from all forms
-                foreach (var form in forms)
-                {
-                    form.SetTheme(null);
-                }
-            }
-
-            await themeRepository.DeleteAsync(theme, cancellationToken);
-
-            // Single SaveChanges for all modifications
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            return Result.Success(theme.Id.ToString());
+            return await DeleteInTransactionAsync(themeId, cancellationToken);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to delete theme {ThemeId}", request.ThemeId);
+            logger.LogError(ex, "Failed to delete theme {ThemeId}", themeId);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Error("Failed to delete theme.");
+        }
+    }
+
+    private async Task<Result<string>> DeleteInTransactionAsync(long themeId, CancellationToken cancellationToken)
+    {
+        var theme = await themeRepository.FindAsync(themeId, scope, cancellationToken);
+        if (theme == null)
+        {
+            await unitOfWork.RollbackTransactionAsync(cancellationToken);
+            return Result.NotFound($"Theme with ID {themeId} not found");
+        }
+
+        await ClearAssignedFormsAsync(themeId, cancellationToken);
+        await themeRepository.DeleteAsync(theme, cancellationToken);
+
+        // Single SaveChanges for all modifications
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.CommitTransactionAsync(cancellationToken);
+
+        return Result.Success(theme.Id.ToString());
+    }
+
+    private async Task ClearAssignedFormsAsync(long themeId, CancellationToken ct)
+    {
+        var assigned = new FormSpecifications.ByThemeId(themeId);
+        assigned.InTenant(scope);
+        foreach (var form in await formRepository.ListAsync(assigned, ct))
+        {
+            form.SetTheme(null);
         }
     }
 }

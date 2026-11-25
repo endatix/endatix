@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Logging;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.DataLists;
 using Endatix.Core.UseCases.DataLists.List;
 using Endatix.Core.UseCases.Folders;
@@ -85,6 +86,7 @@ public static class MessagingConfiguration
         services.AddScoped<FolderAssignmentPolicy>();
         services.AddScoped<FolderWritePolicy>();
         services.AddScoped<ManagedFormContentAccess>();
+        services.AddScoped<ManagedContentScope>();
         services.AddScoped<ManagedDataListAccess>();
         services.AddScoped<ManagedSubmissionAccess>();
         services.AddScoped<SubmissionFormTheme>();

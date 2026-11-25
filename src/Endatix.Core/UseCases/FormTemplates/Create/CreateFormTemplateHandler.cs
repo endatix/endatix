@@ -8,12 +8,18 @@ using Endatix.Core.UseCases.Folders;
 
 namespace Endatix.Core.UseCases.FormTemplates.Create;
 
-public class CreateFormTemplateHandler(
-    IRepository<FormTemplate> repository,
+/// <summary>Creates a form template in the current tenant.</summary>
+public class CreateFormTemplateHandler(IRepository<FormTemplate> repository,
     ITenantContext tenantContext,
-    FolderAssignmentPolicy folderAssignmentPolicy)
+    FolderAssignmentPolicy folderAssignmentPolicy, ManagedContentScope? scope)
     : ICommandHandler<CreateFormTemplateCommand, Result<FormTemplate>>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public CreateFormTemplateHandler(IRepository<FormTemplate> repository,
+        ITenantContext tenantContext,
+        FolderAssignmentPolicy folderAssignmentPolicy)
+        : this(repository, tenantContext, folderAssignmentPolicy, null) { }
+
     public async Task<Result<FormTemplate>> Handle(CreateFormTemplateCommand request, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
@@ -24,12 +30,12 @@ public class CreateFormTemplateHandler(
             return folderCheck.ToErrorResult<FormTemplate>();
         }
 
-        var formTemplate = new FormTemplate(
-            tenantContext.TenantId,
-            request.Name,
-            request.Description,
-            request.JsonData,
-            request.FolderId);
+        if (scope is not null && await scope.RefusalAsync<FormTemplate>(cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        var formTemplate = new FormTemplate(tenantContext.TenantId, request.Name, request.Description, request.JsonData, request.FolderId);
 
         await repository.AddAsync(formTemplate, cancellationToken);
         return Result<FormTemplate>.Created(formTemplate);

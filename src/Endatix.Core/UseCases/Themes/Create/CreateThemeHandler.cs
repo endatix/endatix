@@ -4,20 +4,21 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Models.Themes;
-using Endatix.Core.Specifications;
-using System.Text.Json;
 
 namespace Endatix.Core.UseCases.Themes.Create;
 
 /// <summary>
 /// Handler for creating a new theme.
 /// </summary>
-public class CreateThemeHandler(
-    IRepository<Theme> themesRepository,
-    ITenantContext tenantContext
-) : ICommandHandler<CreateThemeCommand, Result<Theme>>
+public class CreateThemeHandler(IRepository<Theme> themesRepository,
+    ITenantContext tenantContext, ManagedContentScope? scope)
+    : ICommandHandler<CreateThemeCommand, Result<Theme>>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public CreateThemeHandler(IRepository<Theme> themesRepository,
+        ITenantContext tenantContext)
+        : this(themesRepository, tenantContext, null) { }
+
     /// <summary>
     /// Handles the creation of a new theme.
     /// </summary>
@@ -30,33 +31,20 @@ public class CreateThemeHandler(
         var tenantId = tenantContext.TenantId;
         Guard.Against.NegativeOrZero(tenantId);
 
-        // Check if a theme with the same name already exists for this tenant
-        var existingTheme = await themesRepository.FirstOrDefaultAsync(
-            new ThemeSpecifications.ByName(request.Name),
-            cancellationToken);
-
-
-        if (existingTheme != null)
+        var admission = new ThemeAdmission(themesRepository, scope);
+        var change = new ThemeAdmission.ThemeChange(null, request.Name, request.ThemeData);
+        var data = await admission.DataAsync(change, cancellationToken);
+        if (!data.IsSuccess)
         {
-            return Result.Invalid(new ValidationError($"A theme with the name '{request.Name}' already exists"));
+            return data.ToErrorResult<Theme>();
         }
-
         var theme = new Theme(tenantId, request.Name, request.Description);
-
-        if (request.ThemeData != null)
+        if (data.Value is { } json)
         {
-            var themeDataResult = ThemeJsonData.Create(request.ThemeData);
-            if (!themeDataResult.IsSuccess)
-            {
-                return Result<Theme>.Invalid(themeDataResult.ValidationErrors);
-            }
-
-            theme.UpdateJsonData(themeDataResult.Value);
+            theme.UpdateJsonData(json);
         }
-
         await themesRepository.AddAsync(theme, cancellationToken);
         await themesRepository.SaveChangesAsync(cancellationToken);
-
         return Result<Theme>.Created(theme);
     }
 }

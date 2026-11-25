@@ -200,6 +200,21 @@ public class FormTemplateAccessPolicyTests
     #region Caching
 
     [Fact]
+    public async Task GetAccessData_UnavailableStanding_UsesOneSnapshotAndDoesNotReadPermissionCache()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var auth = AuthorizationData.ForAuthenticatedUser("viewer", 1, [], [Actions.Access.Hub, Actions.Templates.View]);
+        _authorizationService.GetAuthorizationDataAsync(ct).Returns(Result.Success(auth with { RequiredActionsUnavailable = true }));
+        var policy = new FormTemplateAccessPolicy(_authorizationService, _cache, _dateTimeProvider, new AccountStanding(_authorizationService));
+
+        var response = await policy.GetAccessData(new FormTemplateAccessContext(1), ct);
+
+        response.Status.Should().Be(ResultStatus.Unavailable);
+        await _authorizationService.Received(1).GetAuthorizationDataAsync(ct);
+        _cache.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetAccessDataAsync_AuthenticatedUser_CachesWithCorrectKey()
     {
         // Arrange
@@ -226,7 +241,7 @@ public class FormTemplateAccessPolicyTests
 
         // Assert
         await _cache.Received(1).GetOrCreateAsync<Cached<FormTemplateAccessData>>(
-            Arg.Is<string>(k => k == $"auth:tpl_mgmt:{templateId}:user:{userId}"),
+            Arg.Is<string>(k => k == $"auth:tpl_mgmt:{templateId}:tenant:1:user:{userId}:View"),
             Arg.Any<Func<CancellationToken, ValueTask<Cached<FormTemplateAccessData>>>>(),
             Arg.Any<HybridCacheEntryOptions?>(),
             Arg.Any<IEnumerable<string>?>(),
@@ -282,4 +297,3 @@ public class FormTemplateAccessPolicyTests
 
     #endregion
 }
-

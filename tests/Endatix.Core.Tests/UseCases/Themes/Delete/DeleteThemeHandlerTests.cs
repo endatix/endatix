@@ -1,11 +1,15 @@
+using Ardalis.Specification;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
-using Microsoft.Extensions.Logging;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Themes.Delete;
+using Microsoft.Extensions.Logging;
 using NSubstitute.ExceptionExtensions;
 
 namespace Endatix.Core.Tests.UseCases.Themes.Delete;
@@ -28,6 +32,26 @@ public class DeleteThemeHandlerTests
             _formsRepository,
             _unitOfWork,
             _logger);
+    }
+
+    [Fact]
+    public async Task Handle_VisibleThemeWithUnknownStanding_DoesNotStartTransactionOrReadAssignedForms()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(SampleData.TENANT_ID);
+        var identity = Substitute.For<ICurrentUserAuthorizationService>();
+        identity.GetAuthorizationDataAsync(ct).Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+        _themesRepository.AnyAsync(Arg.Any<ISpecification<Theme>>(), ct).Returns(true);
+        var scope = new ManagedContentScope(tenant, new AccountStanding(identity));
+        var handler = new DeleteThemeHandler(_themesRepository, _formsRepository, _unitOfWork, _logger, scope);
+
+        var result = await handler.Handle(new DeleteThemeCommand(1), ct);
+
+        result.Status.Should().Be(ResultStatus.Unavailable);
+        _formsRepository.ReceivedCalls().Should().BeEmpty();
+        _unitOfWork.ReceivedCalls().Should().BeEmpty();
+        _themesRepository.ReceivedCalls().Should().ContainSingle();
     }
 
     [Fact]

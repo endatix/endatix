@@ -1,11 +1,11 @@
+using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.FormTemplates.Create;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.FormTemplates.Create;
-using Endatix.Core.Abstractions.Authorization;
-using Endatix.Api.Common;
 
 namespace Endatix.Api.Endpoints.FormTemplates;
 
@@ -39,8 +39,9 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
             };
             s.Responses[201] = "Form template created successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<CreateFormTemplateResponse>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }
