@@ -1,0 +1,105 @@
+---
+title: Required actions
+description: Report pending user or tenant actions from an API module, refresh them after a write, and interpret notices, blocking actions, and unavailable status.
+---
+
+# Required actions
+
+Register an `IRequiredActionProvider` to include your module's outstanding actions in `GET /api/auth/me`. Reporting an action and enforcing it are separate: the default host registers no providers and does not block account operations on required actions.
+
+## Register a provider
+
+This example reports a missing workspace profile. The obligation belongs to the tenant, so the provider checks the tenant even when the caller cannot complete the profile. `IWorkspaceProfiles` is an example application interface; supply a tenant-filtered implementation and register it with dependency injection.
+
+```csharp
+using Endatix.Core.Abstractions.Authorization;
+
+public interface IWorkspaceProfiles
+{
+    Task<bool> IsCompleteAsync(long tenantId, CancellationToken ct);
+}
+
+#pragma warning disable ENDATIX0006 // Experimental required-actions contract
+public sealed class WorkspaceProfileProvider(IWorkspaceProfiles profiles)
+    : IRequiredActionProvider
+{
+    public string CacheConfigurationKey => "workspace-profile-v1";
+    public bool FailClosed => true;
+
+    public async Task<IReadOnlyList<RequiredAction>> GetPendingAsync(
+        RequiredActionSubject subject, CancellationToken cancellationToken)
+    {
+        if (subject.TenantId <= 0)
+            throw new InvalidOperationException("A tenant is required to check the profile.");
+
+        if (await profiles.IsCompleteAsync(subject.TenantId, cancellationToken))
+            return [];
+
+        return [new RequiredAction
+        {
+            Key = "workspace.profile",
+            ResolvePath = "/workspace/profile",
+            Scope = RequiredActionScope.Tenant,
+            Severity = RequiredActionSeverity.Blocking,
+            ResolverRoles = ["WorkspaceOwner"]
+        }];
+    }
+}
+#pragma warning restore ENDATIX0006
+```
+
+In the host's service configuration, register the provider under the **interface**:
+
+```csharp
+using Endatix.Core.Abstractions.Authorization;
+using Microsoft.Extensions.DependencyInjection;
+
+// services is the host's IServiceCollection.
+#pragma warning disable ENDATIX0006
+services.AddScoped<IRequiredActionProvider, WorkspaceProfileProvider>();
+#pragma warning restore ENDATIX0006
+```
+
+Use `subject.UserId` (the canonical string ID), `subject.TenantId`, and `subject.Roles` (resolved for this tenant). Providers run concurrently in separate DI scopes. Request-initialized services do not carry the caller's tenant into that scope. Bind every tenant-owned read explicitly to the positive subject tenant ID. For a mandatory check, a missing tenant or a failed read is an error; returning `[]` means you checked and found nothing outstanding.
+
+Keep constructors, DI factories, and configuration getters free of I/O. Do the check in `GetPendingAsync` and pass its token through. The token lasts **one invocation**: the host signals it on caller cancellation, timeout, or method completion, **including success**, whichever comes first. A successful completion signal does not cancel the request or invalidate the result. The host waits for token callbacks before disposing the scope. Do not retain scoped services or start background work with them. Cleanup counts toward the deadline; the host discards late results and does not start another invocation on that host for the same user, tenant, and registration until cleanup finishes, even after invalidation.
+
+## Choose who can resolve the action
+
+Give each obligation a stable, module-qualified `Key` and an application-relative `ResolvePath` that your application implements. Choose `User` for a personal obligation or `Tenant` when one resolution serves the tenant. Scope describes what completion affects; it does not grant access.
+
+The API computes `canResolve`: any matching `ResolverRoles` entry is enough, and an empty list allows every affected user to resolve. In the example, `WorkspaceOwner` is an application role. Owners see `blocking`; everyone else sees `notice`. Set `BlockNonResolvers = true` only if callers who need someone else's help must also be blocked. The resolution endpoint must still authorize its writes.
+
+Use `Notice` for an action that permits continued access. To introduce a deadline, set `BlockingFrom` on a notice: at that instant the API projects it as blocking for resolvers and, if configured, non-resolvers. Identical reports with the same key appear once. Conflicting reports with the same key make standing unavailable; registration order does not pick a winner.
+
+## Keep reports fresh
+
+`CacheConfigurationKey` identifies interchangeable provider configurations across hosts. Change it when behavior or configuration changes the meaning of a report. Use a stable, non-secret revision, not settings, tenant identifiers, or per-request data.
+
+| Provider outcome | What the API uses |
+| --- | --- |
+| Success | The report, including an empty list. `CacheFor` defaults to 30 seconds and freshness is capped at 60 seconds. A pending blocking deadline can shorten the snapshot lifetime. |
+| Optional check fails or times out (`FailClosed = false`, the default) | The last successful report for that subject and registration, if still within 60 seconds of success and not invalidated. Otherwise this provider contributes no actions. Other providers still count. |
+| Mandatory check fails or times out (`FailClosed = true`) | Standing is unavailable. The API does not substitute an old report or treat failure as an empty list. |
+
+`Timeout` defaults to two seconds. After failure the host waits 15 seconds before retrying that check in the same cache generation.
+
+**After committing a change**, invalidate the affected authorization data. These calls retire cached reports, including optional fallback reports:
+
+| What changed | Call |
+| --- | --- |
+| One user's profile | `await authorization.InvalidateAuthorizationDataCacheAsync(userId, tenantId, ct);` on `ICurrentUserAuthorizationService` |
+| A tenant's workspace profile | `await changes.TenantChangedAsync(tenantId, ct);` on `IAuthorizationDataChanges` |
+| A policy affecting all tenants | `await changes.AllChangedAsync(ct);` on `IAuthorizationDataChanges` |
+
+Tenant and system changes refresh affected users on their next request across hosts. A client can read `/api/auth/me` again without signing in again.
+
+## Read the response and keep resolution reachable
+
+`GET /api/auth/me` requires authentication. On success, `requiredActions` is an array ordered by key (`[]` if none). Each entry describes the caller's projected action, including `scope` (`user` or `tenant`), `severity` (`notice` or `blocking`), `resolvePath`, and `canResolve`. If standing is unavailable, `/api/auth/me` returns **503**, not a successful empty list.
+
+The default Endatix pipeline installs the standing middleware after authorization. Its default scoped `AccountStanding` is dormant: registering a provider can change `/api/auth/me`, but does **not** turn on enforcement. There is no public activation switch. If a custom middleware callback dispatches endpoints itself, place `UseRequiredActionsGate()` (`Endatix.Api.Infrastructure`) after transport and authorization and before that dispatch; installing middleware alone does not activate standing.
+
+Where the host enforces standing, a notice permits normal reads and writes, subject to ordinary authorization. A blocking action refuses a protected account operation with **403**, `errorCode: required_action`, and the complete `requiredActions` list, including notices, as on `/api/auth/me`. Unavailable standing yields **503** instead. An ordinary permission denial is not a required-action refusal.
+
+Mark an account endpoint that must remain reachable to resolve an action with `[AllowWithRequiredActions]` (`Endatix.Core.Infrastructure.Attributes`). The marker skips only the standing gate. Authentication, resolver permissions, and tenant checks still apply. `/api/auth/me`, logout, and change-password already use the marker. Anonymous endpoints, static assets, and respondent endpoints protected only by the public-resource policy are outside the gate; adding account authorization to a respondent route changes that distinction.
