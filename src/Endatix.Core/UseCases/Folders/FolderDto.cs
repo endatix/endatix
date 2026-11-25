@@ -1,3 +1,5 @@
+using Endatix.Core.Entities;
+
 namespace Endatix.Core.UseCases.Folders;
 
 /// <summary>
@@ -5,6 +7,19 @@ namespace Endatix.Core.UseCases.Folders;
 /// </summary>
 public sealed record FolderDto
 {
+    internal static FolderDto From(Folder f) => new()
+    {
+        Id = f.Id,
+        Name = f.Name,
+        Slug = f.UrlSlug,
+        Description = f.Description,
+        Metadata = f.Metadata,
+        IsActive = f.IsActive,
+        Immutable = f.Immutable,
+        CreatedAt = f.CreatedAt,
+        ModifiedAt = f.ModifiedAt
+    };
+
     /// <summary>
     /// The ID of the folder.
     /// </summary>

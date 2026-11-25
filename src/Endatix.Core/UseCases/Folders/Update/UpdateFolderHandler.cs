@@ -22,138 +22,114 @@ public sealed class UpdateFolderHandler(
     /// <inheritdoc/>
     public async Task<Result<Folder>> Handle(UpdateFolderCommand request, CancellationToken cancellationToken)
     {
-        var folder = await folderRepository.FirstOrDefaultAsync(
-            new FolderSpecifications.FolderByIdSpec(request.FolderId),
-            cancellationToken);
+        if (folderWritePolicy.Scope is { IsEnforced: true } scope &&
+            await RefusalAsync(scope, request, cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+
+        return await UpdateAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<Folder>> UpdateAsync(UpdateFolderCommand request, CancellationToken cancellationToken)
+    {
+        var spec = new FolderSpecifications.FolderByIdSpec(request.FolderId);
+        spec.InTenant(folderWritePolicy.Scope);
+        var folder = await folderRepository.FirstOrDefaultAsync(spec, cancellationToken);
         if (folder is null)
         {
             return Result.NotFound("Folder not found.");
         }
 
-        if (request.Immutable is false)
+        var edit = await PrepareAsync(new(folder.Immutable, folder.Name), request, cancellationToken);
+        if (!edit.IsSuccess)
         {
-            folder.Immutable = false;
+            return edit.ToErrorResult<Folder>();
         }
 
-        var changed = await ApplyChangesAsync(folder, request, cancellationToken);
-        if (!changed.IsSuccess)
-        {
-            return changed;
-        }
-
+        edit.Value.Apply(folder, request);
         return await SaveAndPublishAsync(folder, cancellationToken);
     }
 
-    private async Task<Result<Folder>> ApplyChangesAsync(Folder folder, UpdateFolderCommand request, CancellationToken cancellationToken)
+    private async Task<Result<Folder>?> RefusalAsync(ManagedContentScope scope, UpdateFolderCommand request, CancellationToken ct)
     {
-        if (!folder.CanModifyMutableState(request.Name, request.Slug, request.Description, request.Metadata))
+        var needsName = request.Name is null && request.Slug is not null && string.IsNullOrWhiteSpace(request.Slug);
+        var target = await folderRepository.FirstOrDefaultAsync(new FolderEditTarget.ById(request.FolderId, scope.TenantId, needsName), ct);
+        if (target is null)
+        {
+            return Result.NotFound("Folder not found.");
+        }
+        var edit = await PrepareAsync(target, request, ct);
+        return edit.IsSuccess ? await scope.RefusalAsync<Folder>(ct) : edit.ToErrorResult<Folder>();
+    }
+
+    private async Task<Result<Edit>> PrepareAsync(FolderEditTarget target, UpdateFolderCommand request, CancellationToken ct)
+    {
+        if (target.Immutable && request.Immutable is not false &&
+            Folder.ChangesMutableFields((request.Name, request.Slug, request.Description, request.Metadata)))
         {
             return Result.Invalid(folderWritePolicy.CreateImmutableFolderValidationError(nameof(UpdateFolderCommand.FolderId)));
         }
-
-        return await ApplyIdentityAsync(folder, request, cancellationToken);
+        var name = await NameAsync(request, ct);
+        if (!name.IsSuccess)
+        {
+            return name.ToErrorResult<Edit>();
+        }
+        var slug = await SlugAsync(request, name.Value?.Name ?? target.FallbackName, ct);
+        return slug.IsSuccess ? new Edit(name.Value, slug.Value) : slug.ToErrorResult<Edit>();
     }
 
-    private async Task<Result<Folder>> ApplyIdentityAsync(Folder folder, UpdateFolderCommand request, CancellationToken cancellationToken)
+    private async Task<Result<(string Name, string NormalizedName)?>> NameAsync(UpdateFolderCommand request, CancellationToken ct)
     {
-        var nameError = await ApplyNameAsync(folder, request.Name, cancellationToken);
-        if (nameError is not null)
+        if (request.Name is null)
         {
-            return nameError;
+            return Result<(string, string)?>.Success(null);
         }
 
-        var slugError = await ApplySlugAsync(folder, request.Slug, cancellationToken);
-        if (slugError is not null)
-        {
-            return slugError;
-        }
-
-        ApplyTextFields(folder, request);
-        ApplyStateFields(folder, request);
-        return Result.Success(folder);
-    }
-
-    private async Task<Result<Folder>?> ApplyNameAsync(Folder folder, string? name, CancellationToken cancellationToken)
-    {
-        if (name is null)
-        {
-            return null;
-        }
-
-        var nameResult = folderWritePolicy.NormalizeNameOrError(name);
+        var nameResult = folderWritePolicy.NormalizeNameOrError(request.Name);
         if (!nameResult.IsSuccess)
         {
             return Result.Invalid(folderWritePolicy.CreateNameNormalizationValidationError(nameof(UpdateFolderCommand.Name)));
         }
 
-        return await AssignNameAsync(folder, nameResult.Value, cancellationToken);
+        var name = nameResult.Value;
+        return await folderWritePolicy.NameExistsAsync(name.NormalizedName, request.FolderId, ct)
+            ? Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(name.Name, nameof(UpdateFolderCommand.Name)))
+            : Result<(string, string)?>.Success(name);
     }
 
-    private async Task<Result<Folder>?> AssignNameAsync(Folder folder, (string Trimmed, string Normalized) name, CancellationToken cancellationToken)
+    private async Task<Result<string?>> SlugAsync(UpdateFolderCommand request, string fallback, CancellationToken ct)
     {
-        var nameTaken = await FolderWritePolicy.NormalizedNameExistsAsync(folderRepository, name.Normalized, folder.Id, cancellationToken);
-        if (nameTaken)
+        if (request.Slug is null)
         {
-            return Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(name.Trimmed, nameof(UpdateFolderCommand.Name)));
+            return Result<string?>.Success(null);
         }
 
-        folder.Name = name.Trimmed;
-        folder.NormalizedName = name.Normalized;
-        return null;
-    }
-
-    private async Task<Result<Folder>?> ApplySlugAsync(Folder folder, string? slug, CancellationToken cancellationToken)
-    {
-        if (slug is null)
-        {
-            return null;
-        }
-
-        var slugResult = FolderWritePolicy.NormalizeAndValidateSlugOrError(slug, folder.Name, includeDetailedInvalidMessage: false);
+        var slugResult = FolderWritePolicy.NormalizeAndValidateSlugOrError(request.Slug, fallback, includeDetailedInvalidMessage: false);
         if (!slugResult.IsSuccess || slugResult.Value is null)
         {
             var message = slugResult.Errors.FirstOrDefault() ?? "Slug is invalid.";
             return Result.Invalid(folderWritePolicy.CreateInvalidSlugValidationError(message, nameof(UpdateFolderCommand.Slug)));
         }
 
-        return await AssignSlugAsync(folder, slugResult.Value, cancellationToken);
+        return await folderWritePolicy.SlugExistsAsync(slugResult.Value, request.FolderId, ct)
+            ? Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(slugResult.Value, nameof(UpdateFolderCommand.Slug)))
+            : Result<string?>.Success(slugResult.Value);
     }
 
-    private async Task<Result<Folder>?> AssignSlugAsync(Folder folder, string normalized, CancellationToken cancellationToken)
+    private sealed record Edit((string Name, string NormalizedName)? Name, string? Slug)
     {
-        var slugTaken = await folderWritePolicy.SlugExistsAsync(normalized, folder.Id, cancellationToken);
-        if (slugTaken)
+        internal void Apply(Folder folder, UpdateFolderCommand request)
         {
-            return Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(normalized, nameof(UpdateFolderCommand.Slug)));
-        }
-
-        folder.UrlSlug = normalized;
-        return null;
-    }
-
-    private static void ApplyTextFields(Folder folder, UpdateFolderCommand request)
-    {
-        if (request.Description is not null)
-        {
-            folder.Description = request.Description.Trim();
-        }
-
-        if (request.Metadata is not null)
-        {
-            folder.Metadata = request.Metadata;
-        }
-    }
-
-    private static void ApplyStateFields(Folder folder, UpdateFolderCommand request)
-    {
-        if (request.IsActive.HasValue)
-        {
-            folder.IsActive = request.IsActive.Value;
-        }
-
-        if (request.Immutable is true)
-        {
-            folder.Immutable = true;
+            if (Name is { } name)
+            {
+                (folder.Name, folder.NormalizedName) = name;
+            }
+            folder.UrlSlug = Slug ?? folder.UrlSlug;
+            folder.Description = request.Description?.Trim() ?? folder.Description;
+            folder.Metadata = request.Metadata ?? folder.Metadata;
+            folder.IsActive = request.IsActive ?? folder.IsActive;
+            folder.Immutable = request.Immutable ?? folder.Immutable;
         }
     }
 
@@ -165,7 +141,7 @@ public sealed class UpdateFolderHandler(
         }
         catch (Exception exception)
         {
-            var mapped = MapUniqueViolation(folder, exception);
+            var mapped = folderWritePolicy.UniqueViolation(folder, uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception));
             if (mapped is null)
             {
                 throw;
@@ -178,24 +154,4 @@ public sealed class UpdateFolderHandler(
         return Result.Success(folder);
     }
 
-    private Result<Folder>? MapUniqueViolation(Folder folder, Exception exception)
-    {
-        var violation = uniqueConstraintViolationChecker.AnalyzeUniqueConstraint(exception);
-        if (!violation.IsUniqueConstraintViolation)
-        {
-            return null;
-        }
-
-        if (violation.IsFolderSlugViolation())
-        {
-            return Result.Invalid(folderWritePolicy.CreateDuplicateSlugValidationError(folder.UrlSlug, nameof(UpdateFolderCommand.Slug)));
-        }
-
-        if (violation.IsFolderNameViolation())
-        {
-            return Result.Invalid(folderWritePolicy.CreateDuplicateNameValidationError(folder.Name, nameof(UpdateFolderCommand.Name)));
-        }
-
-        return Result.Invalid(folderWritePolicy.CreateDuplicateFolderConstraintValidationError(folder.Name, folder.UrlSlug, nameof(UpdateFolderCommand.Name)));
-    }
 }

@@ -28,8 +28,9 @@ public sealed class Delete(IMediator mediator)
             s.Responses[200] = "Folder deleted.";
             s.Responses[404] = "Folder not found.";
             s.Responses[409] = "Folder is locked and cannot be deleted.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<string>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict));
@@ -44,7 +45,7 @@ public sealed class Delete(IMediator mediator)
         var result = await mediator.Send(command, ct);
 
         return TypedResultsBuilder
-            .MapResult(result, static id => id)
+            .FromResult(result)
             .SetTypedResults<Ok<string>, ProblemHttpResult>();
     }
 }

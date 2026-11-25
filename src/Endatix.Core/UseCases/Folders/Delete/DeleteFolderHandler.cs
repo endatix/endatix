@@ -23,76 +23,97 @@ public sealed class DeleteFolderHandler(
     ITenantContext tenantContext,
     IUnitOfWork unitOfWork,
     IMediator mediator,
-    ILogger<DeleteFolderHandler> logger) : ICommandHandler<DeleteFolderCommand, Result<string>>
+    ILogger<DeleteFolderHandler> logger, ManagedContentScope? scope) : ICommandHandler<DeleteFolderCommand, Result<string>>
 {
+    /// <summary>Constructs the ordinary operation without account standing enforcement.</summary>
+    public DeleteFolderHandler(IRepository<Folder> folderRepository, IRepository<Form> formRepository,
+        IRepository<FormTemplate> formTemplateRepository, ITenantContext tenantContext, IUnitOfWork unitOfWork,
+        IMediator mediator, ILogger<DeleteFolderHandler> logger)
+        : this(folderRepository, formRepository, formTemplateRepository, tenantContext, unitOfWork, mediator, logger, null) { }
+
     /// <inheritdoc/>
     public async Task<Result<string>> Handle(DeleteFolderCommand request, CancellationToken cancellationToken)
     {
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
+        if (scope is { IsEnforced: true } && await RefusalAsync(request.FolderId, cancellationToken) is { } refusal)
+        {
+            return refusal;
+        }
+        return await DeleteAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<string>?> RefusalAsync(long id, CancellationToken ct)
+    {
+        var target = await folderRepository.FirstOrDefaultAsync(new FolderEditTarget.ById(id, tenantContext.TenantId), ct);
+        return CannotDelete(target?.Immutable) ?? await scope!.RefusalAsync<string>(ct);
+    }
+
+    private static Result<string>? CannotDelete(bool? immutable) => immutable switch
+    {
+        null => Result.NotFound("Folder not found."),
+        true => Result<string>.Conflict("Locked folders cannot be deleted."),
+        false => null
+    };
+
+    private async Task<Result<string>> DeleteAsync(DeleteFolderCommand request, CancellationToken cancellationToken)
+    {
         await unitOfWork.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            var folder = await folderRepository.FirstOrDefaultAsync(
-                new FolderSpecifications.FolderByIdSpec(request.FolderId),
-                cancellationToken);
-
-            if (folder is null)
-            {
-                await unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return Result.NotFound("Folder not found.");
-            }
-
-            if (folder.Immutable)
-            {
-                await unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return Result<string>.Conflict("Locked folders cannot be deleted.");
-            }
-
-            var folderId = folder.Id;
-
-            var forms = await formRepository.ListAsync(
-                new FormSpecifications.ByFolderId(request.FolderId),
-                cancellationToken);
-
-            foreach (var form in forms)
-            {
-                form.ClearFolder();
-            }
-
-            var templates = await formTemplateRepository.ListAsync(
-                new FormTemplateSpecifications.ByFolderId(request.FolderId),
-                cancellationToken);
-
-            foreach (var template in templates)
-            {
-                template.ClearFolder();
-            }
-
-            var childFolders = await folderRepository.ListAsync(
-                new FolderSpecifications.ByParentFolderIdSpec(request.FolderId),
-                cancellationToken);
-
-            foreach (var child in childFolders)
-            {
-                child.ParentFolderId = null;
-            }
-
-            await mediator.Publish(new FolderDeletedEvent(folder), cancellationToken);
-
-            await folderRepository.DeleteAsync(folder, cancellationToken);
-
-            await unitOfWork.SaveChangesAsync(cancellationToken);
-            await unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            return Result.Success(folderId.ToString());
+            return await DeleteInTransactionAsync(request.FolderId, cancellationToken);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Failed to delete folder {FolderId}", request.FolderId);
             await unitOfWork.RollbackTransactionAsync(cancellationToken);
             return Result.Error("Failed to delete folder.");
+        }
+    }
+
+    private async Task<Result<string>> DeleteInTransactionAsync(long id, CancellationToken ct)
+    {
+        var spec = new FolderSpecifications.FolderByIdSpec(id);
+        spec.InTenant(scope);
+        var folder = await folderRepository.FirstOrDefaultAsync(spec, ct);
+        if (CannotDelete(folder?.Immutable) is { } denied)
+        {
+            await unitOfWork.RollbackTransactionAsync(ct);
+            return denied;
+        }
+        await ClearAssignmentsAsync(id, ct);
+        await ReparentChildrenAsync(id, ct);
+        await mediator.Publish(new FolderDeletedEvent(folder!), ct);
+        await folderRepository.DeleteAsync(folder!, ct);
+        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitTransactionAsync(ct);
+        return Result.Success(id.ToString());
+    }
+
+    private async Task ClearAssignmentsAsync(long id, CancellationToken ct)
+    {
+        var forms = new FormSpecifications.ByFolderId(id);
+        forms.InTenant(scope);
+        foreach (var form in await formRepository.ListAsync(forms, ct))
+        {
+            form.ClearFolder();
+        }
+        var templates = new FormTemplateSpecifications.ByFolderId(id);
+        templates.InTenant(scope);
+        foreach (var template in await formTemplateRepository.ListAsync(templates, ct))
+        {
+            template.ClearFolder();
+        }
+    }
+
+    private async Task ReparentChildrenAsync(long id, CancellationToken ct)
+    {
+        var children = new FolderSpecifications.ByParentFolderIdSpec(id);
+        children.InTenant(scope);
+        foreach (var child in await folderRepository.ListAsync(children, ct))
+        {
+            child.ParentFolderId = null;
         }
     }
 }

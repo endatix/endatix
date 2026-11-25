@@ -29,8 +29,9 @@ public sealed class GetBySlug(IMediator mediator)
             s.Responses[200] = "Folder found successfully.";
             s.Responses[400] = "Invalid request or access data.";
             s.Responses[404] = "Folder not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<FolderModel>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

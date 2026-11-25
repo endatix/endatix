@@ -1,5 +1,6 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Folders.List;
 using FastEndpoints;
 using MediatR;
@@ -29,11 +30,11 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
             s.Responses[400] = "Invalid input data.";
             s.Responses[403] = "Forbidden. User does not have permission to manage folders.";
             s.Responses[404] = "Not found. The requested resource was not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<IEnumerable<FolderModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound));
     }
 
@@ -41,13 +42,9 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
         ListFoldersRequest request,
         CancellationToken ct)
     {
-        if (request.IncludeInactive)
+        if (request.IncludeInactive && await InactiveListDenialAsync(ct) is { } denied)
         {
-            var manageResult = await authorizationService.HasPermissionAsync(Actions.Folders.Manage, ct);
-            if (!manageResult.IsSuccess || !manageResult.Value)
-            {
-                return manageResult.ToProblem();
-            }
+            return denied;
         }
 
         var result = await mediator.Send(new ListFoldersQuery(request.IncludeInactive), ct);
@@ -55,6 +52,16 @@ public sealed class List(ICurrentUserAuthorizationService authorizationService, 
         return TypedResultsBuilder
             .MapResult(result, folders => folders.ToModelList())
             .SetTypedResults<Ok<IEnumerable<FolderModel>>, ProblemHttpResult>();
+    }
+
+    private async Task<ProblemHttpResult?> InactiveListDenialAsync(CancellationToken ct)
+    {
+        var permission = await authorizationService.HasPermissionAsync(Actions.Folders.Manage, ct);
+        if (!permission.IsSuccess)
+        {
+            return permission.ToProblem();
+        }
+        return permission.Value ? null : Result.Forbidden("Permission 'folders.manage' required to include inactive folders.").ToProblem();
     }
 }
 
@@ -68,4 +75,3 @@ public sealed class ListFoldersRequest
     /// </summary>
     public bool IncludeInactive { get; set; }
 }
-

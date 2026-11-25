@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -12,13 +13,42 @@ namespace Endatix.Core.UseCases.Folders;
 /// </summary>
 public sealed class FolderWritePolicy(
     IRepository<Folder> folderRepository,
-    IValueNormalizer valueNormalizer)
+    IValueNormalizer valueNormalizer,
+    ManagedContentScope? scope)
 {
+    /// <summary>Constructs the ordinary folder write policy without a standing provider.</summary>
+    public FolderWritePolicy(IRepository<Folder> folderRepository, IValueNormalizer valueNormalizer)
+        : this(folderRepository, valueNormalizer, null) { }
+
+    internal ManagedContentScope? Scope => scope;
+
+    internal Task<bool> NameExistsAsync(string normalizedName, long? excludeFolderId, CancellationToken ct)
+    {
+        var spec = new FolderSpecifications.FolderExistsByNormalizedNameSpec(normalizedName, excludeFolderId);
+        spec.InTenant(scope);
+        return folderRepository.AnyAsync(spec, ct);
+    }
+
     public ValidationError CreateNameNormalizationValidationError(string identifier) => new()
     {
         Identifier = identifier,
         ErrorMessage = "Folder name could not be normalized."
     };
+
+    internal Result<Folder>? UniqueViolation(Folder folder, UniqueConstraintViolationResult violation)
+    {
+        if (!violation.IsUniqueConstraintViolation)
+        {
+            return null;
+        }
+        if (violation.IsFolderSlugViolation())
+        {
+            return Result.Invalid(CreateDuplicateSlugValidationError(folder.UrlSlug, "Slug"));
+        }
+        var error = violation.IsFolderNameViolation() ? CreateDuplicateNameValidationError(folder.Name, nameof(Folder.Name))
+            : CreateDuplicateFolderConstraintValidationError(folder.Name, folder.UrlSlug, nameof(Folder.Name));
+        return Result.Invalid(error);
+    }
 
     public ValidationError CreateDuplicateNameValidationError(string name, string identifier) => new()
     {
@@ -97,6 +127,7 @@ public sealed class FolderWritePolicy(
     public async Task<bool> SlugExistsAsync(string slug, long? excludeFolderId, CancellationToken cancellationToken)
     {
         var spec = new FolderSpecifications.FolderExistsBySlugSpec(slug, excludeFolderId);
+        spec.InTenant(scope);
         return await folderRepository.AnyAsync(spec, cancellationToken);
     }
 }
