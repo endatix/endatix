@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.TenantBranding;
@@ -75,8 +77,32 @@ internal sealed class BrandOverrideBody
     public int Version { get; init; } = 1;
 
     /// <summary>The logo (<c>light</c>, optional <c>dark</c>) and the icon, as storage keys under the tenant's brand folder.</summary>
-    public object? Assets { get; init; }
+    public BrandOverrideAssets Assets { get; init; } = new();
 
     /// <summary>The accent: <c>color.primary</c> and optional <c>color.primary-on-dark</c>, each <c>{"$type": "color", "$value"}</c>.</summary>
-    public object? Tokens { get; init; }
+    public BrandOverrideTokens Tokens { get; init; } = new();
+}
+
+/// <summary>The override's <c>assets</c>: an object, optional. Its fields are documented on <see cref="BrandOverrideBody.Assets"/>.</summary>
+/// <remarks>
+/// A type, not <c>object?</c>, so the document shows an object that is not nullable (the parser refuses a null
+/// <c>assets</c>). The extension data lets the document allow the nested fields, which the parser checks.
+/// </remarks>
+internal sealed class BrandOverrideAssets
+{
+    /// <summary>The nested fields, as the brand override's parser reads them.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> Fields { get; init; } = [];
+}
+
+/// <summary>The override's <c>tokens</c>: an object, optional. Its fields are documented on <see cref="BrandOverrideBody.Tokens"/>.</summary>
+/// <remarks>
+/// A type, not <c>object?</c>, so the document shows an object that is not nullable (the parser refuses a null
+/// <c>tokens</c>). The extension data lets the document allow the nested fields, which the parser checks.
+/// </remarks>
+internal sealed class BrandOverrideTokens
+{
+    /// <summary>The nested fields, as the brand override's parser reads them.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> Fields { get; init; } = [];
 }

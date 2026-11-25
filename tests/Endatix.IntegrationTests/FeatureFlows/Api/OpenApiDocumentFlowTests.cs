@@ -16,6 +16,7 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 {
     private const string DOCUMENT_PATH = "/swagger/alpha-version/swagger.json";
     private const string BRANDING_ROUTE = "/tenant-branding";
+    private static readonly string[] _objectFields = ["assets", "tokens"];
 
     [Fact]
     public async Task Document_generates_for_every_endpoint()
@@ -79,7 +80,8 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 
     /// <summary>
     /// The publish body is read as text, so its schema is a documentation type. It lists the fields the brand override
-    /// parser accepts at its root, and not the request's raw <c>content</c>.
+    /// parser accepts at its root, and not the request's raw <c>content</c>. Only <c>version</c> is required, and
+    /// <c>assets</c> and <c>tokens</c> are objects that are not nullable, since the parser refuses a null one.
     /// </summary>
     [Fact]
     public async Task Publish_branding_body_is_json_in_the_brand_override_shape()
@@ -97,10 +99,24 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
             .Value.GetProperty("put");
         var schema = publish.GetProperty("requestBody").GetProperty("content").GetProperty("application/json")
             .GetProperty("schema");
-        var properties = Resolve(root, schema).GetProperty("properties").EnumerateObject().Select(p => p.Name).ToList();
+        var body = Resolve(root, schema);
+        var properties = body.GetProperty("properties");
+        var required = body.TryGetProperty("required", out var names)
+            ? names.EnumerateArray().Select(name => name.GetString()).ToList()
+            : [];
 
         // Assert
-        properties.Should().BeEquivalentTo(BrandOverrideReader.ROOT_FIELDS);
+        properties.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(BrandOverrideReader.ROOT_FIELDS);
+        required.Should().Equal("version");
+        foreach (var name in _objectFields)
+        {
+            var field = Resolve(root, Unwrap(properties.GetProperty(name)));
+            var raw = properties.GetProperty(name).GetRawText();
+            field.GetProperty("type").GetString().Should().Be("object", raw);
+            field.GetProperty("additionalProperties").ValueKind.Should().NotBe(JsonValueKind.False, raw);
+            (properties.GetProperty(name).TryGetProperty("nullable", out var nullable) && nullable.GetBoolean())
+                .Should().BeFalse(raw);
+        }
     }
 
     private static async Task<JsonDocument> ReadDocumentAsync(HttpClient client, CancellationToken ct) =>
@@ -108,6 +124,20 @@ public sealed class OpenApiDocumentFlowTests(EndatixIntegrationWebHostFixture fi
 
     private static List<string> Paths(JsonDocument document) =>
         document.RootElement.GetProperty("paths").EnumerateObject().Select(path => path.Name).ToList();
+
+    /// <summary>NSwag writes a reference beside other keywords as a single <c>allOf</c> or <c>oneOf</c>.</summary>
+    private static JsonElement Unwrap(JsonElement schema)
+    {
+        foreach (var keyword in (string[])["allOf", "oneOf"])
+        {
+            if (schema.TryGetProperty(keyword, out var options) && options.GetArrayLength() == 1)
+            {
+                return options[0];
+            }
+        }
+
+        return schema;
+    }
 
     private static JsonElement Resolve(JsonElement root, JsonElement schema)
     {
