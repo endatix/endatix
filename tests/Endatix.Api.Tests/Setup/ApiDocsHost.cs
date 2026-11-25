@@ -54,24 +54,34 @@ internal sealed class ApiDocsHost : IAsyncDisposable
         Dictionary<string, string?> settings,
         Action<WebApplication>? beforeApi = null,
         WarningLog? log = null) =>
+        StartFromConfigWithServicesAsync(settings, beforeApi, services =>
+        {
+            if (log is not null)
+            {
+                services.AddSingleton(log.Provider);
+            }
+        });
+
+    /// <summary><see cref="StartFromConfigAsync"/>, with services the test registers as a host would.</summary>
+    public static Task<ApiDocsHost> StartFromConfigWithServicesAsync(
+        Dictionary<string, string?> settings,
+        Action<WebApplication>? beforeApi,
+        Action<IServiceCollection> services) =>
         StartWithPipelineAsync(
             (app, _) =>
             {
                 beforeApi?.Invoke(app);
                 app.UseEndatixApi();
             },
-            services =>
+            collection =>
             {
-                services.AddApiOptions(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
-                services.Configure<ApiOptions>(options =>
+                collection.AddApiOptions(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
+                collection.Configure<ApiOptions>(options =>
                 {
                     options.UseExceptionHandler = false;
                     options.UseCors = false;
                 });
-                if (log is not null)
-                {
-                    services.AddSingleton(log.Provider);
-                }
+                services(collection);
             });
 
     /// <summary>

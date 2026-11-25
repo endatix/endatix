@@ -13,8 +13,6 @@ namespace Endatix.Api.Tests.Setup;
 /// </summary>
 public sealed partial class ApiDocsTests
 {
-    private const string HOST_ROOT_MARKER = "the host's own root";
-
     private static readonly Dictionary<string, CompatibilityRow> _compatibilityRows = new()
     {
         ["no keys"] = new() { Settings = [], DocsPage = "/api-docs", BookmarkTarget = SWAGGER_UI_PAGE },
@@ -94,14 +92,17 @@ public sealed partial class ApiDocsTests
     }
 
     [Fact]
-    public async Task Customer_host_keeps_its_own_root_under_a_path_base_with_an_empty_swagger_path()
+    public async Task Customer_host_keeps_its_controller_root_under_a_path_base_with_an_empty_swagger_path()
     {
         // Arrange
-        await using var host = await ApiDocsHost.StartFromConfigAsync(Keys(("SwaggerPath", "")), beforeApi: app =>
-        {
-            app.UsePathBase("/api");
-            app.MapGet("/", () => HOST_ROOT_MARKER);
-        });
+        await using var host = await ApiDocsHost.StartFromConfigWithServicesAsync(
+            Keys(("SwaggerPath", "")),
+            app =>
+            {
+                app.UsePathBase("/api");
+                app.MapControllers();
+            },
+            services => services.AddControllers().AddApplicationPart(typeof(CustomerRootController).Assembly));
         using var client = host.CreateClient();
 
         // Act
@@ -109,8 +110,10 @@ public sealed partial class ApiDocsTests
 
         // Assert
         root.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await root.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be(HOST_ROOT_MARKER);
+        (await root.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Be(CustomerRootController.BODY);
         (await ScalarPage.ReadAsync(client, "/api/api-docs/")).DocumentUrls.Should().Equal(DOCUMENT_URL);
+        (await GetStatusAsync(client, "/api" + SWAGGER_UI_PAGE)).Should().Be(HttpStatusCode.OK);
+        await AssertRedirectAsync(client, "/api/api-docs/index.html", "/api" + SWAGGER_UI_PAGE);
     }
 
     [Fact]
