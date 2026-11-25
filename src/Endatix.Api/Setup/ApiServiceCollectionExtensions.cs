@@ -57,7 +57,10 @@ public static class ApiServiceCollectionExtensions
             {
                 // Map properties from ApiConfigurationOptions to ApiOptions
                 options.UseSwagger = config.UseSwagger;
+                options.ApiDocsPath = config.ApiDocsPath;
+#pragma warning disable CS0618 // The deprecated key still configures the docs page when ApiDocsPath is unset.
                 options.SwaggerPath = config.SwaggerPath;
+#pragma warning restore CS0618
                 options.UseSwaggerUi = config.UseSwaggerUi;
             });
         });

@@ -24,10 +24,21 @@ public class ApiConfigurationOptions : EndatixOptionsBase
     public bool UseSwagger { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/".
+    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/". Null means "/api-docs", or
+    /// <see cref="SwaggerPath"/> when only that is set.
+    /// </summary>
+    [RegularExpression("^/.*", ErrorMessage = "API docs path must start with '/'")]
+    public string? ApiDocsPath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the deprecated name of <see cref="ApiDocsPath"/>. It applies only when
+    /// <see cref="ApiDocsPath"/> is null. Null means "/api-docs".
     /// </summary>
     [RegularExpression("^/.*", ErrorMessage = "Swagger path must start with '/'")]
-    public string? SwaggerPath { get; set; } = "/api-docs";
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
+    [Obsolete("Use ApiDocsPath")]
+    public string? SwaggerPath { get; set; }
+#pragma warning restore S1133
 
     /// <summary>
     /// Gets or sets a value indicating whether to also serve Swagger UI, at "/swagger". Off by default.

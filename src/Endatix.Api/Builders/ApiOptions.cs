@@ -31,10 +31,20 @@ public class ApiOptions
     public bool UseSwagger { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/".
-    /// Default is "/api-docs"; an empty path or "/" also means "/api-docs". This can be configured via appsettings.json.
+    /// Gets or sets the path of the API docs page, which shows Scalar. Must start with "/". Null means "/api-docs", or
+    /// <see cref="SwaggerPath"/> when only that is set. An empty path or "/" also means "/api-docs", and the root then
+    /// redirects there. This can be configured via appsettings.json.
     /// </summary>
-    public string? SwaggerPath { get; set; } = "/api-docs";
+    public string? ApiDocsPath { get; set; }
+
+    /// <summary>
+    /// Gets or sets the deprecated name of <see cref="ApiDocsPath"/>. It applies only when
+    /// <see cref="ApiDocsPath"/> is null. Null means "/api-docs".
+    /// </summary>
+#pragma warning disable S1133 // Kept obsolete for callers-only / tombstone policy (Loop A #1472); removal is a separate decision.
+    [Obsolete("Use ApiDocsPath")]
+    public string? SwaggerPath { get; set; }
+#pragma warning restore S1133
 
     /// <summary>
     /// Gets or sets a value indicating whether to also serve Swagger UI, at "/swagger". Off by default.

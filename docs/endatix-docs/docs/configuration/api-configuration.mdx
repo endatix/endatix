@@ -119,7 +119,7 @@ Configure the docs in `appsettings.json`:
   "Endatix": {
     "Api": {
       "UseSwagger": true,
-      "SwaggerPath": "/api-docs",
+      "ApiDocsPath": "/api-docs",
       "UseSwaggerUi": false
     }
   }
@@ -130,10 +130,14 @@ Configure the docs in `appsettings.json`:
 <Setting name="Endatix:Api:UseSwagger" default="true">
 Serves the OpenAPI document, the API docs page, and Swagger UI when it is on. `false` turns all of them off.
 </Setting>
-<Setting name="Endatix:Api:SwaggerPath" default="/api-docs">
+<Setting name="Endatix:Api:ApiDocsPath" default="/api-docs">
 The path of the API docs page. It must start with `/`. An empty value or `/` serves the page at `/api-docs`, logs a
 warning at startup, and redirects `/` to the page. The old Swagger UI address, `index.html` under the page (such as
 `/api-docs/index.html`), redirects to the page too.
+</Setting>
+<Setting name="Endatix:Api:SwaggerPath" status="deprecated" replacedBy="Endatix:Api:ApiDocsPath">
+The old name of `ApiDocsPath`. It still works when `ApiDocsPath` is not set. When both are set to different paths,
+`ApiDocsPath` wins and the API logs a warning at startup. Rename the key to `ApiDocsPath`.
 </Setting>
 <Setting name="Endatix:Api:UseSwaggerUi" default="false">
 Also serves Swagger UI at `/swagger`. It needs `UseSwagger`.
@@ -154,9 +158,9 @@ Earlier releases showed Swagger UI at `/api-docs`. To keep using Swagger UI, tur
 }
 ```
 
-`/api-docs` keeps showing Scalar. `SwaggerPath` cannot be `/swagger` while Swagger UI is on, since both pages would answer
+`/api-docs` keeps showing Scalar. `ApiDocsPath` cannot be `/swagger` while Swagger UI is on, since both pages would answer
 the same path. The API then refuses to start with `Swagger UI cannot serve at the API docs page '/swagger'`, and the
-message names the fix: set `SwaggerPath` to another path such as `/api-docs`, move Swagger UI with `ConfigureSwaggerUi`
+message names the fix: set `ApiDocsPath` to another path such as `/api-docs`, move Swagger UI with `ConfigureSwaggerUi`
 (its `Path`), or turn `UseSwaggerUi` off.
 
 ## Rate Limiting

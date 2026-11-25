@@ -41,13 +41,36 @@ internal static class ApiDocs
         }
 
         var routes = AsRouteBuilder(app);
-        var pagePath = PagePath(options.SwaggerPath);
+        var requestedPath = RequestedPath(app, options);
+        var pagePath = PagePath(requestedPath);
         app.Properties[ADDED_KEY] = true;
         var documentPath = AddDocument(app, options);
         AddSwaggerUi(app, options, pagePath);
         MapScalar(routes, pagePath, documentPath);
         MapOldSwaggerUiBookmark(routes, pagePath);
-        RedirectRootWhenPathFallsBack(app, routes, options.SwaggerPath);
+        RedirectRootWhenPathFallsBack(app, routes, requestedPath);
+    }
+
+    /// <summary>
+    /// The docs page path the host asked for: <see cref="ApiOptions.ApiDocsPath"/>, else the deprecated
+    /// <see cref="ApiOptions.SwaggerPath"/>, else null for the default. Two different values log a warning, so a host
+    /// that set both learns which one applies.
+    /// </summary>
+    private static string? RequestedPath(IApplicationBuilder app, ApiOptions options)
+    {
+#pragma warning disable CS0618 // SwaggerPath is the deprecated mirror of ApiDocsPath, still read for older hosts.
+        var swaggerPath = options.SwaggerPath;
+#pragma warning restore CS0618
+        if (options.ApiDocsPath is not null && swaggerPath is not null
+            && !string.Equals(options.ApiDocsPath, swaggerPath, StringComparison.Ordinal))
+        {
+            Logger(app)?.LogWarning(
+                "ApiDocsPath '{ApiDocsPath}' and the deprecated SwaggerPath '{SwaggerPath}' are both set. The API docs use ApiDocsPath.",
+                options.ApiDocsPath,
+                swaggerPath);
+        }
+
+        return options.ApiDocsPath ?? swaggerPath;
     }
 
     private static bool WasAdded(IApplicationBuilder app)
@@ -107,21 +130,21 @@ internal static class ApiDocs
             .AddPreferredSecuritySchemes(BEARER_SCHEME));
 
     /// <summary>
-    /// An empty or <c>/</c> SwaggerPath asked for the docs at the root, which they cannot take, so they serve at the
+    /// An empty or <c>/</c> requested path asked for the docs at the root, which they cannot take, so they serve at the
     /// default. The root then redirects there and a warning says so. An unset (null) or other path adds no root route,
     /// so a host keeps its root.
     /// </summary>
     private static void RedirectRootWhenPathFallsBack(
-        IApplicationBuilder app, IEndpointRouteBuilder routes, string? swaggerPath)
+        IApplicationBuilder app, IEndpointRouteBuilder routes, string? requestedPath)
     {
-        if (swaggerPath is null || swaggerPath.Trim().TrimEnd('/').Length > 0)
+        if (requestedPath is null || requestedPath.Trim().TrimEnd('/').Length > 0)
         {
             return;
         }
 
         Logger(app)?.LogWarning(
-            "SwaggerPath '{SwaggerPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.",
-            swaggerPath,
+            "ApiDocsPath '{ApiDocsPath}' cannot put the API docs at the root. They serve at {DocsPage}, and the root redirects there.",
+            requestedPath,
             DEFAULT_PATH);
         routes.MapGet("/", (HttpRequest request) => Results.Redirect($"{request.PathBase}{DEFAULT_PATH}/"))
             .ExcludeFromDescription();
@@ -166,7 +189,7 @@ internal static class ApiDocs
         if (string.Equals(PagePath(swaggerUiPath), pagePath, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                $"Swagger UI cannot serve at the API docs page '{pagePath}'. Set SwaggerPath to another path, such as " +
+                $"Swagger UI cannot serve at the API docs page '{pagePath}'. Set ApiDocsPath to another path, such as " +
                 $"{DEFAULT_PATH}, move Swagger UI with ConfigureSwaggerUi (set its Path), or turn UseSwaggerUi off.");
         }
     }
@@ -175,9 +198,9 @@ internal static class ApiDocs
     /// The docs page path without a trailing slash. An empty path or <c>/</c> falls back to the default, since Scalar
     /// maps <c>{path}/{documentName?}</c> and a root page would answer every one-segment path.
     /// </summary>
-    internal static string PagePath(string? swaggerPath)
+    internal static string PagePath(string? requestedPath)
     {
-        var path = swaggerPath?.Trim().TrimEnd('/');
+        var path = requestedPath?.Trim().TrimEnd('/');
         return string.IsNullOrEmpty(path) ? DEFAULT_PATH : path;
     }
 

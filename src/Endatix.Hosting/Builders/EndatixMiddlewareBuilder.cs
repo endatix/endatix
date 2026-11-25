@@ -221,9 +221,9 @@ public class EndatixMiddlewareBuilder
         var optionsProvider = App.ApplicationServices.GetService<IOptions<ApiOptions>>();
         var options = optionsProvider?.Value ?? new ApiOptions();
 
-        _logger?.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+        _logger?.LogInformation("Loaded ApiOptions from configuration: UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}",
             options.UseSwagger,
-            options.SwaggerPath);
+            options.ApiDocsPath);
 
         // Apply any additional configuration if provided
         configureApi?.Invoke(options);
@@ -234,9 +234,9 @@ public class EndatixMiddlewareBuilder
     internal EndatixMiddlewareBuilder UseApi(ApiOptions options)
     {
         _logger?.LogInformation(
-            "Adding API middleware with resolved options: UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
+            "Adding API middleware with resolved options: UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}",
             options.UseSwagger,
-            options.SwaggerPath);
+            options.ApiDocsPath);
 
         App.UseEndatixApi(options);
         return this;
@@ -260,7 +260,7 @@ public class EndatixMiddlewareBuilder
     /// <see cref="ApiOptions"/>. <see cref="UseApi(Action{ApiOptions}?)"/> already adds the docs, and they are added
     /// once per application, so after it this call does nothing.
     /// </summary>
-    /// <param name="path">Optional path for the docs page. Defaults to <see cref="ApiOptions.SwaggerPath"/>.</param>
+    /// <param name="path">Optional path for the docs page. Defaults to the configured <see cref="ApiOptions.ApiDocsPath"/>.</param>
     /// <param name="configureOpenApi">Optional delegate to configure OpenAPI document generation settings.</param>
     /// <param name="configureSwaggerUi">Optional delegate to configure Swagger UI display settings. Passing one turns
     /// Swagger UI on.</param>
@@ -273,7 +273,10 @@ public class EndatixMiddlewareBuilder
         App.UseEndatixApiDocs(new ApiOptions
         {
             UseSwagger = true,
-            SwaggerPath = path ?? configured.SwaggerPath,
+            ApiDocsPath = path ?? configured.ApiDocsPath,
+#pragma warning disable CS0618 // A path given here replaces the configured one, the deprecated mirror included.
+            SwaggerPath = path is null ? configured.SwaggerPath : null,
+#pragma warning restore CS0618
             UseSwaggerUi = configured.UseSwaggerUi || configureSwaggerUi is not null,
             ConfigureOpenApiDocument = configureOpenApi ?? configured.ConfigureOpenApiDocument,
             ConfigureSwaggerUi = configureSwaggerUi ?? configured.ConfigureSwaggerUi,

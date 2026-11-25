@@ -33,9 +33,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}, UseSwaggerUi={UseSwaggerUi}",
+                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}, UseSwaggerUi={UseSwaggerUi}",
                 options.UseSwagger,
-                options.SwaggerPath,
+                options.ApiDocsPath,
                 options.UseSwaggerUi);
         }
 
@@ -60,9 +60,9 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}, UseSwaggerUi={UseSwaggerUi}",
+                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, ApiDocsPath={ApiDocsPath}, UseSwaggerUi={UseSwaggerUi}",
                 options.UseSwagger,
-                options.SwaggerPath,
+                options.ApiDocsPath,
                 options.UseSwaggerUi);
         }
 
@@ -135,7 +135,7 @@ public static class ApiApplicationBuilderExtensions
 
     /// <summary>
     /// Adds the API docs when <see cref="ApiOptions.UseSwagger"/> is on: the OpenAPI document, Scalar at
-    /// <see cref="ApiOptions.SwaggerPath"/>, and Swagger UI at <c>/swagger</c> when <see cref="ApiOptions.UseSwaggerUi"/>
+    /// <see cref="ApiOptions.ApiDocsPath"/>, and Swagger UI at <c>/swagger</c> when <see cref="ApiOptions.UseSwaggerUi"/>
     /// is on. <see cref="UseEndatixApi(IApplicationBuilder, ApiOptions)"/> already adds them; a second call does nothing.
     /// </summary>
     /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>

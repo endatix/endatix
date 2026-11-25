@@ -108,7 +108,7 @@ app.UseEndatix((EndatixMiddlewareOptions options) =>
     options.ApiOptions.UseSwagger = true;
     
     // Path of the API docs page, which shows Scalar (default is "/api-docs")
-    options.ApiOptions.SwaggerPath = "/api-docs";
+    options.ApiOptions.ApiDocsPath = "/api-docs";
 
     // Also serve Swagger UI at "/swagger" (default is false)
     options.ApiOptions.UseSwaggerUi = true;

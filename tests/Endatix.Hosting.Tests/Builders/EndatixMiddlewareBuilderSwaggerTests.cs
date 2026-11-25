@@ -5,6 +5,7 @@ using Endatix.Hosting.Builders;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Hosting.Tests.Builders;
 
@@ -25,6 +26,26 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
 
         // Assert
         RoutePatterns(app).Should().Equal("/docs/{documentName?}");
+    }
+
+    [Theory]
+    [InlineData(null, "/configured/{documentName?}")]
+    [InlineData("/docs", "/docs/{documentName?}")]
+    public async Task UseSwagger_WithConfiguredDeprecatedSwaggerPath_UsesThePathGivenElseTheConfiguredOne(
+        string? path, string pattern)
+    {
+        // Arrange
+        var builder = WebApplication.CreateBuilder();
+#pragma warning disable CS0618 // Subject under test: the deprecated mirror carries over when no path is given.
+        builder.Services.Configure<ApiOptions>(options => options.SwaggerPath = "/configured");
+#pragma warning restore CS0618
+        await using var app = builder.Build();
+
+        // Act
+        new EndatixMiddlewareBuilder(app).UseSwagger(path);
+
+        // Assert
+        RoutePatterns(app).Should().Equal(pattern);
     }
 
     [Fact]
@@ -67,7 +88,7 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
 
         // Assert
         useSwagger.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Set SwaggerPath to another path, such as /api-docs*ConfigureSwaggerUi*UseSwaggerUi off*");
+            .WithMessage("*Set ApiDocsPath to another path, such as /api-docs*ConfigureSwaggerUi*UseSwaggerUi off*");
     }
 
     /// <summary>Runs one GET through the app's middleware. Swagger UI is middleware, not an endpoint.</summary>

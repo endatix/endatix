@@ -60,13 +60,13 @@ public class EndatixMiddlewareOptionsFactoryTests
         ApiOptions apiOptions = new()
         {
             UseSwagger = false,
-            SwaggerPath = "/docs"
+            ApiDocsPath = "/docs"
         };
 
         var middlewareOptions = EndatixMiddlewareOptionsFactory.Create(new HostingOptions(), apiOptions);
 
         middlewareOptions.ApiOptions.Should().BeSameAs(apiOptions);
         middlewareOptions.ApiOptions.UseSwagger.Should().BeFalse();
-        middlewareOptions.ApiOptions.SwaggerPath.Should().Be("/docs");
+        middlewareOptions.ApiOptions.ApiDocsPath.Should().Be("/docs");
     }
 }

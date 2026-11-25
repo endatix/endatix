@@ -25,7 +25,7 @@ public sealed class EndatixApplicationBuilderExtensionsTests
             new ApiOptions
             {
                 UseSwagger = false,
-                SwaggerPath = "/docs"
+                ApiDocsPath = "/docs"
             });
 
         app.UseEndatix(options =>
@@ -35,7 +35,7 @@ public sealed class EndatixApplicationBuilderExtensionsTests
                 !options.UseHsts &&
                 !options.UseHttpsRedirection &&
                 !options.ApiOptions.UseSwagger &&
-                options.ApiOptions.SwaggerPath == "/docs";
+                options.ApiOptions.ApiDocsPath == "/docs";
 
             DisableDefaultMiddleware(options);
             options.ConfigureAdditionalMiddleware = builder =>
