@@ -125,9 +125,10 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
     {
         var ct = TestContext.Current.CancellationToken;
         var counter = new CompileCounter();
+        var action = new MutableProvider("v1", "/profile") { Pending = false };
         await using var host = new ReportingWebHost(fixture, services =>
         {
-            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("v1", "/profile"));
+            services.AddSingleton<IRequiredActionProvider>(action);
             EnableStanding(services);
             services.AddSingleton<IPipelineBehavior<CompileFormSchemaCommand, Result<CompileFormSchemaResult>>>(counter);
         });
@@ -136,6 +137,8 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var ownForm = await CreateFormAsync(editor, ct);
         var hiddenForm = await CreateFormAsync(other, ct);
+        action.Pending = true;
+        await InvalidateAsync(world, ct);
         using var exporter = await RestrictedUserAsync(world, ct);
         await AssertChallengesAsync(host, ownForm, ct);
         using var client = host.CreateClient();

@@ -1,8 +1,8 @@
+using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.UseCases.Folders;
@@ -46,23 +46,12 @@ public sealed class FolderAssignmentPolicy(
             return Result.Success();
         }
 
-        if (currentFolderId.HasValue && currentFolderId.Value > 0)
+        if (currentFolderId is > 0 && await folderRepository.AnyAsync(new LockedFolder(currentFolderId.Value), cancellationToken))
         {
-            var currentFolder = await folderRepository.FirstOrDefaultAsync(
-                new FolderSpecifications.FolderByIdSpec(currentFolderId.Value),
-                cancellationToken);
-
-            if (currentFolder?.Immutable == true)
-            {
-                return Result.Conflict(IMMUTABLE_FOLDER_MOVE_ERROR);
-            }
+            return Result.Conflict(IMMUTABLE_FOLDER_MOVE_ERROR);
         }
 
-        var tenantSettings = await tenantSettingsRepository.FirstOrDefaultAsync(
-            new TenantSettingsByTenantIdSpec(tenantContext.TenantId),
-            cancellationToken);
-
-        var require = tenantSettings?.RequireFolderAssignment ?? false;
+        var require = await tenantSettingsRepository.AnyAsync(new RequiresFolder(tenantContext.TenantId), cancellationToken);
         if (require && (!requestedFolderId.HasValue || requestedFolderId.Value <= 0))
         {
             return Result.Error("You must assign a folder.");
@@ -73,21 +62,34 @@ public sealed class FolderAssignmentPolicy(
             return Result.Success();
         }
 
-        var requestedFolder = await folderRepository.FirstOrDefaultAsync(
-            new FolderSpecifications.FolderByIdSpec(requestedFolderId.Value),
-            cancellationToken);
+        var active = await folderRepository.FirstOrDefaultAsync(new FolderActive(requestedFolderId.Value), cancellationToken);
 
-        if (requestedFolder is null)
+        if (active is null)
         {
             return Result.Error("Folder was not found.");
         }
 
-        if (!requestedFolder.IsActive)
+        if (!active.Value)
         {
             return Result.Error("Folder is not active.");
         }
 
         return Result.Success();
+    }
+
+    private sealed class RequiresFolder : Specification<TenantSettingsEntity>
+    {
+        internal RequiresFolder(long tenantId) => Query.Where(settings => settings.TenantId == tenantId && settings.RequireFolderAssignment);
+    }
+
+    private sealed class LockedFolder : Specification<Folder>
+    {
+        internal LockedFolder(long id) => Query.Where(folder => folder.Id == id && folder.Immutable);
+    }
+
+    private sealed class FolderActive : SingleResultSpecification<Folder, bool?>
+    {
+        internal FolderActive(long id) => Query.Where(folder => folder.Id == id).Select(folder => (bool?)folder.IsActive);
     }
 
     /// <summary>
@@ -100,15 +102,10 @@ public sealed class FolderAssignmentPolicy(
         string cannotMoveMessage,
         CancellationToken cancellationToken)
     {
-        var validation = await EnsureFolderMoveValidAsync(currentFolderId, requestedFolderId, cancellationToken);
+        var validation = await CheckMoveAsync(currentFolderId, requestedFolderId, cancellationToken);
         if (!validation.IsOk())
         {
             return validation;
-        }
-
-        if (IsStatusQuoFolderMove(currentFolderId, requestedFolderId))
-        {
-            return Result.Invalid(CreateStatusQuoFolderMoveValidationError());
         }
 
         if (!applyMove(requestedFolderId))
@@ -117,6 +114,14 @@ public sealed class FolderAssignmentPolicy(
         }
 
         return Result.Success();
+    }
+
+    internal async Task<Result> CheckMoveAsync(long? currentFolderId, long? requestedFolderId, CancellationToken ct)
+    {
+        var validation = await EnsureFolderMoveValidAsync(currentFolderId, requestedFolderId, ct);
+        return validation.IsOk() && IsStatusQuoFolderMove(currentFolderId, requestedFolderId)
+            ? Result.Invalid(CreateStatusQuoFolderMoveValidationError())
+            : validation;
     }
 
     /// <summary>
@@ -134,4 +139,3 @@ public sealed class FolderAssignmentPolicy(
                 errorCode: "FOLDER_ASSIGNMENT_UNCHANGED",
                 severity: ValidationSeverity.Error);
 }
-

@@ -1,12 +1,12 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
 using MediatR;
-using Endatix.Core.UseCases.Folders;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.Forms.PartialUpdate;
@@ -483,17 +483,9 @@ public class PartialUpdateFormHandlerTests
         tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         var helper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, tenantContext);
 
-        var immutableFolder = new Folder(SampleData.TENANT_ID, "Immutable", "immutable", "IMMUTABLE")
-        {
-            Id = 7,
-            Immutable = true,
-        };
         folderRepo
-            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(immutableFolder);
-        tenantSettingsRepo
-            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns((TenantSettingsEntity?)null);
+            .AnyAsync(Arg.Any<Ardalis.Specification.ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator, helper);
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 7));

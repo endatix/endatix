@@ -1,11 +1,11 @@
-﻿using FastEndpoints;
+using Endatix.Api.Common;
+using Endatix.Api.Infrastructure;
+using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Forms.PartialUpdate;
+using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Api.Common;
-using Endatix.Api.Infrastructure;
-using Endatix.Core.UseCases.Forms.PartialUpdate;
-using Endatix.Core.Abstractions.Authorization;
 
 namespace Endatix.Api.Endpoints.Forms;
 
@@ -41,8 +41,9 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateFormReque
             s.Responses[200] = "Form updated successfully.";
             s.Responses[400] = "Invalid input data.";
             s.Responses[404] = "Form not found.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<PartialUpdateFormResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound));

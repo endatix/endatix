@@ -42,8 +42,9 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
             };
             s.Responses[201] = "Form created successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<CreateFormResponse>(StatusCodes.Status201Created, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }

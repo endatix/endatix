@@ -4,9 +4,9 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Folders;
 using Endatix.Core.UseCases.FormTemplates.Create;
-using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 using static Endatix.Core.Tests.ErrorMessages;
 using static Endatix.Core.Tests.ErrorType;
+using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.Tests.UseCases.FormTemplates.Create;
 
@@ -98,13 +98,11 @@ public class CreateFormTemplateHandlerTests
         );
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
-        IRepository<TenantSettingsEntity> tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
-        IRepository<Folder> folderRepo = Substitute.For<IRepository<Folder>>();
-        var settings = new TenantSettingsEntity(SampleData.TENANT_ID);
-        settings.UpdateRequireFolderAssignment(true);
+        var tenantSettingsRepo = Substitute.For<IRepository<TenantSettingsEntity>>();
+        var folderRepo = Substitute.For<IRepository<Folder>>();
         tenantSettingsRepo
-            .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns(settings);
+            .AnyAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         var strictHelper = new FolderAssignmentPolicy(tenantSettingsRepo, folderRepo, _tenantContext);
         var handler = new CreateFormTemplateHandler(_repository, _tenantContext, strictHelper);
 

@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
@@ -16,14 +17,25 @@ public class PartialUpdateFormHandler(
     IRepository<Theme> themeRepository,
     IRepository<Submission> submissionRepository,
     IMediator mediator,
-    FolderAssignmentPolicy folderAssignmentPolicy) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
+    FolderAssignmentPolicy folderAssignmentPolicy,
+    AccountStanding standing) : ICommandHandler<PartialUpdateFormCommand, Result<Form>>
 {
+    public PartialUpdateFormHandler(IRepository<Form> repository, IRepository<Theme> themeRepository,
+        IRepository<Submission> submissionRepository, IMediator mediator, FolderAssignmentPolicy folderAssignmentPolicy)
+        : this(repository, themeRepository, submissionRepository, mediator, folderAssignmentPolicy, new AccountStanding()) { }
+
     private const long DEFAULT_THEME_ID = 0; // ThemeId of 0 means clear the theme (set to default)
     private const string ENABLE_CONFLICT_MESSAGE = "Cannot enable single submission gate because this form already has duplicate submissions.";
     private const string DISABLE_CONFLICT_MESSAGE = "Single submission gate cannot be disabled after it has been enabled.";
     private const string PUBLIC_CONFLICT_MESSAGE = "A single-submission form cannot be made public.";
 
     public async Task<Result<Form>> Handle(PartialUpdateFormCommand request, CancellationToken cancellationToken)
+    {
+        var access = new ManagedFormEditAccess(repository, folderAssignmentPolicy, standing);
+        return await access.RefusalAsync(request, themeRepository, cancellationToken) ?? await UpdateAsync(request, cancellationToken);
+    }
+
+    private async Task<Result<Form>> UpdateAsync(PartialUpdateFormCommand request, CancellationToken cancellationToken)
     {
         var form = await repository.GetByIdAsync(request.FormId, cancellationToken);
         if (form == null)

@@ -22,10 +22,6 @@ public class FolderAssignmentPolicyTests
         _tenantContext = Substitute.For<ITenantContext>();
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
         _helper = new FolderAssignmentPolicy(_tenantSettingsRepository, _folderRepository, _tenantContext);
-
-        _tenantSettingsRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns((TenantSettingsEntity?)null);
     }
 
     [Fact]
@@ -34,21 +30,15 @@ public class FolderAssignmentPolicyTests
         var result = await _helper.EnsureFolderMoveValidAsync(10, 10, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Ok);
-        await _folderRepository.DidNotReceive()
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>());
+        _folderRepository.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
     public async Task EnsureFolderMoveValidAsync_CurrentFolderImmutable_ReturnsConflict()
     {
-        var immutableFolder = new Folder(SampleData.TENANT_ID, "Immutable", "immutable", "IMMUTABLE")
-        {
-            Id = 10,
-            Immutable = true,
-        };
         _folderRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(immutableFolder);
+            .AnyAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var result = await _helper.EnsureFolderMoveValidAsync(10, 11, CancellationToken.None);
 
@@ -59,15 +49,6 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureFolderMoveValidAsync_ClearFromMutableFolder_Allows()
     {
-        var mutableFolder = new Folder(SampleData.TENANT_ID, "Mutable", "mutable", "MUTABLE")
-        {
-            Id = 10,
-            Immutable = false,
-        };
-        _folderRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(mutableFolder);
-
         var result = await _helper.EnsureFolderMoveValidAsync(10, null, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Ok);
@@ -76,11 +57,9 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureFolderMoveValidAsync_RequiredAssignmentAndClear_ReturnsError()
     {
-        var settings = new TenantSettingsEntity(SampleData.TENANT_ID);
-        settings.UpdateRequireFolderAssignment(true);
         _tenantSettingsRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns(settings);
+            .AnyAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var result = await _helper.EnsureFolderMoveValidAsync(10, null, CancellationToken.None);
 
@@ -91,11 +70,9 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureFolderAssignmentValidAsync_RequiredAssignmentAndNullFolder_ReturnsError()
     {
-        var settings = new TenantSettingsEntity(SampleData.TENANT_ID);
-        settings.UpdateRequireFolderAssignment(true);
         _tenantSettingsRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns(settings);
+            .AnyAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var result = await _helper.EnsureFolderAssignmentValidAsync(null, CancellationToken.None);
 
@@ -106,19 +83,9 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureFolderMoveValidAsync_TargetFolderInactive_ReturnsError()
     {
-        var currentFolder = new Folder(SampleData.TENANT_ID, "Current", "current", "CURRENT")
-        {
-            Id = 10,
-            Immutable = false,
-        };
-        var inactiveTarget = new Folder(SampleData.TENANT_ID, "Target", "target", "TARGET")
-        {
-            Id = 11,
-            IsActive = false,
-        };
         _folderRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(currentFolder, inactiveTarget);
+            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder, bool?>>(), Arg.Any<CancellationToken>())
+            .Returns(false);
 
         var result = await _helper.EnsureFolderMoveValidAsync(10, 11, CancellationToken.None);
 
@@ -129,16 +96,6 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureFolderMoveValidAsync_TargetFolderMissing_ReturnsError()
     {
-        var currentFolder = new Folder(SampleData.TENANT_ID, "Current", "current", "CURRENT")
-        {
-            Id = 10,
-            Immutable = false,
-        };
-
-        _folderRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(currentFolder, (Folder?)null);
-
         var result = await _helper.EnsureFolderMoveValidAsync(10, 11, CancellationToken.None);
 
         result.Status.Should().Be(ResultStatus.Error);
@@ -148,11 +105,9 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureAndApplyFolderMoveAsync_WhenValidationFails_DoesNotApplyMove()
     {
-        var settings = new TenantSettingsEntity(SampleData.TENANT_ID);
-        settings.UpdateRequireFolderAssignment(true);
         _tenantSettingsRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
-            .Returns(settings);
+            .AnyAsync(Arg.Any<ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var wasCalled = false;
         var result = await _helper.EnsureAndApplyFolderMoveAsync(
@@ -173,15 +128,6 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureAndApplyFolderMoveAsync_WhenApplyFails_ReturnsError()
     {
-        var currentFolder = new Folder(SampleData.TENANT_ID, "Current", "current", "CURRENT")
-        {
-            Id = 10,
-            Immutable = false,
-        };
-        _folderRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(currentFolder);
-
         var result = await _helper.EnsureAndApplyFolderMoveAsync(
             currentFolderId: 10,
             requestedFolderId: null,
@@ -196,15 +142,6 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureAndApplyFolderMoveAsync_WhenApplySucceeds_ReturnsOk()
     {
-        var currentFolder = new Folder(SampleData.TENANT_ID, "Current", "current", "CURRENT")
-        {
-            Id = 10,
-            Immutable = false,
-        };
-        _folderRepository
-            .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(currentFolder);
-
         var result = await _helper.EnsureAndApplyFolderMoveAsync(
             currentFolderId: 10,
             requestedFolderId: null,

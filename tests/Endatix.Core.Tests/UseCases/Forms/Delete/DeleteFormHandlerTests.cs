@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
@@ -28,6 +29,24 @@ public class DeleteFormHandlerTests
         _repository.AnyAsync(Arg.Any<FormSpecifications.ByIdReadOnly>(), Arg.Any<CancellationToken>()).Returns(true);
         _mediator = Substitute.For<IMediator>();
         _handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator);
+    }
+
+    [Fact]
+    public async Task Handle_StandingUnavailable_DoesNotTakeTheLockOrPublish()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
+        snapshots.GetAuthorizationDataAsync(ct).Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
+        var handler = new DeleteFormHandler(_repository, _formSubmissionsLock, _mediator, new AccountStanding(snapshots));
+
+        // Act
+        var result = await handler.Handle(new DeleteFormCommand(1), ct);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unavailable);
+        await _formSubmissionsLock.DidNotReceive().BeginDeletingAsync(Arg.Any<long>(), ct);
+        _mediator.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
