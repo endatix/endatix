@@ -70,10 +70,6 @@ public static class ApiServiceCollectionExtensions
     /// <param name="services">The service collection.</param>
     /// <param name="loggerFactory">Optional logger factory.</param>
     /// <returns>The service collection for chaining.</returns>
-    /// <remarks>
-    /// Without an <see cref="IConfiguration"/> the flags are not read, so the API docs do not hide the endpoints a flag
-    /// gates (WhiteLabeling). Use the overload that takes a configuration to hide them.
-    /// </remarks>
     public static IServiceCollection AddApiEndpoints(this IServiceCollection services, ILoggerFactory? loggerFactory = null)
     {
         var builder = new ApiConfigurationBuilder(services, loggerFactory: loggerFactory);
@@ -240,10 +236,6 @@ public static class ApiServiceCollectionExtensions
     /// <param name="services">The service collection.</param>
     /// <param name="loggerFactory">Optional logger factory.</param>
     /// <returns>An API configuration builder.</returns>
-    /// <remarks>
-    /// Without an <see cref="IConfiguration"/> the flags are not read, so the API docs do not hide the endpoints a flag
-    /// gates (WhiteLabeling). Use the overload that takes a configuration to hide them.
-    /// </remarks>
     public static ApiConfigurationBuilder GetApiBuilder(this IServiceCollection services, ILoggerFactory? loggerFactory = null)
     {
         return new ApiConfigurationBuilder(services, loggerFactory: loggerFactory);
