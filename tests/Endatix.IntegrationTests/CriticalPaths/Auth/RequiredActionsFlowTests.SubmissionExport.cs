@@ -11,8 +11,10 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
-    [Fact]
-    public async Task Compiling_an_owned_form_uses_one_standing_decision()
+    [Theory]
+    [InlineData(false, HttpStatusCode.OK)]
+    [InlineData(true, HttpStatusCode.Forbidden)]
+    public async Task Admitted_exporter_checks_standing_once_and_needs_edit_to_replace(bool replace, HttpStatusCode expected)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
@@ -20,13 +22,14 @@ public sealed partial class RequiredActionsFlowTests
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var form = await CreateFormAsync(admin, ct);
+        using var exporter = await RestrictedUserAsync(world, ct);
         snapshots.ClearReceivedCalls();
 
         // Act
-        using var compiled = await admin.PostAsJsonAsync($"/api/forms/{form}/reporting/compile-schema", new { replace = true }, ct);
+        using var compiled = await exporter.PostAsJsonAsync($"/api/forms/{form}/reporting/compile-schema", new { replace }, ct);
 
         // Assert
-        compiled.EnsureSuccessStatusCode();
+        Assert.Equal(expected, compiled.StatusCode);
         await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
     }
 
@@ -38,7 +41,8 @@ public sealed partial class RequiredActionsFlowTests
         await using var host = ReportingHostWithStanding(out var snapshots);
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-        var route = $"/api/forms/{await CreateFormAsync(admin, ct)}/submissions/export";
+        var target = await SubmissionTarget.CreateAsync(admin, ct);
+        var route = $"{target.Collection}/export";
         using var exporter = await RestrictedUserAsync(world, ct);
         var csv = new { exportFormat = "csv" };
         snapshots.ClearReceivedCalls();
@@ -58,6 +62,7 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(HttpStatusCode.OK, download.StatusCode);
         Assert.Equal("attachment", download.Content.Headers.ContentDisposition?.DispositionType);
         Assert.Equal("text/csv", download.Content.Headers.ContentType?.MediaType);
+        Assert.Contains(target.Id, await download.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
         await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
         Assert.Null(refused.Content.Headers.ContentDisposition);
