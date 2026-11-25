@@ -25,13 +25,12 @@ internal class AuthorizationCache(
     IDateTimeProvider dateTimeProvider,
     AuthorizationTokenFingerprint tokenFingerprint,
     IAccessVersionStore accessVersionStore,
-    IEnumerable<IRequiredActionProvider> actionProviders) : IAuthorizationCache
+    RequiredActionEvaluation actions) : IAuthorizationCache
 {
     /// <summary>The longest an entry lives, which bounds a change that skips the save hook.</summary>
     private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
 
     private const short ETAG_LENGTH = 12;
-    private readonly RequiredActionEvaluation _actions = new(actionProviders.ToArray(), dateTimeProvider);
 
     // Cache key prefixes
     private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
@@ -52,7 +51,7 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId)),
+            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey),
             dataFactory,
             cancellationToken);
     }
@@ -63,7 +62,7 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         return await GetOrCreateEntryAsync(
-            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId)),
+            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey),
             dataFactory,
             cancellationToken);
     }
@@ -81,7 +80,7 @@ internal class AuthorizationCache(
         AuthorizationData? built = null;
         var cached = await hybridCache.GetOrCreateAsync(
             entry.Key,
-            async _ => built = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken),
+            async _ => built = await BuildAsync(dataFactory, entry, cancellationToken),
             entry.Options,
             entry.Tags,
             cancellationToken);
@@ -97,7 +96,7 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
-        var rebuilt = await BuildAsync(dataFactory, entry.Lifetime, cancellationToken);
+        var rebuilt = await BuildAsync(dataFactory, entry, cancellationToken);
         await hybridCache.SetAsync(entry.Key, rebuilt, entry.Options, entry.Tags, cancellationToken);
         return rebuilt;
     }
@@ -105,7 +104,7 @@ internal class AuthorizationCache(
     /// <summary>Builds the data and stamps it with the time it stops being served.</summary>
     private async Task<AuthorizationData> BuildAsync(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
-        TimeSpan lifetime,
+        CacheEntry entry,
         CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
@@ -115,8 +114,8 @@ internal class AuthorizationCache(
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
 
-        var data = await _actions.ApplyAsync(result.Value, cancellationToken);
-        var expiresAt = EarlierOf(now.Add(lifetime), data.ExpiresAt);
+        var data = await actions.ApplyAsync(result.Value, entry, cancellationToken);
+        var expiresAt = EarlierOf(now.Add(entry.Lifetime), data.ExpiresAt);
         expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, now));
         return data.WithCacheMetadata(now, expiresAt, GenerateETag(data));
     }
@@ -126,7 +125,7 @@ internal class AuthorizationCache(
         permissionsExpireAt != default && permissionsExpireAt < entryEnd ? permissionsExpireAt : entryEnd;
 
     /// <summary>One cache entry's key, lifetime and tags.</summary>
-    private readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags)
+    internal readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags, AccessVersionKey Versions, string Configuration)
     {
         /// <summary>The entry lives <see cref="Lifetime"/> in both cache levels.</summary>
         public HybridCacheEntryOptions Options => new() { Expiration = Lifetime, LocalCacheExpiration = Lifetime };
@@ -154,7 +153,7 @@ internal class AuthorizationCache(
         $"{CacheNamespace(versions, USER_AUTH_DATA_CACHE_KEY_PREFIX)}:{userId}:{tenantId}";
 
     private string CacheNamespace(AccessVersionKey versions, string kind) =>
-        $"{versions.Prefix}:{kind}:{versions.Versions}.{_actions.ConfigurationKey}";
+        $"{versions.Prefix}:{kind}:{versions.Versions}.{actions.ConfigurationKey}";
 
     private static string GetUserAuthDataTag(string userId) => $"auth_data:user:{userId}";
 

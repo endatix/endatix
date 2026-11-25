@@ -19,7 +19,7 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 /// <see cref="AuthorizationCache"/> over a real <see cref="HybridCache"/>: what a hit serves, and what a second
 /// instance reads back from the shared distributed cache.
 /// </summary>
-public sealed class AuthorizationCacheHybridTests : IDisposable
+public sealed partial class AuthorizationCacheHybridTests : IDisposable
 {
     private static readonly AccessVersionKey _versions = new(
         Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
@@ -217,6 +217,44 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
         return provider;
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetOrCreateAsync_ProviderOffline_RetriesAfterFifteenSeconds(bool mandatory)
+    {
+        // Arrange
+        var provider = new OfflineProvider(mandatory);
+        var cache = CreateInstance(false, provider);
+        Task<AuthorizationData> ReadAsync() => cache.GetOrCreateAsync(CreatePrincipal(),
+            _ => Task.FromResult(Result.Success(CreateData(default))), TestContext.Current.CancellationToken);
+
+        // Act
+        var first = await ReadAsync();
+        _clock.Now.Returns(_start.AddSeconds(14));
+        var second = await ReadAsync();
+
+        // Assert
+        first.RequiredActionsUnavailable.Should().Be(mandatory);
+        second.RequiredActions.Should().BeEmpty();
+        provider.Calls.Should().Be(1);
+        _clock.Now.Returns(_start.AddSeconds(15));
+        await ReadAsync();
+        provider.Calls.Should().Be(2);
+    }
+
+    private sealed class OfflineProvider(bool mandatory) : IRequiredActionProvider
+    {
+        public string CacheConfigurationKey => "offline";
+        public bool FailClosed => mandatory;
+        public int Calls { get; private set; }
+
+        public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken)
+        {
+            Calls++;
+            throw new HttpRequestException("Offline");
+        }
+    }
+
     private sealed class ConfiguredProvider(string revision) : IRequiredActionProvider
     {
         public string CacheConfigurationKey => revision;
@@ -274,24 +312,19 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
     public async Task GetOrCreateAsync_DeadlinePassesDuringRebuild_ReturnsBlockingWithinOriginalExpiry(
         int permissionExpirySeconds, int expectedExpirySeconds)
     {
-        var slowProvider = Substitute.For<IRequiredActionProvider>();
-        var cache = CreateInstance(false, NoticeProvider("Creator", false), slowProvider);
+        var cache = CreateInstance(false, NoticeProvider("Creator", false));
         var principal = CreatePrincipal();
         principal.Identities.Single().AddClaim(new Claim(JwtRegisteredClaimNames.Exp,
             _start.AddSeconds(30).ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        Task<AuthorizationData> ReadAsync(int expiry) => cache.GetOrCreateAsync(principal,
-            _ => Task.FromResult(Result.Success(CreateData(_start.AddSeconds(expiry).UtcDateTime))),
-            TestContext.Current.CancellationToken);
-        slowProvider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<RequiredAction>());
-        await ReadAsync(4);
-        _clock.Now.Returns(_start.AddSeconds(5));
-        slowProvider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        Task<AuthorizationData> ReadAsync(int expiry, int buildCompletesAt) => cache.GetOrCreateAsync(principal, _ =>
         {
-            _clock.Now.Returns(_start.AddSeconds(9));
-            return Array.Empty<RequiredAction>();
-        });
+            _clock.Now.Returns(_start.AddSeconds(buildCompletesAt));
+            return Task.FromResult(Result.Success(CreateData(_start.AddSeconds(expiry).UtcDateTime)));
+        }, TestContext.Current.CancellationToken);
+        await ReadAsync(4, 0);
+        _clock.Now.Returns(_start.AddSeconds(5));
 
-        var rebuilt = await ReadAsync(permissionExpirySeconds);
+        var rebuilt = await ReadAsync(permissionExpirySeconds, 9);
 
         rebuilt.RequiredActions.Single().Severity.Should().Be(RequiredActionSeverity.Blocking);
         rebuilt.ExpiresAt.Should().Be(_start.AddSeconds(expectedExpirySeconds).UtcDateTime);
@@ -323,6 +356,15 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
         }
 
         services.AddHybridCache();
+        services.AddLogging();
+        services.AddSingleton(_clock);
+        foreach (var registration in actionProviders)
+        {
+            services.AddSingleton(registration);
+        }
+        services.AddSingleton<RequiredActionProviderCache>();
+        services.AddSingleton<RequiredActionExecution>();
+        services.AddScoped<RequiredActionEvaluation>();
         var provider = services.BuildServiceProvider();
         _instances.Add(provider);
 
@@ -332,7 +374,7 @@ public sealed class AuthorizationCacheHybridTests : IDisposable
             _clock,
             new(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, jwtOptions),
             new FixedAccessVersionStore(),
-            actionProviders);
+            provider.GetRequiredService<RequiredActionEvaluation>());
     }
 
     private static ClaimsPrincipal CreatePrincipal() =>

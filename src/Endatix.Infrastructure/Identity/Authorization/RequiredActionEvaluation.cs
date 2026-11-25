@@ -2,12 +2,15 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using static Endatix.Infrastructure.Identity.Authorization.RequiredActionProviderCache;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
-internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] providers, IDateTimeProvider clock)
+internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> registrations, IDateTimeProvider clock,
+    RequiredActionProviderCache reports)
 {
-    internal string ConfigurationKey { get; } = GetConfigurationKey(providers);
+    private readonly IRequiredActionProvider[] _providers = registrations.ToArray();
+    internal string ConfigurationKey { get; } = GetConfigurationKey(registrations.ToArray());
 
     private static string GetConfigurationKey(IRequiredActionProvider[] providers)
     {
@@ -20,27 +23,55 @@ internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] provide
         {
             Assembly = p.GetType().Assembly.GetName().Name,
             Type = p.GetType().FullName,
-            Revision = p.CacheConfigurationKey
+            Revision = p.CacheConfigurationKey,
+            Policy = Policy.For(p)
         }).OrderBy(p => p.Assembly, StringComparer.Ordinal)
           .ThenBy(p => p.Type, StringComparer.Ordinal)
-          .ThenBy(p => p.Revision, StringComparer.Ordinal);
-        // Older snapshots could contain contradictory reports without an unavailable marker.
-        return "standing-v2:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
+          .ThenBy(p => p.Revision, StringComparer.Ordinal)
+          .ThenBy(p => p.Policy.FailClosed).ThenBy(p => p.Policy.Timeout).ThenBy(p => p.Policy.CacheFor);
+        // Do not reuse snapshots built without the provider's freshness or failure policy.
+        return "standing-v3:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
     }
 
-    internal async Task<AuthorizationData> ApplyAsync(AuthorizationData data, CancellationToken cancellationToken)
+    internal async Task<AuthorizationData> ApplyAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {
-        if (providers.Length == 0)
+        if (_providers.Length == 0)
         {
             return data;
         }
 
         var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles);
-        var actions = await ReadPendingAsync(subject, cancellationToken);
-        return Project(data, actions, clock.Now.UtcDateTime);
+        var epoch = await reports.SubjectEpochAsync(subject, entry, ct);
+        var queries = _providers.Select((p, i) => new Query(epoch, i, subject, Policy.For(p))).ToArray();
+        var results = await Task.WhenAll(queries.Select(q => reports.ReadAsync(q, ct)));
+        return Combine(data, queries, results);
     }
 
-    private static AuthorizationData Project(AuthorizationData data, List<RequiredAction> actions, DateTime now)
+    private AuthorizationData Combine(AuthorizationData data, Query[] queries, Report[] results)
+    {
+        if (results.Any(r => r.Unavailable))
+        {
+            return BoundExpiry(data with { RequiredActionsUnavailable = true, RequiredActions = [] }, results);
+        }
+        var projected = Project(data, results.SelectMany(r => r.Actions), clock.Now.UtcDateTime);
+        if (projected.RequiredActionsUnavailable)
+        {
+            foreach (var q in queries)
+            {
+                reports.ForgetContradiction(q, results[q.Index]);
+            }
+            return projected;
+        }
+        return BoundExpiry(projected, results);
+    }
+
+    private static AuthorizationData BoundExpiry(AuthorizationData data, Report[] reports)
+    {
+        var until = reports.Min(r => r.Until);
+        return data with { ExpiresAt = data.ExpiresAt != default && data.ExpiresAt < until ? data.ExpiresAt : until };
+    }
+
+    private static AuthorizationData Project(AuthorizationData data, IEnumerable<RequiredAction> actions, DateTime now)
     {
         var groups = actions.Select(Normalize).GroupBy(action => action.Key, StringComparer.Ordinal);
         List<RequiredAction> projected = [];
@@ -54,16 +85,6 @@ internal sealed class RequiredActionEvaluation(IRequiredActionProvider[] provide
             projected.Add(ForUser(report, data.Roles, now));
         }
         return data with { RequiredActionsUnavailable = false, RequiredActions = projected };
-    }
-
-    private async Task<List<RequiredAction>> ReadPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken)
-    {
-        List<RequiredAction> actions = [];
-        foreach (var provider in providers)
-        {
-            actions.AddRange(await provider.GetPendingAsync(subject, cancellationToken));
-        }
-        return actions;
     }
 
     private static RequiredAction Normalize(RequiredAction action) => action with

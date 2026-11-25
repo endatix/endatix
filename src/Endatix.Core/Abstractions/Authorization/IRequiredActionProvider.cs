@@ -19,6 +19,15 @@ public interface IRequiredActionProvider
     /// This is not a per-request key: changes in a subject's standing use normal access-version and expiry rules.</remarks>
     string CacheConfigurationKey { get; }
 
+    /// <summary>Maximum time to wait for this provider during hydration.</summary>
+    TimeSpan Timeout => TimeSpan.FromSeconds(2);
+
+    /// <summary>How long a successful report is fresh, capped at 60 seconds. Optional fallback never uses a report older than 60 seconds.</summary>
+    TimeSpan CacheFor => TimeSpan.FromSeconds(30);
+
+    /// <summary>Report unavailable standing rather than admitting a subject without a fresh answer.</summary>
+    bool FailClosed => false;
+
     /// <summary>Returns only outstanding actions applicable to the subject; an empty list means none.</summary>
     /// <remarks>Reports sharing a key must describe the same obligation. Role order, repeated roles and time-zone
     /// offsets do not distinguish reports. A contradiction makes the subject's required-action standing unavailable;

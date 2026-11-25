@@ -273,6 +273,10 @@ public class InfrastructureSecurityBuilder
     {
         Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
         Services.AddScoped<IAccessVersionStore, DatabaseAccessVersionStore>();
+        Services.AddScoped<IAuthorizationDataChanges, AuthorizationDataChanges>();
+        Services.AddSingleton<RequiredActionProviderCache>();
+        Services.AddSingleton<RequiredActionExecution>();
+        Services.AddScoped<RequiredActionEvaluation>();
         Services.AddScoped<AuthorizationTokenFingerprint>();
         Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
