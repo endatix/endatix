@@ -115,7 +115,7 @@ core operation-pending#1826 account GET /api/forms/{formId}/definitions/{definit
 core operation-pending#1826 account GET /api/forms/{formId}/settings
 core operation-pending#1826 account GET /api/forms/{formId}/submissions
 core operation-pending#1826 account GET /api/forms/{formId}/submissions/{submissionId}
-core operation-pending#1826 account GET /api/questions
+core operation-dormant account GET /api/questions
 core operation-pending#1826 account GET /api/themes
 core operation-pending#1826 account GET /api/themes/{themeId}
 core operation-pending#1826 account PATCH /api/data-lists/{dataListId}
@@ -139,7 +139,7 @@ core operation-pending#1826 account POST /api/forms/{formId}/submissions/test/de
 core operation-pending#1826 account POST /api/forms/{formId}/submissions/{submissionId}/access-token
 core operation-pending#1826 account POST /api/forms/{formId}/submissions/{submissionId}/files
 core operation-pending#1826 account POST /api/forms/{formId}/submissions/{submissionId}/status
-core operation-pending#1826 account POST /api/questions
+core operation-dormant account POST /api/questions
 core operation-pending#1826 account POST /api/themes
 core operation-pending#1826 account PUT /api/data-lists/{dataListId}/default-locale
 core operation-pending#1826 account PUT /api/data-lists/{dataListId}/import

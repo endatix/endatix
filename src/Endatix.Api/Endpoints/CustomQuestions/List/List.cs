@@ -27,6 +27,7 @@ public class List(IMediator mediator)
     {
         Get("questions");
         Permissions(Actions.Questions.View);
+        PreProcessor<AuthorizedAccountStanding<CustomQuestionsListRequest>>();
         Summary(s =>
         {
             s.Summary = "List custom questions";
@@ -39,27 +40,19 @@ public class List(IMediator mediator)
                 SortBy = CustomQuestionListSortBy.CreatedAt,
                 SortDir = SortDirection.Desc
             };
-            s.ResponseExamples[200] = new Paged<CustomQuestionModel>(
-                page: 1,
-                pageSize: DefaultPageSize,
-                totalRecords: 1,
-                totalPages: 1,
-                items:
-                [
-                    new CustomQuestionModel
-                    {
-                        Id = "1",
-                        Name = "NPS score",
-                        JsonData = "{ \"type\": \"rating\" }",
-                    },
-                ]);
+            s.ResponseExamples[200] = ExamplePage();
             s.Responses[200] = "Custom questions retrieved successfully.";
             s.Responses[400] = "Invalid input data.";
+            s.DescribeStandingProblems();
         });
-        Description(builder => builder
+        Description(builder => builder.ProducesStandingProblems()
             .Produces<Paged<CustomQuestionModel>>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest));
     }
+
+    private static Paged<CustomQuestionModel> ExamplePage() =>
+        new(page: 1, pageSize: DefaultPageSize, totalRecords: 1, totalPages: 1,
+            items: [new CustomQuestionModel { Id = "1", Name = "NPS score", JsonData = "{ \"type\": \"rating\" }" }]);
 
     /// <inheritdoc/>
     public override async Task<Results<Ok<Paged<CustomQuestionModel>>, ProblemHttpResult>> ExecuteAsync(

@@ -21,6 +21,11 @@ public static class CustomQuestionSpecifications
         {
             Query.Where(q => q.Name.ToLower() == name.ToLower());
         }
+
+        public ByName(long tenantId, string name) : this(name)
+        {
+            Query.Where(q => q.TenantId == tenantId);
+        }
     }
 
     public class ByTenantId : Specification<CustomQuestion>
