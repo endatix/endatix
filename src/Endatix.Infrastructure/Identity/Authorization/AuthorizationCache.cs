@@ -80,7 +80,7 @@ internal class AuthorizationCache(
         AuthorizationData? built = null;
         var cached = await hybridCache.GetOrCreateAsync(
             entry.Key,
-            async _ => built = (await BuildAsync(dataFactory, entry, cancellationToken))(),
+            async _ => built = (await BuildAsync(dataFactory, entry, cancellationToken)).At(dateTimeProvider.Now.UtcDateTime),
             entry.Options,
             entry.Tags,
             cancellationToken);
@@ -97,15 +97,21 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
-        var project = await BuildAsync(dataFactory, entry, cancellationToken);
-        var rebuilt = project();
+        var snapshot = await BuildAsync(dataFactory, entry, cancellationToken);
+        var rebuilt = snapshot.At(dateTimeProvider.Now.UtcDateTime);
         await hybridCache.SetAsync(entry.Key, rebuilt, entry.Options, entry.Tags, cancellationToken);
-        // If the write crossed a deadline, project each original report against its own policy at return time.
-        return actions.HasProviders && rebuilt.ExpiresAt <= dateTimeProvider.Now.UtcDateTime ? project() : rebuilt;
+        var now = dateTimeProvider.Now.UtcDateTime;
+        if (snapshot.PermissionsExpired(now))
+        {
+            // Re-read grants once, without another distributed write that could outlive them again.
+            snapshot = await BuildAsync(dataFactory, entry, cancellationToken);
+            return snapshot.WithCurrentPermissions(dateTimeProvider.Now.UtcDateTime);
+        }
+        return actions.HasProviders && rebuilt.ExpiresAt <= now ? snapshot.At(now) : rebuilt;
     }
 
     /// <summary>Builds the data and stamps it with the time it stops being served.</summary>
-    private async Task<Func<AuthorizationData>> BuildAsync(
+    private async Task<BuiltSnapshot> BuildAsync(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CacheEntry entry,
         CancellationToken cancellationToken)
@@ -120,7 +126,14 @@ internal class AuthorizationCache(
         var subjectEntry = NeedsHydratedVersion(entry, result.Value)
             ? entry with { Versions = await accessVersionStore.ReadAsync(result.Value.TenantId, cancellationToken) } : entry;
         var project = await actions.EvaluateAsync(result.Value, subjectEntry, cancellationToken);
-        return () => Stamp(project(dateTimeProvider.Now.UtcDateTime), now, entry.Lifetime);
+        return new(result.Value.ExpiresAt, at => Stamp(project(at), now, entry.Lifetime));
+    }
+
+    private sealed record BuiltSnapshot(DateTime PermissionExpiry, Func<DateTime, AuthorizationData> At)
+    {
+        internal bool PermissionsExpired(DateTime now) => PermissionExpiry != default && PermissionExpiry <= now;
+        internal AuthorizationData WithCurrentPermissions(DateTime now) => PermissionsExpired(now)
+            ? throw new InvalidOperationException("Fresh authorization data contains expired permissions.") : At(now);
     }
 
     private static AuthorizationData Stamp(AuthorizationData data, DateTime builtAt, TimeSpan lifetime)

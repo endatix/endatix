@@ -7,9 +7,10 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 public sealed partial class AuthorizationCacheHybridTests
 {
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task GetOrCreateAsync_OptionalFallbackExpiresDuringWrite_DropsOnlyItsActions(bool hasMandatory)
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task GetOrCreateAsync_OptionalFallbackExpiresDuringWrite_DropsOnlyItsActions(bool hasMandatory, bool conflict)
     {
         // Arrange
         var optional = NoticeProvider("Creator", false);
@@ -22,6 +23,11 @@ public sealed partial class AuthorizationCacheHybridTests
         (await SnapshotAsync(cache)).RequiredActions.Should().ContainSingle();
         optional.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<IReadOnlyList<RequiredAction>>(new HttpRequestException()));
+        if (conflict)
+        {
+            var report = new RequiredAction { Key = "profile.complete", ResolvePath = "/other", Scope = RequiredActionScope.Tenant, Severity = RequiredActionSeverity.Blocking };
+            mandatory.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([report]);
+        }
         _clock.Now.Returns(_start.AddSeconds(55));
         _sharedL2.Written = () => _clock.Now.Returns(_start.AddSeconds(61));
 
@@ -29,8 +35,34 @@ public sealed partial class AuthorizationCacheHybridTests
         var refreshed = await SnapshotAsync(cache);
 
         // Assert
-        refreshed.RequiredActions.Should().BeEmpty();
+        refreshed.RequiredActions.Select(a => a.ResolvePath).Should().Equal(conflict ? ["/other"] : Array.Empty<string>());
         refreshed.RequiredActionsUnavailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_PermissionExpiresWhileWriting_UsesFreshGrants()
+    {
+        // Arrange
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.FailClosed.Returns(true);
+        provider.CacheFor.Returns(TimeSpan.FromSeconds(5));
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(true, provider);
+        var expiry = _start.AddSeconds(10).UtcDateTime;
+        var allowed = CreateData(expiry);
+        var revoked = allowed with { Permissions = [], ExpiresAt = default };
+        Task<AuthorizationData> ReadAsync() => cache.GetOrCreateAsync(CreatePrincipal(),
+            _ => Task.FromResult(Result.Success(_clock.Now.UtcDateTime < expiry ? allowed : revoked)), TestContext.Current.CancellationToken);
+        (await ReadAsync()).Permissions.Should().Contain("forms.view");
+        _clock.Now.Returns(_start.AddSeconds(5));
+        _sharedL2.Written = () => _clock.Now.Returns(_start.AddSeconds(11));
+
+        // Act
+        var current = await ReadAsync();
+
+        // Assert
+        current.Permissions.Should().BeEmpty();
+        current.RequiredActionsUnavailable.Should().BeFalse();
     }
 
     [Fact]

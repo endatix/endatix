@@ -63,7 +63,6 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
             {
                 reports.ForgetContradiction(q, results[q.Index]);
             }
-            return projected;
         }
         return BoundExpiry(projected, results);
     }
