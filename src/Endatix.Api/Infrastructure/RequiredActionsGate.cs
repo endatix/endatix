@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.StaticAssets;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Infrastructure;
 
@@ -20,13 +21,15 @@ public static class RequiredActionsGateExtensions
         app.UseMiddleware<RequiredActionsGate>();
 }
 
-internal sealed class RequiredActionsGate(RequestDelegate next)
+internal sealed class RequiredActionsGate(RequestDelegate next, IServiceProviderIsService registrations)
 {
-    public async Task InvokeAsync(HttpContext context, AccountStanding standing)
+    private readonly bool _hasStanding = registrations.IsService(typeof(AccountStanding));
+
+    public async Task InvokeAsync(HttpContext context)
     {
-        if (standing.IsEnforced && context.User.Identities.Any(identity => identity.IsAuthenticated) &&
+        if (_hasStanding && context.User.Identities.Any(identity => identity.IsAuthenticated) &&
             context.GetEndpoint() is RouteEndpoint endpoint && AppliesTo(endpoint.Metadata) &&
-            await standing.RefusalAsync(context.RequestAborted) is { } refusal)
+            await context.RequestServices.GetRequiredService<AccountStanding>().RefusalAsync(context.RequestAborted) is { } refusal)
         {
             await refusal.ToProblem().ExecuteAsync(context);
             return;
