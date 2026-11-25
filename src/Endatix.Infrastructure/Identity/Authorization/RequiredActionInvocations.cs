@@ -54,7 +54,7 @@ internal sealed class RequiredActionInvocations(IServiceScopeFactory scopes, ILo
         }
         finally
         {
-            await provider.FinishCallbacksAsync();
+            await provider.EndInvocationAsync();
         }
     }
 
@@ -66,7 +66,7 @@ internal sealed class RequiredActionInvocations(IServiceScopeFactory scopes, ILo
         }
         catch (OperationCanceledException) when (waiter.IsCancellationRequested)
         {
-            provider.RequestCancellation();
+            _ = provider.EndInvocationAsync();
             _ = ObserveLateFaultAsync(work);
             throw;
         }
@@ -90,26 +90,13 @@ internal sealed class RequiredActionInvocations(IServiceScopeFactory scopes, ILo
         private readonly CancellationTokenSource _source = new();
         private readonly Lock _gate = new();
         private Task? _callbacks;
-        private bool _finished;
         internal CancellationToken Token => _source.Token;
 
-        internal void RequestCancellation()
+        internal Task EndInvocationAsync()
         {
             lock (_gate)
             {
-                if (!_finished)
-                {
-                    _callbacks ??= _source.CancelAsync();
-                }
-            }
-        }
-
-        internal Task FinishCallbacksAsync()
-        {
-            lock (_gate)
-            {
-                _finished = true;
-                return _callbacks ?? Task.CompletedTask;
+                return _callbacks ??= _source.CancelAsync();
             }
         }
 
@@ -117,7 +104,8 @@ internal sealed class RequiredActionInvocations(IServiceScopeFactory scopes, ILo
         {
             lock (_gate)
             {
-                _finished = true;
+                // Scope creation itself can fail before the provider receives a token.
+                _callbacks ??= Task.CompletedTask;
                 _source.Dispose();
             }
         }
