@@ -136,7 +136,7 @@ Configure the docs in `appsettings.json`:
 Serves the OpenAPI document, the API docs page, and Swagger UI. `false` turns all of them off.
 </Setting>
 <Setting name="Endatix:Api:Docs:Path" default="/api-docs">
-The path of the API docs page. It must start with `/`. An empty value or `/` serves the page at `/api-docs` and logs a
+The path of the API docs page. Start it with `/`. An empty value or `/` serves the page at `/api-docs` and logs a
 warning at startup. The root `/` then redirects to the page, unless your app maps its own `GET /`, which always wins.
 </Setting>
 <Setting name="Endatix:Api:Docs:SwaggerUi:Enabled" default="true">
@@ -145,7 +145,7 @@ the API logs one line at startup about the change. Set it to `true` to keep Swag
 now.
 </Setting>
 <Setting name="Endatix:Api:Docs:SwaggerUi:Path" default="/swagger">
-The path of Swagger UI. It must start with `/`.
+The path of Swagger UI. Start it with `/`.
 </Setting>
 <Setting name="Endatix:Api:UseSwagger" status="deprecated" replacedBy="Endatix:Api:Docs:Enabled">
 The old name of `Docs:Enabled`. It still works when `Docs:Enabled` is not set. When both are set to different values,
