@@ -14,12 +14,12 @@ public sealed class CompileFormSchemaHandlerTests
     private const long FormDefinitionId = 200;
 
     [Theory]
-    [InlineData(0, 0)]
-    [InlineData(2, TenantId)]
-    public async Task Handle_WhenFormOutsidePositiveTenantScope_ReturnsNotFound(long requestTenant, long formTenant)
+    [InlineData(0)]
+    [InlineData(2)]
+    public async Task Handle_WhenFormOutsidePositiveTenantScope_ReturnsNotFound(long requestTenant)
     {
         // Arrange
-        var form = Form.Create(new FormCreateArgs(TenantId: formTenant, Name: "Report"));
+        var form = Form.Create(new FormCreateArgs(TenantId: TenantId, Name: "Report"));
         form.Id = FormId;
         var forms = Substitute.For<IRepository<Form>>();
         forms.SingleOrDefaultAsync(Arg.Any<ActiveFormDefinitionByFormIdSpec>(), Arg.Any<CancellationToken>())
