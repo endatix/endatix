@@ -26,6 +26,7 @@ public sealed class ExitAssumeHandler(
     private readonly VerifiedAssumptionReader? _verifier;
 
     /// <summary>Uses the built-in verifier independently of authorization-service decorators.</summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0006")]
     public ExitAssumeHandler(IUserContext userContext, IUserService userService, IRepository<Tenant> tenantRepository,
         IUserTokenService tokenService, IAuthService authService, ICurrentUserAuthorizationService authorizationService,
         IDateTimeProvider dateTimeProvider, VerifiedAssumptionReader verifier)
@@ -36,7 +37,7 @@ public sealed class ExitAssumeHandler(
     public async Task<Result<AuthTokensDto>> Handle(ExitAssumeCommand request, CancellationToken cancellationToken)
     {
         var actor = userContext.GetCurrentUser();
-        if (actor is null)
+        if (actor is null && !userContext.IsAuthenticated)
         {
             return Result.Unauthorized();
         }
@@ -47,23 +48,26 @@ public sealed class ExitAssumeHandler(
             return Result.Invalid(new ValidationError("Not in an assumed tenant session."));
         }
 
-        var userResult = await userService.GetUserAsync(actor.Id, cancellationToken);
-        if (!userResult.IsSuccess || actorId != actor.Id || _verifier is null)
+        if (actor is null || actorId != actor.Id || _verifier is null)
         {
             return Result.Forbidden();
         }
 
-        var user = userResult.Value;
-        var proof = await _verifier.ReadAsync(cancellationToken);
-        if (!MatchesAssumption(proof, actor, user))
+        var proof = await _verifier.ReadAsync(actor.TenantId, cancellationToken);
+        if (proof is null)
         {
             return Result.Forbidden();
         }
-        return await IssueHomeSessionAsync(user, actor.TenantId, cancellationToken);
+        var userResult = await userService.GetUserAsync(actor.Id, cancellationToken);
+        if (!userResult.IsSuccess || !MatchesAssumption(proof, actor, userResult.Value))
+        {
+            return Result.Forbidden();
+        }
+        return await IssueHomeSessionAsync(userResult.Value, actor.TenantId, cancellationToken);
     }
 
-    private static bool MatchesAssumption(VerifiedAssumption? proof, User actor, User home) =>
-        proof is not null && proof.ActorUserId == actor.Id && actor.Id == home.Id && actor.TenantId > 0
+    private static bool MatchesAssumption(VerifiedAssumption proof, User actor, User home) =>
+        proof.ActorUserId == actor.Id && actor.Id == home.Id && actor.TenantId > 0
         && home.TenantId == proof.HomeTenantId && home.TenantId > 0 && home.TenantId != actor.TenantId;
 
     private async Task<Result<AuthTokensDto>> IssueHomeSessionAsync(User user, long assumedTenantId, CancellationToken cancellationToken)

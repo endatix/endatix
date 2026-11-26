@@ -6,5 +6,5 @@ public abstract class VerifiedAssumptionReader
 {
     private protected VerifiedAssumptionReader() { }
 
-    internal abstract Task<VerifiedAssumption?> ReadAsync(CancellationToken cancellationToken);
+    internal abstract Task<VerifiedAssumption?> ReadAsync(long targetTenantId, CancellationToken cancellationToken);
 }

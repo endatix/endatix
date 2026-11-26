@@ -4,6 +4,7 @@ using Endatix.Core.UseCases.Identity.ExitAssume;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
 using MediatR;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Configuration;
@@ -32,7 +33,7 @@ public sealed class ExitAssume(IMediator mediator, IConfiguration configuration)
             s.Responses[404] = "Multi-tenancy is not enabled on this deployment.";
             s.Responses[500] = "The session could not be persisted.";
         });
-        Description(builder => builder.Produces<TenantSessionResponse>(StatusCodes.Status200OK, "application/json")
+        Description(builder => builder.WithMetadata(new ReturnHomeSessionMetadata()).Produces<TenantSessionResponse>(StatusCodes.Status200OK, "application/json")
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)

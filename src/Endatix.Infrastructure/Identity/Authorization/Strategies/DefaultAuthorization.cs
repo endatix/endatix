@@ -17,6 +17,8 @@ public sealed class DefaultAuthorization(
     AuthProviderRegistry authProviderRegistry,
     IAuthorizationDataProvider authorizationDataProvider) : IAuthorizationStrategy
 {
+    internal bool UsesBuiltInStore => authorizationDataProvider is DefaultAuthorizationDataProvider;
+
     /// <inheritdoc />
     public bool CanHandle(ClaimsPrincipal principal)
     {

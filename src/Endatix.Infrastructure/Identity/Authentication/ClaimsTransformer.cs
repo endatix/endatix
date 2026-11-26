@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.UseCases.Identity.ExitAssume;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -16,7 +18,8 @@ internal sealed class ClaimsTransformer(
     IEnumerable<IAuthorizationStrategy> authorizationStrategies,
     IAuthorizationCache authorizationCache,
     ILogger<ClaimsTransformer> logger,
-    IOptions<EndatixJwtOptions> endatixJwtOptions) : IClaimsTransformation
+    IOptions<EndatixJwtOptions> endatixJwtOptions,
+    IHttpContextAccessor? context = null) : IClaimsTransformation
 {
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
@@ -62,6 +65,11 @@ internal sealed class ClaimsTransformer(
 
         try
         {
+            if (context?.HttpContext?.GetEndpoint()?.Metadata.GetMetadata<ReturnHomeSessionMetadata>() is not null)
+            {
+                var grants = await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken);
+                return grants.IsSuccess ? grants.Value with { RequiredActionsUnavailable = true, RequiredActions = [] } : null;
+            }
             return await authorizationCache.ReadAsync(principal, authorizationStrategy, cancellationToken);
         }
         catch (Exception ex)
