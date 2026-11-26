@@ -161,8 +161,7 @@ internal class AuthorizationCache(
                 await storage.Entries.SetAsync(entry.Key, current, entry.Options, entry.Tags, ct);
             }
         }
-        var now = dateTimeProvider.Now.UtcDateTime;
-        return snapshot.PermissionsExpired(now) ? null : current.ExpiresAt > now ? current : snapshot.At(now);
+        return snapshot.AfterPublication(current, dateTimeProvider.Now.UtcDateTime);
     }
 
     private async Task<BuiltSnapshot> BuildAsync(CacheEntry entry, Func<CancellationToken, Task<Result<AuthorizationData>>> factory,
@@ -303,6 +302,15 @@ internal class AuthorizationCache(
 
     private sealed record BuiltSnapshot(DateTime PermissionExpiry, Func<DateTime, AuthorizationData> At)
     {
+        internal AuthorizationData? AfterPublication(AuthorizationData published, DateTime now)
+        {
+            if (PermissionsExpired(now))
+            {
+                return null;
+            }
+            return published.ExpiresAt > now ? published : At(now);
+        }
+
         internal bool PermissionsExpired(DateTime now) => PermissionExpiry != default && PermissionExpiry <= now;
         internal AuthorizationData WithCurrentPermissions(DateTime now) => PermissionsExpired(now)
             ? throw new InvalidOperationException("Fresh authorization data contains expired permissions.") : At(now);
