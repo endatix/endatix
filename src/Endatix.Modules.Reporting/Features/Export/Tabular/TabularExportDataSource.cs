@@ -131,11 +131,12 @@ internal sealed partial class TabularExportDataSource(
         return Prepared(context, settings, ExportSchemas.WithCodebook(schema, book.Value));
     }
 
-    // A Crunch-shaped export generates names, so a name two meanings would share refuses it before any row is read.
+    // A name two meanings would share refuses the export before any row is read: a name a Crunch-shaped export
+    // generates, or two columns of any export on one header.
     private Result<ExportOptions> Prepared(ExportDataSourceContext context, ExportFormatSettings settings, FormSchemaEntity exported)
     {
-        if (ShouldProjectCrunchShapes(context.Request.Format, settings) &&
-            ExportNameCollisions.Find(new(exported, settings, ExportNameFile.Tabular, aliasTransformerRegistry)) is { Count: > 0 } collisions)
+        var file = ShouldProjectCrunchShapes(context.Request.Format, settings) ? ExportNameFile.Tabular : ExportNameFile.PlainTabular;
+        if (ExportNameCollisions.Find(new(exported, settings, file, aliasTransformerRegistry)) is { Count: > 0 } collisions)
         {
             return ExportNameCollisions.Refusal<ExportOptions>(collisions);
         }

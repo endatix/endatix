@@ -21,6 +21,7 @@ internal enum ExportNameKind
     GroupParent,
     Subvariable,
     Bound,
+    System,
 }
 
 internal sealed record ExportNameMeaning(string Question, ExportNameKind Kind, string? Column = null)
@@ -33,14 +34,16 @@ internal sealed record ExportNameMeaning(string Question, ExportNameKind Kind, s
         ExportNameKind.GroupParent => $"the variable that groups question '{Question}'",
         ExportNameKind.Subvariable => Column is null ? $"a column of question '{Question}'" : $"column '{Column}' of question '{Question}'",
         ExportNameKind.Bound => $"a min or max column of range question '{Question}'",
+        ExportNameKind.System => $"the submission's '{Question}' column",
         _ => $"question '{Question}'",
     };
 
     // One question can own several names of different kinds (a tagbox's text column and its group), but not two of one
-    // kind (two choices that land on one header); a companion never shares its name with anything.
+    // kind (two choices that land on one header); a companion or a submission column never shares its name.
     public bool Contests(ExportNameMeaning other) =>
-        this != other && (Question != other.Question || Kind == other.Kind ||
-            Kind is ExportNameKind.Companion || other.Kind is ExportNameKind.Companion);
+        this != other && (Question != other.Question || Kind == other.Kind || Exclusive || other.Exclusive);
+
+    private bool Exclusive => Kind is ExportNameKind.Companion or ExportNameKind.System;
 }
 
 /// <summary>One export name that two meanings would share under one naming profile and key separator.</summary>
@@ -68,11 +71,15 @@ internal sealed record ExportNameCollision(
     };
 }
 
-/// <summary>The file whose names are checked: a tabular export (CSV, JSON, XLSX) or the Shoji codebook.</summary>
+/// <summary>
+/// The file whose names are checked: a Crunch-shaped tabular export (CSV, JSON, XLSX), the Shoji codebook, or a tabular
+/// export in native shapes, which generates no name of its own and is checked only for two columns on one header.
+/// </summary>
 internal enum ExportNameFile
 {
     Tabular,
     ShojiCodebook,
+    PlainTabular,
 }
 
 /// <summary>What <see cref="ExportNameCollisions.Find"/> reads: the compiled schema, the format's resolved settings and the file.</summary>
@@ -85,7 +92,8 @@ internal sealed record ExportNameRequest(
 /// <summary>
 /// The names a Crunch-shaped export generates (panel Other companions, group parents and their subvariables) are
 /// fixed by the question they come from, so an export where another question lands on one is refused instead of
-/// renamed. Pure: it reads the schema and settings and exports nothing, so a dry run can call it.
+/// renamed. Any tabular file is refused too where two of its columns would share a header. Pure: it reads the schema
+/// and settings and exports nothing, so a dry run can call it.
 /// </summary>
 internal static class ExportNameCollisions
 {
@@ -95,8 +103,9 @@ internal static class ExportNameCollisions
         var map = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         using var book = JsonDocument.Parse(schema.Codebook);
         Names names = new(request, map, new CrunchQuestions(book.RootElement, settings.SpecialChoiceCodes, map));
-        ColumnAliasProfile[] profiles = settings.AliasProfile == ColumnAliasProfile.Native
-            ? [ColumnAliasProfile.Native] : [ColumnAliasProfile.Native, settings.AliasProfile];
+        // A Crunch-shaped file pairs with the codebook, whose keys are native in every profile.
+        ColumnAliasProfile[] profiles = settings.AliasProfile == ColumnAliasProfile.Native || request.File is ExportNameFile.PlainTabular
+            ? [settings.AliasProfile] : [ColumnAliasProfile.Native, settings.AliasProfile];
         return [.. profiles.SelectMany(profile => Contested(names.In(profile), profile, settings.KeySeparator))];
     }
 
@@ -126,11 +135,10 @@ internal static class ExportNameCollisions
             var keys = plan.Columns.DistinctBy(column => column.CanonicalKey, StringComparer.Ordinal)
                 .ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
             HashSet<string> seen = new(StringComparer.Ordinal);
-            return plan.Columns.Select(column => (column.ExportKey,
-                    seen.Add(column.CanonicalKey) ? Meaning(column.CanonicalKey) : Projected(column.CanonicalKey)))
+            return plan.Columns.Select(column => (column.ExportKey, Meaning(column, seen)))
                 .Concat(WritesParents(profile) ? _parents : [])
                 .Concat(request.File is ExportNameFile.ShojiCodebook && profile is ColumnAliasProfile.Native ? _bounds : [])
-                .Concat(catalog.OtherTextKeys.Keys.Select(parent => (
+                .Concat(request.File is ExportNameFile.PlainTabular ? [] : catalog.OtherTextKeys.Keys.Select(parent => (
                     PanelExportColumns.CompanionName(keys[parent], _settings.KeySeparator),
                     new ExportNameMeaning(Question(_columns[parent]), ExportNameKind.Companion))));
         }
@@ -140,6 +148,18 @@ internal static class ExportNameCollisions
         private bool WritesParents(ColumnAliasProfile profile) =>
             request.File is ExportNameFile.ShojiCodebook &&
             (profile is ColumnAliasProfile.Native || _settings.SpecialChoiceCodes is not null);
+
+        // A tabular file writes submission columns beside the questions' under the same headers; the codebook's
+        // variables are only the questions'. A second plan column on a canonical key is a projected range bound.
+        private ExportNameMeaning Meaning(ExportColumnDefinition column, HashSet<string> seen)
+        {
+            if (column.Source is ExportColumnSource.System && request.File is not ExportNameFile.ShojiCodebook)
+            {
+                return new(column.CanonicalKey, ExportNameKind.System);
+            }
+
+            return seen.Add(column.CanonicalKey) ? Meaning(column.CanonicalKey) : Projected(column.CanonicalKey);
+        }
 
         private ExportNameMeaning Meaning(string canonicalKey)
         {
@@ -155,7 +175,7 @@ internal static class ExportNameCollisions
             return Bound(canonicalKey) ?? new(canonicalKey, ExportNameKind.Ordinary);
         }
 
-        // A plan column whose canonical key an earlier one has: a range bound projected onto a question's key (s__min).
+        // A range bound projected onto a question's key (s__min).
         private ExportNameMeaning Projected(string canonicalKey) => Bound(canonicalKey) ?? Meaning(canonicalKey);
 
         private ExportNameMeaning? Bound(string canonicalKey) =>

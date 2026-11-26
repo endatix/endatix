@@ -167,6 +167,36 @@ public sealed class ExportNameCollisionsTests
     }
 
     [Fact]
+    public void Find_PlainFileWithAQuestionNamedLikeASystemColumn_ReturnsBoth()
+    {
+        // Arrange
+        var schema = Schema("""{"type":"text","name":"Id"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, new(), ExportNameFile.PlainTabular));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        collision.Name.Should().Be("Id");
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning("Id", ExportNameKind.Ordinary), new ExportNameMeaning("Id", ExportNameKind.System)]);
+        collision.Rename.Should().Be("Id");
+    }
+
+    [Fact]
+    public void Find_PlainFile_GeneratesNoCompanion()
+    {
+        // Arrange
+        var schema = Schema("""{"type":"text","name":"pd--0--q--other_text"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _coded, ExportNameFile.PlainTabular));
+
+        // Assert
+        collisions.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Find_TwoChoicesOfOneCheckboxOnOneHeader_ReturnsBothColumns()
     {
         // Arrange

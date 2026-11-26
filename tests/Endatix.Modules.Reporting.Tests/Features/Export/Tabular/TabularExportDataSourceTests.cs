@@ -411,6 +411,31 @@ public sealed class TabularExportDataSourceTests
     }
 
     [Fact]
+    public async Task PrepareOptionsAsync_NativeCsvWithTwoChoicesOnOneHeader_ReturnsTheCollision()
+    {
+        // Arrange: on _, choices a_b and a__b of one checkbox both become q_a_b.
+        var compiled = new FormSchemaCompiler().CompilePersisted(
+            """{"pages":[{"elements":[{"type":"checkbox","name":"q","choices":["a_b","a__b"]}]}]}""");
+        FormSchemaEntity schema = new(TenantId, FormId, 1, compiled.FlatteningMapJson, compiled.CodebookJson);
+        var formSchemaRepository = Substitute.For<IFormSchemaRepository>();
+        formSchemaRepository.GetByFormIdAsync(TenantId, FormId, Arg.Any<CancellationToken>()).Returns(schema);
+        var reportingExportRepository = Substitute.For<IReportingExportRepository>();
+        reportingExportRepository
+            .HasExportableRowsAsync(TenantId, FormId, Arg.Any<ExportQueryOptions>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        var dataSource = CreateDataSource(formSchemaRepository, reportingExportRepository);
+
+        // Act
+        var result = await dataSource.PrepareOptionsAsync(
+            CreateContext(settingsJson: """{"keySeparator":"_"}"""), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle().Which.Should().Match<ValidationError>(error =>
+            error.Identifier == "exportNames" && error.ErrorMessage.StartsWith("Export name 'q_a_b' (native names, separator '_')"));
+    }
+
+    [Fact]
     public void Matches_ReturnsTrueOnlyForTabularSubmissionExportWithExportFormatId()
     {
         TabularExportDataSource dataSource = CreateDataSource(
