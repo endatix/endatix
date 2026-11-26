@@ -64,6 +64,8 @@ Use `subject.UserId` (the canonical string ID), `subject.TenantId`, and `subject
 
 For a verified built-in assume-tenant session, `subject.VerifiedAssumption` contains `ActorUserId` and `HomeTenantId`. The actor remains the subject; `subject.TenantId` is the target. Ordinary and externally mapped sessions have no verified assumption. A role or missing tenant membership is not a substitute for this proof.
 
+Assumed-session reporting requires the built-in JWT provider, authorization strategy, authorization data provider, and authorization cache. Replacing or wrapping those authorization services can still serve ordinary sessions, but forwarding a public snapshot does not attest to an assumption. Without current verification, an actor-bearing request receives unavailable standing rather than an ordinary member's report.
+
 Keep constructors, DI factories, and configuration getters free of I/O. Do the check in `GetPendingAsync` and pass its token through. The token lasts **one invocation**: the host signals it on caller cancellation, timeout, or method completion, **including success**, whichever comes first. A successful completion signal does not cancel the request or invalidate the result. The host waits for token callbacks before disposing the scope. Do not retain scoped services or start background work with them. Cleanup counts toward the deadline; the host discards late results and does not start another invocation on that host for the same user, tenant, assumption and registration until cleanup finishes, even after invalidation.
 
 ## Choose who can resolve the action
@@ -127,3 +129,5 @@ Where the host enforces standing, a notice permits normal reads and writes, subj
 Mark an account endpoint that must remain reachable to resolve an action with `[AllowWithRequiredActions]` (`Endatix.Core.Infrastructure.Attributes`). The marker skips only the standing gate. Authentication, resolver permissions, and tenant checks still apply. `/api/auth/me`, logout, and change-password already use the marker. Anonymous endpoints, static assets, and respondent endpoints protected only by the public-resource policy are outside the gate; adding account authorization to a respondent route changes that distinction.
 
 A verified platform administrator can also `POST /api/auth/exit-assume` to return home while standing is blocking or unavailable. Multi-tenancy must be enabled. An authorized ordinary session receives **400**; an actor-bearing session without matching proof receives **403** and no tokens.
+
+Exit rechecks the actor, target, home, and platform role through the selected built-in strategy and identity store. Wrapping the cache alone does not prevent this fresh check. A replacement or decorator of the selected strategy or its data provider cannot attest to the session by returning a cached result.

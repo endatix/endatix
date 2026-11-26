@@ -34,13 +34,13 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
 
     internal async Task<Func<DateTime, AuthorizationData>> EvaluateAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {
-        if (_providers.Length == 0)
-        {
-            return _ => data;
-        }
         if (data.UnverifiedActor)
         {
             return _ => data with { RequiredActionsUnavailable = true, RequiredActions = [] };
+        }
+        if (_providers.Length == 0)
+        {
+            return _ => data;
         }
 
         var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles) { VerifiedAssumption = data.VerifiedAssumption };

@@ -37,6 +37,9 @@ internal sealed class DefaultAuthorizationDataProvider(
     {
         internal bool MalformedActor { get; init; }
         internal bool PresentsActor => Actor.HasValue || MalformedActor;
+
+        internal AuthorizationData Bind(AuthorizationData data, VerifiedAssumption? proof) =>
+            data with { VerifiedAssumption = proof, UnverifiedActor = PresentsActor && proof is null };
     }
 
     internal async Task<Result<AuthorizationData>> ReadSessionAsync(Session session, CancellationToken cancellationToken)
@@ -46,12 +49,11 @@ internal sealed class DefaultAuthorizationDataProvider(
             var user = await FindUserAsync(session, cancellationToken);
             if (user is null)
             {
-                return Result.Success(ToData(session, []) with { UnverifiedActor = session.PresentsActor });
+                return Result.Success(session.Bind(ToData(session, []), null));
             }
             var membership = await VerifyScopeAsync(user, session, cancellationToken);
             return membership.IsSuccess
-                ? Result.Success(ToData(session, await RolesAsync(session, cancellationToken)) with
-                { VerifiedAssumption = membership.Value, UnverifiedActor = session.PresentsActor && membership.Value is null })
+                ? Result.Success(session.Bind(ToData(session, await RolesAsync(session, cancellationToken)), membership.Value))
                 : membership.ToErrorResult<AuthorizationData>();
         }
         catch (Exception ex)

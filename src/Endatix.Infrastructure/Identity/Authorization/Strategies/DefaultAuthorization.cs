@@ -37,7 +37,7 @@ public sealed class DefaultAuthorization(
     public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var data = await ReadVerifiedSessionAsync(principal, cancellationToken);
-        return SessionAuthorization.WithoutProof(data);
+        return SessionAuthorization.WithoutProof(data, principal);
     }
 
     internal async Task<Result<AuthorizationData>> ReadVerifiedSessionAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)

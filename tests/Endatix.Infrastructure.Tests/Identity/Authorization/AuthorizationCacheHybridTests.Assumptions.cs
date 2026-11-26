@@ -70,6 +70,26 @@ public sealed partial class AuthorizationCacheHybridTests
     }
 
     [Fact]
+    public async Task ReadAsync_ReplacementCacheReturnsOldStanding_RefusesActorButPreservesOrdinaryAccess()
+    {
+        var old = CreateData(default) with { VerifiedAssumption = new(123, 1) };
+        var cache = Substitute.For<IAuthorizationCache>();
+        cache.GetOrCreateAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<Func<CancellationToken, Task<Result<AuthorizationData>>>>(),
+            Arg.Any<CancellationToken>()).Returns(old);
+        var strategy = Substitute.For<IAuthorizationStrategy>();
+        var principal = CreatePrincipal();
+        var ct = TestContext.Current.CancellationToken;
+        var member = await cache.ReadAsync(principal, strategy, ct);
+        member.VerifiedAssumption.Should().BeNull();
+        member.RequiredActionsUnavailable.Should().BeFalse();
+        principal.Identities.Single().AddClaim(new(ClaimNames.Actor, "123"));
+        var assumed = await cache.ReadAsync(principal, strategy, ct);
+        assumed.VerifiedAssumption.Should().BeNull();
+        assumed.RequiredActionsUnavailable.Should().BeTrue();
+        assumed.Permissions.Should().BeEquivalentTo(old.Permissions);
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_PublicFactoryReceivesCopiedSnapshot_CannotTransferItsProof()
     {
         var provider = Substitute.For<IRequiredActionProvider>();

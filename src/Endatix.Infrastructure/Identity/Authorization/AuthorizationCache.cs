@@ -44,11 +44,11 @@ internal class AuthorizationCache(
 
     Task<AuthorizationData> IAuthorizationCache.GetOrCreateAsync(ClaimsPrincipal principal,
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken) =>
-        GetOrCreateAsync(principal, async token => SessionAuthorization.WithoutProof(await dataFactory(token)), cancellationToken);
+        GetOrCreateAsync(principal, async token => SessionAuthorization.WithoutProof(await dataFactory(token), principal), cancellationToken);
 
     Task<AuthorizationData> IAuthorizationCache.GetOrCreateAsync(string userId, long tenantId, ClaimsPrincipal? principal,
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken) =>
-        GetOrCreateAsync(userId, tenantId, principal, async token => SessionAuthorization.WithoutProof(await dataFactory(token)), cancellationToken);
+        GetOrCreateAsync(userId, tenantId, principal, async token => SessionAuthorization.WithoutProof(await dataFactory(token), principal), cancellationToken);
 
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(ClaimsPrincipal principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
