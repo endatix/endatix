@@ -87,7 +87,7 @@ The API will be available at `https://localhost:5001` by default.
 After starting the application, you can verify that Endatix is running correctly by:
 
 - **Verify the service is healthy** - `https://localhost:5001/health/ui`
-- **View the Swagger UI** - `https://localhost:5001/api-docs`
+- **Open the API docs** - `https://localhost:5001/api-docs`
 - **Login** - use the default credentials from the appsettings.Development.json file to authenticate and change them after login
 
 ## Configuration Options
@@ -142,6 +142,6 @@ If you encounter any issues during setup:
 After successful setup, you can:
 
 - Explore the [API endpoints](/docs/developers/api/api-reference)
-- Use the [Swagger UI](https://localhost:5001/api-docs) to authenticate and test the API endpoints
+- Use the [API docs page](https://localhost:5001/api-docs) to authenticate and test the API endpoints
 - Learn how to create and manage forms - `🚧 coming soon`
 - Understand how to handle form submissions - `🚧 coming soon`

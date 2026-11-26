@@ -29,7 +29,7 @@ If you need to serve the Hub or API under specific path prefixes (such as `/app`
 
 Reverse proxies typically terminate TLS (HTTPS) and forward traffic to the internal applications over plain HTTP. Without forwarded headers, the Endatix API sees the internal request (e.g., `http://localhost:5000`) instead of the public request (e.g., `https://yourdomain.com`). 
 
-Failing to pass these headers causes incorrect URL generation, broken Swagger documentation links, and authentication failures (as browsers will drop secure authorization cookies after cross-origin or cross-scheme redirects).
+Failing to pass these headers causes incorrect URL generation, broken API docs links, and authentication failures (as browsers will drop secure authorization cookies after cross-origin or cross-scheme redirects).
 
 ## Endatix Hub Configuration
 
@@ -105,7 +105,7 @@ The Endatix repository includes a ready-to-use local Nginx sample at [`/samples/
 Use this Docker Compose environment to test the exact public routing shape locally:
 
 * **Hub UI:** `http://localhost:8080/app/`
-* **API & Swagger:** `http://localhost:8080/api/`
+* **API and API docs:** `http://localhost:8080/api/` (the docs page is `http://localhost:8080/api/api-docs/`)
 
 The sample's README includes the required Hub environment variables, the matching API configuration, and the startup commands.
 

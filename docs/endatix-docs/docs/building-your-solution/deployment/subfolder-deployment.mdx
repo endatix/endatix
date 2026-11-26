@@ -110,9 +110,9 @@ AUTH_TRUST_HOST=true
 
 ## API Path Routing (.NET)
 
-When placing the Endatix API behind a proxy that uses a path prefix (like `/api`), you must inform the .NET application pipeline about this base path. While Endatix controllers inherently use the `api/` route prefix, supporting tools like **Swagger UI** rely on knowing the application's base path to generate correct relative links for assets (CSS/JS) and API calls.
+When placing the Endatix API behind a proxy that uses a path prefix (like `/api`), you must inform the .NET application pipeline about this base path. While Endatix controllers inherently use the `api/` route prefix, the API docs page relies on knowing the application's base path to load its scripts, the OpenAPI document, and the API calls it sends.
 
-To ensure Swagger and relative URL generation work correctly behind your proxy, update your `Program.cs` file in the API project to include `UsePathBase()` **before** `app.UseEndatix()`:
+To make the API docs page and relative URLs work behind your proxy, update your `Program.cs` file in the API project to include `UsePathBase()` **before** `app.UseEndatix()`:
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -131,6 +131,8 @@ app.Run();
 ```
 
 *(Note: Do not include the trailing slash in `UsePathBase`)*.
+
+With the `/api` base path, the API docs page is at `/api/api-docs/` and the OpenAPI document at `/api/swagger/alpha-version/swagger.json`.
 
 ## Static Assets
 

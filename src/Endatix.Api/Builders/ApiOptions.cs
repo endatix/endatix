@@ -24,16 +24,30 @@ public class ApiOptions
     public string ExceptionHandlerPath { get; set; } = "/error";
 
     /// <summary>
-    /// Gets or sets a value indicating whether to use Swagger middleware.
-    /// This can be configured via appsettings.json.
+    /// Gets or sets the API docs settings: the document, the docs page, and the UI it shows. This can be configured via
+    /// appsettings.json under <c>Endatix:Api:Docs</c>.
     /// </summary>
-    public bool UseSwagger { get; set; } = true;
+    public ApiDocsOptions Docs { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the custom path for Swagger UI endpoint. Must start with "/".
-    /// Default is "/api-docs". This can be configured via appsettings.json.
+    /// Gets or sets a value indicating whether to serve the API docs. Deprecated: use <see cref="ApiDocsOptions.Enabled"/>
+    /// on <see cref="Docs"/>, which this property reads and writes.
     /// </summary>
-    public string? SwaggerPath { get; set; } = "/api-docs";
+    public bool UseSwagger
+    {
+        get => Docs.Enabled;
+        set => Docs.Enabled = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the path of the API docs page. Deprecated: use <see cref="ApiDocsOptions.Path"/> on
+    /// <see cref="Docs"/>, which this property writes. It reads that path, or "/api-docs" while it is unset.
+    /// </summary>
+    public string? SwaggerPath
+    {
+        get => Docs.Path ?? ApiDocsOptions.DEFAULT_PATH;
+        set => Docs.SetPath(value, ApiDocsOptions.SWAGGER_PATH_SETTING);
+    }
 
     /// <summary>
     /// Gets or sets a delegate to configure OpenAPI document generation settings.
@@ -42,7 +56,8 @@ public class ApiOptions
     public Action<OpenApiDocumentMiddlewareSettings>? ConfigureOpenApiDocument { get; set; }
 
     /// <summary>
-    /// Gets or sets a delegate to configure Swagger UI display settings.
+    /// Gets or sets a delegate to configure Swagger UI display settings, its <c>Path</c> included. Setting it shows Swagger
+    /// UI on the docs page unless <see cref="ApiDocsOptions.Ui"/> is set.
     /// more info: https://fast-endpoints.com/docs/swagger-support#describe-endpoints
     /// </summary>
     public Action<SwaggerUiSettings>? ConfigureSwaggerUi { get; set; }

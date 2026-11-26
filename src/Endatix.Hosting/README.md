@@ -96,25 +96,26 @@ Add Serilog configuration to your appsettings.json file:
 }
 ```
 
-### 3. Customizing Swagger Documentation
+### 3. Customizing the API docs
 
-Endatix provides several ways to customize Swagger documentation:
+The API docs page shows [Scalar](https://scalar.com) at `/api-docs`. Set `Docs.Ui` to `ApiDocsUi.Swagger` to show Swagger UI there instead, or to `ApiDocsUi.None` to serve only the OpenAPI document. `UseSwagger` and `SwaggerPath` still work as deprecated names of `Docs.Enabled` and `Docs.Path`. `UseSwagger()` with no path serves a page at `/swagger`. Endatix provides several ways to customize the API docs:
 
 ```csharp
 // Using app.UseEndatix with options
-app.UseEndatix(options =>
+app.UseEndatix((EndatixMiddlewareOptions options) =>
 {
-    // Basic toggle for enabling/disabling Swagger
-    options.UseSwagger = true;
-    options.EnableSwaggerInProduction = false;
+    // Turns the OpenAPI document and the docs page on or off
+    options.ApiOptions.Docs.Enabled = true;
     
-    // Custom path for Swagger UI (default is "/swagger")
-    options.SwaggerPath = "/api-docs";
+    // Path of the API docs page (default is "/api-docs")
+    options.ApiOptions.Docs.Path = "/api-docs";
+
+    // What the page shows: Scalar (the default), Swagger, or None
+    options.ApiOptions.Docs.Ui = ApiDocsUi.Swagger;
     
-    // Advanced Swagger configuration
-    options.ConfigureOpenApiDocument = settings => 
+    // Advanced OpenAPI document configuration
+    options.ApiOptions.ConfigureOpenApiDocument = settings =>
     {
-        settings.DocumentName = "v1";
         settings.PostProcess = (document, _) => 
         {
             document.Info.Title = "My Custom API";
@@ -123,8 +124,8 @@ app.UseEndatix(options =>
         };
     };
     
-    // Customize Swagger UI appearance
-    options.ConfigureSwaggerUi = settings => 
+    // Customize Swagger UI appearance. With Docs.Ui unset, setting this shows Swagger UI
+    options.ApiOptions.ConfigureSwaggerUi = settings =>
     {
         settings.DocExpansion = "list";
         settings.DefaultModelsExpandDepth = 1;
@@ -137,20 +138,21 @@ app.UseEndatix(options =>
 });
 ```
 
-You can also configure Swagger directly using the middleware builder pattern:
+You can also configure the API docs directly when you compose the middleware yourself. `UseSwagger` adds a docs page at its path, over the one OpenAPI document. `UseApi` adds the page at the configured path, so give `UseSwagger` the same path to keep one page, or another path for a second one. Passing Swagger UI settings shows Swagger UI on the page unless `Docs:Ui` is set:
 
 ```csharp
 // Using the builder pattern for fine-grained control
-app.UseEndatix()
-    .UseSwagger("/api-docs", 
-        openApiSettings => 
+app.UseEndatix(endatix => endatix
+    .UseSwagger("/api-docs",
+        openApiSettings =>
         {
-            openApiSettings.DocumentName = "v1";
+            openApiSettings.PostProcess = (document, _) => document.Info.Title = "My Custom API";
         },
-        swaggerUiSettings => 
+        swaggerUiSettings =>
         {
             swaggerUiSettings.DocExpansion = "list";
-        });
+        })
+    .UseApi());
 ```
 
 ## Two-Stage Logging

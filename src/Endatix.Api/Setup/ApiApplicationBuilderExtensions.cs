@@ -33,9 +33,8 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-                options.UseSwagger,
-                options.SwaggerPath);
+                "Configuring Endatix API middleware. DocsEnabled={DocsEnabled}",
+                options.Docs.Enabled);
         }
 
         var result = app.UseEndatixApi(options);
@@ -59,9 +58,8 @@ public static class ApiApplicationBuilderExtensions
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
             logger.LogInformation(
-                "Configuring Endatix API middleware with custom options. UseSwagger={UseSwagger}, SwaggerPath={SwaggerPath}",
-                options.UseSwagger,
-                options.SwaggerPath);
+                "Configuring Endatix API middleware with custom options. DocsEnabled={DocsEnabled}",
+                options.Docs.Enabled);
         }
 
         var result = app.UseEndatixApi(options);
@@ -122,27 +120,43 @@ public static class ApiApplicationBuilderExtensions
             options.ConfigureFastEndpoints?.Invoke(c);
         });
 
-        // Apply Swagger middleware if enabled
-        if (options.UseSwagger)
-        {
-            app.UseSwaggerGen(
-                options.ConfigureOpenApiDocument,
-                swaggerUiSettings =>
-                {
-                    if (options.SwaggerPath is not null)
-                    {
-                        swaggerUiSettings.Path = options.SwaggerPath;
-                    }
-
-                    options.ConfigureSwaggerUi?.Invoke(swaggerUiSettings);
-                });
-        }
+        ApiDocs.Add(app, options);
 
         // Apply CORS middleware if enabled
         if (options.UseCors)
         {
             app.UseCors();
         }
+    }
+
+    /// <summary>
+    /// Adds the API docs while <see cref="ApiDocsOptions.Enabled"/> is on: the OpenAPI document, once per application,
+    /// and a docs page at <see cref="ApiDocsOptions.Path"/> with <see cref="ApiDocsOptions.Ui"/>.
+    /// <see cref="UseEndatixApi(IApplicationBuilder, ApiOptions)"/> already adds them; a call for a page path already
+    /// mapped changes nothing, and a call for another path adds a page there.
+    /// </summary>
+    /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
+    /// <param name="options">The API options.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseEndatixApiDocs(this IApplicationBuilder app, ApiOptions options)
+    {
+        ApiDocs.Add(app, options);
+        return app;
+    }
+
+    /// <summary>
+    /// Adds a docs page the way an explicit call in code does: it starts from the configured
+    /// <see cref="ApiOptions.Docs"/> and <see cref="ApiOptions.ConfigureSwaggerUi"/> with the docs on, even when the
+    /// configuration turns them off, so a page set in code behaves as one set in configuration; then
+    /// <paramref name="configure"/> changes what this call needs. The document is added once per application.
+    /// </summary>
+    /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
+    /// <param name="configure">A delegate that sets this call's docs settings.</param>
+    /// <returns>The application builder for chaining.</returns>
+    public static IApplicationBuilder UseEndatixApiDocs(this IApplicationBuilder app, Action<ApiOptions> configure)
+    {
+        ApiDocs.AddExplicit(app, configure);
+        return app;
     }
 
     /// <summary>
@@ -177,7 +191,7 @@ public static class ApiApplicationBuilderExtensions
             "IExceptionHandler is not registered. Call ApiConfigurationBuilder.UseDefaults() (or equivalent) before UseExceptionHandler().");
     }
 
-    private static ApiOptions GetApiOptions(IApplicationBuilder app)
+    internal static ApiOptions GetApiOptions(IApplicationBuilder app)
     {
         var optionsProvider = app.ApplicationServices.GetService<IOptions<ApiOptions>>();
         return optionsProvider?.Value ?? new ApiOptions();
