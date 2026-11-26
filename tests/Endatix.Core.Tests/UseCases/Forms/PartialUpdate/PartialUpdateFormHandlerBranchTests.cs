@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Forms.PartialUpdate;
@@ -9,15 +10,18 @@ namespace Endatix.Core.Tests.UseCases.Forms.PartialUpdate;
 public sealed class PartialUpdateFormHandlerBranchTests
 {
     private readonly IRepository<Form> _forms = Substitute.For<IRepository<Form>>();
+    private readonly IFormSettingsRepository _formSettings = FormSettingsRepositoryStub.Saving();
     private readonly IRepository<Theme> _themes = Substitute.For<IRepository<Theme>>();
+    private readonly IMediator _mediator = Substitute.For<IMediator>();
     private readonly PartialUpdateFormHandler _handler;
 
     public PartialUpdateFormHandlerBranchTests() =>
         _handler = new PartialUpdateFormHandler(
             _forms,
+            _formSettings,
             _themes,
             Substitute.For<IRepository<Submission>>(),
-            Substitute.For<IMediator>(),
+            _mediator,
             FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
 
     [Fact]
@@ -55,6 +59,19 @@ public sealed class PartialUpdateFormHandlerBranchTests
 
         result.IsSuccess.Should().BeTrue();
         form.SubmissionTokenExpiryHours.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_FormSettingsChangedDuringTheSave_ReturnsConflictAndPublishesNothing()
+    {
+        // Another write raised the form's settings version while this save wrote its webhooks.
+        var form = StoredForm();
+        _formSettings.UpdateFormOrConcedeAsync(form, Arg.Any<CancellationToken>()).Returns(false);
+
+        var result = await _handler.Handle(new PartialUpdateFormCommand(1) { Name = "Renamed" }, CancellationToken.None);
+
+        result.Status.Should().Be(ResultStatus.Conflict);
+        _mediator.ReceivedCalls().Should().BeEmpty("nothing is published for a save that rolled back");
     }
 
     private Form StoredForm(int? expiryHours = null)

@@ -139,7 +139,7 @@ public sealed class WebHookEventsTests
                 },
             })));
         WebHookEndpointExpander expander = new(
-            new WebHookEventConfigReader(forms, tenantSettings, NullLogger<WebHookEventConfigReader>.Instance));
+            new WebHookEventConfigReader(NoStoredFormSettings.Reader(forms), tenantSettings, NullLogger<WebHookEventConfigReader>.Instance));
 
         // Act
         var subscribers = await expander.ExpandAsync(

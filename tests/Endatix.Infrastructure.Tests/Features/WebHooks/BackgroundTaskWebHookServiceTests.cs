@@ -365,7 +365,7 @@ public class BackgroundTaskWebHookServiceTests
         var service = new BackgroundTaskWebHookService(
             _logger,
             _backgroundQueue,
-            new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance),
+            new WebHookEventConfigReader(NoStoredFormSettings.Reader(_formRepository), _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance),
             refusingServer);
 
         // Act
@@ -387,7 +387,7 @@ public class BackgroundTaskWebHookServiceTests
         new(
             _logger,
             _backgroundQueue,
-            new WebHookEventConfigReader(_formRepository, _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance),
+            new WebHookEventConfigReader(NoStoredFormSettings.Reader(_formRepository), _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance),
             _webHookServer);
 
     private class TestPayload

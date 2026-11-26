@@ -50,7 +50,7 @@ public class GetByAccessTokenHandlerTests
         submission.Form.Id = 123L;
         submission.Form.SetTheme(theme);
         var settings = Core.Entities.FormSettings.For(submission.Form);
-        settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = true } }, 0, DateTime.UtcNow);
+        settings.Apply(new FormSettingsChange { Pdf = new PdfSettings { UsesFormTheme = true } }, submission.Form, new(0, DateTime.UtcNow));
         _formSettings.ReadAsync(submission.Form, Arg.Any<CancellationToken>()).Returns(settings);
         typeof(Form).GetProperty(nameof(Form.Theme))!.SetValue(submission.Form, null); // loaded without its theme
 

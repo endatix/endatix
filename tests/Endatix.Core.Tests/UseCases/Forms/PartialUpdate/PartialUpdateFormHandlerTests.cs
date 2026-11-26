@@ -1,6 +1,7 @@
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -14,6 +15,7 @@ namespace Endatix.Core.Tests.UseCases.Forms.PartialUpdate;
 public class PartialUpdateFormHandlerTests
 {
     private readonly IRepository<Form> _repository;
+    private readonly IFormSettingsRepository _formSettings = FormSettingsRepositoryStub.Saving();
     private readonly IRepository<Theme> _themeRepository;
     private readonly IRepository<Submission> _submissionRepository;
     private readonly IMediator _mediator;
@@ -25,7 +27,7 @@ public class PartialUpdateFormHandlerTests
         _themeRepository = Substitute.For<IRepository<Theme>>();
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
+        _handler = new PartialUpdateFormHandler(_repository, _formSettings, _themeRepository, _submissionRepository, _mediator, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
     }
 
     [Fact]
@@ -95,7 +97,7 @@ public class PartialUpdateFormHandlerTests
         result.Value.Description.Should().Be(request.Description);
         result.Value.IsEnabled.Should().Be(request.IsEnabled!.Value);
         result.Value.ThemeId.Should().Be(theme.Id);
-        await _repository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
+        await _formSettings.Received(1).UpdateFormOrConcedeAsync(form, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -131,7 +133,7 @@ public class PartialUpdateFormHandlerTests
         result.Value.Description.Should().Be(request.Description);
         result.Value.IsEnabled.Should().Be(form.IsEnabled);
         result.Value.ThemeId.Should().Be(newTheme.Id);
-        await _repository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
+        await _formSettings.Received(1).UpdateFormOrConcedeAsync(form, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -495,7 +497,7 @@ public class PartialUpdateFormHandlerTests
             .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
             .Returns((TenantSettingsEntity?)null);
 
-        var handler = new PartialUpdateFormHandler(_repository, _themeRepository, _submissionRepository, _mediator, helper);
+        var handler = new PartialUpdateFormHandler(_repository, _formSettings, _themeRepository, _submissionRepository, _mediator, helper);
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 7));
         form.Id = 1;
         var request = new PartialUpdateFormCommand(1) { ClearFolderId = true };

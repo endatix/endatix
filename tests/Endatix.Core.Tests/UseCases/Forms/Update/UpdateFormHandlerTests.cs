@@ -1,6 +1,7 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
@@ -14,6 +15,7 @@ namespace Endatix.Core.Tests.UseCases.Forms.Update;
 public class UpdateFormHandlerTests
 {
     private readonly IRepository<Form> _repository;
+    private readonly IFormSettingsRepository _formSettings = FormSettingsRepositoryStub.Saving();
     private readonly IRepository<Submission> _submissionRepository;
     private readonly IMediator _mediator;
     private readonly UpdateFormHandler _handler;
@@ -23,7 +25,7 @@ public class UpdateFormHandlerTests
         _repository = Substitute.For<IRepository<Form>>();
         _submissionRepository = Substitute.For<IRepository<Submission>>();
         _mediator = Substitute.For<IMediator>();
-        _handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
+        _handler = new UpdateFormHandler(_repository, _formSettings, _submissionRepository, _mediator, FolderAssignmentPolicyStub.Relaxed(SampleData.TENANT_ID));
     }
 
     [Fact]
@@ -65,7 +67,7 @@ public class UpdateFormHandlerTests
         result.Value.Name.Should().Be(request.Name);
         result.Value.Description.Should().Be(request.Description);
         result.Value.IsEnabled.Should().Be(request.IsEnabled);
-        await _repository.Received(1).UpdateAsync(form, Arg.Any<CancellationToken>());
+        await _formSettings.Received(1).UpdateFormOrConcedeAsync(form, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -352,7 +354,7 @@ public class UpdateFormHandlerTests
             .FirstOrDefaultAsync(Arg.Any<Ardalis.Specification.ISpecification<TenantSettingsEntity>>(), Arg.Any<CancellationToken>())
             .Returns((TenantSettingsEntity?)null);
 
-        var handler = new UpdateFormHandler(_repository, _submissionRepository, _mediator, helper);
+        var handler = new UpdateFormHandler(_repository, _formSettings, _submissionRepository, _mediator, helper);
         var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1, FolderId: 7));
         form.Id = 1;
         var request = new UpdateFormCommand(
@@ -370,5 +372,23 @@ public class UpdateFormHandlerTests
         // Assert
         result.Status.Should().Be(ResultStatus.Conflict);
         result.Errors.Should().ContainSingle(e => e.Contains("locked folders", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Handle_FormSettingsChangedDuringTheSave_ReturnsConflictAndPublishesNothing()
+    {
+        // Arrange: another write raised the form's settings version while this save wrote its webhooks
+        var form = Form.Create(new FormCreateArgs(TenantId: SampleData.TENANT_ID, Name: SampleData.FORM_NAME_1));
+        form.Id = 1;
+        var request = new UpdateFormCommand(1, SampleData.FORM_NAME_2, SampleData.FORM_DESCRIPTION_2, true);
+        _repository.GetByIdAsync(request.FormId, Arg.Any<CancellationToken>()).Returns(form);
+        _formSettings.UpdateFormOrConcedeAsync(form, Arg.Any<CancellationToken>()).Returns(false);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Conflict);
+        _mediator.ReceivedCalls().Should().BeEmpty("nothing is published for a save that rolled back");
     }
 }

@@ -15,5 +15,8 @@ internal sealed class FormSettingsConfigurationPostgreSql : IEntityTypeConfigura
     {
         builder.Property(settings => settings.PdfJson)
             .HasColumnType("jsonb");
+
+        builder.Property(settings => settings.WebHooksJson)
+            .HasColumnType("jsonb");
     }
 }

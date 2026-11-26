@@ -1,9 +1,11 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Events;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Folders;
+using Endatix.Core.UseCases.Forms.Update;
 using MediatR;
 
 namespace Endatix.Core.UseCases.Forms.PartialUpdate;
@@ -13,6 +15,7 @@ namespace Endatix.Core.UseCases.Forms.PartialUpdate;
 /// </summary>
 public class PartialUpdateFormHandler(
     IRepository<Form> repository,
+    IFormSettingsRepository formSettings,
     IRepository<Theme> themeRepository,
     IRepository<Submission> submissionRepository,
     IMediator mediator,
@@ -66,7 +69,10 @@ public class PartialUpdateFormHandler(
             requestedLimitOnePerUser,
             request.Metadata ?? form.Metadata,
             ResolveExpiry(form, request));
-        await repository.UpdateAsync(form, cancellationToken);
+        if (!await formSettings.UpdateFormOrConcedeAsync(form, cancellationToken))
+        {
+            return Result.Conflict(UpdateFormHandler.SETTINGS_CHANGED_MESSAGE);
+        }
 
         // Kept for the in-process MediatR subscriber (form-access cache invalidation); the webhook now flows
         // via the outbox. The enabled-state change is raised on the aggregate (SetEnabled → outbox) and has no

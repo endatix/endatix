@@ -7,6 +7,7 @@ public sealed class FormSettingsTests
 {
     private static readonly DateTime _at = new(2026, 11, 22, 12, 0, 0, DateTimeKind.Utc);
     private static readonly FormSettingsChange _themeOn = new() { Pdf = new PdfSettings { UsesFormTheme = true } };
+    private static readonly Form _form = Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form"));
 
     [Fact]
     public void New_HasEverySectionAtItsDefaults()
@@ -37,7 +38,7 @@ public sealed class FormSettingsTests
         var settings = Stored(stored);
 
         settings.Pdf.Should().Be(new PdfSettings());
-        settings.Apply(_themeOn, 0, _at).Value.Should().BeTrue();
+        settings.Apply(_themeOn, _form, new(0, _at)).Value.Should().BeTrue();
         settings.Pdf.UsesFormTheme.Should().BeTrue();
     }
 
@@ -46,7 +47,7 @@ public sealed class FormSettingsTests
     {
         var settings = NewSettings();
 
-        var applied = settings.Apply(_themeOn, FormSettings.UNSAVED_VERSION, _at);
+        var applied = settings.Apply(_themeOn, _form, new(FormSettings.UNSAVED_VERSION, _at));
 
         applied.Value.Should().BeTrue();
         settings.Version.Should().Be(1);
@@ -59,9 +60,9 @@ public sealed class FormSettingsTests
     public void Apply_TheStoredValueAgain_IsANoOpWhateverTheVersion()
     {
         var settings = NewSettings();
-        settings.Apply(_themeOn, 0, _at);
+        settings.Apply(_themeOn, _form, new(0, _at));
 
-        var retry = settings.Apply(_themeOn, expectedVersion: 0, _at.AddMinutes(1));
+        var retry = settings.Apply(_themeOn, _form, new(0, _at.AddMinutes(1)));
 
         retry.IsSuccess.Should().BeTrue();
         retry.Value.Should().BeFalse();
@@ -75,7 +76,7 @@ public sealed class FormSettingsTests
         // jsonb gives the value back with its own spacing and key order.
         var settings = Stored("""{"usesFormTheme": true}""");
 
-        var applied = settings.Apply(_themeOn, 0, _at);
+        var applied = settings.Apply(_themeOn, _form, new(0, _at));
 
         applied.Value.Should().BeFalse();
     }
@@ -84,9 +85,9 @@ public sealed class FormSettingsTests
     public void Apply_ADifferentValueFromAStaleVersion_IsAConflict()
     {
         var settings = NewSettings();
-        settings.Apply(_themeOn, 0, _at);
+        settings.Apply(_themeOn, _form, new(0, _at));
 
-        var stale = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, expectedVersion: 0, _at);
+        var stale = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, new(0, _at));
 
         stale.Status.Should().Be(ResultStatus.Conflict);
         settings.Version.Should().Be(1);
@@ -98,7 +99,7 @@ public sealed class FormSettingsTests
     {
         var settings = NewSettings();
 
-        var applied = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, 0, _at);
+        var applied = settings.Apply(new FormSettingsChange { Pdf = new PdfSettings() }, _form, new(0, _at));
 
         applied.Value.Should().BeTrue();
         settings.PdfJson.Should().Be("""{"usesFormTheme":false}""");
@@ -109,7 +110,7 @@ public sealed class FormSettingsTests
     {
         var settings = NewSettings();
 
-        settings.Apply(new FormSettingsChange(), 0, _at).Value.Should().BeFalse();
+        settings.Apply(new FormSettingsChange(), _form, new(0, _at)).Value.Should().BeFalse();
         settings.Version.Should().Be(FormSettings.UNSAVED_VERSION);
     }
 
@@ -132,7 +133,7 @@ public sealed class FormSettingsTests
         start.Should().Throw<ArgumentException>();
     }
 
-    private static FormSettings NewSettings() => FormSettings.For(Form.Create(2, new FormCreateArgs(TenantId: 1, Name: "Form")));
+    private static FormSettings NewSettings() => FormSettings.For(_form);
 
     private static FormSettings Stored(string pdfJson)
     {

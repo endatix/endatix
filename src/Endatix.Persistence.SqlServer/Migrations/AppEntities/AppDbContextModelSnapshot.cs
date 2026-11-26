@@ -492,6 +492,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
+                    b.Property<string>("WebHooksJson")
+                        .HasColumnType("json");
+
                     b.HasKey("FormId");
 
                     b.ToTable("FormSettings", (string)null);

@@ -19,6 +19,24 @@ public sealed class FormSettingsWireSectionsTests
     private static readonly Dictionary<string, object> _nonDefault = new()
     {
         ["Pdf"] = new PdfSettings { UsesFormTheme = true },
+        ["WebHooks"] = new WebHookConfiguration
+        {
+            Events = new Dictionary<string, WebHookEventConfig>
+            {
+                ["SubmissionCompleted"] = new()
+                {
+                    IsEnabled = true,
+                    WebHookEndpoints =
+                    [
+                        new WebHookEndpointConfig
+                        {
+                            Url = "https://hooks.example.test/completed",
+                            Authentication = new WebHookAuthConfig { Type = "ApiKey", ApiKey = "key", ApiKeyHeader = "X-Key" },
+                        },
+                    ],
+                },
+            },
+        },
     };
 
     public static TheoryData<string> Sections() => new(

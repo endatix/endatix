@@ -98,6 +98,9 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
     public long? FolderId { get; private set; }
     public Folder? Folder { get; set; }
 
+    /// <summary>The form's own webhook settings, as the previous release reads them.</summary>
+    /// <remarks>Moving to <see cref="FormSettings.WebHooksJson"/>: every save copies a change here into that section in
+    /// the same transaction, and back, until this column is dropped (endatix/endatix#1784).</remarks>
     public string? WebHookSettingsJson
     {
         get => _webHookSettingsJson;

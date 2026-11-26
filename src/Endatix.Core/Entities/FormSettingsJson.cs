@@ -64,4 +64,19 @@ internal static class FormSettingsJson
             return false;
         }
     }
+
+    /// <summary>
+    /// Whether <paramref name="json"/> and <paramref name="stored"/> hold the same <typeparamref name="T"/>: compared after
+    /// each is read and written back canonically, so property-name casing and fields the section does not know do not
+    /// count. A missing or unreadable value is never the same.
+    /// </summary>
+    public static bool SameSection<T>(string json, string? stored) where T : class, new()
+    {
+        if (string.IsNullOrWhiteSpace(stored) || !TryRead<T>(json, out var section) || !TryRead<T>(stored, out var storedSection))
+        {
+            return false;
+        }
+
+        return SameContent(Write(section), Write(storedSection));
+    }
 }

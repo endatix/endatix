@@ -60,6 +60,15 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
     [NotMapped]
     public PdfSettings Pdf => FormSettingsJson.Read<PdfSettings>(PdfJson);
 
+    /// <summary>The form's own webhook settings as stored; null means the form has none, so its tenant's apply.</summary>
+    /// <remarks>Copied from <c>Forms.WebHookSettingsJson</c> as it was stored, so property names and event keys may be in
+    /// any case. Readers match both in any case, and go through <see cref="WebHooksOf"/> while the column stays.</remarks>
+    public string? WebHooksJson { get; private set; }
+
+    /// <summary>The form's own webhook settings; no events when none are stored.</summary>
+    [NotMapped]
+    public WebHookConfiguration WebHooks => FormSettingsJson.Read<WebHookConfiguration>(WebHooksJson);
+
     /// <summary>The sections whose stored JSON cannot be read, so they read as their defaults; named as on the wire.</summary>
     internal IEnumerable<string> UnreadableSections()
     {
@@ -67,39 +76,124 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         {
             yield return "pdf";
         }
+
+        if (!FormSettingsJson.IsReadable<WebHookConfiguration>(WebHooksJson))
+        {
+            yield return "webHooks";
+        }
     }
 
-    /// <summary>Replaces each section <paramref name="change"/> names whose value differs from the stored one.</summary>
+    /// <summary>Replaces each section <paramref name="change"/> names whose value differs from what readers see.</summary>
     /// <param name="change">The sections to replace, each whole; a null section is left alone.</param>
-    /// <param name="expectedVersion">The <see cref="Version"/> the caller read.</param>
-    /// <param name="at">When the change is made.</param>
+    /// <param name="form">The form these settings belong to; its webhook settings are written with the section.</param>
+    /// <param name="write">The <see cref="Version"/> the caller read, and when the change is made.</param>
     /// <returns>True when a section changed (the version goes up); false when every named section already holds its
-    /// value, whatever <paramref name="expectedVersion"/> is; <see cref="ResultStatus.Conflict"/> when a section differs
-    /// and <paramref name="expectedVersion"/> is stale.</returns>
-    /// <remarks>It compares with the stored JSON, not the resolved section, so a value equal to today's default is still
-    /// recorded when it was never stored.</remarks>
-    internal Result<bool> Apply(FormSettingsChange change, long expectedVersion, DateTime at)
+    /// value, whatever version the write names; <see cref="ResultStatus.Conflict"/> when a section differs and the
+    /// named version is stale.</returns>
+    /// <remarks>
+    /// The PDF section is compared with the stored JSON, not the resolved section, so a value equal to today's default is
+    /// still recorded when it was never stored. The webhooks section is compared with what <see cref="WebHooksOf"/>
+    /// returns, which is the form's column while it stays (endatix/endatix#1784): when an older instance wrote the column
+    /// alone, a body equal to the stale section still replaces it. A changed webhooks section is written to the form too,
+    /// so the column follows even when the section's stored text does not change.
+    /// </remarks>
+    /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
+    internal Result<bool> Apply(FormSettingsChange change, Form form, FormSettingsWrite write)
     {
         Guard.Against.Null(change);
+        var webHooksJson = Changed(change.WebHooks, ReadersWebHooksJson(form));
         var pdfJson = Changed(change.Pdf, PdfJson);
-        if (pdfJson is null)
+        if (pdfJson is null && webHooksJson is null)
         {
             return false;
         }
 
-        if (expectedVersion != Version)
+        if (write.ExpectedVersion != Version)
         {
             return Result.Conflict($"The form settings changed since they were read; they are now at version {Version}.");
         }
 
-        PdfJson = pdfJson;
-        ModifiedAt = at;
-        Version++;
+        PdfJson = pdfJson ?? PdfJson;
+        ReplaceWebHooks(form, webHooksJson, change.WebHooks);
+        Touch(write.At);
         return true;
     }
 
-    // The new canonical JSON when the section is named and differs from what is stored; otherwise null.
-    private static string? Changed<T>(T? section, string? stored) where T : class
+    /// <summary>
+    /// Copies <paramref name="form"/>'s webhook settings, as stored on the form, into <see cref="WebHooksJson"/>: null
+    /// when the form has none. Only for the release that writes both places, until <c>Forms.WebHookSettingsJson</c> is
+    /// dropped (endatix/endatix#1784).
+    /// </summary>
+    /// <returns>True when the section changed (the version goes up); false when it already holds the same content.</returns>
+    /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
+    public bool CopyWebHooksFrom(Form form, DateTime at)
+    {
+        EnsureOwnForm(form);
+        var stored = string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
+        if (stored is null ? WebHooksJson is null : FormSettingsJson.SameSection<WebHookConfiguration>(stored, WebHooksJson))
+        {
+            return false;
+        }
+
+        WebHooksJson = stored;
+        Touch(at);
+        return true;
+    }
+
+    /// <summary>
+    /// The webhook settings <paramref name="form"/> sends with, or null when its tenant's apply. While
+    /// <c>Forms.WebHookSettingsJson</c> stays (until endatix/endatix#1784) it is the copy every release writes, so it wins
+    /// when the two differ: an older instance during a rolling deploy, or a rollback, writes it alone. The section is used
+    /// when it holds the same settings, and the column is read as the section is, in any case.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="form"/> is not the form these settings belong to.</exception>
+    public WebHookConfiguration? WebHooksOf(Form form)
+    {
+        EnsureOwnForm(form);
+        if (string.IsNullOrWhiteSpace(form.WebHookSettingsJson))
+        {
+            return null;
+        }
+
+        return FormSettingsJson.SameSection<WebHookConfiguration>(form.WebHookSettingsJson, WebHooksJson)
+            ? WebHooks
+            : FormSettingsJson.Read<WebHookConfiguration>(form.WebHookSettingsJson);
+    }
+
+    // The section and the form's column together, so the previous release reads the same settings.
+    private void ReplaceWebHooks(Form form, string? webHooksJson, WebHookConfiguration? webHooks)
+    {
+        if (webHooksJson is null)
+        {
+            return;
+        }
+
+        WebHooksJson = webHooksJson;
+        form.UpdateWebHookSettings(webHooks);
+    }
+
+    // What readers see, as JSON to compare with: the column, or null when it is empty (the tenant's apply). When the
+    // section holds the same settings, comparing with the column gives the same answer as comparing with the section.
+    private string? ReadersWebHooksJson(Form form)
+    {
+        EnsureOwnForm(form);
+        return string.IsNullOrWhiteSpace(form.WebHookSettingsJson) ? null : form.WebHookSettingsJson;
+    }
+
+    private void EnsureOwnForm(Form form)
+    {
+        Guard.Against.Null(form);
+        Guard.Against.InvalidInput(form, nameof(form), candidate => candidate.Id == FormId, "The form is not the one these settings belong to.");
+    }
+
+    private void Touch(DateTime at)
+    {
+        ModifiedAt = at;
+        Version++;
+    }
+
+    // The new canonical JSON when the section is named and differs from what is stored, in any casing; otherwise null.
+    private static string? Changed<T>(T? section, string? stored) where T : class, new()
     {
         if (section is null)
         {
@@ -107,9 +201,15 @@ public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
         }
 
         var json = FormSettingsJson.Write(section);
-        return FormSettingsJson.SameContent(json, stored) ? null : json;
+        return FormSettingsJson.SameSection<T>(json, stored) ? null : json;
     }
 }
+
+/// <summary>The <see cref="FormSettings.Version"/> a form settings write names, and when it is made.</summary>
+/// <param name="ExpectedVersion">The version the caller read.</param>
+/// <param name="At">When the change is made.</param>
+[Experimental("ENDATIX0005")]
+internal readonly record struct FormSettingsWrite(long ExpectedVersion, DateTime At);
 
 /// <summary>The sections a form settings write replaces; a null section is left as it is.</summary>
 [Experimental("ENDATIX0005")]
@@ -117,6 +217,9 @@ public sealed record FormSettingsChange
 {
     /// <summary>The PDF section, replaced whole.</summary>
     public PdfSettings? Pdf { get; init; }
+
+    /// <summary>The form's own webhook settings, replaced whole.</summary>
+    public WebHookConfiguration? WebHooks { get; init; }
 }
 
 /// <summary>How a form's submission PDFs look. The C# defaults are the product defaults.</summary>

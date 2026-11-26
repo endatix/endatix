@@ -1,8 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text.Json;
 using Endatix.Api.Common;
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Common;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.FormSettings;
@@ -13,6 +15,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Endpoints.FormSettings;
 
@@ -106,18 +109,52 @@ public sealed class PartialUpdateFormSettingsRequest
     /// <summary>The PDF section, replaced whole.</summary>
     public PdfSettingsModel? Pdf { get; set; }
 
+    /// <summary>The form's own webhooks, replaced whole.</summary>
+    public WebHookSettingsModel? WebHooks { get; set; }
+
     /// <summary>The sections this request names, for the write.</summary>
-    internal FormSettingsChange ToChange() => new() { Pdf = Pdf?.ToSection() };
+    internal FormSettingsChange ToChange() => new() { Pdf = Pdf?.ToSection(), WebHooks = WebHooks?.ToSection() };
 }
 
 /// <summary>Validation rules for <see cref="PartialUpdateFormSettingsRequest"/>.</summary>
 [Experimental("ENDATIX0005")]
 public sealed class PartialUpdateFormSettingsValidator : Validator<PartialUpdateFormSettingsRequest>
 {
-    /// <summary>The form id is positive and the body names at least one section.</summary>
+    /// <summary>Validator without the server's settings: webhook endpoints on private and local networks are refused.</summary>
     public PartialUpdateFormSettingsValidator()
+        : this(OutboundAddressPolicy.PublicOnly)
+    {
+    }
+
+    /// <summary>The form id is positive, the body names at least one section, and webhooks pass the form endpoints'
+    /// rules: no retired event key, and endpoints allowed by <paramref name="outboundAddressPolicy"/>.</summary>
+    [ActivatorUtilitiesConstructor]
+    public PartialUpdateFormSettingsValidator(OutboundAddressPolicy outboundAddressPolicy)
     {
         RuleFor(x => x.FormId).GreaterThan(0);
-        RuleFor(x => x.Pdf).NotNull().WithMessage("Name at least one section, such as pdf.");
+        RuleFor(x => x.Pdf)
+            .NotNull()
+            .When(x => x.WebHooks is null)
+            .WithMessage("Name at least one section, such as pdf or webHooks.");
+        RuleFor(x => x.WebHooks)
+            .Must(webHooks => WebHooksError(webHooks!, outboundAddressPolicy) is null)
+            .WithMessage((_, webHooks) => WebHooksError(webHooks!, outboundAddressPolicy))
+            .When(x => x.WebHooks is not null);
+    }
+
+    private const string INCOMPLETE_WEBHOOKS_MESSAGE = "Each webhook event, its endpoint list and each endpoint must be an object.";
+
+    private static string? WebHooksError(WebHookSettingsModel webHooks, OutboundAddressPolicy policy)
+    {
+        // Null where the body sent null: the wire model does not stop a JSON null.
+        if (webHooks.Events is null
+            || webHooks.Events.Values.Any(@event => @event?.WebHookEndpoints is null || @event.WebHookEndpoints.Contains(null!)))
+        {
+            return INCOMPLETE_WEBHOOKS_MESSAGE;
+        }
+
+        var section = webHooks.ToSection();
+        return WebHookConfiguration.RetiredKeyError(section)
+            ?? WebHookConfiguration.EndpointUrlError(JsonSerializer.SerializeToElement(section), policy);
     }
 }

@@ -1,4 +1,3 @@
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Result;
@@ -74,8 +73,9 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         // Arrange: a request found no row and starts one; another request writes the form's first settings first
         var (tenantId, formId) = await InsertFormAsync();
         await using var slowDb = CreateDb(tenantId);
-        var slow = FormSettings.For(Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "slow")));
-        slow.Apply(_themeOff, 0, DateTime.UtcNow);
+        var slowForm = Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "slow"));
+        var slow = FormSettings.For(slowForm);
+        slow.Apply(_themeOff, slowForm, new(0, DateTime.UtcNow));
         await UpdateAsync((tenantId, formId), _themeOn, 0);
 
         // Act
@@ -94,7 +94,7 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         var (tenantId, formId) = await InsertFormAsync();
         await using var slowDb = CreateDb(tenantId);
         var slowForms = new EfRepository<Form>(slowDb, new EndatixSpecificationEvaluator([]));
-        var slow = new PartialUpdateFormSettingsHandler(slowForms, new RacingRepository(Repository(slowDb), () => UpdateAsync((tenantId, formId), _themeOn, 0)), new DateTimeProvider());
+        var slow = new PartialUpdateFormSettingsHandler(slowForms, new RacingFormSettingsRepository(Repository(slowDb), () => UpdateAsync((tenantId, formId), _themeOn, 0)), new DateTimeProvider());
 
         // Act
         var result = await slow.Handle(new PartialUpdateFormSettingsCommand(formId, 0, _themeOn), Cancellation);
@@ -112,9 +112,10 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         var (tenantId, formId) = await InsertFormAsync();
         await UpdateAsync((tenantId, formId), _themeOn, 0);
         await using var slowDb = CreateDb(tenantId);
+        var slowForm = Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "slow"));
         var slow = (await Repository(slowDb).FindAsync(formId, Cancellation))!;
         await UpdateAsync((tenantId, formId), _themeOff, 1);
-        slow.Apply(_themeOff, 1, DateTime.UtcNow).Value.Should().BeTrue("the slow copy still holds version 1, theme on");
+        slow.Apply(_themeOff, slowForm, new(1, DateTime.UtcNow)).Value.Should().BeTrue("the slow copy still holds version 1, theme on");
 
         // Act
         var saved = await Repository(slowDb).SaveOrConcedeAsync(slow, Cancellation);
@@ -186,23 +187,8 @@ public sealed class FormSettingsPersistenceTests(EndatixIntegrationWebHostFixtur
         return await Repository(db).ReadAsync(Form.Create(formId, new FormCreateArgs(TenantId: tenantId, Name: "read")), Cancellation);
     }
 
-    private static FormSettingsRepository Repository(AppDbContext db) => new(db, new UniqueConstraintViolationChecker());
-
-    // Lets another write land between this request's read and its save.
-    private sealed class RacingRepository(FormSettingsRepository inner, Func<Task> otherWrite) : IFormSettingsRepository
-    {
-        public Task<FormSettings> ReadAsync(Form form, CancellationToken cancellationToken) =>
-            inner.ReadAsync(form, cancellationToken);
-
-        public Task<FormSettings?> FindAsync(long formId, CancellationToken cancellationToken) =>
-            inner.FindAsync(formId, cancellationToken);
-
-        public async Task<bool> SaveOrConcedeAsync(FormSettings settings, CancellationToken cancellationToken)
-        {
-            await otherWrite();
-            return await inner.SaveOrConcedeAsync(settings, cancellationToken);
-        }
-    }
+    private static FormSettingsRepository Repository(AppDbContext db) =>
+        new(db, new EfRepository<Form>(db, new EndatixSpecificationEvaluator([])), new UniqueConstraintViolationChecker());
 
     private AppDbContext CreateDb(long tenantId)
     {

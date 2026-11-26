@@ -27,4 +27,13 @@ public interface IFormSettingsRepository
     /// <returns>True when saved; false when another write won the race. Nothing of the refused save stays tracked, so a
     /// later save in the same scope does not replay it.</returns>
     Task<bool> SaveOrConcedeAsync(FormSettings settings, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates <paramref name="form"/>. While a form's webhook settings are kept in both places (endatix/endatix#1784), a
+    /// save that changes them writes the form's settings too, so it can lose to another form save or a settings write
+    /// on the same form.
+    /// </summary>
+    /// <returns>True when saved; false when it lost that race. The whole save rolled back, and nothing of it stays
+    /// tracked, so a later save in the same scope does not replay it.</returns>
+    Task<bool> UpdateFormOrConcedeAsync(Form form, CancellationToken cancellationToken);
 }

@@ -13,10 +13,11 @@ namespace Endatix.Infrastructure.Features.WebHooks;
 /// </summary>
 /// <remarks>
 /// The one place that lookup lives, so inline delivery, the fan-out to webhook jobs and each job at send time all
-/// resolve an event's endpoints the same way.
+/// resolve an event's endpoints the same way. The form's own configuration comes from
+/// <see cref="FormWebHookSettingsReader"/>.
 /// </remarks>
 public sealed class WebHookEventConfigReader(
-    IRepository<Form> formRepository,
+    FormWebHookSettingsReader formSettingsReader,
     IRepository<TenantSettings> tenantSettingsRepository,
     ILogger<WebHookEventConfigReader> logger)
 {
@@ -52,23 +53,8 @@ public sealed class WebHookEventConfigReader(
             lookup.TenantId,
             lookup.FormId);
 
-    // Scoped to the tenant explicitly: in a background job nothing else scopes this read, and a form of another
-    // tenant must not lend its endpoints to this one's event.
-    private async Task<WebHookConfiguration?> FormConfigAsync(
-        long? formId,
-        long tenantId,
-        CancellationToken cancellationToken)
-    {
-        if (formId is not { } id)
-        {
-            return null;
-        }
-
-        var form = await formRepository.FirstOrDefaultAsync(
-            new FormSpecifications.ByIdForTenant(id, tenantId),
-            cancellationToken);
-        return form is not null && !string.IsNullOrEmpty(form.WebHookSettingsJson) ? form.WebHookSettings : null;
-    }
+    private Task<WebHookConfiguration?> FormConfigAsync(long? formId, long tenantId, CancellationToken cancellationToken) =>
+        formId is { } id ? formSettingsReader.ReadAsync(id, tenantId, cancellationToken) : Task.FromResult<WebHookConfiguration?>(null);
 
     private async Task<WebHookConfiguration?> TenantConfigAsync(long tenantId, CancellationToken cancellationToken)
     {

@@ -15,5 +15,8 @@ internal sealed class FormSettingsConfigurationSqlServer : IEntityTypeConfigurat
     {
         builder.Property(settings => settings.PdfJson)
             .HasColumnType("json");
+
+        builder.Property(settings => settings.WebHooksJson)
+            .HasColumnType("json");
     }
 }

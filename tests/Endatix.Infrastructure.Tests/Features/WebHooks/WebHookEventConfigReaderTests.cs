@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Features.WebHooks;
 using Endatix.Core.Infrastructure.Domain;
@@ -17,11 +18,14 @@ public sealed class WebHookEventConfigReaderTests
     private const string EventName = "form_updated";
     private const string FormUrl = "https://form.example.test/hooks";
     private const string TenantUrl = "https://tenant.example.test/hooks";
+    private const string SECTION_URL = "https://section.example.test/hooks";
 
     private readonly List<Form> _forms = [];
     private readonly List<TenantSettings> _tenantSettings = [];
     private readonly IRepository<Form> _formRepository = Substitute.For<IRepository<Form>>();
     private readonly IRepository<TenantSettings> _tenantSettingsRepository = Substitute.For<IRepository<TenantSettings>>();
+    private readonly Dictionary<long, FormSettings> _formSettings = [];
+    private readonly IFormSettingsRepository _formSettingsRepository = Substitute.For<IFormSettingsRepository>();
 
     public WebHookEventConfigReaderTests()
     {
@@ -32,6 +36,108 @@ public sealed class WebHookEventConfigReaderTests
         _tenantSettingsRepository
             .FirstOrDefaultAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>())
             .Returns(call => call.Arg<TenantSettingsByTenantIdSpec>().Evaluate(_tenantSettings).FirstOrDefault());
+        _formSettingsRepository
+            .ReadAsync(Arg.Any<Form>(), Arg.Any<CancellationToken>())
+            .Returns(call => _formSettings.GetValueOrDefault(call.Arg<Form>().Id) ?? FormSettings.For(call.Arg<Form>()));
+    }
+
+    [Fact]
+    public async Task GetEventConfigAsync_SectionSameAsTheColumnInAnotherCasing_UsesIt()
+    {
+        // Arrange — a settings write stores camelCase; the column holds the same settings in Pascal case.
+        var form = SeedForm(TenantId);
+        StoreSection(form, "{\"events\":{\"FormUpdated\":{\"isEnabled\":true,\"webHookEndpoints\":[{\"url\":\"" + FormUrl + "\"}]}}}");
+        SeedTenantSettings(TenantId);
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(Lookup(), CancellationToken.None);
+
+        // Assert
+        config!.WebHookEndpoints.Should().ContainSingle().Which.Url.Should().Be(FormUrl);
+    }
+
+    [Fact]
+    public async Task GetEventConfigAsync_ColumnWrittenAloneAfterTheCopy_UsesTheColumn()
+    {
+        // Arrange — an older instance changed the form's webhooks after the migration copied them: only the column moved.
+        var form = SeedForm(TenantId);
+        StoreSection(form, StoredEvents($"\"FormUpdated\":{Endpoint(SECTION_URL)}"));
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(Lookup(), CancellationToken.None);
+
+        // Assert
+        config!.WebHookEndpoints.Should().ContainSingle().Which.Url.Should().Be(FormUrl);
+    }
+
+    [Fact]
+    public async Task GetEventConfigAsync_ColumnClearedAloneAfterTheCopy_UsesTheTenant()
+    {
+        // Arrange — an older instance cleared the form's webhooks; the section still holds the copy.
+        var form = SeedForm(TenantId);
+        StoreSection(form, StoredEvents($"\"FormUpdated\":{Endpoint(SECTION_URL)}"));
+        form.UpdateWebHookSettings(null);
+        SeedTenantSettings(TenantId);
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(Lookup(), CancellationToken.None);
+
+        // Assert
+        config!.WebHookEndpoints.Should().ContainSingle().Which.Url.Should().Be(TenantUrl);
+    }
+
+    [Theory]
+    [InlineData("formupdated")]
+    [InlineData("FORMUPDATED")]
+    public async Task GetEventConfigAsync_StoredKeyInAnyCase_ReadsIt(string storedKey)
+    {
+        // Arrange — the copy keeps the stored document as it is, and stored keys match event names in any case.
+        var stored = "{\"events\":{\"" + storedKey + "\":" + Endpoint(SECTION_URL) + "}}";
+        var form = SeedForm(TenantId);
+        StoreColumn(form, stored);
+        StoreSection(form, stored);
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(Lookup(), CancellationToken.None);
+
+        // Assert
+        config!.WebHookEndpoints.Should().ContainSingle().Which.Url.Should().Be(SECTION_URL);
+    }
+
+    [Fact]
+    public async Task GetEventConfigAsync_FormWithoutASection_UsesItsColumn()
+    {
+        // Arrange — a form an older instance created during a rolling deploy has no section yet.
+        SeedForm(TenantId);
+        SeedTenantSettings(TenantId);
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(Lookup(), CancellationToken.None);
+
+        // Assert
+        config!.WebHookEndpoints.Should().ContainSingle().Which.Url.Should().Be(FormUrl);
+    }
+
+    [Fact]
+    public async Task GetEventConfigAsync_FormWithNoEventsOfItsOwn_DoesNotFallBackToTheTenant()
+    {
+        // Arrange — any stored form document replaces the tenant's, as the column always did.
+        var form = SeedForm(TenantId);
+        StoreColumn(form, """{"Events":{}}""");
+        StoreSection(form, """{"events":{}}""");
+        SeedTenantSettings(TenantId);
+        var reader = CreateReader();
+
+        // Act
+        var config = await reader.GetEventConfigAsync(Lookup(), CancellationToken.None);
+
+        // Assert
+        config.Should().BeNull();
     }
 
     [Fact]
@@ -97,7 +203,7 @@ public sealed class WebHookEventConfigReaderTests
     private static WebHookEventLookup Lookup() => new(TenantId, EventName, FormId);
 
     private WebHookEventConfigReader CreateReader() =>
-        new(_formRepository, _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance);
+        new(new FormWebHookSettingsReader(_formRepository, _formSettingsRepository), _tenantSettingsRepository, NullLogger<WebHookEventConfigReader>.Instance);
 
     [Theory]
     [InlineData("SubmissionCollectionStatusChanged")]
@@ -143,12 +249,25 @@ public sealed class WebHookEventConfigReaderTests
         _tenantSettings.Add(settings);
     }
 
-    private void SeedForm(long tenantId)
+    private Form SeedForm(long tenantId)
     {
         var form = Form.Create(new FormCreateArgs(TenantId: tenantId, Name: "Test Form"));
         form.Id = FormId;
         form.UpdateWebHookSettings(ConfigFor(FormUrl));
         _forms.Add(form);
+        return form;
+    }
+
+    // As an earlier writer stored it: the entity's guards are not on the read path.
+    private static void StoreColumn(Form form, string json) =>
+        typeof(Form).GetProperty(nameof(Form.WebHookSettingsJson))!.SetValue(form, json);
+
+    // As the migration copies a document: as it is, whatever its casing.
+    private void StoreSection(Form form, string json)
+    {
+        var settings = FormSettings.For(form);
+        typeof(FormSettings).GetProperty(nameof(FormSettings.WebHooksJson))!.SetValue(settings, json);
+        _formSettings[form.Id] = settings;
     }
 
     private void SeedTenantSettings(long tenantId)

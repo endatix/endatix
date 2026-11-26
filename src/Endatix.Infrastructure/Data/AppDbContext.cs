@@ -123,6 +123,10 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;
 
+    /// <inheritdoc/>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
+        optionsBuilder.AddInterceptors(FormWebHookSettingsMirror.Instance);
+
     public override int SaveChanges()
     {
         try
