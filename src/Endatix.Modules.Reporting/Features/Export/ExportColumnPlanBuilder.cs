@@ -40,7 +40,10 @@ internal static class ExportColumnPlanBuilder
         var columns = AliasedQuestionColumns(source, scopedKeys);
         var omittedKeys = AddNonQuestionBlocks(source, columns, KeysTakenByQuestions(source, columns, scopedKeys));
 
-        EnsureUniqueExportKeys(columns);
+        if (request.RequireUniqueKeys)
+        {
+            EnsureUniqueExportKeys(columns);
+        }
 
         return new ExportColumnPlan(columns, omittedKeys);
     }

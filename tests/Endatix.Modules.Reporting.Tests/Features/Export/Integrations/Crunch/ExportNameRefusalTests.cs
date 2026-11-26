@@ -42,4 +42,24 @@ public sealed class ExportNameRefusalTests
         // Assert
         csv.IsSuccess.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task CsvShoji_QuestionNamedLikeARangeBound_IsRefusedWithBothMeanings()
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"elements":[{"type":"slider","name":"s","sliderType":"range","min":0,"max":10},{"type":"text","name":"s--min"}]}]}
+            """;
+        var schema = PersonalizationPipeline.Compile(definition).Entity();
+
+        // Act
+        var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(schema, [], """{"keySeparator":"--"}"""), TestContext.Current.CancellationToken);
+
+        // Assert
+        foreach (var prepared in new[] { csv, shoji })
+        {
+            prepared.ValidationErrors.Should().ContainSingle().Which.ErrorMessage.Should()
+                .Contain("question 's--min'").And.Contain("a min or max column of range question 's'");
+        }
+    }
 }

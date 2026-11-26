@@ -108,6 +108,25 @@ public sealed class ExportNameCollisionsTests
         collisions.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Find_QuestionNamedLikeARangeBound_ReturnsTheBound(bool codebook)
+    {
+        // Arrange
+        var schema = Schema("""{"type":"slider","name":"s","sliderType":"range","min":0,"max":10},{"type":"text","name":"s--min"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _coded, codebook ? ExportNameFile.ShojiCodebook : ExportNameFile.Tabular));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        collision.Name.Should().Be("s--min");
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning("s--min", ExportNameKind.Ordinary), new ExportNameMeaning("s", ExportNameKind.Bound)]);
+        collision.Rename.Should().Be("s--min");
+    }
+
     private static FormSchemaEntity Schema(string element)
     {
         var definition = $$"""{"pages":[{"elements":[{{element}},{{PANEL}}]}]}""";

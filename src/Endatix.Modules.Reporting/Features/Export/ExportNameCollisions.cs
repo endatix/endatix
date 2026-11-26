@@ -4,6 +4,7 @@ using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using Endatix.Modules.Reporting.Shared.SurveyJs;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export;
@@ -15,6 +16,7 @@ internal enum ExportNameKind
     Companion,
     GroupParent,
     Subvariable,
+    Bound,
 }
 
 internal sealed record ExportNameMeaning(string Question, ExportNameKind Kind)
@@ -26,6 +28,7 @@ internal sealed record ExportNameMeaning(string Question, ExportNameKind Kind)
         ExportNameKind.Companion => $"the Other text of question '{Question}'",
         ExportNameKind.GroupParent => $"the variable that groups question '{Question}'",
         ExportNameKind.Subvariable => $"a column of question '{Question}'",
+        ExportNameKind.Bound => $"a min or max column of range question '{Question}'",
         _ => $"question '{Question}'",
     };
 
@@ -106,8 +109,9 @@ internal static class ExportNameCollisions
         public IEnumerable<(string Alias, ExportNameMeaning Meaning)> In(ColumnAliasProfile profile)
         {
             var plan = ExportColumnPlanBuilder.Build(request.Schema, new ExportColumnPlanRequest(
-                _settings.Locale, profile, KeySeparator: _settings.KeySeparator, AliasRegistry: request.Registry, ReadWithShojiCodebook: true));
-            var keys = plan.Columns.ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
+                _settings.Locale, profile, KeySeparator: _settings.KeySeparator, AliasRegistry: request.Registry, ReadWithShojiCodebook: true, RequireUniqueKeys: false));
+            var keys = plan.Columns.DistinctBy(column => column.CanonicalKey, StringComparer.Ordinal)
+                .ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
             return plan.Columns.Select(column => (column.ExportKey, Meaning(column.CanonicalKey)))
                 .Concat(WritesParents(profile) ? _parents : [])
                 .Concat(catalog.OtherTextKeys.Keys.Select(parent => (
@@ -121,16 +125,28 @@ internal static class ExportNameCollisions
             request.File is ExportNameFile.ShojiCodebook &&
             (profile is ColumnAliasProfile.Native || _settings.SpecialChoiceCodes is not null);
 
-        private ExportNameMeaning Meaning(string canonicalKey) =>
-            _columns.TryGetValue(canonicalKey, out var column)
-                ? new(Question(column), column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.MatrixRow or FormSchemaColumnKind.RankingChoice
-                    ? ExportNameKind.Subvariable : ExportNameKind.Ordinary)
+        private ExportNameMeaning Meaning(string canonicalKey)
+        {
+            if (_columns.TryGetValue(canonicalKey, out var column))
+            {
+                return new(Question(column), column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.MatrixRow or FormSchemaColumnKind.RankingChoice
+                    ? ExportNameKind.Subvariable : ExportNameKind.Ordinary);
+            }
+
+            // A range slider's min and max columns are generated from its own key.
+            return IsBound(canonicalKey) && _columns.TryGetValue(ExportKeyTransformer.RemoveLastSegment(canonicalKey), out var slider)
+                ? new(Question(slider), ExportNameKind.Bound)
                 : new(canonicalKey, ExportNameKind.Ordinary);
+        }
     }
 
     /// <summary>The 400 an export returns: one error per contested name, each with both meanings and the question to rename.</summary>
     public static Result<T> Refusal<T>(IReadOnlyList<ExportNameCollision> collisions) =>
         Result<T>.Invalid([.. collisions.Select(collision => collision.Error())]);
+
+    private static bool IsBound(string canonicalKey) =>
+        canonicalKey.EndsWith(ExportPathBuilder.SEGMENT_DELIMITER + "min", StringComparison.Ordinal) ||
+        canonicalKey.EndsWith(ExportPathBuilder.SEGMENT_DELIMITER + "max", StringComparison.Ordinal);
 
     private static string Question(FormSchemaColumn column) => column.SourceQuestion ?? column.Key;
 
