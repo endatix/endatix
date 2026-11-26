@@ -4,6 +4,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.CustomQuestions.Create;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Data.Locking;
 
@@ -11,17 +12,22 @@ namespace Endatix.Infrastructure.Data.Locking;
 internal sealed class SerializeCustomQuestionCreation(AppDbContext db, ITransactionLock locks, ITenantContext tenant)
     : IPipelineBehavior<CreateCustomQuestionCommand, Result<CustomQuestion>>
 {
-    public async Task<Result<CustomQuestion>> Handle(CreateCustomQuestionCommand request,
+    public Task<Result<CustomQuestion>> Handle(CreateCustomQuestionCommand request,
+        RequestHandlerDelegate<Result<CustomQuestion>> next, CancellationToken cancellationToken) =>
+        tenant.TenantId is > 0 and var id ? ExecuteAsync(CatalogKey(id), next, cancellationToken)
+            : Task.FromResult<Result<CustomQuestion>>(Result.Forbidden());
+
+    private async Task<Result<CustomQuestion>> ExecuteAsync(TransactionLockRequest key,
         RequestHandlerDelegate<Result<CustomQuestion>> next, CancellationToken cancellationToken)
     {
-        var id = tenant.TenantId;
-        if (id <= 0)
-        {
-            return Result.Forbidden();
-        }
         try
         {
-            return await CreateUnderLockAsync(id, next, cancellationToken);
+            if (db.Database.CurrentTransaction is not null)
+            {
+                await locks.AcquireAsync(db.Database, key, cancellationToken);
+                return await next();
+            }
+            return await CreateUnderLockAsync(key, next, cancellationToken);
         }
         catch (TransactionLockTimeoutException)
         {
@@ -29,17 +35,28 @@ internal sealed class SerializeCustomQuestionCreation(AppDbContext db, ITransact
         }
     }
 
-    private async Task<Result<CustomQuestion>> CreateUnderLockAsync(long id, RequestHandlerDelegate<Result<CustomQuestion>> create, CancellationToken ct)
+    // Matching uses the database collation. Equivalent names must take the same lock on both providers.
+    private static TransactionLockRequest CatalogKey(long id) =>
+        new(TransactionLockScopes.CustomQuestionNames, id.ToString(CultureInfo.InvariantCulture)) { Timeout = TimeSpan.FromSeconds(5) };
+
+    private Task<Result<CustomQuestion>> CreateUnderLockAsync(TransactionLockRequest key, RequestHandlerDelegate<Result<CustomQuestion>> create, CancellationToken ct)
     {
-        // Matching uses the database collation. Equivalent names must take the same lock on both providers.
-        var key = new TransactionLockRequest(TransactionLockScopes.CustomQuestionNames, id.ToString(CultureInfo.InvariantCulture))
-        { Timeout = TimeSpan.FromSeconds(5) };
-        await using var transaction = await locks.BeginLockedTransactionAsync(db.Database, key, ct);
-        var result = await create();
-        if (result.IsSuccess)
+        var dispatched = false;
+        return db.Database.CreateExecutionStrategy().ExecuteAsync(async token =>
         {
-            await transaction.CommitAsync(ct);
-        }
-        return result;
+            // Retry connection and lock acquisition, never replay a handler or an ambiguous commit.
+            if (dispatched)
+            {
+                return Result<CustomQuestion>.Unavailable("Could not confirm creation. Check the question list and try again.");
+            }
+            await using var transaction = await locks.BeginLockedTransactionAsync(db.Database, key, token);
+            dispatched = true;
+            var result = await create();
+            if (result.IsSuccess)
+            {
+                await transaction.CommitAsync(token);
+            }
+            return result;
+        }, ct);
     }
 }

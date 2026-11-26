@@ -3,7 +3,10 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.IntegrationTests.Shared;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -12,12 +15,47 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests
 {
     [Fact]
-    public async Task Concurrent_creates_of_one_question_name_leave_one_question()
+    public async Task A_busy_question_catalog_returns_a_retryable_failure_without_creating_a_question()
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        await using var scope = world.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var locks = scope.ServiceProvider.GetRequiredService<ITransactionLock>();
+        var key = new TransactionLockRequest(TransactionLockScopes.CustomQuestionNames, world.Tenants[0].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        await using var held = await locks.BeginLockedTransactionAsync(db.Database, key, ct);
+
+        // Act
+        using var response = await admin.PostAsJsonAsync("/api/questions", new { name = "Rating", jsonData = """{"type":"rating"}""" }, ct);
+
+        // Assert
+        await AssertUnavailableQuestionsAsync(response, ct);
+        var page = await admin.GetFromJsonAsync<JsonElement>("/api/questions", ct);
+        Assert.Empty(page.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Concurrent_creates_of_one_question_name_leave_one_question()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        await using var host = new ReportingWebHost(fixture, services => services.ConfigureDbContext<AppDbContext>(options =>
+        {
+            if (fixture.Database.Provider == TestDatabaseProvider.SqlServer)
+            {
+                options.UseSqlServer(fixture.Database.ConnectionString, sql => sql.EnableRetryOnFailure());
+            }
+            else
+            {
+                options.UseNpgsql(fixture.Database.ConnectionString, pg => pg.EnableRetryOnFailure());
+            }
+        }));
+        using var admin = host.CreateClient();
+        admin.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
         const string route = "/api/questions";
         var question = new { name = "Rating", jsonData = """{"type":"rating"}""" };
 

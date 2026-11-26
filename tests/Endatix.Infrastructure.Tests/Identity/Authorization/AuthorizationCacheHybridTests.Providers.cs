@@ -7,6 +7,65 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 public sealed partial class AuthorizationCacheHybridTests
 {
     [Theory]
+    [InlineData(true, "", "/profile")]
+    [InlineData(false, "profile", "profile")]
+    public async Task GetOrCreateAsync_InvalidReport_UsesProviderFailurePolicy(bool mandatory, string key, string path)
+    {
+        // Arrange
+        var provider = ReportProvider(new RequiredAction
+        {
+            Key = key,
+            ResolvePath = path,
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Notice
+        });
+        provider.FailClosed.Returns(mandatory);
+        var original = CreateData(default);
+
+        // Act
+        var result = await CreateInstance(false, provider).GetOrCreateAsync(CreatePrincipal(),
+            _ => Task.FromResult(Result.Success(original)), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.RequiredActionsUnavailable.Should().Be(mandatory);
+        result.RequiredActions.Should().BeEmpty();
+        result.Permissions.Should().BeEquivalentTo(original.Permissions);
+    }
+
+    [Theory]
+    [InlineData(false, "roles")]
+    [InlineData(false, "scope")]
+    [InlineData(true, "severity")]
+    public async Task GetOrCreateAsync_IncompleteReport_AppliesOnlyTheFaultyProvidersPolicy(bool mandatory, string field)
+    {
+        // Arrange
+        var notice = new RequiredAction
+        {
+            Key = "help",
+            ResolvePath = "/help",
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Notice
+        };
+        var invalid = field switch
+        {
+            "roles" => notice with { ResolverRoles = null! },
+            "scope" => notice with { Scope = (RequiredActionScope)99 },
+            _ => notice with { Severity = (RequiredActionSeverity)99 }
+        };
+        var malformed = ReportProvider(invalid with { Key = "incomplete" });
+        malformed.FailClosed.Returns(mandatory);
+        var cache = CreateInstance(false, ReportProvider(notice), malformed);
+
+        // Act
+        var snapshot = await cache.GetOrCreateAsync(CreatePrincipal(), _ => Task.FromResult(Result.Success(CreateData(default))),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        snapshot.RequiredActionsUnavailable.Should().Be(mandatory);
+        snapshot.RequiredActions.Select(action => action.Key).Should().Equal(mandatory ? [] : new[] { "help" });
+    }
+
+    [Theory]
     [InlineData(true, false)]
     [InlineData(false, false)]
     [InlineData(true, true)]

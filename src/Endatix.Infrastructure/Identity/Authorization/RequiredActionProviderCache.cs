@@ -22,13 +22,17 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
         internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
         {
-            if (actions.Any(action => action is null || string.IsNullOrWhiteSpace(action.Key) || !IsLocalPath(action.ResolvePath) || action.ResolverRoles is null))
+            if (actions.Any(action => !Valid(action)))
             {
-                throw new InvalidOperationException("Required action reports must supply a key and an application-relative resolver path.");
+                throw new InvalidOperationException("The provider returned an invalid required action.");
             }
             var deadline = actions is RequiredActionReport report ? report.ValidUntil.UtcDateTime : DateTime.MaxValue;
             return new(actions, Earlier(now + policy.CacheFor, deadline), Earlier(now.AddMinutes(1), deadline));
         }
+
+        private static bool Valid(RequiredAction? action) => action is not null && !string.IsNullOrWhiteSpace(action.Key)
+            && IsLocalPath(action.ResolvePath) && action.ResolverRoles is not null
+            && Enum.IsDefined(action.Scope) && Enum.IsDefined(action.Severity);
 
         private static bool IsLocalPath(string? path) => path is ['/', ..] && path is not ['/', '/' or '\\', ..]
             && !path.Any(char.IsControl);

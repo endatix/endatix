@@ -13,7 +13,7 @@ namespace Endatix.Infrastructure.Data.Repositories;
 /// </summary>
 public sealed class DataListRepository(
     AppDbContext dbContext,
-    IRelationalJsonObjectKeyFilter jsonObjectKeyFilter) : IDataListRepository
+    IRelationalJsonObjectKeyFilter jsonObjectKeyFilter) : IDataListRepository, ITenantLocaleCatalog
 {
     /// <inheritdoc />
     public async Task<DataListSearchPageResult?> SearchItemsAsync(
@@ -131,12 +131,16 @@ public sealed class DataListRepository(
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<string>> ListDistinctLocalesAsync(
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<string>> ListDistinctLocalesAsync(CancellationToken cancellationToken = default) =>
+        ReadLocalesAsync(dbContext.DataLists, cancellationToken);
+
+    Task<IReadOnlyList<string>> ITenantLocaleCatalog.ListForTenantAsync(long tenantId, CancellationToken ct) =>
+        tenantId > 0 ? ReadLocalesAsync(dbContext.DataLists.Where(list => list.TenantId == tenantId), ct)
+            : Task.FromResult<IReadOnlyList<string>>([]);
+
+    private static async Task<IReadOnlyList<string>> ReadLocalesAsync(IQueryable<DataList> lists, CancellationToken cancellationToken)
     {
-        var tenantId = dbContext.GetTenantId();
-        var rows = await dbContext.DataLists
-            .Where(list => tenantId > 0 && list.TenantId == tenantId)
+        var rows = await lists
             .AsNoTracking()
             .Select(dataList => new
             {

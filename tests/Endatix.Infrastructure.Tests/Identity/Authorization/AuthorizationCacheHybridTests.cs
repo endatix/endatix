@@ -219,32 +219,6 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
     }
 
     [Theory]
-    [InlineData(true, "", "/profile")]
-    [InlineData(false, "profile", "profile")]
-    public async Task GetOrCreateAsync_InvalidReport_UsesProviderFailurePolicy(bool mandatory, string key, string path)
-    {
-        // Arrange
-        var provider = ReportProvider(new RequiredAction
-        {
-            Key = key,
-            ResolvePath = path,
-            Scope = RequiredActionScope.User,
-            Severity = RequiredActionSeverity.Notice
-        });
-        provider.FailClosed.Returns(mandatory);
-        var original = CreateData(default);
-
-        // Act
-        var result = await CreateInstance(false, provider).GetOrCreateAsync(CreatePrincipal(),
-            _ => Task.FromResult(Result.Success(original)), TestContext.Current.CancellationToken);
-
-        // Assert
-        result.RequiredActionsUnavailable.Should().Be(mandatory);
-        result.RequiredActions.Should().BeEmpty();
-        result.Permissions.Should().BeEquivalentTo(original.Permissions);
-    }
-
-    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task GetOrCreateAsync_ProviderOffline_RetriesAfterFifteenSeconds(bool mandatory)
@@ -280,29 +254,6 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
             Calls++;
             throw new HttpRequestException("Offline");
         }
-    }
-
-    [Fact]
-    public async Task GetOrCreateAsync_IncompleteOptionalReport_PreservesAnotherProvidersNotice()
-    {
-        // Arrange
-        var notice = new RequiredAction
-        {
-            Key = "help",
-            ResolvePath = "/help",
-            Scope = RequiredActionScope.User,
-            Severity = RequiredActionSeverity.Notice
-        };
-        var malformed = ReportProvider(notice with { Key = "incomplete", ResolverRoles = null! });
-        var cache = CreateInstance(false, ReportProvider(notice), malformed);
-
-        // Act
-        var snapshot = await cache.GetOrCreateAsync(CreatePrincipal(), _ => Task.FromResult(Result.Success(CreateData(default))),
-            TestContext.Current.CancellationToken);
-
-        // Assert
-        snapshot.RequiredActionsUnavailable.Should().BeFalse();
-        snapshot.RequiredActions.Should().ContainSingle().Which.Key.Should().Be("help");
     }
 
     private sealed class ConfiguredProvider(string revision) : IRequiredActionProvider

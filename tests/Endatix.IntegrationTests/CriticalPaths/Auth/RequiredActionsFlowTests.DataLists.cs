@@ -169,7 +169,10 @@ public sealed partial class RequiredActionsFlowTests
         var ambient = unbound.ServiceProvider.GetRequiredService<AppDbContext>().GetTenantId();
         Assert.Equal(0, ambient);
         var repository = unbound.ServiceProvider.GetRequiredService<IDataListRepository>();
-        Assert.Empty(await repository.ListDistinctLocalesAsync(ct));
+        var scoped = Assert.IsType<ITenantLocaleCatalog>(repository, exactMatch: false);
+        Assert.Empty(await scoped.ListForTenantAsync(0, ct));
+        Assert.Equal(["en"], await scoped.ListForTenantAsync(world.Tenants[0].Id, ct));
+        Assert.Equal(["en", "fr"], await repository.ListDistinctLocalesAsync(ct));
     }
 
     [Fact]

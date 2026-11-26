@@ -22,11 +22,14 @@ public sealed class ListDistinctDataListLocalesHandler(IDataListRepository repos
         ListDistinctDataListLocalesQuery request,
         CancellationToken cancellationToken)
     {
-        if (tenant?.TenantId <= 0)
+        var tenantId = tenant?.TenantId;
+        if (tenantId <= 0)
         {
             return Result.Unauthorized("Tenant context is required.");
         }
-        var locales = await repository.ListDistinctLocalesAsync(cancellationToken);
+        var locales = tenantId is long id && repository is ITenantLocaleCatalog catalog
+            ? await catalog.ListForTenantAsync(id, cancellationToken)
+            : await repository.ListDistinctLocalesAsync(cancellationToken);
         return Result.Success(locales);
     }
 

@@ -25,3 +25,8 @@ public interface IDataListRepository
     Task<IReadOnlyList<string>> ListDistinctLocalesAsync(
         CancellationToken cancellationToken = default);
 }
+
+internal interface ITenantLocaleCatalog
+{
+    Task<IReadOnlyList<string>> ListForTenantAsync(long tenantId, CancellationToken ct);
+}
