@@ -69,6 +69,29 @@ public sealed class CodedPanelExportsTests
         rows.Single()[headers.IndexOf("Q2")].Should().Be("99");
     }
 
+    [Theory]
+    [InlineData("native")]
+    [InlineData("crunch")]
+    public async Task Export_CodedShojiWithoutOtherText_KeepsTheFormatKeySeparator(string profile)
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"elements":[{"type":"multipletext","name":"participant","items":[{"name":"region"}]},
+              {"type":"dropdown","name":"q","choices":["a"],"showNoneItem":true}]}]}
+            """;
+        var settings = $$"""{"aliasProfile":"{{profile}}","keySeparator":"__","specialChoiceCodes":{"none":99} }""";
+        var pipeline = PersonalizationPipeline.Compile(definition);
+
+        // Act
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), TestContext.Current.CancellationToken, settings);
+
+        // Assert
+        var metadata = Metadata(shoji);
+        metadata.Should().ContainKey("participant__region");
+        metadata.Select(pair => pair.Key).Concat(metadata.Select(pair => (string)pair.Value!["alias"]!))
+            .Should().NotContain(name => name.Contains("--"));
+    }
+
     private static JsonObject Metadata(string shoji) =>
         JsonNode.Parse(shoji)!["body"]!["table"]!["metadata"]!.AsObject();
 

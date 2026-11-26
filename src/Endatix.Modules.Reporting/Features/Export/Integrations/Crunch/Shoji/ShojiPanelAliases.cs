@@ -14,10 +14,11 @@ internal sealed record ShojiPanelAliases(PanelExportColumns Native, Dictionary<s
         {
             return null;
         }
-        // Aliases follow the CSV's column plan whenever codes are set, with or without an Other-text companion.
+        // Aliases follow the CSV's column plan whenever codes are set; only an Other-text companion, which csv-shoji
+        // names on its own separator, moves the default separator to the Crunch one.
         using var doc = JsonDocument.Parse(schema.Codebook);
         var catalog = new CrunchQuestions(doc.RootElement, settings.SpecialChoiceCodes, FormSchemaFlatteningMap.FromJson(schema.FlatteningMap));
-        var separator = settings.KeySeparator == ExportFormatSettings.DefaultKeySeparator
+        var separator = catalog.OtherTextKeys.Count > 0 && settings.KeySeparator == ExportFormatSettings.DefaultKeySeparator
             ? ExportFormatSettings.InterimCrunchKeySeparator : settings.KeySeparator;
         var native = Columns(ColumnAliasProfile.Native);
         return new(native, settings.AliasProfile == ColumnAliasProfile.Native ? null : Columns(settings.AliasProfile).AliasesFrom(native), separator);
