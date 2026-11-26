@@ -378,7 +378,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
 
         var jwtOptions = Options.Create(new EndatixJwtOptions { SigningKey = "test-signing-key-32-characters" });
         return new AuthorizationCache(
-            new(provider.GetRequiredService<HybridCache>(), provider.GetRequiredService<IMemoryCache>(), provider.GetService<IDistributedCache>()),
+            new(provider.GetRequiredService<HybridCache>(), provider.GetService<IDistributedCache>()),
             _clock,
             new(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, jwtOptions),
             _versionStore,

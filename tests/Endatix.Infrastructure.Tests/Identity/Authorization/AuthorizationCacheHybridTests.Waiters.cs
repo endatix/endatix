@@ -7,7 +7,6 @@ using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Multitenancy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -120,7 +119,7 @@ public sealed partial class AuthorizationCacheHybridTests
         services.AddHttpContextAccessor();
         services.AddOptions<EndatixJwtOptions>().Configure(o => o.SigningKey = "test-signing-key-32-characters");
         services.AddScoped<AuthorizationTokenFingerprint>();
-        services.AddSingleton(sp => new AuthorizationCacheStorage(remote.Observe(sp.GetRequiredService<HybridCache>()), sp.GetRequiredService<IMemoryCache>()));
+        services.AddSingleton(sp => new AuthorizationCacheStorage(remote.Observe(sp.GetRequiredService<HybridCache>())));
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RequiredActionProviderCache>(sp,
             remote.Observe(sp.GetRequiredService<HybridCache>())));
         services.AddSingleton<RequiredActionExecution>();
