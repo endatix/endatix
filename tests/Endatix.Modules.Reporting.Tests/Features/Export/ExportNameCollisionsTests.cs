@@ -233,6 +233,38 @@ public sealed class ExportNameCollisionsTests
         collision.Rename.Should().Be(systemKey);
     }
 
+    [Fact]
+    public void Find_UncodedCodebookWithAQuestionNamedLikeASystemColumn_ReturnsBoth()
+    {
+        // Arrange: the codebook writes its submission variables with or without special choice codes.
+        var schema = Schema("""{"type":"text","name":"Id"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _uncoded, ExportNameFile.ShojiCodebook));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        (collision.Name, collision.Profile).Should().Be(("Id", ColumnAliasProfile.Native));
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning("Id", ExportNameKind.Ordinary), new ExportNameMeaning("Id", ExportNameKind.System)]);
+    }
+
+    [Fact]
+    public void Find_CodebookWithACheckboxNamedLikeASystemColumn_ReturnsTheGroupParent()
+    {
+        // Arrange
+        var schema = Schema("""{"type":"checkbox","name":"Id","choices":["x","y"]}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _uncoded, ExportNameFile.ShojiCodebook));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        collision.Name.Should().Be("Id");
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning("Id", ExportNameKind.GroupParent), new ExportNameMeaning("Id", ExportNameKind.System)]);
+    }
+
     public static TheoryData<string, ColumnAliasProfile> SystemColumnsInEachProfile()
     {
         TheoryData<string, ColumnAliasProfile> data = [];
