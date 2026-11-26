@@ -34,16 +34,15 @@ This command generates static content into the `build` directory and can be serv
 
 ### Deployment
 
-Using SSH:
+A push to `main` that touches this folder deploys the site two ways while it moves off Azure:
+
+- `.github/workflows/deploy-endatix-docs.yml` uploads `build/` to Azure Static Web Apps, with `staticwebapp.config.json` for its routing rules, then submits changed URLs to IndexNow.
+- `.github/workflows/publish-docs-image.yml` builds `ghcr.io/endatix/endatix-docs:<commit SHA>`: nginx serving `build/` as a non-root user on port 8080 (`docker/Dockerfile`). It also packages the Helm chart in `helm/endatix-docs` as `0.0.0-g<commit SHA>`, with the SHA as appVersion and so as the image tag it deploys, pushes it to `oci://ghcr.io/endatix/charts`, and asks `endatix-infra` to pin that chart version. ArgoCD rolls it out on the Hetzner cluster; the cluster's values set the hostname, HSTS and `noindex`. `docker/nginx.conf` carries the rules from `staticwebapp.config.json` (redirects, `trailingSlash: never`, the 404 page, headers, the `.json` MIME type), so change both together until the Azure deploy is removed. HSTS comes from the cluster's Ingress.
+
+To check the image locally:
 
 ```
-$ USE_SSH=true pnpm run deploy
+$ pnpm build
+$ docker build -f docker/Dockerfile -t endatix-docs .
+$ docker run --rm --read-only --tmpfs /tmp -p 8080:8080 endatix-docs
 ```
-
-Not using SSH:
-
-```
-$ GIT_USER=<Your GitHub username> pnpm run deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.

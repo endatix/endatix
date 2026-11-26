@@ -1,0 +1,165 @@
+name: Publish Docs Image
+
+# Builds docs.endatix.com into a static-file image (docs/endatix-docs/docker/Dockerfile) and its
+# Helm chart (docs/endatix-docs/helm/endatix-docs), pushes both to GHCR, and asks endatix-infra to
+# pin the chart; ArgoCD serves it on the Hetzner cluster. Same trigger and build settings
+# as deploy-endatix-docs.yml. A dispatch on main re-publishes and re-pins main's image and chart.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/endatix-docs/**/*"
+      - ".github/workflows/publish-docs-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build and push
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The Algolia settings are this environment's.
+    environment:
+      name: Production
+    permissions:
+      contents: read
+      packages: write # GHCR push with GITHUB_TOKEN
+    defaults:
+      run:
+        working-directory: ./docs/endatix-docs
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.23.2"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 12.4.1
+          run_install: false
+
+      - name: 🥡 Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 🏗️ Build Project
+        run: pnpm run build
+        env:
+          ALGOLIA_APP_ID: ${{ secrets.DOCS_ALGOLIA_APP_ID }}
+          ALGOLIA_API_KEY: ${{ secrets.DOCS_ALGOLIA_API_KEY }}
+          ALGOLIA_INDEX_NAME: ${{ vars.DOCS_ALGOLIA_INDEX_NAME }}
+
+      - name: 🔑 Log in to GHCR
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # linux/amd64 only: the cluster's boxes are amd64. No provenance, so the tag stays one plain
+      # manifest. The source label links the package to this repo.
+      - name: 🐳 Build and push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: docs/endatix-docs
+          file: docs/endatix-docs/docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ghcr.io/endatix/endatix-docs:${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      # The docs have no release version, so the chart's is 0.0.0-g<commit SHA>: valid semver, one
+      # chart per image, and a prerelease that `helm install` without --devel never picks. Its
+      # appVersion is the SHA, the image tag the chart deploys.
+      - name: ⎈ Package and push the Helm chart
+        env:
+          GH_PACKAGES_USER: ${{ github.actor }}
+          GH_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HELM_OCI_REPO: oci://ghcr.io/${{ github.repository_owner }}/charts
+        run: |
+          version="0.0.0-g${GITHUB_SHA}"
+          helm lint helm/endatix-docs --set "ingress.hosts={docs.endatix.com}"
+          helm package helm/endatix-docs --version "$version" --app-version "$GITHUB_SHA" --destination "${RUNNER_TEMP}/helm"
+          echo "$GH_PACKAGES_TOKEN" | helm registry login ghcr.io -u "$GH_PACKAGES_USER" --password-stdin
+          helm push "${RUNNER_TEMP}/helm/endatix-docs-${version}.tgz" "$HELM_OCI_REPO"
+
+      - name: 📝 Summary
+        run: echo "Published \`ghcr.io/endatix/endatix-docs:${GITHUB_SHA}\` and chart \`endatix-docs\` \`0.0.0-g${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  notify-infra:
+    name: Pin the chart in infra
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The Infisical machine identity trusts this environment's OIDC subject, as in notify-infra.yml.
+    environment:
+      name: Production
+    permissions:
+      contents: read
+      id-token: write # OIDC for Infisical
+    steps:
+      - name: Checkout main's history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      # A re-run of an older push would otherwise pin an older image over a newer one.
+      - name: ⏭️ Skip unless this is main's newest docs image
+        id: newest
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          newer=$(git log -1 --format=%H "${SHA}..HEAD" -- docs/endatix-docs .github/workflows/publish-docs-image.yml)
+          if [ -z "$newer" ]; then
+            echo "send=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Not pinning ${SHA}: main has a newer docs image at ${newer}"
+          fi
+
+      - name: 🔐 Fetch secrets (Infisical, OIDC)
+        if: steps.newest.outputs.send == 'true'
+        uses: Infisical/secrets-action@d2e351f16c6ca20d17c85e6c992e04bdeb64e87d # v1.0.18
+        with:
+          method: "oidc"
+          env-slug: "prod"
+          project-slug: "github-actions-for-endatix"
+          identity-id: "403af1ed-7046-480f-a100-c4482b8a89ac"
+          recursive: true
+
+      - name: 🔑 Endatix Automations app token (scoped to endatix-infra)
+        if: steps.newest.outputs.send == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          app-id: ${{ env.ENDATIX_PROJECT_AUTOMATIONS_APP_ID }}
+          private-key: ${{ env.ENDATIX_PROJECT_AUTOMATIONS_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: endatix-infra
+          permission-contents: write
+
+      # endatix-infra's chart-bump pins the endatix-docs dependency of
+      # gitops/hetzner/apps/prod/docs/app/Chart.yaml to this chart version.
+      - name: 🚀 Trigger chart-bump
+        if: steps.newest.outputs.send == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          jq -nc --arg v "0.0.0-g${SHA}" \
+            '{event_type: "chart-release", client_payload: {service: "endatix-docs", version: $v, env: "prod"}}' \
+            | gh api --method POST "/repos/${OWNER}/endatix-infra/dispatches" --input -
+          echo "Asked endatix-infra to pin chart endatix-docs 0.0.0-g${SHA} into prod" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: endatix-docs
+description: docs.endatix.com, the Endatix documentation, as static files behind nginx
+type: application
+# Placeholders for local `helm template` runs. The docs have no release version:
+# publish-docs-image.yml packages the chart as 0.0.0-g<commit SHA> with appVersion <commit SHA>,
+# the image tag.
+version: 0.1.0
+appVersion: ""

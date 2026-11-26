@@ -1,0 +1,24 @@
+{{- /*
+HSTS comes from here rather than from the image, so a test hostname can carry a short max-age
+while the production one keeps what browsers already cached from the old host.
+*/ -}}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: hsts
+spec:
+  headers:
+    stsSeconds: {{ .Values.ingress.hsts.seconds | int64 }}
+    stsIncludeSubdomains: {{ .Values.ingress.hsts.includeSubdomains }}
+    stsPreload: {{ .Values.ingress.hsts.preload }}
+{{- if .Values.ingress.noindex }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: noindex
+spec:
+  headers:
+    customResponseHeaders:
+      X-Robots-Tag: "noindex, nofollow"
+{{- end }}
