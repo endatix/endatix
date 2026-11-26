@@ -183,6 +183,36 @@ public sealed class ExportNameCollisionsTests
         collision.Rename.Should().Be("Id");
     }
 
+    [Theory]
+    [InlineData("t", 0)]
+    [InlineData("q__a_b,q__a__b", 1)]
+    public void Find_ScopedPlainFile_ChecksOnlyTheScopedColumns(string scope, int expected)
+    {
+        // Arrange: on _, choices a_b and a__b both become q_a_b, but a native export writes only its scoped columns.
+        var schema = Schema("""{"type":"checkbox","name":"q","choices":["a_b","a__b"]},{"type":"text","name":"t"}""");
+        ExportFormatSettings settings = new(ColumnScope: scope.Split(','), KeySeparator: "_");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, settings, ExportNameFile.PlainTabular));
+
+        // Assert
+        collisions.Should().HaveCount(expected);
+    }
+
+    [Fact]
+    public void Find_QuestionIndexProfileWithAQuestionNamedLikeASystemColumn_ReturnsOnlyTheWrittenHeader()
+    {
+        // Arrange: the file's own headers clash (question-index naming keeps a question keyed Id as Id); the native
+        // pass only stands for the codebook's keys, which hold no submission columns.
+        var schema = Schema("""{"type":"text","name":"Id"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _uncoded with { AliasProfile = ColumnAliasProfile.Crunch }, ExportNameFile.Tabular));
+
+        // Assert
+        collisions.Select(c => (c.Name, c.Profile)).Should().Equal(("Id", ColumnAliasProfile.Crunch));
+    }
+
     [Fact]
     public void Find_PlainFile_GeneratesNoCompanion()
     {

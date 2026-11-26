@@ -130,12 +130,12 @@ internal static class ExportNameCollisions
 
         public IEnumerable<(string Alias, ExportNameMeaning Meaning)> In(ColumnAliasProfile profile)
         {
-            var plan = ExportColumnPlanBuilder.Build(request.Schema, new ExportColumnPlanRequest(
-                _settings.Locale, profile, KeySeparator: _settings.KeySeparator, AliasRegistry: request.Registry, ReadWithShojiCodebook: true, RequireUniqueKeys: false));
+            var plan = ExportColumnPlanBuilder.Build(request.Schema, PlanRequest(profile));
             var keys = plan.Columns.DistinctBy(column => column.CanonicalKey, StringComparer.Ordinal)
                 .ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
             HashSet<string> seen = new(StringComparer.Ordinal);
-            return plan.Columns.Select(column => (column.ExportKey, Meaning(column, seen)))
+            var written = profile == _settings.AliasProfile;
+            return plan.Columns.Select(column => (column.ExportKey, Meaning(column, seen, written)))
                 .Concat(WritesParents(profile) ? _parents : [])
                 .Concat(request.File is ExportNameFile.ShojiCodebook && profile is ColumnAliasProfile.Native ? _bounds : [])
                 .Concat(request.File is ExportNameFile.PlainTabular ? [] : catalog.OtherTextKeys.Keys.Select(parent => (
@@ -149,11 +149,22 @@ internal static class ExportNameCollisions
             request.File is ExportNameFile.ShojiCodebook &&
             (profile is ColumnAliasProfile.Native || _settings.SpecialChoiceCodes is not null);
 
-        // A tabular file writes submission columns beside the questions' under the same headers; the codebook's
-        // variables are only the questions'. A second plan column on a canonical key is a projected range bound.
-        private ExportNameMeaning Meaning(ExportColumnDefinition column, HashSet<string> seen)
+        // A native file writes only its scoped columns, as the export builds them. A Crunch-shaped file and the codebook
+        // are checked unscoped: the codebook is not scoped, and companions are named from the unscoped plan.
+        private ExportColumnPlanRequest PlanRequest(ColumnAliasProfile profile)
         {
-            if (column.Source is ExportColumnSource.System && request.File is not ExportNameFile.ShojiCodebook)
+            var plain = request.File is ExportNameFile.PlainTabular;
+            var scope = plain && _settings.ColumnScope is { } columns ? new HashSet<string>(columns, StringComparer.Ordinal) : null;
+            return new(_settings.Locale, profile, scope, _settings.KeySeparator, request.Registry,
+                ReadWithShojiCodebook: !plain, RequireUniqueKeys: false);
+        }
+
+        // A tabular file writes submission columns beside the questions' under the same headers, in the profile it is
+        // written with; the codebook's variables are only the questions'. The map holds each key once, so a later plan
+        // column on a canonical key is a projected range bound.
+        private ExportNameMeaning Meaning(ExportColumnDefinition column, HashSet<string> seen, bool written)
+        {
+            if (column.Source is ExportColumnSource.System && written && request.File is not ExportNameFile.ShojiCodebook)
             {
                 return new(column.CanonicalKey, ExportNameKind.System);
             }
