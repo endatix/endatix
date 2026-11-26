@@ -18,6 +18,9 @@ public class UserContext(IHttpContextAccessor httpContextAccessor) : IUserContex
     public bool IsAuthenticated => httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true;
 
     /// <inheritdoc/>
+    public bool HasActorClaim => httpContextAccessor.HttpContext?.User.HasActorClaim() == true;
+
+    /// <inheritdoc/>
     public User? GetCurrentUser()
     {
         var principal = httpContextAccessor.HttpContext?.User;

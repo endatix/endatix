@@ -17,6 +17,8 @@ public sealed class DefaultAuthorization(
     AuthProviderRegistry authProviderRegistry,
     IAuthorizationDataProvider authorizationDataProvider) : IAuthorizationStrategy
 {
+    internal bool UsesBuiltInStore => authorizationDataProvider is DefaultAuthorizationDataProvider;
+
     /// <inheritdoc />
     public bool CanHandle(ClaimsPrincipal principal)
     {
@@ -36,14 +38,18 @@ public sealed class DefaultAuthorization(
     /// <inheritdoc />
     public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
+        var data = await ReadVerifiedSessionAsync(principal, cancellationToken);
+        return SessionAuthorization.WithoutProof(data, principal);
+    }
 
+    internal async Task<Result<AuthorizationData>> ReadVerifiedSessionAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
+    {
         if (!CanHandle(principal))
         {
             return Result.Error("Provider cannot handle the given issuer");
         }
 
-        var userId = principal.GetUserId();
-        if (userId is null || !long.TryParse(userId, out var endatixUserId))
+        if (!long.TryParse(principal.GetUserId(), out var endatixUserId))
         {
             return Result.Error("User ID is required");
         }
@@ -54,10 +60,25 @@ public sealed class DefaultAuthorization(
             return Result.Error("Tenant ID is required");
         }
 
-        return await authorizationDataProvider.GetAuthorizationDataAsync(
-            endatixUserId,
-            tenantId,
-            cancellationToken,
-            principal.GetActorUserId());
+        return await ReadAsync(SessionFor(principal, endatixUserId, tenantId), cancellationToken);
+    }
+
+    private static DefaultAuthorizationDataProvider.Session SessionFor(ClaimsPrincipal principal, long userId, long tenantId)
+    {
+        var actor = principal.GetActorUserId();
+        return new(userId, tenantId, actor)
+        { MalformedActor = principal.HasActorClaim() && (actor is null || principal.Identities.First().FindAll(ClaimNames.Actor).Skip(1).Any()) };
+    }
+
+    private async Task<Result<AuthorizationData>> ReadAsync(DefaultAuthorizationDataProvider.Session session, CancellationToken ct)
+    {
+        if (authorizationDataProvider is DefaultAuthorizationDataProvider builtIn)
+        {
+            return await builtIn.ReadSessionAsync(session, ct);
+        }
+        var result = await authorizationDataProvider.GetAuthorizationDataAsync(session.UserId, session.TenantId, ct, session.Actor);
+        return result.IsSuccess
+            ? Result.Success(result.Value with { VerifiedAssumption = null, UnverifiedActor = session.PresentsActor })
+            : result;
     }
 }

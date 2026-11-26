@@ -36,6 +36,13 @@ public class DefaultAuthorizationDataProviderTests
     }
 
     [Fact]
+    public void IsAssumeTenantSession_UnknownHome_ReturnsFalse()
+    {
+        DefaultAuthorizationDataProvider.IsAssumeTenantSession(7, 7, homeTenantId: 0, requestedTenantId: 99)
+            .Should().BeFalse();
+    }
+
+    [Fact]
     public void IsAssumeTenantSession_HomeTenant_ReturnsFalse()
     {
         DefaultAuthorizationDataProvider.IsAssumeTenantSession(7, 7, homeTenantId: 10, requestedTenantId: 10)

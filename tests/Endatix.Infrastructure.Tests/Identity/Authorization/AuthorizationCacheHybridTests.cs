@@ -410,6 +410,22 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
         private readonly MemoryDistributedCache _inner = new(Options.Create(new MemoryDistributedCacheOptions()));
         internal Action? Written { get; set; }
 
+        internal async Task<AuthorizationData> AfterWriteAsync(Func<Task<AuthorizationData>> read)
+        {
+            var written = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Written = () => written.TrySetResult();
+            try
+            {
+                var result = await read();
+                await written.Task.WaitAsync(TestGuard, TestContext.Current.CancellationToken);
+                return result;
+            }
+            finally
+            {
+                Written = null;
+            }
+        }
+
         public byte[]? Get(string key) => _inner.Get(key);
 
         public Task<byte[]?> GetAsync(string key, CancellationToken token = default) => _inner.GetAsync(key, token);

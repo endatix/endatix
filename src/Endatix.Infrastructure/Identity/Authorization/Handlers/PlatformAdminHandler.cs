@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Infrastructure.Identity.Authorization.Handlers;
 
@@ -15,36 +16,27 @@ public sealed class PlatformAdminHandler(ICurrentUserAuthorizationService author
         AuthorizationHandlerContext context,
         PlatformAdminRequirement requirement)
     {
-        if (context?.User is not ClaimsPrincipal currentUser)
+        if (context?.User is not ClaimsPrincipal currentUser || currentUser.Identity is not ClaimsIdentity)
         {
             return;
         }
 
-        if (currentUser.Identity is not ClaimsIdentity)
+        var admitted = context.Resource is HttpContext http && ReturnHomeAuthorization.Applies(http)
+            ? ReturnHomeAuthorization.Admits(http, currentUser)
+            : await HasPlatformGrantAsync(currentUser);
+        if (admitted)
         {
-            return;
+            context.Succeed(requirement);
         }
+    }
 
-        var isHydrated = currentUser.IsHydrated();
-        if (isHydrated)
+    private async Task<bool> HasPlatformGrantAsync(ClaimsPrincipal currentUser)
+    {
+        if (currentUser.IsHydrated())
         {
-            var isPlatformAdmin = currentUser.IsInRole(SystemRole.PlatformAdmin.Name);
-            if (isPlatformAdmin)
-            {
-                context.Succeed(requirement);
-            }
-
-            return;
+            return currentUser.IsInRole(SystemRole.PlatformAdmin.Name);
         }
-        else
-        {
-            var isPlatformAdminResult = await authorizationService.IsPlatformAdminAsync(CancellationToken.None);
-            if (isPlatformAdminResult.IsSuccess && isPlatformAdminResult.Value)
-            {
-                context.Succeed(requirement);
-            }
-
-            return;
-        }
+        var result = await authorizationService.IsPlatformAdminAsync(CancellationToken.None);
+        return result.IsSuccess && result.Value;
     }
 }

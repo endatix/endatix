@@ -82,6 +82,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             ? Result.Unauthorized("The current account has changed.") : fresh;
     }
 
+
     private async Task<Result<AuthorizationData>> ReadForPrincipalAsync(ClaimsPrincipal currentPrincipal, CancellationToken cancellationToken)
     {
         var authorizationStrategy = _authorizationStrategies
@@ -101,10 +102,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     {
         try
         {
-            var authorizationData = await _authorizationCache.GetOrCreateAsync(
-                currentPrincipal,
-                token => authorizationStrategy.GetAuthorizationDataAsync(currentPrincipal, token),
-                cancellationToken);
+            var authorizationData = await _authorizationCache.ReadAsync(currentPrincipal, authorizationStrategy, cancellationToken);
 
             return Result.Success(authorizationData);
         }
@@ -238,7 +236,16 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 
         var userId = principal.GetUserId() ?? throw new InvalidAuthorizedIdentityException("User ID is not found");
 
-        var authorizationData = AuthorizationData.ForAuthenticatedUser(
+        var authorizationData = Snapshot(userId, endatixIdentity);
+        if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
+        {
+            throw new InvalidAuthorizedIdentityException("IsAdmin flag is not consistent with the claims principal");
+        }
+        return authorizationData;
+    }
+
+    private static AuthorizationData Snapshot(string userId, AuthorizedIdentity endatixIdentity) =>
+        AuthorizationData.ForAuthenticatedUser(
          userId: userId,
          tenantId: endatixIdentity.TenantId,
          roles: endatixIdentity.Roles.ToArray(),
@@ -246,13 +253,10 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
          cachedAt: endatixIdentity.CachedAt,
          expiresAt: endatixIdentity.CacheExpiresIn,
          eTag: endatixIdentity.ETag) with
-        { RequiredActions = endatixIdentity.RequiredActions, RequiredActionsUnavailable = endatixIdentity.RequiredActionsUnavailable };
-
-        if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
         {
-            throw new InvalidAuthorizedIdentityException("IsAdmin flag is not consistent with the claims principal");
-        }
+            RequiredActions = endatixIdentity.RequiredActions,
+            RequiredActionsUnavailable = endatixIdentity.RequiredActionsUnavailable,
+            VerifiedAssumption = endatixIdentity.VerifiedAssumption
+        };
 
-        return authorizationData;
-    }
 }

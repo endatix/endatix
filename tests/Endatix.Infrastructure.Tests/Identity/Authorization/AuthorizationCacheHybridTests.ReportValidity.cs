@@ -97,7 +97,7 @@ public sealed partial class AuthorizationCacheHybridTests
         var source = Substitute.For<IRequiredActionProvider>();
         source.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
             .Returns(new RequiredActionReport([], deadline.ToOffset(TimeSpan.FromHours(3))));
-        var first = await SnapshotAsync(CreateInstance(true, source));
+        var first = await _sharedL2.AfterWriteAsync(() => SnapshotAsync(CreateInstance(true, source)));
         var current = new RequiredAction { Key = "renew", ResolvePath = "/profile", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Blocking };
         source.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([current]);
         _clock.Now.Returns(deadline.AddTicks(-1));

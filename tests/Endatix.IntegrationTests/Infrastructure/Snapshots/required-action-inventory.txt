@@ -67,7 +67,7 @@ core gated platform-admin POST /api/admin/email/test
 core gated platform-admin POST /api/admin/platform-admins/{userId}
 core gated platform-admin POST /api/admin/tenants
 core gated platform-admin POST /api/auth/assume-tenant
-core gated platform-admin POST /api/auth/exit-assume
+core open resolver POST /api/auth/exit-assume
 core gated account POST /api/roles
 core gated account POST /api/tenant-branding/reset
 core gated account POST /api/tenant-branding/restore

@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text.Json;
 using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Identity.Authentication;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
@@ -13,9 +14,15 @@ internal sealed class AuthorizationTokenFingerprint(IHttpContextAccessor context
     internal string For(ClaimsPrincipal principal, string userId, long tenantId)
     {
         var accessToken = BearerAccessTokenResolver.Resolve(context);
-        var identity = !string.IsNullOrWhiteSpace(accessToken)
-            ? accessToken
-            : principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value ?? $"jti_{userId}_{tenantId}";
+        var identity = JsonSerializer.Serialize(new
+        {
+            accessToken,
+            Jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value,
+            Issuer = principal.GetIssuer(),
+            Actors = principal.FindAll(ClaimNames.Actor).Select(c => c.Value),
+            userId,
+            tenantId
+        });
         return CacheKeyFingerprint.ComputeHmacSha256Hex(identity, options.Value.SigningKey);
     }
 }

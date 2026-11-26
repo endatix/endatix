@@ -29,17 +29,21 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
           .ThenBy(p => p.Revision, StringComparer.Ordinal)
           .ThenBy(p => p.Policy.FailClosed).ThenBy(p => p.Policy.Timeout).ThenBy(p => p.Policy.CacheFor);
         // Do not reuse snapshots built without the provider's freshness or failure policy.
-        return "standing-v4:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
+        return "standing-v5:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
     }
 
     internal async Task<Func<DateTime, AuthorizationData>> EvaluateAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {
+        if (data.UnverifiedActor)
+        {
+            return _ => data with { RequiredActionsUnavailable = true, RequiredActions = [] };
+        }
         if (_providers.Length == 0)
         {
             return _ => data;
         }
 
-        var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles);
+        var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles) { VerifiedAssumption = data.VerifiedAssumption };
         var epoch = await reports.SubjectEpochAsync(subject, entry, ct);
         var queries = _providers.Select((p, i) => new Query(epoch, i, subject, Policy.For(p))).ToArray();
         var results = await Task.WhenAll(queries.Select(q => reports.ReadAsync(q, ct)));
@@ -101,11 +105,12 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
 
     private static RequiredAction ForUser(RequiredAction action, HashSet<string> roles, DateTime now)
     {
-        var canResolve = action.ResolverRoles.Count == 0 || roles.Overlaps(action.ResolverRoles);
+        var canResolve = !action.PreventResolution && (action.ResolverRoles.Count == 0 || roles.Overlaps(action.ResolverRoles));
         var blocking = action.Severity == RequiredActionSeverity.Blocking || action.BlockingFrom <= now;
         return action with
         {
             CanResolve = canResolve,
+            PreventResolution = false,
             Severity = blocking && (canResolve || action.BlockNonResolvers)
                 ? RequiredActionSeverity.Blocking : RequiredActionSeverity.Notice
         };

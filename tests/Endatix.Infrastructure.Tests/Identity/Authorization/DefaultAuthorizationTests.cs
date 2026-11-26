@@ -117,6 +117,22 @@ public sealed class DefaultAuthorizationTests
     }
 
     [Fact]
+    public async Task ReadVerifiedSessionAsync_ReplacementProvidesCopiedData_PreservesGrantsWithoutAttestingToTheActor()
+    {
+        var context = CreateTestContext();
+        context.RegisterEndatixProvider(TestIssuer, activate: true);
+        var principal = CreatePrincipal("123", TestIssuer, tenantId: 10, actorUserId: 123);
+        var copied = AuthorizationData.ForAuthenticatedUser("123", 10, ["Creator"], []) with { VerifiedAssumption = new(123, 1) };
+        context.AuthorizationDataProvider.GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>(), 123)
+            .Returns(Result.Success(copied));
+
+        var result = await context.Strategy.ReadVerifiedSessionAsync(principal, Xunit.TestContext.Current.CancellationToken);
+        result.Value.Roles.Should().BeEquivalentTo(copied.Roles);
+        result.Value.VerifiedAssumption.Should().BeNull();
+        result.Value.UnverifiedActor.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task GetAuthorizationDataAsync_ReturnsError_WhenTenantIdMissing()
     {
         var context = CreateTestContext();
@@ -217,4 +233,3 @@ public sealed class DefaultAuthorizationTests
         field!.SetValue(provider, issuer);
     }
 }
-

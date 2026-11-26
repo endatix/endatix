@@ -24,6 +24,7 @@ public class ExitAssumeHandlerTests
     private readonly IUserTokenService _tokenService = Substitute.For<IUserTokenService>();
     private readonly IAuthService _authService = Substitute.For<IAuthService>();
     private readonly ICurrentUserAuthorizationService _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+    private readonly TestAssumptionReader _verifier = new();
     private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
     private readonly ExitAssumeHandler _sut;
 
@@ -37,7 +38,8 @@ public class ExitAssumeHandlerTests
             _tokenService,
             _authService,
             _authorizationService,
-            _dateTimeProvider);
+            _dateTimeProvider,
+            _verifier);
     }
 
     [Fact]
@@ -69,9 +71,10 @@ public class ExitAssumeHandlerTests
     }
 
     [Fact]
-    public async Task Handle_UserMissing_ReturnsUnauthorized()
+    public async Task Handle_UserMissing_ReturnsForbidden()
     {
         // Arrange
+        _verifier.Proof = new(ActorId, HomeTenantId);
         _userContext.GetCurrentUser().Returns(new User(ActorId, AssumedTenantId, "admin", "admin@example.com", true));
         _userContext.GetActorUserId().Returns(ActorId);
         _userService.GetUserAsync(ActorId, Arg.Any<CancellationToken>()).Returns(Result<User>.NotFound());
@@ -80,8 +83,47 @@ public class ExitAssumeHandlerTests
         var result = await _sut.Handle(new ExitAssumeCommand(), CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(ResultStatus.Unauthorized);
+        result.Status.Should().Be(ResultStatus.Forbidden);
         _tokenService.DidNotReceive().IssueRefreshToken();
+    }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(8L, HomeTenantId)]
+    [InlineData(ActorId, 3L)]
+    public async Task Handle_MissingOrInconsistentProof_RefusesBeforeIssuingTokens(long? actor, long? home)
+    {
+        ArrangeAssumedSession();
+        _verifier.Proof = actor.HasValue ? new(actor.Value, home!.Value) : null;
+
+        var result = await _sut.Handle(new ExitAssumeCommand(), TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        _tokenService.ReceivedCalls().Should().BeEmpty();
+        _authService.ReceivedCalls().Should().BeEmpty();
+        _tenantRepository.ReceivedCalls().Should().BeEmpty();
+        await _authorizationService.DidNotReceive().InvalidateAuthorizationDataCacheAsync(
+            Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    private sealed class TestAssumptionReader : VerifiedAssumptionReader
+    {
+        internal VerifiedAssumption? Proof { get; set; }
+        internal override Task<VerifiedAssumption?> ReadAsync(long targetTenantId, CancellationToken cancellationToken) =>
+            Task.FromResult(targetTenantId == AssumedTenantId ? Proof : null);
+    }
+
+    [Theory]
+    [InlineData(false, ResultStatus.Invalid)]
+    [InlineData(true, ResultStatus.Forbidden)]
+    public async Task Handle_AuthenticatedSubjectWithoutLocalId_UsesTheSessionDenial(bool hasActor, ResultStatus expected)
+    {
+        _userContext.IsAuthenticated.Returns(true);
+        _userContext.GetCurrentUser().Returns((User?)null);
+        _userContext.HasActorClaim.Returns(hasActor);
+        var result = await _sut.Handle(new ExitAssumeCommand(), TestContext.Current.CancellationToken);
+        result.Status.Should().Be(expected);
+        _tokenService.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]
@@ -148,6 +190,7 @@ public class ExitAssumeHandlerTests
 
     private User ArrangeAssumedSession()
     {
+        _verifier.Proof = new(ActorId, HomeTenantId);
         var sessionUser = new User(ActorId, AssumedTenantId, "admin", "admin@example.com", true);
         var homeUser = new User(ActorId, HomeTenantId, "admin", "admin@example.com", true);
         _userContext.GetCurrentUser().Returns(sessionUser);

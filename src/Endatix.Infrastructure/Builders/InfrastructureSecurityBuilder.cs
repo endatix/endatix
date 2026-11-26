@@ -281,10 +281,10 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<AuthorizationTokenFingerprint>();
         Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
+        Services.AddScoped<VerifiedAssumptionReader, BuiltInAssumptionReader>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
         Services.AddScoped<IAuthorizationStrategy, DefaultAuthorization>();
 
-        // Register authorization handlers
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();

@@ -313,6 +313,10 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         // Act / Assert
         Assert.True(IsMarked("GET", "/api/auth/me"));
         Assert.True(IsMarked("POST", "/api/auth/logout"));
+        Assert.True(IsMarked("POST", "/api/auth/exit-assume"));
+        var exit = Assert.Single(routes, route => route.RoutePattern.RawText == "/api/auth/exit-assume");
+        Assert.Contains(exit.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>(),
+            policy => policy.Policy == Endatix.Infrastructure.Identity.Authorization.AuthorizationPolicies.PlatformAdminAccess);
         Assert.True(IsMarked("POST", "/api/my-account/change-password"));
         Assert.False(IsMarked("GET", "/api/access/forms/{formId}"));
         Assert.False(IsMarked("POST", "/api/forms/{formId}/reporting/compile-schema"));

@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -16,7 +17,8 @@ internal sealed class ClaimsTransformer(
     IEnumerable<IAuthorizationStrategy> authorizationStrategies,
     IAuthorizationCache authorizationCache,
     ILogger<ClaimsTransformer> logger,
-    IOptions<EndatixJwtOptions> endatixJwtOptions) : IClaimsTransformation
+    IOptions<EndatixJwtOptions> endatixJwtOptions,
+    IHttpContextAccessor? context = null) : IClaimsTransformation
 {
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
@@ -25,7 +27,9 @@ internal sealed class ClaimsTransformer(
             return principal!;
         }
 
-        if (principal.IsHydrated())
+        var http = context?.HttpContext;
+        var isReturnHome = ReturnHomeAuthorization.Applies(http);
+        if (principal.IsHydrated() && !isReturnHome)
         {
             return principal;
         }
@@ -62,10 +66,12 @@ internal sealed class ClaimsTransformer(
 
         try
         {
-            return await authorizationCache.GetOrCreateAsync(
-                principal,
-                async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken),
-                cancellationToken);
+            var http = context?.HttpContext;
+            if (ReturnHomeAuthorization.Applies(http))
+            {
+                return await ReturnHomeAuthorization.ReadGrantsAsync(http!, principal, authorizationStrategy);
+            }
+            return await authorizationCache.ReadAsync(principal, authorizationStrategy, cancellationToken);
         }
         catch (Exception ex)
         {

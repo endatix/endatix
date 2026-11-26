@@ -74,7 +74,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
     internal ValueTask<Guid> SubjectEpochAsync(RequiredActionSubject subject, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { subject.UserId, subject.TenantId, Roles = subject.Roles.Order(StringComparer.Ordinal) });
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(new { subject.UserId, subject.TenantId, subject.VerifiedAssumption, Roles = subject.Roles.Order(StringComparer.Ordinal) });
         var key = $"{entry.Versions.Prefix}:{entry.Versions.Versions}:standing:{entry.Configuration}:{Convert.ToHexString(SHA256.HashData(bytes))}";
         return epochs.GetOrCreateAsync(key, _ => ValueTask.FromResult(Guid.NewGuid()),
             new HybridCacheEntryOptions { Flags = HybridCacheEntryFlags.DisableDistributedCache, LocalCacheExpiration = TimeSpan.FromMinutes(5) },
