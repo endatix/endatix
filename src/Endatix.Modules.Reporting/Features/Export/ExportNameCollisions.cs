@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -51,6 +52,9 @@ internal sealed record ExportNameCollision(
     string Separator)
 {
     /// <summary>The guide section on recovery: what a rename clears, and the routes once the clashing version has responses.</summary>
+    [SuppressMessage("csharpsquid", "S1075:URIs should not be hardcoded",
+        Justification = "A documentation link shown in an error message. It does not vary by environment, and making "
+                      + "it configurable would let an operator break the help text without noticing.")]
     public const string GuideUrl = "https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names";
 
     /// <summary>The question to rename: an ordinary question when one is involved, since generated names follow it.</summary>
@@ -150,17 +154,20 @@ internal static class ExportNameCollisions
                 ? new(Question(slider), ExportNameKind.Bound)
                 : new(canonicalKey, ExportNameKind.Ordinary);
         }
+
+        private static bool IsBound(string canonicalKey) =>
+            canonicalKey.EndsWith(ExportPathBuilder.SEGMENT_DELIMITER + "min", StringComparison.Ordinal) ||
+            canonicalKey.EndsWith(ExportPathBuilder.SEGMENT_DELIMITER + "max", StringComparison.Ordinal);
+
+        private static string Question(FormSchemaColumn column) => column.SourceQuestion ?? column.Key;
     }
 
     /// <summary>The 400 an export returns: one error per contested name, each with both meanings and the question to rename.</summary>
-    public static Result<T> Refusal<T>(IReadOnlyList<ExportNameCollision> collisions) =>
-        Result<T>.Invalid([.. collisions.Select(collision => collision.Error())]);
-
-    private static bool IsBound(string canonicalKey) =>
-        canonicalKey.EndsWith(ExportPathBuilder.SEGMENT_DELIMITER + "min", StringComparison.Ordinal) ||
-        canonicalKey.EndsWith(ExportPathBuilder.SEGMENT_DELIMITER + "max", StringComparison.Ordinal);
-
-    private static string Question(FormSchemaColumn column) => column.SourceQuestion ?? column.Key;
+    public static Result<T> Refusal<T>(IReadOnlyList<ExportNameCollision> collisions)
+    {
+        List<ValidationError> errors = [.. collisions.Select(collision => collision.Error())];
+        return Result<T>.Invalid((IEnumerable<ValidationError>)errors);
+    }
 
     private static IEnumerable<ExportNameCollision> Contested(
         IEnumerable<(string Alias, ExportNameMeaning Meaning)> names,
