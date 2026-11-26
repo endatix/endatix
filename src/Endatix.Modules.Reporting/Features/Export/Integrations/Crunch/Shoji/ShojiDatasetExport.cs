@@ -20,6 +20,10 @@ internal sealed class ShojiDatasetExport(IFormsRepository forms, IColumnAliasTra
         return columns?.Apply(shoji) ?? shoji;
     }
 
+    /// <summary>The names this codebook would give two meanings, under the separator it is written with.</summary>
+    public IReadOnlyList<ExportNameCollision> Collisions(FormSchemaEntity schema, ExportFormatSettings settings) =>
+        ExportNameCollisions.Find(schema, settings with { KeySeparator = ShojiPanelAliases.SeparatorFor(schema, settings) }, aliases);
+
     private static string? Title(string? name, string locale)
     {
         var title = string.IsNullOrWhiteSpace(name) ? null : name.Trim();

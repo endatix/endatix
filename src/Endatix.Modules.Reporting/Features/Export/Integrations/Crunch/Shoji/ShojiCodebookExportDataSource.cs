@@ -69,7 +69,15 @@ internal sealed class ShojiCodebookExportDataSource(
             settings with { Locale = requestLocale };
         context.Options.Metadata[PreparedSchemaKey] = schema.FlatteningMap;
 
-        return await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
+        var prepared = await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
+        if (!prepared.IsSuccess)
+        {
+            return prepared;
+        }
+
+        var book = await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken);
+        var collisions = dataset.Collisions(ExportSchemas.WithCodebook(schema, book), settings with { Locale = requestLocale });
+        return collisions.Count > 0 ? Result<ExportOptions>.Invalid([.. collisions.Select(collision => collision.Error())]) : prepared;
     }
 
     public async IAsyncEnumerable<IExportItem> StreamAsync(

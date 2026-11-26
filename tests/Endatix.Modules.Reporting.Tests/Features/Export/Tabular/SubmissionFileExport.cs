@@ -2,6 +2,7 @@ using System.IO.Pipelines;
 using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
@@ -38,16 +39,7 @@ internal static class SubmissionFileExport
 
     public static async Task<byte[]> ExportAsync(Request request, CancellationToken cancellationToken)
     {
-        TabularExportDataSource dataSource = new(
-            TestExportSchemas.Of(Schemas(request.Schema)),
-            Rows(request.Rows),
-            _settingsParser,
-            ColumnAliasTransformerRegistry.Default,
-            NullLogger<TabularExportDataSource>.Instance);
-        var context = Context(
-            request.Format,
-            typeof(SubmissionExportRow),
-            new(ExportFormatId: 1, SettingsJson: request.SettingsJson, ColumnScope: request.ColumnScope));
+        var (dataSource, context) = Prepare(request);
         var prepared = await dataSource.PrepareOptionsAsync(context, cancellationToken);
         prepared.IsSuccess.Should().BeTrue();
 
@@ -59,6 +51,28 @@ internal static class SubmissionFileExport
         using MemoryStream file = new();
         await pipe.Reader.AsStream().CopyToAsync(file, cancellationToken);
         return file.ToArray();
+    }
+
+    /// <summary>Only the preparation step, which refuses an export before any row is read.</summary>
+    public static Task<Result<ExportOptions>> PrepareAsync(Request request, CancellationToken cancellationToken)
+    {
+        var (dataSource, context) = Prepare(request);
+        return dataSource.PrepareOptionsAsync(context, cancellationToken);
+    }
+
+    private static (TabularExportDataSource, ExportDataSourceContext) Prepare(Request request)
+    {
+        TabularExportDataSource dataSource = new(
+            TestExportSchemas.Of(Schemas(request.Schema)),
+            Rows(request.Rows),
+            _settingsParser,
+            ColumnAliasTransformerRegistry.Default,
+            NullLogger<TabularExportDataSource>.Instance);
+        var context = Context(
+            request.Format,
+            typeof(SubmissionExportRow),
+            new(ExportFormatId: 1, SettingsJson: request.SettingsJson, ColumnScope: request.ColumnScope));
+        return (dataSource, context);
     }
 
     internal static IFormSchemaRepository Schemas(FormSchemaEntity schema)

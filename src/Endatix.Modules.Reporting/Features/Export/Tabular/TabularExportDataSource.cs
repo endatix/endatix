@@ -129,6 +129,12 @@ internal sealed partial class TabularExportDataSource(
         }
 
         var exported = ExportSchemas.WithCodebook(schema, book.Value);
+        if (ShouldProjectCrunchShapes(context.Request.Format, settings) &&
+            ExportNameCollisions.Find(exported, settings, aliasTransformerRegistry) is { Count: > 0 } collisions)
+        {
+            return Result<ExportOptions>.Invalid([.. collisions.Select(collision => collision.Error())]);
+        }
+
         PrepareColumns(context, settings, exported);
         return Result.Success(context.Options);
     }

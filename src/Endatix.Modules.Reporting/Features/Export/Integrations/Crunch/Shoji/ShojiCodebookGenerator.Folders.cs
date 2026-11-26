@@ -250,14 +250,6 @@ internal static partial class ShojiCodebookGenerator
     private static partial Regex Whitespace();
 
     /// <summary>
-    /// Every metadata key and alias the map's columns are written under, grouped parents (multiple response,
-    /// categorical and ranking arrays) included, so a generated companion can avoid the ones no CSV header shows.
-    /// </summary>
-    internal static IEnumerable<string> VariableAliases(MergedFormSchema map, IReadOnlyDictionary<string, JsonElement> questions, string separator) =>
-        map.Columns.SelectMany(column => ColumnOrderAliases(column, questions, separator))
-            .SelectMany(alias => (string[])[alias, ExportKeyTransformer.Transform(alias, separator)]);
-
-    /// <summary>
     /// The group parents (multiple response, categorical and ranking arrays) a map's columns are written under: metadata
     /// keys and aliases that no CSV header shows, each with a column it groups.
     /// </summary>

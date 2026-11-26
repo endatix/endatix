@@ -15,7 +15,6 @@ internal sealed class CrunchQuestions
     public CrunchQuestions(JsonElement book, SpecialChoiceCodes? settings, MergedFormSchema? map = null)
     {
         Entries = CodebookQuestions.Read(book);
-        Map = map;
         _codedQuestions = settings is null ? [] : MatchingQuestions(new ChoiceCodes(settings));
         OtherTextKeys = map is null || _codedQuestions.Count == 0 ? [] : CompanionKeys(map);
     }
@@ -24,11 +23,8 @@ internal sealed class CrunchQuestions
 
     public Dictionary<string, string> OtherTextKeys { get; }
 
-    public MergedFormSchema? Map { get; }
-
     private Dictionary<string, string> CompanionKeys(MergedFormSchema map)
     {
-        var used = map.Columns.Select(column => column.Key).ToHashSet(StringComparer.Ordinal);
         Dictionary<string, string> keys = new(StringComparer.Ordinal);
         foreach (var column in map.Columns.Where(IsCodedPanel))
         {
@@ -38,21 +34,9 @@ internal sealed class CrunchQuestions
                 continue;
             }
 
-            var stem = ExportPathBuilder.ChoiceOtherTextKey(column.Key);
-            keys.Add(column.Key, FreeKey(stem, used));
+            keys.Add(column.Key, ExportPathBuilder.ChoiceOtherTextKey(column.Key));
         }
         return keys;
-    }
-
-    internal static string FreeKey(string stem, HashSet<string> used)
-    {
-        var key = stem;
-        var n = 2;
-        while (!used.Add(key))
-        {
-            key = $"{stem}_{n++}";
-        }
-        return key;
     }
 
     public bool IsCodedPanel(FormSchemaColumn column) =>

@@ -1,4 +1,7 @@
 using System.Text.Json.Nodes;
+using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 
 namespace Endatix.Modules.Reporting.Tests.Features.Export.Integrations.Crunch;
@@ -19,12 +22,14 @@ public sealed class PanelOtherAliasTests
     [Theory]
     [InlineData("native")]
     [InlineData("crunch")]
-    public async Task Export_ProfiledPanelCompanions_AgreeWithShojiAndLeaveTheOrdinaryColumnAlone(string profile)
+    public async Task Export_ProfiledPanelCompanions_AgreeWithShoji(string profile)
     {
         var settings = $$"""{"aliasProfile":"{{profile}}","specialChoiceCodes":{"other":87} }""";
-        var pipeline = PersonalizationPipeline.Compile(DEFINITION);
-        FixtureResponse[] responses = [new("r", ANSWERS, null, SubmittedDefinition: DEFINITION)];
-        pipeline.FlattenAll(DEFINITION, responses);
+        var definition = DEFINITION.Replace("pd--0--q--other_text", "ordinary", StringComparison.Ordinal);
+        var answers = ANSWERS.Replace("pd--0--q--other_text", "ordinary", StringComparison.Ordinal);
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        FixtureResponse[] responses = [new("r", answers, null, SubmittedDefinition: definition)];
+        pipeline.FlattenAll(definition, responses);
         var ct = TestContext.Current.CancellationToken;
 
         var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), ct);
@@ -34,7 +39,7 @@ public sealed class PanelOtherAliasTests
         var (header, rows) = CrunchImportCheck.Read(csv);
         header.Should().OnlyHaveUniqueItems();
         rows.Single().Should().Contain("ordinary").And.Contain("local");
-        var expected = profile == "native" ? "pd--0--q--other_text_2" : "Q2_2--other_text";
+        var expected = profile == "native" ? "pd--0--q--other_text" : "Q2_2--other_text";
         rows.Single()[header.IndexOf(expected)].Should().Be("first");
         var vars = JsonNode.Parse(shoji)!["body"]!["table"]!["metadata"]!.AsObject().Select(pair => pair.Value!);
         ((string?)vars.Single(v => (string?)v["alias"] == expected)["type"]).Should().Be("text");
@@ -47,7 +52,26 @@ public sealed class PanelOtherAliasTests
     [Theory]
     [InlineData("native")]
     [InlineData("crunch")]
-    public async Task Export_CheckboxNamedLikeTheCompanion_KeepsItsMultipleResponseParent(string profile)
+    public async Task Export_QuestionNamedLikeTheCompanion_RefusesBothFilesOnTheFirstExport(string profile)
+    {
+        // Arrange
+        var settings = $$"""{"aliasProfile":"{{profile}}","specialChoiceCodes":{"other":87} }""";
+        var pipeline = PersonalizationPipeline.Compile(DEFINITION);
+        FixtureResponse[] responses = [new("r", ANSWERS, null, SubmittedDefinition: DEFINITION)];
+        pipeline.FlattenAll(DEFINITION, responses);
+
+        // Act
+        var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), TestContext.Current.CancellationToken);
+
+        // Assert
+        Refused(csv, "question 'pd--0--q--other_text'", "the Other text of question 'q'");
+        Refused(shoji, "question 'pd--0--q--other_text'", "the Other text of question 'q'");
+    }
+
+    [Theory]
+    [InlineData("native")]
+    [InlineData("crunch")]
+    public async Task Export_CheckboxNamedLikeTheCompanion_IsRefused(string profile)
     {
         // Arrange
         var definition = DEFINITION.Replace(
@@ -59,20 +83,46 @@ public sealed class PanelOtherAliasTests
         var pipeline = PersonalizationPipeline.Compile(definition);
         FixtureResponse[] responses = [new("r", answers, null, SubmittedDefinition: definition)];
         pipeline.FlattenAll(definition, responses);
-        var ct = TestContext.Current.CancellationToken;
 
         // Act
-        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), ct);
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), ct, settings);
+        var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), TestContext.Current.CancellationToken);
 
         // Assert
-        var meta = JsonNode.Parse(shoji)!["body"]!["table"]!["metadata"]!.AsObject();
-        var parent = meta["pd--0--q--other_text"]!;
-        ((string?)parent["type"]).Should().Be("multiple_response");
-        parent["subvariables"]!.AsArray().Should().HaveCount(2);
-        var companion = profile == "native" ? "pd--0--q--other_text_2" : "Q2_2--other_text";
-        meta.Select(pair => pair.Value!).Single(v => (string?)v["alias"] == companion)["type"]!.GetValue<string>().Should().Be("text");
-        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+        Refused(csv, "the variable that groups question 'pd--0--q--other_text'", "the Other text of question 'q'");
+        Refused(shoji, "the variable that groups question 'pd--0--q--other_text'", "the Other text of question 'q'");
+    }
+
+    [Fact]
+    public async Task Export_RevisionAddsAQuestionNamedLikeThePublishedCompanion_IsRefused()
+    {
+        // Arrange
+        var v1 = DEFINITION.Replace("""{"type":"text","name":"pd--0--q--other_text"},""", "", StringComparison.Ordinal);
+        var settings = """{"specialChoiceCodes":{"other":87}}""";
+        var pipeline = PersonalizationPipeline.Compile(v1);
+        FixtureResponse[] first = [new("v1", ANSWERS.Replace("\"pd--0--q--other_text\":\"ordinary\",", "", StringComparison.Ordinal), null, SubmittedDefinition: v1)];
+        pipeline.FlattenAll(v1, first);
+        var ct = TestContext.Current.CancellationToken;
+        var published = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(first), settings), ct);
+        CrunchImportCheck.Read(published).Header.Should().Contain("pd--0--q--other_text");
+
+        // Act
+        pipeline.Recompile(DEFINITION, FormSchemaCompileMode.Merge);
+        FixtureResponse[] second = [.. first, new("v2", ANSWERS, null, SubmittedDefinition: DEFINITION)];
+        pipeline.FlattenAll(DEFINITION, second);
+        var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(pipeline.Entity(), pipeline.ExportRows(second), settings), ct);
+
+        // Assert
+        Refused(csv, "question 'pd--0--q--other_text'", "the Other text of question 'q'");
+        Refused(shoji, "question 'pd--0--q--other_text'", "the Other text of question 'q'");
+    }
+
+    private static void Refused(Result<ExportOptions> prepared, string first, string second)
+    {
+        prepared.Status.Should().Be(ResultStatus.Invalid);
+        var error = prepared.ValidationErrors.Should().ContainSingle().Subject;
+        error.Identifier.Should().Be("exportNames");
+        error.ErrorMessage.Should().Contain("'pd--0--q--other_text'").And.Contain(first).And.Contain(second)
+            .And.EndWith("Rename question 'pd--0--q--other_text', then export again.");
     }
 
     [Fact]

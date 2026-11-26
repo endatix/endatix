@@ -18,14 +18,28 @@ internal sealed record ShojiPanelAliases(PanelExportColumns Native, Dictionary<s
         // names on its own separator, moves the default separator to the Crunch one.
         using var doc = JsonDocument.Parse(schema.Codebook);
         var catalog = new CrunchQuestions(doc.RootElement, settings.SpecialChoiceCodes, FormSchemaFlatteningMap.FromJson(schema.FlatteningMap));
-        var separator = catalog.OtherTextKeys.Count > 0 && settings.KeySeparator == ExportFormatSettings.DefaultKeySeparator
-            ? ExportFormatSettings.InterimCrunchKeySeparator : settings.KeySeparator;
+        var separator = WrittenSeparator(catalog, settings);
         var native = Columns(ColumnAliasProfile.Native);
         return new(native, settings.AliasProfile == ColumnAliasProfile.Native ? null : Columns(settings.AliasProfile).AliasesFrom(native), separator);
 
         PanelExportColumns Columns(ColumnAliasProfile profile) => new(ExportColumnPlanBuilder.Build(schema,
             new ExportColumnPlanRequest(settings.Locale, profile, KeySeparator: separator, AliasRegistry: registry, ReadWithShojiCodebook: true)), catalog, separator);
     }
+
+    /// <summary>The separator the codebook is written with: the Crunch one in place of the default once a companion exists.</summary>
+    public static string SeparatorFor(FormSchemaEntity schema, ExportFormatSettings settings)
+    {
+        if (settings.SpecialChoiceCodes is null)
+        {
+            return settings.KeySeparator;
+        }
+        using var doc = JsonDocument.Parse(schema.Codebook);
+        return WrittenSeparator(new CrunchQuestions(doc.RootElement, settings.SpecialChoiceCodes, FormSchemaFlatteningMap.FromJson(schema.FlatteningMap)), settings);
+    }
+
+    private static string WrittenSeparator(CrunchQuestions catalog, ExportFormatSettings settings) =>
+        catalog.OtherTextKeys.Count > 0 && settings.KeySeparator == ExportFormatSettings.DefaultKeySeparator
+            ? ExportFormatSettings.InterimCrunchKeySeparator : settings.KeySeparator;
 
     // Metadata keys and folder/order references remain paired. Crunch reads CSV columns by the variable's alias.
     public string Apply(string shoji)

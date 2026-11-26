@@ -1,6 +1,8 @@
 using System.Text;
+using Endatix.Core.Abstractions.Exporting;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
@@ -27,11 +29,7 @@ internal static class CrunchExport
         CancellationToken cancellationToken,
         string settingsJson = SHOJI_FORMAT_SETTINGS)
     {
-        ShojiCodebookExportDataSource dataSource = new(
-            TestExportSchemas.Of(SubmissionFileExport.Schemas(schema)),
-            new ShojiDatasetExport(Substitute.For<IFormsRepository>(), ColumnAliasTransformerRegistry.Default),
-            _settingsParser);
-        var context = SubmissionFileExport.Context("codebook-shoji", typeof(DynamicExportRow), new(ExportFormatId: 1, SettingsJson: settingsJson));
+        var (dataSource, context) = Shoji(schema, settingsJson);
         (await dataSource.PrepareOptionsAsync(context, cancellationToken)).IsSuccess.Should().BeTrue();
 
         StringBuilder codebook = new();
@@ -41,6 +39,24 @@ internal static class CrunchExport
         }
 
         return codebook.ToString();
+    }
+
+    /// <summary>Only the preparation of each file, which refuses an export before it streams.</summary>
+    public static async Task<(Result<ExportOptions> Csv, Result<ExportOptions> Shoji)> PrepareBothAsync(
+        CsvExport export, CancellationToken cancellationToken)
+    {
+        var csv = await SubmissionFileExport.PrepareAsync(new("csv-shoji", export.Schema, export.Rows, export.SettingsJson, export.ColumnScope), cancellationToken);
+        var (dataSource, context) = Shoji(export.Schema, export.SettingsJson);
+        return (csv, await dataSource.PrepareOptionsAsync(context, cancellationToken));
+    }
+
+    private static (ShojiCodebookExportDataSource, ExportDataSourceContext) Shoji(FormSchemaEntity schema, string settingsJson)
+    {
+        ShojiCodebookExportDataSource dataSource = new(
+            TestExportSchemas.Of(SubmissionFileExport.Schemas(schema)),
+            new ShojiDatasetExport(Substitute.For<IFormsRepository>(), ColumnAliasTransformerRegistry.Default),
+            _settingsParser);
+        return (dataSource, SubmissionFileExport.Context("codebook-shoji", typeof(DynamicExportRow), new(ExportFormatId: 1, SettingsJson: settingsJson)));
     }
 
     public static Task<string> CsvAsync(
