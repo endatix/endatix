@@ -12,10 +12,13 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCache epochs, RequiredActionExecution execution)
 {
     private readonly Lock _creation = new();
+    private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(15);
 
     internal sealed record Query(Guid Epoch, int Index, RequiredActionSubject Subject, Policy Policy);
     internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, DateTime UsableUntil, bool Unavailable = false)
     {
+        internal DateTime RetryAt { get; init; }
+
         internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
         {
             var deadline = actions is RequiredActionReport report ? report.ValidUntil.UtcDateTime : DateTime.MaxValue;
@@ -23,6 +26,18 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
         }
 
         private static DateTime Earlier(DateTime left, DateTime right) => left < right ? left : right;
+
+        // Called only after mandatory freshness has been established. Late optional results become
+        // bounded fallback or omission; neither should make the entire current decision unavailable.
+        internal DateTime ProjectionExpiry(DateTime now)
+        {
+            if (Until > now)
+            {
+                return Until;
+            }
+            var retry = RetryAt > now ? RetryAt : now + _retryDelay;
+            return UsableUntil > now ? Earlier(UsableUntil, retry) : retry;
+        }
     }
     internal sealed record Policy(TimeSpan CacheFor, TimeSpan Timeout, bool FailClosed)
     {
@@ -49,7 +64,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
         internal Report Failure(Policy policy, DateTime now)
         {
-            RetryAt = now.AddSeconds(15);
+            RetryAt = now + _retryDelay;
             return Fallback(this, policy, now);
         }
     }
@@ -104,7 +119,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
         {
             return new([], slot.RetryAt, slot.RetryAt, policy.FailClosed);
         }
-        return good with { Until = good.UsableUntil < slot.RetryAt ? good.UsableUntil : slot.RetryAt };
+        return good with { Until = good.UsableUntil < slot.RetryAt ? good.UsableUntil : slot.RetryAt, RetryAt = slot.RetryAt };
     }
 }
 

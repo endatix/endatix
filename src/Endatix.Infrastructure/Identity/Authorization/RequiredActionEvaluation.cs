@@ -54,7 +54,7 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
         var (queries, results) = providers;
         if (queries.Any(q => results[q.Index].Unavailable || (q.Policy.FailClosed && results[q.Index].Until <= now)))
         {
-            return BoundExpiry(data with { RequiredActionsUnavailable = true, RequiredActions = [] }, results);
+            return BoundExpiry(data with { RequiredActionsUnavailable = true, RequiredActions = [] }, results.Min(r => r.Until));
         }
         var projected = Project(data, results.Where(r => r.UsableUntil > now).SelectMany(r => r.Actions), now);
         if (projected.RequiredActionsUnavailable)
@@ -64,12 +64,11 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
                 reports.ForgetContradiction(q, results[q.Index]);
             }
         }
-        return BoundExpiry(projected, results);
+        return BoundExpiry(projected, results.Min(r => r.ProjectionExpiry(now)));
     }
 
-    private static AuthorizationData BoundExpiry(AuthorizationData data, Report[] reports)
+    private static AuthorizationData BoundExpiry(AuthorizationData data, DateTime until)
     {
-        var until = reports.Min(r => r.Until);
         return data with { ExpiresAt = data.ExpiresAt != default && data.ExpiresAt < until ? data.ExpiresAt : until };
     }
 

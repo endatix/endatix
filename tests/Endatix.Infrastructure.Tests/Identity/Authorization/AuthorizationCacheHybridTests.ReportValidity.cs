@@ -6,6 +6,36 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 public sealed partial class AuthorizationCacheHybridTests
 {
     [Fact]
+    public async Task GetOrCreateAsync_OptionalReportExpiresWhilePeerReads_AdmitsWithOnlyTheCurrentReports()
+    {
+        // Arrange
+        var deadline = _start.AddSeconds(10);
+        var source = Substitute.For<IRequiredActionProvider>();
+        var action = new RequiredAction { Key = "renew", ResolvePath = "/profile", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Blocking };
+        source.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
+            .Returns(new RequiredActionReport([action], deadline));
+        var peer = Substitute.For<IRequiredActionProvider>();
+        peer.CacheFor.Returns(TimeSpan.FromSeconds(5));
+        peer.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(false, source, peer);
+        (await SnapshotAsync(cache)).RequiredActions.Should().ContainSingle();
+        _clock.Now.Returns(_start.AddSeconds(5));
+        peer.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            _clock.Now.Returns(deadline);
+            return Array.Empty<RequiredAction>();
+        });
+
+        // Act
+        var result = await SnapshotAsync(cache);
+
+        // Assert
+        result.RequiredActionsUnavailable.Should().BeFalse();
+        result.RequiredActions.Should().BeEmpty();
+        result.ExpiresAt.Should().Be(deadline.AddSeconds(5).UtcDateTime);
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_SharedSnapshotAtReportDeadline_RechecksOnColdHost()
     {
         // Arrange

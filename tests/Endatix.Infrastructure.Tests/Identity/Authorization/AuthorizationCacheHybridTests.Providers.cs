@@ -37,6 +37,7 @@ public sealed partial class AuthorizationCacheHybridTests
         // Assert
         refreshed.RequiredActions.Select(a => a.ResolvePath).Should().Equal(conflict ? ["/other"] : Array.Empty<string>());
         refreshed.RequiredActionsUnavailable.Should().BeFalse();
+        refreshed.ExpiresAt.Should().Be(_start.AddSeconds(70).UtcDateTime);
     }
 
     [Fact]
