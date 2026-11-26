@@ -26,24 +26,28 @@ public sealed class AccountStanding
 
     private DateTime Now => _clock?.Now.UtcDateTime ?? DateTime.UtcNow;
 
-    private Result<T>? Refusal<T>(AuthorizationData snapshot)
+    private Result? Refusal(AuthorizationData snapshot)
     {
         if (snapshot.RequiredActionsUnavailable || string.IsNullOrWhiteSpace(snapshot.UserId) || snapshot.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
-            return Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
+            return Result.Unavailable(UNAVAILABLE_MESSAGE);
         }
 
         // The gate and operation share this scoped decision for the lifetime of the request.
         if (snapshot.RequiredActions.Any(action => action.Severity == RequiredActionSeverity.Blocking))
         {
-            return new RequiredActionRefusal<T>(snapshot.RequiredActions);
+            return new BlockingRefusal(snapshot.RequiredActions);
         }
         _admittedUntil = snapshot.ExpiresAt == default ? DateTime.MaxValue : snapshot.ExpiresAt;
         return null;
     }
 
     /// <summary>Reads the hydrated account snapshot when the operation does not already hold it.</summary>
-    public async Task<Result<T>?> RefusalAsync<T>(CancellationToken cancellationToken)
+    public async Task<Result<T>?> RefusalAsync<T>(CancellationToken cancellationToken) =>
+        (await RefusalAsync(cancellationToken))?.ToErrorResult<T>();
+
+    /// <summary>Checks whether the account may continue with the operation.</summary>
+    public async Task<Result?> RefusalAsync(CancellationToken cancellationToken)
     {
         if (_authorization is null || _admittedUntil > Now)
         {
@@ -57,43 +61,20 @@ public sealed class AccountStanding
             snapshot = await _authorization.GetAuthorizationDataAsync(cancellationToken);
             if (IsExpired(snapshot))
             {
-                return Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
+                return Result.Unavailable(UNAVAILABLE_MESSAGE);
             }
         }
-        return snapshot.IsSuccess ? Refusal<T>(snapshot.Value) : Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
-    }
-
-    /// <summary>Checks standing for an operation whose success has no payload.</summary>
-    public async Task<Result?> RefusalAsync(CancellationToken cancellationToken)
-    {
-        var refusal = await RefusalAsync<Result>(cancellationToken);
-        return refusal switch
-        {
-            null => null,
-            RequiredActionRefusal<Result> blocked => new EmptyOperationRefusal(blocked),
-            _ => new EmptyOperationError(refusal)
-        };
+        return snapshot.IsSuccess ? Refusal(snapshot.Value) : Result.Unavailable(UNAVAILABLE_MESSAGE);
     }
 
     private bool IsExpired(Result<AuthorizationData> snapshot) =>
         snapshot.IsSuccess && snapshot.Value.ExpiresAt != default && snapshot.Value.ExpiresAt <= Now;
 
-    private sealed class EmptyOperationError : Result
+    private sealed class BlockingRefusal(IReadOnlyList<RequiredAction> actions)
+        : Result(ResultStatus.Forbidden), IRequiredActionRefusal, IMappableError
     {
-        internal EmptyOperationError(Result<Result> error) : base(error.Status)
-        {
-            Errors = error.Errors;
-            ValidationErrors = error.ValidationErrors;
-            CorrelationId = error.CorrelationId;
-            Existing = error.Existing;
-        }
-    }
-
-    private sealed class EmptyOperationRefusal(RequiredActionRefusal<Result> refusal)
-        : Result(refusal.Status), IRequiredActionRefusal, IMappableError
-    {
-        public IReadOnlyList<RequiredAction> Actions => refusal.Actions;
-        public Result<T> MapError<T>() => refusal.MapError<T>();
+        public IReadOnlyList<RequiredAction> Actions => actions;
+        public Result<T> MapError<T>() => new RequiredActionRefusal<T>(actions);
     }
 }
 

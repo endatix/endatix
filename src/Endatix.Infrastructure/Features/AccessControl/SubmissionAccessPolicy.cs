@@ -1,4 +1,3 @@
-using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Authorization.Access;
@@ -7,6 +6,7 @@ using Endatix.Core.Infrastructure;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases;
 using Endatix.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Hybrid;
 
@@ -40,7 +40,8 @@ public sealed class SubmissionAccessPolicy(
     private async Task<Result<ICachedData<SubmissionAccessData>>> ResolveAsync(
         SubmissionAccessContext context, AuthorizationData authData, CancellationToken cancellationToken)
     {
-        if (!await IsVisibleAsync(context, authData, cancellationToken))
+        // A cached grant never makes a deleted submission or parent visible again.
+        if (authData.TenantId <= 0 || !await IsVisibleAsync(context, authData, cancellationToken))
         {
             return Result.NotFound("Submission not found");
         }
@@ -56,21 +57,16 @@ public sealed class SubmissionAccessPolicy(
     private Task<bool> IsVisibleAsync(SubmissionAccessContext context, AuthorizationData auth, CancellationToken ct)
     {
         var spec = new SubmissionByFormIdAndSubmissionIdSpec(context.FormId, context.SubmissionId);
-        spec.Query.Where(s => s.TenantId == auth.TenantId && s.Form.TenantId == auth.TenantId);
-        return submissionRepository.AnyAsync(spec, ct);
+        return submissionRepository.AnyAsync(spec.OnLiveForm(auth.TenantId), ct);
     }
 
     private async Task<Result<ICachedData<SubmissionAccessData>>> ReadAsync(Grant grant, CancellationToken ct)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
-        var ttl = grant.Auth.ComputeAuthTtl(now);
-        var cached = await cache.GetOrCreateAsync(grant.Key,
-            _ => ValueTask.FromResult(new Cached<SubmissionAccessData>(grant.Permissions(), now, ttl)),
-            new HybridCacheEntryOptions { Expiration = ttl },
-            tags: ["permissions", FormAccessCacheTags.ForForm(grant.Target.FormId), $"submission:{grant.Target.SubmissionId}"], cancellationToken: ct);
-        var deadline = grant.Auth.ExpiresAt;
-        return Result.Success<ICachedData<SubmissionAccessData>>(deadline != default && deadline < cached.ExpiresAt
-            ? cached with { ExpiresAt = deadline } : cached);
+        var lifetime = new PermissionCacheLifetime(grant.Auth, now);
+        var projection = new PermissionProjection<SubmissionAccessData>(grant.Key, grant.Permissions,
+            ["permissions", FormAccessCacheTags.ForForm(grant.Target.FormId)]);
+        return await lifetime.ReadAsync(cache, projection, ct);
     }
 
     private sealed record Grant(SubmissionAccessContext Target, AuthorizationData Auth, AccessLevel Level)
@@ -83,7 +79,7 @@ public sealed class SubmissionAccessPolicy(
 
     private static Result<AccessLevel> AuthorizedAccess(AuthorizationData authData)
     {
-        if (authData is null || authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
+        if (authData.UserId == AuthorizationData.ANONYMOUS_USER_ID)
         {
             return Result.Unauthorized("You are not authorized to access this submission.");
         }

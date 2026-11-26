@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -11,6 +12,45 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    [Theory]
+    [InlineData(true, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(false, HttpStatusCode.OK)]
+    public async Task Provider_failure_preserves_the_session_and_follows_the_provider_policy(bool mandatory, HttpStatusCode expected)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var provider = new RecoveringProvider(mandatory);
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton<IRequiredActionProvider>(provider);
+            services.AddRequiredActionEnforcement();
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+
+        // Act
+        using var me = await owner.GetAsync("/api/auth/me", ct);
+        using var operation = await owner.GetAsync("/api/system/version", ct);
+        provider.Online = true;
+        await InvalidateAsync(world, ct);
+        var recovered = await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+
+        // Assert
+        Assert.Equal(expected, me.StatusCode);
+        Assert.Equal(expected, operation.StatusCode);
+        Assert.NotEmpty(recovered.GetProperty("roles").EnumerateArray());
+        Assert.True(recovered.GetProperty("requiredActionsEnforced").GetBoolean());
+    }
+
+    private sealed class RecoveringProvider(bool mandatory) : IRequiredActionProvider
+    {
+        public bool Online { get; set; }
+        public bool FailClosed => mandatory;
+        public string CacheConfigurationKey => "recovery";
+        public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken) =>
+            Online ? Task.FromResult<IReadOnlyList<RequiredAction>>([]) : throw new HttpRequestException("Provider unavailable.");
+    }
+
     [Fact]
     public async Task Me_reports_no_enforcement_on_a_host_without_a_standing_registration()
     {

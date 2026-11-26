@@ -12,6 +12,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCache epochs, RequiredActionExecution execution)
 {
     private readonly Lock _creation = new();
+    internal RequiredActionConfiguration Configuration { get; } = new();
     private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(15);
 
     internal sealed record Query(Guid Epoch, int Index, RequiredActionSubject Subject, Policy Policy);
@@ -21,9 +22,16 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
         internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
         {
+            if (actions.Any(action => string.IsNullOrWhiteSpace(action.Key) || !IsLocalPath(action.ResolvePath)))
+            {
+                throw new InvalidOperationException("Required action reports must supply a key and an application-relative resolver path.");
+            }
             var deadline = actions is RequiredActionReport report ? report.ValidUntil.UtcDateTime : DateTime.MaxValue;
             return new(actions, Earlier(now + policy.CacheFor, deadline), Earlier(now.AddMinutes(1), deadline));
         }
+
+        private static bool IsLocalPath(string? path) => path is ['/', ..] && path is not ['/', '/' or '\\', ..]
+            && !path.Any(char.IsControl);
 
         private static DateTime Earlier(DateTime left, DateTime right) => left < right ? left : right;
 

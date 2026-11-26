@@ -8,6 +8,54 @@ namespace Endatix.Core.Tests.Abstractions.Authorization;
 public sealed class AccountStandingTests
 {
     [Fact]
+    public async Task RefusalAsync_DormantRegistration_AdmitsWithoutASnapshot()
+    {
+        var standing = new AccountStanding();
+        Assert.Null(await standing.RefusalAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task RefusalAsync_FailedSnapshot_ReturnsRetryableFailure()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var service = Substitute.For<ICurrentUserAuthorizationService>();
+        service.GetAuthorizationDataAsync(ct).Returns(Result<AuthorizationData>.Error("Unavailable"));
+
+        // Act
+        var result = await new AccountStanding(service).RefusalAsync(ct);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, result?.Status);
+        Assert.Contains("Try again", Assert.Single(result!.Errors));
+    }
+
+    [Theory]
+    [InlineData(RequiredActionSeverity.Notice)]
+    [InlineData(RequiredActionSeverity.Blocking)]
+    public async Task RefusalAsync_ReportedAction_BlocksOnlyForBlockingSeverity(RequiredActionSeverity severity)
+    {
+        // Arrange
+        var service = Substitute.For<ICurrentUserAuthorizationService>();
+        var ct = TestContext.Current.CancellationToken;
+        RequiredAction action = new() { Key = "setup", ResolvePath = "/setup", Severity = severity, Scope = RequiredActionScope.User };
+        service.GetAuthorizationDataAsync(ct).Returns(Result.Success(new AuthorizationData { UserId = "owner", RequiredActions = [action] }));
+
+        // Act
+        var refusal = await new AccountStanding(service).RefusalAsync(ct);
+
+        // Assert
+        if (severity == RequiredActionSeverity.Notice)
+        {
+            Assert.Null(refusal);
+            return;
+        }
+        var mapped = refusal!.ToErrorResult<string>();
+        Assert.Equal(ResultStatus.Forbidden, mapped.Status);
+        Assert.Equal(action, Assert.Single(Assert.IsType<IRequiredActionRefusal>(mapped, exactMatch: false).Actions));
+    }
+
+    [Fact]
     public async Task RefusalAsync_LookupCompletesAtSnapshotExpiry_DoesNotAdmit()
     {
         // Arrange

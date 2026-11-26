@@ -245,7 +245,7 @@ public sealed class AssertionPermissionsHandlerTests
     // These should be tested in integration test projects with proper test infrastructure.
 
     [Fact]
-    public void UserOwnsSubmitter_WithExternalSubjectMatchingOnlyByCase_ReturnsFalse()
+    public void Matches_WithExternalSubjectMatchingOnlyByCase_ReturnsFalse()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [
@@ -259,7 +259,7 @@ public sealed class AssertionPermissionsHandlerTests
     }
 
     [Fact]
-    public void UserOwnsSubmitter_WithExactExternalSubjectMatch_ReturnsTrue()
+    public void Matches_WithExactExternalSubjectMatch_ReturnsTrue()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
         [

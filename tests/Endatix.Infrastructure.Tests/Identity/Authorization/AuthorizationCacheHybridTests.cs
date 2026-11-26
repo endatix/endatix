@@ -219,6 +219,29 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
     }
 
     [Theory]
+    [InlineData(true, "", "/profile")]
+    [InlineData(false, "profile", "profile")]
+    public async Task GetOrCreateAsync_InvalidReport_UsesProviderFailurePolicy(bool mandatory, string key, string path)
+    {
+        // Arrange
+        var provider = ReportProvider(new RequiredAction
+        {
+            Key = key, ResolvePath = path, Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Notice
+        });
+        provider.FailClosed.Returns(mandatory);
+        var original = CreateData(default);
+
+        // Act
+        var result = await CreateInstance(false, provider).GetOrCreateAsync(CreatePrincipal(),
+            _ => Task.FromResult(Result.Success(original)), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.RequiredActionsUnavailable.Should().Be(mandatory);
+        result.RequiredActions.Should().BeEmpty();
+        result.Permissions.Should().BeEquivalentTo(original.Permissions);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task GetOrCreateAsync_ProviderOffline_RetriesAfterFifteenSeconds(bool mandatory)

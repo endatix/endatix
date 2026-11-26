@@ -7,6 +7,7 @@ using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 
@@ -33,12 +34,10 @@ public sealed class AuthorizationCacheTests
         };
         _now = new DateTimeOffset(2024, 01, 01, 0, 0, 0, TimeSpan.Zero);
         _dateTimeProvider.Now.Returns(_now);
-        var jwtOptions = Options.Create(new EndatixJwtOptions
-        {
-            SigningKey = "test-signing-key-32-characters",
-        });
+        var jwtOptions = Options.Create(new EndatixJwtOptions { SigningKey = "test-signing-key-32-characters" });
         _versionStore = new StubAccessVersionStore(Guid.Parse("11111111-1111-1111-1111-111111111111"));
-        _cache = new(_hybridCache, _dateTimeProvider, new(_httpContextAccessor, jwtOptions), _versionStore, new([], null!));
+        _cache = new(_hybridCache, _dateTimeProvider, new(_httpContextAccessor, jwtOptions), _versionStore,
+            new([], null!, NullLogger<RequiredActionEvaluation>.Instance));
     }
 
     [Fact]
