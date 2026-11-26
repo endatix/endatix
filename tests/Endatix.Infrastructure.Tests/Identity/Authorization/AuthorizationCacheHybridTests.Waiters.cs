@@ -65,12 +65,14 @@ public sealed partial class AuthorizationCacheHybridTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task TransformAsync_InitiatorLeavesSharedEvaluation_OnlyCancelsWithoutASurvivor(bool join)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task TransformAsync_InitiatorLeavesSharedEvaluation_OnlyCancelsWithoutASurvivor(bool join, bool expired)
     {
         using var abort = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        var remote = new ProviderRead();
+        var remote = new ProviderRead(expired);
         await using var services = WaiterServices(remote);
         using var firstScope = services.CreateScope();
         var first = new GrantRequest(firstScope.ServiceProvider.GetRequiredService<AuthorizationCache>(), abort.Token);
@@ -128,7 +130,7 @@ public sealed partial class AuthorizationCacheHybridTests
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }
 
-    private sealed class ProviderRead
+    private sealed class ProviderRead(bool expired)
     {
         internal TaskCompletionSource<bool> Joined { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<bool> Canceled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -142,6 +144,9 @@ public sealed partial class AuthorizationCacheHybridTests
         internal HybridCache Observe(HybridCache cache)
         {
             var forward = Substitute.For<HybridCache>();
+            forward.GetOrCreateAsync(Arg.Any<string>(), 0, Arg.Any<Func<int, CancellationToken, ValueTask<AuthorizationData?>>>(),
+                Arg.Any<HybridCacheEntryOptions>(), Arg.Any<string[]>(), Arg.Any<CancellationToken>())
+                .Returns(ValueTask.FromResult<AuthorizationData?>(expired ? CreateData(DateTime.UnixEpoch) : null));
             forward.GetOrCreateAsync(Arg.Any<string>(), Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
                 Arg.Any<HybridCacheEntryOptions>(), Arg.Any<string[]>(), Arg.Any<CancellationToken>()).Returns(call =>
             {

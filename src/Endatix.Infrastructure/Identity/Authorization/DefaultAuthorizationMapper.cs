@@ -53,7 +53,7 @@ internal sealed class DefaultAuthorizationMapper(
 
             return MappingResult.Success(roleNames, permissions);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (SessionAuthorization.IsUnexpected(ex, cancellationToken))
         {
             // Store/EF exception text must not travel back to the caller as an error message.
             logger.LogError(ex, "Failed to map external roles to application roles and permissions");

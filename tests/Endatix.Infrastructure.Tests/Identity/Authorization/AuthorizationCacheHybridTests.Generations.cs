@@ -8,6 +8,20 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
 public sealed partial class AuthorizationCacheHybridTests
 {
+    [Fact]
+    public async Task GetOrCreateAsync_GrantReadStartsAfterKeyLookup_KeepsOriginalTokenDeadline()
+    {
+        var cache = CreateInstance(false);
+        var principal = CreatePrincipal();
+        principal.Identities.Single().AddClaim(new("exp", _start.AddSeconds(30).ToUnixTimeSeconds().ToString(
+            System.Globalization.CultureInfo.InvariantCulture)));
+        _clock.Now.Returns(_start, _start.AddSeconds(8));
+        var current = await cache.GetOrCreateAsync(principal, _ => Task.FromResult(Result.Success(CreateData(default))),
+            TestContext.Current.CancellationToken);
+
+        current.ExpiresAt.Should().Be(_start.AddSeconds(20).UtcDateTime);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

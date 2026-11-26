@@ -1,8 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
@@ -20,7 +17,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// in-flight writes in the backing cache. An entry lives at most 60 seconds and ends 10 seconds before its token (one
 /// second at least), and is never served past the earliest expiry of the role permissions it holds.
 /// </remarks>
-internal class AuthorizationCache(
+internal partial class AuthorizationCache(
     AuthorizationCacheStorage storage,
     IDateTimeProvider dateTimeProvider,
     AuthorizationTokenFingerprint tokenFingerprint,
@@ -29,8 +26,6 @@ internal class AuthorizationCache(
 {
     /// <summary>The longest an entry lives, which bounds a change that skips the save hook.</summary>
     private static readonly TimeSpan _maxEntryLifetime = TimeSpan.FromSeconds(60);
-
-    private const short ETAG_LENGTH = 12;
 
     // Cache key prefixes
     private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
@@ -58,7 +53,7 @@ internal class AuthorizationCache(
         var cacheKeyTokenPart = tokenFingerprint.For(principal, userId, tenantId);
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
-        var entry = new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
+        var entry = new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), EntryLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
         entry = entry.InGeneration(await storage.GenerationAsync(userId, cancellationToken));
         return principal.HasActorClaim() ? await ReadActorSessionAsync(entry, dataFactory, cancellationToken)
             : await GetOrCreateEntryAsync(entry, dataFactory, cancellationToken);
@@ -69,7 +64,7 @@ internal class AuthorizationCache(
     {
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
-        var entry = new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
+        var entry = new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), EntryLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
         entry = entry.InGeneration(await storage.GenerationAsync(userId, cancellationToken));
         return principal?.HasActorClaim() == true
             ? await ReadActorSessionAsync(entry with { Key = $"{entry.Key}:{tokenFingerprint.For(principal, userId, tenantId)}" }, dataFactory, cancellationToken)
@@ -125,15 +120,15 @@ internal class AuthorizationCache(
         CancellationToken cancellationToken)
     {
         var cached = await ReadCachedAsync(entry, cancellationToken);
-        AuthorizationData? built = null;
+        GrantFill? fill = null;
         if (cached is null)
         {
-            var grants = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
+            fill = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
             cached = await storage.Entries.GetOrCreateAsync(entry.Key,
-                async token => built = (await EvaluateAsync(grants, token)).At(dateTimeProvider.Now.UtcDateTime),
+                fill.BuildAsync,
                 entry.Options, entry.Tags, cancellationToken);
         }
-        return IsCurrent(entry, cached, built) ? cached : await RebuildAsync(entry, dataFactory, cancellationToken);
+        return IsCurrent(entry, cached, fill?.Built) ? cached : await RebuildAsync(entry, dataFactory, cancellationToken);
     }
 
     private ValueTask<AuthorizationData?> ReadCachedAsync(CacheEntry entry, CancellationToken ct) =>
@@ -150,29 +145,20 @@ internal class AuthorizationCache(
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CancellationToken cancellationToken)
     {
-        var snapshot = await BuildAsync(dataFactory, entry, cancellationToken);
-        var rebuilt = snapshot.At(dateTimeProvider.Now.UtcDateTime);
-        await storage.Entries.SetAsync(entry.Key, rebuilt, entry.Options, entry.Tags, cancellationToken);
-        var now = dateTimeProvider.Now.UtcDateTime;
-        if (snapshot.PermissionsExpired(now))
+        var fill = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
+        var refreshed = await fill.RefreshAsync(storage.Entries, cancellationToken);
+        if (refreshed is not null)
         {
-            // Re-read grants once, without another distributed write that could outlive them again.
-            snapshot = await BuildAsync(dataFactory, entry, cancellationToken);
-            return snapshot.WithCurrentPermissions(dateTimeProvider.Now.UtcDateTime);
+            return refreshed;
         }
-        return actions.HasProviders && rebuilt.ExpiresAt <= now ? snapshot.At(now) : rebuilt;
+        // The permission lapsed during publication. Re-read it without another write.
+        var fresh = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
+        return await fresh.WithCurrentPermissionsAsync(cancellationToken);
     }
-
-    /// <summary>Builds the data and stamps it with the time it stops being served.</summary>
-    private async Task<BuiltSnapshot> BuildAsync(
-        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
-        CacheEntry entry,
-        CancellationToken cancellationToken)
-        => await EvaluateAsync(await ReadGrantsAsync(dataFactory, entry, cancellationToken), cancellationToken);
 
     private sealed record Grants(AuthorizationData Data, CacheEntry Entry, DateTime Started);
 
-    private async Task<Grants> ReadGrantsAsync(Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
+    private async Task<GrantFill> ReadGrantsAsync(Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
         CacheEntry entry, CancellationToken cancellationToken)
     {
         var now = dateTimeProvider.Now.UtcDateTime;
@@ -182,10 +168,9 @@ internal class AuthorizationCache(
         {
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
-
         var subjectEntry = NeedsHydratedVersion(entry, result.Value)
             ? entry with { Versions = await accessVersionStore.ReadAsync(result.Value.TenantId, cancellationToken) } : entry;
-        return new(DetachGrants(result.Value), subjectEntry, now);
+        return new(new(DetachGrants(result.Value), subjectEntry, now), actions, dateTimeProvider);
     }
 
     private static AuthorizationData DetachGrants(AuthorizationData data) => data with
@@ -195,42 +180,17 @@ internal class AuthorizationCache(
         RequiredActions = data.RequiredActions.Select(action => action with { ResolverRoles = action.ResolverRoles.ToArray() }).ToArray()
     };
 
-    private async Task<BuiltSnapshot> EvaluateAsync(Grants grants, CancellationToken ct)
-    {
-        var project = await actions.EvaluateAsync(grants.Data, grants.Entry, ct);
-        ct.ThrowIfCancellationRequested();
-        return new(grants.Data.ExpiresAt, at => Stamp(project(at), grants.Started, grants.Entry.Lifetime));
-    }
-
-    private sealed record BuiltSnapshot(DateTime PermissionExpiry, Func<DateTime, AuthorizationData> At)
-    {
-        internal bool PermissionsExpired(DateTime now) => PermissionExpiry != default && PermissionExpiry <= now;
-        internal AuthorizationData WithCurrentPermissions(DateTime now) => PermissionsExpired(now)
-            ? throw new InvalidOperationException("Fresh authorization data contains expired permissions.") : At(now);
-    }
-
-    private static AuthorizationData Stamp(AuthorizationData data, DateTime builtAt, TimeSpan lifetime)
-    {
-        var expiresAt = EarlierOf(builtAt.Add(lifetime), data.ExpiresAt);
-        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, builtAt));
-        return data.WithCacheMetadata(builtAt, expiresAt, GenerateETag(data));
-    }
-
-    /// <summary>The entry's end, or the earliest permission expiry the data carries when that comes first.</summary>
-    private static DateTime EarlierOf(DateTime entryEnd, DateTime permissionsExpireAt) =>
-        permissionsExpireAt != default && permissionsExpireAt < entryEnd ? permissionsExpireAt : entryEnd;
-
     // External authorization strategies can map a positive token tenant to a different local tenant.
     private bool NeedsHydratedVersion(CacheEntry entry, AuthorizationData data) =>
         actions.HasProviders && entry.LookupTenant > 0 && entry.LookupTenant != data.TenantId;
 
     /// <summary>One cache entry's key, lifetime, tags and version scope.</summary>
-    internal readonly record struct CacheEntry(string Key, TimeSpan Lifetime, string[] Tags, AccessVersionKey Versions, string Configuration, long LookupTenant)
+    internal readonly record struct CacheEntry(string Key, Lifetime Window, string[] Tags, AccessVersionKey Versions, string Configuration, long LookupTenant)
     {
         internal static HybridCacheEntryOptions ReadOnly { get; } = new() { Flags = HybridCacheEntryFlags.DisableUnderlyingData };
         internal CacheEntry InGeneration(string generation) => this with { Key = $"{Key}:{generation}", Configuration = $"{Configuration}:{generation}" };
-        /// <summary>The entry lives <see cref="Lifetime"/> in both cache levels.</summary>
-        public HybridCacheEntryOptions Options => new() { Expiration = Lifetime, LocalCacheExpiration = Lifetime };
+        /// <summary>The entry lives <see cref="Window"/> in both cache levels.</summary>
+        public HybridCacheEntryOptions Options => new() { Expiration = Window.Duration, LocalCacheExpiration = Window.Duration };
     }
 
     /// <inheritdoc />
@@ -277,38 +237,22 @@ internal class AuthorizationCache(
     /// How long an entry lives: 60 seconds, or less when the principal's token expires sooner. The entry ends 10 seconds
     /// before the token; a token already inside that buffer gets a one-second entry, never a full one.
     /// </summary>
-    private TimeSpan ComputeLifetime(ClaimsPrincipal? principal)
+    internal readonly record struct Lifetime(DateTime Start, TimeSpan Duration)
     {
+        internal DateTime End => Start.Add(Duration);
+    }
+
+    private Lifetime EntryLifetime(ClaimsPrincipal? principal)
+    {
+        var start = dateTimeProvider.Now;
         var expClaim = principal?.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
         if (expClaim is null || !long.TryParse(expClaim, out var expirySeconds))
         {
-            return _maxEntryLifetime;
+            return new(start.UtcDateTime, _maxEntryLifetime);
         }
 
-        var timeUntilExpiry = DateTimeOffset.FromUnixTimeSeconds(expirySeconds) - dateTimeProvider.Now - _cacheExpiryBuffer;
-        return TimeSpan.FromTicks(Math.Clamp(timeUntilExpiry.Ticks, _minEntryLifetime.Ticks, _maxEntryLifetime.Ticks));
+        var timeUntilExpiry = DateTimeOffset.FromUnixTimeSeconds(expirySeconds) - start - _cacheExpiryBuffer;
+        return new(start.UtcDateTime, TimeSpan.FromTicks(Math.Clamp(timeUntilExpiry.Ticks, _minEntryLifetime.Ticks, _maxEntryLifetime.Ticks)));
     }
 
-    /// <summary>
-    /// Generates an ETag for authorization data based on its content.
-    /// Centralized ETag generation ensures consistency across all strategies.
-    /// </summary>
-    private static string GenerateETag(AuthorizationData data)
-    {
-        var sortedRoles = string.Join(",", data.Roles.OrderBy(r => r).ToArray());
-        var sortedPermissions = string.Join(",", data.Permissions.OrderBy(p => p).ToArray());
-        var content = $"{data.UserId}:{data.TenantId}:{sortedRoles}:{sortedPermissions}";
-        if (data.RequiredActionsUnavailable)
-        {
-            content += ":standing-unavailable";
-        }
-        if (data.RequiredActions.Count > 0)
-        {
-            content += ":" + JsonSerializer.Serialize(data.RequiredActions);
-        }
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
-
-        var shortETag = Convert.ToBase64String(hash)[..ETAG_LENGTH];
-        return shortETag;
-    }
 }
