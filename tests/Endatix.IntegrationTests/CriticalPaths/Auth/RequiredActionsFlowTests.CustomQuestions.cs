@@ -12,6 +12,29 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests
 {
     [Fact]
+    public async Task Concurrent_creates_of_one_question_name_leave_one_question()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        const string route = "/api/questions";
+        var question = new { name = "Rating", jsonData = """{"type":"rating"}""" };
+
+        // Act
+        var first = admin.PostAsJsonAsync(route, question, ct);
+        var second = admin.PostAsJsonAsync(route, question with { name = "RATING" }, ct);
+        await Task.WhenAll(first, second);
+        using var left = await first;
+        using var right = await second;
+
+        // Assert
+        Assert.Equal([HttpStatusCode.Created, HttpStatusCode.BadRequest], new[] { left.StatusCode, right.StatusCode }.Order());
+        var page = await admin.GetFromJsonAsync<JsonElement>(route, ct);
+        Assert.Single(page.GetProperty("items").EnumerateArray());
+    }
+
+    [Fact]
     public async Task Ordinary_question_creation_still_requires_permission_and_valid_input()
     {
         // Arrange
