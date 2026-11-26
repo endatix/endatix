@@ -23,6 +23,15 @@ public sealed class ExitAssumeHandler(
     IDateTimeProvider dateTimeProvider)
     : ICommandHandler<ExitAssumeCommand, Result<AuthTokensDto>>
 {
+    private readonly VerifiedAssumptionReader? _verifier;
+
+    /// <summary>Uses the built-in verifier independently of authorization-service decorators.</summary>
+    public ExitAssumeHandler(IUserContext userContext, IUserService userService, IRepository<Tenant> tenantRepository,
+        IUserTokenService tokenService, IAuthService authService, ICurrentUserAuthorizationService authorizationService,
+        IDateTimeProvider dateTimeProvider, VerifiedAssumptionReader verifier)
+        : this(userContext, userService, tenantRepository, tokenService, authService, authorizationService, dateTimeProvider)
+        => _verifier = verifier;
+
     /// <inheritdoc />
     public async Task<Result<AuthTokensDto>> Handle(ExitAssumeCommand request, CancellationToken cancellationToken)
     {
@@ -39,13 +48,13 @@ public sealed class ExitAssumeHandler(
         }
 
         var userResult = await userService.GetUserAsync(actor.Id, cancellationToken);
-        if (!userResult.IsSuccess || actorId != actor.Id || authorizationService is not IVerifiedAssumptionReader verifier)
+        if (!userResult.IsSuccess || actorId != actor.Id || _verifier is null)
         {
             return Result.Forbidden();
         }
 
         var user = userResult.Value;
-        var proof = await verifier.GetVerifiedAssumptionAsync(cancellationToken);
+        var proof = await _verifier.ReadAsync(cancellationToken);
         if (!MatchesAssumption(proof, actor, user))
         {
             return Result.Forbidden();

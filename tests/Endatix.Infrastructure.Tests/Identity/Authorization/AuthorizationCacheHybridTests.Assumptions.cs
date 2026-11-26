@@ -19,9 +19,9 @@ public sealed partial class AuthorizationCacheHybridTests
         var writer = CreateInstance(true, provider);
         var reader = CreateInstance(true, provider);
 
-        var member = await ReadSessionAsync(writer, null, byUser);
-        var firstHome = await ReadSessionAsync(writer, new(123, 1), byUser);
-        var secondHome = await ReadSessionAsync(writer, new(123, 2), byUser);
+        var member = await _sharedL2.AfterWriteAsync(() => ReadSessionAsync(writer, null, byUser));
+        var firstHome = await _sharedL2.AfterWriteAsync(() => ReadSessionAsync(writer, new(123, 1), byUser));
+        var secondHome = await _sharedL2.AfterWriteAsync(() => ReadSessionAsync(writer, new(123, 2), byUser));
         var distributed = await ReadSessionAsync(reader, new(123, 2), byUser);
 
         member.RequiredActions.Single().Key.Should().Be("member");
@@ -30,6 +30,58 @@ public sealed partial class AuthorizationCacheHybridTests
         distributed.VerifiedAssumption.Should().Be(new VerifiedAssumption(123, 2));
         distributed.RequiredActions.Single().CanResolve.Should().BeFalse();
         await provider.Received(3).GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_AssumedPermissionExpiresDuringWrite_ReadsCurrentGrants()
+    {
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.CacheFor.Returns(TimeSpan.FromSeconds(5));
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(true, provider);
+        var principal = CreatePrincipal();
+        principal.Identities.Single().AddClaim(new(ClaimNames.Actor, "123"));
+        var expiry = _start.AddSeconds(10);
+        var initial = CreateData(expiry.UtcDateTime) with { VerifiedAssumption = new(123, 1) };
+        Task<AuthorizationData> ReadAsync() => cache.GetOrCreateAsync(principal,
+            _ => Task.FromResult(Result.Success(_clock.Now < expiry ? initial : initial with { Permissions = [], ExpiresAt = default })),
+            TestContext.Current.CancellationToken);
+        (await _sharedL2.AfterWriteAsync(ReadAsync)).Permissions.Should().Contain("forms.view");
+        _clock.Now.Returns(_start.AddSeconds(5));
+        _sharedL2.Written = () => _clock.Now.Returns(_start.AddSeconds(11));
+
+        var refreshed = await ReadAsync();
+        refreshed.Permissions.Should().BeEmpty();
+        refreshed.VerifiedAssumption.Should().Be(initial.VerifiedAssumption);
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_HomeTenantVersionChanges_RefreshesAssumedReport()
+    {
+        var provider = Substitute.For<IRequiredActionProvider>();
+        var proof = new VerifiedAssumption(123, 1);
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        var cache = CreateInstance(false, provider);
+        (await ReadSessionAsync(cache, proof, false)).RequiredActions.Should().BeEmpty();
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([SessionAction(proof)]);
+
+        _versionStore.TenantVersions[1] = Guid.NewGuid();
+        (await ReadSessionAsync(cache, proof, false)).RequiredActions.Single().Key.Should().Be("home-1");
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_PublicFactoryReceivesCopiedSnapshot_CannotTransferItsProof()
+    {
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
+            .Returns(call => [SessionAction(call.Arg<RequiredActionSubject>().VerifiedAssumption)]);
+        var cache = CreateInstance(false, provider);
+        var verified = await ReadSessionAsync(cache, new(123, 1), false);
+        var publicCache = (IAuthorizationCache)cache;
+        var copied = await publicCache.GetOrCreateAsync("456", 42, null,
+            _ => Task.FromResult(Result.Success(verified with { UserId = "456" })), TestContext.Current.CancellationToken);
+        copied.RequiredActions.Single().Key.Should().Be("member");
+        copied.VerifiedAssumption.Should().BeNull();
     }
 
     [Fact]
@@ -96,8 +148,13 @@ public sealed partial class AuthorizationCacheHybridTests
 
     private static RequiredAction SessionAction(VerifiedAssumption? proof) => new()
     {
-        Key = proof is null ? "member" : $"home-{proof.HomeTenantId}", ResolvePath = "/profile", Scope = RequiredActionScope.User,
-        Severity = RequiredActionSeverity.Blocking, ResolverRoles = ["Creator"], PreventResolution = proof is not null, BlockNonResolvers = true
+        Key = proof is null ? "member" : $"home-{proof.HomeTenantId}",
+        ResolvePath = "/profile",
+        Scope = RequiredActionScope.User,
+        Severity = RequiredActionSeverity.Blocking,
+        ResolverRoles = ["Creator"],
+        PreventResolution = proof is not null,
+        BlockNonResolvers = true
     };
 
     private static Task<AuthorizationData> ReadSessionAsync(AuthorizationCache cache, VerifiedAssumption? proof, bool byUser)

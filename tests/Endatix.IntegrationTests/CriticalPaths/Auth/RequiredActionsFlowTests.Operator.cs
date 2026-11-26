@@ -8,6 +8,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Features.Email;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Identity;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -134,6 +135,32 @@ public sealed partial class RequiredActionsFlowTests
                 Severity = RequiredActionSeverity.Blocking, PreventResolution = true, BlockNonResolvers = true
             }]);
         }
+    }
+
+    [Fact]
+    public async Task Exit_requires_a_distinct_persisted_home_even_after_a_successful_assumption()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = SessionHost(new ReturnHomeProvider(), new MutableProvider("optional", "/optional") { Pending = false });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var admin = await world.AsAsync(TestPersona.PlatformAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var target = world.Tenants[1].Id;
+        using var enter = await admin.PostAsJsonAsync("/api/auth/assume-tenant", new { tenantId = target }, ct);
+        using var assumed = host.CreateClient();
+        await UseSessionAsync(assumed, enter, ct);
+        using var warm = await assumed.GetAsync("/api/auth/me", ct);
+        warm.EnsureSuccessStatusCode();
+
+        using var scope = world.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var actor = world.Tenants[0].PlatformAdmin.Id;
+        await db.Users.Where(u => u.Id == actor).ExecuteUpdateAsync(s => s.SetProperty(u => u.TenantId, target), ct);
+
+        using var rejected = await assumed.PostAsync("/api/auth/exit-assume", null, ct);
+        Assert.Equal(HttpStatusCode.Forbidden, rejected.StatusCode);
+        Assert.DoesNotContain("accessToken", await rejected.Content.ReadAsStringAsync(ct));
+        using var standing = await assumed.GetAsync("/api/auth/me", ct);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, standing.StatusCode);
     }
 
     private ReportingWebHost SessionHost(IRequiredActionProvider blocker, IRequiredActionProvider conflict) =>

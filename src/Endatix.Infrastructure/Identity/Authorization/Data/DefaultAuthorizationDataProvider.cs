@@ -29,83 +29,73 @@ internal sealed class DefaultAuthorizationDataProvider(
         CancellationToken cancellationToken,
         long? actorUserId = null)
     {
-        var data = await ReadSessionAsync(userId, tenantId, cancellationToken, actorUserId);
+        var data = await ReadSessionAsync(new(userId, tenantId, actorUserId), cancellationToken);
         return data.IsSuccess ? Result.Success(data.Value with { VerifiedAssumption = null }) : data;
     }
 
-    internal async Task<Result<AuthorizationData>> ReadSessionAsync(long userId, long tenantId, CancellationToken cancellationToken, long? actorUserId)
+    internal readonly record struct Session(long UserId, long TenantId, long? Actor)
     {
-        var utcNow = dateTimeProvider.Now.UtcDateTime;
+        internal bool MalformedActor { get; init; }
+        internal bool PresentsActor => Actor.HasValue || MalformedActor;
+    }
 
+    internal async Task<Result<AuthorizationData>> ReadSessionAsync(Session session, CancellationToken cancellationToken)
+    {
         try
         {
-            var user = await userManager.FindByIdAsync(userId.ToString());
+            var user = await FindUserAsync(session, cancellationToken);
             if (user is null)
             {
-                return actorUserId.HasValue ? Result.Forbidden() : Result.Success(
-                    AuthorizationData.ForAuthenticatedUser(userId.ToString(), tenantId, [], []));
+                return Result.Success(ToData(session, []) with { UnverifiedActor = session.PresentsActor });
             }
-
-            var membership = await VerifyScopeAsync(user, tenantId, actorUserId, cancellationToken);
-            if (!membership.IsSuccess)
-            {
-                return membership.ToErrorResult<AuthorizationData>();
-            }
-
-            var userRoleIds = identityDbContext.UserRoles
-                .Where(ur => ur.UserId == userId)
-                .Select(ur => ur.RoleId);
-
-            var userRoles = await identityDbContext.Roles
-                .Where(r =>
-                    r.IsActive &&
-                    userRoleIds.Contains(r.Id))
-                .Where(IsRoleInAuthorizationScope(tenantId))
-                .Include(r => r.RolePermissions.Where(rp => rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > utcNow)))
-                .ThenInclude(rp => rp.Permission)
-                .AsSplitQuery()
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-
-            var assignedRoles = userRoles
-                .Where(IsNotBorrowingAnAdminRoleName)
-                .Select(r => r.Name!)
-                .ToArray();
-
-            var assignedPermissions = userRoles
-                .SelectMany(r => r.RolePermissions
-                    .Select(rp => rp.Permission.Name)
-                    .Where(name => RoleGrantCeiling.GrantsOnRead(r, name)))
-                .Distinct()
-                .ToArray();
-
-            var authorizationData = AuthorizationData.ForAuthenticatedUser(
-                    userId: userId.ToString(), tenantId: tenantId,
-                    roles: assignedRoles,
-                    permissions: assignedPermissions,
-                    expiresAt: EarliestPermissionExpiry(userRoles)
-            );
-
-            return Result.Success(authorizationData with { VerifiedAssumption = membership.Value });
+            var membership = await VerifyScopeAsync(user, session, cancellationToken);
+            return membership.IsSuccess
+                ? Result.Success(ToData(session, await RolesAsync(session, cancellationToken)) with
+                { VerifiedAssumption = membership.Value, UnverifiedActor = session.PresentsActor && membership.Value is null })
+                : membership.ToErrorResult<AuthorizationData>();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error getting user permissions info for user {UserId}", userId);
+            logger.LogError(ex, "Error getting user permissions info for user {UserId}", session.UserId);
             return Result.Error("Failed to get user permissions info from the identity store");
         }
     }
 
-    private async Task<Result<VerifiedAssumption?>> VerifyScopeAsync(AppUser user, long tenantId, long? actor, CancellationToken ct)
+    private Task<AppUser?> FindUserAsync(Session session, CancellationToken ct) => session.PresentsActor
+        ? identityDbContext.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == session.UserId, ct)
+        : userManager.FindByIdAsync(session.UserId.ToString());
+
+    private Task<List<AppRole>> RolesAsync(Session session, CancellationToken ct)
     {
-        if (actor is null && IsUserInAuthorizationTenantScope(user, tenantId))
+        var utcNow = dateTimeProvider.Now.UtcDateTime;
+        var ids = identityDbContext.UserRoles.Where(ur => ur.UserId == session.UserId).Select(ur => ur.RoleId);
+        return identityDbContext.Roles.Where(r => r.IsActive && ids.Contains(r.Id))
+            .Where(IsRoleInAuthorizationScope(session.TenantId))
+            .Include(r => r.RolePermissions.Where(rp => rp.IsActive && (rp.ExpiresAt == null || rp.ExpiresAt > utcNow)))
+            .ThenInclude(rp => rp.Permission)
+            .AsSplitQuery().AsNoTracking().ToListAsync(ct);
+    }
+
+    private static AuthorizationData ToData(Session session, List<AppRole> roles)
+    {
+        var names = roles.Where(IsNotBorrowingAnAdminRoleName).Select(r => r.Name!).ToArray();
+        var permissions = roles.SelectMany(r => r.RolePermissions.Select(rp => rp.Permission.Name)
+            .Where(name => RoleGrantCeiling.GrantsOnRead(r, name))).Distinct().ToArray();
+        return AuthorizationData.ForAuthenticatedUser(session.UserId.ToString(), session.TenantId, names, permissions,
+            expiresAt: EarliestPermissionExpiry(roles));
+    }
+
+    private async Task<Result<VerifiedAssumption?>> VerifyScopeAsync(AppUser user, Session session, CancellationToken ct)
+    {
+        if (IsUserInAuthorizationTenantScope(user, session.TenantId))
         {
             return Result<VerifiedAssumption?>.Success(null);
         }
-        if (IsAssumeTenantSession(user.Id, actor, user.TenantId, tenantId) && await UserHasPlatformAdminRoleAsync(user.Id, ct))
+        if (!session.MalformedActor && IsAssumeTenantSession(user.Id, session.Actor, user.TenantId, session.TenantId) && await UserHasPlatformAdminRoleAsync(user.Id, ct))
         {
             return Result.Success<VerifiedAssumption?>(new(user.Id, user.TenantId));
         }
-        logger.LogWarning("Blocked authorization for user {UserId} outside tenant scope {TenantId}.", user.Id, tenantId);
+        logger.LogWarning("Blocked authorization for user {UserId} outside tenant scope {TenantId}.", user.Id, session.TenantId);
         return Result.Forbidden("User does not belong to the requested tenant.");
     }
 

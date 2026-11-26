@@ -5,7 +5,6 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Exceptions;
-using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -14,7 +13,7 @@ namespace Endatix.Infrastructure.Identity.Services;
 /// <summary>
 /// Current user authorization service with caching and optimization.
 /// </summary>
-internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizationService, IVerifiedAssumptionReader
+internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizationService
 {
     private const string PERMISSIONS_LOOKUP_FAILED = "Failed to get user permissions info";
 
@@ -83,23 +82,6 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             ? Result.Unauthorized("The current account has changed.") : fresh;
     }
 
-    /// <inheritdoc />
-    public async Task<VerifiedAssumption?> GetVerifiedAssumptionAsync(CancellationToken cancellationToken)
-    {
-        var principal = _httpContextAccessor.HttpContext?.User;
-        if (principal is null)
-        {
-            return null;
-        }
-        var original = new ClaimsPrincipal(principal.Identities.Where(i => i is not AuthorizedIdentity));
-        if (_authorizationStrategies.FirstOrDefault(strategy => strategy.CanHandle(original)) is not DefaultAuthorization builtIn)
-        {
-            return null;
-        }
-        var data = await builtIn.GetAuthorizationDataAsync(original, cancellationToken);
-        return data.IsSuccess && data.Value.UserId == principal.GetUserId() && data.Value.TenantId == principal.GetTenantId()
-            ? data.Value.VerifiedAssumption : null;
-    }
 
     private async Task<Result<AuthorizationData>> ReadForPrincipalAsync(ClaimsPrincipal currentPrincipal, CancellationToken cancellationToken)
     {
@@ -120,10 +102,7 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     {
         try
         {
-            var authorizationData = await _authorizationCache.GetOrCreateAsync(
-                currentPrincipal,
-                token => authorizationStrategy.GetAuthorizationDataAsync(currentPrincipal, token),
-                cancellationToken);
+            var authorizationData = await _authorizationCache.ReadAsync(currentPrincipal, authorizationStrategy, cancellationToken);
 
             return Result.Success(authorizationData);
         }
@@ -257,7 +236,16 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
 
         var userId = principal.GetUserId() ?? throw new InvalidAuthorizedIdentityException("User ID is not found");
 
-        var authorizationData = AuthorizationData.ForAuthenticatedUser(
+        var authorizationData = Snapshot(userId, endatixIdentity);
+        if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
+        {
+            throw new InvalidAuthorizedIdentityException("IsAdmin flag is not consistent with the claims principal");
+        }
+        return authorizationData;
+    }
+
+    private static AuthorizationData Snapshot(string userId, AuthorizedIdentity endatixIdentity) =>
+        AuthorizationData.ForAuthenticatedUser(
          userId: userId,
          tenantId: endatixIdentity.TenantId,
          roles: endatixIdentity.Roles.ToArray(),
@@ -271,11 +259,4 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             VerifiedAssumption = endatixIdentity.VerifiedAssumption
         };
 
-        if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
-        {
-            throw new InvalidAuthorizedIdentityException("IsAdmin flag is not consistent with the claims principal");
-        }
-
-        return authorizationData;
-    }
 }

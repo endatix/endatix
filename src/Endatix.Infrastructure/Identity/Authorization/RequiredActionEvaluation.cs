@@ -38,6 +38,10 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
         {
             return _ => data;
         }
+        if (data.UnverifiedActor)
+        {
+            return _ => data with { RequiredActionsUnavailable = true, RequiredActions = [] };
+        }
 
         var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles) { VerifiedAssumption = data.VerifiedAssumption };
         var epoch = await reports.SubjectEpochAsync(subject, entry, ct);

@@ -43,6 +43,7 @@ public sealed record AuthorizationData
     public string UserId { get; init; }
     public long TenantId { get; init; }
     internal VerifiedAssumption? VerifiedAssumption { get; init; }
+    internal bool UnverifiedActor { get; init; }
     public HashSet<string> Roles { get; init; } = [];
     public HashSet<string> Permissions { get; init; } = [];
     /// <summary>Outstanding actions applicable to the user in the current tenant.</summary>

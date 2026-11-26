@@ -109,8 +109,8 @@ public static class ClaimsPrincipalExtensions
             return null;
         }
 
-        var actors = identity.FindAll(ClaimNames.Actor).Take(2).ToArray();
-        if (actors is [var actor] && long.TryParse(actor.Value, out var actorUserId) && actorUserId > 0)
+        var actor = identity.FindFirst(ClaimNames.Actor);
+        if (actor is not null && long.TryParse(actor.Value, out var actorUserId) && actorUserId > 0)
         {
             return actorUserId;
         }

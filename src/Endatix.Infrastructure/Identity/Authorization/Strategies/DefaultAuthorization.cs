@@ -36,14 +36,19 @@ public sealed class DefaultAuthorization(
     /// <inheritdoc />
     public async Task<Result<AuthorizationData>> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
+        var data = await ReadVerifiedSessionAsync(principal, cancellationToken);
+        return SessionAuthorization.WithoutProof(data);
+    }
+
+    internal async Task<Result<AuthorizationData>> ReadVerifiedSessionAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
+    {
 
         if (!CanHandle(principal))
         {
             return Result.Error("Provider cannot handle the given issuer");
         }
 
-        var userId = principal.GetUserId();
-        if (userId is null || !long.TryParse(userId, out var endatixUserId))
+        if (!long.TryParse(principal.GetUserId(), out var endatixUserId))
         {
             return Result.Error("User ID is required");
         }
@@ -54,13 +59,22 @@ public sealed class DefaultAuthorization(
             return Result.Error("Tenant ID is required");
         }
 
+        return await ReadAsync(SessionFor(principal, endatixUserId, tenantId), cancellationToken);
+    }
+
+    private static DefaultAuthorizationDataProvider.Session SessionFor(ClaimsPrincipal principal, long userId, long tenantId)
+    {
         var actor = principal.GetActorUserId();
-        if (principal.HasActorClaim() && actor is null)
+        return new(userId, tenantId, actor)
+        { MalformedActor = principal.HasActorClaim() && (actor is null || principal.Identities.First().FindAll(ClaimNames.Actor).Skip(1).Any()) };
+    }
+
+    private Task<Result<AuthorizationData>> ReadAsync(DefaultAuthorizationDataProvider.Session session, CancellationToken ct)
+    {
+        if (authorizationDataProvider is DefaultAuthorizationDataProvider builtIn)
         {
-            return Result.Forbidden();
+            return builtIn.ReadSessionAsync(session, ct);
         }
-        return authorizationDataProvider is DefaultAuthorizationDataProvider builtIn
-            ? await builtIn.ReadSessionAsync(endatixUserId, tenantId, cancellationToken, actor)
-            : await authorizationDataProvider.GetAuthorizationDataAsync(endatixUserId, tenantId, cancellationToken, actor);
+        return authorizationDataProvider.GetAuthorizationDataAsync(session.UserId, session.TenantId, ct, session.Actor);
     }
 }

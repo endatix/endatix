@@ -62,10 +62,7 @@ internal sealed class ClaimsTransformer(
 
         try
         {
-            return await authorizationCache.GetOrCreateAsync(
-                principal,
-                async _ => await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken),
-                cancellationToken);
+            return await authorizationCache.ReadAsync(principal, authorizationStrategy, cancellationToken);
         }
         catch (Exception ex)
         {

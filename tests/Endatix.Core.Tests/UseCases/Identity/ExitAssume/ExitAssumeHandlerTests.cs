@@ -23,7 +23,8 @@ public class ExitAssumeHandlerTests
     private readonly IRepository<Tenant> _tenantRepository = Substitute.For<IRepository<Tenant>>();
     private readonly IUserTokenService _tokenService = Substitute.For<IUserTokenService>();
     private readonly IAuthService _authService = Substitute.For<IAuthService>();
-    private readonly ICurrentUserAuthorizationService _authorizationService = Substitute.For<ICurrentUserAuthorizationService, IVerifiedAssumptionReader>();
+    private readonly ICurrentUserAuthorizationService _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+    private readonly TestAssumptionReader _verifier = new();
     private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
     private readonly ExitAssumeHandler _sut;
 
@@ -37,7 +38,8 @@ public class ExitAssumeHandlerTests
             _tokenService,
             _authService,
             _authorizationService,
-            _dateTimeProvider);
+            _dateTimeProvider,
+            _verifier);
     }
 
     [Fact]
@@ -91,7 +93,7 @@ public class ExitAssumeHandlerTests
     public async Task Handle_MissingOrInconsistentProof_RefusesBeforeIssuingTokens(long? actor, long? home)
     {
         ArrangeAssumedSession();
-        ArrangeProof(actor.HasValue ? new(actor.Value, home!.Value) : null);
+        _verifier.Proof = actor.HasValue ? new(actor.Value, home!.Value) : null;
 
         var result = await _sut.Handle(new ExitAssumeCommand(), TestContext.Current.CancellationToken);
 
@@ -103,8 +105,11 @@ public class ExitAssumeHandlerTests
             Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
     }
 
-    private void ArrangeProof(VerifiedAssumption? proof) =>
-        ((IVerifiedAssumptionReader)_authorizationService).GetVerifiedAssumptionAsync(Arg.Any<CancellationToken>()).Returns(proof);
+    private sealed class TestAssumptionReader : VerifiedAssumptionReader
+    {
+        internal VerifiedAssumption? Proof { get; set; }
+        internal override Task<VerifiedAssumption?> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(Proof);
+    }
 
     [Fact]
     public async Task Handle_RefreshTokenNotStored_ReturnsErrorWithoutRaisingEvent()
@@ -170,7 +175,7 @@ public class ExitAssumeHandlerTests
 
     private User ArrangeAssumedSession()
     {
-        ArrangeProof(new(ActorId, HomeTenantId));
+        _verifier.Proof = new(ActorId, HomeTenantId);
         var sessionUser = new User(ActorId, AssumedTenantId, "admin", "admin@example.com", true);
         var homeUser = new User(ActorId, HomeTenantId, "admin", "admin@example.com", true);
         _userContext.GetCurrentUser().Returns(sessionUser);

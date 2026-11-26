@@ -42,6 +42,14 @@ internal class AuthorizationCache(
     private static readonly TimeSpan _cacheExpiryBuffer = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan _minEntryLifetime = TimeSpan.FromSeconds(1);
 
+    Task<AuthorizationData> IAuthorizationCache.GetOrCreateAsync(ClaimsPrincipal principal,
+        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken) =>
+        GetOrCreateAsync(principal, async token => SessionAuthorization.WithoutProof(await dataFactory(token)), cancellationToken);
+
+    Task<AuthorizationData> IAuthorizationCache.GetOrCreateAsync(string userId, long tenantId, ClaimsPrincipal? principal,
+        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken) =>
+        GetOrCreateAsync(userId, tenantId, principal, async token => SessionAuthorization.WithoutProof(await dataFactory(token)), cancellationToken);
+
     /// <inheritdoc />
     public async Task<AuthorizationData> GetOrCreateAsync(ClaimsPrincipal principal, Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken cancellationToken)
     {
@@ -51,7 +59,9 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         var entry = new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
-        return await ReadSessionAsync(principal, entry, dataFactory, cancellationToken);
+        return principal.HasActorClaim()
+            ? await ReadActorSessionAsync(entry, dataFactory, cancellationToken)
+            : await GetOrCreateEntryAsync(entry, dataFactory, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -60,17 +70,14 @@ internal class AuthorizationCache(
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
         var entry = new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
-        return await ReadSessionAsync(principal, entry, dataFactory, cancellationToken);
+        return principal?.HasActorClaim() == true
+            ? await ReadActorSessionAsync(entry with { Key = $"{entry.Key}:{tokenFingerprint.For(principal, userId, tenantId)}" }, dataFactory, cancellationToken)
+            : await GetOrCreateEntryAsync(entry, dataFactory, cancellationToken);
     }
 
-    private async Task<AuthorizationData> ReadSessionAsync(ClaimsPrincipal? principal, CacheEntry entry,
+    private async Task<AuthorizationData> ReadActorSessionAsync(CacheEntry entry,
         Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken ct)
     {
-        if (principal?.HasActorClaim() != true)
-        {
-            return await GetOrCreateEntryAsync(entry, dataFactory, ct);
-        }
-
         // The credential names the actor, not the persisted home. Verify before selecting even a warm snapshot.
         var verified = await dataFactory(ct);
         if (!verified.IsSuccess)
@@ -78,10 +85,32 @@ internal class AuthorizationCache(
             throw new InvalidOperationException("Failed to verify session authorization.");
         }
         var proof = verified.Value.VerifiedAssumption;
-        var key = $"{entry.Key}:actor-session:{tokenFingerprint.For(principal, verified.Value.UserId, verified.Value.TenantId)}:{proof?.ActorUserId}:{proof?.HomeTenantId}";
-        var snapshot = await GetOrCreateEntryAsync(entry with { Key = key }, _ => Task.FromResult(verified), ct);
+        var homeVersion = proof is null ? null : (await accessVersionStore.ReadAsync(proof.HomeTenantId, ct)).Versions;
+        var key = $"{entry.Key}:actor-session:{verified.Value.UserId}:{verified.Value.TenantId}:{verified.Value.UnverifiedActor}:{proof?.ActorUserId}:{proof?.HomeTenantId}:{homeVersion}";
+        var snapshot = await GetOrCreateEntryAsync(entry with { Key = key, Configuration = $"{entry.Configuration}:{homeVersion}" },
+            new SessionRead(verified, dataFactory).BuildAsync, ct);
         return snapshot with { VerifiedAssumption = proof };
     }
+
+    private sealed class SessionRead(Result<AuthorizationData> verified, Func<CancellationToken, Task<Result<AuthorizationData>>> factory)
+    {
+        private bool _first = true;
+
+        internal async Task<Result<AuthorizationData>> BuildAsync(CancellationToken ct)
+        {
+            if (_first)
+            {
+                _first = false;
+                return verified;
+            }
+            var fresh = await factory(ct);
+            return fresh.IsSuccess && SameSession(verified.Value, fresh.Value) ? fresh : Result.Forbidden();
+        }
+    }
+
+    private static bool SameSession(AuthorizationData expected, AuthorizationData fresh) =>
+        expected.UserId == fresh.UserId && expected.TenantId == fresh.TenantId && expected.VerifiedAssumption == fresh.VerifiedAssumption
+        && expected.UnverifiedActor == fresh.UnverifiedActor;
 
     /// <summary>
     /// Serves the entry, building it on a miss. An entry past its own <see cref="AuthorizationData.ExpiresAt"/> (a role
