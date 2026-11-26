@@ -62,7 +62,9 @@ services.AddScoped<IRequiredActionProvider, WorkspaceProfileProvider>();
 
 Use `subject.UserId` (the canonical string ID), `subject.TenantId`, and `subject.Roles` (resolved for this tenant). Providers run concurrently in separate DI scopes. Request-initialized services do not carry the caller's tenant into that scope. Bind every tenant-owned read explicitly to the positive subject tenant ID. For a mandatory check, a missing tenant or a failed read is an error; returning `[]` means you checked and found nothing outstanding.
 
-Keep constructors, DI factories, and configuration getters free of I/O. Do the check in `GetPendingAsync` and pass its token through. The token lasts **one invocation**: the host signals it on caller cancellation, timeout, or method completion, **including success**, whichever comes first. A successful completion signal does not cancel the request or invalidate the result. The host waits for token callbacks before disposing the scope. Do not retain scoped services or start background work with them. Cleanup counts toward the deadline; the host discards late results and does not start another invocation on that host for the same user, tenant, and registration until cleanup finishes, even after invalidation.
+For a verified built-in assume-tenant session, `subject.VerifiedAssumption` contains `ActorUserId` and `HomeTenantId`. The actor remains the subject; `subject.TenantId` is the target. Ordinary and externally mapped sessions have no verified assumption. A role or missing tenant membership is not a substitute for this proof.
+
+Keep constructors, DI factories, and configuration getters free of I/O. Do the check in `GetPendingAsync` and pass its token through. The token lasts **one invocation**: the host signals it on caller cancellation, timeout, or method completion, **including success**, whichever comes first. A successful completion signal does not cancel the request or invalidate the result. The host waits for token callbacks before disposing the scope. Do not retain scoped services or start background work with them. Cleanup counts toward the deadline; the host discards late results and does not start another invocation on that host for the same user, tenant, assumption and registration until cleanup finishes, even after invalidation.
 
 ## Choose who can resolve the action
 
@@ -71,6 +73,8 @@ Give each obligation a stable, module-qualified `Key` and an application-relativ
 The API computes `canResolve`: any matching `ResolverRoles` entry is enough, and an empty list allows every affected user to resolve. In the example, `WorkspaceOwner` is an application role. Owners see `blocking`; everyone else sees `notice`. Set `BlockNonResolvers = true` only if callers who need someone else's help must also be blocked. The resolution endpoint must still authorize its writes.
 
 Use `Notice` for an action that permits continued access. To introduce a deadline, set `BlockingFrom` on a notice: at that instant the API projects it as blocking for resolvers and, if configured, non-resolvers. Identical reports with the same key appear once. Conflicting reports with the same key make standing unavailable; registration order does not pick a winner.
+
+Set `PreventResolution = true` when the action cannot be completed in the current session, even by someone with a resolver role. Clients see `canResolve: false`. Pair it with `BlockNonResolvers = true` to keep a blocking action blocking.
 
 ## Keep reports fresh
 
@@ -121,3 +125,5 @@ The default Endatix pipeline installs the gate after authorization. If a custom 
 Where the host enforces standing, a notice permits normal reads and writes, subject to ordinary authorization. A blocking action refuses a protected account operation with **403**, `errorCode: required_action`, and the complete `requiredActions` list, including notices, as on `/api/auth/me`. Unavailable standing yields **503** instead. An ordinary permission denial is not a required-action refusal.
 
 Mark an account endpoint that must remain reachable to resolve an action with `[AllowWithRequiredActions]` (`Endatix.Core.Infrastructure.Attributes`). The marker skips only the standing gate. Authentication, resolver permissions, and tenant checks still apply. `/api/auth/me`, logout, and change-password already use the marker. Anonymous endpoints, static assets, and respondent endpoints protected only by the public-resource policy are outside the gate; adding account authorization to a respondent route changes that distinction.
+
+A verified platform administrator can also `POST /api/auth/exit-assume` to return home while standing is blocking or unavailable. Multi-tenancy must be enabled. An authorized ordinary session receives **400**; an actor-bearing session without matching proof receives **403** and no tokens.

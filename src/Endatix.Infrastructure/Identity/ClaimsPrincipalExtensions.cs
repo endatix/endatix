@@ -109,14 +109,17 @@ public static class ClaimsPrincipalExtensions
             return null;
         }
 
-        var actorClaim = identity.FindFirst(ClaimNames.Actor);
-        if (actorClaim is not null && long.TryParse(actorClaim.Value, out var actorUserId) && actorUserId > 0)
+        var actors = identity.FindAll(ClaimNames.Actor).Take(2).ToArray();
+        if (actors is [var actor] && long.TryParse(actor.Value, out var actorUserId) && actorUserId > 0)
         {
             return actorUserId;
         }
 
         return null;
     }
+
+    internal static bool HasActorClaim(this ClaimsPrincipal principal) =>
+        principal.Identity is ClaimsIdentity identity && identity.HasClaim(c => c.Type == ClaimNames.Actor);
 
     /// <summary>
     /// Gets the issuer from the claims principal.

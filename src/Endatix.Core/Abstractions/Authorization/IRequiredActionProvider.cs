@@ -7,7 +7,16 @@ namespace Endatix.Core.Abstractions.Authorization;
 /// <param name="TenantId">Tenant in which the user is acting.</param>
 /// <param name="Roles">Roles resolved for the user in that tenant.</param>
 [Experimental("ENDATIX0006")]
-public sealed record RequiredActionSubject(string UserId, long TenantId, IReadOnlyCollection<string> Roles);
+public sealed record RequiredActionSubject(string UserId, long TenantId, IReadOnlyCollection<string> Roles)
+{
+    /// <summary>Present only for a built-in operator session verified against the identity store.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public VerifiedAssumption? VerifiedAssumption { get; internal init; }
+}
+
+/// <summary>The operator and their persisted home. The subject's tenant is the assumed target.</summary>
+[Experimental("ENDATIX0006")]
+public sealed record VerifiedAssumption(long ActorUserId, long HomeTenantId);
 
 /// <summary>Reports pending actions when authorization data is built for a signed-in user.</summary>
 /// <remarks>Each concurrent invocation has its own dependency-injection scope. Use <see cref="RequiredActionSubject"/>

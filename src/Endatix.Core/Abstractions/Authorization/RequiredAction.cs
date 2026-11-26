@@ -19,6 +19,9 @@ public sealed record RequiredAction
     public IReadOnlyList<string> ResolverRoles { get; init; } = [];
     /// <summary>If false, a blocking action is only a notice for users unable to resolve it.</summary>
     public bool BlockNonResolvers { get; init; }
+    /// <summary>Prevent resolution in this session, even if the subject has a resolver role.</summary>
+    [JsonIgnore]
+    public bool PreventResolution { get; init; }
     /// <summary>The instant when a notice becomes blocking; null leaves its severity unchanged.</summary>
     public DateTimeOffset? BlockingFrom { get; init; }
     /// <summary>Calculated from the signed-in user's roles when the cache entry is built.</summary>

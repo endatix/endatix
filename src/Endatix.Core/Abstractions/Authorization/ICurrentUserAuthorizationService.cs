@@ -71,3 +71,9 @@ public interface ICurrentUserAuthorizationService
     /// <returns>A task representing the asynchronous operation.</returns>
     Task InvalidateAuthorizationDataCacheAsync(string userId, long tenantId, CancellationToken cancellationToken);
 }
+
+/// <summary>Revalidates the current operator and target independently of required-action standing.</summary>
+internal interface IVerifiedAssumptionReader
+{
+    Task<VerifiedAssumption?> GetVerifiedAssumptionAsync(CancellationToken cancellationToken);
+}

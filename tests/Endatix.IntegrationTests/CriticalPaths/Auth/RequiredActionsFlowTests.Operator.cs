@@ -46,7 +46,7 @@ public sealed partial class RequiredActionsFlowTests
         using var hidden = await admin.GetAsync("/api/admin/tenants/999999", ct);
         await AssertStandingRefusalAsync(hidden, me, ct);
         using var home = await admin.PostAsync("/api/auth/exit-assume", null, ct);
-        await AssertStandingRefusalAsync(home, me, ct);
+        Assert.Equal(HttpStatusCode.BadRequest, home.StatusCode);
         Assert.Equal(before, await OperatorStateAsync(world, ct));
         Assert.Empty(mail.ReceivedCalls());
         Assert.Empty(storage.ReceivedCalls());
@@ -79,10 +79,10 @@ public sealed partial class RequiredActionsFlowTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Assumed_session_checks_standing_before_issuing_home_tokens(bool unavailable)
+    public async Task Verified_operator_can_return_home_while_product_operations_remain_blocked(bool unavailable)
     {
         var ct = TestContext.Current.CancellationToken;
-        var blocker = new MutableProvider("legal", "/terms") { Pending = false };
+        var blocker = new ReturnHomeProvider();
         var conflict = new MutableProvider("conflict", "/other") { Pending = false };
         await using var host = SessionHost(blocker, conflict);
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
@@ -91,10 +91,8 @@ public sealed partial class RequiredActionsFlowTests
         using var enter = await admin.PostAsJsonAsync("/api/auth/assume-tenant", new { tenantId = tenant }, ct);
         using var assumed = host.CreateClient();
         await UseSessionAsync(assumed, enter, ct);
-        blocker.Pending = true;
         conflict.Pending = unavailable;
-        var before = await OperatorStateAsync(world, ct);
-        using var denied = await assumed.PostAsync("/api/auth/exit-assume", null, ct);
+        using var denied = await assumed.GetAsync("/api/admin/auth/settings", ct);
         if (unavailable)
         {
             await AssertUnavailableExitAsync(denied, ct);
@@ -102,18 +100,40 @@ public sealed partial class RequiredActionsFlowTests
         else
         {
             var me = await assumed.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+            var action = me.GetProperty("requiredActions").EnumerateArray().Single(a => a.GetProperty("key").GetString() == "profile.complete");
+            Assert.False(action.GetProperty("canResolve").GetBoolean());
+            Assert.Equal("blocking", action.GetProperty("severity").GetString());
+            Assert.DoesNotContain("preventResolution", action.ToString(), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("homeTenantId", me.ToString(), StringComparison.OrdinalIgnoreCase);
             await AssertStandingRefusalAsync(denied, me, ct);
         }
-        Assert.Equal(before, await OperatorStateAsync(world, ct));
-
-        blocker.Pending = conflict.Pending = false;
-        using var scope = world.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<ICurrentUserAuthorizationService>()
-            .InvalidateAuthorizationDataCacheAsync(world.Tenants[0].PlatformAdmin.Id.ToString(), tenant, ct);
+        Assert.Equal(new VerifiedAssumption(world.Tenants[0].PlatformAdmin.Id, world.Tenants[0].Id), blocker.LastAssumed?.VerifiedAssumption);
+        Assert.Equal(tenant, blocker.LastAssumed?.TenantId);
         using var exit = await assumed.PostAsync("/api/auth/exit-assume", null, ct);
+        conflict.Pending = false;
         using var home = host.CreateClient();
         await UseSessionAsync(home, exit, ct);
         await AssertHomeSessionAsync(home, world.Tenants[0].Id, ct);
+    }
+
+    private sealed class ReturnHomeProvider : IRequiredActionProvider
+    {
+        public string CacheConfigurationKey => "return-home";
+        internal RequiredActionSubject? LastAssumed { get; private set; }
+
+        public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken)
+        {
+            if (subject.VerifiedAssumption is null)
+            {
+                return Task.FromResult<IReadOnlyList<RequiredAction>>([]);
+            }
+            LastAssumed = subject;
+            return Task.FromResult<IReadOnlyList<RequiredAction>>([new()
+            {
+                Key = "profile.complete", ResolvePath = "/profile", Scope = RequiredActionScope.User,
+                Severity = RequiredActionSeverity.Blocking, PreventResolution = true, BlockNonResolvers = true
+            }]);
+        }
     }
 
     private ReportingWebHost SessionHost(IRequiredActionProvider blocker, IRequiredActionProvider conflict) =>
@@ -164,6 +184,10 @@ public sealed partial class RequiredActionsFlowTests
         using var admin = await world.AsAsync(TestPersona.PlatformAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         using var reader = await RestrictedUserAsync(world, ct);
         using var anonymous = host.CreateClient();
+        using var anonymousExit = await anonymous.PostAsync("/api/auth/exit-assume", null, ct);
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousExit.StatusCode);
+        using var deniedExit = await reader.PostAsync("/api/auth/exit-assume", null, ct);
+        Assert.Equal(HttpStatusCode.Forbidden, deniedExit.StatusCode);
         using var challenge = await anonymous.GetAsync("/api/admin/auth/settings", ct);
         Assert.Equal(HttpStatusCode.Unauthorized, challenge.StatusCode);
         using var denied = await reader.GetAsync("/api/admin/auth/settings", ct);

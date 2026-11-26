@@ -11,14 +11,14 @@ internal sealed class RequiredActionInvocations(IServiceScopeFactory scopes, ILo
 {
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly ConcurrentDictionary<CapacityKey, byte> _active = new();
-    private readonly record struct CapacityKey(string UserId, long TenantId, int Registration);
+    private readonly record struct CapacityKey(string UserId, long TenantId, VerifiedAssumption? Assumption, int Registration);
 
     internal async Task<IReadOnlyList<RequiredAction>?> TryReadAsync(Query query, CancellationToken ct)
     {
         var started = _time.GetTimestamp();
         using var deadline = new CancellationTokenSource(query.Policy.Timeout, _time);
         using var waiter = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, ct);
-        var key = new CapacityKey(query.Subject.UserId, query.Subject.TenantId, query.Index);
+        var key = new CapacityKey(query.Subject.UserId, query.Subject.TenantId, query.Subject.VerifiedAssumption, query.Index);
         if (!_active.TryAdd(key, 0))
         {
             return null;

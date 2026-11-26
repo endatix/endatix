@@ -31,4 +31,7 @@ public interface IUserContext
     /// Actor user id when the session was issued via assume-tenant; otherwise null.
     /// </summary>
     long? GetActorUserId();
+
+    /// <summary>Whether the session presents an actor, including one that cannot be resolved.</summary>
+    bool HasActorClaim => GetActorUserId().HasValue;
 }

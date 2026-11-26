@@ -29,6 +29,12 @@ internal sealed class DefaultAuthorizationDataProvider(
         CancellationToken cancellationToken,
         long? actorUserId = null)
     {
+        var data = await ReadSessionAsync(userId, tenantId, cancellationToken, actorUserId);
+        return data.IsSuccess ? Result.Success(data.Value with { VerifiedAssumption = null }) : data;
+    }
+
+    internal async Task<Result<AuthorizationData>> ReadSessionAsync(long userId, long tenantId, CancellationToken cancellationToken, long? actorUserId)
+    {
         var utcNow = dateTimeProvider.Now.UtcDateTime;
 
         try
@@ -36,29 +42,14 @@ internal sealed class DefaultAuthorizationDataProvider(
             var user = await userManager.FindByIdAsync(userId.ToString());
             if (user is null)
             {
-                var anonymousData = AuthorizationData.ForAuthenticatedUser(
-                    userId: userId.ToString(),
-                    tenantId: tenantId,
-                    roles: [],
-                    permissions: []
-                    );
-
-                return Result.Success(anonymousData);
+                return actorUserId.HasValue ? Result.Forbidden() : Result.Success(
+                    AuthorizationData.ForAuthenticatedUser(userId.ToString(), tenantId, [], []));
             }
 
-            if (!IsUserInAuthorizationTenantScope(user, tenantId))
+            var membership = await VerifyScopeAsync(user, tenantId, actorUserId, cancellationToken);
+            if (!membership.IsSuccess)
             {
-                var assumed = IsAssumeTenantSession(user.Id, actorUserId, user.TenantId, tenantId)
-                    && await UserHasPlatformAdminRoleAsync(user.Id, cancellationToken);
-                if (!assumed)
-                {
-                    logger.LogWarning(
-                        "Blocked authorization data request for user {UserId} with mismatched tenant scope {TenantId}. User belongs to tenant {UserTenantId}.",
-                        userId,
-                        tenantId,
-                        user.TenantId);
-                    return Result.Forbidden("User does not belong to the requested tenant.");
-                }
+                return membership.ToErrorResult<AuthorizationData>();
             }
 
             var userRoleIds = identityDbContext.UserRoles
@@ -95,13 +86,27 @@ internal sealed class DefaultAuthorizationDataProvider(
                     expiresAt: EarliestPermissionExpiry(userRoles)
             );
 
-            return Result.Success(authorizationData);
+            return Result.Success(authorizationData with { VerifiedAssumption = membership.Value });
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting user permissions info for user {UserId}", userId);
             return Result.Error("Failed to get user permissions info from the identity store");
         }
+    }
+
+    private async Task<Result<VerifiedAssumption?>> VerifyScopeAsync(AppUser user, long tenantId, long? actor, CancellationToken ct)
+    {
+        if (actor is null && IsUserInAuthorizationTenantScope(user, tenantId))
+        {
+            return Result<VerifiedAssumption?>.Success(null);
+        }
+        if (IsAssumeTenantSession(user.Id, actor, user.TenantId, tenantId) && await UserHasPlatformAdminRoleAsync(user.Id, ct))
+        {
+            return Result.Success<VerifiedAssumption?>(new(user.Id, user.TenantId));
+        }
+        logger.LogWarning("Blocked authorization for user {UserId} outside tenant scope {TenantId}.", user.Id, tenantId);
+        return Result.Forbidden("User does not belong to the requested tenant.");
     }
 
     /// <summary>When the first of the loaded permissions lapses, so the cache stops serving them; default when none expires.</summary>
@@ -130,6 +135,8 @@ internal sealed class DefaultAuthorizationDataProvider(
     {
         return actorUserId is long actorId
             && actorId == userId
+            && userId > 0
+            && homeTenantId > 0
             && requestedTenantId > 0
             && homeTenantId != requestedTenantId;
     }
@@ -149,4 +156,3 @@ internal sealed class DefaultAuthorizationDataProvider(
                 cancellationToken);
     }
 }
-

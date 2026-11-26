@@ -23,7 +23,7 @@ public class ExitAssumeHandlerTests
     private readonly IRepository<Tenant> _tenantRepository = Substitute.For<IRepository<Tenant>>();
     private readonly IUserTokenService _tokenService = Substitute.For<IUserTokenService>();
     private readonly IAuthService _authService = Substitute.For<IAuthService>();
-    private readonly ICurrentUserAuthorizationService _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
+    private readonly ICurrentUserAuthorizationService _authorizationService = Substitute.For<ICurrentUserAuthorizationService, IVerifiedAssumptionReader>();
     private readonly IDateTimeProvider _dateTimeProvider = Substitute.For<IDateTimeProvider>();
     private readonly ExitAssumeHandler _sut;
 
@@ -69,7 +69,7 @@ public class ExitAssumeHandlerTests
     }
 
     [Fact]
-    public async Task Handle_UserMissing_ReturnsUnauthorized()
+    public async Task Handle_UserMissing_ReturnsForbidden()
     {
         // Arrange
         _userContext.GetCurrentUser().Returns(new User(ActorId, AssumedTenantId, "admin", "admin@example.com", true));
@@ -80,9 +80,31 @@ public class ExitAssumeHandlerTests
         var result = await _sut.Handle(new ExitAssumeCommand(), CancellationToken.None);
 
         // Assert
-        result.Status.Should().Be(ResultStatus.Unauthorized);
+        result.Status.Should().Be(ResultStatus.Forbidden);
         _tokenService.DidNotReceive().IssueRefreshToken();
     }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData(8L, HomeTenantId)]
+    [InlineData(ActorId, 3L)]
+    public async Task Handle_MissingOrInconsistentProof_RefusesBeforeIssuingTokens(long? actor, long? home)
+    {
+        ArrangeAssumedSession();
+        ArrangeProof(actor.HasValue ? new(actor.Value, home!.Value) : null);
+
+        var result = await _sut.Handle(new ExitAssumeCommand(), TestContext.Current.CancellationToken);
+
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        _tokenService.ReceivedCalls().Should().BeEmpty();
+        _authService.ReceivedCalls().Should().BeEmpty();
+        _tenantRepository.ReceivedCalls().Should().BeEmpty();
+        await _authorizationService.DidNotReceive().InvalidateAuthorizationDataCacheAsync(
+            Arg.Any<string>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    private void ArrangeProof(VerifiedAssumption? proof) =>
+        ((IVerifiedAssumptionReader)_authorizationService).GetVerifiedAssumptionAsync(Arg.Any<CancellationToken>()).Returns(proof);
 
     [Fact]
     public async Task Handle_RefreshTokenNotStored_ReturnsErrorWithoutRaisingEvent()
@@ -148,6 +170,7 @@ public class ExitAssumeHandlerTests
 
     private User ArrangeAssumedSession()
     {
+        ArrangeProof(new(ActorId, HomeTenantId));
         var sessionUser = new User(ActorId, AssumedTenantId, "admin", "admin@example.com", true);
         var homeUser = new User(ActorId, HomeTenantId, "admin", "admin@example.com", true);
         _userContext.GetCurrentUser().Returns(sessionUser);

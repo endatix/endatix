@@ -5,6 +5,7 @@ using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Exceptions;
+using Endatix.Infrastructure.Identity.Authorization.Strategies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -13,7 +14,7 @@ namespace Endatix.Infrastructure.Identity.Services;
 /// <summary>
 /// Current user authorization service with caching and optimization.
 /// </summary>
-internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizationService
+internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizationService, IVerifiedAssumptionReader
 {
     private const string PERMISSIONS_LOOKUP_FAILED = "Failed to get user permissions info";
 
@@ -80,6 +81,24 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
         var fresh = await ReadForPrincipalAsync(original, ct);
         return fresh.IsSuccess && (fresh.Value.UserId != hydrated.UserId || fresh.Value.TenantId != hydrated.TenantId)
             ? Result.Unauthorized("The current account has changed.") : fresh;
+    }
+
+    /// <inheritdoc />
+    public async Task<VerifiedAssumption?> GetVerifiedAssumptionAsync(CancellationToken cancellationToken)
+    {
+        var principal = _httpContextAccessor.HttpContext?.User;
+        if (principal is null)
+        {
+            return null;
+        }
+        var original = new ClaimsPrincipal(principal.Identities.Where(i => i is not AuthorizedIdentity));
+        if (_authorizationStrategies.FirstOrDefault(strategy => strategy.CanHandle(original)) is not DefaultAuthorization builtIn)
+        {
+            return null;
+        }
+        var data = await builtIn.GetAuthorizationDataAsync(original, cancellationToken);
+        return data.IsSuccess && data.Value.UserId == principal.GetUserId() && data.Value.TenantId == principal.GetTenantId()
+            ? data.Value.VerifiedAssumption : null;
     }
 
     private async Task<Result<AuthorizationData>> ReadForPrincipalAsync(ClaimsPrincipal currentPrincipal, CancellationToken cancellationToken)
@@ -246,7 +265,11 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
          cachedAt: endatixIdentity.CachedAt,
          expiresAt: endatixIdentity.CacheExpiresIn,
          eTag: endatixIdentity.ETag) with
-        { RequiredActions = endatixIdentity.RequiredActions, RequiredActionsUnavailable = endatixIdentity.RequiredActionsUnavailable };
+        {
+            RequiredActions = endatixIdentity.RequiredActions,
+            RequiredActionsUnavailable = endatixIdentity.RequiredActionsUnavailable,
+            VerifiedAssumption = endatixIdentity.VerifiedAssumption
+        };
 
         if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
         {

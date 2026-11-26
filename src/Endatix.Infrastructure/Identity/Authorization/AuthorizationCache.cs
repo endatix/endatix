@@ -50,10 +50,8 @@ internal class AuthorizationCache(
         var cacheKeyTokenPart = tokenFingerprint.For(principal, userId, tenantId);
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
-        return await GetOrCreateEntryAsync(
-            new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId),
-            dataFactory,
-            cancellationToken);
+        var entry = new CacheEntry(GetClaimsCacheKey(versions, cacheKeyTokenPart), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
+        return await ReadSessionAsync(principal, entry, dataFactory, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -61,10 +59,28 @@ internal class AuthorizationCache(
     {
         var versions = await accessVersionStore.ReadAsync(tenantId, cancellationToken);
 
-        return await GetOrCreateEntryAsync(
-            new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId),
-            dataFactory,
-            cancellationToken);
+        var entry = new CacheEntry(GetUserAuthDataCacheKey(versions, userId, tenantId), ComputeLifetime(principal), GetAuthDataCacheTags(userId, tenantId), versions, actions.ConfigurationKey, tenantId);
+        return await ReadSessionAsync(principal, entry, dataFactory, cancellationToken);
+    }
+
+    private async Task<AuthorizationData> ReadSessionAsync(ClaimsPrincipal? principal, CacheEntry entry,
+        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory, CancellationToken ct)
+    {
+        if (principal?.HasActorClaim() != true)
+        {
+            return await GetOrCreateEntryAsync(entry, dataFactory, ct);
+        }
+
+        // The credential names the actor, not the persisted home. Verify before selecting even a warm snapshot.
+        var verified = await dataFactory(ct);
+        if (!verified.IsSuccess)
+        {
+            throw new InvalidOperationException("Failed to verify session authorization.");
+        }
+        var proof = verified.Value.VerifiedAssumption;
+        var key = $"{entry.Key}:actor-session:{tokenFingerprint.For(principal, verified.Value.UserId, verified.Value.TenantId)}:{proof?.ActorUserId}:{proof?.HomeTenantId}";
+        var snapshot = await GetOrCreateEntryAsync(entry with { Key = key }, _ => Task.FromResult(verified), ct);
+        return snapshot with { VerifiedAssumption = proof };
     }
 
     /// <summary>
