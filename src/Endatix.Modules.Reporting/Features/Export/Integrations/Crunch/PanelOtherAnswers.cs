@@ -14,12 +14,12 @@ internal sealed record PanelOtherAnswers(SubmittedQuestions? Definition, JsonEle
             AnswerScope.Root(Submission).WithinPanel(column) is not { } scope || scope.Own.TryGetPropertyValue(column.SourceQuestion!) is not { } stored ||
             !JsonElement.DeepEquals(stored, raw))
         {
-            return (null, literal);
+            return Unclassified(raw);
         }
 
         if (SubmittedChoices(question) is not { } reader)
         {
-            return (null, literal);
+            return Unclassified(raw);
         }
 
         return ReadScoped(reader, (scope, column.SourceQuestion!), literal);
@@ -51,6 +51,13 @@ internal sealed record PanelOtherAnswers(SubmittedQuestions? Definition, JsonEle
 
         return (answer.SingleValueJson(), kind == ChoiceKind.Other ? answer.OtherText : null);
     }
+
+    /// <summary>
+    /// The answer read without the submitted definition: the flattened value is the category to code,
+    /// and the caller keeps it as Other text only when no choice has that value.
+    /// </summary>
+    internal static (JsonElement? Category, JsonElement? Text) Unclassified(JsonElement raw) =>
+        (raw.TryGetPropertyValue(SurveyJsPropertyNames.Value) ?? raw, null);
 
     internal static JsonElement? Literal(JsonElement raw)
     {

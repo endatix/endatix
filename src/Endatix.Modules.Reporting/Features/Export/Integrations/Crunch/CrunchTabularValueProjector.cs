@@ -63,7 +63,7 @@ internal sealed class CrunchTabularValueProjector
     {
         if (_catalog.OtherTextKeys.TryGetValue(column.Key, out var companion))
         {
-            var (category, text) = _submitted?.Read(column, answer) ?? (null, PanelOtherAnswers.Literal(answer));
+            var (category, text) = _submitted?.Read(column, answer) ?? PanelOtherAnswers.Unclassified(answer);
             var id = category is { } value ? MapToCategoryId(value, _catalog.Entries[name]) : null;
             _values[companion] = text ?? (id is null ? PanelOtherAnswers.Literal(answer) : null);
             return id;
