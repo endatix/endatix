@@ -106,11 +106,11 @@ internal class AuthorizationCache(
             var fresh = await factory(ct);
             return fresh.IsSuccess && SameSession(verified.Value, fresh.Value) ? fresh : Result.Forbidden();
         }
-    }
 
-    private static bool SameSession(AuthorizationData expected, AuthorizationData fresh) =>
-        expected.UserId == fresh.UserId && expected.TenantId == fresh.TenantId && expected.VerifiedAssumption == fresh.VerifiedAssumption
-        && expected.UnverifiedActor == fresh.UnverifiedActor;
+        private static bool SameSession(AuthorizationData expected, AuthorizationData fresh) =>
+            expected.UserId == fresh.UserId && expected.TenantId == fresh.TenantId && expected.VerifiedAssumption == fresh.VerifiedAssumption
+            && expected.UnverifiedActor == fresh.UnverifiedActor;
+    }
 
     /// <summary>
     /// Serves the entry, building it on a miss. An entry past its own <see cref="AuthorizationData.ExpiresAt"/> (a role

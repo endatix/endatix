@@ -42,7 +42,6 @@ public sealed class DefaultAuthorization(
 
     internal async Task<Result<AuthorizationData>> ReadVerifiedSessionAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
-
         if (!CanHandle(principal))
         {
             return Result.Error("Provider cannot handle the given issuer");
@@ -69,12 +68,15 @@ public sealed class DefaultAuthorization(
         { MalformedActor = principal.HasActorClaim() && (actor is null || principal.Identities.First().FindAll(ClaimNames.Actor).Skip(1).Any()) };
     }
 
-    private Task<Result<AuthorizationData>> ReadAsync(DefaultAuthorizationDataProvider.Session session, CancellationToken ct)
+    private async Task<Result<AuthorizationData>> ReadAsync(DefaultAuthorizationDataProvider.Session session, CancellationToken ct)
     {
         if (authorizationDataProvider is DefaultAuthorizationDataProvider builtIn)
         {
-            return builtIn.ReadSessionAsync(session, ct);
+            return await builtIn.ReadSessionAsync(session, ct);
         }
-        return authorizationDataProvider.GetAuthorizationDataAsync(session.UserId, session.TenantId, ct, session.Actor);
+        var result = await authorizationDataProvider.GetAuthorizationDataAsync(session.UserId, session.TenantId, ct, session.Actor);
+        return result.IsSuccess
+            ? Result.Success(result.Value with { VerifiedAssumption = null, UnverifiedActor = session.PresentsActor })
+            : result;
     }
 }
