@@ -22,7 +22,8 @@ internal sealed class ShojiDatasetExport(IFormsRepository forms, IColumnAliasTra
 
     /// <summary>The names this codebook would give two meanings, under the separator it is written with.</summary>
     public IReadOnlyList<ExportNameCollision> Collisions(FormSchemaEntity schema, ExportFormatSettings settings) =>
-        ExportNameCollisions.Find(schema, settings with { KeySeparator = ShojiPanelAliases.SeparatorFor(schema, settings) }, aliases);
+        ExportNameCollisions.Find(new(
+            schema, settings with { KeySeparator = ShojiPanelAliases.SeparatorFor(schema, settings) }, ExportNameFile.ShojiCodebook, aliases));
 
     private static string? Title(string? name, string locale)
     {

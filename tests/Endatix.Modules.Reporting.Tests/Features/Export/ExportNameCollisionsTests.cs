@@ -21,7 +21,7 @@ public sealed class ExportNameCollisionsTests
         var schema = Schema("""{"type":"text","name":"ordinary"}""");
 
         // Act
-        var collisions = ExportNameCollisions.Find(schema, _coded);
+        var collisions = ExportNameCollisions.Find(new(schema, _coded, ExportNameFile.ShojiCodebook));
 
         // Assert
         collisions.Should().BeEmpty();
@@ -34,7 +34,7 @@ public sealed class ExportNameCollisionsTests
         var schema = Schema("""{"type":"text","name":"pd--0--q--other_text"}""");
 
         // Act
-        var collisions = ExportNameCollisions.Find(schema, _coded);
+        var collisions = ExportNameCollisions.Find(new(schema, _coded, ExportNameFile.ShojiCodebook));
 
         // Assert
         collisions.Should().Equal(new ExportNameCollision("pd--0--q--other_text",
@@ -49,11 +49,24 @@ public sealed class ExportNameCollisionsTests
         var schema = Schema("""{"type":"checkbox","name":"pd--0--q--other_text","choices":["x","y"]}""");
 
         // Act
-        var collisions = ExportNameCollisions.Find(schema, _coded);
+        var collisions = ExportNameCollisions.Find(new(schema, _coded, ExportNameFile.ShojiCodebook));
 
         // Assert
         collisions.Select(c => (c.Name, c.First, c.Second)).Should().Equal(("pd--0--q--other_text",
             new ExportNameMeaning("pd--0--q--other_text", ExportNameKind.GroupParent), new ExportNameMeaning("q", ExportNameKind.Companion)));
+    }
+
+    [Fact]
+    public void Find_TabularFile_LeavesGroupParentsToTheCodebook()
+    {
+        // Arrange
+        var schema = Schema("""{"type":"checkbox","name":"pd--0--q--other_text","choices":["x","y"]}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _coded, ExportNameFile.Tabular));
+
+        // Assert
+        collisions.Should().BeEmpty();
     }
 
     [Fact]
@@ -63,7 +76,7 @@ public sealed class ExportNameCollisionsTests
         var schema = Schema("""{"type":"text","name":"pd--0--q--other_text"}""");
 
         // Act
-        var collisions = ExportNameCollisions.Find(schema, _coded with { AliasProfile = ColumnAliasProfile.Crunch });
+        var collisions = ExportNameCollisions.Find(new(schema, _coded with { AliasProfile = ColumnAliasProfile.Crunch }, ExportNameFile.ShojiCodebook));
 
         // Assert
         collisions.Select(c => (c.Name, c.Profile, c.Separator)).Should().Equal(("pd--0--q--other_text", ColumnAliasProfile.Native, "--"));
@@ -76,7 +89,7 @@ public sealed class ExportNameCollisionsTests
         var schema = Schema("""{"type":"text","name":"pd--0--q--other_text"}""");
 
         // Act
-        var collisions = ExportNameCollisions.Find(schema, _coded with { SpecialChoiceCodes = null });
+        var collisions = ExportNameCollisions.Find(new(schema, _coded with { SpecialChoiceCodes = null }, ExportNameFile.ShojiCodebook));
 
         // Assert
         collisions.Should().BeEmpty();
@@ -89,7 +102,7 @@ public sealed class ExportNameCollisionsTests
         var schema = Schema("""{"type":"text","name":"pd--0--q--other_text"}""");
 
         // Act
-        var collisions = ExportNameCollisions.Find(schema, _coded with { KeySeparator = "__" });
+        var collisions = ExportNameCollisions.Find(new(schema, _coded with { KeySeparator = "__" }, ExportNameFile.ShojiCodebook));
 
         // Assert
         collisions.Should().BeEmpty();

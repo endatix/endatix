@@ -135,7 +135,7 @@ internal sealed partial class TabularExportDataSource(
     private Result<ExportOptions> Prepared(ExportDataSourceContext context, ExportFormatSettings settings, FormSchemaEntity exported)
     {
         if (ShouldProjectCrunchShapes(context.Request.Format, settings) &&
-            ExportNameCollisions.Find(exported, settings, aliasTransformerRegistry) is { Count: > 0 } collisions)
+            ExportNameCollisions.Find(new(exported, settings, ExportNameFile.Tabular, aliasTransformerRegistry)) is { Count: > 0 } collisions)
         {
             return ExportNameCollisions.Refusal<ExportOptions>(collisions);
         }

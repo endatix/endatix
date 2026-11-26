@@ -71,7 +71,7 @@ public sealed class PanelOtherAliasTests
     [Theory]
     [InlineData("native")]
     [InlineData("crunch")]
-    public async Task Export_CheckboxNamedLikeTheCompanion_IsRefused(string profile)
+    public async Task Export_CheckboxNamedLikeTheCompanion_RefusesTheCodebook(string profile)
     {
         // Arrange
         var definition = DEFINITION.Replace(
@@ -87,8 +87,8 @@ public sealed class PanelOtherAliasTests
         // Act
         var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), TestContext.Current.CancellationToken);
 
-        // Assert
-        Refused(csv, "the variable that groups question 'pd--0--q--other_text'", "the Other text of question 'q'");
+        // Assert: only the codebook writes the checkbox's group variable, so only it has the clash.
+        csv.IsSuccess.Should().BeTrue();
         Refused(shoji, "the variable that groups question 'pd--0--q--other_text'", "the Other text of question 'q'");
     }
 

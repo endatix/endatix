@@ -57,6 +57,20 @@ internal sealed record ExportNameCollision(
     };
 }
 
+/// <summary>The file whose names are checked: a tabular export (CSV, JSON, XLSX) or the Shoji codebook.</summary>
+internal enum ExportNameFile
+{
+    Tabular,
+    ShojiCodebook,
+}
+
+/// <summary>What <see cref="ExportNameCollisions.Find"/> reads: the compiled schema, the format's resolved settings and the file.</summary>
+internal sealed record ExportNameRequest(
+    FormSchemaEntity Schema,
+    ExportFormatSettings Settings,
+    ExportNameFile File,
+    IColumnAliasTransformerRegistry? Registry = null);
+
 /// <summary>
 /// The names a Crunch-shaped export generates (panel Other companions, group parents and their subvariables) are
 /// fixed by the question they come from, so an export where another question lands on one is refused instead of
@@ -64,23 +78,19 @@ internal sealed record ExportNameCollision(
 /// </summary>
 internal static class ExportNameCollisions
 {
-    public static IReadOnlyList<ExportNameCollision> Find(
-        FormSchemaEntity schema,
-        ExportFormatSettings settings,
-        IColumnAliasTransformerRegistry? registry = null)
+    public static IReadOnlyList<ExportNameCollision> Find(ExportNameRequest request)
     {
+        var (schema, settings, _, _) = request;
         var map = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         using var book = JsonDocument.Parse(schema.Codebook);
-        Names names = new(new(schema, settings, registry), map, new CrunchQuestions(book.RootElement, settings.SpecialChoiceCodes, map));
+        Names names = new(request, map, new CrunchQuestions(book.RootElement, settings.SpecialChoiceCodes, map));
         ColumnAliasProfile[] profiles = settings.AliasProfile == ColumnAliasProfile.Native
             ? [ColumnAliasProfile.Native] : [ColumnAliasProfile.Native, settings.AliasProfile];
         return [.. profiles.SelectMany(profile => Contested(names.In(profile), profile, settings.KeySeparator))];
     }
 
-    /// <summary>Every name one export builds, ordinary and generated, with what it stands for.</summary>
-    private sealed record NameRequest(FormSchemaEntity Schema, ExportFormatSettings Settings, IColumnAliasTransformerRegistry? Registry);
-
-    private sealed class Names(NameRequest request, MergedFormSchema map, CrunchQuestions catalog)
+    /// <summary>Every name one export file builds, ordinary and generated, with what it stands for.</summary>
+    private sealed class Names(ExportNameRequest request, MergedFormSchema map, CrunchQuestions catalog)
     {
         private readonly ExportFormatSettings _settings = request.Settings;
 
@@ -99,11 +109,17 @@ internal static class ExportNameCollisions
                 _settings.Locale, profile, KeySeparator: _settings.KeySeparator, AliasRegistry: request.Registry, ReadWithShojiCodebook: true));
             var keys = plan.Columns.ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
             return plan.Columns.Select(column => (column.ExportKey, Meaning(column.CanonicalKey)))
-                .Concat(_parents)
+                .Concat(WritesParents(profile) ? _parents : [])
                 .Concat(catalog.OtherTextKeys.Keys.Select(parent => (
                     PanelExportColumns.CompanionName(keys[parent], _settings.KeySeparator),
                     new ExportNameMeaning(Question(_columns[parent]), ExportNameKind.Companion))));
         }
+
+        // Only the Shoji codebook writes group parents. They keep their native alias, so they sit next to a profile's
+        // aliases only once codes make the codebook rename its other variables to that profile.
+        private bool WritesParents(ColumnAliasProfile profile) =>
+            request.File is ExportNameFile.ShojiCodebook &&
+            (profile is ColumnAliasProfile.Native || _settings.SpecialChoiceCodes is not null);
 
         private ExportNameMeaning Meaning(string canonicalKey) =>
             _columns.TryGetValue(canonicalKey, out var column)
