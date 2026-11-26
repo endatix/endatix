@@ -11,12 +11,12 @@ public sealed class AccountStanding
     private bool _admitted;
     private const string UNAVAILABLE_MESSAGE = "Required action status is unavailable. Try again.";
 
-    /// <summary>Creates the dormant decision used by shipped hosts until all account operations are covered.</summary>
+    /// <summary>Creates the default decision, which does not enforce required actions.</summary>
     public AccountStanding() { }
 
     internal AccountStanding(ICurrentUserAuthorizationService authorization) => _authorization = authorization;
 
-    /// <summary>Whether an operation needs its standing preflight. No shipped host enables it yet.</summary>
+    /// <summary>Whether an operation needs its standing preflight.</summary>
     public bool IsEnforced => _authorization is not null;
 
     private Result<T>? Refusal<T>(AuthorizationData snapshot)

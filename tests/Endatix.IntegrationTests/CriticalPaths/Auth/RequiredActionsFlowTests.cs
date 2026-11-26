@@ -71,7 +71,7 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
     }
 
     private static void EnableStanding(IServiceCollection services) =>
-        services.AddScoped(sp => new AccountStanding(sp.GetRequiredService<ICurrentUserAuthorizationService>()));
+        services.AddRequiredActionEnforcement();
 
     private static AuthorizationData AdmittedSnapshot() => AuthorizationData.ForAuthenticatedUser("owner", 1, [], []);
 
@@ -109,6 +109,9 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         Assert.Equal(HttpStatusCode.Unauthorized, challenge.StatusCode);
         client.DefaultRequestHeaders.Authorization = signedIn.DefaultRequestHeaders.Authorization;
 
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        var action = Assert.Single(me.GetProperty("requiredActions").EnumerateArray());
+        Assert.Equal(severity == RequiredActionSeverity.Blocking ? "blocking" : "notice", action.GetProperty("severity").GetString());
         var first = await client.GetFromJsonAsync<JsonElement>($"/api/access/forms/{form}", ct);
         var cached = await client.GetFromJsonAsync<JsonElement>($"/api/access/forms/{form}", ct);
         using var compiled = await client.PostAsJsonAsync($"/api/forms/{form}/reporting/compile-schema", new { replace = true }, ct);

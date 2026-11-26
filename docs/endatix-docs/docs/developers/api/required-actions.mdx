@@ -98,7 +98,17 @@ Tenant and system changes refresh affected users on their next request across ho
 
 `GET /api/auth/me` requires authentication. On success, `requiredActions` is an array ordered by key (`[]` if none). Each entry describes the caller's projected action, including `scope` (`user` or `tenant`), `severity` (`notice` or `blocking`), `resolvePath`, and `canResolve`. If standing is unavailable, `/api/auth/me` returns **503**, not a successful empty list.
 
-The default Endatix pipeline installs the standing middleware after authorization. Its default scoped `AccountStanding` is dormant: registering a provider can change `/api/auth/me`, but does **not** turn on enforcement. There is no public activation switch. If a custom middleware callback dispatches endpoints itself, place `UseRequiredActionsGate()` (`Endatix.Api.Infrastructure`) after transport and authorization and before that dispatch; installing middleware alone does not activate standing.
+Registering a provider changes what `/api/auth/me` reports. To also enforce blocking actions, opt in when configuring your host's services:
+
+```csharp
+using Endatix.Core.Abstractions.Authorization;
+
+#pragma warning disable ENDATIX0006 // Experimental required-actions contract
+services.AddRequiredActionEnforcement();
+#pragma warning restore ENDATIX0006
+```
+
+The default Endatix pipeline installs the gate after authorization. If a custom middleware callback dispatches endpoints itself, place `UseRequiredActionsGate()` (`Endatix.Api.Infrastructure`) after transport and authorization and before dispatch. Installing middleware alone does not enable enforcement.
 
 Where the host enforces standing, a notice permits normal reads and writes, subject to ordinary authorization. A blocking action refuses a protected account operation with **403**, `errorCode: required_action`, and the complete `requiredActions` list, including notices, as on `/api/auth/me`. Unavailable standing yields **503** instead. An ordinary permission denial is not a required-action refusal.
 
