@@ -1,8 +1,9 @@
 name: Publish Docs Image
 
-# Builds docs.endatix.com into a static-file image (docs/endatix-docs/docker/Dockerfile) and asks
-# endatix-infra to pin it; ArgoCD serves it on the Hetzner cluster. Same trigger and build settings
-# as deploy-endatix-docs.yml. A dispatch on main re-publishes and re-pins main's image.
+# Builds docs.endatix.com into a static-file image (docs/endatix-docs/docker/Dockerfile) and its
+# Helm chart (docs/endatix-docs/helm/endatix-docs), pushes both to GHCR, and asks endatix-infra to
+# pin the chart; ArgoCD serves it on the Hetzner cluster. Same trigger and build settings
+# as deploy-endatix-docs.yml. A dispatch on main re-publishes and re-pins main's image and chart.
 on:
   push:
     branches:
@@ -76,11 +77,26 @@ jobs:
           tags: ghcr.io/endatix/endatix-docs:${{ github.sha }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
+      # The docs have no release version, so the chart's is 0.0.0-g<commit SHA>: valid semver, one
+      # chart per image, and a prerelease that `helm install` without --devel never picks. Its
+      # appVersion is the SHA, the image tag the chart deploys.
+      - name: ⎈ Package and push the Helm chart
+        env:
+          GH_PACKAGES_USER: ${{ github.actor }}
+          GH_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HELM_OCI_REPO: oci://ghcr.io/${{ github.repository_owner }}/charts
+        run: |
+          version="0.0.0-g${GITHUB_SHA}"
+          helm lint helm/endatix-docs --set "ingress.hosts={docs.endatix.com}"
+          helm package helm/endatix-docs --version "$version" --app-version "$GITHUB_SHA" --destination "${RUNNER_TEMP}/helm"
+          echo "$GH_PACKAGES_TOKEN" | helm registry login ghcr.io -u "$GH_PACKAGES_USER" --password-stdin
+          helm push "${RUNNER_TEMP}/helm/endatix-docs-${version}.tgz" "$HELM_OCI_REPO"
+
       - name: 📝 Summary
-        run: echo "Published \`ghcr.io/endatix/endatix-docs:${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Published \`ghcr.io/endatix/endatix-docs:${GITHUB_SHA}\` and chart \`endatix-docs\` \`0.0.0-g${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
 
   notify-infra:
-    name: Pin the image in infra
+    name: Pin the chart in infra
     needs: publish
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -134,16 +150,16 @@ jobs:
           repositories: endatix-infra
           permission-contents: write
 
-      # endatix-infra's image-bump rewrites the line marked `# image-bump:endatix-docs` in
-      # gitops/hetzner/apps/prod/docs/app/values.yaml.
-      - name: 🚀 Trigger image-bump
+      # endatix-infra's chart-bump pins the endatix-docs dependency of
+      # gitops/hetzner/apps/prod/docs/app/Chart.yaml to this chart version.
+      - name: 🚀 Trigger chart-bump
         if: steps.newest.outputs.send == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           OWNER: ${{ github.repository_owner }}
           SHA: ${{ github.sha }}
         run: |
-          jq -nc --arg t "$SHA" \
-            '{event_type: "image-release", client_payload: {image: "endatix-docs", tag: $t, env: "prod", app: "docs"}}' \
+          jq -nc --arg v "0.0.0-g${SHA}" \
+            '{event_type: "chart-release", client_payload: {service: "endatix-docs", version: $v, env: "prod"}}' \
             | gh api --method POST "/repos/${OWNER}/endatix-infra/dispatches" --input -
-          echo "Asked endatix-infra to pin endatix-docs ${SHA} into prod/docs" >> "$GITHUB_STEP_SUMMARY"
+          echo "Asked endatix-infra to pin chart endatix-docs 0.0.0-g${SHA} into prod" >> "$GITHUB_STEP_SUMMARY"

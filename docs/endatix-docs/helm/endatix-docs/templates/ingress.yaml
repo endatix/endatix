@@ -1,0 +1,36 @@
+{{- /*
+external-dns publishes every host, cert-manager issues one certificate for them by HTTP-01.
+Middlewares are named per namespace: Traefik rejects cross-namespace references from an Ingress.
+*/ -}}
+{{- $middlewares := list (printf "%s-hsts@kubernetescrd" .Release.Namespace) }}
+{{- if .Values.ingress.noindex }}
+{{- $middlewares = append $middlewares (printf "%s-noindex@kubernetescrd" .Release.Namespace) }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ join "," $middlewares }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    {{- range required "ingress.hosts is empty" .Values.ingress.hosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $.Release.Name }}
+                port:
+                  name: http
+    {{- end }}
+  tls:
+    - secretName: {{ .Release.Name }}-tls
+      hosts:
+        {{- range .Values.ingress.hosts }}
+        - {{ . | quote }}
+        {{- end }}

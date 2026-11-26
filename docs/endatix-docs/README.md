@@ -37,7 +37,7 @@ This command generates static content into the `build` directory and can be serv
 A push to `main` that touches this folder deploys the site two ways while it moves off Azure:
 
 - `.github/workflows/deploy-endatix-docs.yml` uploads `build/` to Azure Static Web Apps, with `staticwebapp.config.json` for its routing rules, then submits changed URLs to IndexNow.
-- `.github/workflows/publish-docs-image.yml` builds `ghcr.io/endatix/endatix-docs:<commit SHA>`: nginx serving `build/` as a non-root user on port 8080 (`docker/Dockerfile`). It asks `endatix-infra` to pin that tag, and ArgoCD rolls it out on the Hetzner cluster. `docker/nginx.conf` carries the rules from `staticwebapp.config.json` (redirects, `trailingSlash: never`, the 404 page, headers, the `.json` MIME type), so change both together until the Azure deploy is removed. HSTS comes from the cluster's Ingress.
+- `.github/workflows/publish-docs-image.yml` builds `ghcr.io/endatix/endatix-docs:<commit SHA>`: nginx serving `build/` as a non-root user on port 8080 (`docker/Dockerfile`). It also packages the Helm chart in `helm/endatix-docs` as `0.0.0-g<commit SHA>`, with the SHA as appVersion and so as the image tag it deploys, pushes it to `oci://ghcr.io/endatix/charts`, and asks `endatix-infra` to pin that chart version. ArgoCD rolls it out on the Hetzner cluster; the cluster's values set the hostname, HSTS and `noindex`. `docker/nginx.conf` carries the rules from `staticwebapp.config.json` (redirects, `trailingSlash: never`, the 404 page, headers, the `.json` MIME type), so change both together until the Azure deploy is removed. HSTS comes from the cluster's Ingress.
 
 To check the image locally:
 

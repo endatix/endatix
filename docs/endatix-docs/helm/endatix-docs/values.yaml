@@ -1,0 +1,24 @@
+image:
+  repository: ghcr.io/endatix/endatix-docs
+  # Defaults to the chart's appVersion, the commit SHA this chart was published with.
+  tag: ""
+
+ingress:
+  className: traefik
+  clusterIssuer: letsencrypt-prod
+  # Required. The first host is the site; the others (www) reach the same pods, and the image
+  # redirects them to the first.
+  hosts: []
+  hsts:
+    seconds: 300
+    includeSubdomains: false
+    preload: false
+  # While the site is on a test hostname, so search engines do not index a second copy.
+  noindex: false
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi

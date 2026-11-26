@@ -1,0 +1,29 @@
+{{- /*
+ghcr-pull: the read:packages token the cluster's other GHCR pulls use (Infisical
+k8s-servers-secrets / shared / /ghcr), as an image pull secret. GHCR checks the token, not the
+user name. The data template is the operator's, so Helm passes it through as text.
+*/ -}}
+apiVersion: secrets.infisical.com/v1alpha1
+kind: InfisicalSecret
+metadata:
+  name: ghcr-pull
+spec:
+  hostAPI: https://app.infisical.com/api
+  resyncInterval: 60
+  authentication:
+    universalAuth:
+      credentialsRef:
+        secretName: universal-auth-credentials
+        secretNamespace: infisical-operator
+      secretsScope:
+        projectSlug: k8s-servers-secrets
+        envSlug: shared
+        secretsPath: /ghcr
+  managedSecretReference:
+    secretName: ghcr-pull
+    secretNamespace: {{ .Release.Namespace }}
+    secretType: kubernetes.io/dockerconfigjson
+    template:
+      includeAllSecrets: false
+      data:
+        .dockerconfigjson: {{ `{"auths":{"ghcr.io":{"auth":"{{ printf "x-access-token:%s" .accessToken.Value | b64enc }}"}}}` | quote }}
