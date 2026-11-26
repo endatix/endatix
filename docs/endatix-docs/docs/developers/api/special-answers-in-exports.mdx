@@ -37,7 +37,17 @@ For a Crunch import, set the same codes on the **csv-shoji** and **Codebook (Sho
 
 For an indexed dynamic-panel dropdown or radio group, or one in a panel driven by `valueName`, configuring a code for a choice it offers makes the entire Crunch variable categorical. Every non-empty CSV answer then uses its Shoji category ID, including ordinary choices. For example, with `a=1`, None configured as `99`, and Refuse to answer left at `3`, the CSV writes `1`, `99`, or `3`. Shoji marks only Refuse to answer as missing in this example.
 
-If the coded panel question offers **Other**, its CSV also includes `<panel-leaf>--other_text`, a text variable in Shoji. If an ordinary column or a grouped variable, such as a checkbox, already uses that alias, it keeps it and the companion takes the first free suffix (`_2`, `_3`, …). Match the CSV header to the Shoji variable's `alias`, including when using question-index naming.
+If the coded panel question offers **Other**, its CSV also includes `<panel-leaf>--other_text`, a text variable in Shoji. Match the CSV header to the Shoji variable's `alias`, including when using question-index naming.
+
+Endatix generates some names itself: this Other-text companion, and the variable that groups a checkbox, matrix or ranking question with its columns. A generated name is always the same for the same question; it never takes a suffix. If another question's name lands on one, for example a text question named `pd--0--q--other_text`, the csv-shoji and Codebook (Shoji) downloads, and any download with the Crunch alias profile or `--` as its key separator, return HTTP 400 before any file streams. This happens on a first export too, and when a new form version adds the clashing question. The response names the contested name and both meanings:
+
+```json
+{"status":400,"detail":"Export name 'pd--0--q--other_text' (native names, separator '--') would mean both question 'pd--0--q--other_text' and the Other text of question 'q'. Rename question 'pd--0--q--other_text', then export again."}
+```
+
+To recover, rename the question that `detail` names and publish the form again. Nothing is stored about earlier downloads, so the check is the same on every export.
+
+The naming profile (`aliasProfile`) and `keySeparator` are part of a dataset's names. Changing either starts a new dataset: import it as a new Crunch dataset rather than updating the existing one.
 
 A listed answer keeps its category ID and leaves the text blank. A typed Other gets its category ID and literal text, even when an earlier form version listed that text as an ordinary choice. A copy offering its source's Other uses its own non-empty comment first, otherwise the source's text in the same response scope. Endatix uses the definition attached to each response. An unanswered question leaves both cells blank. When that definition is unavailable or cannot identify an answer, only the raw text is exported; the category is blank even if the merged catalog still lists that value.
 
