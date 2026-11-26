@@ -25,6 +25,20 @@ public class FolderAssignmentPolicyTests
     }
 
     [Fact]
+    public async Task EnsureFolderMoveValidAsync_NoTenant_DeniesAssignmentBeforeLookup()
+    {
+        // Arrange
+        _tenantContext.TenantId.Returns(0L);
+
+        // Act
+        var result = await _helper.EnsureFolderMoveValidAsync(10, 11, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Forbidden);
+        _folderRepository.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task EnsureFolderMoveValidAsync_SameFolder_AllowsNoOp()
     {
         var result = await _helper.EnsureFolderMoveValidAsync(10, 10, CancellationToken.None);
@@ -36,9 +50,10 @@ public class FolderAssignmentPolicyTests
     [Fact]
     public async Task EnsureFolderMoveValidAsync_CurrentFolderImmutable_ReturnsConflict()
     {
+        var locked = new Folder(SampleData.TENANT_ID, "Locked", "locked", "LOCKED") { Id = 10, Immutable = true };
         _folderRepository
             .AnyAsync(Arg.Any<ISpecification<Folder>>(), Arg.Any<CancellationToken>())
-            .Returns(true);
+            .Returns(call => call.Arg<ISpecification<Folder>>().IsSatisfiedBy(locked));
 
         var result = await _helper.EnsureFolderMoveValidAsync(10, 11, CancellationToken.None);
 
@@ -81,11 +96,28 @@ public class FolderAssignmentPolicyTests
     }
 
     [Fact]
+    public async Task EnsureFolderAssignmentValidAsync_ForeignActiveFolder_DoesNotMatchTheOrdinaryTenantPredicate()
+    {
+        // Arrange
+        var policy = new FolderAssignmentPolicy(_tenantSettingsRepository, _folderRepository, _tenantContext) { UseClientErrors = true };
+        var foreign = new Folder(SampleData.TENANT_ID + 1, "Neighbor", "neighbor", "NEIGHBOR") { Id = 11, IsActive = true };
+        _folderRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Folder, bool?>>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<ISpecification<Folder, bool?>>().IsSatisfiedBy(foreign) ? (bool?)true : null);
+
+        // Act
+        var result = await policy.EnsureFolderAssignmentValidAsync(foreign.Id, TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.NotFound, result.Status);
+    }
+
+    [Fact]
     public async Task EnsureFolderMoveValidAsync_TargetFolderInactive_ReturnsError()
     {
+        var inactive = new Folder(SampleData.TENANT_ID, "Inactive", "inactive", "INACTIVE") { Id = 11, IsActive = false };
         _folderRepository
             .FirstOrDefaultAsync(Arg.Any<ISpecification<Folder, bool?>>(), Arg.Any<CancellationToken>())
-            .Returns(false);
+            .Returns(call => call.Arg<ISpecification<Folder, bool?>>().IsSatisfiedBy(inactive) ? (bool?)inactive.IsActive : null);
 
         var result = await _helper.EnsureFolderMoveValidAsync(10, 11, CancellationToken.None);
 

@@ -38,12 +38,12 @@ public class Create(IMediator mediator) : Endpoint<CreateFormTemplateRequest, Re
                 JsonData = "{}",
             };
             s.Responses[201] = "Form template created successfully.";
-            s.Responses[400] = "Invalid input data.";
             s.DescribeStandingProblems();
+            s.DescribeFolderAssignment("Folder not found.");
         });
         Description(builder => builder.ProducesStandingProblems()
             .Produces<CreateFormTemplateResponse>(StatusCodes.Status201Created, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest));
+            .ProducesFolderAssignmentProblems());
     }
 
     /// <inheritdoc/>

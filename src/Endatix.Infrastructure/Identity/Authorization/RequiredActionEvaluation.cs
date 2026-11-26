@@ -1,36 +1,15 @@
-using System.Security.Cryptography;
-using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
+using Microsoft.Extensions.Logging;
 using static Endatix.Infrastructure.Identity.Authorization.RequiredActionProviderCache;
 
 namespace Endatix.Infrastructure.Identity.Authorization;
 
-internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> registrations, RequiredActionProviderCache reports)
+internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> registrations, RequiredActionProviderCache reports,
+    ILogger<RequiredActionEvaluation> logger)
 {
     private readonly IRequiredActionProvider[] _providers = registrations.ToArray();
     internal bool HasProviders => _providers.Length > 0;
-    internal string ConfigurationKey { get; } = GetConfigurationKey(registrations.ToArray());
-
-    private static string GetConfigurationKey(IRequiredActionProvider[] providers)
-    {
-        if (providers.Length == 0)
-        {
-            return "none";
-        }
-
-        var revisions = providers.Select(p => new
-        {
-            Assembly = p.GetType().Assembly.GetName().Name,
-            Type = p.GetType().FullName,
-            Revision = p.CacheConfigurationKey,
-            Policy = Policy.For(p)
-        }).OrderBy(p => p.Assembly, StringComparer.Ordinal)
-          .ThenBy(p => p.Type, StringComparer.Ordinal)
-          .ThenBy(p => p.Revision, StringComparer.Ordinal)
-          .ThenBy(p => p.Policy.FailClosed).ThenBy(p => p.Policy.Timeout).ThenBy(p => p.Policy.CacheFor);
-        // Do not reuse snapshots built without the provider's freshness or failure policy.
-        return "standing-v5:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
-    }
+    internal string ConfigurationKey => field ??= HasProviders ? reports.Configuration.Key(_providers) : "none";
 
     internal async Task<Func<DateTime, AuthorizationData>> EvaluateAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {
@@ -76,7 +55,7 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
         return data with { ExpiresAt = data.ExpiresAt != default && data.ExpiresAt < until ? data.ExpiresAt : until };
     }
 
-    private static AuthorizationData Project(AuthorizationData data, IEnumerable<RequiredAction> actions, DateTime now)
+    private AuthorizationData Project(AuthorizationData data, IEnumerable<RequiredAction> actions, DateTime now)
     {
         var groups = actions.Select(Normalize).GroupBy(action => action.Key, StringComparer.Ordinal);
         List<RequiredAction> projected = [];
@@ -85,6 +64,7 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
             var report = group.First();
             if (!group.All(other => Equivalent(report, other)))
             {
+                logger.LogWarning("Required action providers reported conflicting definitions for {ActionKey}.", group.Key);
                 return data with { RequiredActionsUnavailable = true, RequiredActions = [] };
             }
             projected.Add(ForUser(report, data.Roles, now));

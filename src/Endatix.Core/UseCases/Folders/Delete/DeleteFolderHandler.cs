@@ -33,13 +33,6 @@ public sealed class DeleteFolderHandler(
         return await DeleteAsync(request, cancellationToken);
     }
 
-    private static Result<string>? CannotDelete(bool? immutable) => immutable switch
-    {
-        null => Result.NotFound("Folder not found."),
-        true => Result<string>.Conflict("Locked folders cannot be deleted."),
-        false => null
-    };
-
     private async Task<Result<string>> DeleteAsync(DeleteFolderCommand request, CancellationToken cancellationToken)
     {
         await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -61,15 +54,15 @@ public sealed class DeleteFolderHandler(
         var spec = new FolderSpecifications.FolderByIdSpec(id);
         spec.InTenant(tenantContext);
         var folder = await folderRepository.FirstOrDefaultAsync(spec, ct);
-        if (CannotDelete(folder?.Immutable) is { } denied)
+        if (folder is null || folder.Immutable)
         {
             await unitOfWork.RollbackTransactionAsync(ct);
-            return denied;
+            return folder is null ? Result.NotFound("Folder not found.") : Result<string>.Conflict("Locked folders cannot be deleted.");
         }
         await ClearAssignmentsAsync(id, ct);
         await ReparentChildrenAsync(id, ct);
-        await mediator.Publish(new FolderDeletedEvent(folder!), ct);
-        await folderRepository.DeleteAsync(folder!, ct);
+        await mediator.Publish(new FolderDeletedEvent(folder), ct);
+        await folderRepository.DeleteAsync(folder, ct);
         await unitOfWork.SaveChangesAsync(ct);
         await unitOfWork.CommitTransactionAsync(ct);
         return Result.Success(id.ToString());

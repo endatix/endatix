@@ -57,6 +57,7 @@ public sealed class SubmissionAccessPolicyTests
     [Fact]
     public async Task GetAccessData_DormantRepeatedAuthorizedRequest_ReusesVisiblePermissions()
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
         var cache = services.GetRequiredService<HybridCache>();
@@ -67,9 +68,11 @@ public sealed class SubmissionAccessPolicyTests
         _authorizationService.GetAuthorizationDataAsync(ct).Returns(Result.Success(caller));
         var target = new SubmissionAccessContext(10, 20);
 
+        // Act
         var first = await policy.GetAccessData(target, ct);
         var next = await policy.GetAccessData(target, ct);
 
+        // Assert
         Assert.True(first.IsSuccess && next.IsSuccess);
         Assert.Equal(first.Value.ETag, next.Value.ETag);
         await _authorizationService.Received(2).GetAuthorizationDataAsync(ct);

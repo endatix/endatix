@@ -12,6 +12,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCache epochs, RequiredActionExecution execution)
 {
     private readonly Lock _creation = new();
+    internal RequiredActionConfiguration Configuration { get; } = new();
     private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(15);
 
     internal sealed record Query(Guid Epoch, int Index, RequiredActionSubject Subject, Policy Policy);
@@ -21,9 +22,20 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
         internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
         {
+            if (actions.Any(action => !Valid(action)))
+            {
+                throw new InvalidOperationException("The provider returned an invalid required action.");
+            }
             var deadline = actions is RequiredActionReport report ? report.ValidUntil.UtcDateTime : DateTime.MaxValue;
             return new(actions, Earlier(now + policy.CacheFor, deadline), Earlier(now.AddMinutes(1), deadline));
         }
+
+        private static bool Valid(RequiredAction? action) => action is not null && !string.IsNullOrWhiteSpace(action.Key)
+            && IsLocalPath(action.ResolvePath) && action.ResolverRoles is not null
+            && Enum.IsDefined(action.Scope) && Enum.IsDefined(action.Severity);
+
+        private static bool IsLocalPath(string? path) => path is ['/', ..] && path is not ['/', '/' or '\\', ..]
+            && !path.Any(char.IsControl);
 
         private static DateTime Earlier(DateTime left, DateTime right) => left < right ? left : right;
 
@@ -138,9 +150,7 @@ internal sealed class RequiredActionExecution(RequiredActionInvocations invocati
         {
             var actions = await invocations.TryReadAsync(query, ct);
             ct.ThrowIfCancellationRequested();
-            var now = Now;
-            var report = actions is null ? null : RequiredActionProviderCache.Report.From(actions, query.Policy, now);
-            return report is not null && now < report.Until ? slot.Success(report) : slot.Failure(query.Policy, now);
+            return ApplyReport(slot, query, actions);
         }
         catch (Exception error)
         {
@@ -148,5 +158,22 @@ internal sealed class RequiredActionExecution(RequiredActionInvocations invocati
             logger.LogWarning(error, "Required action provider {Registration} failed; retrying in 15 seconds.", query.Index);
             return slot.Failure(query.Policy, Now);
         }
+    }
+
+    private RequiredActionProviderCache.Report ApplyReport(RequiredActionProviderCache.Slot slot,
+        RequiredActionProviderCache.Query query, IReadOnlyList<RequiredAction>? actions)
+    {
+        var now = Now;
+        var report = actions is null ? null : RequiredActionProviderCache.Report.From(actions, query.Policy, now);
+        if (report is not null && now < report.Until)
+        {
+            return slot.Success(report);
+        }
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("Required action provider {Registration} has no usable report ({Reason}); retry deferred.",
+                query.Index, actions is null ? "occupied" : "expired");
+        }
+        return slot.Failure(query.Policy, now);
     }
 }

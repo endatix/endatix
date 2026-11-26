@@ -9,7 +9,7 @@ internal static class TenantContentQueries
 {
     internal static Task<T?> FindAsync<T>(this IRepository<T> rows, long id, ITenantContext tenant,
         CancellationToken ct) where T : TenantEntity, IAggregateRoot =>
-        rows.FirstOrDefaultAsync(new ById<T>(id, tenant.TenantId), ct);
+        tenant.TenantId <= 0 ? Task.FromResult<T?>(null) : rows.FirstOrDefaultAsync(new ById<T>(id, tenant.TenantId), ct);
 
     internal static void InTenant<T>(this Specification<T> spec, ITenantContext? tenant) where T : TenantEntity
     {

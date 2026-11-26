@@ -1,5 +1,4 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.AssumeTenant;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
@@ -51,11 +50,9 @@ public sealed class AssumeTenant(IMediator mediator, IConfiguration configuratio
         AssumeTenantRequest request,
         CancellationToken ct)
     {
-        if (!MultiTenancyGate.IsEnabled(configuration))
+        if (MultiTenancyGate.Refusal(configuration) is { } refusal)
         {
-            return TypedResultsBuilder
-                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DISABLED_MESSAGE))
-                .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
+            return refusal;
         }
 
         var result = await mediator.Send(new AssumeTenantCommand(request.TenantId), ct);

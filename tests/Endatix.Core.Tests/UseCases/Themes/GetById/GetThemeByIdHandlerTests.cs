@@ -1,6 +1,9 @@
+using Ardalis.Specification;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Themes.GetById;
 
 namespace Endatix.Core.Tests.UseCases.Themes.GetById;
@@ -14,6 +17,27 @@ public class GetThemeByIdHandlerTests
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
         _handler = new GetThemeByIdHandler(_themesRepository);
+    }
+
+    [Theory]
+    [InlineData(2, ResultStatus.Ok)]
+    [InlineData(1, ResultStatus.NotFound)]
+    [InlineData(0, ResultStatus.NotFound)]
+    public async Task Handle_RegisteredLookup_SelectsOnlyTheCurrentTenantsTheme(long tenantId, ResultStatus expected)
+    {
+        // Arrange
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(tenantId);
+        var handler = new GetThemeByIdHandler.Registered(_themesRepository, new ContentQueryScope(tenant));
+        var theme = new Theme(2, "Blue", null) { Id = 10 };
+        _themesRepository.FirstOrDefaultAsync(Arg.Any<ISpecification<Theme>>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<ISpecification<Theme>>().IsSatisfiedBy(theme) ? theme : null);
+
+        // Act
+        var result = await handler.Handle(new GetThemeByIdQuery(theme.Id), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(expected);
     }
 
     [Fact]
@@ -52,4 +76,4 @@ public class GetThemeByIdHandlerTests
         result.Value.Should().Be(theme);
         result.Value.Forms.Should().BeEmpty();
     }
-} 
+}

@@ -17,6 +17,21 @@ public class GetStorageDashboardHandlerTests
     }
 
     [Fact]
+    public async Task Handle_TenantMetricsOnly_DoesNotQueryPhysicalTables()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var query = GetStorageDashboardQuery.ForTenant(SampleData.TENANT_ID);
+
+        // Act
+        var result = await _handler.Handle(query, ct);
+
+        // Assert
+        result.Value.TableStats.Should().BeEmpty();
+        await _storageStatsRepository.DidNotReceive().GetTableStats(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Handle_ValidRequest_ReturnsStorageDashboardModel()
     {
         // Arrange

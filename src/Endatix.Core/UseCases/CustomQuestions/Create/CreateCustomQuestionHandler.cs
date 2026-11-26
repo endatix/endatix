@@ -34,11 +34,6 @@ public class CreateCustomQuestionHandler(
             return Result.Invalid(new ValidationError($"A custom question with the name '{request.Name}' already exists"));
         }
 
-        return await CreateAsync(request, cancellationToken);
-    }
-
-    private async Task<Result<CustomQuestion>> CreateAsync(CreateCustomQuestionCommand request, CancellationToken cancellationToken)
-    {
         var customQuestion = new CustomQuestion(tenantContext.TenantId, request.Name, request.JsonData, request.Description);
         await customQuestionsRepository.AddAsync(customQuestion, cancellationToken);
 

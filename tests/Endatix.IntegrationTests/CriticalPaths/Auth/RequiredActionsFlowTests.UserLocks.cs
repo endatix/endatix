@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Infrastructure.Identity;
-using Endatix.IntegrationTests.FeatureFlows.Identity;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,8 +21,8 @@ public sealed partial class RequiredActionsFlowTests
             services.AddSingleton<IRequiredActionProvider>(new MutableProvider("profile", "/profile") { Severity = RequiredActionSeverity.Notice });
             EnableStanding(services);
         });
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
-        using var manager = await RoleGrantCeilingFlowTests.UserManagerClientAsync(world, ct);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var manager = await world.UserManagerClientAsync(ct);
         var id = world.Tenants[0].Admin.Id;
         var before = await LockStateAsync(world, id, ct);
 
@@ -111,7 +110,47 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Lockout_preserves_self_denial_and_hidden_users_for_admitted_callers()
+    public async Task An_administrator_cannot_lock_their_own_account()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var id = world.Tenants[0].Admin.Id;
+        var before = await LockStateAsync(world, id, ct);
+
+        // Act
+        using var self = await admin.PostAsync($"/api/users/{id}/lockout", null, ct);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, self.StatusCode);
+        var problem = await self.Content.ReadFromJsonAsync<JsonElement>(ct);
+        Assert.Contains("your own account", problem.GetProperty("detail").GetString());
+        Assert.Equal(before, await LockStateAsync(world, id, ct));
+    }
+
+    [Theory]
+    [InlineData("lockout")]
+    [InlineData("unlock")]
+    public async Task Tenant_lock_changes_preserve_visibility_on_the_ordinary_host(string operation)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var id = world.Tenants[1].Creator.Id;
+        var before = await LockStateAsync(world, id, ct);
+
+        // Act
+        using var response = await admin.PostAsync($"/api/users/{id}/{operation}", null, ct);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(before, await LockStateAsync(world, id, ct));
+    }
+
+    [Fact]
+    public async Task Lockout_resumes_in_the_same_session_after_clearance()
     {
         var ct = TestContext.Current.CancellationToken;
         var provider = new MutableProvider("profile", "/profile") { Pending = false };
@@ -123,12 +162,6 @@ public sealed partial class RequiredActionsFlowTests
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var own = world.Tenants[0];
-        using var self = await admin.PostAsync($"/api/users/{own.Admin.Id}/lockout", null, ct);
-        Assert.Equal(HttpStatusCode.Forbidden, self.StatusCode);
-        var denied = await self.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Contains("your own account", denied.GetProperty("detail").GetString());
-        using var hidden = await admin.PostAsync($"/api/users/{world.Tenants[1].Creator.Id}/lockout", null, ct);
-        Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
         provider.Pending = true;
         await InvalidateAsync(world, ct);
 

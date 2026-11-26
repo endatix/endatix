@@ -5,6 +5,7 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases.Folders.Create;
 
 namespace Endatix.Core.UseCases.Folders;
 
@@ -24,8 +25,7 @@ public sealed class FolderWritePolicy(
 
     internal Task<bool> NameExistsAsync(string normalizedName, long? excludeFolderId, CancellationToken ct)
     {
-        var spec = new FolderSpecifications.FolderExistsByNormalizedNameSpec(normalizedName, excludeFolderId);
-        spec.InTenant(scope);
+        var spec = NamedFolder(normalizedName, excludeFolderId, scope);
         return folderRepository.AnyAsync(spec, ct);
     }
 
@@ -43,10 +43,10 @@ public sealed class FolderWritePolicy(
         }
         if (violation.IsFolderSlugViolation())
         {
-            return Result.Invalid(CreateDuplicateSlugValidationError(folder.UrlSlug, "Slug"));
+            return Result.Invalid(CreateDuplicateSlugValidationError(folder.UrlSlug, nameof(CreateFolderCommand.Slug)));
         }
-        var error = violation.IsFolderNameViolation() ? CreateDuplicateNameValidationError(folder.Name, nameof(Folder.Name))
-            : CreateDuplicateFolderConstraintValidationError(folder.Name, folder.UrlSlug, nameof(Folder.Name));
+        var error = violation.IsFolderNameViolation() ? CreateDuplicateNameValidationError(folder.Name, nameof(CreateFolderCommand.Name))
+            : CreateDuplicateFolderConstraintValidationError(folder.Name, folder.UrlSlug, nameof(CreateFolderCommand.Name));
         return Result.Invalid(error);
     }
 
@@ -92,10 +92,15 @@ public sealed class FolderWritePolicy(
         return Result.Success((trimmedName, normalizedName));
     }
 
-    public static async Task<bool> NormalizedNameExistsAsync(IRepository<Folder> folderRepository, string normalizedName, long? excludeFolderId, CancellationToken cancellationToken)
+    /// <summary>Checks the normalized name in the caller's scoped repository.</summary>
+    public static Task<bool> NormalizedNameExistsAsync(IRepository<Folder> folderRepository, string normalizedName, long? excludeFolderId, CancellationToken cancellationToken) =>
+        folderRepository.AnyAsync(NamedFolder(normalizedName, excludeFolderId, null), cancellationToken);
+
+    private static FolderSpecifications.FolderExistsByNormalizedNameSpec NamedFolder(string normalizedName, long? excludeFolderId, ITenantContext? tenant)
     {
         var spec = new FolderSpecifications.FolderExistsByNormalizedNameSpec(normalizedName, excludeFolderId);
-        return await folderRepository.AnyAsync(spec, cancellationToken);
+        spec.InTenant(tenant);
+        return spec;
     }
 
     public static Result<string> NormalizeAndValidateSlugOrError(string? rawSlug, string fallbackName, bool includeDetailedInvalidMessage)

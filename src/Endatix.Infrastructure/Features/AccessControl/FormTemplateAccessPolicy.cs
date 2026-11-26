@@ -40,10 +40,8 @@ public sealed class FormTemplateAccessPolicy(
     {
         var now = dateTimeProvider.Now.UtcDateTime;
         var lifetime = new PermissionCacheLifetime(grant.Auth, now);
-        var entry = await cache.GetOrCreateAsync(grant.Key,
-            _ => ValueTask.FromResult(new Cached<FormTemplateAccessData>(grant.Permissions(), now, lifetime.Ttl)),
-            new HybridCacheEntryOptions { Expiration = lifetime.Ttl }, tags: ["permissions", $"template:{grant.Id}"], cancellationToken: ct);
-        return Result.Success<ICachedData<FormTemplateAccessData>>(lifetime.Cap(entry));
+        var projection = new PermissionProjection<FormTemplateAccessData>(grant.Key, grant.Permissions, ["permissions", $"template:{grant.Id}"]);
+        return await lifetime.ReadAsync(cache, projection, ct);
     }
 
     private sealed record Grant(long Id, AuthorizationData Auth, AccessLevel Level)

@@ -114,10 +114,11 @@ public class CreateCustomQuestionHandlerTests
             "Test Description"
         );
 
+        var existing = new CustomQuestion(SampleData.TENANT_ID, "TEST QUESTION", request.JsonData);
         _repository.AnyAsync(
             Arg.Any<CustomQuestionSpecifications.ByName>(),
             Arg.Any<CancellationToken>()
-        ).Returns(true);
+        ).Returns(call => call.Arg<CustomQuestionSpecifications.ByName>().IsSatisfiedBy(existing));
         _tenantContext.TenantId.Returns(SampleData.TENANT_ID);
 
         // Act

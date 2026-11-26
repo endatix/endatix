@@ -1,7 +1,9 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Themes.List;
 using NSubstitute.ExceptionExtensions;
 
@@ -16,6 +18,20 @@ public class ListThemesHandlerTests
     {
         _themesRepository = Substitute.For<IRepository<Theme>>();
         _handler = new ListThemesHandler(_themesRepository);
+    }
+
+    [Fact]
+    public async Task Handle_RegisteredCatalogWithoutTenant_RefusesBeforeListingThemes()
+    {
+        // Arrange
+        var handler = new ListThemesHandler.Registered(_themesRepository, new ContentQueryScope(Substitute.For<ITenantContext>()));
+
+        // Act
+        var result = await handler.Handle(new ListThemesQuery(), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        _themesRepository.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

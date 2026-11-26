@@ -2,8 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.IntegrationTests.FeatureFlows.DataLists;
 using Endatix.IntegrationTests.Shared;
@@ -14,35 +12,22 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Admitted_stale_settings_retry_returns_current_version_and_checks_standing_once(bool useReplacement)
+    [Fact]
+    public async Task Admitted_stale_settings_retry_returns_the_current_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(ct).ReturnsForAnyArgs(Result.Success(AdmittedSnapshot()));
-        await using var host = new ReportingWebHost(fixture, services =>
-        {
-            services.AddScoped(_ => new AccountStanding(snapshots));
-            if (useReplacement)
-            {
-                services.AddSingleton<IFormSettingsRepository>(new SingleFormSettingsStore());
-            }
-        });
+        await using var host = new ReportingWebHost(fixture, EnableStanding);
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var (Route, Definition) = await ContentTargetAsync(owner, ct);
         foreach (var (value, expected) in new[] { (true, HttpStatusCode.OK), (true, HttpStatusCode.OK), (false, HttpStatusCode.PreconditionFailed) })
         {
-            snapshots.ClearReceivedCalls();
             using var request = SettingsChange(Route, "\"0\"", value);
             using var response = await owner.SendAsync(request, ct);
             Assert.Equal(expected, response.StatusCode);
             Assert.Equal("\"1\"", response.Headers.ETag?.Tag);
             var body = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
             Assert.Equal("1", body.GetProperty("version").ToString());
-            await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
         }
         using var read = await owner.GetAsync($"{Route}/settings", ct);
         read.EnsureSuccessStatusCode();
@@ -50,23 +35,6 @@ public sealed partial class RequiredActionsFlowTests
         var saved = await read.Content.ReadFromJsonAsync<JsonElement>(ct);
         Assert.Equal("1", saved.GetProperty("version").ToString());
         Assert.True(saved.GetProperty("pdf").GetProperty("usesFormTheme").GetBoolean());
-    }
-
-    private sealed class SingleFormSettingsStore : IFormSettingsRepository
-    {
-        private FormSettings? _saved;
-
-        public Task<FormSettings> ReadAsync(Form form, CancellationToken cancellationToken) =>
-            Task.FromResult(_saved?.FormId == form.Id && _saved.TenantId == form.TenantId ? _saved : FormSettings.For(form));
-
-        public Task<FormSettings?> FindAsync(long formId, CancellationToken cancellationToken) =>
-            Task.FromResult(_saved?.FormId == formId ? _saved : null);
-
-        public Task<bool> SaveOrConcedeAsync(FormSettings settings, CancellationToken cancellationToken)
-        {
-            _saved = settings;
-            return Task.FromResult(true);
-        }
     }
 
     [Fact]

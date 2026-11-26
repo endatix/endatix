@@ -116,12 +116,11 @@ public class ListUsersHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenServiceReturnsError_ReturnsErrorResult()
+    public async Task Handle_WhenServiceIsUnavailable_PreservesRetryableStatusAndMessage()
     {
         // Arrange
         var query = Query(page: 1, pageSize: 20);
-        var errorResult = Result<Paged<UserWithRoles>>.Error(
-            new ErrorList(["Something failed"], null));
+        var errorResult = Result<Paged<UserWithRoles>>.Unavailable("Try again.");
         _userService
             .ListUsersAsync(
                 Arg.Any<SearchablePageRequest>(),
@@ -130,10 +129,12 @@ public class ListUsersHandlerTests
             .Returns(errorResult);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await new ListUsersHandler.Registered(_userService).Handle(query, TestContext.Current.CancellationToken);
+        var direct = await _handler.Handle(query, TestContext.Current.CancellationToken);
 
         // Assert
-        result.IsSuccess.Should().BeFalse();
-        result.Errors.Should().Contain("Something failed");
+        direct.Status.Should().Be(ResultStatus.Error);
+        result.Status.Should().Be(ResultStatus.Unavailable);
+        result.Errors.Should().Contain("Try again.");
     }
 }

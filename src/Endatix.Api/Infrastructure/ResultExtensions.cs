@@ -87,6 +87,7 @@ public static partial class ResultExtensions
         AddExisting(problem, result.Existing);
         if (result is Core.Abstractions.Authorization.IRequiredActionRefusal refusal)
         {
+            problem.Detail = "Complete the required actions before continuing.";
             problem.Extensions["errorCode"] = "required_action";
             problem.Extensions["requiredActions"] = refusal.Actions;
         }

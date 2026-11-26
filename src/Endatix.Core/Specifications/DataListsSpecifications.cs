@@ -24,7 +24,10 @@ public static class DataListsSpecifications
         DataListListSortBy SortBy = DataListListSortBy.CreatedAt,
         bool SortDescending = true,
         UtcDateTimeRange Created = default,
-        UtcDateTimeRange Modified = default);
+        UtcDateTimeRange Modified = default)
+    {
+        internal long? TenantId { get; init; }
+    }
 
     /// <summary>
     /// Base specification to list data lists without pagination.
@@ -84,10 +87,7 @@ public static class DataListsSpecifications
         ListFilter filter)
     {
         // Closed-over array so EF translates Contains; DefaultLocale is not in AvailableLocales.
-        string[] locales = [.. TranslationLocaleList.ParseMany(
-                filter.HasLocale is null ? null : [filter.HasLocale])
-            .Where(code => !code.IsSyntheticDefault)
-            .Select(code => code.Value)];
+        var locales = LocaleValues(filter.HasLocale);
 
         if (locales.Length > 0)
         {
@@ -104,9 +104,14 @@ public static class DataListsSpecifications
                 (x.Description != null && x.Description.ToLower().Contains(term)));
         }
 
+        query.Where(x => x.TenantId == filter.TenantId, filter.TenantId.HasValue);
         query.WhereUtcRange(x => x.CreatedAt, filter.Created);
         query.WhereUtcRange(x => x.ModifiedAt, filter.Modified);
     }
+
+    private static string[] LocaleValues(string? hasLocale) =>
+        [.. TranslationLocaleList.ParseMany(hasLocale is null ? null : [hasLocale])
+            .Where(code => !code.IsSyntheticDefault).Select(code => code.Value)];
 
     private static void ApplyListOrdering(
         ISpecificationBuilder<DataList> query,

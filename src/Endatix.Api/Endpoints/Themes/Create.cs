@@ -40,7 +40,7 @@ public class Create(IMediator mediator) : Endpoint<CreateRequest, Results<Create
                 FormsCount = 0,
             };
             s.Responses[201] = "Theme created successfully.";
-            s.Responses[400] = "Invalid input data.";
+            s.Responses[400] = "Invalid input or a theme with this name already exists.";
             s.DescribeStandingProblems();
         });
         Description(builder => builder.ProducesStandingProblems()

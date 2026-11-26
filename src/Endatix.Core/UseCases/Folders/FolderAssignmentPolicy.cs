@@ -3,6 +3,7 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
+using static Endatix.Core.Specifications.FolderSpecifications;
 using TenantSettingsEntity = Endatix.Core.Entities.TenantSettings;
 
 namespace Endatix.Core.UseCases.Folders;
@@ -17,7 +18,8 @@ public sealed class FolderAssignmentPolicy(
 {
     private const string IMMUTABLE_FOLDER_MOVE_ERROR = "Items in locked folders cannot be moved or cleared.";
     private const string NO_OP_FOLDER_MOVE_ERROR = "Folder assignment is unchanged.";
-    internal long TenantId => tenantContext.TenantId;
+    private long TenantId => tenantContext.TenantId;
+    internal bool UseClientErrors { private get; init; }
 
     /// <summary>
     /// Ensures the folder assignment is valid for the current tenant.
@@ -56,27 +58,34 @@ public sealed class FolderAssignmentPolicy(
             return Result.Conflict(IMMUTABLE_FOLDER_MOVE_ERROR);
         }
 
-        var require = await tenantSettingsRepository.AnyAsync(new RequiresFolder(tenantContext.TenantId), cancellationToken);
-        if (require && (!requestedFolderId.HasValue || requestedFolderId.Value <= 0))
-        {
-            return Result.Error("You must assign a folder.");
-        }
-
         if (!requestedFolderId.HasValue || requestedFolderId.Value <= 0)
         {
-            return Result.Success();
+            var required = await tenantSettingsRepository.AnyAsync(new RequiresFolder(TenantId), cancellationToken);
+            return required ? MissingAssignment() : Result.Success();
         }
 
         var active = await folderRepository.FirstOrDefaultAsync(new FolderActive(requestedFolderId.Value, TenantId), cancellationToken);
+        return DestinationStatus(active);
+    }
 
+    private Result MissingAssignment()
+    {
+        const string message = "You must assign a folder.";
+        return UseClientErrors ? Result.Invalid(new ValidationError("folderId", message, "FOLDER_REQUIRED", ValidationSeverity.Error)) : Result.Error(message);
+    }
+
+    private Result DestinationStatus(bool? active)
+    {
         if (active is null)
         {
-            return Result.Error("Folder was not found.");
+            const string message = "Folder was not found.";
+            return UseClientErrors ? Result.NotFound(message) : Result.Error(message);
         }
 
         if (!active.Value)
         {
-            return Result.Error("Folder is not active.");
+            const string message = "Folder is not active.";
+            return UseClientErrors ? Result.Conflict(message) : Result.Error(message);
         }
 
         return Result.Success();
@@ -85,16 +94,6 @@ public sealed class FolderAssignmentPolicy(
     private sealed class RequiresFolder : Specification<TenantSettingsEntity>
     {
         internal RequiresFolder(long tenantId) => Query.Where(settings => settings.TenantId == tenantId && settings.RequireFolderAssignment);
-    }
-
-    private sealed class LockedFolder : Specification<Folder>
-    {
-        internal LockedFolder(long id, long tenant) => Query.Where(folder => folder.Id == id && folder.TenantId == tenant && folder.Immutable);
-    }
-
-    private sealed class FolderActive : SingleResultSpecification<Folder, bool?>
-    {
-        internal FolderActive(long id, long tenant) => Query.Where(folder => folder.Id == id && folder.TenantId == tenant).Select(folder => (bool?)folder.IsActive);
     }
 
     /// <summary>

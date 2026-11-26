@@ -29,8 +29,7 @@ public class CreateThemeHandler(IRepository<Theme> themesRepository,
         Guard.Against.NegativeOrZero(tenantId);
 
         var changes = new ThemeChanges(themesRepository, Selection);
-        var change = new ThemeChanges.ThemeChange(null, request.Name, request.ThemeData);
-        var data = await changes.DataAsync(change, cancellationToken);
+        var data = await changes.PrepareCreateAsync(new(request.Name, request.ThemeData), cancellationToken);
         if (!data.IsSuccess)
         {
             return data.ToErrorResult<Theme>();

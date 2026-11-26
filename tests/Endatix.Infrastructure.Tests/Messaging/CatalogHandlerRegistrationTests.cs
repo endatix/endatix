@@ -30,6 +30,21 @@ public class CatalogHandlerRegistrationTests
     }
 
     [Fact]
+    public async Task Resolve_locales_with_no_current_tenant_refuses_before_reading_locales()
+    {
+        // Arrange
+        var rows = Substitute.For<IDataListRepository>();
+        var handler = new ListDistinctDataListLocalesHandler(rows, Substitute.For<ITenantContext>());
+
+        // Act
+        var result = await handler.Handle(new ListDistinctDataListLocalesQuery(), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unauthorized, result.Status);
+        Assert.Empty(rows.ReceivedCalls());
+    }
+
+    [Fact]
     public void Resolve_locales_without_tenant_does_not_use_the_direct_repository()
     {
         var services = new ServiceCollection();

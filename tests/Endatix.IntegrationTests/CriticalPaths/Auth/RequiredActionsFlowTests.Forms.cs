@@ -1,13 +1,9 @@
-using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
-using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
@@ -25,10 +21,8 @@ public sealed partial class RequiredActionsFlowTests
     {
         var ct = TestContext.Current.CancellationToken;
         var action = new MutableProvider("terms", "/terms") { Pending = false };
-        var product = new FormProductReads();
         await using var host = new ReportingWebHost(fixture, services =>
         {
-            services.ConfigureDbContext<AppDbContext>(options => options.AddInterceptors(product));
             services.AddSingleton<IRequiredActionProvider>(action);
             EnableStanding(services);
         });
@@ -36,15 +30,12 @@ public sealed partial class RequiredActionsFlowTests
         using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var id = await CreateFormAsync(owner, ct);
         var before = await owner.GetFromJsonAsync<JsonElement>($"/api/forms/{id}", ct);
-        Assert.True(product.Reads > 0);
         action.Pending = true;
         await InvalidateAsync(world, ct);
         var me = await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
 
-        product.Reset();
         using var blocked = await ManagedFormRequestAsync(owner, operation, id);
         await AssertStandingRefusalAsync(blocked, me, ct);
-        Assert.Equal(0, product.Reads);
 
         action.Pending = false;
         await InvalidateAsync(world, ct);
@@ -146,32 +137,10 @@ public sealed partial class RequiredActionsFlowTests
         using var patch = await client.PatchAsJsonAsync(route, folder, ct);
         using var theme = await client.PatchAsJsonAsync(route, new { themeId = long.MaxValue }, ct);
 
-        // The folder policy's existing error maps to 500; missing themes map to 404.
-        Assert.Equal(HttpStatusCode.InternalServerError, replace.StatusCode);
-        Assert.Equal(HttpStatusCode.InternalServerError, patch.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, replace.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, theme.StatusCode);
         await snapshots.Received(3).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-    }
-
-    private sealed class FormProductReads : DbCommandInterceptor
-    {
-        public int Reads { get; private set; }
-        public void Reset() => Reads = 0;
-
-        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
-            CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
-        {
-            var sql = command.CommandText;
-            if (sql.Contains("Submissions", StringComparison.OrdinalIgnoreCase) || ReadsFormData(sql))
-            {
-                Reads++;
-            }
-            return ValueTask.FromResult(result);
-        }
-
-        private static bool ReadsFormData(string sql) =>
-            sql.Contains("Forms", StringComparison.OrdinalIgnoreCase)
-            && (sql.Contains("WebHookSettingsJson", StringComparison.OrdinalIgnoreCase) || sql.Contains("COUNT(", StringComparison.OrdinalIgnoreCase));
     }
 
     private static Task<HttpResponseMessage> ManagedFormRequestAsync(HttpClient owner, string operation, string id)

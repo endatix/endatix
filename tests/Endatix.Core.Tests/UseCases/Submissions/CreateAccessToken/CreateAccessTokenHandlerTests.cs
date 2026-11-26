@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
@@ -5,6 +6,8 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Tests;
+using Endatix.Core.UseCases;
+using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.CreateAccessToken;
 
 namespace Endatix.Core.Tests.UseCases.Submissions.CreateAccessToken;
@@ -22,6 +25,24 @@ public class CreateAccessTokenHandlerTests
         _tokenService = Substitute.For<ISubmissionAccessTokenService>();
         _authorizationService = Substitute.For<ICurrentUserAuthorizationService>();
         _handler = new CreateAccessTokenHandler(_submissionRepository, _tokenService, _authorizationService);
+    }
+
+    [Fact]
+    public async Task Handle_RegisteredTokenWithoutTenant_ReturnsNotFoundWithoutIssuingAToken()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var targets = new SubmissionTargets(_submissionRepository, new ContentQueryScope(Substitute.For<ITenantContext>()));
+        var handler = new CreateAccessTokenHandler.Registered(targets, _tokenService, _authorizationService);
+        var command = new CreateAccessTokenCommand(1, 2, 60, ["view"]);
+        _authorizationService.ValidateAccessAsync("submissions.view", ct).Returns(Result.Success());
+
+        // Act
+        var result = await handler.Handle(command, ct);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        _tokenService.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

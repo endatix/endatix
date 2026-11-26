@@ -103,6 +103,27 @@ public sealed partial class RequiredActionsFlowTests
          ("POST", folder.Path), ("PATCH", folder.Detail), ("DELETE", folder.Detail)];
 
     [Fact]
+    public async Task Ordinary_folder_writes_leave_another_tenants_folder_unchanged()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var first = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var second = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var folder = await ManagedAsset.CreateAsync(second, "folders", ct);
+        var before = await second.GetFromJsonAsync<JsonElement>(folder.Path, ct);
+
+        // Act
+        using var edit = await first.PatchAsJsonAsync(folder.Detail, new { name = "Changed" }, ct);
+        using var delete = await first.DeleteAsync(folder.Detail, ct);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, edit.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, delete.StatusCode);
+        Assert.True(JsonElement.DeepEquals(before, await second.GetFromJsonAsync<JsonElement>(folder.Path, ct)));
+    }
+
+    [Fact]
     public async Task Admitted_folder_operations_preserve_validation_and_visibility()
     {
         var ct = TestContext.Current.CancellationToken;

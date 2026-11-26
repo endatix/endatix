@@ -38,9 +38,28 @@ public class ListDataListsHandlerTests
     {
         var query = new ListDataListsQuery(1, 10) { TenantId = SampleData.TENANT_ID + 1 };
         var result = await _sut.Handle(query, TestContext.Current.CancellationToken);
-
         result.Status.Should().Be(ResultStatus.Unauthorized);
         _repository.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_ManagedCatalog_CountAndPageSelectOnlyTheCurrentTenant()
+    {
+        // Arrange
+        var current = new DataList(SampleData.TENANT_ID, "Local");
+        var other = new DataList(SampleData.TENANT_ID + 1, "Other");
+        var row = new DataListDto(11, "Local", null, DateTime.UtcNow, null, true, 0, "en", [], []);
+        bool SelectsTenant(ISpecification<DataList> spec) => AllowsRow(spec, current) && !AllowsRow(spec, other);
+        _repository.CountAsync(Arg.Is<DataListsSpecifications.ListSpec>(s => AllowsRow(s, current) && !AllowsRow(s, other)), Arg.Any<CancellationToken>()).Returns(1);
+        _repository.ListAsync(Arg.Any<DataListsSpecifications.ListWithPagingToDtoSpec>(), Arg.Any<CancellationToken>())
+            .Returns(call => SelectsTenant(call.Arg<DataListsSpecifications.ListWithPagingToDtoSpec>()) ? [row] : []);
+
+        // Act
+        var result = await _sut.Handle(new ListDataListsQuery(1, 10), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Value.TotalRecords.Should().Be(1);
+        result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Local");
     }
 
     [Fact]

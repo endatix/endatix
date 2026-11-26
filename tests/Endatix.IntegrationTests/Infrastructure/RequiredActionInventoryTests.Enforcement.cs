@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.StaticAssets;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using static Endatix.IntegrationTests.RegisteredOperations;
 
 namespace Endatix.IntegrationTests;
 
@@ -102,12 +103,13 @@ public sealed partial class RequiredActionInventoryTests
             return;
         }
         Assert.Equal("required_action", problem.GetProperty("errorCode").GetString());
+        Assert.Equal("Complete the required actions before continuing.", problem.GetProperty("detail").GetString());
         Assert.True(JsonElement.DeepEquals(actions.Value, problem.GetProperty("requiredActions")));
     }
 
     private static IEnumerable<(string?, HttpRequestMessage)> AccountRequests(IEnumerable<RouteEndpoint> endpoints) => endpoints
         .Where(route => route.Metadata.GetMetadata<StaticAssetDescriptor>() is null &&
-            Access(route.Metadata) is not ("resolver" or "open-no-policy" or "anonymous" or "form-token"))
+            Access(route.Metadata) is not ("resolver" or "authenticated-resolver" or "platform-resolver" or "open-no-policy" or "anonymous" or "form-token"))
         .SelectMany(route => Methods(route).Select(method => (route.RoutePattern.RawText, ExampleRequest(route, method))));
 
     private static HttpRequestMessage ExampleRequest(RouteEndpoint route, string method)

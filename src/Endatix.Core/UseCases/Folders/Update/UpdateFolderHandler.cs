@@ -42,8 +42,8 @@ public sealed class UpdateFolderHandler(
 
     private async Task<Result<Edit>> PrepareAsync(Folder target, UpdateFolderCommand request, CancellationToken ct)
     {
-        if (target.Immutable && request.Immutable is not false &&
-            Folder.ChangesMutableFields((request.Name, request.Slug, request.Description, request.Metadata)))
+        if (request.Immutable is not false &&
+            !target.CanModifyMutableState(request.Name, request.Slug, request.Description, request.Metadata))
         {
             return Result.Invalid(folderWritePolicy.CreateImmutableFolderValidationError(nameof(UpdateFolderCommand.FolderId)));
         }

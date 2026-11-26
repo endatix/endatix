@@ -12,12 +12,19 @@ namespace Endatix.Core.UseCases.TenantSettings.Get;
 /// Handler for retrieving tenant settings for the current tenant.
 /// Sensitive data (tokens, API keys, URLs) are masked for security.
 /// </summary>
+[DirectCallOnly]
 public class GetTenantSettingsHandler(
     IRepository<Entities.TenantSettings> repository,
     ITenantContext tenantContext) : IQueryHandler<GetTenantSettingsQuery, Result<TenantSettingsDto>>
 {
+    private bool ReturnValidationFailure { get; init; }
+
     public async Task<Result<TenantSettingsDto>> Handle(GetTenantSettingsQuery request, CancellationToken cancellationToken)
     {
+        if (ReturnValidationFailure && tenantContext.TenantId <= 0)
+        {
+            return Result.Invalid(new ValidationError("Tenant context is required."));
+        }
         Guard.Against.NegativeOrZero(tenantContext.TenantId);
 
         var spec = new TenantSettingsByTenantIdSpec(tenantContext.TenantId);
@@ -31,6 +38,10 @@ public class GetTenantSettingsHandler(
         var dto = MapToDto(tenantSettings);
         return Result.Success(dto);
     }
+
+    internal sealed class Registered(IRepository<Entities.TenantSettings> repository, ITenantContext tenant)
+        : RegisteredContentHandler<GetTenantSettingsQuery, Result<TenantSettingsDto>>(
+            new GetTenantSettingsHandler(repository, tenant) { ReturnValidationFailure = true });
 
     /// <summary>
     /// Maps TenantSettings entity to DTO with sensitive data masked.

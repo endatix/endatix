@@ -67,6 +67,26 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
+    public async Task An_ordinary_form_content_request_only_reads_or_changes_its_own_tenant()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var (route, definition) = await ContentTargetAsync(owner, ct);
+        var definitions = await owner.GetFromJsonAsync<JsonElement>($"{route}/definitions", ct);
+        var settings = await owner.GetFromJsonAsync<JsonElement>($"{route}/settings", ct);
+
+        // Act
+        await AssertContentStatusAsync(admin, ContentRequests(route, definition), HttpStatusCode.NotFound);
+
+        // Assert
+        Assert.True(JsonElement.DeepEquals(definitions, await owner.GetFromJsonAsync<JsonElement>($"{route}/definitions", ct)));
+        Assert.True(JsonElement.DeepEquals(settings, await owner.GetFromJsonAsync<JsonElement>($"{route}/settings", ct)));
+    }
+
+    [Fact]
     public async Task Admitted_content_preserves_ordinary_target_and_request_checks()
     {
         var ct = TestContext.Current.CancellationToken;

@@ -1,4 +1,3 @@
-using Ardalis.Specification;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
@@ -33,14 +32,13 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
         }
         PagingParameters pagingParams = new(request.Page, request.PageSize);
         var filter = new DataListsSpecifications.ListFilter(request.HasLocale, request.Search, request.SortBy,
-            request.SortDescending, request.Created, request.Modified);
+            request.SortDescending, request.Created, request.Modified)
+        { TenantId = tenantId };
         var listSpec = new DataListsSpecifications.ListSpec(filter);
-        listSpec.Query.Where(list => list.TenantId == tenantId, tenantId.HasValue);
         var totalRecords = await repository.CountAsync(listSpec, cancellationToken);
         var resolved = pagingParams.ForTotal(totalRecords);
 
         var pagedSpec = new DataListsSpecifications.ListWithPagingToDtoSpec(new PagingParameters(resolved), filter);
-        pagedSpec.Query.Where(list => list.TenantId == tenantId, tenantId.HasValue);
         IReadOnlyList<DataListDto> items = totalRecords > 0 ? await repository.ListAsync(pagedSpec, cancellationToken) : [];
         return Result.Success(resolved.ToPaged(items));
     }

@@ -8,6 +8,13 @@ namespace Endatix.Core.Tests.TestUtils;
 /// </summary>
 public static class FormDefinitionFactory
 {
+    internal static FormDefinition InTenant(long tenantId, long formId, long definitionId)
+    {
+        var definition = FormDefinition.Create(definitionId, tenantId);
+        typeof(FormDefinition).GetProperty(nameof(FormDefinition.FormId))!.SetValue(definition, formId);
+        return definition;
+    }
+
     public static FormDefinition CreateForTesting(bool isDraft = false, string? jsonData = null, long? formId = default, long? formDefinitionId = default)
     {
         var formDefinition = new FormDefinition(SampleData.TENANT_ID, isDraft, jsonData);

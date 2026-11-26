@@ -165,6 +165,39 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal("Fruit", Assert.Single(catalog.GetProperty("items").EnumerateArray()).GetProperty("name").GetString());
         Assert.NotNull(locales);
         Assert.Equal(["en"], locales);
+        using var unbound = world.Services.CreateScope();
+        var ambient = unbound.ServiceProvider.GetRequiredService<AppDbContext>().GetTenantId();
+        Assert.Equal(0, ambient);
+        var repository = unbound.ServiceProvider.GetRequiredService<IDataListRepository>();
+        var scoped = Assert.IsType<ITenantLocaleCatalog>(repository, exactMatch: false);
+        Assert.Empty(await scoped.ListForTenantAsync(0, ct));
+        Assert.Equal(["en"], await scoped.ListForTenantAsync(world.Tenants[0].Id, ct));
+        Assert.Equal(["en", "fr"], await repository.ListDistinctLocalesAsync(ct));
+    }
+
+    [Fact]
+    public async Task Admitted_managed_list_operations_require_a_list_in_the_current_tenant()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = new ReportingWebHost(fixture, EnableStanding);
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var first = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var second = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var foreign = await CreateDataListAsync(second, ct);
+
+        // Act / Assert
+        foreach (var operation in DataListRequests(foreign))
+        {
+            using var request = operation;
+            if (request.RequestUri!.OriginalString.StartsWith(foreign, StringComparison.Ordinal))
+            {
+                using var response = await first.SendAsync(request, ct);
+                Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            }
+        }
+        using var stillVisible = await second.GetAsync(foreign, ct);
+        stillVisible.EnsureSuccessStatusCode();
     }
 
     private static async Task<string> CreateDataListAsync(HttpClient owner, CancellationToken ct, string name = "Fruit")

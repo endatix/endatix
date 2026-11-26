@@ -182,8 +182,11 @@ public class UpdateTenantHandlerTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task Handle_SelfRegistrationUpdateWithoutSettings_ReturnsNotFound()
+    [Theory]
+    [InlineData(true, null, null)]
+    [InlineData(null, "google", null)]
+    [InlineData(null, null, "Respondent")]
+    public async Task Handle_SelfRegistrationUpdateWithoutSettings_ReturnsNotFound(bool? allow, string? provider, string? role)
     {
         // Arrange
         ExistingTenant();
@@ -193,7 +196,8 @@ public class UpdateTenantHandlerTests
 
         // Act
         var result = await _sut.Handle(
-            new UpdateTenantCommand(TENANT_ID, AllowSelfRegistration: true),
+            new UpdateTenantCommand(TENANT_ID, AllowSelfRegistration: allow, AllowedAuthProviderKeys: provider is null ? null : [provider],
+                DefaultRegistrationRoleName: role),
             TestContext.Current.CancellationToken);
 
         // Assert

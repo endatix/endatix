@@ -1,3 +1,4 @@
+using Ardalis.GuardClauses;
 using Ardalis.Specification;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Paging;
@@ -24,6 +25,7 @@ public static class CustomQuestionSpecifications
 
         public ByName(long tenantId, string name) : this(name)
         {
+            Guard.Against.NegativeOrZero(tenantId);
             Query.Where(q => q.TenantId == tenantId);
         }
     }

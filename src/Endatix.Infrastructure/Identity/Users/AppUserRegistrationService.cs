@@ -185,7 +185,7 @@ public sealed partial class AppUserRegistrationService(
         CancellationToken cancellationToken)
     {
         var target = await ResolveRegistrationTargetAsync(email, tenantId, isAnonymous);
-        return target.Refusal ?? await RegisterEligibleUserAsync(target, password, isEmailConfirmed, sendInvitationEmail, cancellationToken);
+        return target.Ineligible ?? await RegisterEligibleUserAsync(target, password, isEmailConfirmed, sendInvitationEmail, cancellationToken);
     }
 
     private async Task<Result<User>> RegisterEligibleUserAsync(RegistrationTarget target, string password, bool isEmailConfirmed, bool sendInvitationEmail, CancellationToken cancellationToken)

@@ -26,4 +26,7 @@ public static class TransactionLockScopes
     /// exclusively, a CSV import holds every stripe shared, so imports run together and exclude every removal.
     /// </summary>
     public const int AudienceFormPeople = 1121;
+
+    /// <summary>Serializes additions to one tenant's case-insensitive custom question name catalog.</summary>
+    internal const int CUSTOM_QUESTION_NAMES = 1122;
 }

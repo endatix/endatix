@@ -1,5 +1,8 @@
 # Registered module, standing gate, access metadata, method, route.
 # Static asset descriptors are not operations. External clients use the same HTTP registrations.
+# Middleware branches do not register RouteEndpoints: health/detail/UI/readiness follow the health
+# middleware configuration (HealthCheckTests); EmbedHostRegistrationTests checks the real development embed branch.
+# Module hosts that register additional operations must inventory their own EndpointDataSource.
 
 audience gated account DELETE /api/forms/{formId}/audience/people/{membershipId}
 audience gated account DELETE /api/forms/{formId}/audience/properties/{propertyId}
@@ -67,7 +70,7 @@ core gated platform-admin POST /api/admin/email/test
 core gated platform-admin POST /api/admin/platform-admins/{userId}
 core gated platform-admin POST /api/admin/tenants
 core gated platform-admin POST /api/auth/assume-tenant
-core open resolver POST /api/auth/exit-assume
+core open platform-resolver POST /api/auth/exit-assume
 core gated account POST /api/roles
 core gated account POST /api/tenant-branding/reset
 core gated account POST /api/tenant-branding/restore
@@ -141,9 +144,9 @@ core gated platform-admin GET /api/admin/auth/settings
 core gated platform-admin GET /api/admin/email/settings
 core gated account GET /api/system/version
 core gated account GET /api/forms
-core open resolver GET /api/auth/me
-core open resolver POST /api/auth/logout
-core open resolver POST /api/my-account/change-password
+core open authenticated-resolver GET /api/auth/me
+core open authenticated-resolver POST /api/auth/logout
+core open authenticated-resolver POST /api/my-account/change-password
 core respondent anonymous GET /api/forms/{formId}/definition
 core respondent anonymous GET /api/forms/{formId}/submissions/by-access-token/{token}
 core respondent anonymous GET /api/forms/{formId}/submissions/by-token/{submissionToken}

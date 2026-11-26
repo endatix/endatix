@@ -1,22 +1,26 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Infrastructure.Exporting.DataSources;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Abstractions.Submissions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.CustomQuestions.Create;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Locking;
+using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Exporting;
+using Endatix.Infrastructure.Exporting.DataSources;
 using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
 using Endatix.Infrastructure.Features.Forms;
 using Endatix.Infrastructure.Features.Submissions;
-using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Repositories;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Endatix.Infrastructure.Builders;
@@ -60,12 +64,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
         Services.AddScoped<IValueNormalizer, ValueNormalizer>();
         Services.AddSingleton<IUniqueConstraintViolationChecker, UniqueConstraintViolationChecker>();
-        Services.AddScoped<IFormsRepository, FormsRepository>();
-        Services.AddScoped<IFormSubmissionsLock, FormSubmissionsLock>();
-        Services.AddScoped<IDataListDependencyChecker, DataListDependencyChecker>();
-        Services.AddScoped<IDataListRepository, DataListRepository>();
-        Services.AddScoped<ITenantBrandingRepository, TenantBrandingRepository>();
-        Services.AddScoped<IFormSettingsRepository, FormSettingsRepository>();
+        AddContentRepositories();
         Services.AddSingleton<DataSeeder>();
 
         // Add exporters
@@ -83,6 +82,17 @@ public class InfrastructureDataBuilder
 
         LogSetupInfo("Data infrastructure configured successfully");
         return this;
+    }
+
+    private void AddContentRepositories()
+    {
+        Services.AddScoped<IFormsRepository, FormsRepository>();
+        Services.AddScoped<IFormSubmissionsLock, FormSubmissionsLock>();
+        Services.TryAddEnumerable(ServiceDescriptor.Scoped<IPipelineBehavior<CreateCustomQuestionCommand, Result<CustomQuestion>>, SerializeCustomQuestionCreation>());
+        Services.AddScoped<IDataListDependencyChecker, DataListDependencyChecker>();
+        Services.AddScoped<IDataListRepository, DataListRepository>();
+        Services.AddScoped<ITenantBrandingRepository, TenantBrandingRepository>();
+        Services.AddScoped<IFormSettingsRepository, FormSettingsRepository>();
     }
 
     /// <summary>
