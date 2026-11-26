@@ -10,7 +10,6 @@ internal sealed class SubmittedChoiceScope
 {
     private readonly Dictionary<string, SubmittedChoiceScope> _panels = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<string, bool>> _conditions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, JsonElement?> _singleChoices = new(StringComparer.Ordinal);
     private readonly Dictionary<string, JsonElement?> _questionsByAnswerKey = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _answerKeysByName = new(StringComparer.Ordinal);
 
@@ -27,11 +26,6 @@ internal sealed class SubmittedChoiceScope
 
     public void Note(string name, JsonElement question)
     {
-        if (question.IsSingleSelectBaseSelect() && !_singleChoices.TryAdd(name, question))
-        {
-            _singleChoices[name] = null;
-        }
-
         var key = question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ValueName) ?? name;
         if (!_answerKeysByName.TryAdd(name, key))
         {
@@ -63,9 +57,9 @@ internal sealed class SubmittedChoiceScope
         }
     }
 
+    /// <summary>The panel item's single-select question, found the same way as <see cref="Question"/>.</summary>
     public JsonElement? PanelQuestion(FormSchemaColumn column) =>
-        At(column.LoopPath?.Select(segment => segment.PanelValueName) ?? [column.PanelName!])
-            ?._singleChoices.GetValueOrDefault(column.SourceQuestion!);
+        Question(column) is { } question && question.IsSingleSelectBaseSelect() ? question : null;
 
     private void NoteAnswerKey(string key, JsonElement question)
     {
