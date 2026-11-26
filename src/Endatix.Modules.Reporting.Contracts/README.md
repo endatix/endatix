@@ -38,7 +38,7 @@ That indirection is what lets the API layer stay independent of the Reporting im
 
 The implementation lives in **Endatix.Modules.Reporting**.
 
-An external `IReportingExportRepository` can return `row.WithSourceAnswers(originalAnswersJson)` when the answers are from the exact source timestamp **and** revision of that flattened row. If either is unavailable or differs, return the original row. The evidence is not a public row property, is not serialized or printed by the record, and is not an export column. It lets the Shoji exporter distinguish a numeric matrix code from a string choice's ordinal when they have the same flattened value. The same evidence supplies the Other text of a coded panel item; without it, that text is left empty.
+An external `IReportingExportRepository` can return `row.WithSourceAnswers(originalAnswersJson)` when the answers are from the exact source timestamp **and** revision of that flattened row. If either is unavailable or differs, return the original row. The evidence is not a public row property, is not serialized or printed by the record, and is not an export column. It lets the Shoji exporter distinguish a numeric matrix code from a string choice's ordinal when they have the same flattened value. The same evidence lets the exporter read a coded panel item's Other text from the original response; without it, the flattened value is kept.
 
 ## More Information:
 For detailed installation instructions, please visit [Endatix Installation Guide](https://docs.endatix.com/docs/getting-started/installation).
