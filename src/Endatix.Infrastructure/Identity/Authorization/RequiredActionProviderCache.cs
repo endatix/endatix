@@ -12,9 +12,36 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCache epochs, RequiredActionExecution execution)
 {
     private readonly Lock _creation = new();
+    private static readonly TimeSpan _retryDelay = TimeSpan.FromSeconds(15);
 
     internal sealed record Query(Guid Epoch, int Index, RequiredActionSubject Subject, Policy Policy);
-    internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, DateTime UsableUntil, bool Unavailable = false);
+    internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, DateTime UsableUntil, bool Unavailable = false)
+    {
+        internal DateTime RetryAt { get; init; }
+
+        internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
+        {
+            var deadline = actions is RequiredActionReport report ? report.ValidUntil.UtcDateTime : DateTime.MaxValue;
+            return new(actions, Earlier(now + policy.CacheFor, deadline), Earlier(now.AddMinutes(1), deadline));
+        }
+
+        private static DateTime Earlier(DateTime left, DateTime right) => left < right ? left : right;
+
+        // Retaining a report never extends its freshness. Only omission gets a separate
+        // lifetime: the original failure backoff, or a report deadline crossed during evaluation.
+        internal DateTime ProjectionExpiry(DateTime now)
+        {
+            if (UsableUntil > now)
+            {
+                return Until;
+            }
+            if (RetryAt != default)
+            {
+                return RetryAt;
+            }
+            return Actions is RequiredActionReport report && report.ValidUntil.UtcDateTime <= now ? now + _retryDelay : Until;
+        }
+    }
     internal sealed record Policy(TimeSpan CacheFor, TimeSpan Timeout, bool FailClosed)
     {
         internal static Policy For(IRequiredActionProvider provider) => new(
@@ -40,7 +67,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
         internal Report Failure(Policy policy, DateTime now)
         {
-            RetryAt = now.AddSeconds(15);
+            RetryAt = now + _retryDelay;
             return Fallback(this, policy, now);
         }
     }
@@ -95,7 +122,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
         {
             return new([], slot.RetryAt, slot.RetryAt, policy.FailClosed);
         }
-        return good with { Until = good.UsableUntil < slot.RetryAt ? good.UsableUntil : slot.RetryAt };
+        return good with { Until = good.UsableUntil < slot.RetryAt ? good.UsableUntil : slot.RetryAt, RetryAt = slot.RetryAt };
     }
 }
 
@@ -112,8 +139,8 @@ internal sealed class RequiredActionExecution(RequiredActionInvocations invocati
             var actions = await invocations.TryReadAsync(query, ct);
             ct.ThrowIfCancellationRequested();
             var now = Now;
-            return actions is null ? slot.Failure(query.Policy, now)
-                : slot.Success(new(actions, now + query.Policy.CacheFor, now.AddMinutes(1)));
+            var report = actions is null ? null : RequiredActionProviderCache.Report.From(actions, query.Policy, now);
+            return report is not null && now < report.Until ? slot.Success(report) : slot.Failure(query.Policy, now);
         }
         catch (Exception error)
         {

@@ -71,7 +71,7 @@ public sealed class CurrentUserAuthorizationServiceTests
             _authorizationCache,
             _authorizationStrategies,
             _tenantContext,
-            _logger);
+            _logger, new Core.Infrastructure.DateTimeProvider());
     }
 
     #region GetAuthorizationDataAsync Tests

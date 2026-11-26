@@ -11,5 +11,5 @@ public static class RequiredActionServiceCollectionExtensions
     /// <summary>Checks account standing using the current request's authorization data.</summary>
     public static IServiceCollection AddRequiredActionEnforcement(this IServiceCollection services) =>
         services.Replace(ServiceDescriptor.Scoped(sp =>
-            new AccountStanding(sp.GetRequiredService<ICurrentUserAuthorizationService>())));
+            new AccountStanding(sp.GetRequiredService<ICurrentUserAuthorizationService>(), sp.GetService<IDateTimeProvider>())));
 }

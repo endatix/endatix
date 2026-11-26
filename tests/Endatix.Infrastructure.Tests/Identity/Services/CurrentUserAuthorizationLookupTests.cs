@@ -15,6 +15,7 @@ public sealed class CurrentUserAuthorizationLookupTests
     private readonly IHttpContextAccessor _http = Substitute.For<IHttpContextAccessor>();
     private readonly IAuthorizationCache _cache = Substitute.For<IAuthorizationCache>();
     private readonly List<IAuthorizationStrategy> _strategies = [];
+    private readonly IDateTimeProvider _clock = Substitute.For<IDateTimeProvider>();
     private readonly CurrentUserAuthorizationService _service;
 
     public CurrentUserAuthorizationLookupTests() =>
@@ -23,7 +24,49 @@ public sealed class CurrentUserAuthorizationLookupTests
             _cache,
             _strategies,
             Substitute.For<ITenantContext>(),
-            Substitute.For<ILogger<CurrentUserAuthorizationService>>());
+            Substitute.For<ILogger<CurrentUserAuthorizationService>>(),
+            _clock);
+
+    [Theory]
+    [InlineData("mapped", 42, true)]
+    [InlineData("different", 42, false)]
+    [InlineData("mapped", 99, false)]
+    public async Task GetAuthorizationDataAsync_HydratedReportExpires_RechecksOriginalTokenIdentity(string mappedUser, long mappedTenant, bool sameSubject)
+    {
+        // Arrange
+        var deadline = DateTimeOffset.UnixEpoch.AddSeconds(5);
+        _clock.Now.Returns(deadline.AddTicks(-1));
+        var clear = AuthorizationData.ForAuthenticatedUser("mapped", 42, [], [], expiresAt: deadline.UtcDateTime);
+        var token = new ClaimsIdentity([new Claim(ClaimNames.UserId, "external"), new Claim(ClaimNames.TenantId, "13")], "test");
+        var principal = new ClaimsPrincipal([token, new AuthorizedIdentity(clear)]);
+        _http.HttpContext.Returns(new DefaultHttpContext { User = principal });
+        var current = clear with { UserId = mappedUser, TenantId = mappedTenant, RequiredActionsUnavailable = true };
+        var strategy = Substitute.For<IAuthorizationStrategy>();
+        strategy.CanHandle(Arg.Is<ClaimsPrincipal>(p => p.GetUserId() == "external")).Returns(true);
+        _strategies.Add(strategy);
+        var ct = TestContext.Current.CancellationToken;
+        strategy.GetAuthorizationDataAsync(Arg.Is<ClaimsPrincipal>(p => p.GetUserId() == "external" && p.GetTenantId() == 13), ct)
+            .Returns(Result.Success(current));
+        _cache.GetOrCreateAsync(Arg.Is<ClaimsPrincipal>(p => p.GetUserId() == "external"),
+            Arg.Any<Func<CancellationToken, Task<Result<AuthorizationData>>>>(), ct)
+            .Returns(async call => (await call.Arg<Func<CancellationToken, Task<Result<AuthorizationData>>>>()(ct)).Value);
+        (await _service.GetAuthorizationDataAsync(ct)).Value.RequiredActionsUnavailable.Should().BeFalse();
+
+        // Act
+        _clock.Now.Returns(deadline);
+        var result = await _service.GetAuthorizationDataAsync(ct);
+
+        // Assert
+        result.IsSuccess.Should().Be(sameSubject);
+        if (sameSubject)
+        {
+            result.Value.RequiredActionsUnavailable.Should().BeTrue();
+        }
+        else
+        {
+            result.IsUnauthorized().Should().BeTrue();
+        }
+    }
 
     [Fact]
     public async Task PermissionHelpers_WhenLookupFails_ReturnError()

@@ -84,6 +84,10 @@ Use `Notice` for an action that permits continued access. To introduce a deadlin
 
 `Timeout` defaults to two seconds. After failure the host waits 15 seconds before retrying that check in the same cache generation.
 
+If a scheduled transition can change the answer without a write, return a `RequiredActionReport` from the same `GetPendingAsync` method. For example, if a workspace meets a requirement until its next review, return `new RequiredActionReport([], nextReviewAt)` instead of `[]`. If a scheduled change will clear a blocker, return `new RequiredActionReport([blocker], effectiveAt)`. Both timestamps are `DateTimeOffset` values and identify an absolute instant.
+
+The report is valid **strictly before** that instant. The deadline can shorten, but never extend, both `CacheFor` and the optional fallback window. A mandatory check that cannot provide current standing is unavailable; an optional check may use only a still-valid fallback. With no known transition, return an ordinary list as before.
+
 **After committing a change**, invalidate the affected authorization data. These calls retire cached reports, including optional fallback reports:
 
 | What changed | Call |
