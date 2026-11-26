@@ -131,13 +131,13 @@ public sealed class ExportNameCollisionsTests
     }
 
     [Theory]
-    [InlineData("""{"type":"ranking","name":"rk","choices":["a","b"]},{"type":"text","name":"rk--a"}""", "rk--a", "rk", "Subvariable")]
-    [InlineData("""{"type":"matrix","name":"m","rows":["r"],"columns":[1,2]},{"type":"text","name":"m--r"}""", "m--r", "m", "Subvariable")]
+    [InlineData("""{"type":"ranking","name":"rk","choices":["a","b"]},{"type":"text","name":"rk--a"}""", "rk--a", "rk")]
+    [InlineData("""{"type":"matrix","name":"m","rows":["r"],"columns":[1,2]},{"type":"text","name":"m--r"}""", "m--r", "m")]
     [InlineData("""{"type":"paneldynamic","name":"lp","maxPanelCount":1,"templateElements":[{"type":"checkbox","name":"c","choices":["x"]}]},{"type":"text","name":"lp--0--c"}""",
-        "lp--0--c", "c", "Subvariable")]
+        "lp--0--c", "c")]
     [InlineData("""{"type":"paneldynamic","name":"lr","maxPanelCount":1,"templateElements":[{"type":"ranking","name":"r","choices":["a","b"]}]},{"type":"text","name":"lr--0--r"}""",
-        "lr--0--r", "r", "Subvariable")]
-    public void Find_QuestionNamedLikeAGeneratedName_ReturnsIt(string elements, string name, string owner, string kind)
+        "lr--0--r", "r")]
+    public void Find_QuestionNamedLikeAGeneratedColumn_ReturnsIt(string elements, string name, string owner)
     {
         // Arrange
         var schema = Schema(elements);
@@ -149,7 +149,7 @@ public sealed class ExportNameCollisionsTests
         var collision = collisions.Should().ContainSingle().Subject;
         (collision.Name, collision.Rename).Should().Be((name, name));
         new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
-            [new ExportNameMeaning(name, ExportNameKind.Ordinary), new ExportNameMeaning(owner, Enum.Parse<ExportNameKind>(kind))]);
+            [new ExportNameMeaning(name, ExportNameKind.Ordinary), new ExportNameMeaning(owner, ExportNameKind.Subvariable)]);
     }
 
     [Fact]
