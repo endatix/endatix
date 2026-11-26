@@ -257,6 +257,21 @@ internal static partial class ShojiCodebookGenerator
         map.Columns.SelectMany(column => ColumnOrderAliases(column, questions, separator))
             .SelectMany(alias => (string[])[alias, ExportKeyTransformer.Transform(alias, separator)]);
 
+    /// <summary>
+    /// The group parents (multiple response, categorical and ranking arrays) a map's columns are written under: metadata
+    /// keys and aliases that no CSV header shows, each with a column it groups.
+    /// </summary>
+    internal static IEnumerable<(string Alias, FormSchemaColumn Column)> GroupParentAliases(
+        MergedFormSchema map, IReadOnlyDictionary<string, JsonElement> questions, string separator) =>
+        map.Columns
+            .Where(column => column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.MatrixRow
+                or FormSchemaColumnKind.RankingChoice or FormSchemaColumnKind.LoopSource)
+            .SelectMany(column => ColumnOrderAliases(column, questions, separator)
+                .SelectMany(alias => (string[])[alias, ExportKeyTransformer.Transform(alias, separator)])
+                .Where(alias => alias != ExportKeyTransformer.Transform(column.Key, separator))
+                .Distinct(StringComparer.Ordinal)
+                .Select(alias => (alias, column)));
+
     private static IEnumerable<string> ColumnOrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args) =>
         ColumnOrderAliases(column, args.Questions, args.KeySeparator);
 

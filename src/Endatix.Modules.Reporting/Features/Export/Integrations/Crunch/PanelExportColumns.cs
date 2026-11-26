@@ -28,6 +28,9 @@ internal sealed class PanelExportColumns
 
     public string CompanionAlias(string parentKey) => _companions[parentKey].ExportKey;
 
+    /// <summary>The companion's name: its parent's export name and <c>other_text</c>, never suffixed.</summary>
+    public static string CompanionName(string parentExportKey, string separator) => parentExportKey + separator + "other_text";
+
     private IEnumerable<ExportColumnDefinition> All => _ordinary.Values.Concat(_companions.Values);
 
     public Dictionary<string, string> AliasesFrom(PanelExportColumns native)
