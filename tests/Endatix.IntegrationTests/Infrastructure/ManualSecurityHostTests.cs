@@ -51,7 +51,11 @@ public sealed class ManualSecurityHostTests
         };
         var projection = Substitute.For<ICurrentUserAuthorizationService>();
         projection.GetAuthorizationDataAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(snapshot));
-        await using var host = await StartAsync(services => services.AddScoped(_ => new AccountStanding(projection)));
+        await using var host = await StartAsync(services =>
+        {
+            services.AddScoped(_ => projection);
+            services.AddRequiredActionEnforcement();
+        });
         using var client = host.GetTestClient();
         client.DefaultRequestHeaders.Authorization = Credential(host, "owner");
 
@@ -74,8 +78,7 @@ public sealed class ManualSecurityHostTests
     [Fact]
     public async Task A_broken_standing_registration_propagates_its_resolution_failure()
     {
-        await using var host = await StartAsync(services => services.AddScoped(sp =>
-            new AccountStanding(sp.GetRequiredService<ICurrentUserAuthorizationService>())));
+        await using var host = await StartAsync(services => services.AddRequiredActionEnforcement());
         using var client = host.GetTestClient();
         client.DefaultRequestHeaders.Authorization = Credential(host, "owner");
 

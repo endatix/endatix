@@ -71,7 +71,7 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
     }
 
     private static void EnableStanding(IServiceCollection services) =>
-        services.AddScoped(sp => new AccountStanding(sp.GetRequiredService<ICurrentUserAuthorizationService>()));
+        services.AddRequiredActionEnforcement();
 
     private static AuthorizationData AdmittedSnapshot() => AuthorizationData.ForAuthenticatedUser("owner", 1, [], []);
 
@@ -117,6 +117,42 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         Assert.Equal(HttpStatusCode.OK, compiled.StatusCode);
         var result = await compiled.Content.ReadFromJsonAsync<JsonElement>(ct);
         Assert.Equal(form, result.GetProperty("formId").ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_reported_blocking_action_refuses_product_access_only_when_the_host_opts_in(bool enforce)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = new ReportingWebHost(fixture, services =>
+        {
+            services.AddSingleton<IRequiredActionProvider>(new MutableProvider("v1", "/profile"));
+            if (enforce)
+            {
+                services.AddRequiredActionEnforcement();
+            }
+        });
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+
+        // Act
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        using var product = await client.GetAsync("/api/system/version", ct);
+
+        // Assert
+        var action = Assert.Single(me.GetProperty("requiredActions").EnumerateArray());
+        Assert.Equal("profile.complete", action.GetProperty("key").GetString());
+        Assert.Equal("blocking", action.GetProperty("severity").GetString());
+        if (enforce)
+        {
+            await AssertStandingRefusalAsync(product, me, ct);
+        }
+        else
+        {
+            Assert.Equal(HttpStatusCode.OK, product.StatusCode);
+        }
     }
 
     [Fact]

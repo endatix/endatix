@@ -13,6 +13,27 @@ namespace Endatix.Infrastructure.Tests.Builders;
 public partial class InfrastructureSecurityBuilderTests
 {
     [Fact]
+    public void AddRequiredActionEnforcement_BeforeSecurityDefaults_EnforcesOncePerScope()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.AddScoped(_ => Substitute.For<ICurrentUserAuthorizationService>());
+
+        // Act
+        services.AddRequiredActionEnforcement();
+        services.AddEndatixSecurityServices(new ConfigurationBuilder().Build());
+        using var provider = services.BuildServiceProvider(validateScopes: true);
+        using var first = provider.CreateScope();
+        using var second = provider.CreateScope();
+
+        // Assert
+        var standing = Assert.Single(first.ServiceProvider.GetServices<AccountStanding>());
+        Assert.True(standing.IsEnforced);
+        Assert.Same(standing, first.ServiceProvider.GetRequiredService<AccountStanding>());
+        Assert.NotSame(standing, second.ServiceProvider.GetRequiredService<AccountStanding>());
+    }
+
+    [Fact]
     public void UseDefaults_WithConfiguredStanding_PreservesTheCallerRegistration()
     {
         // Arrange
