@@ -59,4 +59,28 @@ public sealed class PanelOtherAliasTests
         rows.Single()[headers.IndexOf("pd--0--q--other_text")].Should().Be("first");
         rows.Single()[headers.IndexOf("pd--1--q--other_text")].Should().Be("local");
     }
+
+    [Fact]
+    public async Task Export_CodedPanelOtherAndNumericMatrixInOneRow_ProjectsBoth()
+    {
+        // Arrange
+        var definition = DEFINITION.Replace("pd--0--q--other_text", "ordinary", StringComparison.Ordinal).Replace(
+            """{"type":"text","name":"ordinary"}""",
+            """{"type":"text","name":"ordinary"},{"type":"matrix","name":"m","rows":["r"],"columns":[80,90,{"value":2,"text":"Two"},{"value":"skip","text":"Skip"}]}""",
+            StringComparison.Ordinal);
+        var answers = ANSWERS.Replace("\"pd--0--q--other_text\":\"ordinary\"", "\"m\":{\"r\":2}", StringComparison.Ordinal);
+        var settings = """{"specialChoiceCodes":{"other":87}}""";
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        FixtureResponse[] responses = [new("r", answers, null, SubmittedDefinition: definition)];
+        pipeline.FlattenAll(definition, responses);
+
+        // Act
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), TestContext.Current.CancellationToken);
+
+        // Assert
+        var (header, rows) = CrunchImportCheck.Read(csv);
+        rows.Single()[header.IndexOf("pd--0--q")].Should().Be("87");
+        rows.Single()[header.IndexOf("pd--0--q--other_text")].Should().Be("first");
+        rows.Single()[header.IndexOf("m--r")].Should().Be("1");
+    }
 }
