@@ -1,3 +1,4 @@
+using Endatix.Core.Entities;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -211,6 +212,37 @@ public sealed class ExportNameCollisionsTests
 
         // Assert
         collisions.Select(c => (c.Name, c.Profile)).Should().Equal(("Id", ColumnAliasProfile.Crunch));
+    }
+
+    [Theory]
+    [MemberData(nameof(SystemColumnsInEachProfile))]
+    public void Find_CodebookWithAQuestionNamedLikeASystemColumn_ReturnsBoth(string systemKey, ColumnAliasProfile profile)
+    {
+        // Arrange: the codebook writes its submission variables first under their native keys in every profile, so a
+        // question on one of those keys would be left out of it.
+        var schema = Schema($$"""{"type":"text","name":"{{systemKey}}"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _coded with { AliasProfile = profile }, ExportNameFile.ShojiCodebook));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        (collision.Name, collision.Profile).Should().Be((systemKey, ColumnAliasProfile.Native));
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning(systemKey, ExportNameKind.Ordinary), new ExportNameMeaning(systemKey, ExportNameKind.System)]);
+        collision.Rename.Should().Be(systemKey);
+    }
+
+    public static TheoryData<string, ColumnAliasProfile> SystemColumnsInEachProfile()
+    {
+        TheoryData<string, ColumnAliasProfile> data = [];
+        foreach (var key in SubmissionExportRow.SystemColumns.OrderedKeys)
+        {
+            data.Add(key, ColumnAliasProfile.Native);
+            data.Add(key, ColumnAliasProfile.Crunch);
+        }
+
+        return data;
     }
 
     [Fact]

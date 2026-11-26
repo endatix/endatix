@@ -134,7 +134,7 @@ internal static class ExportNameCollisions
             var keys = plan.Columns.DistinctBy(column => column.CanonicalKey, StringComparer.Ordinal)
                 .ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
             HashSet<string> seen = new(StringComparer.Ordinal);
-            var written = profile == _settings.AliasProfile;
+            var written = WritesSystemColumns(profile);
             return plan.Columns.Select(column => (column.ExportKey, Meaning(column, seen, written)))
                 .Concat(WritesParents(profile) ? _parents : [])
                 .Concat(request.File is ExportNameFile.ShojiCodebook && profile is ColumnAliasProfile.Native ? _bounds : [])
@@ -142,6 +142,12 @@ internal static class ExportNameCollisions
                     PanelExportColumns.CompanionName(keys[parent], _settings.KeySeparator),
                     new ExportNameMeaning(Question(_columns[parent]), ExportNameKind.Companion))));
         }
+
+        // A tabular file writes submission columns under the headers of the profile it is written with. The codebook
+        // writes them first under their native keys in every profile, so a question on one of those keys would be dropped.
+        private bool WritesSystemColumns(ColumnAliasProfile profile) => request.File is ExportNameFile.ShojiCodebook
+            ? profile is ColumnAliasProfile.Native
+            : profile == _settings.AliasProfile;
 
         // Only the Shoji codebook writes group parents. They keep their native alias, so they sit next to a profile's
         // aliases only once codes make the codebook rename its other variables to that profile.
@@ -159,12 +165,11 @@ internal static class ExportNameCollisions
                 ReadWithShojiCodebook: !plain, RequireUniqueKeys: false);
         }
 
-        // A tabular file writes submission columns beside the questions' under the same headers, in the profile it is
-        // written with; the codebook's variables are only the questions'. The map holds each key once, so a later plan
-        // column on a canonical key is a projected range bound.
+        // A submission column contests its name only in the pass that writes it (WritesSystemColumns). The map holds
+        // each key once, so a later plan column on a canonical key is a projected range bound.
         private ExportNameMeaning Meaning(ExportColumnDefinition column, HashSet<string> seen, bool written)
         {
-            if (column.Source is ExportColumnSource.System && written && request.File is not ExportNameFile.ShojiCodebook)
+            if (column.Source is ExportColumnSource.System && written)
             {
                 return new(column.CanonicalKey, ExportNameKind.System);
             }

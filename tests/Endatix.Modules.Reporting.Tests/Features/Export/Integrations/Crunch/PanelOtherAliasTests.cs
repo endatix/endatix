@@ -117,6 +117,26 @@ public sealed class PanelOtherAliasTests
     }
 
     [Theory]
+    [InlineData("native")]
+    [InlineData("crunch")]
+    public async Task Export_QuestionNamedLikeASystemColumn_RefusesTheCodebookAsTheCsvDoes(string profile)
+    {
+        // Arrange: the codebook's own Id variable would win, leaving the question out of it.
+        const string definition = """{"pages":[{"elements":[{"type":"text","name":"Id"}]}]}""";
+        var settings = $$"""{"aliasProfile":"{{profile}}","specialChoiceCodes":{"other":87} }""";
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        FixtureResponse[] responses = [new("r", """{"Id":"answer"}""", null, SubmittedDefinition: definition)];
+        pipeline.FlattenAll(definition, responses);
+
+        // Act
+        var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), TestContext.Current.CancellationToken);
+
+        // Assert: question-index naming keeps a question keyed Id as Id in the CSV, so both files carry the clash.
+        Refused(shoji, "Id", "question 'Id'", "the submission's 'Id' column");
+        Refused(csv, "Id", "question 'Id'", "the submission's 'Id' column");
+    }
+
+    [Theory]
     [InlineData(FormSchemaCompileMode.Replace, true)]
     [InlineData(FormSchemaCompileMode.Merge, false)]
     public async Task Export_AfterARename_StreamsOnlyOnceAFullRecompileDropsTheOldName(FormSchemaCompileMode mode, bool streams)
@@ -153,13 +173,16 @@ public sealed class PanelOtherAliasTests
         (csv.IsSuccess, shoji.IsSuccess).Should().Be((true, true));
     }
 
-    private static void Refused(Result<ExportOptions> prepared, string first, string second)
+    private static void Refused(Result<ExportOptions> prepared, string first, string second) =>
+        Refused(prepared, "pd--0--q--other_text", first, second);
+
+    private static void Refused(Result<ExportOptions> prepared, string question, string first, string second)
     {
         prepared.Status.Should().Be(ResultStatus.Invalid);
         var error = prepared.ValidationErrors.Should().ContainSingle().Subject;
         error.Identifier.Should().Be("exportNames");
-        error.ErrorMessage.Should().Contain("'pd--0--q--other_text'").And.Contain(first).And.Contain(second)
-            .And.EndWith("To fix it, rename question 'pd--0--q--other_text' before that form version has responses; " +
+        error.ErrorMessage.Should().Contain($"'{question}'").And.Contain(first).And.Contain(second)
+            .And.EndWith($"To fix it, rename question '{question}' before that form version has responses; " +
                 "otherwise see https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names.");
     }
 
