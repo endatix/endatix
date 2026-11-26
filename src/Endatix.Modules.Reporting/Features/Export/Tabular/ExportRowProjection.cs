@@ -52,7 +52,7 @@ internal sealed class ExportRowProjection
 
     private PanelOtherAnswers? Submitted(FlattenedExportRow row)
     {
-        if (!NeedsSubmittedChoices || row.SubmittedDefinition is not { } definition || row.SubmittedAnswers is null)
+        if (!NeedsSubmittedChoices || row.SubmittedDefinition is not { } definition || row.SourceAnswersJson is not { } answers)
         {
             return null;
         }
@@ -61,7 +61,7 @@ internal sealed class ExportRowProjection
             submitted = CopyDefinition.QuestionsIn(definition);
             _definitions.Add(definition, submitted);
         }
-        return new(submitted, JsonSerializer.Deserialize<JsonElement>(row.SubmittedAnswers));
+        return new(submitted, JsonSerializer.Deserialize<JsonElement>(answers));
     }
 
     public ExportColumnPlan WithCompanions(ExportColumnPlan plan, Func<ExportColumnPlan> unscoped, string separator)

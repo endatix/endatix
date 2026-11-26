@@ -136,7 +136,6 @@ internal sealed class PersonalizationPipeline
             DataJson: JsonSerializer.Serialize(_rows[response.Id]))
         {
             SubmittedDefinition = response.SubmittedDefinition,
-            SubmittedAnswers = response.AnswersJson,
             SourceAnswersJson = response.AnswersJson,
         };
     }
