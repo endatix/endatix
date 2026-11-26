@@ -39,13 +39,18 @@ For an indexed dynamic-panel dropdown or radio group, or one in a panel driven b
 
 If the coded panel question offers **Other**, its CSV also includes `<panel-leaf>--other_text`, a text variable in Shoji. Match the CSV header to the Shoji variable's `alias`, including when using question-index naming.
 
+### Refused export names
+
 Endatix generates some names itself: this Other-text companion, and the variable that groups a checkbox, matrix or ranking question with its columns. A generated name is always the same for the same question; it never takes a suffix. If another question's name lands on one, for example a text question named `pd--0--q--other_text`, the csv-shoji and Codebook (Shoji) downloads, and any download with the Crunch alias profile or `--` as its key separator, return HTTP 400 before any file streams. This happens on a first export too, and when a new form version adds the clashing question. The response names the contested name and both meanings:
 
 ```json
-{"status":400,"detail":"Export name 'pd--0--q--other_text' (native names, separator '--') would mean both question 'pd--0--q--other_text' and the Other text of question 'q'. Rename question 'pd--0--q--other_text', then export again."}
+{"status":400,"detail":"Export name 'pd--0--q--other_text' (native names, separator '--') would mean both question 'pd--0--q--other_text' and the Other text of question 'q'. To fix it, rename question 'pd--0--q--other_text' before that form version has responses; otherwise see https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names."}
 ```
 
-To recover, rename the question that `detail` names and publish the form again. Nothing is stored about earlier downloads, so the check is the same on every export.
+The export schema keeps every question a form has had (a merge compile only adds), so renaming the question does not clear the 400 on its own. Stored submissions never change on any of these routes.
+
+- **No response was made on the form version with the clashing question:** rename the question, publish, then rebuild the schema with **Full recompile**. In the Hub, open the export dialog, choose **Rebuild reporting data…** and check **Full recompile** (needs permission to edit forms). Through the API, call `POST /forms/{formId}/reporting/compile-schema` with `{"replace":true}`, then `POST /forms/{formId}/submissions/backfill` with `{"force":true}` until it reports finished (it re-flattens completed submissions; send `"completionScope":"incomplete"` as well to refresh drafts). The rebuild drops the old name, deletes the flattened rows and re-flattens each submission from its stored answers; a submission on an older form version brings that version's columns back under their old names.
+- **Responses exist on that version:** a rename and a full recompile do not clear it, because re-flattening those responses brings the clashing column back. Either remove the special choice codes that match the panel question, so it has no Other-text column, or give the format another `keySeparator`, which changes every generated name.
 
 The naming profile (`aliasProfile`) and `keySeparator` are part of a dataset's names. Changing either starts a new dataset: import it as a new Crunch dataset rather than updating the existing one.
 

@@ -116,13 +116,51 @@ public sealed class PanelOtherAliasTests
         Refused(shoji, "question 'pd--0--q--other_text'", "the Other text of question 'q'");
     }
 
+    [Theory]
+    [InlineData(FormSchemaCompileMode.Replace, true)]
+    [InlineData(FormSchemaCompileMode.Merge, false)]
+    public async Task Export_AfterARename_StreamsOnlyOnceAFullRecompileDropsTheOldName(FormSchemaCompileMode mode, bool streams)
+    {
+        // Arrange
+        var renamed = DEFINITION.Replace("pd--0--q--other_text", "ordinary", StringComparison.Ordinal);
+        var settings = """{"specialChoiceCodes":{"other":87}}""";
+        var pipeline = PersonalizationPipeline.Compile(DEFINITION);
+        pipeline.Recompile(renamed, mode);
+        FixtureResponse[] responses = [new("r", ANSWERS.Replace("pd--0--q--other_text", "ordinary", StringComparison.Ordinal), null, SubmittedDefinition: renamed)];
+        pipeline.FlattenAll(renamed, responses);
+
+        // Act
+        var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), TestContext.Current.CancellationToken);
+
+        // Assert
+        (csv.IsSuccess, shoji.IsSuccess).Should().Be((streams, streams));
+    }
+
+    [Theory]
+    [InlineData("""{"keySeparator":"--"}""")]
+    [InlineData("""{"keySeparator":"_","specialChoiceCodes":{"other":87}}""")]
+    public async Task Export_WithoutMatchingCodesOrOnAnotherSeparator_Streams(string settings)
+    {
+        // Arrange
+        var pipeline = PersonalizationPipeline.Compile(DEFINITION);
+        FixtureResponse[] responses = [new("r", ANSWERS, null, SubmittedDefinition: DEFINITION)];
+        pipeline.FlattenAll(DEFINITION, responses);
+
+        // Act
+        var (csv, shoji) = await CrunchExport.PrepareBothAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), TestContext.Current.CancellationToken);
+
+        // Assert
+        (csv.IsSuccess, shoji.IsSuccess).Should().Be((true, true));
+    }
+
     private static void Refused(Result<ExportOptions> prepared, string first, string second)
     {
         prepared.Status.Should().Be(ResultStatus.Invalid);
         var error = prepared.ValidationErrors.Should().ContainSingle().Subject;
         error.Identifier.Should().Be("exportNames");
         error.ErrorMessage.Should().Contain("'pd--0--q--other_text'").And.Contain(first).And.Contain(second)
-            .And.EndWith("Rename question 'pd--0--q--other_text', then export again.");
+            .And.EndWith("To fix it, rename question 'pd--0--q--other_text' before that form version has responses; " +
+                "otherwise see https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names.");
     }
 
     [Fact]

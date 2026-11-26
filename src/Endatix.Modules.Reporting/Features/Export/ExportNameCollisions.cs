@@ -43,12 +43,15 @@ internal sealed record ExportNameCollision(
     ColumnAliasProfile Profile,
     string Separator)
 {
+    /// <summary>The guide section on recovery: what a rename clears, and the routes once the clashing version has responses.</summary>
+    public const string GuideUrl = "https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names";
+
     /// <summary>The question to rename: an ordinary question when one is involved, since generated names follow it.</summary>
     public string Rename => (First.IsGenerated && !Second.IsGenerated ? Second : First).Question;
 
     public ValidationError Error() => new(
         $"Export name '{Name}' ({Profile.ToString().ToLowerInvariant()} names, separator '{Separator}') would mean both {First} and {Second}. " +
-        $"Rename question '{Rename}', then export again.")
+        $"To fix it, rename question '{Rename}' before that form version has responses; otherwise see {GuideUrl}.")
     {
         Identifier = "exportNames",
     };
