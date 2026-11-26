@@ -36,7 +36,7 @@ public sealed class AuthorizationCacheTests
         _dateTimeProvider.Now.Returns(_now);
         var jwtOptions = Options.Create(new EndatixJwtOptions { SigningKey = "test-signing-key-32-characters" });
         _versionStore = new StubAccessVersionStore(Guid.Parse("11111111-1111-1111-1111-111111111111"));
-        _cache = new(_hybridCache, _dateTimeProvider, new(_httpContextAccessor, jwtOptions), _versionStore,
+        _cache = new(new(_hybridCache), _dateTimeProvider, new(_httpContextAccessor, jwtOptions), _versionStore,
             new([], null!, NullLogger<RequiredActionEvaluation>.Instance));
     }
 
@@ -290,7 +290,7 @@ public sealed class AuthorizationCacheTests
         await _cache.GetOrCreateAsync("123", 42, null, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
 
         // Assert
-        capturedKey.Should().Be($"{_deployment:N}:usr_auth:11111111111111111111111111111111{_tenantVersion:N}.none:123:42");
+        capturedKey.Should().StartWith($"{_deployment:N}:usr_auth:11111111111111111111111111111111{_tenantVersion:N}.none:123:42:");
         _versionStore.ReadTenants.Should().Equal(42);
     }
 

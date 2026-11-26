@@ -7,6 +7,9 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 
 internal static class SessionAuthorization
 {
+    internal static bool IsUnexpected(Exception error, CancellationToken ct) =>
+        error is not OperationCanceledException || !ct.IsCancellationRequested;
+
     internal static async Task<AuthorizationData> ReadAsync(this IAuthorizationCache cache, ClaimsPrincipal principal,
         IAuthorizationStrategy strategy, CancellationToken ct)
     {

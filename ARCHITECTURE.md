@@ -309,6 +309,14 @@ When touching a feature, prefer migrating **reads** to Infrastructure feature qu
 
 ## Required actions gate
 
+An ordinary claims lookup first checks the authorization cache. On concurrent cold misses, each request can read grants through its own authorization strategy. That keeps request-scoped stores, bearer-token reads, and request-local results with their caller. Once grants are available, callers for the same key share the required-action evaluation. Each caller can stop waiting; shared work receives cancellation when its last waiter leaves. A usable warm entry skips both steps.
+
+Each lookup captures a global and a user generation before reading grants, including assumed-session grants. Every snapshot and required-action report it builds stays in that generation. Evicting a user retires entries for that user across tenants; evicting all retires every user. An in-flight request can finish in its original generation. Generation markers expire after five minutes; recreating one chooses a fresh value, so eviction can cause a miss but cannot revive an old snapshot.
+
+With the default in-memory cache, explicit eviction reaches only that host. Hosts sharing an `IDistributedCache` read the two markers directly from that store, even on a local snapshot hit. The fence requires read-after-write visibility from that store. Concurrent creation of a missing marker can cause extra cold reads. During a rolling update, older hosts still use the original keys and tags; tag removal remains in place, but older invalidators cannot retire a generation. Use the transactionally updated database access versions for changes that must take effect across hosts or versions.
+
+Explicit eviction uses the lookup user ID, just like the cache tags; it does not discover aliases for an externally mapped user. A shared store has one eviction domain for these tags and markers, while deployment-prefixed snapshot keys keep grants separate. If the configured marker store cannot be read, a local snapshot alone does not establish current grants.
+
 When a host enables `AccountStanding`, authenticated account operations check it after framework authorization and configured transport middleware, before request binding, resource checks, or product work. A challenge (`401`) or ordinary route permission denial (`403`) therefore takes precedence. An otherwise authorized HTTP request still redirects when HTTPS redirection is configured. On HTTPS, HSTS and CORS decorate refusals under the same policies as other API responses. CORS controls whether the browser may read a response; it grants no API access.
 
 Blocking actions return `403 required_action` with the same action objects as `auth/me`. Unknown standing returns a retryable `503`. Notices alone allow the operation to proceed with its usual validation and authorization.

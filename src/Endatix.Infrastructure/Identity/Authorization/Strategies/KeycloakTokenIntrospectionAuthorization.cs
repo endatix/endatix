@@ -143,7 +143,7 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
                     mappingResult.Permissions),
                 cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (SessionAuthorization.IsUnexpected(ex, cancellationToken))
         {
             logger.LogError(ex, "Error getting authorization data from Keycloak");
             return Result.Error("Failed to get authorization data from Keycloak");

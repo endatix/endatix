@@ -9,22 +9,23 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal sealed class RequiredActionConfiguration
 {
     private sealed record Revision(string? Assembly, string? Type, string RevisionKey, Policy Policy);
-    private sealed record Entry(Revision[] Revisions, string Key);
+    internal sealed record Snapshot(string Key, Policy[] Policies);
+    private sealed record Entry(Revision[] Revisions, Snapshot Snapshot);
     private Entry? _last;
 
-    internal string Key(IRequiredActionProvider[] providers)
+    internal Snapshot Capture(IEnumerable<IRequiredActionProvider> providers)
     {
         var current = providers.Select(p => new Revision(p.GetType().Assembly.GetName().Name,
             p.GetType().FullName, p.CacheConfigurationKey, Policy.For(p))).ToArray();
         var prior = Volatile.Read(ref _last);
         if (prior is not null && current.AsSpan().SequenceEqual(prior.Revisions))
         {
-            return prior.Key;
+            return prior.Snapshot;
         }
 
-        var entry = new Entry(current, Hash(current));
+        var entry = new Entry(current, new(Hash(current), current.Select(p => p.Policy).ToArray()));
         Volatile.Write(ref _last, entry);
-        return entry.Key;
+        return entry.Snapshot;
     }
 
     private static string Hash(Revision[] current)

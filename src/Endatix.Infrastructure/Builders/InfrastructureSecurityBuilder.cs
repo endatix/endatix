@@ -274,12 +274,7 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IClaimsTransformation, ClaimsTransformer>();
         Services.AddScoped<IAccessVersionStore, DatabaseAccessVersionStore>();
         Services.AddScoped<IAuthorizationDataChanges, AuthorizationDataChanges>();
-        Services.AddSingleton<RequiredActionProviderCache>();
-        Services.AddSingleton<RequiredActionExecution>();
-        Services.AddSingleton<RequiredActionInvocations>();
-        Services.AddScoped<RequiredActionEvaluation>();
-        Services.AddScoped<AuthorizationTokenFingerprint>();
-        Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
+        RegisterAuthorizationCache();
         Services.AddScoped<ICurrentUserAuthorizationService, CurrentUserAuthorizationService>();
         Services.AddScoped<VerifiedAssumptionReader, BuiltInAssumptionReader>();
         Services.AddScoped<IAuthorizationDataProvider, DefaultAuthorizationDataProvider>();
@@ -288,6 +283,17 @@ public class InfrastructureSecurityBuilder
         Services.AddScoped<IAuthorizationHandler, TenantAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, PlatformAdminHandler>();
         Services.AddScoped<IAuthorizationHandler, AssertionPermissionsHandler>();
+    }
+
+    private void RegisterAuthorizationCache()
+    {
+        Services.AddSingleton<RequiredActionProviderCache>();
+        Services.AddSingleton<RequiredActionExecution>();
+        Services.AddSingleton<RequiredActionInvocations>();
+        Services.AddScoped<RequiredActionEvaluation>();
+        Services.AddScoped<AuthorizationTokenFingerprint>();
+        Services.AddSingleton<AuthorizationCacheStorage>();
+        Services.AddScoped<IAuthorizationCache, AuthorizationCache>();
     }
 
     private void RegisterKeycloakAuthorizationServices()
