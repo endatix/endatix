@@ -22,10 +22,28 @@ internal partial class AuthorizationCache
 
         internal async ValueTask<AuthorizationData> BuildAsync(CancellationToken ct) => Built = (await EvaluateAsync(ct)).At(Now);
 
-        internal ValueTask<AuthorizationData?> RefreshAsync(HybridCache cache, CancellationToken ct) =>
-            cache.GetOrCreateAsync(grants.Entry.Key, token => PublishAsync(cache, token), _inFlightOnly, grants.Entry.Tags, ct);
+        private string RefreshKey => field ??= $"{grants.Entry.Key}:refresh:{grants.Entry.Versions.Versions}:{GrantFingerprint()}";
 
-        private async ValueTask<AuthorizationData?> PublishAsync(HybridCache cache, CancellationToken ct)
+        private string GrantFingerprint()
+        {
+            var data = grants.Data;
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                data.UserId, data.TenantId, data.ExpiresAt, data.IsAdmin, data.UnverifiedActor,
+                Roles = data.Roles.Order(StringComparer.Ordinal), Permissions = data.Permissions.Order(StringComparer.Ordinal),
+                data.RequiredActions, data.RequiredActionsUnavailable, data.RequiredActionsEnforced
+            });
+            return Convert.ToHexString(SHA256.HashData(bytes));
+        }
+
+        internal async Task<AuthorizationData?> RefreshAsync(HybridCache cache, CancellationToken ct)
+        {
+            var snapshot = await cache.GetOrCreateAsync(RefreshKey, token => PublishAsync(cache, token), _inFlightOnly, cancellationToken: ct);
+            var now = Now;
+            return snapshot.PermissionsExpired(now) ? null : snapshot.At(now);
+        }
+
+        private async ValueTask<BuiltSnapshot> PublishAsync(HybridCache cache, CancellationToken ct)
         {
             var snapshot = await EvaluateAsync(ct);
             var rebuilt = snapshot.At(Now);
@@ -33,29 +51,20 @@ internal partial class AuthorizationCache
             {
                 await cache.SetAsync(grants.Entry.Key, rebuilt, grants.Entry.Options, grants.Entry.Tags, ct);
             }
-            var now = Now;
-            if (snapshot.PermissionsExpired(now))
-            {
-                return null;
-            }
-            return actions.HasProviders && rebuilt.ExpiresAt <= now ? snapshot.At(now) : rebuilt;
+            return snapshot;
         }
 
-        internal async Task<AuthorizationData> WithCurrentPermissionsAsync(CancellationToken ct) =>
-            (await EvaluateAsync(ct)).WithCurrentPermissions(Now);
+        internal async Task<AuthorizationData> WithCurrentPermissionsAsync(HybridCache cache, CancellationToken ct)
+        {
+            var snapshot = await cache.GetOrCreateAsync($"{RefreshKey}:final", EvaluateAsync, _inFlightOnly, cancellationToken: ct);
+            return snapshot.WithCurrentPermissions(Now);
+        }
 
-        private async Task<BuiltSnapshot> EvaluateAsync(CancellationToken ct)
+        private async ValueTask<BuiltSnapshot> EvaluateAsync(CancellationToken ct)
         {
             var project = await actions.EvaluateAsync(grants.Data, grants.Entry, ct);
             ct.ThrowIfCancellationRequested();
             return new(grants.Data.ExpiresAt, at => Stamp(project(at), grants.Started, grants.Entry.Window.End));
-        }
-
-        private sealed record BuiltSnapshot(DateTime PermissionExpiry, Func<DateTime, AuthorizationData> At)
-        {
-            internal bool PermissionsExpired(DateTime now) => PermissionExpiry != default && PermissionExpiry <= now;
-            internal AuthorizationData WithCurrentPermissions(DateTime now) => PermissionsExpired(now)
-                ? throw new InvalidOperationException("Fresh authorization data contains expired permissions.") : At(now);
         }
 
         private static AuthorizationData Stamp(AuthorizationData data, DateTime builtAt, DateTime deadline)
@@ -91,5 +100,14 @@ internal partial class AuthorizationCache
             var shortETag = Convert.ToBase64String(hash)[..ETAG_LENGTH];
             return shortETag;
         }
+    }
+
+    // Only shared in flight on this host; the stored value is always AuthorizationData.
+    [System.ComponentModel.ImmutableObject(true)]
+    internal sealed record BuiltSnapshot(DateTime PermissionExpiry, Func<DateTime, AuthorizationData> At)
+    {
+        internal bool PermissionsExpired(DateTime now) => PermissionExpiry != default && PermissionExpiry <= now;
+        internal AuthorizationData WithCurrentPermissions(DateTime now) => PermissionsExpired(now)
+            ? throw new InvalidOperationException("Fresh authorization data contains expired permissions.") : At(now);
     }
 }

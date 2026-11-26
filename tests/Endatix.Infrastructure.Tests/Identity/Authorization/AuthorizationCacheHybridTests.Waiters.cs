@@ -147,18 +147,24 @@ public sealed partial class AuthorizationCacheHybridTests
             forward.GetOrCreateAsync(Arg.Any<string>(), 0, Arg.Any<Func<int, CancellationToken, ValueTask<AuthorizationData?>>>(),
                 Arg.Any<HybridCacheEntryOptions>(), Arg.Any<string[]>(), Arg.Any<CancellationToken>())
                 .Returns(ValueTask.FromResult<AuthorizationData?>(expired ? CreateData(DateTime.UnixEpoch) : null));
-            forward.GetOrCreateAsync(Arg.Any<string>(), Arg.Any<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
-                Arg.Any<HybridCacheEntryOptions>(), Arg.Any<string[]>(), Arg.Any<CancellationToken>()).Returns(call =>
+            ForwardReads<AuthorizationData>(forward, cache);
+            ForwardReads<AuthorizationCache.BuiltSnapshot>(forward, cache);
+            return forward;
+        }
+
+        private void ForwardReads<T>(HybridCache forward, HybridCache cache)
+        {
+            forward.GetOrCreateAsync(Arg.Any<string>(), Arg.Any<Func<CancellationToken, ValueTask<T>>>(),
+                Arg.Any<HybridCacheEntryOptions>(), Arg.Any<IEnumerable<string>?>(), Arg.Any<CancellationToken>()).Returns(call =>
             {
-                var waiter = cache.GetOrCreateAsync(call.Arg<string>(), call.Arg<Func<CancellationToken, ValueTask<AuthorizationData>>>(),
-                    call.Arg<HybridCacheEntryOptions>(), call.Arg<string[]>(), call.Arg<CancellationToken>());
+                var waiter = cache.GetOrCreateAsync(call.Arg<string>(), call.Arg<Func<CancellationToken, ValueTask<T>>>(),
+                    call.Arg<HybridCacheEntryOptions>(), (IEnumerable<string>?)call[4], call.Arg<CancellationToken>());
                 if (Interlocked.Increment(ref _waiters) == 2)
                 {
                     Joined.SetResult(true);
                 }
                 return waiter;
             });
-            return forward;
         }
     }
 

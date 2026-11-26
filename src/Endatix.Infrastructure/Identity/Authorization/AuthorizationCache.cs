@@ -153,7 +153,7 @@ internal partial class AuthorizationCache(
         }
         // The permission lapsed during publication. Re-read it without another write.
         var fresh = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
-        return await fresh.WithCurrentPermissionsAsync(cancellationToken);
+        return await fresh.WithCurrentPermissionsAsync(storage.Entries, cancellationToken);
     }
 
     private sealed record Grants(AuthorizationData Data, CacheEntry Entry, DateTime Started);

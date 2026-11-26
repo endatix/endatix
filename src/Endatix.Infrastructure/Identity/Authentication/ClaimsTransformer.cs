@@ -73,7 +73,7 @@ internal sealed class ClaimsTransformer(
             }
             return await authorizationCache.ReadAsync(principal, authorizationStrategy, cancellationToken);
         }
-        catch (Exception ex) when (SessionAuthorization.IsUnexpected(ex, cancellationToken))
+        catch (Exception ex) when (SessionAuthorization.IsUnexpected(ex, cancellationToken) || ReturnHomeAuthorization.Applies(http))
         {
             logger.LogError(
                 ex,
