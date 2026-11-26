@@ -126,7 +126,7 @@ public sealed class DefaultAuthorizationTests
         context.AuthorizationDataProvider.GetAuthorizationDataAsync(123, 10, Arg.Any<CancellationToken>(), 123)
             .Returns(Result.Success(copied));
 
-        var result = await context.Strategy.ReadVerifiedSessionAsync(principal, TestContext.Current.CancellationToken);
+        var result = await context.Strategy.ReadVerifiedSessionAsync(principal, Xunit.TestContext.Current.CancellationToken);
         result.Value.Roles.Should().BeEquivalentTo(copied.Roles);
         result.Value.VerifiedAssumption.Should().BeNull();
         result.Value.UnverifiedActor.Should().BeTrue();
