@@ -128,11 +128,16 @@ internal sealed partial class TabularExportDataSource(
             return book.ToErrorResult<ExportOptions>();
         }
 
-        var exported = ExportSchemas.WithCodebook(schema, book.Value);
+        return Prepared(context, settings, ExportSchemas.WithCodebook(schema, book.Value));
+    }
+
+    // A Crunch-shaped export generates names, so a name two meanings would share refuses it before any row is read.
+    private Result<ExportOptions> Prepared(ExportDataSourceContext context, ExportFormatSettings settings, FormSchemaEntity exported)
+    {
         if (ShouldProjectCrunchShapes(context.Request.Format, settings) &&
             ExportNameCollisions.Find(exported, settings, aliasTransformerRegistry) is { Count: > 0 } collisions)
         {
-            return Result<ExportOptions>.Invalid([.. collisions.Select(collision => collision.Error())]);
+            return ExportNameCollisions.Refusal<ExportOptions>(collisions);
         }
 
         PrepareColumns(context, settings, exported);

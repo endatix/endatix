@@ -68,35 +68,50 @@ internal static class ExportNameCollisions
     {
         var map = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
         using var book = JsonDocument.Parse(schema.Codebook);
-        var catalog = new CrunchQuestions(book.RootElement, settings.SpecialChoiceCodes, map);
-        var columns = map.Columns.GroupBy(column => column.Key, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
-        // Shoji keeps group parents under their native alias in every profile.
-        var parents = ShojiCodebookGenerator.GroupParentAliases(map, catalog.Entries, settings.KeySeparator)
-            .Select(parent => (parent.Alias, Meaning: new ExportNameMeaning(Question(parent.Column), ExportNameKind.GroupParent)))
-            .ToList();
+        Names names = new(new(schema, settings, registry), map, new CrunchQuestions(book.RootElement, settings.SpecialChoiceCodes, map));
         ColumnAliasProfile[] profiles = settings.AliasProfile == ColumnAliasProfile.Native
             ? [ColumnAliasProfile.Native] : [ColumnAliasProfile.Native, settings.AliasProfile];
-        return [.. profiles.SelectMany(profile => InProfile(profile))];
+        return [.. profiles.SelectMany(profile => Contested(names.In(profile), profile, settings.KeySeparator))];
+    }
 
-        IEnumerable<ExportNameCollision> InProfile(ColumnAliasProfile profile)
+    /// <summary>Every name one export builds, ordinary and generated, with what it stands for.</summary>
+    private sealed record NameRequest(FormSchemaEntity Schema, ExportFormatSettings Settings, IColumnAliasTransformerRegistry? Registry);
+
+    private sealed class Names(NameRequest request, MergedFormSchema map, CrunchQuestions catalog)
+    {
+        private readonly ExportFormatSettings _settings = request.Settings;
+
+        private readonly Dictionary<string, FormSchemaColumn> _columns = map.Columns
+            .GroupBy(column => column.Key, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        // Shoji keeps group parents under their native alias in every profile.
+        private readonly List<(string Alias, ExportNameMeaning Meaning)> _parents = [.. ShojiCodebookGenerator
+            .GroupParentAliases(map, catalog.Entries, request.Settings.KeySeparator)
+            .Select(parent => (parent.Alias, new ExportNameMeaning(Question(parent.Column), ExportNameKind.GroupParent)))];
+
+        public IEnumerable<(string Alias, ExportNameMeaning Meaning)> In(ColumnAliasProfile profile)
         {
-            var plan = ExportColumnPlanBuilder.Build(schema, new ExportColumnPlanRequest(
-                settings.Locale, profile, KeySeparator: settings.KeySeparator, AliasRegistry: registry, ReadWithShojiCodebook: true));
+            var plan = ExportColumnPlanBuilder.Build(request.Schema, new ExportColumnPlanRequest(
+                _settings.Locale, profile, KeySeparator: _settings.KeySeparator, AliasRegistry: request.Registry, ReadWithShojiCodebook: true));
             var keys = plan.Columns.ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
-            var names = plan.Columns.Select(column => (Alias: column.ExportKey, Meaning: Meaning(column.CanonicalKey)))
-                .Concat(parents)
+            return plan.Columns.Select(column => (column.ExportKey, Meaning(column.CanonicalKey)))
+                .Concat(_parents)
                 .Concat(catalog.OtherTextKeys.Keys.Select(parent => (
-                    Alias: PanelExportColumns.CompanionName(keys[parent], settings.KeySeparator),
-                    Meaning: new ExportNameMeaning(Question(columns[parent]), ExportNameKind.Companion))));
-            return Contested(names, profile, settings.KeySeparator);
+                    PanelExportColumns.CompanionName(keys[parent], _settings.KeySeparator),
+                    new ExportNameMeaning(Question(_columns[parent]), ExportNameKind.Companion))));
         }
 
-        ExportNameMeaning Meaning(string canonicalKey) =>
-            columns.TryGetValue(canonicalKey, out var column)
+        private ExportNameMeaning Meaning(string canonicalKey) =>
+            _columns.TryGetValue(canonicalKey, out var column)
                 ? new(Question(column), column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.MatrixRow or FormSchemaColumnKind.RankingChoice
                     ? ExportNameKind.Subvariable : ExportNameKind.Ordinary)
                 : new(canonicalKey, ExportNameKind.Ordinary);
     }
+
+    /// <summary>The 400 an export returns: one error per contested name, each with both meanings and the question to rename.</summary>
+    public static Result<T> Refusal<T>(IReadOnlyList<ExportNameCollision> collisions) =>
+        Result<T>.Invalid([.. collisions.Select(collision => collision.Error())]);
 
     private static string Question(FormSchemaColumn column) => column.SourceQuestion ?? column.Key;
 

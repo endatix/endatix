@@ -69,15 +69,21 @@ internal sealed class ShojiCodebookExportDataSource(
             settings with { Locale = requestLocale };
         context.Options.Metadata[PreparedSchemaKey] = schema.FlatteningMap;
 
-        var prepared = await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
+        return await PrepareCodebookAsync(schema, context.Options, cancellationToken);
+    }
+
+    // The codebook generates names, so a name two meanings would share refuses it before it is written.
+    private async Task<Result<ExportOptions>> PrepareCodebookAsync(FormSchemaEntity schema, ExportOptions options, CancellationToken cancellationToken)
+    {
+        var prepared = await exportSchemas.PrepareCodebookAsync(schema, options, cancellationToken);
         if (!prepared.IsSuccess)
         {
             return prepared;
         }
 
-        var book = await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken);
-        var collisions = dataset.Collisions(ExportSchemas.WithCodebook(schema, book), settings with { Locale = requestLocale });
-        return collisions.Count > 0 ? Result<ExportOptions>.Invalid([.. collisions.Select(collision => collision.Error())]) : prepared;
+        var book = await exportSchemas.PreparedCodebookAsync(schema, options, cancellationToken);
+        var collisions = dataset.Collisions(ExportSchemas.WithCodebook(schema, book), ResolveSettings(options));
+        return collisions.Count > 0 ? ExportNameCollisions.Refusal<ExportOptions>(collisions) : prepared;
     }
 
     public async IAsyncEnumerable<IExportItem> StreamAsync(
