@@ -55,14 +55,14 @@ internal sealed record ExportNameCollision(
     [SuppressMessage("csharpsquid", "S1075:URIs should not be hardcoded",
         Justification = "A documentation link shown in an error message. It does not vary by environment, and making "
                       + "it configurable would let an operator break the help text without noticing.")]
-    public const string GuideUrl = "https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names";
+    private const string GUIDE_URL = "https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names";
 
     /// <summary>The question to rename: an ordinary question when one is involved, since generated names follow it.</summary>
     public string Rename => (First.IsGenerated && !Second.IsGenerated ? Second : First).Question;
 
     public ValidationError Error() => new(
         $"Export name '{Name}' ({Profile.ToString().ToLowerInvariant()} names, separator '{Separator}') would mean both {First} and {Second}. " +
-        $"To fix it, rename question '{Rename}' before that form version has responses; otherwise see {GuideUrl}.")
+        $"To fix it, rename question '{Rename}' before that form version has responses; otherwise see {GUIDE_URL}.")
     {
         Identifier = "exportNames",
     };
