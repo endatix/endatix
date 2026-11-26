@@ -176,7 +176,10 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Guides",
       collapsed: false,
-      items: ["end-users/guides/run-a-personalized-survey"],
+      items: [
+        "end-users/guides/start-your-first-survey",
+        "end-users/guides/run-a-personalized-survey",
+      ],
     },
     {
       type: "category",
