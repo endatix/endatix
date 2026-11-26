@@ -7,6 +7,39 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
 public sealed partial class AuthorizationCacheHybridTests
 {
+    [Fact]
+    public async Task GetOrCreateAsync_ProviderReusesCollections_FallbackKeepsReportedActionsAndRoles()
+    {
+        // Arrange
+        List<string> roles = ["Creator"];
+        var action = new RequiredAction
+        {
+            Key = "review",
+            ResolvePath = "/review",
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Notice,
+            ResolverRoles = roles
+        };
+        List<RequiredAction> actions = [action];
+        var provider = Substitute.For<IRequiredActionProvider>();
+        provider.CacheFor.Returns(TimeSpan.FromSeconds(5));
+        provider.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
+            .Returns(_ => actions, _ => throw new HttpRequestException());
+        var cache = CreateInstance(false, provider);
+        await SnapshotAsync(cache);
+
+        // Act
+        roles.Clear();
+        actions.Add(action with { Key = "next" });
+        _clock.Now.Returns(_start.AddSeconds(5));
+        var fallback = await SnapshotAsync(cache);
+
+        // Assert
+        var retained = fallback.RequiredActions.Should().ContainSingle().Subject;
+        retained.Key.Should().Be("review");
+        retained.ResolverRoles.Should().Equal("Creator");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -59,20 +92,22 @@ public sealed partial class AuthorizationCacheHybridTests
         return new AccountStanding(service, _clock);
     }
 
-    [Fact]
-    public async Task GetOrCreateAsync_OptionalReportExpiresWhilePeerReads_AdmitsWithOnlyTheCurrentReports()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetOrCreateAsync_OptionalReportExpiresWhilePeerReads_AdmitsWithOnlyTheCurrentReports(bool empty)
     {
         // Arrange
         var deadline = _start.AddSeconds(10);
         var source = Substitute.For<IRequiredActionProvider>();
         var action = new RequiredAction { Key = "renew", ResolvePath = "/profile", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Blocking };
         source.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
-            .Returns(new RequiredActionReport([action], deadline));
+            .Returns(new RequiredActionReport(empty ? [] : [action], deadline));
         var peer = Substitute.For<IRequiredActionProvider>();
         peer.CacheFor.Returns(TimeSpan.FromSeconds(5));
         peer.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
         var cache = CreateInstance(false, source, peer);
-        (await SnapshotAsync(cache)).RequiredActions.Should().ContainSingle();
+        (await SnapshotAsync(cache)).RequiredActions.Should().HaveCount(empty ? 0 : 1);
         _clock.Now.Returns(_start.AddSeconds(5));
         peer.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns(_ =>
         {

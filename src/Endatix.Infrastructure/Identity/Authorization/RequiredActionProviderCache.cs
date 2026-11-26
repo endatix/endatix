@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
@@ -19,19 +20,34 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
     internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, DateTime UsableUntil, bool Unavailable = false)
     {
         internal DateTime RetryAt { get; init; }
+        private DateTime? ValidUntil { get; init; }
 
         internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
         {
-            if (actions.Any(action => !Valid(action)))
+            var snapshot = actions.Select(SnapshotAction).ToArray();
+            var validUntil = (actions as RequiredActionReport)?.ValidUntil.UtcDateTime;
+            var deadline = validUntil ?? DateTime.MaxValue;
+            return new(snapshot, Earlier(now + policy.CacheFor, deadline), Earlier(now.AddMinutes(1), deadline))
             {
-                throw new InvalidOperationException("The provider returned an invalid required action.");
-            }
-            var deadline = actions is RequiredActionReport report ? report.ValidUntil.UtcDateTime : DateTime.MaxValue;
-            return new(actions, Earlier(now + policy.CacheFor, deadline), Earlier(now.AddMinutes(1), deadline));
+                ValidUntil = validUntil
+            };
         }
 
-        private static bool Valid(RequiredAction? action) => action is not null && !string.IsNullOrWhiteSpace(action.Key)
-            && IsLocalPath(action.ResolvePath) && action.ResolverRoles is not null
+        private static RequiredAction SnapshotAction(RequiredAction action)
+        {
+            if (action?.ResolverRoles is { } roles)
+            {
+                var snapshot = action with { ResolverRoles = roles.ToImmutableList() };
+                if (Valid(snapshot))
+                {
+                    return snapshot;
+                }
+            }
+            throw new InvalidOperationException("The provider returned an invalid required action.");
+        }
+
+        private static bool Valid(RequiredAction action) => !string.IsNullOrWhiteSpace(action.Key)
+            && IsLocalPath(action.ResolvePath)
             && Enum.IsDefined(action.Scope) && Enum.IsDefined(action.Severity);
 
         private static bool IsLocalPath(string? path) => path is ['/', ..] && path is not ['/', '/' or '\\', ..]
@@ -51,7 +67,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
             {
                 return RetryAt;
             }
-            return Actions is RequiredActionReport report && report.ValidUntil.UtcDateTime <= now ? now + _retryDelay : Until;
+            return ValidUntil <= now ? now + _retryDelay : Until;
         }
     }
     internal sealed record Policy(TimeSpan CacheFor, TimeSpan Timeout, bool FailClosed)
