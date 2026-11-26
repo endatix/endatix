@@ -37,7 +37,7 @@ internal sealed class SerializeCustomQuestionCreation(AppDbContext db, ITransact
 
     // Matching uses the database collation. Equivalent names must take the same lock on both providers.
     private static TransactionLockRequest CatalogKey(long id) =>
-        new(TransactionLockScopes.CustomQuestionNames, id.ToString(CultureInfo.InvariantCulture)) { Timeout = TimeSpan.FromSeconds(5) };
+        new(TransactionLockScopes.CUSTOM_QUESTION_NAMES, id.ToString(CultureInfo.InvariantCulture)) { Timeout = TimeSpan.FromSeconds(5) };
 
     private Task<Result<CustomQuestion>> CreateUnderLockAsync(TransactionLockRequest key, RequestHandlerDelegate<Result<CustomQuestion>> create, CancellationToken ct)
     {

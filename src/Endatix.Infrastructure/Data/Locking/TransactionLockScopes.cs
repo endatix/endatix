@@ -28,5 +28,5 @@ public static class TransactionLockScopes
     public const int AudienceFormPeople = 1121;
 
     /// <summary>Serializes additions to one tenant's case-insensitive custom question name catalog.</summary>
-    internal const int CustomQuestionNames = 1122;
+    internal const int CUSTOM_QUESTION_NAMES = 1122;
 }

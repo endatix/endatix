@@ -62,7 +62,7 @@ public sealed partial class AuthorizationCacheHybridTests
 
         // Assert
         snapshot.RequiredActionsUnavailable.Should().Be(mandatory);
-        snapshot.RequiredActions.Select(action => action.Key).Should().Equal(mandatory ? [] : new[] { "help" });
+        Assert.Equal(mandatory ? null : "help", snapshot.RequiredActions.SingleOrDefault()?.Key);
     }
 
     [Theory]

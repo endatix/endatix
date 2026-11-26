@@ -24,7 +24,7 @@ public sealed partial class RequiredActionsFlowTests
         await using var scope = world.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var locks = scope.ServiceProvider.GetRequiredService<ITransactionLock>();
-        var key = new TransactionLockRequest(TransactionLockScopes.CustomQuestionNames, world.Tenants[0].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        var key = new TransactionLockRequest(TransactionLockScopes.CUSTOM_QUESTION_NAMES, world.Tenants[0].Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         await using var held = await locks.BeginLockedTransactionAsync(db.Database, key, ct);
 
         // Act

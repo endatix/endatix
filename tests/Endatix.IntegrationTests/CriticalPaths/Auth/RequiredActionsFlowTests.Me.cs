@@ -14,13 +14,15 @@ namespace Endatix.IntegrationTests;
 public sealed partial class RequiredActionsFlowTests
 {
     [Theory]
-    [InlineData(true, HttpStatusCode.ServiceUnavailable)]
-    [InlineData(false, HttpStatusCode.OK)]
-    public async Task Provider_failure_preserves_the_session_and_follows_the_provider_policy(bool mandatory, HttpStatusCode expected)
+    [InlineData(true, false, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(false, false, HttpStatusCode.OK)]
+    [InlineData(true, true, HttpStatusCode.ServiceUnavailable)]
+    [InlineData(false, true, HttpStatusCode.OK)]
+    public async Task Provider_failure_preserves_the_session_and_follows_the_provider_policy(bool mandatory, bool malformed, HttpStatusCode expected)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var provider = new RecoveringProvider(mandatory);
+        var provider = new RecoveringProvider(mandatory, malformed);
         var clock = new ReportClock();
         await using var host = new ReportingWebHost(fixture, services =>
         {
@@ -46,16 +48,25 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal("recovered", Assert.Single(recovered.GetProperty("requiredActions").EnumerateArray()).GetProperty("key").GetString());
     }
 
-    private sealed class RecoveringProvider(bool mandatory) : IRequiredActionProvider
+    private sealed class RecoveringProvider(bool mandatory, bool malformed) : IRequiredActionProvider
     {
         public bool Online { get; set; }
         public bool FailClosed => mandatory;
         public string CacheConfigurationKey => "recovery";
-        public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken) =>
-            Online ? Task.FromResult<IReadOnlyList<RequiredAction>>([new()
+        public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken)
+        {
+            if (!Online && !malformed)
             {
-                Key = "recovered", ResolvePath = "/help", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Notice
-            }]) : throw new HttpRequestException("Provider unavailable.");
+                throw new HttpRequestException("Provider unavailable.");
+            }
+            return Task.FromResult<IReadOnlyList<RequiredAction>>([new()
+            {
+                Key = "recovered",
+                ResolvePath = "/help",
+                Scope = RequiredActionScope.User,
+                Severity = Online ? RequiredActionSeverity.Notice : (RequiredActionSeverity)99
+            }]);
+        }
     }
 
     [Fact]
