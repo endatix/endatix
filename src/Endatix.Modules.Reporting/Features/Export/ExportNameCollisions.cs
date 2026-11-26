@@ -125,7 +125,9 @@ internal static class ExportNameCollisions
                 _settings.Locale, profile, KeySeparator: _settings.KeySeparator, AliasRegistry: request.Registry, ReadWithShojiCodebook: true, RequireUniqueKeys: false));
             var keys = plan.Columns.DistinctBy(column => column.CanonicalKey, StringComparer.Ordinal)
                 .ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
-            return plan.Columns.Select(column => (column.ExportKey, Meaning(column.CanonicalKey)))
+            HashSet<string> seen = new(StringComparer.Ordinal);
+            return plan.Columns.Select(column => (column.ExportKey,
+                    seen.Add(column.CanonicalKey) ? Meaning(column.CanonicalKey) : Projected(column.CanonicalKey)))
                 .Concat(WritesParents(profile) ? _parents : [])
                 .Concat(request.File is ExportNameFile.ShojiCodebook && profile is ColumnAliasProfile.Native ? _bounds : [])
                 .Concat(catalog.OtherTextKeys.Keys.Select(parent => (
@@ -150,10 +152,16 @@ internal static class ExportNameCollisions
             }
 
             // A range slider's min and max columns are generated from its own key.
-            return IsBound(canonicalKey) && _columns.TryGetValue(ExportKeyTransformer.RemoveLastSegment(canonicalKey), out var slider)
-                ? new(Question(slider), ExportNameKind.Bound)
-                : new(canonicalKey, ExportNameKind.Ordinary);
+            return Bound(canonicalKey) ?? new(canonicalKey, ExportNameKind.Ordinary);
         }
+
+        // A plan column whose canonical key an earlier one has: a range bound projected onto a question's key (s__min).
+        private ExportNameMeaning Projected(string canonicalKey) => Bound(canonicalKey) ?? Meaning(canonicalKey);
+
+        private ExportNameMeaning? Bound(string canonicalKey) =>
+            IsBound(canonicalKey) && _columns.TryGetValue(ExportKeyTransformer.RemoveLastSegment(canonicalKey), out var slider)
+                ? new(Question(slider), ExportNameKind.Bound)
+                : null;
 
         private static bool IsBound(string canonicalKey) =>
             canonicalKey.EndsWith(ExportPathBuilder.SEGMENT_DELIMITER + "min", StringComparison.Ordinal) ||

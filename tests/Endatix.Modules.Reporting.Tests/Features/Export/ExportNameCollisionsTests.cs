@@ -150,6 +150,23 @@ public sealed class ExportNameCollisionsTests
     }
 
     [Fact]
+    public void Find_QuestionKeyedLikeAProjectedBound_ReturnsTheBound()
+    {
+        // Arrange: on --, the CSV projects slider s to s__min, the canonical key of the text question too.
+        var schema = Schema("""{"type":"slider","name":"s","sliderType":"range","min":0,"max":10},{"type":"text","name":"s__min"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _uncoded, ExportNameFile.Tabular));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        collision.Name.Should().Be("s--min");
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning("s__min", ExportNameKind.Ordinary), new ExportNameMeaning("s", ExportNameKind.Bound)]);
+        collision.Rename.Should().Be("s__min");
+    }
+
+    [Fact]
     public void Find_TwoChoicesOfOneCheckboxOnOneHeader_ReturnsBothColumns()
     {
         // Arrange
