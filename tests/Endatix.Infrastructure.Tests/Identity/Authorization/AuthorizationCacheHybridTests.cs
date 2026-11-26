@@ -378,7 +378,7 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
 
         var jwtOptions = Options.Create(new EndatixJwtOptions { SigningKey = "test-signing-key-32-characters" });
         return new AuthorizationCache(
-            provider.GetRequiredService<HybridCache>(),
+            new(provider.GetRequiredService<HybridCache>(), provider.GetRequiredService<IMemoryCache>(), provider.GetService<IDistributedCache>()),
             _clock,
             new(new HttpContextAccessor { HttpContext = new DefaultHttpContext() }, jwtOptions),
             _versionStore,
@@ -435,7 +435,10 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
         public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
         {
             await _inner.SetAsync(key, value, options, token);
-            Written?.Invoke();
+            if (key.Contains(":jwt_auth:", StringComparison.Ordinal) || key.Contains(":usr_auth:", StringComparison.Ordinal))
+            {
+                Written?.Invoke();
+            }
         }
 
         public void Refresh(string key) => _inner.Refresh(key);

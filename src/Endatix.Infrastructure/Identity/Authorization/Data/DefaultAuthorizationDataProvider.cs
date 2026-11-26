@@ -56,7 +56,7 @@ internal sealed class DefaultAuthorizationDataProvider(
                 ? Result.Success(session.Bind(ToData(session, await RolesAsync(session, cancellationToken)), membership.Value))
                 : membership.ToErrorResult<AuthorizationData>();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (SessionAuthorization.IsUnexpected(ex, cancellationToken))
         {
             logger.LogError(ex, "Error getting user permissions info for user {UserId}", session.UserId);
             return Result.Error("Failed to get user permissions info from the identity store");

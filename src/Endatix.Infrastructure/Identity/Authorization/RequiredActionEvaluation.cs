@@ -7,9 +7,15 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvider> registrations, RequiredActionProviderCache reports,
     ILogger<RequiredActionEvaluation> logger)
 {
-    private readonly IRequiredActionProvider[] _providers = registrations.ToArray();
-    internal bool HasProviders => _providers.Length > 0;
-    internal string ConfigurationKey => field ??= HasProviders ? reports.Configuration.Key(_providers) : "none";
+    private readonly RequiredActionConfiguration.Snapshot _configuration = Capture(registrations, reports);
+    internal bool HasProviders => _configuration.Policies.Length > 0;
+    internal string ConfigurationKey => _configuration.Key;
+
+    private static RequiredActionConfiguration.Snapshot Capture(IEnumerable<IRequiredActionProvider> registrations, RequiredActionProviderCache reports)
+    {
+        var providers = registrations.ToArray();
+        return providers.Length == 0 ? new("none", []) : reports.Configuration.Capture(providers);
+    }
 
     internal async Task<Func<DateTime, AuthorizationData>> EvaluateAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {
@@ -17,14 +23,14 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
         {
             return _ => data with { RequiredActionsUnavailable = true, RequiredActions = [] };
         }
-        if (_providers.Length == 0)
+        if (!HasProviders)
         {
             return _ => data;
         }
 
         var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles) { VerifiedAssumption = data.VerifiedAssumption };
         var epoch = await reports.SubjectEpochAsync(subject, entry, ct);
-        var queries = _providers.Select((p, i) => new Query(epoch, i, subject, Policy.For(p))).ToArray();
+        var queries = _configuration.Policies.Select((policy, i) => new Query(epoch, i, subject, policy)).ToArray();
         var results = await Task.WhenAll(queries.Select(q => reports.ReadAsync(q, ct)));
         var evaluated = new ProviderReports(queries, results);
         return now => Combine(data, evaluated, now);

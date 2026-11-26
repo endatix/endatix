@@ -39,7 +39,7 @@ internal sealed class ClaimsTransformer(
             return principal;
         }
 
-        var authorizationData = await GetAuthorizationDataAsync(principal);
+        var authorizationData = await GetAuthorizationDataAsync(principal, http);
         if (authorizationData is not null)
         {
             principal.AddIdentity(new AuthorizedIdentity(authorizationData));
@@ -48,7 +48,7 @@ internal sealed class ClaimsTransformer(
         return principal;
     }
 
-    private async Task<AuthorizationData?> GetAuthorizationDataAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    private async Task<AuthorizationData?> GetAuthorizationDataAsync(ClaimsPrincipal principal, HttpContext? http)
     {
         var userId = principal.GetUserId();
         if (userId is null)
@@ -64,16 +64,16 @@ internal sealed class ClaimsTransformer(
             return null;
         }
 
+        var cancellationToken = http?.RequestAborted ?? CancellationToken.None;
         try
         {
-            var http = context?.HttpContext;
             if (ReturnHomeAuthorization.Applies(http))
             {
                 return await ReturnHomeAuthorization.ReadGrantsAsync(http!, principal, authorizationStrategy);
             }
             return await authorizationCache.ReadAsync(principal, authorizationStrategy, cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (SessionAuthorization.IsUnexpected(ex, cancellationToken))
         {
             logger.LogError(
                 ex,
