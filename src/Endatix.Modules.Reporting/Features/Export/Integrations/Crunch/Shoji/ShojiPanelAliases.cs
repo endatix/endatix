@@ -14,12 +14,9 @@ internal sealed record ShojiPanelAliases(PanelExportColumns Native, Dictionary<s
         {
             return null;
         }
+        // Aliases follow the CSV's column plan whenever codes are set, with or without an Other-text companion.
         using var doc = JsonDocument.Parse(schema.Codebook);
         var catalog = new CrunchQuestions(doc.RootElement, settings.SpecialChoiceCodes, FormSchemaFlatteningMap.FromJson(schema.FlatteningMap));
-        if (catalog.OtherTextKeys.Count == 0)
-        {
-            return null;
-        }
         var separator = settings.KeySeparator == ExportFormatSettings.DefaultKeySeparator
             ? ExportFormatSettings.InterimCrunchKeySeparator : settings.KeySeparator;
         var native = Columns(ColumnAliasProfile.Native);

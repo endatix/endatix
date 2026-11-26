@@ -44,6 +44,31 @@ public sealed class CodedPanelExportsTests
             .Should().Equal((1, 1, false), (99, 99, false), (3, 3, true));
     }
 
+    [Fact]
+    public async Task Export_QuestionIndexNamesWithoutOtherText_CsvHeadersMatchShojiAliases()
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"elements":[{"type":"text","name":"t"},
+              {"type":"paneldynamic","name":"pd","maxPanelCount":1,"templateElements":[{"type":"dropdown","name":"indexed",
+                  "choices":["a"],"showNoneItem":true}]}]}]}
+            """;
+        const string settings = """{"aliasProfile":"crunch","specialChoiceCodes":{"none":99}}""";
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        FixtureResponse[] responses = [new("r", """{"t":"x","pd":[{"indexed":"none"}]}""", null)];
+        pipeline.FlattenAll(definition, responses);
+        var ct = TestContext.Current.CancellationToken;
+
+        // Act
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), ct);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), ct, settings);
+
+        // Assert
+        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+        var (headers, rows) = CrunchImportCheck.Read(csv);
+        rows.Single()[headers.IndexOf("Q2")].Should().Be("99");
+    }
+
     private static JsonObject Metadata(string shoji) =>
         JsonNode.Parse(shoji)!["body"]!["table"]!["metadata"]!.AsObject();
 
