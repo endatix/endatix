@@ -44,6 +44,37 @@ public sealed class PanelOtherAliasTests
         ((int)other!["numeric_value"]!, (int)other["id"]!, (bool)other["missing"]!).Should().Be((87, 87, false));
     }
 
+    [Theory]
+    [InlineData("native")]
+    [InlineData("crunch")]
+    public async Task Export_CheckboxNamedLikeTheCompanion_KeepsItsMultipleResponseParent(string profile)
+    {
+        // Arrange
+        var definition = DEFINITION.Replace(
+            """{"type":"text","name":"pd--0--q--other_text"}""",
+            """{"type":"checkbox","name":"pd--0--q--other_text","choices":["x","y"]}""",
+            StringComparison.Ordinal);
+        var answers = ANSWERS.Replace("\"pd--0--q--other_text\":\"ordinary\"", "\"pd--0--q--other_text\":[\"x\"]", StringComparison.Ordinal);
+        var settings = $$"""{"aliasProfile":"{{profile}}","keySeparator":"--","specialChoiceCodes":{"other":87} }""";
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        FixtureResponse[] responses = [new("r", answers, null, SubmittedDefinition: definition)];
+        pipeline.FlattenAll(definition, responses);
+        var ct = TestContext.Current.CancellationToken;
+
+        // Act
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), ct);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), ct, settings);
+
+        // Assert
+        var meta = JsonNode.Parse(shoji)!["body"]!["table"]!["metadata"]!.AsObject();
+        var parent = meta["pd--0--q--other_text"]!;
+        ((string?)parent["type"]).Should().Be("multiple_response");
+        parent["subvariables"]!.AsArray().Should().HaveCount(2);
+        var companion = profile == "native" ? "pd--0--q--other_text_2" : "Q2_2--other_text";
+        meta.Select(pair => pair.Value!).Single(v => (string?)v["alias"] == companion)["type"]!.GetValue<string>().Should().Be("text");
+        CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Export_CopyWithoutLocalComment_UsesSourceInThatIteration()
     {

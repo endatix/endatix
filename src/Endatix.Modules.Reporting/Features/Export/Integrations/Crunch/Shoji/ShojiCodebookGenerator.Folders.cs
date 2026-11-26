@@ -249,21 +249,32 @@ internal static partial class ShojiCodebookGenerator
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
 
-    private static IEnumerable<string> ColumnOrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args)
+    /// <summary>
+    /// Every metadata key and alias the map's columns are written under, grouped parents (multiple response,
+    /// categorical and ranking arrays) included, so a generated companion can avoid the ones no CSV header shows.
+    /// </summary>
+    internal static IEnumerable<string> VariableAliases(MergedFormSchema map, IReadOnlyDictionary<string, JsonElement> questions, string separator) =>
+        map.Columns.SelectMany(column => ColumnOrderAliases(column, questions, separator))
+            .SelectMany(alias => (string[])[alias, ExportKeyTransformer.Transform(alias, separator)]);
+
+    private static IEnumerable<string> ColumnOrderAliases(FormSchemaColumn column, ShojiCodebookWriteArgs args) =>
+        ColumnOrderAliases(column, args.Questions, args.KeySeparator);
+
+    private static IEnumerable<string> ColumnOrderAliases(FormSchemaColumn column, IReadOnlyDictionary<string, JsonElement> questions, string separator)
     {
         if (column.Kind is FormSchemaColumnKind.RankingChoice)
         {
-            return [ExportKeyTransformer.Transform(column.Key, args.KeySeparator), RankingAlias(column, args.KeySeparator)];
+            return [ExportKeyTransformer.Transform(column.Key, separator), RankingAlias(column, separator)];
         }
 
-        if (!IsNeutralRangeSliderColumn(column, args.Questions))
+        if (!IsNeutralRangeSliderColumn(column, questions))
         {
-            return ResolveShojiOrderAlias(column, args.Questions, args.KeySeparator) is { } alias ? [alias] : [];
+            return ResolveShojiOrderAlias(column, questions, separator) is { } alias ? [alias] : [];
         }
 
         return ((string[])["min", "max"]).Select(bound => ExportKeyTransformer.Transform(
             ExportPathBuilder.Join(column.Key, bound),
-            args.KeySeparator));
+            separator));
     }
 
     private static void WriteOrderEntries(Utf8JsonWriter writer, IEnumerable<IShojiOrderEntry> entries)

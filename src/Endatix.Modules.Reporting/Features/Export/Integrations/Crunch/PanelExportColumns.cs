@@ -1,4 +1,5 @@
 using Endatix.Modules.Reporting.Contracts.Export;
+using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 
 namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 
@@ -12,6 +13,11 @@ internal sealed class PanelExportColumns
     {
         _ordinary = full.Columns.ToDictionary(c => c.CanonicalKey, StringComparer.Ordinal);
         var used = full.Columns.Select(c => c.ExportKey).ToHashSet(StringComparer.Ordinal);
+        if (catalog.Map is { } map)
+        {
+            // A grouped parent has no CSV header of its own, but a companion that takes its name drops it from the codebook.
+            used.UnionWith(ShojiCodebookGenerator.VariableAliases(map, catalog.Entries, separator));
+        }
         foreach (var (parentKey, textKey) in catalog.OtherTextKeys)
         {
             var parent = _ordinary[parentKey];

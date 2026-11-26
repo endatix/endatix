@@ -15,6 +15,7 @@ internal sealed class CrunchQuestions
     public CrunchQuestions(JsonElement book, SpecialChoiceCodes? settings, MergedFormSchema? map = null)
     {
         Entries = CodebookQuestions.Read(book);
+        Map = map;
         _codedQuestions = settings is null ? [] : MatchingQuestions(new ChoiceCodes(settings));
         OtherTextKeys = map is null || _codedQuestions.Count == 0 ? [] : CompanionKeys(map);
     }
@@ -22,6 +23,8 @@ internal sealed class CrunchQuestions
     public IReadOnlyDictionary<string, JsonElement> Entries { get; }
 
     public Dictionary<string, string> OtherTextKeys { get; }
+
+    public MergedFormSchema? Map { get; }
 
     private Dictionary<string, string> CompanionKeys(MergedFormSchema map)
     {
