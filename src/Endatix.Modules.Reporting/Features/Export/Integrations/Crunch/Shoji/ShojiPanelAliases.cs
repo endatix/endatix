@@ -1,0 +1,79 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Endatix.Modules.Reporting.Contracts.Export;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
+using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
+
+namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
+
+internal sealed record ShojiPanelAliases(PanelExportColumns Native, Dictionary<string, string>? WireAliases, string Separator)
+{
+    public static ShojiPanelAliases? Of(FormSchemaEntity schema, ExportFormatSettings settings, IColumnAliasTransformerRegistry? registry)
+    {
+        if (settings.SpecialChoiceCodes is null)
+        {
+            return null;
+        }
+        // Aliases follow the CSV's column plan whenever codes are set; only an Other-text companion, which csv-shoji
+        // names on its own separator, moves the default separator to the Crunch one.
+        using var doc = JsonDocument.Parse(schema.Codebook);
+        var catalog = new CrunchQuestions(doc.RootElement, settings.SpecialChoiceCodes, FormSchemaFlatteningMap.FromJson(schema.FlatteningMap));
+        var separator = WrittenSeparator(catalog, settings);
+        var native = Columns(ColumnAliasProfile.Native);
+        return new(native, settings.AliasProfile == ColumnAliasProfile.Native ? null : Columns(settings.AliasProfile).AliasesFrom(native), separator);
+
+        PanelExportColumns Columns(ColumnAliasProfile profile) => new(ExportColumnPlanBuilder.Build(schema,
+            new ExportColumnPlanRequest(settings.Locale, profile, KeySeparator: separator, AliasRegistry: registry, ReadWithShojiCodebook: true)), catalog, separator);
+    }
+
+    /// <summary>The separator the codebook is written with: the Crunch one in place of the default once a companion exists.</summary>
+    public static string SeparatorFor(FormSchemaEntity schema, ExportFormatSettings settings)
+    {
+        if (settings.SpecialChoiceCodes is null)
+        {
+            return settings.KeySeparator;
+        }
+        using var doc = JsonDocument.Parse(schema.Codebook);
+        return WrittenSeparator(new CrunchQuestions(doc.RootElement, settings.SpecialChoiceCodes, FormSchemaFlatteningMap.FromJson(schema.FlatteningMap)), settings);
+    }
+
+    private static string WrittenSeparator(CrunchQuestions catalog, ExportFormatSettings settings) =>
+        catalog.OtherTextKeys.Count > 0 && settings.KeySeparator == ExportFormatSettings.DefaultKeySeparator
+            ? ExportFormatSettings.InterimCrunchKeySeparator : settings.KeySeparator;
+
+    // Metadata keys and folder/order references remain paired. Crunch reads CSV columns by the variable's alias.
+    public string Apply(string shoji)
+    {
+        if (WireAliases is null)
+        {
+            return shoji;
+        }
+        var root = JsonNode.Parse(shoji)!;
+        foreach (var variable in root["body"]!["table"]!["metadata"]!.AsObject().Select(kv => kv.Value!))
+        {
+            ApplyVariable(variable);
+        }
+        return root.ToJsonString();
+    }
+
+    private void ApplyVariable(JsonNode variable)
+    {
+        if (variable["subvariables"] is not JsonArray children)
+        {
+            ApplyAlias(variable);
+            return;
+        }
+        foreach (var child in children)
+        {
+            ApplyAlias(child!);
+        }
+    }
+
+    private void ApplyAlias(JsonNode variable)
+    {
+        if ((string?)variable["alias"] is { } name && WireAliases!.TryGetValue(name, out var alias))
+        {
+            variable["alias"] = alias;
+        }
+    }
+}

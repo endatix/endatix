@@ -131,8 +131,10 @@ public sealed class SpecialChoicesCrunchExportTests
         CrunchImportCheck.Problems(shoji, csv).Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task Export_AfterAnInlineChoiceIsAddedBehindNone_NoneKeepsItsId()
+    [Theory]
+    [InlineData(SHOJI_SETTINGS, 3)]
+    [InlineData("""{"specialChoiceCodes":{"none":99}}""", 99)]
+    public async Task Export_AfterAnInlineChoiceIsAddedBehindNone_NoneKeepsItsId(string settings, int noneId)
     {
         // Arrange: v1 stores a=1, b=2, none=3. v2 adds "c", which the definition lists before None.
         const string v1 = """{"pages":[{"name":"p1","elements":[{"type":"radiogroup","name":"rg","choices":["a","b"],"showNoneItem":true}]}]}""";
@@ -144,13 +146,13 @@ public sealed class SpecialChoicesCrunchExportTests
         var cancellationToken = TestContext.Current.CancellationToken;
 
         // Act
-        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, SHOJI_SETTINGS);
-        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), SHOJI_SETTINGS), cancellationToken);
+        var shoji = await CrunchExport.ShojiCodebookAsync(pipeline.Entity(), cancellationToken, settings);
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), pipeline.ExportRows(responses), settings), cancellationToken);
 
         // Assert
         Categories(shoji, "rg").Select(category => (category.Id, category.Name)).Should().Equal(
-            (1, "a"), (2, "b"), (3, "None"), (4, "c"));
-        Column(csv, "rg").Should().Equal("3", "4");
+            (1, "a"), (2, "b"), (noneId, "None"), (4, "c"));
+        Column(csv, "rg").Should().Equal(noneId.ToString(), "4");
     }
 
     [Fact]

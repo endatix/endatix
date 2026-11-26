@@ -10,55 +10,83 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 /// Projects format-neutral flattened submission DataJson into Crunch/Shoji tabular values
 /// (category ids for single-select, min/max bounds for range sliders).
 /// </summary>
-internal static class CrunchTabularValueProjector
+internal sealed class CrunchTabularValueProjector
 {
+    private readonly Dictionary<string, JsonElement?> _values = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _consumed = new(StringComparer.Ordinal);
+    private readonly CrunchQuestions _catalog;
+    private readonly PanelOtherAnswers? _submitted;
+
+    internal CrunchTabularValueProjector(CrunchQuestions catalog, PanelOtherAnswers? submitted) =>
+        (_catalog, _submitted) = (catalog, submitted);
+
     internal static string Project(FlattenedExportRow row, MergedFormSchema flatteningMap, string codebookJson)
     {
+        using var book = JsonDocument.Parse(codebookJson);
+        return new CrunchTabularValueProjector(new CrunchQuestions(book.RootElement, null), null).Project(row, flatteningMap);
+    }
+
+    internal string Project(FlattenedExportRow row, MergedFormSchema flatteningMap)
+    {
+        if (string.IsNullOrWhiteSpace(row.DataJson))
+        {
+            return row.DataJson;
+        }
+
         using var dataDocument = JsonDocument.Parse(row.DataJson);
-        using var codebookDocument = JsonDocument.Parse(codebookJson);
-        var questions = CodebookQuestions.Read(codebookDocument.RootElement);
-        using var matrix = new MatrixCategoryProjection(row, questions);
-
-        Dictionary<string, JsonElement?> projected = new(StringComparer.Ordinal);
-        HashSet<string> consumedKeys = new(StringComparer.Ordinal);
-
+        using var matrix = new MatrixCategoryProjection(row, _catalog.Entries);
         foreach (var column in flatteningMap.Columns)
         {
-            if (!TryGetAnswer(dataDocument.RootElement, column.Key, out var answer))
+            if (TryGetAnswer(dataDocument.RootElement, column.Key, out var answer))
             {
-                continue;
+                Add(column, answer, matrix);
             }
-
-            var questionName = column.SourceQuestion ?? column.Key;
-            if (IsNeutralRangeSliderColumn(column, questions, questionName))
-            {
-                ProjectRangeSliderBounds(projected, consumedKeys, column.Key, answer);
-                continue;
-            }
-
-            if (IsCategoricalColumn(column, questions, questionName))
-            {
-                projected[column.Key] = MapToCategoryId(answer, questions[questionName]);
-                consumedKeys.Add(column.Key);
-                continue;
-            }
-
-            projected[column.Key] = matrix.Project(column, answer);
-            consumedKeys.Add(column.Key);
         }
 
-        // Preserve any keys not covered by the flattening map (defensive).
-        foreach (var property in dataDocument.RootElement.EnumerateObject())
+        return WithRemainingKeys(dataDocument.RootElement);
+    }
+
+    private void Add(FormSchemaColumn column, JsonElement answer, MatrixCategoryProjection matrix)
+    {
+        var questionName = column.SourceQuestion ?? column.Key;
+        _consumed.Add(column.Key);
+        if (IsNeutralRangeSliderColumn(column, _catalog.Entries, questionName))
         {
-            if (consumedKeys.Contains(property.Name) || projected.ContainsKey(property.Name))
-            {
-                continue;
-            }
-
-            projected[property.Name] = property.Value.Clone();
+            ProjectRangeSliderBounds(_values, column.Key, answer);
+            return;
         }
 
-        return Serialize(projected);
+        _values[column.Key] = Cell(column, questionName, answer, matrix);
+    }
+
+    private JsonElement? Cell(FormSchemaColumn column, string name, JsonElement answer, MatrixCategoryProjection matrix)
+    {
+        if (_catalog.OtherTextKeys.TryGetValue(column.Key, out var companion))
+        {
+            var (category, text) = _submitted?.Read(column, answer) ?? PanelOtherAnswers.Unclassified(answer);
+            var id = category is { } value ? MapToCategoryId(value, _catalog.Entries[name]) : null;
+            _values[companion] = text ?? (id is null ? PanelOtherAnswers.Literal(answer) : null);
+            return id;
+        }
+
+        if (_catalog.IsCodedPanel(column))
+        {
+            return MapToCategoryId(answer.TryGetPropertyValue(SurveyJsPropertyNames.Value) ?? answer, _catalog.Entries[name]);
+        }
+
+        return IsCategoricalColumn(column, _catalog.Entries, name)
+            ? MapToCategoryId(answer, _catalog.Entries[name])
+            : matrix.Project(column, answer)?.Clone();
+    }
+
+    private string WithRemainingKeys(JsonElement data)
+    {
+        foreach (var property in data.EnumerateObject().Where(property => !_consumed.Contains(property.Name)))
+        {
+            _values.TryAdd(property.Name, property.Value.Clone());
+        }
+
+        return Serialize(_values);
     }
 
     private static bool IsNeutralRangeSliderColumn(
@@ -81,12 +109,9 @@ internal static class CrunchTabularValueProjector
 
     private static void ProjectRangeSliderBounds(
         Dictionary<string, JsonElement?> projected,
-        HashSet<string> consumedKeys,
         string columnKey,
         JsonElement answer)
     {
-        consumedKeys.Add(columnKey);
-
         if (answer.ValueKind != JsonValueKind.Array)
         {
             projected[ExportPathBuilder.Join(columnKey, "min")] = null;

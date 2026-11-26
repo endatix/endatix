@@ -18,4 +18,23 @@ public sealed class FlattenedExportRowContractTests
         JsonSerializer.Serialize(evidenced).Should().Be(JsonSerializer.Serialize(row));
         evidenced.ToString().Should().Be(row.ToString());
     }
+
+    [Theory]
+    [InlineData("SubmittedAnswers")]
+    [InlineData("SubmittedDefinition")]
+    [InlineData("SourceAnswersJson")]
+    public void Row_ExternalConsumer_SeesNoOriginalResponseOrDefinition(string member)
+    {
+        // Arrange
+        FlattenedExportRow row = new(1, 2, true, "complete", DateTime.UnixEpoch, null, null, null, null, null, "{}");
+
+        // Act
+        var serialized = JsonSerializer.Serialize(row);
+        var printed = row.ToString();
+
+        // Assert
+        serialized.Should().NotContain(member);
+        printed.Should().NotContain(member);
+        typeof(FlattenedExportRow).GetProperty(member).Should().BeNull();
+    }
 }

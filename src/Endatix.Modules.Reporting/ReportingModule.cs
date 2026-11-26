@@ -109,6 +109,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         // Exports read audience names here; the Audience module replaces the default when it is on.
         services.TryAddScoped<IAudiencePropertyCatalog, NoAudiencePropertyCatalog>();
         services.AddScoped<ExportSchemas>();
+        services.AddScoped<ShojiDatasetExport>();
         services.AddScoped<IExportDataSource, TabularExportDataSource>();
         services.AddScoped<IExportDataSource, ShojiCodebookExportDataSource>();
         services.AddScoped<IExportDataSource, FormSchemaCodebookExportDataSource>();

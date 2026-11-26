@@ -677,7 +677,7 @@ internal static partial class FormSchemaCodebookBuilder
             {
                 if (!choiceCatalogs.TryGetValue(property.Name, out var currentCatalog))
                 {
-                    choiceCatalogs[property.Name] = property.Value.Clone();
+                    choiceCatalogs[property.Name] = RetainedCatalog(property, questions);
                     continue;
                 }
 

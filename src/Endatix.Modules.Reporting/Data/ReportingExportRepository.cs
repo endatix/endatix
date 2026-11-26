@@ -87,8 +87,9 @@ internal sealed class ReportingExportRepository(
 
             submissionsQuery = ApplyCoreSubmissionFilters(submissionsQuery, options);
 
-            var submissions = await submissionsQuery
-                .ToDictionaryAsync(submission => submission.Id, cancellationToken);
+            var submissions = await submissionsQuery.ToDictionaryAsync(submission => submission.Id, cancellationToken);
+            var versions = options.IncludeSubmittedChoices
+                ? await SubmittedDefinitionsAsync(submissionsQuery, cancellationToken) : null;
 
             foreach (var flattened in batch)
             {
@@ -102,7 +103,7 @@ internal sealed class ReportingExportRepository(
                     continue;
                 }
 
-                yield return ExportRow(submission, flattened);
+                yield return ExportRow(submission, flattened, versions);
             }
 
             if (batch.Count < pageSize)
@@ -114,7 +115,12 @@ internal sealed class ReportingExportRepository(
         }
     }
 
-    private static FlattenedExportRow ExportRow(Submission submission, FlattenedSubmission flattened) =>
+    private Task<Dictionary<long, string>> SubmittedDefinitionsAsync(IQueryable<Submission> batch, CancellationToken ct) =>
+        appDbContext.FormDefinitions.AsNoTracking()
+            .Where(d => batch.Any(s => s.FormDefinitionId == d.Id && s.FormId == d.FormId && s.TenantId == d.TenantId))
+            .ToDictionaryAsync(d => d.Id, d => d.JsonData, ct);
+
+    private static FlattenedExportRow ExportRow(Submission submission, FlattenedSubmission flattened, Dictionary<long, string>? versions) =>
         new(
             SubmissionId: submission.Id,
             FormId: submission.FormId,
@@ -128,6 +134,7 @@ internal sealed class ReportingExportRepository(
             SubmitterDisplayId: submission.SubmitterDisplayId,
             DataJson: flattened.DataJson!)
         {
+            SubmittedDefinition = versions?.GetValueOrDefault(submission.FormDefinitionId),
             SourceAnswersJson = flattened.SourceRevision == submission.Revision &&
                 flattened.SourceModifiedAt == (submission.ModifiedAt ?? submission.CreatedAt) ? submission.JsonData : null,
         };

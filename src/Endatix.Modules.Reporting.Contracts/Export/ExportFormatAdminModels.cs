@@ -45,6 +45,9 @@ public sealed record ExportFormatSettingsInput(
     bool IncludeTestSubmissions = false,
     string KeySeparator = ExportFormatSettings.DefaultKeySeparator)
 {
+    /// <inheritdoc cref="ExportFormatSettings.SpecialChoiceCodes"/>
+    public SpecialChoiceCodes? SpecialChoiceCodes { get; init; }
+
     public ExportFormatSettings ToSettings() =>
-        new(AliasProfile, Locale, ColumnScope, IncludeTestSubmissions, KeySeparator);
+        new(AliasProfile, Locale, ColumnScope, IncludeTestSubmissions, KeySeparator) { SpecialChoiceCodes = SpecialChoiceCodes };
 }

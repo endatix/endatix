@@ -4,8 +4,6 @@ using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
-using Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
-using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Microsoft.Extensions.Logging;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -73,7 +71,7 @@ internal sealed partial class TabularExportDataSource(
     private const string NoMatchingFiltersMessage =
         "No submissions matched the export filters. Broaden date/id/test filters or clear them and try again.";
 
-    private const string CrunchProjectionArtifactsKey = "ReportingCrunchProjectionArtifacts";
+    private const string PROJECTION_KEY = "ReportingRowProjection";
 
     public bool Matches(ExportDataSourceRequest request) =>
         request.ExportFormatId.HasValue &&
@@ -124,24 +122,47 @@ internal sealed partial class TabularExportDataSource(
                 await ResolveEmptyExportMessageAsync(context, cancellationToken));
         }
 
-        var exported = ExportSchemas.WithCodebook(schema, await exportSchemas.CodebookAsync(schema, cancellationToken));
-        var columnPlan = MapColumnPlan(BuildPlan(exported, settings, context.Request.Format));
+        var book = await exportSchemas.CodebookAsync(schema, settings.SpecialChoiceCodes, cancellationToken);
+        if (!book.IsSuccess)
+        {
+            return book.ToErrorResult<ExportOptions>();
+        }
 
-        context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = columnPlan;
-        context.Options.Metadata[SubmissionExportMetadataKeys.ExecutionSettings] =
+        return Prepared(context, settings, ExportSchemas.WithCodebook(schema, book.Value));
+    }
+
+    // A name two meanings would share refuses the export before any row is read: a name a Crunch-shaped export
+    // generates, or two columns of any export on one header.
+    private Result<ExportOptions> Prepared(ExportDataSourceContext context, ExportFormatSettings settings, FormSchemaEntity exported)
+    {
+        var file = ShouldProjectCrunchShapes(context.Request.Format, settings) ? ExportNameFile.Tabular : ExportNameFile.PlainTabular;
+        if (ExportNameCollisions.Find(new(exported, settings, file, aliasTransformerRegistry)) is { Count: > 0 } collisions)
+        {
+            return ExportNameCollisions.Refusal<ExportOptions>(collisions);
+        }
+
+        PrepareColumns(context, settings, exported);
+        return Result.Success(context.Options);
+    }
+
+    private void PrepareColumns(ExportDataSourceContext context, ExportFormatSettings settings, FormSchemaEntity exported)
+    {
+        var plan = BuildPlan(exported, settings, context.Request.Format);
+        context.Options.Metadata![SubmissionExportMetadataKeys.ExecutionSettings] =
             CreateExecutionSettings(
                 context.Options,
                 settings,
                 encodeBooleansAsCategoryIds: ShouldEncodeBooleansAsCategoryIds(context.Request.Format, settings));
 
-        if (ShouldProjectCrunchShapes(context.Request.Format, settings))
+        var crunch = ShouldProjectCrunchShapes(context.Request.Format, settings);
+        if (crunch || settings.SpecialChoiceCodes is not null)
         {
-            context.Options.Metadata[CrunchProjectionArtifactsKey] = new CrunchProjectionArtifacts(
-                exported.FlatteningMap,
-                exported.Codebook);
+            var projection = new ExportRowProjection(exported, settings.SpecialChoiceCodes, crunch);
+            var full = () => settings.ColumnScope is null ? plan : BuildPlan(exported, settings with { ColumnScope = null }, context.Request.Format);
+            plan = projection.WithCompanions(plan, full, settings.KeySeparator);
+            context.Options.Metadata[PROJECTION_KEY] = projection;
         }
-
-        return Result.Success(context.Options);
+        context.Options.Metadata[SubmissionExportMetadataKeys.ColumnPlan] = MapColumnPlan(plan);
     }
 
     private ExportColumnPlan BuildPlan(FormSchemaEntity schema, ExportFormatSettings settings, string format)
@@ -203,19 +224,20 @@ internal sealed partial class TabularExportDataSource(
             context.Options,
             settings,
             pageSize: context.ExportPageSize ?? 500);
-        var projection = TryGetCrunchProjectionArtifacts(context.Options);
+        var projection = PreparedProjection(context.Options);
 
         await foreach (var row in reportingExportRepository.StreamFlattenedSubmissionsAsync(
                            context.TenantId,
                            context.FormId,
-                           options,
+                           options with { IncludeSubmittedChoices = projection?.NeedsSubmittedChoices == true },
                            cancellationToken))
         {
             yield return MapSubmissionRow(row, projection);
         }
     }
 
-    private sealed record CrunchProjectionArtifacts(string FlatteningMapJson, string CodebookJson);
+    private static ExportRowProjection? PreparedProjection(ExportOptions options) =>
+        options.Metadata?.TryGetValue(PROJECTION_KEY, out var value) == true ? value as ExportRowProjection : null;
 
     private static bool ShouldProjectCrunchShapes(string format, ExportFormatSettings settings)
     {
@@ -230,18 +252,6 @@ internal sealed partial class TabularExportDataSource(
                    settings.KeySeparator,
                    ExportFormatSettings.InterimCrunchKeySeparator,
                    StringComparison.Ordinal);
-    }
-
-    private static CrunchProjectionArtifacts? TryGetCrunchProjectionArtifacts(ExportOptions options)
-    {
-        if (options.Metadata is not null &&
-            options.Metadata.TryGetValue(CrunchProjectionArtifactsKey, out var artifactsObject) &&
-            artifactsObject is CrunchProjectionArtifacts artifacts)
-        {
-            return artifacts;
-        }
-
-        return null;
     }
 
     private static ExportQueryOptions CreateQueryOptions(
@@ -375,19 +385,8 @@ internal sealed partial class TabularExportDataSource(
 
     private static SubmissionExportRow MapSubmissionRow(
         FlattenedExportRow row,
-        CrunchProjectionArtifacts? projection)
-    {
-        var answersModel = row.DataJson;
-        if (projection is not null && !string.IsNullOrWhiteSpace(answersModel))
-        {
-            var flatteningMap = FormSchemaFlatteningMap.FromJson(projection.FlatteningMapJson);
-            answersModel = CrunchTabularValueProjector.Project(
-                row,
-                flatteningMap,
-                projection.CodebookJson);
-        }
-
-        return new SubmissionExportRow
+        ExportRowProjection? projection) =>
+        new()
         {
             FormId = row.FormId,
             Id = row.SubmissionId,
@@ -399,9 +398,8 @@ internal sealed partial class TabularExportDataSource(
             CompletedAt = row.CompletedAt,
             SubmitterId = row.SubmitterId,
             SubmitterDisplayId = row.SubmitterDisplayId,
-            AnswersModel = answersModel,
+            AnswersModel = string.IsNullOrWhiteSpace(row.DataJson) ? row.DataJson : projection?.Project(row) ?? row.DataJson,
         };
-    }
 
     [LoggerMessage(
         Level = LogLevel.Warning,

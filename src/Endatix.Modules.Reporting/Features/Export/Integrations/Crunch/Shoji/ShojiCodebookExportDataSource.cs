@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using Endatix.Core.Abstractions.Exporting;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Reporting.Contracts.Export;
@@ -14,10 +13,9 @@ namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch.Shoji;
 /// </summary>
 internal sealed class ShojiCodebookExportDataSource(
     ExportSchemas exportSchemas,
-    IFormsRepository formsRepository,
+    ShojiDatasetExport dataset,
     ExportFormatSettingsParser exportFormatSettingsParser) : IExportDataSource
 {
-    private const string DefaultDatasetName = "Form export";
     private const string PreparedSchemaKey = "ReportingPreparedShojiSchema";
 
     internal static IReadOnlyList<ExportCapability> Capabilities { get; } =
@@ -67,37 +65,42 @@ internal sealed class ShojiCodebookExportDataSource(
                 requestLocale);
         }
 
-        await exportSchemas.PrepareCodebookAsync(schema, context.Options, cancellationToken);
         (context.Options.Metadata ??= new Dictionary<string, object>())[SubmissionExportMetadataKeys.ResolvedFormatSettings] =
             settings with { Locale = requestLocale };
         context.Options.Metadata[PreparedSchemaKey] = schema.FlatteningMap;
 
-        return Result.Success(context.Options);
+        return await PrepareCodebookAsync(schema, context.Options, cancellationToken);
+    }
+
+    // The codebook generates names, so a name two meanings would share refuses it before it is written.
+    private async Task<Result<ExportOptions>> PrepareCodebookAsync(FormSchemaEntity schema, ExportOptions options, CancellationToken cancellationToken)
+    {
+        var prepared = await exportSchemas.PrepareCodebookAsync(schema, options, cancellationToken);
+        if (!prepared.IsSuccess)
+        {
+            return prepared;
+        }
+
+        var book = await exportSchemas.PreparedCodebookAsync(schema, options, cancellationToken);
+        var collisions = dataset.Collisions(ExportSchemas.WithCodebook(schema, book), ResolveSettings(options));
+        return collisions.Count > 0 ? ExportNameCollisions.Refusal<ExportOptions>(collisions) : prepared;
     }
 
     public async IAsyncEnumerable<IExportItem> StreamAsync(
         ExportDataSourceContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var schema = await exportSchemas.GetAsync(
-            context.TenantId,
-            context.FormId,
-            cancellationToken);
+        var schema = await exportSchemas.GetAsync(context.TenantId, context.FormId, cancellationToken);
         if (schema is null)
         {
             yield break;
         }
 
         var settings = ResolveSettings(context.Options);
-        var requestLocale = ReportingExportSchemaHelper.ResolveLocaleOrDefault(settings.Locale);
-        var (datasetName, datasetDescription) = await ResolveDatasetMetadataAsync(
-            context.FormId, requestLocale, cancellationToken);
         var flatteningMap = PreparedFlatteningMap(context, schema);
-        var codebookJson = ShojiCodebookGenerator.Generate(
-            flatteningMap,
-            await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken),
-            settings.KeySeparator, requestLocale, datasetName, datasetDescription);
-        yield return new DynamicExportRow { Data = codebookJson };
+        var book = await exportSchemas.PreparedCodebookAsync(schema, context.Options, cancellationToken);
+        var snapshot = new FormSchemaEntity(schema.TenantId, schema.FormId, schema.FormDefinitionRevision, flatteningMap, book, schema.Locales);
+        yield return new DynamicExportRow { Data = await dataset.GenerateAsync(snapshot, settings, cancellationToken) };
     }
 
     // The flattening map captured during PrepareOptionsAsync, so the map and codebook come from one read.
@@ -105,29 +108,6 @@ internal sealed class ShojiCodebookExportDataSource(
         context.Options.Metadata?.TryGetValue(PreparedSchemaKey, out var map) == true
             ? map as string ?? schema.FlatteningMap
             : schema.FlatteningMap;
-
-    private async Task<(string? DatasetName, string DatasetDescription)> ResolveDatasetMetadataAsync(
-        long formId,
-        string locale,
-        CancellationToken cancellationToken)
-    {
-        var form = await formsRepository.GetByIdAsync(formId, cancellationToken);
-        var datasetName = form is not null && !string.IsNullOrWhiteSpace(form.Name)
-            ? form.Name.Trim()
-            : null;
-        var datasetDescription = form is not null && !string.IsNullOrWhiteSpace(form.Description)
-            ? form.Description.Trim()
-            : $"Exported shoji codebook for formID {formId}";
-
-        if (!ReportingExportSchemaHelper.IsDefaultLocale(locale))
-        {
-            datasetName = ReportingExportSchemaHelper.FormatTitleWithLocale(
-                datasetName ?? DefaultDatasetName,
-                locale);
-        }
-
-        return (datasetName, datasetDescription);
-    }
 
     private ExportFormatSettings ResolveSettings(ExportOptions options)
     {

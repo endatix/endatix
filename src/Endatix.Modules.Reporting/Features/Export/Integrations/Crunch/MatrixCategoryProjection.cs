@@ -7,7 +7,7 @@ using Endatix.Modules.Reporting.Shared.SurveyJs;
 
 namespace Endatix.Modules.Reporting.Features.Export.Integrations.Crunch;
 
-internal sealed class MatrixCategoryProjection(FlattenedExportRow row, Dictionary<string, JsonElement> questions) : IDisposable
+internal sealed class MatrixCategoryProjection(FlattenedExportRow row, IReadOnlyDictionary<string, JsonElement> questions) : IDisposable
 {
     private readonly Dictionary<string, Dictionary<MatrixCode, JsonElement>?> _catalogs = [];
     private JsonDocument? _source;

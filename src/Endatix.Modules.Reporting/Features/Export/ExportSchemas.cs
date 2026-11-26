@@ -1,5 +1,7 @@
 using Endatix.Core.Abstractions.Exporting;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Modules.Audience.Contracts;
+using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Data;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -24,7 +26,13 @@ internal sealed partial class ExportSchemas(
         schemas.GetByFormIdAsync(tenantId, formId, cancellationToken);
 
     /// <summary>One catalog read per call, and none for a form without audience columns.</summary>
-    public async Task<string> CodebookAsync(FormSchemaEntity schema, CancellationToken cancellationToken)
+    public async Task<Result<string>> CodebookAsync(FormSchemaEntity schema, SpecialChoiceCodes? codes, CancellationToken cancellationToken)
+    {
+        var json = await AudienceCodebookAsync(schema, cancellationToken);
+        return codes is null ? json : new ChoiceCodes(codes).Apply(json);
+    }
+
+    private async Task<string> AudienceCodebookAsync(FormSchemaEntity schema, CancellationToken cancellationToken)
     {
         WarnQuestionsExportedAsText(schema);
         var flatteningMap = FormSchemaFlatteningMap.FromJson(schema.FlatteningMap);
@@ -41,11 +49,19 @@ internal sealed partial class ExportSchemas(
     /// Reads the export codebook while the export is prepared and keeps it in <paramref name="options"/>, so a failed
     /// read fails the request before the download starts.
     /// </summary>
-    public async Task PrepareCodebookAsync(FormSchemaEntity schema, ExportOptions options, CancellationToken cancellationToken)
+    public async Task<Result<ExportOptions>> PrepareCodebookAsync(FormSchemaEntity schema, ExportOptions options, CancellationToken cancellationToken)
     {
-        var codebook = await CodebookAsync(schema, cancellationToken);
+        var settings = options.Metadata?.TryGetValue(SubmissionExportMetadataKeys.ResolvedFormatSettings, out var value) == true
+            ? value as ExportFormatSettings : null;
+        var codebook = await CodebookAsync(schema, settings?.SpecialChoiceCodes, cancellationToken);
+        if (!codebook.IsSuccess)
+        {
+            return codebook.ToErrorResult<ExportOptions>();
+        }
+
         options.Metadata ??= new Dictionary<string, object>();
-        options.Metadata[CodebookMetadataKey] = codebook;
+        options.Metadata[CodebookMetadataKey] = codebook.Value;
+        return options;
     }
 
     /// <summary>The codebook <see cref="PrepareCodebookAsync"/> kept; read again when the export was not prepared.</summary>
@@ -55,7 +71,7 @@ internal sealed partial class ExportSchemas(
         CancellationToken cancellationToken) =>
         options.Metadata?.TryGetValue(CodebookMetadataKey, out var prepared) == true && prepared is string codebook
             ? codebook
-            : await CodebookAsync(schema, cancellationToken);
+            : await AudienceCodebookAsync(schema, cancellationToken);
 
     /// <summary>A detached copy of <paramref name="schema"/> with <paramref name="codebook"/>; never saved.</summary>
     public static FormSchemaEntity WithCodebook(FormSchemaEntity schema, string codebook) =>

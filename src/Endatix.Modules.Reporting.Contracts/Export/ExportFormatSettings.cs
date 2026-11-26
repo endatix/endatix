@@ -10,6 +10,9 @@ public sealed record ExportFormatSettings(
     bool IncludeTestSubmissions = false,
     string KeySeparator = ExportFormatSettings.DefaultKeySeparator)
 {
+    /// <summary>Numeric codes to export in place of default special choice values and category ids.</summary>
+    public SpecialChoiceCodes? SpecialChoiceCodes { get; init; }
+
     public const string DefaultKeySeparator = "__";
 
     /// <summary>

@@ -36,18 +36,24 @@ internal static class ExportFormatSettingsWriter
             return Result<string?>.Invalid(validationResult.ValidationErrors);
         }
 
-        var persisted = NormalizeForPersistence(exportSettings, exportTarget);
+        return Persist(NormalizeForPersistence(exportSettings, exportTarget), exportTarget);
+    }
+
+    private static Result<string?> Persist(ExportFormatSettings persisted, ExportTarget exportTarget)
+    {
         PersistableExportFormatSettings payload = new(
             persisted.AliasProfile,
             persisted.KeySeparator,
-            exportTarget == ExportTarget.Submissions ? persisted.IncludeTestSubmissions : null);
+            exportTarget == ExportTarget.Submissions ? persisted.IncludeTestSubmissions : null,
+            persisted.SpecialChoiceCodes);
         return Result.Success<string?>(JsonSerializer.Serialize(payload, _serializerOptions));
     }
 
     private sealed record PersistableExportFormatSettings(
         ColumnAliasProfile AliasProfile,
         string KeySeparator,
-        bool? IncludeTestSubmissions);
+        bool? IncludeTestSubmissions,
+        SpecialChoiceCodes? SpecialChoiceCodes);
 
     internal static Result Validate(ExportFormatSettings settings) =>
         Validate(settings, ExportTarget.Submissions);
@@ -58,28 +64,12 @@ internal static class ExportFormatSettingsWriter
     {
         List<ValidationError> errors = [];
 
-        try
+        if (new ChoiceCodes(settings.SpecialChoiceCodes).SettingsError() is { } codesError)
         {
-            ExportFormatSettings.RequireKeySeparator(settings.KeySeparator);
-        }
-        catch (ArgumentException)
-        {
-            errors.Add(new ValidationError
-            {
-                Identifier = nameof(ExportFormatSettings.KeySeparator),
-                ErrorMessage = "Key separator is invalid.",
-            });
+            errors.Add(codesError);
         }
 
-        if (!Enum.IsDefined(settings.AliasProfile))
-        {
-            errors.Add(new ValidationError
-            {
-                Identifier = nameof(ExportFormatSettings.AliasProfile),
-                ErrorMessage = "Column naming profile is invalid.",
-            });
-        }
-
+        ValidateNaming(settings, errors);
         if (exportTarget == ExportTarget.Codebook &&
             (settings.ColumnScope is { Count: > 0 } || settings.IncludeTestSubmissions))
         {
@@ -93,29 +83,30 @@ internal static class ExportFormatSettingsWriter
         return errors.Count > 0 ? Result.Invalid(errors) : Result.Success();
     }
 
+    private static void ValidateNaming(ExportFormatSettings settings, List<ValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(settings.KeySeparator))
+        {
+            errors.Add(new ValidationError("Key separator is invalid.") { Identifier = nameof(ExportFormatSettings.KeySeparator) });
+        }
+
+        if (!Enum.IsDefined(settings.AliasProfile))
+        {
+            errors.Add(new ValidationError("Column naming profile is invalid.") { Identifier = nameof(ExportFormatSettings.AliasProfile) });
+        }
+    }
+
     /// <summary>
     /// Locale is request-time only; do not persist it on format definitions.
     /// Column scope is request-time only.
     /// </summary>
     private static ExportFormatSettings NormalizeForPersistence(
         ExportFormatSettings settings,
-        ExportTarget exportTarget)
-    {
-        if (exportTarget == ExportTarget.Codebook)
+        ExportTarget exportTarget) =>
+        settings with
         {
-            return new ExportFormatSettings(
-                AliasProfile: settings.AliasProfile,
-                Locale: ExportFormatSettings.Default.Locale,
-                ColumnScope: null,
-                IncludeTestSubmissions: false,
-                KeySeparator: settings.KeySeparator);
-        }
-
-        return new ExportFormatSettings(
-            AliasProfile: settings.AliasProfile,
-            Locale: ExportFormatSettings.Default.Locale,
-            ColumnScope: null,
-            IncludeTestSubmissions: settings.IncludeTestSubmissions,
-            KeySeparator: settings.KeySeparator);
-    }
+            Locale = ExportFormatSettings.Default.Locale,
+            ColumnScope = null,
+            IncludeTestSubmissions = exportTarget == ExportTarget.Submissions && settings.IncludeTestSubmissions,
+        };
 }

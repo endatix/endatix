@@ -21,9 +21,50 @@ SurveyJS stores each special item as a fixed value in the submission. Endatix ex
 
 **Select All** is never stored: it only ticks the question's other choices, so it has no column or category. A custom choice with `isExclusive: true` stays an ordinary choice in every export.
 
-:::note
-These are the SurveyJS default values (`settings.noneItemValue`, `settings.refuseItemValue`, `settings.dontKnowItemValue`). Choosing your own export codes for them is tracked in [endatix#1544](https://github.com/endatix/endatix/issues/1544), and storing custom values in [endatix#1606](https://github.com/endatix/endatix/issues/1606).
-:::
+## Configure numeric export codes
+
+Set `settings.specialChoiceCodes` when you create an export format or update it with `PATCH /api/settings/export-formats/{exportFormatId}`. For example, to export None as 99 and Don't know as 97:
+
+```json
+{ "settings": { "specialChoiceCodes": { "none": 99, "dontknow": 97 } } }
+```
+
+Include any other settings you want to keep when replacing `settings`. All four keys (`none`, `refused`, `dontknow`, `other`) are optional. For example, `{"other":87}` changes only the Other category's code; it remains a valid, non-missing category. Without a code, each format keeps the values shown below. Multi-select indicators keep their usual values, and codes do not replace items in raw arrays.
+
+**Native JSON and Excel:** For indexed and `valueName` panel cells, Endatix codes a matching stored choice token. With `none:99` and `other:87`, `none` and `other` become the numbers `99` and `87`. If value-backed Other stores the respondent's typed `blue` instead of the token `other`, the native cell stays the string `blue` (a text cell in Excel). Native output adds no companion column to these panel leaves. The category-and-text split below applies to the Crunch-shaped export.
+
+For a Crunch import, set the same codes on the **csv-shoji** and **Codebook (Shoji)** formats. A code replaces the category's `id` and `numeric_value`; its missing status stays the same. Changing a code re-keys that category for an existing dataset. The native codebook also uses the configured ids. Stored answers and the stored codebook are unaffected.
+
+For an indexed dynamic-panel dropdown or radio group, or one in a panel driven by `valueName`, configuring a code for a choice it offers makes the entire Crunch variable categorical. Every non-empty CSV answer then uses its Shoji category ID, including ordinary choices. For example, with `a=1`, None configured as `99`, and Refuse to answer left at `3`, the CSV writes `1`, `99`, or `3`. Shoji marks only Refuse to answer as missing in this example.
+
+If the coded panel question offers **Other**, its CSV also includes `<panel-leaf>--other_text`, a text variable in Shoji. Match the CSV header to the Shoji variable's `alias`, including when using question-index naming.
+
+### Refused export names
+
+Endatix generates some names itself: this Other-text companion, the variable that groups a checkbox, matrix or ranking question with its columns, and a range slider's `min` and `max` columns. A generated name is always the same for the same question; it never takes a suffix. If another question's name lands on one, for example a text question named `pd--0--q--other_text`, the csv-shoji and Codebook (Shoji) downloads, and any download with the Crunch alias profile or `--` as its key separator, return HTTP 400 before any file streams. A clash with a group variable refuses only the Codebook (Shoji), the one file that writes it; under question-index naming, a group named like an index (`Q5`) clashes only once codes make the codebook use those index names. The Codebook (Shoji) always writes a range slider as its `min` and `max` variables, so a question named like one (`s_min` beside slider `s`, with `_` as the separator) refuses it under any separator. Two choices of one checkbox that land on one name (`a__b` and `a--b` both become `q--a--b`) are refused too. Any CSV, JSON or XLSX download, native ones included, returns the same 400 when two of the columns it writes would share a header, for example choices `a_b` and `a__b` with `_` as the separator, or a question named like a submission column such as `Id`. The Codebook (Shoji) is refused for that question too, under any naming profile and separator: it writes the submission variables under their own names in every profile, so the question would be left out of it. The submission columns are `FormId`, `Id`, `IsComplete`, `CollectionStatus`, `CreatedAt`, `ModifiedAt`, `StartedAt`, `CompletedAt`, `DurationSeconds`, `SubmitterId` and `SubmitterDisplayId`. A native download with a column scope checks only the columns in that scope. This happens on a first export too, and when a new form version adds the clashing question. The response names the contested name and both meanings:
+
+```json
+{"status":400,"detail":"Export name 'pd--0--q--other_text' (native names, separator '--') would mean both question 'pd--0--q--other_text' and the Other text of question 'q'. To fix it, rename question 'pd--0--q--other_text' before that form version has responses; otherwise see https://docs.endatix.com/docs/developers/api/special-answers-in-exports#refused-export-names."}
+```
+
+The export schema keeps every question a form has had (a merge compile only adds), so renaming the question does not clear the 400 on its own. Stored submissions never change on any of these routes.
+
+- **No response was made on the form version with the clashing question:** rename the question, publish, then rebuild the schema with **Full recompile**. In the Hub, open the export dialog, choose **Rebuild reporting data…** and check **Full recompile** (needs permission to edit forms). Through the API, call `POST /forms/{formId}/reporting/compile-schema` with `{"replace":true}`, then `POST /forms/{formId}/submissions/backfill` with `{"force":true}` until it reports finished (it re-flattens completed submissions; send `"completionScope":"incomplete"` as well to refresh drafts). The rebuild drops the old name, deletes the flattened rows and re-flattens each submission from its stored answers; a submission on an older form version brings that version's columns back under their old names.
+- **Responses exist on that version:** a rename and a full recompile do not clear it, because re-flattening those responses brings the clashing column back. What clears it depends on the kind of clash. Each option changes the dataset's names (see the next paragraph). A per-format column rename is planned ([endatix/endatix#1869](https://github.com/endatix/endatix/issues/1869)).
+  - **Other-text column** (`pd--0--q--other_text`): remove every special choice code that matches the panel question (`none`, `refused` and `dontknow` as well as `other`: any one of them creates the Other-text column when the question offers Other). A `keySeparator` change also works, as below.
+  - **A name with the separator in it** (an Other-text column, a range bound like `s_min`, a matrix row like `m--r`, two checkbox choices on one name): give both formats a `keySeparator` other than the one the contested name spells out: `_` in place of `--` for `pd--0--q--other_text`, or `--` in place of `_` for `s_min`. Every generated name changes, while a separator typed into a question or choice name stays as typed: with `_`, choices `a__b` and `a--b` become `q_a_b` and `q_a--b`. csv-shoji writes `__` as `--`, so moving between those two changes nothing there. A question whose own name holds `__` (`s__min`) is renamed with the separator, so a separator change never clears it.
+  - **A submission column name** (a question named `Id` or `CreatedAt`): submission columns keep their names under every `keySeparator` and `aliasProfile`, so no change to either clears it. A native CSV, JSON or XLSX download can leave the question out with a column scope, as above. The csv-shoji, Codebook (Shoji) and Crunch-profile downloads have no way around it until the planned per-format column rename.
+  - **A group named like a question index** (`Q5` under question-index naming): the name has no separator, so a `keySeparator` change does not clear it. Remove the special choice codes, so that the codebook keeps native names for its variables, or export with native names (`aliasProfile` left unset).
+
+The naming profile (`aliasProfile`) and `keySeparator` are part of a dataset's names. Changing either starts a new dataset: import it as a new Crunch dataset rather than updating the existing one.
+
+A listed answer keeps its category ID and leaves the text blank. A typed Other gets its category ID and literal text, even when an earlier form version listed that text as an ordinary choice. A copy offering its source's Other uses its own non-empty comment first, otherwise the source's text in the same response scope. Endatix uses the definition attached to each response. An unanswered question leaves both cells blank. When that definition is unavailable or cannot identify an answer, only the raw text is exported; the category is blank even if the merged catalog still lists that value.
+
+With no matching code, those CSV cells keep their raw values and gain no text companion. Indexed variables stay text in Shoji. The existing uncoded `valueName` panel leaf is omitted from Shoji even though its CSV column exists. Enabling codes can therefore change a text variable's type or add a variable: plan a dataset migration rather than assuming an existing text variable can be changed in place. For repeat imports into the same categorical dataset, keep both formats' codes unchanged.
+
+Use distinct integers and leave `-1` for Crunch's No Data category. If a code is already a different choice's id in the same question, the download returns HTTP 400. For a catalog compiled before special choices were supported, recompile the form schema before exporting with codes.
+
+Use the normal merge compile to keep historical columns. If a legacy dropdown has since been removed, its retained catalog keeps its recorded choices and IDs. An ordinary choice spelled `none` stays ordinary; codes apply to the explicitly tagged choices in other questions. You do not need a replace compile for this recovery.
 
 ## CSV, JSON, and XLSX
 

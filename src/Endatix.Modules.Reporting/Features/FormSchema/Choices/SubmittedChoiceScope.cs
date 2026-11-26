@@ -57,6 +57,10 @@ internal sealed class SubmittedChoiceScope
         }
     }
 
+    /// <summary>The panel item's single-select question, found the same way as <see cref="Question"/>.</summary>
+    public JsonElement? PanelQuestion(FormSchemaColumn column) =>
+        Question(column) is { } question && question.IsSingleSelectBaseSelect() ? question : null;
+
     private void NoteAnswerKey(string key, JsonElement question)
     {
         if (!_questionsByAnswerKey.TryAdd(key, question))

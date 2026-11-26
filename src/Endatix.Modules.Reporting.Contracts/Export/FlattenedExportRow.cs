@@ -24,4 +24,10 @@ public sealed record FlattenedExportRow(
     public FlattenedExportRow WithSourceAnswers(string answersJson) => this with { SourceAnswersJson = answersJson };
 
     internal string? SourceAnswersJson { get; init; }
+
+    /// <summary>
+    /// Definition that governed this response, read with <see cref="SourceAnswersJson"/> to classify a
+    /// coded panel's Other text. Set only inside the reporting module; not part of the serialized row.
+    /// </summary>
+    internal string? SubmittedDefinition { get; init; }
 }

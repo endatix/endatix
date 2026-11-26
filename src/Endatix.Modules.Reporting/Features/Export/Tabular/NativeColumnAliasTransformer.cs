@@ -24,8 +24,9 @@ internal sealed class NativeColumnAliasTransformer : IColumnAliasTransformer
 
     public string? Example => "question__choice";
 
+    // A projected range bound can share its canonical key with a question (s__min); the plan reports that, not this.
     public IReadOnlyDictionary<string, string> BuildExportKeys(IReadOnlyList<ExportColumnAliasInput> columns) =>
-        columns.ToDictionary(
+        columns.DistinctBy(column => column.CanonicalKey, StringComparer.Ordinal).ToDictionary(
             column => column.CanonicalKey,
             column => column.CanonicalKey,
             StringComparer.Ordinal);
