@@ -1,6 +1,6 @@
 name: Publish Docs Image
 
-# Builds docs.endatix.com into a static-file image (docs/endatix-docs/deploy/Dockerfile) and asks
+# Builds docs.endatix.com into a static-file image (docs/endatix-docs/docker/Dockerfile) and asks
 # endatix-infra to pin it; ArgoCD serves it on the Hetzner cluster. Same trigger and build settings
 # as deploy-endatix-docs.yml. A dispatch on main re-publishes and re-pins main's image.
 on:
@@ -69,7 +69,7 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: docs/endatix-docs
-          file: docs/endatix-docs/deploy/Dockerfile
+          file: docs/endatix-docs/docker/Dockerfile
           platforms: linux/amd64
           push: true
           provenance: false

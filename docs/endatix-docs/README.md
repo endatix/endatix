@@ -37,12 +37,12 @@ This command generates static content into the `build` directory and can be serv
 A push to `main` that touches this folder deploys the site two ways while it moves off Azure:
 
 - `.github/workflows/deploy-endatix-docs.yml` uploads `build/` to Azure Static Web Apps, with `staticwebapp.config.json` for its routing rules, then submits changed URLs to IndexNow.
-- `.github/workflows/publish-docs-image.yml` builds `ghcr.io/endatix/endatix-docs:<commit SHA>`: nginx serving `build/` as a non-root user on port 8080 (`deploy/Dockerfile`). It asks `endatix-infra` to pin that tag, and ArgoCD rolls it out on the Hetzner cluster. `deploy/nginx.conf` carries the rules from `staticwebapp.config.json` (redirects, `trailingSlash: never`, the 404 page, headers, the `.json` MIME type), so change both together until the Azure deploy is removed. HSTS comes from the cluster's Ingress.
+- `.github/workflows/publish-docs-image.yml` builds `ghcr.io/endatix/endatix-docs:<commit SHA>`: nginx serving `build/` as a non-root user on port 8080 (`docker/Dockerfile`). It asks `endatix-infra` to pin that tag, and ArgoCD rolls it out on the Hetzner cluster. `docker/nginx.conf` carries the rules from `staticwebapp.config.json` (redirects, `trailingSlash: never`, the 404 page, headers, the `.json` MIME type), so change both together until the Azure deploy is removed. HSTS comes from the cluster's Ingress.
 
 To check the image locally:
 
 ```
 $ pnpm build
-$ docker build -f deploy/Dockerfile -t endatix-docs .
+$ docker build -f docker/Dockerfile -t endatix-docs .
 $ docker run --rm --read-only --tmpfs /tmp -p 8080:8080 endatix-docs
 ```
