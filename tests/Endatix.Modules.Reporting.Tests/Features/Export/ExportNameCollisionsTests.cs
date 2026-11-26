@@ -131,6 +131,25 @@ public sealed class ExportNameCollisionsTests
     }
 
     [Theory]
+    [InlineData("_")]
+    [InlineData("__")]
+    [InlineData("--")]
+    public void Find_QuestionNamedLikeABoundOnlyShojiWrites_ReturnsTheBound(string separator)
+    {
+        // Arrange: native names on a non-Crunch separator keep the CSV's slider whole, but the codebook still writes its bounds.
+        var schema = Schema($$"""{"type":"slider","name":"s","sliderType":"range","min":0,"max":10},{"type":"text","name":"s{{separator}}min"}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, new(KeySeparator: separator), ExportNameFile.ShojiCodebook));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        collision.Name.Should().Be($"s{separator}min");
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning($"s{separator}min", ExportNameKind.Ordinary), new ExportNameMeaning("s", ExportNameKind.Bound)]);
+    }
+
+    [Theory]
     [InlineData("""{"type":"ranking","name":"rk","choices":["a","b"]},{"type":"text","name":"rk--a"}""", "rk--a", "rk")]
     [InlineData("""{"type":"matrix","name":"m","rows":["r"],"columns":[1,2]},{"type":"text","name":"m--r"}""", "m--r", "m")]
     [InlineData("""{"type":"paneldynamic","name":"lp","maxPanelCount":1,"templateElements":[{"type":"checkbox","name":"c","choices":["x"]}]},{"type":"text","name":"lp--0--c"}""",

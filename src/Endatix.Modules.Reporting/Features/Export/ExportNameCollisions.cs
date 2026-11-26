@@ -106,6 +106,11 @@ internal static class ExportNameCollisions
             .GroupParentAliases(map, catalog.Entries, request.Settings.KeySeparator)
             .Select(parent => (parent.Alias, new ExportNameMeaning(Question(parent.Column), ExportNameKind.GroupParent)))];
 
+        // Shoji writes every range slider as its min and max variables, also where native names keep it whole in the CSV.
+        private readonly List<(string Alias, ExportNameMeaning Meaning)> _bounds = [.. ShojiCodebookGenerator
+            .RangeBoundAliases(map, catalog.Entries, request.Settings.KeySeparator)
+            .Select(bound => (bound.Alias, new ExportNameMeaning(bound.Question, ExportNameKind.Bound)))];
+
         public IEnumerable<(string Alias, ExportNameMeaning Meaning)> In(ColumnAliasProfile profile)
         {
             var plan = ExportColumnPlanBuilder.Build(request.Schema, new ExportColumnPlanRequest(
@@ -114,6 +119,7 @@ internal static class ExportNameCollisions
                 .ToDictionary(column => column.CanonicalKey, column => column.ExportKey, StringComparer.Ordinal);
             return plan.Columns.Select(column => (column.ExportKey, Meaning(column.CanonicalKey)))
                 .Concat(WritesParents(profile) ? _parents : [])
+                .Concat(request.File is ExportNameFile.ShojiCodebook && profile is ColumnAliasProfile.Native ? _bounds : [])
                 .Concat(catalog.OtherTextKeys.Keys.Select(parent => (
                     PanelExportColumns.CompanionName(keys[parent], _settings.KeySeparator),
                     new ExportNameMeaning(Question(_columns[parent]), ExportNameKind.Companion))));

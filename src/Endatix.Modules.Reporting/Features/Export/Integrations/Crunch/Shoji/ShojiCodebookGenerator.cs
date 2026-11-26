@@ -520,25 +520,7 @@ internal static partial class ShojiCodebookGenerator
         string keySeparator,
         List<string> orderAliases)
     {
-        List<(string CanonicalKey, string Bound)> bounds = flatteningMap.Columns
-            .Where(entry =>
-                string.Equals(entry.SourceQuestion, questionName, StringComparison.Ordinal) &&
-                entry.ChoiceValue is "min" or "max" &&
-                entry.LoopPath is null)
-            .OrderBy(entry => entry.ChoiceValue == "min" ? 0 : 1)
-            .Select(entry => (entry.Key, entry.ChoiceValue!))
-            .ToList();
-
-        if (bounds.Count == 0)
-        {
-            bounds =
-            [
-                (ExportPathBuilder.Join(questionName, "min"), "min"),
-                (ExportPathBuilder.Join(questionName, "max"), "max"),
-            ];
-        }
-
-        foreach (var (canonicalKey, bound) in bounds)
+        foreach (var (canonicalKey, bound) in RangeBounds(flatteningMap, questionName))
         {
             var exportKey = ExportKeyTransformer.Transform(canonicalKey, keySeparator);
             if (!TryTrackVariable(writtenVariables, orderAliases, exportKey))
@@ -563,6 +545,35 @@ internal static partial class ShojiCodebookGenerator
         // Neutral flattening keeps a single qName column; mark it written so scalar emit skips it.
         writtenVariables.Add(questionName);
         writtenVariables.Add(ExportKeyTransformer.Transform(questionName, keySeparator));
+    }
+
+    /// <summary>
+    /// The min and max variables the codebook writes for its range sliders, under the separator it is written with,
+    /// with the slider each comes from. A tabular export on native names keeps such a slider in one column.
+    /// </summary>
+    internal static IEnumerable<(string Alias, string Question)> RangeBoundAliases(
+        MergedFormSchema map, IReadOnlyDictionary<string, JsonElement> questions, string separator) =>
+        OrderedQuestions(questions)
+            .Where(question => TryGetExportShape(question.Value, out var shape) && IsScalarWritableExportShape(shape) &&
+                IsRangeSliderQuestion(map, questions, question.Key))
+            .SelectMany(question => RangeBounds(map, question.Key)
+                .Select(bound => (ExportKeyTransformer.Transform(bound.CanonicalKey, separator), question.Key)));
+
+    // A map that already split the slider names its bounds; a neutral one keeps one column, projected to qName__min/max.
+    private static List<(string CanonicalKey, string Bound)> RangeBounds(MergedFormSchema flatteningMap, string questionName)
+    {
+        List<(string CanonicalKey, string Bound)> bounds = flatteningMap.Columns
+            .Where(entry =>
+                string.Equals(entry.SourceQuestion, questionName, StringComparison.Ordinal) &&
+                entry.ChoiceValue is "min" or "max" &&
+                entry.LoopPath is null)
+            .OrderBy(entry => entry.ChoiceValue == "min" ? 0 : 1)
+            .Select(entry => (entry.Key, entry.ChoiceValue!))
+            .ToList();
+
+        return bounds.Count > 0
+            ? bounds
+            : [(ExportPathBuilder.Join(questionName, "min"), "min"), (ExportPathBuilder.Join(questionName, "max"), "max")];
     }
 
     private static void WriteGapLeafVariables(
