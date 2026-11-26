@@ -76,6 +76,34 @@ public sealed class PanelOtherAliasTests
     }
 
     [Fact]
+    public async Task Export_CommentOnlyUpdate_NeverPairsTheOlderAnswerWithTheNewerComment()
+    {
+        // Arrange
+        const string definition = """
+            {"pages":[{"elements":[{"type":"paneldynamic","name":"pd","maxPanelCount":1,"templateElements":[
+            {"type":"dropdown","name":"q","choices":["a"],"showOtherItem":true}]}]}]}
+            """;
+        const string older = """{"pd":[{"q":"other","q-Comment":"old"}]}""";
+        const string newer = """{"pd":[{"q":"other","q-Comment":"new"}]}""";
+        var pipeline = PersonalizationPipeline.Compile(definition);
+        FixtureResponse[] responses = [new("current", newer, null, SubmittedDefinition: definition),
+            new("stale", older, null, SubmittedDefinition: definition)];
+        pipeline.FlattenAll(definition, responses);
+        // The repository stamps the source answers only when the flattened revision is the submission's own;
+        // after a comment-only update the stale row's revision has moved, so it carries none.
+        var rows = pipeline.ExportRows(responses).Select((row, i) => i == 0 ? row : row with { SourceAnswersJson = null }).ToList();
+        var settings = """{"keySeparator":"--","specialChoiceCodes":{"other":87}}""";
+
+        // Act
+        var csv = await CrunchExport.CsvAsync(new(pipeline.Entity(), rows, settings), TestContext.Current.CancellationToken);
+
+        // Assert
+        var (headers, cells) = CrunchImportCheck.Read(csv);
+        cells.Select(row => row[headers.IndexOf("pd--0--q")]).Should().Equal("87", "87");
+        cells.Select(row => row[headers.IndexOf("pd--0--q--other_text")]).Should().Equal("new", "");
+    }
+
+    [Fact]
     public async Task Export_CopyWithoutLocalComment_UsesSourceInThatIteration()
     {
         var settings = """{"keySeparator":"--","specialChoiceCodes":{"none":99}}""";
