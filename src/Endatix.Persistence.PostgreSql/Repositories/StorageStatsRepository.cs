@@ -31,6 +31,15 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         return $"\"{effectiveSchema}\".\"{tableName}\"";
     }
 
+    // Before ANALYZE, reltuples can be -1 (unknown) or 0 for a table that now has rows.
+    // Use the stored row widths observed by this scoped count rather than inventing a physical allocation.
+    private const string ESTIMATED_BYTES = @"
+        COALESCE(trunc(sc.submission_count::numeric * st.total_bytes / NULLIF(GREATEST(st.total_rows, 0), 0)), sc.observed_bytes, 0)
+        + COALESCE(trunc(vc.version_count::numeric * vt.total_bytes / NULLIF(GREATEST(vt.total_rows, 0), 0)), vc.observed_bytes, 0)";
+
+    private static string ObservedBytes(string table, string row) =>
+        $"SUM(CASE WHEN (SELECT reltuples FROM pg_class WHERE oid = '{table}'::regclass) <= 0 THEN pg_column_size({row}) END) AS observed_bytes";
+
     public async Task<TenantStorageStats> GetTenantStats(long? tenantId = null, CancellationToken cancellationToken = default)
     {
         var submissionsTable = GetFullTableName<Submission>();
@@ -41,12 +50,12 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         // Table names inlined (from EF model, not user input); only tenant/sentinel are parameterized (PostgreSQL cannot use params for FROM/regclass).
         var sql = $@"
             WITH submission_counts AS (
-                SELECT COUNT(*) AS submission_count
-                FROM {submissionsTable}
+                SELECT COUNT(*) AS submission_count, {ObservedBytes(submissionsTable, "s")}
+                FROM {submissionsTable} s
                 WHERE ({{0}} = {AllTenantsSentinel} OR ""TenantId"" = {{0}})
             ),
             version_counts AS (
-                SELECT COUNT(*) AS version_count
+                SELECT COUNT(*) AS version_count, {ObservedBytes(versionsTable, "sv")}
                 FROM {versionsTable} sv
                 JOIN {submissionsTable} s ON s.""Id"" = sv.""SubmissionId""
                 WHERE ({{1}} = {AllTenantsSentinel} OR s.""TenantId"" = {{1}})
@@ -69,10 +78,7 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
                 {{2}} AS ""TenantId"",
                 sc.submission_count AS ""SubmissionCount"",
                 vc.version_count AS ""VersionCount"",
-                (
-                    sc.submission_count * st.total_bytes / NULLIF(st.total_rows, 0)
-                    + vc.version_count * vt.total_bytes / NULLIF(vt.total_rows, 0)
-                )::bigint AS ""EstimatedStorageBytes""
+                ({ESTIMATED_BYTES})::bigint AS ""EstimatedStorageBytes""
             FROM submission_counts sc
             CROSS JOIN version_counts vc
             CROSS JOIN submission_table st
@@ -94,13 +100,13 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         // Table names inlined (from EF model); only tenant/sentinel parameterized (PostgreSQL cannot use params for FROM/regclass).
         var sql = $@"
             WITH submission_counts AS (
-                SELECT ""FormId"", ""TenantId"", COUNT(*) AS submission_count
-                FROM {submissionsTable}
+                SELECT ""FormId"", ""TenantId"", COUNT(*) AS submission_count, {ObservedBytes(submissionsTable, "s")}
+                FROM {submissionsTable} s
                 WHERE ({{0}} = {AllTenantsSentinel} OR ""TenantId"" = {{0}})
                 GROUP BY ""FormId"", ""TenantId""
             ),
             version_counts AS (
-                SELECT s.""FormId"", COUNT(*) AS version_count
+                SELECT s.""FormId"", COUNT(*) AS version_count, {ObservedBytes(versionsTable, "sv")}
                 FROM {versionsTable} sv
                 JOIN {submissionsTable} s ON s.""Id"" = sv.""SubmissionId""
                 WHERE ({{1}} = {AllTenantsSentinel} OR s.""TenantId"" = {{1}})
@@ -126,10 +132,7 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
                 f.""Name"" AS ""FormName"",
                 sc.submission_count AS ""SubmissionCount"",
                 COALESCE(vc.version_count, 0) AS ""VersionCount"",
-                (
-                    sc.submission_count * st.total_bytes / NULLIF(st.total_rows, 0)
-                    + COALESCE(vc.version_count, 0) * vt.total_bytes / NULLIF(vt.total_rows, 0)
-                )::bigint AS ""EstimatedStorageBytes""
+                ({ESTIMATED_BYTES})::bigint AS ""EstimatedStorageBytes""
             FROM submission_counts sc
             LEFT JOIN version_counts vc ON sc.""FormId"" = vc.""FormId""
             LEFT JOIN {formsTable} f ON f.""Id"" = sc.""FormId""

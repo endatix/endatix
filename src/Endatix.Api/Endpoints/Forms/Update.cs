@@ -41,14 +41,12 @@ public class Update(IMediator mediator) : Endpoint<UpdateFormRequest, Results<Ok
                 IsPublic = false,
             };
             s.Responses[200] = "Form updated successfully.";
-            s.Responses[400] = "Invalid input data.";
-            s.Responses[404] = "Form not found.";
             s.DescribeStandingProblems();
+            s.DescribeFolderAssignment("Form or folder not found.");
         });
         Description(builder => builder.ProducesStandingProblems()
             .Produces<UpdateFormResponse>(StatusCodes.Status200OK, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status404NotFound));
+            .ProducesFolderAssignmentProblems());
     }
 
     /// <inheritdoc/>

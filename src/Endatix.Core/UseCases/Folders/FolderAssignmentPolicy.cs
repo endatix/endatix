@@ -19,6 +19,7 @@ public sealed class FolderAssignmentPolicy(
     private const string IMMUTABLE_FOLDER_MOVE_ERROR = "Items in locked folders cannot be moved or cleared.";
     private const string NO_OP_FOLDER_MOVE_ERROR = "Folder assignment is unchanged.";
     private long TenantId => tenantContext.TenantId;
+    internal bool UseClientErrors { private get; init; }
 
     /// <summary>
     /// Ensures the folder assignment is valid for the current tenant.
@@ -57,27 +58,34 @@ public sealed class FolderAssignmentPolicy(
             return Result.Conflict(IMMUTABLE_FOLDER_MOVE_ERROR);
         }
 
-        var require = await tenantSettingsRepository.AnyAsync(new RequiresFolder(TenantId), cancellationToken);
-        if (require && (!requestedFolderId.HasValue || requestedFolderId.Value <= 0))
-        {
-            return Result.Error("You must assign a folder.");
-        }
-
         if (!requestedFolderId.HasValue || requestedFolderId.Value <= 0)
         {
-            return Result.Success();
+            var required = await tenantSettingsRepository.AnyAsync(new RequiresFolder(TenantId), cancellationToken);
+            return required ? MissingAssignment() : Result.Success();
         }
 
         var active = await folderRepository.FirstOrDefaultAsync(new FolderActive(requestedFolderId.Value, TenantId), cancellationToken);
+        return DestinationStatus(active);
+    }
 
+    private Result MissingAssignment()
+    {
+        const string message = "You must assign a folder.";
+        return UseClientErrors ? Result.Invalid(new ValidationError("folderId", message, "FOLDER_REQUIRED", ValidationSeverity.Error)) : Result.Error(message);
+    }
+
+    private Result DestinationStatus(bool? active)
+    {
         if (active is null)
         {
-            return Result.Error("Folder was not found.");
+            const string message = "Folder was not found.";
+            return UseClientErrors ? Result.NotFound(message) : Result.Error(message);
         }
 
         if (!active.Value)
         {
-            return Result.Error("Folder is not active.");
+            const string message = "Folder is not active.";
+            return UseClientErrors ? Result.Conflict(message) : Result.Error(message);
         }
 
         return Result.Success();

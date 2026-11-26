@@ -81,7 +81,8 @@ public static class MessagingConfiguration
 
     private static void AddUseCaseServices(IServiceCollection services)
     {
-        services.AddScoped<FolderAssignmentPolicy>();
+        services.AddScoped(sp => new FolderAssignmentPolicy(sp.GetRequiredService<IRepository<TenantSettings>>(),
+            sp.GetRequiredService<IRepository<Folder>>(), sp.GetRequiredService<ITenantContext>()) { UseClientErrors = true });
         services.AddScoped(sp => new FolderWritePolicy(sp.GetRequiredService<IRepository<Folder>>(),
             sp.GetRequiredService<IValueNormalizer>(), sp.GetRequiredService<ITenantContext>()));
         services.AddScoped<DataListVisibility>();

@@ -104,14 +104,16 @@ public sealed partial class RequiredActionsFlowTests
             Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
             using var patch = await client.PatchAsJsonAsync(target.Detail, duplicate, ct);
             using var put = await client.PutAsJsonAsync(target.Detail, duplicate, ct);
-            Assert.Equal(HttpStatusCode.InternalServerError, patch.StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, patch.StatusCode);
             Assert.Equal(patch.StatusCode, put.StatusCode);
+            var saved = await owner.GetFromJsonAsync<JsonElement>(target.Detail, ct);
+            Assert.Equal("Original", saved.GetProperty("name").GetString());
             return;
         }
         var absentFolder = new { name = "Moved", jsonData = "{}", folderId = "9223372036854775807" };
         using var insert = await client.PostAsJsonAsync(target.Path, absentFolder, ct);
         using var move = await client.PatchAsJsonAsync(target.Detail, absentFolder, ct);
-        Assert.Equal(HttpStatusCode.InternalServerError, insert.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, insert.StatusCode);
         Assert.Equal(insert.StatusCode, move.StatusCode);
     }
 

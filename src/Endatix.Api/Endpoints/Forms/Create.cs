@@ -41,11 +41,11 @@ public class Create(IMediator mediator) : Endpoint<CreateFormRequest, Results<Cr
                 IsPublic = false,
             };
             s.Responses[201] = "Form created successfully.";
-            s.Responses[400] = "Invalid input data.";
+            s.DescribeFolderAssignment("Folder not found.");
         });
         Description(builder => builder
             .Produces<CreateFormResponse>(StatusCodes.Status201Created, "application/json")
-            .ProducesProblem(StatusCodes.Status400BadRequest));
+            .ProducesFolderAssignmentProblems());
     }
 
     /// <inheritdoc/>

@@ -20,7 +20,7 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
         Summary(s =>
         {
             s.Summary = "Get storage statistics dashboard";
-            s.Description = "Returns a comprehensive view of database storage usage for the current tenant.";
+            s.Description = "Returns storage usage for the current tenant and its forms. The tableStats array is empty.";
             s.DescribeStandingProblems();
         });
         Description(builder => builder.ProducesStandingProblems()
@@ -37,7 +37,7 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
             return Result.Forbidden("Tenant context is required.").ToProblem();
         }
 
-        var result = await mediator.Send(new GetStorageDashboardQuery(tenantId), ct);
+        var result = await mediator.Send(GetStorageDashboardQuery.ForTenant(tenantId), ct);
         return TypedResultsBuilder.FromResult(result)
             .SetTypedResults<Ok<StorageDashboardModel>, ProblemHttpResult>();
     }

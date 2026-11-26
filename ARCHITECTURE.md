@@ -319,6 +319,14 @@ Account operations are gated by default. Managed-content operations keep their o
 
 `UseEndatix()` and its options overload install the gate when security is enabled, before `ConfigureAdditionalMiddleware` can run custom product code. Configure transport through the hosting and API options. In manual `UseEndatix(builder => …)` composition, `UseSecurity()` arranges the gate at the end of the callback. If the callback itself calls `UseEndpoints` or dispatches a nested branch, install `UseRequiredActionsGate()` in that pipeline after its authorization and transport middleware and before its dispatch. The same rule applies to a separately routed module.
 
+## Tenant-facing API contracts
+
+`GET /api/admin/storage` requires a positive current tenant and returns only that tenant’s usage and form counts. The response retains `tableStats` as an empty array. The HTTP read skips the physical-table query; the published `GetStorageDashboardQuery(long?)` direct query still includes it. Byte counts are estimates, not billing measurements. On PostgreSQL, if a relation has no usable row-count statistic, the estimate for that relation uses the stored widths of matching rows rather than extrapolating from an unknown denominator.
+
+After ordinary authorization, assigning a form or template to a missing folder or another tenant’s folder gives the same `404`. An inactive folder of the caller’s tenant gives `409`. A missing required assignment gives `400` with field `folderId`; an optional assignment may be omitted. Omitting an unchanged folder on a partial update is not a move. Creating or editing a theme with a duplicate name gives `400`. These refusals do not persist the proposed changes.
+
+Registered custom-question creation serializes the same tenant’s duplicate check and insert. An acquisition timeout returns a retryable `503` without inserting; it does not replay a dispatched handler. This protects new writes on upgraded instances. Existing question rows and references are retained; deduplication or a unique constraint requires a separate reconciliation plan.
+
 ## Testing
 
 We do **not** rely on integration or test-database coverage for feature read models. Testability comes from **layered unit tests** and **extracted collaborators**, not from registering mock-friendly interfaces on every query.

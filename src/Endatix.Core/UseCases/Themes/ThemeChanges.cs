@@ -66,7 +66,7 @@ internal sealed class ThemeChanges(IRepository<Theme> themes, ContentQueryScope 
         return first is not null && first != id ? Duplicate(name, id) : null;
     }
 
-    private static Result<Theme> Duplicate(string name, long? id) => id.HasValue
+    private Result<Theme> Duplicate(string name, long? id) => id.HasValue && scope.TenantId is null
         ? Result<Theme>.Error($"Another theme with the name '{name}' already exists")
         : Result.Invalid(new ValidationError($"A theme with the name '{name}' already exists"));
 

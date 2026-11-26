@@ -40,7 +40,7 @@ public class PartialUpdate(IMediator mediator) : Endpoint<PartialUpdateRequest, 
                 FormsCount = 3,
             };
             s.Responses[200] = "Theme updated successfully.";
-            s.Responses[400] = "Invalid input data.";
+            s.Responses[400] = "Invalid input or a theme with this name already exists.";
             s.Responses[404] = "Theme not found.";
             s.DescribeStandingProblems();
         });

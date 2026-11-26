@@ -177,7 +177,8 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         await AssertCompileResponseAsync(exporter, ownForm, HttpStatusCode.Forbidden);
         var admittedCalls = counter.Calls;
         provider.Pending = true;
-        await InvalidateAsync(world, ct);
+        using var scope = world.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<IAuthorizationDataChanges>().TenantChangedAsync(world.Tenants[0].Id, ct);
         await AssertChallengesAsync(host, ownForm, ct);
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = editor.DefaultRequestHeaders.Authorization;
@@ -189,10 +190,10 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
 
         var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
         await AssertStandingRefusalAsync(hidden, me, ct);
-        Assert.Equal(HttpStatusCode.Forbidden, pending.StatusCode);
         await AssertStandingRefusalAsync(pending, me, ct);
-        await AssertStandingRefusalAsync(editDenied, me, ct);
-        await AssertStandingRefusalAsync(exportBlocked, me, ct);
+        var exporterMe = await exporter.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+        await AssertStandingRefusalAsync(editDenied, exporterMe, ct);
+        await AssertStandingRefusalAsync(exportBlocked, exporterMe, ct);
         Assert.Equal(admittedCalls, counter.Calls);
     }
 

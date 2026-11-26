@@ -1,7 +1,7 @@
 # Registered module, standing gate, access metadata, method, route.
 # Static asset descriptors are not operations. External clients use the same HTTP registrations.
 # Middleware branches do not register RouteEndpoints: health/detail/UI/readiness follow the health
-# middleware configuration (HealthCheckTests); the development embed host follows EmbedHostEndpointTests.
+# middleware configuration (HealthCheckTests); EmbedHostRegistrationTests checks the real development embed branch.
 # Module hosts that register additional operations must inventory their own EndpointDataSource.
 
 audience gated account DELETE /api/forms/{formId}/audience/people/{membershipId}

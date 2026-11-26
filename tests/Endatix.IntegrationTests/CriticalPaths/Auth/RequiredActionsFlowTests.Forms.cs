@@ -137,9 +137,8 @@ public sealed partial class RequiredActionsFlowTests
         using var patch = await client.PatchAsJsonAsync(route, folder, ct);
         using var theme = await client.PatchAsJsonAsync(route, new { themeId = long.MaxValue }, ct);
 
-        // The folder policy's existing error maps to 500; missing themes map to 404.
-        Assert.Equal(HttpStatusCode.InternalServerError, replace.StatusCode);
-        Assert.Equal(HttpStatusCode.InternalServerError, patch.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, replace.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, patch.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, theme.StatusCode);
         await snapshots.Received(3).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
     }

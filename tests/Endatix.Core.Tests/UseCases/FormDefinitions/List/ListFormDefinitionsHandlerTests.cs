@@ -1,7 +1,10 @@
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.Tests.TestUtils;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.FormDefinitions.List;
 
 namespace Endatix.Core.Tests.UseCases.FormDefinitions.List;
@@ -15,6 +18,30 @@ public class ListFormDefinitionsHandlerTests
     {
         _repository = Substitute.For<IRepository<FormDefinition>>();
         _handler = new ListFormDefinitionsHandler(_repository);
+    }
+
+    [Fact]
+    public async Task Handle_RegisteredList_CountAndPageApplyTenantEvenToAnUnfilteredRepository()
+    {
+        // Arrange
+        const long form = 9;
+        var own = FormDefinitionFactory.InTenant(1, form, 10);
+        var other = FormDefinitionFactory.InTenant(2, form, 11);
+        FormDefinition[] rows = [own, other];
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(1L);
+        var handler = new ListFormDefinitionsHandler.Registered(_repository, new ContentQueryScope(tenant));
+        _repository.CountAsync(Arg.Any<FormDefinitionsListFilterSpec>(), Arg.Any<CancellationToken>())
+            .Returns(call => rows.Count(call.Arg<FormDefinitionsListFilterSpec>().IsSatisfiedBy));
+        _repository.ListAsync(Arg.Any<FormDefinitionsListSpec>(), Arg.Any<CancellationToken>())
+            .Returns(call => rows.Where(call.Arg<FormDefinitionsListSpec>().IsSatisfiedBy).ToList());
+
+        // Act
+        var result = await handler.Handle(new ListFormDefinitionsQuery(form), TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(1, result.Value.TotalRecords);
+        Assert.Equal(own.Id, Assert.Single(result.Value.Items).Id);
     }
 
     [Fact]

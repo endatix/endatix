@@ -42,12 +42,12 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         // Table names inlined (from EF model); only tenant/sentinel parameterized (SQL Server cannot use params for FROM/OBJECT_ID).
         var sql = $@"
             WITH submission_counts AS (
-                SELECT COUNT(*) AS submission_count
+                SELECT COUNT_BIG(*) AS submission_count
                 FROM {submissionsTable}
                 WHERE ({{0}} = {AllTenantsSentinel} OR TenantId = {{0}})
             ),
             version_counts AS (
-                SELECT COUNT(*) AS version_count
+                SELECT COUNT_BIG(*) AS version_count
                 FROM {versionsTable} sv
                 JOIN {submissionsTable} s ON s.Id = sv.SubmissionId
                 WHERE ({{1}} = {AllTenantsSentinel} OR s.TenantId = {{1}})
@@ -71,8 +71,8 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
                 sc.submission_count AS SubmissionCount,
                 vc.version_count AS VersionCount,
                 CAST((
-                    sc.submission_count * CAST(st.total_bytes AS FLOAT) / NULLIF(st.total_rows, 0)
-                    + vc.version_count * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0)
+                    CASE WHEN sc.submission_count = 0 THEN 0 ELSE sc.submission_count * CAST(st.total_bytes AS FLOAT) / NULLIF(st.total_rows, 0) END
+                    + CASE WHEN vc.version_count = 0 THEN 0 ELSE vc.version_count * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0) END
                 ) AS BIGINT) AS EstimatedStorageBytes
             FROM submission_counts sc
             CROSS JOIN version_counts vc
@@ -81,8 +81,8 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
 
         var result = await _dbContext.Database
             .SqlQueryRaw<TenantStorageStats>(sql, tenantParam, tenantParam, effectiveTenantId)
-            .FirstOrDefaultAsync(cancellationToken);
-        return result ?? new TenantStorageStats(effectiveTenantId, 0, 0, 0);
+            .ToListAsync(cancellationToken);
+        return result.SingleOrDefault() ?? new TenantStorageStats(effectiveTenantId, 0, 0, 0);
     }
 
     public async Task<IReadOnlyList<FormStorageStats>> GetFormStats(long? tenantId = null, CancellationToken cancellationToken = default)
@@ -97,13 +97,13 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
         // Table names inlined (from EF model); only tenant/sentinel parameterized.
         var sql = $@"
             WITH submission_counts AS (
-                SELECT FormId, TenantId, COUNT(*) AS submission_count
+                SELECT FormId, TenantId, COUNT_BIG(*) AS submission_count
                 FROM {submissionsTable}
                 WHERE ({{0}} = {AllTenantsSentinel} OR TenantId = {{0}})
                 GROUP BY FormId, TenantId
             ),
             version_counts AS (
-                SELECT s.FormId, COUNT(*) AS version_count
+                SELECT s.FormId, COUNT_BIG(*) AS version_count
                 FROM {versionsTable} sv
                 JOIN {submissionsTable} s ON s.Id = sv.SubmissionId
                 WHERE ({{1}} = {AllTenantsSentinel} OR s.TenantId = {{1}})
@@ -131,17 +131,17 @@ public sealed class StorageStatsRepository : IStorageStatsRepository
                 COALESCE(vc.version_count, 0) AS VersionCount,
                 CAST((
                     sc.submission_count * CAST(st.total_bytes AS FLOAT) / NULLIF(st.total_rows, 0)
-                    + COALESCE(vc.version_count, 0) * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0)
+                    + CASE WHEN COALESCE(vc.version_count, 0) = 0 THEN 0 ELSE vc.version_count * CAST(vt.total_bytes AS FLOAT) / NULLIF(vt.total_rows, 0) END
                 ) AS BIGINT) AS EstimatedStorageBytes
             FROM submission_counts sc
             LEFT JOIN version_counts vc ON sc.FormId = vc.FormId
             LEFT JOIN {formsTable} f ON f.Id = sc.FormId
             CROSS JOIN submission_table st
-            CROSS JOIN version_table vt";
+            CROSS JOIN version_table vt
+            ORDER BY EstimatedStorageBytes DESC";
 
         return await _dbContext.Database
             .SqlQueryRaw<FormStorageStats>(sql, tenantParam, tenantParam)
-            .OrderByDescending(f => f.EstimatedStorageBytes)
             .ToListAsync(cancellationToken);
     }
 

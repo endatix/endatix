@@ -248,11 +248,8 @@ public sealed partial class RequiredActionsFlowTests
         var form = Assert.Single(dashboard.GetProperty("formStats").EnumerateArray());
         Assert.Equal(own.Form, form.GetProperty("formId").ToString());
         Assert.Equal("1", dashboard.GetProperty("tenantStats").GetProperty("submissionCount").ToString());
-        using var scope = world.Services.CreateScope();
-        var physical = await scope.ServiceProvider.GetRequiredService<IStorageStatsRepository>().GetTableStats(ct);
-        var table = physical.First(t => t.TotalSizeBytes > 0);
-        var returned = dashboard.GetProperty("tableStats").EnumerateArray().Single(t => t.GetProperty("tableName").GetString() == table.TableName);
-        Assert.Equal(table.TotalSizeBytes.ToString(System.Globalization.CultureInfo.InvariantCulture), returned.GetProperty("totalSizeBytes").ToString());
+        Assert.True(long.Parse(form.GetProperty("estimatedStorageBytes").ToString(), System.Globalization.CultureInfo.InvariantCulture) >= 0);
+        Assert.Empty(dashboard.GetProperty("tableStats").EnumerateArray());
     }
 
     [Theory]

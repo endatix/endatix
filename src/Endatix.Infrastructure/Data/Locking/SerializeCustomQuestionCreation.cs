@@ -5,6 +5,7 @@ using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.CustomQuestions.Create;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Endatix.Infrastructure.Data.Locking;
 
@@ -20,19 +21,19 @@ internal sealed class SerializeCustomQuestionCreation(AppDbContext db, ITransact
     private async Task<Result<CustomQuestion>> ExecuteAsync(TransactionLockRequest key,
         RequestHandlerDelegate<Result<CustomQuestion>> next, CancellationToken cancellationToken)
     {
-        try
+        if (db.Database.CurrentTransaction is not null)
         {
-            if (db.Database.CurrentTransaction is not null)
+            try
             {
                 await locks.AcquireAsync(db.Database, key, cancellationToken);
-                return await next();
             }
-            return await CreateUnderLockAsync(key, next, cancellationToken);
+            catch (TransactionLockTimeoutException)
+            {
+                return Busy();
+            }
+            return await next();
         }
-        catch (TransactionLockTimeoutException)
-        {
-            return Result.Unavailable("Another custom question is being created. Try again.");
-        }
+        return await CreateUnderLockAsync(key, next, cancellationToken);
     }
 
     // Matching uses the database collation. Equivalent names must take the same lock on both providers.
@@ -49,14 +50,39 @@ internal sealed class SerializeCustomQuestionCreation(AppDbContext db, ITransact
             {
                 return Result<CustomQuestion>.Unavailable("Could not confirm creation. Check the question list and try again.");
             }
-            await using var transaction = await locks.BeginLockedTransactionAsync(db.Database, key, token);
-            dispatched = true;
-            var result = await create();
-            if (result.IsSuccess)
+            await using var transaction = await TryBeginAsync(key, token);
+            if (transaction is null)
             {
-                await transaction.CommitAsync(token);
+                return Busy();
             }
-            return result;
+            dispatched = true;
+            return await CreateAndCommitAsync(create, transaction, token);
         }, ct);
     }
+
+    private static async Task<Result<CustomQuestion>> CreateAndCommitAsync(RequestHandlerDelegate<Result<CustomQuestion>> create,
+        IDbContextTransaction transaction, CancellationToken ct)
+    {
+        var result = await create();
+        if (result.IsSuccess)
+        {
+            await transaction.CommitAsync(ct);
+        }
+        return result;
+    }
+
+    private async Task<IDbContextTransaction?> TryBeginAsync(TransactionLockRequest key, CancellationToken ct)
+    {
+        try
+        {
+            return await locks.BeginLockedTransactionAsync(db.Database, key, ct);
+        }
+        catch (TransactionLockTimeoutException)
+        {
+            return null;
+        }
+    }
+
+    private static Result<CustomQuestion> Busy() =>
+        Result.Unavailable("Another custom question is being created. Try again.");
 }
