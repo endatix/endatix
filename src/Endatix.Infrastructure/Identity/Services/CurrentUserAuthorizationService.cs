@@ -60,10 +60,9 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             if (currentPrincipal.IsHydrated())
             {
                 var snapshot = GetAuthorizationDataFromClaims(currentPrincipal);
-                // Refresh from the original token identity, before any local user/tenant mapping.
                 return snapshot.ExpiresAt == default || snapshot.ExpiresAt > _clock.Now.UtcDateTime
                     ? Result.Success(snapshot)
-                    : await ReadForPrincipalAsync(new ClaimsPrincipal(currentPrincipal.Identities.Where(i => i is not AuthorizedIdentity)), cancellationToken);
+                    : await RefreshHydratedAsync(currentPrincipal, snapshot, cancellationToken);
             }
             return await ReadForPrincipalAsync(currentPrincipal, cancellationToken);
         }
@@ -72,6 +71,15 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             _logger.LogWarning(ex, "Invalid authorized identity encountered for user {UserId}", userId);
             return Result.Error("Invalid authorized identity encountered");
         }
+    }
+
+    private async Task<Result<AuthorizationData>> RefreshHydratedAsync(ClaimsPrincipal principal, AuthorizationData hydrated, CancellationToken ct)
+    {
+        // Reapply any local mapping to the original token; never switch the operation's subject mid-request.
+        var original = new ClaimsPrincipal(principal.Identities.Where(i => i is not AuthorizedIdentity));
+        var fresh = await ReadForPrincipalAsync(original, ct);
+        return fresh.IsSuccess && (fresh.Value.UserId != hydrated.UserId || fresh.Value.TenantId != hydrated.TenantId)
+            ? Result.Unauthorized("The current account has changed.") : fresh;
     }
 
     private async Task<Result<AuthorizationData>> ReadForPrincipalAsync(ClaimsPrincipal currentPrincipal, CancellationToken cancellationToken)

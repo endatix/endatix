@@ -6,6 +6,31 @@ namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 public sealed partial class AuthorizationCacheHybridTests
 {
     [Fact]
+    public async Task GetOrCreateAsync_SharedSnapshotAtReportDeadline_RechecksOnColdHost()
+    {
+        // Arrange
+        var deadline = _start.AddSeconds(6);
+        var source = Substitute.For<IRequiredActionProvider>();
+        source.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
+            .Returns(new RequiredActionReport([], deadline.ToOffset(TimeSpan.FromHours(3))));
+        var first = await SnapshotAsync(CreateInstance(true, source));
+        var current = new RequiredAction { Key = "renew", ResolvePath = "/profile", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Blocking };
+        source.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([current]);
+        _clock.Now.Returns(deadline.AddTicks(-1));
+        var peer = await SnapshotAsync(CreateInstance(true, source));
+
+        // Act
+        _clock.Now.Returns(deadline);
+        var refreshed = await SnapshotAsync(CreateInstance(true, source));
+
+        // Assert
+        peer.RequiredActions.Should().BeEmpty();
+        peer.ETag.Should().Be(first.ETag);
+        refreshed.RequiredActions.Should().ContainSingle().Which.Key.Should().Be("renew");
+        refreshed.ETag.Should().NotBe(first.ETag);
+    }
+
+    [Fact]
     public async Task GetOrCreateAsync_ReportExpiresDuringCleanup_ReturnsUnavailableWithoutRetrying()
     {
         // Arrange

@@ -24,6 +24,8 @@ public sealed class AccountStanding
     /// <summary>Whether an operation needs its standing preflight.</summary>
     public bool IsEnforced => _authorization is not null;
 
+    private DateTime Now => _clock?.Now.UtcDateTime ?? DateTime.UtcNow;
+
     private Result<T>? Refusal<T>(AuthorizationData snapshot)
     {
         if (snapshot.RequiredActionsUnavailable || string.IsNullOrWhiteSpace(snapshot.UserId) || snapshot.UserId == AuthorizationData.ANONYMOUS_USER_ID)
@@ -43,12 +45,21 @@ public sealed class AccountStanding
     /// <summary>Reads the hydrated account snapshot when the operation does not already hold it.</summary>
     public async Task<Result<T>?> RefusalAsync<T>(CancellationToken cancellationToken)
     {
-        if (_authorization is null || _admittedUntil > (_clock?.Now.UtcDateTime ?? DateTime.UtcNow))
+        if (_authorization is null || _admittedUntil > Now)
         {
             return null;
         }
 
         var snapshot = await _authorization.GetAuthorizationDataAsync(cancellationToken);
+        if (IsExpired(snapshot))
+        {
+            // A deadline may pass between hydration and admission. Refresh once at the point of use.
+            snapshot = await _authorization.GetAuthorizationDataAsync(cancellationToken);
+            if (IsExpired(snapshot))
+            {
+                return Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
+            }
+        }
         return snapshot.IsSuccess ? Refusal<T>(snapshot.Value) : Result<T>.Unavailable(UNAVAILABLE_MESSAGE);
     }
 
@@ -63,6 +74,9 @@ public sealed class AccountStanding
             _ => new EmptyOperationError(refusal)
         };
     }
+
+    private bool IsExpired(Result<AuthorizationData> snapshot) =>
+        snapshot.IsSuccess && snapshot.Value.ExpiresAt != default && snapshot.Value.ExpiresAt <= Now;
 
     private sealed class EmptyOperationError : Result
     {

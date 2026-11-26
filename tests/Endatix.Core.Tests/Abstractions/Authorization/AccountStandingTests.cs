@@ -8,6 +8,28 @@ namespace Endatix.Core.Tests.Abstractions.Authorization;
 public sealed class AccountStandingTests
 {
     [Fact]
+    public async Task RefusalAsync_LookupCompletesAtSnapshotExpiry_DoesNotAdmit()
+    {
+        // Arrange
+        var clock = Substitute.For<IDateTimeProvider>();
+        var deadline = DateTimeOffset.UnixEpoch.AddSeconds(1);
+        clock.Now.Returns(deadline.AddTicks(-1));
+        var service = Substitute.For<ICurrentUserAuthorizationService>();
+        var ct = TestContext.Current.CancellationToken;
+        service.GetAuthorizationDataAsync(ct).Returns(_ =>
+        {
+            clock.Now.Returns(deadline);
+            return Result.Success(new AuthorizationData { UserId = "owner", ExpiresAt = deadline.UtcDateTime });
+        });
+
+        // Act
+        var refusal = await new AccountStanding(service, clock).RefusalAsync(ct);
+
+        // Assert
+        Assert.Equal(ResultStatus.Unavailable, refusal?.Status);
+    }
+
+    [Fact]
     public async Task RefusalAsync_AdmissionExpiresWithinRequest_ChecksCurrentStanding()
     {
         // Arrange
