@@ -1,5 +1,6 @@
 using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.Export;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Tests.Features.FormSchema.Personalization;
 using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
@@ -11,6 +12,8 @@ public sealed class ExportNameCollisionsTests
         {"type":"paneldynamic","name":"pd","maxPanelCount":1,"templateElements":[
         {"type":"dropdown","name":"q","choices":["a"],"showOtherItem":true}]}
         """;
+
+    private static readonly ExportFormatSettings _uncoded = new(KeySeparator: "--");
 
     private static readonly ExportFormatSettings _coded = new(KeySeparator: "--") { SpecialChoiceCodes = new() { Other = 87 } };
 
@@ -125,6 +128,46 @@ public sealed class ExportNameCollisionsTests
         new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
             [new ExportNameMeaning("s--min", ExportNameKind.Ordinary), new ExportNameMeaning("s", ExportNameKind.Bound)]);
         collision.Rename.Should().Be("s--min");
+    }
+
+    [Theory]
+    [InlineData("""{"type":"ranking","name":"rk","choices":["a","b"]},{"type":"text","name":"rk--a"}""", "rk--a", "rk", "Subvariable")]
+    [InlineData("""{"type":"matrix","name":"m","rows":["r"],"columns":[1,2]},{"type":"text","name":"m--r"}""", "m--r", "m", "Subvariable")]
+    [InlineData("""{"type":"paneldynamic","name":"lp","maxPanelCount":1,"templateElements":[{"type":"checkbox","name":"c","choices":["x"]}]},{"type":"text","name":"lp--0--c"}""",
+        "lp--0--c", "c", "Subvariable")]
+    [InlineData("""{"type":"paneldynamic","name":"lr","maxPanelCount":1,"templateElements":[{"type":"ranking","name":"r","choices":["a","b"]}]},{"type":"text","name":"lr--0--r"}""",
+        "lr--0--r", "r", "Subvariable")]
+    public void Find_QuestionNamedLikeAGeneratedName_ReturnsIt(string elements, string name, string owner, string kind)
+    {
+        // Arrange
+        var schema = Schema(elements);
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _uncoded, ExportNameFile.ShojiCodebook));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        (collision.Name, collision.Rename).Should().Be((name, name));
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning(name, ExportNameKind.Ordinary), new ExportNameMeaning(owner, Enum.Parse<ExportNameKind>(kind))]);
+    }
+
+    [Fact]
+    public void Find_TagboxWhoseTextColumnSharesItsGroupName_ReturnsNone()
+    {
+        // Arrange: a data-list version flattens to one text column; a later version with choices adds its group.
+        var pipeline = PersonalizationPipeline.Compile("""
+            {"pages":[{"elements":[{"type":"tagbox","name":"cars","choicesByUrl":{"url":"https://example.test/cars"}}]}]}
+            """);
+        pipeline.Recompile("""{"pages":[{"elements":[{"type":"tagbox","name":"cars","choices":["x"]}]}]}""", FormSchemaCompileMode.Merge);
+        var schema = pipeline.Entity();
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _uncoded, ExportNameFile.ShojiCodebook));
+
+        // Assert
+        schema.FlatteningMap.Should().Contain("\"cars\"").And.Contain("cars__x");
+        collisions.Should().BeEmpty();
     }
 
     private static FormSchemaEntity Schema(string element)

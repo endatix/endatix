@@ -129,8 +129,8 @@ internal static class ExportNameCollisions
         {
             if (_columns.TryGetValue(canonicalKey, out var column))
             {
-                return new(Question(column), column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.MatrixRow or FormSchemaColumnKind.RankingChoice
-                    ? ExportNameKind.Subvariable : ExportNameKind.Ordinary);
+                // Only a question's own column carries its name; a choice, row, item or panel-iteration column is built from it.
+                return new(Question(column), column.Key == Question(column) ? ExportNameKind.Ordinary : ExportNameKind.Subvariable);
             }
 
             // A range slider's min and max columns are generated from its own key.
