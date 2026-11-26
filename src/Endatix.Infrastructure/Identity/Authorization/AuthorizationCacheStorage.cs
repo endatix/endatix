@@ -1,4 +1,6 @@
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Hybrid;
 
@@ -17,7 +19,8 @@ internal sealed class AuthorizationCacheStorage(HybridCache entries, IDistribute
         LocalCacheExpiration = _lifetime
     };
     private const string ALL_USERS = "endatix:authorization:generation:all";
-    private static string User(string userId) => $"endatix:authorization:generation:user:{userId}";
+    private static string User(string userId) =>
+        $"endatix:authorization:generation:user:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(userId)))}";
 
     internal async ValueTask<string> GenerationAsync(string userId, CancellationToken ct) =>
         $"{await ReadGenerationAsync(ALL_USERS, ct):N}{await ReadGenerationAsync(User(userId), ct):N}";
