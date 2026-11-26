@@ -1,0 +1,4 @@
+# The image takes only the built site and its server config.
+*
+!build/
+!deploy/
