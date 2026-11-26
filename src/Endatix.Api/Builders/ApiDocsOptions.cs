@@ -1,12 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace Endatix.Api.Builders;
 
 /// <summary>
 /// The API docs: the OpenAPI document and the docs page that shows it. Set from <c>Endatix:Api:Docs</c> in
 /// appsettings.json, or in code through <see cref="ApiOptions.Docs"/>.
 /// </summary>
-[Experimental("ENDATIX0006")]
 public sealed class ApiDocsOptions
 {
     internal const string PATH_SETTING = "Endatix:Api:Docs:Path";
@@ -18,13 +15,13 @@ public sealed class ApiDocsOptions
     internal const string SWAGGER_PATH_SETTING = "Endatix:Api:SwaggerPath";
 
     /// <summary>The <c>Docs:Ui</c> values the settings accept, in any case.</summary>
-    internal const string ACCEPTED_UI_VALUES = "Scalar, SwaggerUi, Swagger, None";
+    internal const string ACCEPTED_UI_VALUES = "Scalar, Swagger, None";
 
     private static readonly Dictionary<string, ApiDocsUi> _uiValues = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Scalar"] = ApiDocsUi.Scalar,
-        ["SwaggerUi"] = ApiDocsUi.SwaggerUi,
-        ["Swagger"] = ApiDocsUi.SwaggerUi,
+        ["SwaggerUi"] = ApiDocsUi.Swagger,
+        ["Swagger"] = ApiDocsUi.Swagger,
         ["None"] = ApiDocsUi.None,
     };
 
@@ -107,14 +104,13 @@ public sealed class ApiDocsOptions
 }
 
 /// <summary>The UI the API docs page shows over the OpenAPI document.</summary>
-[Experimental("ENDATIX0006")]
 public enum ApiDocsUi
 {
     /// <summary>Scalar, the default.</summary>
     Scalar,
 
     /// <summary>Swagger UI, as NSwag serves it.</summary>
-    SwaggerUi,
+    Swagger,
 
     /// <summary>No page: only the OpenAPI document is served.</summary>
     None,

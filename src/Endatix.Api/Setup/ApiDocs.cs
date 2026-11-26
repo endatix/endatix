@@ -119,7 +119,7 @@ internal static class ApiDocs
             case ApiDocsUi.Scalar:
                 WarnNoEndpointRouting(app, page.Path);
                 return;
-            case ApiDocsUi.SwaggerUi:
+            case ApiDocsUi.Swagger:
                 ApiDocsSwaggerUi.Add(app, options, page.Path);
                 break;
             default:
@@ -135,7 +135,7 @@ internal static class ApiDocs
     /// settings leave it on, which is <c>/</c> when they move it to the root.
     /// </summary>
     private static string ServedPath(ApiDocsUi ui, ApiOptions options, string? requestedPath) =>
-        ui == ApiDocsUi.SwaggerUi
+        ui == ApiDocsUi.Swagger
             ? ApiDocsSwaggerUi.ServedPath(options, PagePath(requestedPath))
             : PagePath(requestedPath);
 
@@ -145,7 +145,7 @@ internal static class ApiDocs
     /// </summary>
     private static ApiDocsUi ResolveUi(ApiOptions options) => options.Docs.Ui switch
     {
-        null => options.ConfigureSwaggerUi is null ? ApiDocsUi.Scalar : ApiDocsUi.SwaggerUi,
+        null => options.ConfigureSwaggerUi is null ? ApiDocsUi.Scalar : ApiDocsUi.Swagger,
         { } ui when Enum.IsDefined(ui) => ui,
         _ => ApiDocsUi.Scalar,
     };
@@ -159,7 +159,7 @@ internal static class ApiDocs
             return;
         }
 
-        if (options.Docs.Ui is { } ui && ui != ApiDocsUi.SwaggerUi && options.ConfigureSwaggerUi is not null)
+        if (options.Docs.Ui is { } ui && ui != ApiDocsUi.Swagger && options.ConfigureSwaggerUi is not null)
         {
             Logger(app)?.LogWarning(
                 "ConfigureSwaggerUi is set, but {Setting} is {Ui}, so the Swagger UI settings are unused.",

@@ -39,13 +39,13 @@ public sealed partial class ApiDocsTests
     private static readonly Dictionary<string, CompatibilityRow> _compatibilityRows = new()
     {
         ["no keys"] = new() { Settings = [], Served = _scalarAtApiDocs },
-        ["Docs Ui SwaggerUi"] = new() { Settings = Keys(("Docs:Ui", "SwaggerUi")), Served = _swaggerUiAtApiDocs },
+        ["Docs Ui Swagger"] = new() { Settings = Keys(("Docs:Ui", "Swagger")), Served = _swaggerUiAtApiDocs },
         ["Docs Ui swagger alias"] = new() { Settings = Keys(("Docs:Ui", "swagger")), Served = _swaggerUiAtApiDocs },
         ["Docs Ui Bogus"] = new()
         {
             Settings = Keys(("Docs:Ui", "Bogus")),
             Served = _scalarAtApiDocs,
-            Warning = "Endatix:Api:Docs:Ui 'Bogus' is not a docs UI. Use one of Scalar, SwaggerUi, Swagger, None.",
+            Warning = "Endatix:Api:Docs:Ui 'Bogus' is not a docs UI. Use one of Scalar, Swagger, None.",
         },
         ["Docs Ui None"] = new() { Settings = Keys(("Docs:Ui", "None")), Served = _nothingAtApiDocs },
         ["UseSwagger false"] = new() { Settings = Keys(("UseSwagger", "false")), Served = _nothingAtApiDocs, Document = false },
@@ -91,7 +91,7 @@ public sealed partial class ApiDocsTests
 
     [Theory]
     [InlineData("no keys")]
-    [InlineData("Docs Ui SwaggerUi")]
+    [InlineData("Docs Ui Swagger")]
     [InlineData("Docs Ui swagger alias")]
     [InlineData("Docs Ui Bogus")]
     [InlineData("Docs Ui None")]
@@ -169,7 +169,7 @@ public sealed partial class ApiDocsTests
 
     [Theory]
     [InlineData("Scalar", "/docs/")]
-    [InlineData("SwaggerUi", "/docs/index.html")]
+    [InlineData("Swagger", "/docs/index.html")]
     public async Task Docs_path_without_a_leading_slash_serves_at_that_path(string ui, string page)
     {
         // Arrange
@@ -210,7 +210,7 @@ public sealed partial class ApiDocsTests
 
         // Assert
         log.Information.Should().ContainSingle(line => line.StartsWith("Serving the API docs", StringComparison.Ordinal))
-            .Which.Should().Be("Serving the API docs at /api-docs with SwaggerUi");
+            .Which.Should().Be("Serving the API docs at /api-docs with Swagger");
     }
 
     private static async Task AssertStatusAsync(HttpClient client, string path, Status expected)

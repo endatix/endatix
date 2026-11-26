@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using Endatix.Api.Builders;
 using Endatix.Api.Infrastructure;
@@ -139,7 +138,6 @@ public static class ApiApplicationBuilderExtensions
     /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
     /// <param name="options">The API options.</param>
     /// <returns>The application builder for chaining.</returns>
-    [Experimental("ENDATIX0006")]
     public static IApplicationBuilder UseEndatixApiDocs(this IApplicationBuilder app, ApiOptions options)
     {
         ApiDocs.Add(app, options);
@@ -155,7 +153,6 @@ public static class ApiApplicationBuilderExtensions
     /// <param name="app">The application builder. It must also be an endpoint route builder, as a WebApplication is.</param>
     /// <param name="configure">A delegate that sets this call's docs settings.</param>
     /// <returns>The application builder for chaining.</returns>
-    [Experimental("ENDATIX0006")]
     public static IApplicationBuilder UseEndatixApiDocs(this IApplicationBuilder app, Action<ApiOptions> configure)
     {
         ApiDocs.AddExplicit(app, configure);

@@ -70,9 +70,9 @@ public sealed class ApiOptionsSettingsTests
     [Theory]
     [InlineData("Scalar", ApiDocsUi.Scalar)]
     [InlineData("scalar", ApiDocsUi.Scalar)]
-    [InlineData("SwaggerUi", ApiDocsUi.SwaggerUi)]
-    [InlineData("SwaggerUI", ApiDocsUi.SwaggerUi)]
-    [InlineData("swagger", ApiDocsUi.SwaggerUi)]
+    [InlineData("SwaggerUi", ApiDocsUi.Swagger)]
+    [InlineData("SwaggerUI", ApiDocsUi.Swagger)]
+    [InlineData("swagger", ApiDocsUi.Swagger)]
     [InlineData(" None ", ApiDocsUi.None)]
     public void Docs_ui_setting_accepts_each_name_in_any_case(string value, ApiDocsUi expected)
     {
@@ -260,7 +260,7 @@ public sealed class ApiOptionsSettingsTests
         {
             ["Endatix:Api:Docs:Path"] = "/new",
             ["Endatix:Api:SwaggerPath"] = "/old",
-            ["Endatix:Api:Docs:Ui"] = "SwaggerUi",
+            ["Endatix:Api:Docs:Ui"] = "Swagger",
         })).Docs;
 
         // Act
@@ -271,7 +271,7 @@ public sealed class ApiOptionsSettingsTests
         withoutPath.Conflicts.Should().ContainSingle(conflict => conflict.Setting == ApiDocsOptions.PATH_SETTING);
         withPath.Conflicts.Should().BeEmpty();
         withPath.Path.Should().Be("/given");
-        withPath.Ui.Should().Be(ApiDocsUi.SwaggerUi);
+        withPath.Ui.Should().Be(ApiDocsUi.Swagger);
     }
 
     [Fact]

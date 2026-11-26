@@ -117,7 +117,7 @@ public sealed class EndatixMiddlewareBuilderSwaggerTests
     public async Task UseSwagger_WithoutAPathAndConfiguredSwaggerUi_ServesSwaggerUiAtSwaggerAndApiDocs(bool beforeApi)
     {
         // Arrange
-        await using var app = BuildApiApp(options => options.Docs.Ui = ApiDocsUi.SwaggerUi);
+        await using var app = BuildApiApp(options => options.Docs.Ui = ApiDocsUi.Swagger);
         var middleware = new EndatixMiddlewareBuilder(app);
 
         // Act

@@ -136,8 +136,8 @@ still serves its docs page.
 The path of the API docs page. Start it with `/`.
 </Setting>
 <Setting name="Endatix:Api:Docs:Ui" default="Scalar">
-What the API docs page shows: `Scalar`, `SwaggerUi`, or `None`. Case does not matter, and `Swagger` also means
-`SwaggerUi`. An unknown value shows Scalar and logs a warning at startup.
+What the API docs page shows: `Scalar`, `Swagger` (Swagger UI), or `None`. Case does not matter. An unknown value
+shows Scalar and logs a warning at startup.
 </Setting>
 <Setting name="Endatix:Api:UseSwagger" status="deprecated" replacedBy="Endatix:Api:Docs:Enabled">
 The old name of `Docs:Enabled`. It still works when `Docs:Enabled` is not set. When both are set to different values,
@@ -151,10 +151,10 @@ The old name of `Docs:Path`. It still works when `Docs:Path` is not set. When bo
 
 ### Use Swagger UI instead of Scalar
 
-Set `Docs:Ui` to `SwaggerUi`. Swagger UI then serves at `/api-docs/index.html`:
+Set `Docs:Ui` to `Swagger`. Swagger UI then serves at `/api-docs/index.html`:
 
 ```json
-{ "Endatix": { "Api": { "Docs": { "Ui": "SwaggerUi" } } } }
+{ "Endatix": { "Api": { "Docs": { "Ui": "Swagger" } } } }
 ```
 
 If your code sets `ConfigureSwaggerUi` and you leave `Docs:Ui` unset, the page shows Swagger UI with your settings.
@@ -177,15 +177,7 @@ to the docs.
 
 ### Set the docs in code
 
-The config keys above are stable. The C# options behind them (`ApiOptions.Docs`, `ApiDocsUi`, and
-`UseEndatixApiDocs`) are experimental and can change between releases. To use them, opt in to `ENDATIX0006` in your
-project:
-
-```xml
-<PropertyGroup>
-  <NoWarn>$(NoWarn);ENDATIX0006</NoWarn>
-</PropertyGroup>
-```
+In C#, the same settings are `ApiOptions.Docs` (`Enabled`, `Path`, and `Ui`, an `ApiDocsUi`).
 
 `UseSwagger()` with no path serves a docs page at `/swagger`, as it served Swagger UI there before.
 

@@ -45,7 +45,7 @@ public sealed partial class ApiDocsTests
     public async Task Ui_swagger_ui_shows_swagger_ui_at_the_docs_page_instead_of_Scalar()
     {
         // Arrange
-        await using var host = await ApiDocsHost.StartAsync(options => options.Docs.Ui = ApiDocsUi.SwaggerUi);
+        await using var host = await ApiDocsHost.StartAsync(options => options.Docs.Ui = ApiDocsUi.Swagger);
         using var client = host.CreateClient();
 
         // Act
@@ -101,7 +101,7 @@ public sealed partial class ApiDocsTests
         // Assert
         (await GetStatusAsync(client, "/sub/ui/index.html")).Should().Be(HttpStatusCode.OK);
         (await GetStatusAsync(client, "/sub/api-docs/index.html")).Should().Be(HttpStatusCode.NotFound);
-        log.Information.Should().Contain("Serving the API docs at /ui with SwaggerUi");
+        log.Information.Should().Contain("Serving the API docs at /ui with Swagger");
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed partial class ApiDocsTests
         await using var host = await ApiDocsHost.StartAsync(options =>
         {
             options.UseSwagger = false;
-            options.Docs.Ui = ApiDocsUi.SwaggerUi;
+            options.Docs.Ui = ApiDocsUi.Swagger;
         });
         using var client = host.CreateClient();
 
@@ -200,7 +200,7 @@ public sealed partial class ApiDocsTests
         // Arrange
         await using var host = await ApiDocsHost.StartAsync(afterApi: (app, _) => app.UseEndatixApiDocs(new ApiOptions
         {
-            Docs = { Path = "/swagger-ui", Ui = ApiDocsUi.SwaggerUi },
+            Docs = { Path = "/swagger-ui", Ui = ApiDocsUi.Swagger },
             ConfigureOpenApiDocument = settings => settings.Path = "/other/{documentName}.json",
         }));
         using var client = host.CreateClient();
@@ -298,7 +298,7 @@ public sealed partial class ApiDocsTests
         // Assert
         (await client.GetStringAsync(new Uri("/sub/index.html", UriKind.Relative), TestContext.Current.CancellationToken))
             .Should().Contain("swagger-ui");
-        log.Information.Should().Contain("Serving the API docs at / with SwaggerUi");
+        log.Information.Should().Contain("Serving the API docs at / with Swagger");
         log.Warnings.Should().BeEmpty();
     }
 

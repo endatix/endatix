@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using FastEndpoints;
 using NSwag.AspNetCore;
 
@@ -28,7 +27,6 @@ public class ApiOptions
     /// Gets or sets the API docs settings: the document, the docs page, and the UI it shows. This can be configured via
     /// appsettings.json under <c>Endatix:Api:Docs</c>.
     /// </summary>
-    [Experimental("ENDATIX0006")]
     public ApiDocsOptions Docs { get; set; } = new();
 
     /// <summary>

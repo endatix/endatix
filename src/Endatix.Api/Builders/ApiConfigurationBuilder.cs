@@ -276,9 +276,11 @@ public class ApiConfigurationBuilder
 
         // AddSwagger registers an OpenAPI document. The API docs are added once per application, so a host that also
         // adds them another way does not get them twice.
-        if (Services.Any(sd => sd.ServiceType == typeof(NSwag.AspNetCore.OpenApiDocumentRegistration)))
+        var hasOpenApiDocument = Services.Any(sd => sd.ServiceType == typeof(NSwag.AspNetCore.OpenApiDocumentRegistration));
+        if (hasOpenApiDocument)
         {
-            app.UseEndatixApiDocs(ApiApplicationBuilderExtensions.GetApiOptions(app));
+            var apiOptions = ApiApplicationBuilderExtensions.GetApiOptions(app);
+            app.UseEndatixApiDocs(apiOptions);
         }
 
         LogSetupInfo("API application configured successfully");

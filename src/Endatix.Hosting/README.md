@@ -98,7 +98,7 @@ Add Serilog configuration to your appsettings.json file:
 
 ### 3. Customizing the API docs
 
-The API docs page shows [Scalar](https://scalar.com) at `/api-docs`. Set `Docs.Ui` to `ApiDocsUi.SwaggerUi` to show Swagger UI there instead, or to `ApiDocsUi.None` to serve only the OpenAPI document. `UseSwagger` and `SwaggerPath` still work as deprecated names of `Docs.Enabled` and `Docs.Path`. The C# `Docs` options and `UseEndatixApiDocs` are experimental: opt in with `<NoWarn>$(NoWarn);ENDATIX0006</NoWarn>`. The `Endatix:Api:Docs` config keys are stable. `UseSwagger()` with no path serves a page at `/swagger`. Endatix provides several ways to customize the API docs:
+The API docs page shows [Scalar](https://scalar.com) at `/api-docs`. Set `Docs.Ui` to `ApiDocsUi.Swagger` to show Swagger UI there instead, or to `ApiDocsUi.None` to serve only the OpenAPI document. `UseSwagger` and `SwaggerPath` still work as deprecated names of `Docs.Enabled` and `Docs.Path`. `UseSwagger()` with no path serves a page at `/swagger`. Endatix provides several ways to customize the API docs:
 
 ```csharp
 // Using app.UseEndatix with options
@@ -110,8 +110,8 @@ app.UseEndatix((EndatixMiddlewareOptions options) =>
     // Path of the API docs page (default is "/api-docs")
     options.ApiOptions.Docs.Path = "/api-docs";
 
-    // What the page shows: Scalar (the default), SwaggerUi, or None
-    options.ApiOptions.Docs.Ui = ApiDocsUi.SwaggerUi;
+    // What the page shows: Scalar (the default), Swagger, or None
+    options.ApiOptions.Docs.Ui = ApiDocsUi.Swagger;
     
     // Advanced OpenAPI document configuration
     options.ApiOptions.ConfigureOpenApiDocument = settings =>
