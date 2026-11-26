@@ -27,16 +27,19 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
         private static DateTime Earlier(DateTime left, DateTime right) => left < right ? left : right;
 
-        // Called only after mandatory freshness has been established. Late optional results become
-        // bounded fallback or omission; neither should make the entire current decision unavailable.
+        // Retaining a report never extends its freshness. Only omission gets a separate
+        // lifetime: the original failure backoff, or a report deadline crossed during evaluation.
         internal DateTime ProjectionExpiry(DateTime now)
         {
-            if (Until > now)
+            if (UsableUntil > now)
             {
                 return Until;
             }
-            var retry = RetryAt > now ? RetryAt : now + _retryDelay;
-            return UsableUntil > now ? Earlier(UsableUntil, retry) : retry;
+            if (RetryAt != default)
+            {
+                return RetryAt;
+            }
+            return Actions is RequiredActionReport report && report.ValidUntil.UtcDateTime <= now ? now + _retryDelay : Until;
         }
     }
     internal sealed record Policy(TimeSpan CacheFor, TimeSpan Timeout, bool FailClosed)
