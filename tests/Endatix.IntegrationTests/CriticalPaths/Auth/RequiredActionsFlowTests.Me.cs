@@ -1,14 +1,33 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    [Fact]
+    public async Task Me_reports_no_enforcement_on_a_host_without_a_standing_registration()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = new ReportingWebHost(fixture, services => services.RemoveAll<AccountStanding>());
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var client = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+
+        // Act
+        var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
+
+        // Assert
+        Assert.False(me.GetProperty("requiredActionsEnforced").GetBoolean());
+        Assert.Equal(0, me.GetProperty("requiredActions").GetArrayLength());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -38,9 +57,17 @@ public sealed partial class RequiredActionsFlowTests
         Assert.False(off.GetProperty("requiredActionsEnforced").GetBoolean());
         Assert.True(on.GetProperty("requiredActionsEnforced").GetBoolean());
         Assert.Equal(pending ? 1 : 0, off.GetProperty("requiredActions").GetArrayLength());
-        Assert.True(JsonElement.DeepEquals(off.GetProperty("requiredActions"), on.GetProperty("requiredActions")));
+        Assert.True(JsonNode.DeepEquals(SharedSnapshot(off), SharedSnapshot(on)));
         Assert.NotEqual(off.GetProperty("eTag").GetString(), on.GetProperty("eTag").GetString());
         Assert.True(JsonElement.DeepEquals(off, again));
-        TestContext.Current.TestOutputHelper!.WriteLine($"Dormant: {off.GetRawText()}\nEnforced: {on.GetRawText()}");
+        TestContext.Current.TestOutputHelper?.WriteLine($"Dormant: {off.GetRawText()}\nEnforced: {on.GetRawText()}");
+    }
+
+    private static JsonObject SharedSnapshot(JsonElement response)
+    {
+        var snapshot = response.Deserialize<JsonObject>()!;
+        snapshot.Remove("requiredActionsEnforced");
+        snapshot.Remove("eTag");
+        return snapshot;
     }
 }

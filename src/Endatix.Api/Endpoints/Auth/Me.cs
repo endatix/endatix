@@ -52,7 +52,7 @@ public class Me(ICurrentUserAuthorizationService authorizationService)
 
     private AuthorizationData ForServingHost(AuthorizationData snapshot)
     {
-        var enforced = Resolve<AccountStanding>().IsEnforced;
+        var enforced = TryResolve<AccountStanding>()?.IsEnforced == true;
         // The cached snapshot can be shared by hosts with different standing gates.
         return snapshot with
         {
