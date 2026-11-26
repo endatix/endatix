@@ -36,7 +36,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema;
 /// </para>
 /// </remarks>
 [method: SuppressMessage("csharpsquid", "S107:Methods should not have too many parameters", Justification = "DI constructor of the schema compile pipeline; grouping the collaborators into a holder adds a type with no behaviour.")]
-internal sealed class FormSchemaProcessor(
+internal sealed partial class FormSchemaProcessor(
     IFormsRepository formsRepository,
     IFormSchemaRepository schemaRepository,
     IFlattenedSubmissionRepository flattenedSubmissionRepository,
@@ -133,7 +133,7 @@ internal sealed class FormSchemaProcessor(
         var target = rebuild.Target;
         var existing = await schemaRepository.LockAndGetByFormIdAsync(target.TenantId, target.FormId, cancellationToken);
         if (await ChooseModeAsync(rebuild, existing, cancellationToken) is not { } mode ||
-            CompileSchema(rebuild, existing, mode) is not { } schema)
+            await CompileSchemaAsync(new(rebuild, existing, mode), cancellationToken) is not { } schema)
         {
             return null;
         }
@@ -165,9 +165,10 @@ internal sealed class FormSchemaProcessor(
         };
 
     // Null when the compile changed nothing, so there is nothing to save and, for a replace, nothing to clear.
-    private FormSchemaEntity? CompileSchema(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
+    private async Task<FormSchemaEntity?> CompileSchemaAsync(CompilePlan plan, CancellationToken ct)
     {
-        var compiled = Compiling(rebuild.Target, () => Compile(rebuild, existing, mode));
+        var (rebuild, existing, mode) = plan;
+        var compiled = await CompileWithHistoryIfNeededAsync(plan, ct);
         var searchKeys = searchCopy.KeysAfter(existing, compiled);
         if (existing is null)
         {
@@ -295,7 +296,15 @@ internal sealed class FormSchemaProcessor(
         var current = await ReadDefinitionJsonAsync(rebuild.Target, cancellationToken);
         if (current is not null && !string.Equals(current, rebuild.Definition.Json, StringComparison.Ordinal))
         {
-            await RebuildAsync(rebuild.Target, rebuild.Trigger, cancellationToken);
+            try
+            {
+                await RebuildAsync(rebuild.Target, rebuild.Trigger, cancellationToken);
+            }
+            catch (ReportingSchemaAliasConflictException conflict)
+            {
+                // This rebuild already committed. Its caller cannot claim the pre-request schema and rows were retained.
+                throw new InvalidOperationException("The definition changed again after reporting compilation.", conflict);
+            }
         }
     }
 

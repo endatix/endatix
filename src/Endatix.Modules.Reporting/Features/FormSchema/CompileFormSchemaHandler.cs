@@ -3,6 +3,7 @@ using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema;
 
@@ -30,14 +31,20 @@ public sealed class CompileFormSchemaHandler(
             return Result.NotFound("Active form definition not found.");
         }
 
-        var formDefinitionId = form.ActiveDefinition.Id;
+        return await CompileAsync(request, form.ActiveDefinition.Id, cancellationToken);
+    }
 
-        await schemaProcessor.ProcessAsync(
-            request.TenantId,
-            request.FormId,
-            formDefinitionId,
-            request.Replace,
-            cancellationToken);
+    private async Task<Result<CompileFormSchemaResult>> CompileAsync(
+        CompileFormSchemaCommand request, long formDefinitionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await schemaProcessor.ProcessAsync(request.TenantId, request.FormId, formDefinitionId, request.Replace, cancellationToken);
+        }
+        catch (ReportingSchemaAliasConflictException conflict)
+        {
+            return Result.Conflict(conflict.Detail);
+        }
 
         return Result.Success(
             new CompileFormSchemaResult(request.FormId, formDefinitionId));

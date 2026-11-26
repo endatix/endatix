@@ -276,9 +276,7 @@ internal sealed class ChoiceSet
     // A tag box's choices show no comment box, so survey-core ignores the setting there.
     private static bool ShowsChoiceComments(JsonElement question) =>
         !SurveyJsElementType.Tagbox.Matches(question.GetSurveyJsType()) &&
-        SurveyJsChoiceHelper.EnumerateChoiceElements(question).Any(choice =>
-            choice.Element.ValueKind == JsonValueKind.Object &&
-            choice.Element.GetBooleanProperty(SurveyJsPropertyNames.ShowCommentArea));
+        SurveyJsChoiceHelper.EnumerateChoiceElements(question).Any(choice => ChoiceCommentColumns.HasCommentBox(choice.Element));
 
     private static bool Shows(JsonElement question, SpecialChoiceSpec spec) =>
         question.GetBooleanProperty(spec.ShowProperty) ||

@@ -1,0 +1,10 @@
+{
+  "household":[
+    {"pick":{"value":"yes","comment":"First person"}},
+    {"pick":{"value":"yes","comment":"Second person"}}
+  ],
+  "cars":[
+    {"make":"bmw","seats":[{"position":"front","pick":{"value":"yes","comment":"BMW front"}}]},
+    {"make":"ford","seats":[{"position":"front","pick":{"value":"yes","comment":"Ford front"}}]}
+  ]
+}

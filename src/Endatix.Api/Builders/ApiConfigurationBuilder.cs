@@ -158,7 +158,7 @@ public class ApiConfigurationBuilder
             {
                 settings.Version = GetFormattedVersion();
                 settings.Title = "Endatix Platform REST API";
-                settings.DocumentName = "alpha-version";
+                settings.DocumentName = ApiDocs.DOCUMENT_NAME;
                 settings.Description = "The Endatix Platform is an open-source .NET library for data collection and management. This product is actively developed, and some API design characteristics may evolve. For more information, visit <a href=\"https://docs.endatix.com\">Endatix Documentation</a>.";
                 settings.SchemaSettings.SchemaType = SchemaType.OpenApi3;
             };
@@ -274,10 +274,13 @@ public class ApiConfigurationBuilder
         // Use FastEndpoints middleware
         app.UseFastEndpoints();
 
-        // Check if Swagger is registered by looking for Swagger services
-        if (Services.Any(sd => sd.ServiceType.Name.Contains("Swagger")))
+        // AddSwagger registers an OpenAPI document. The API docs are added once per application, so a host that also
+        // adds them another way does not get them twice.
+        var hasOpenApiDocument = Services.Any(sd => sd.ServiceType == typeof(NSwag.AspNetCore.OpenApiDocumentRegistration));
+        if (hasOpenApiDocument)
         {
-            app.UseSwaggerGen();
+            var apiOptions = ApiApplicationBuilderExtensions.GetApiOptions(app);
+            app.UseEndatixApiDocs(apiOptions);
         }
 
         LogSetupInfo("API application configured successfully");

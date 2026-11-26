@@ -6,6 +6,7 @@ using Endatix.IntegrationTests.Infrastructure;
 using Endatix.IntegrationTests.Shared;
 using Endatix.Modules.Audience;
 using Endatix.Modules.Audience.Persistence;
+using Endatix.Modules.Reporting.Persistence;
 using Endatix.Outbox.Engine;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -185,6 +186,10 @@ internal static class EndatixWebApplicationFactoryConfiguration
         services.AddSingleton<IStartupFilter, LoopbackClientIpStartupFilter>();
         // Inert until a test arms it; lets a test pause one request at a chosen statement.
         services.AddSingleton<AppCommandGate>();
+        services.ConfigureDbContext<ReportingPostgreSqlDbContext>((provider, options) =>
+            options.AddInterceptors(provider.GetRequiredService<AppCommandGate>()));
+        services.ConfigureDbContext<ReportingSqlServerDbContext>((provider, options) =>
+            options.AddInterceptors(provider.GetRequiredService<AppCommandGate>()));
         services.ConfigureDbContext<AppDbContext>((provider, options) =>
             options.AddInterceptors(provider.GetRequiredService<AppCommandGate>()));
         services.ConfigureDbContext<AudiencePostgreSqlDbContext>((provider, options) =>

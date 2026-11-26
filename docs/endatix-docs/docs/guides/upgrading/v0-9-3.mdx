@@ -1,77 +1,99 @@
 ---
 title: Upgrade to Endatix 0.9.3
 sidebar_label: v0.9.3
-description: Upgrade Reporting exports from 0.9.2 to 0.9.3. Choose a compile mode for each affected form and refresh stored submissions without losing historical choices.
+description: Upgrade Endatix from 0.9.2 to 0.9.3 - migrate a custom MailKit transport, and refresh the stored Reporting rows of forms whose checkbox, tag box, copied-choice or matrix exports changed.
 ---
 
 # Upgrade to Endatix 0.9.3
 
-This guide applies to Reporting preview exports that include copied choices, Other text, or checkbox and tag box indicators. Only affected forms need a refresh.
+Release notes: [Endatix API v0.9.3](https://github.com/endatix/endatix/releases/tag/v0.9.3) and [Endatix Hub v0.9.3](https://github.com/endatix/endatix-hub/releases/tag/v0.9.3).
 
-## Before you start
+Most hosts upgrade with no steps. Act only if you send email through SendGrid or Mailgun, replace the SMTP transport in code, or run the Reporting preview (`ReportingModule` flag) and export the questions listed below. An upgrade that skips 0.9.2 also needs the [0.9.2 guide](/docs/guides/upgrading/v0-9-2).
 
-- **Read the release notes of every version you skip.** An upgrade that skips 0.9.2 also needs the [0.9.2 guide](/docs/guides/upgrading/v0-9-2).
+## At a glance
 
-## Unanswered checkboxes export empty cells {/* #unanswered-checkboxes-export-empty-cells */}
-
-**What changed (breaking for the Reporting preview):** the indicator columns of an unanswered checkbox or tag box with its own choices no longer write `0` where the respondent may not have seen it. Its columns, Other and None included, are empty:
-
-- in an incomplete submission, which may have ended before the question;
-- in a completed submission, when a visibility condition (`visibleIf`) or `visible: false` on the question, or on a panel, dynamic panel or page that holds it, could hide it, or when the form uses its name for two questions.
-
-A question nothing could hide, skipped in a completed submission, still writes `0`. An answered question writes `1` and `0` as before. Copied choices, loops and rankings follow the same rule since 0.9.2. The Crunch codebook is unchanged; Crunch imports an empty cell as No Data. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
-
-**Who is affected:** forms with checkboxes or tag boxes that can be hidden, or that incomplete submissions leave unanswered, and any analysis that counts those `0`s.
-
-**What to do:**
-
-- Exports read the rows stored when each submission was saved, so existing rows keep their `0`s until they are rewritten. A backfill with `force=true` (`POST forms/{formId}/submissions/backfill`) rewrites them. Without a compile first, an unanswered question in an incomplete submission turns empty, and a completed submission keeps its `0`s.
-- To also empty the completed submissions whose question could be hidden, compile the form's schema first (`POST forms/{formId}/reporting/compile-schema`; merge mode is enough, and it records which questions can be hidden), then backfill with `force=true`. For merge plus a forced backfill, use the API as described in [Refresh stored rows](#refresh-stored-rows).
-
-## Copies of copied choices export 0 for shown choices {/* #copies-of-copied-choices */}
-
-**What changed:** a checkbox or tag box that copies its choices from a question that copies its own (for example `pick` copies the selected choices of `aware`, which copies `brands`) now writes `0` for a choice the respondent was shown and did not pick. In 0.9.2 every unpicked choice of such a copy was empty. With the selected mode the copy shows what the source question picked; with all or unselected it shows what the source question was shown, when that can be worked out. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
-
-**What to do:** restoring the visibility rule from a 0.9.2 schema needs a replace compile. Check the form’s history before choosing replace; see [Refresh stored rows](#refresh-stored-rows).
-
-## Other text with a choice comment box {/* #other-text-with-choice-comment-box */}
-
-**What changed:** a checkbox with Other whose regular choice shows a comment box (**Add a comment box** in the Creator) now exports its Other column as `1` and the typed text in its Other text column. SurveyJS stores the typed text of such a checkbox in its value, and 0.9.2 read it from the question's comment, so it exported `0` and an empty text. Radio button groups and dropdowns with a choice comment box still keep the typed text in the comment, and export as before. A tag box whose choice still has the comment box setting in its JSON (written by hand, or kept from a question converted from a checkbox; the Creator does not offer it on tag box choices) now follows `storeOthersAsComment`, so with it `false` its typed text is exported too. Other tag boxes are unchanged.
-
-**What to do:** compile in merge mode, then backfill; see [Refresh stored rows](#refresh-stored-rows).
-
-## Checkboxes from other form versions export empty cells {/* #checkboxes-from-other-form-versions */}
-
-**What changed:** a checkbox or tag box with its own choices that a submission's form version did not have, because it was added in a later version or removed in an earlier one, now exports empty cells for that submission, Other and None included. In 0.9.2 a completed submission wrote `0` in every one of its columns, as if the respondent had seen it and left it. Submissions saved on a version that has the question are unchanged. See [Empty Cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
-
-**What to do:** no compile, only a backfill; see [Refresh stored rows](#refresh-stored-rows).
-
-## Copies of selected choices export the source's Other {/* #copies-export-the-sources-other */}
-
-**What changed:** a SurveyJS **Choices from question** copy in selected mode, with no **Other** of its own, can offer the source's **Other** when the respondent picks it and enters text. In 0.9.2 a radio button group or dropdown that picked it exported an empty cell, and a checkbox or tag box copy had no **Other** column. Hub **Carry Forward** does not copy the source's **Other**.
-
-The export appends **Other** after the copy's existing categories, using the source question's Other label. A radio button group or dropdown also gains `<question>__other_text` (`<question>--other_text` in csv-shoji) immediately after its answer column. If the copy picked **Other**, the export uses its own non-empty text first. If the copy has no text, it reads the source using the choices and storage settings on the submitted form version. Only if that version is absent or unreadable does it fall back to the latest stored source (`otherFrom`) and catalog. They are not a history of earlier sources.
-
-For a checkbox or tag box copy, `1` means the respondent picked **Other**. An answered copy writes `0` for an unpicked **Other** only when its visibility rule holds and either its form version offered the copy's own **Other** or the source picked **Other** with text. Otherwise the cell is empty. See [Empty cells](/docs/end-users/submissions/exporting-submissions#empty-cells).
-
-**What to do:** merge is enough for a radio button group or dropdown. For checkbox and tag box visibility, use the per-form decision below.
-
-## Refresh stored rows {/* #refresh-stored-rows */}
-
-Check each affected form's current questions and the versions that collected submissions. A compile updates the reporting schema; it does not rewrite stored rows. Choose the compile mode for the form before starting its backfill.
-
-| The form needs | Compile mode | Effect |
+| Change | Affects | Action |
 | --- | --- | --- |
-| Copied **Other** on a radio button group or dropdown | Merge | Adds the category and text column; preserves existing category IDs. |
-| Exact visibility for checkbox or tag box copies whose stored rule is missing or changed, including selected copies of **Other** and copies of copied choices | Replace, unless the mixed-history rule below applies | Uses the current visibility rule even for older submissions. Neither mode restores a visibility rule from a version that was never compiled. Merge leaves unpicked indicators empty where it cannot prove a choice was shown. |
-| Other text for a checkbox with a choice comment box, or a tag box with that setting and `storeOthersAsComment: false` | Merge | Retains removed choices so historical picks are not reclassified as typed Other text. |
-| Empty cells for an unanswered checkbox or tag box that could be hidden | Merge | Records whether the question could be hidden. |
-| Empty cells for a checkbox or tag box absent from the submitted version | No compile for this fix alone | Backfill uses the submitted version. |
+| [MailKit 5](#custom-smtp-transports-need-mailkit-5) | Code that implements `IMailTransport` or overrides `CreateTransport()` | Migrate and rebuild |
+| [Sender display name](#emails-show-a-sender-name) | SendGrid and Mailgun hosts | Set `Sender:Name` |
+| [Unanswered checkboxes](#unanswered-checkboxes-export-empty-cells) | Checkboxes and tag boxes that can be hidden or left unanswered | Merge, then backfill |
+| [Conditional choices](#conditional-choices-export-empty-when-unpicked) | Choices with `choicesVisibleIf` or `visibleIf` | Backfill |
+| [Questions missing from a version](#checkboxes-from-other-form-versions) | Checkboxes added or removed between form versions | Backfill (completed) |
+| [Copies of copied choices](#copies-of-copied-choices) | A copy whose source copies too | Replace or merge, then backfill |
+| [The source's Other in a copy](#copies-export-the-sources-other) | Selected-mode copies with no Other of their own | Merge, then backfill |
+| [Other text with a comment box](#other-text-with-a-choice-comment-box) | Checkboxes with Other and a choice comment box | Merge, then backfill |
+| [Choice comment columns](#choice-comments-export-as-text-columns) | Choices with `showCommentArea: true` | Allow new headers; merge, then backfill |
+| [Numeric matrix codes](#numeric-matrix-columns-keep-their-codes) | Radio matrices with numeric column values | Merge; handle a `409` |
+| [Crunch rankings and dates](#crunch-rankings-and-dates) | Shoji codebooks imported into Crunch | Check existing datasets |
 
-**Mixed history: default to merge plus a forced backfill via the API.** If a form needs a new visibility rule but has removed questions or choices, reordered choices, or changed what a copy offers, keep the historical answers. An empty unpicked indicator is preferable to a `0` the stored rule cannot support. Replace rebuilds from the current form: it can remove columns, renumber category IDs in current choice order, or reclassify a removed choice as typed Other text. Before making a replace exception, compare before-and-after exports for that form on the same historical submissions. Use replace only after explicitly accepting the specific changes for that form.
+Every Reporting action uses one procedure, [Refresh stored rows](#refresh-stored-rows). Until you run it, exports keep the values stored when each submission was saved.
 
-1. If a compile is needed, call `POST forms/{formId}/reporting/compile-schema`. Omit `replace` for merge; use `replace=true` for replace.
-2. Call `POST forms/{formId}/submissions/backfill` with `force=true` for `completionScope=completed` and again for `completionScope=incomplete`. Page each scope separately: pass each response's `nextAfterSubmissionId` as `afterSubmissionId` on the next request until `hasMore` is false. If the only fix is a checkbox absent from the submitted version, only completed rows change.
-3. Check `failedSubmissionIds` on **every** page, including the last. If any IDs are listed, fix the cause and rerun that scope from the start with `force=true`. `hasMore: false` means the scan finished, not that every row succeeded.
+## Custom SMTP transports need MailKit 5
 
-In the Hub, **Rebuild reporting data…** with **Full recompile** means replace plus forced backfill. Without **Full recompile**, the Hub merges but skips unchanged submissions. Use the API for merge plus forced backfill.
+The SMTP sender runs on MailKit 5 and MimeKit.Core 5. The built-in sender needs no change. Code that implements `IMailTransport` or overrides `SmtpEmailSender.CreateTransport()` must move to the MailKit 5 request API and rebuild. A leftover `MimeKit` 4 reference fails the build with `CS0433`. See [Upgrade a custom SMTP transport to MailKit 5](/docs/developers/api/email-providers#upgrade-a-custom-smtp-transport-to-mailkit-5).
+
+## Emails show a sender name
+
+Stored-template emails now send with a display name, and on SendGrid and Mailgun that is new: recipients see `Endatix <your address>` unless you set `Endatix:Integrations:Email:Sender:Name`, or turn on a brand pack. The address is unchanged. See [Deployment sender](/docs/configuration/settings/email-settings#deployment-sender).
+
+## Reporting export changes
+
+Full rules: [Special answers in exports](/docs/developers/api/special-answers-in-exports). Crunch imports an empty cell as No Data.
+
+### Unanswered checkboxes export empty cells
+
+An unanswered checkbox or tag box with its own choices writes empty cells, not `0`, in every column when the respondent may not have seen it: in an incomplete submission, or when a `visibleIf` or `visible: false` on the question or anything holding it could hide it. A question nothing could hide, skipped in a completed submission, still writes `0`. Merge first so the schema records which questions can be hidden; a backfill alone only empties incomplete submissions.
+
+### Conditional choices export empty when unpicked
+
+An unpicked choice under `choicesVisibleIf` or its own `visibleIf` exports empty, even on an answered question. The export reads the condition from the submitted form version, so a backfill is enough.
+
+### Checkboxes from other form versions
+
+A checkbox or tag box that the submission's form version did not have exports empty cells for that submission, instead of `0`. Only completed rows change.
+
+### Copies of copied choices
+
+A copy whose source copies its own choices (`pick` copies `aware`, which copies `brands`) writes `0` for a choice the respondent was shown and did not pick. Merge leaves those cells empty when it cannot prove the choice was shown; replace gives exact `0`s. Choose with the [mixed-history rule](#refresh-stored-rows).
+
+### Copies export the source's Other
+
+A **Choices from question** copy in selected mode with no Other of its own exports the source's Other as an extra category. A radio button group or dropdown copy also gains `<question>__other_text` after its answer column.
+
+### Other text with a choice comment box
+
+A checkbox with Other whose choice has **Add a comment box** exports its Other as `1` with the typed text, instead of `0` and an empty text. Radio button groups and dropdowns are unchanged.
+
+### Choice comments export as text columns
+
+Each choice with `showCommentArea: true` gets a text column, for example `brands__item2__comment` (`brands--item2--comment` in csv-shoji). Imports that expect a fixed set of headers must allow them. Backfill recovers only comments the answers stored.
+
+A compile that would give a published header a second meaning returns `409` and keeps the previous schema: rename the question or choice that `detail` names, then compile again.
+
+### Numeric matrix columns keep their codes
+
+A radio matrix with numeric column values keeps the source code in the native codebook (`"20"`, labeled Low) and writes the category ID in Shoji CSV. Saved codebooks are not rewritten. A merge that cannot match a legacy codebook to a historical definition returns `409` with `The stored category identities of matrix '<question>' need a matching historical definition.` and saves nothing. Renaming does not help: the form keeps exporting as before, and replace is the only way forward, after the [comparison below](#refresh-stored-rows).
+
+### Crunch rankings and dates
+
+The Shoji codebook declares a ranking as one numeric array, not one numeric variable per choice, and gives dates and timestamps a display format. CSV columns are unchanged. A Crunch dataset created from an earlier codebook still has the old ranking variables: test an append on a copy, or import into a new dataset.
+
+## Refresh stored rows
+
+Choose a compile mode for the form, then backfill. A compile changes the schema, not stored rows.
+
+| The form needs | Mode | Effect |
+| --- | --- | --- |
+| New columns, hide rules, Other text | Merge | Keeps category IDs and removed choices |
+| Exact `0`s for copies of copies | Replace | Rebuilds from the current form |
+| Only backfill fixes (conditions, versions) | None | Backfill reads the submitted version |
+
+**Default to merge on a form with history.** Replace can drop columns, renumber category IDs, and reclassify a removed choice as Other text. Use it only after you compare before-and-after exports of the same submissions and accept the differences.
+
+1. Compile, if needed: `POST forms/{formId}/reporting/compile-schema`, with `replace=true` for replace.
+2. Backfill with `force=true` (`POST forms/{formId}/submissions/backfill`), once with `completionScope=completed` and once with `completionScope=incomplete`. Pass each `nextAfterSubmissionId` as `afterSubmissionId` until `hasMore` is `false`.
+3. Check `failedSubmissionIds` on every page. If any are listed, fix the cause and rerun that scope from the start.
+
+A rejected compile returns `409` with `errorCode: "ReportingSchemaAliasConflict"` for both a [comment header clash](#choice-comments-export-as-text-columns) and a [matrix codebook](#numeric-matrix-columns-keep-their-codes); `detail` says which. Do not backfill after it.
+
+In the Hub, **Rebuild reporting data…** with **Full recompile** is replace plus a forced backfill. Without it, the Hub merges but skips unchanged submissions, so use the API for merge plus a forced backfill.

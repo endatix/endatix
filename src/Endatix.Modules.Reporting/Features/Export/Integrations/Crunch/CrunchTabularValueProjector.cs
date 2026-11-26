@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Contracts.Export;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
@@ -19,32 +20,33 @@ internal sealed class CrunchTabularValueProjector
     internal CrunchTabularValueProjector(CrunchQuestions catalog, PanelOtherAnswers? submitted) =>
         (_catalog, _submitted) = (catalog, submitted);
 
-    internal static string Project(string dataJson, MergedFormSchema flatteningMap, string codebookJson)
+    internal static string Project(FlattenedExportRow row, MergedFormSchema flatteningMap, string codebookJson)
     {
         using var book = JsonDocument.Parse(codebookJson);
-        return new CrunchTabularValueProjector(new CrunchQuestions(book.RootElement, null), null).Project(dataJson, flatteningMap);
+        return new CrunchTabularValueProjector(new CrunchQuestions(book.RootElement, null), null).Project(row, flatteningMap);
     }
 
-    internal string Project(string dataJson, MergedFormSchema flatteningMap)
+    internal string Project(FlattenedExportRow row, MergedFormSchema flatteningMap)
     {
-        if (string.IsNullOrWhiteSpace(dataJson))
+        if (string.IsNullOrWhiteSpace(row.DataJson))
         {
-            return dataJson;
+            return row.DataJson;
         }
 
-        using var dataDocument = JsonDocument.Parse(dataJson);
+        using var dataDocument = JsonDocument.Parse(row.DataJson);
+        using var matrix = new MatrixCategoryProjection(row, _catalog.Entries);
         foreach (var column in flatteningMap.Columns)
         {
             if (TryGetAnswer(dataDocument.RootElement, column.Key, out var answer))
             {
-                Add(column, answer);
+                Add(column, answer, matrix);
             }
         }
 
         return WithRemainingKeys(dataDocument.RootElement);
     }
 
-    private void Add(FormSchemaColumn column, JsonElement answer)
+    private void Add(FormSchemaColumn column, JsonElement answer, MatrixCategoryProjection matrix)
     {
         var questionName = column.SourceQuestion ?? column.Key;
         _consumed.Add(column.Key);
@@ -54,10 +56,10 @@ internal sealed class CrunchTabularValueProjector
             return;
         }
 
-        _values[column.Key] = Cell(column, questionName, answer);
+        _values[column.Key] = Cell(column, questionName, answer, matrix);
     }
 
-    private JsonElement? Cell(FormSchemaColumn column, string name, JsonElement answer)
+    private JsonElement? Cell(FormSchemaColumn column, string name, JsonElement answer, MatrixCategoryProjection matrix)
     {
         if (_catalog.OtherTextKeys.TryGetValue(column.Key, out var companion))
         {
@@ -72,7 +74,9 @@ internal sealed class CrunchTabularValueProjector
             return MapToCategoryId(answer.TryGetPropertyValue(SurveyJsPropertyNames.Value) ?? answer, _catalog.Entries[name]);
         }
 
-        return IsCategoricalColumn(column, _catalog.Entries, name) ? MapToCategoryId(answer, _catalog.Entries[name]) : answer.Clone();
+        return IsCategoricalColumn(column, _catalog.Entries, name)
+            ? MapToCategoryId(answer, _catalog.Entries[name])
+            : matrix.Project(column, answer)?.Clone();
     }
 
     private string WithRemainingKeys(JsonElement data)

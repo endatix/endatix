@@ -115,28 +115,32 @@
       "exportShape": "categorical_array",
       "columns": [
         {
-          "value": "Poor",
+          "numericCode": true,
+          "value": "1",
           "id": 1,
           "text": {
             "default": "Poor"
           }
         },
         {
-          "value": "Fair",
+          "numericCode": true,
+          "value": "2",
           "id": 2,
           "text": {
             "default": "Fair"
           }
         },
         {
-          "value": "Good",
+          "numericCode": true,
+          "value": "3",
           "id": 3,
           "text": {
             "default": "Good"
           }
         },
         {
-          "value": "Very good",
+          "numericCode": true,
+          "value": "4",
           "id": 4,
           "text": {
             "default": "Very good"

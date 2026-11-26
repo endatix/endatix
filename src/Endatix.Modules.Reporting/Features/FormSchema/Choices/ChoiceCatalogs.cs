@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
+using Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 using Endatix.Modules.Reporting.Shared.SurveyJs;
 using Storage = Endatix.Modules.Reporting.Features.FormSchema.Choices.OtherStorage;
 
@@ -109,6 +110,21 @@ internal sealed class ChoiceCatalogs
     /// </summary>
     public SelectChoices For(string question) =>
         _selects.TryGetValue(question, out var select) ? select : SelectChoices.Unknown;
+
+    public JsonElement? ChoiceComment(JsonElement context, FormSchemaColumn column)
+    {
+        if (SubmittedQuestions.Value?.Choices.Question(column) is not { } question)
+        {
+            return null;
+        }
+
+        var key = question.GetNonEmptyStringProperty(SurveyJsPropertyNames.ValueName) ?? column.SourceQuestion!;
+        return ChoiceCommentColumns.CanRead(question, column, context.TryGetPropertyValue(key))
+            ? SelectChoices.Unknown.Read(context, key).CommentFor(column.ChoiceValue!)
+            : null;
+    }
+
+    public string? IndexedPanelKey(string name) => SubmittedQuestions.Value?.Choices.IndexedPanelKey(name);
 
     /// <summary>Whether the question copies its choices in the current or any earlier compiled definition.</summary>
     public bool Copies(string question) => _copies.Contains(question);
@@ -371,7 +387,7 @@ internal sealed class SelectChoices
         {
             return item.TryGetPropertyValue(SurveyJsPropertyNames.Value) is { } value &&
                    value.GetScalarStringValue() is { } objectValue
-                ? new SelectAnswer.Token(objectValue, FromBoolean: false, value)
+                ? new SelectAnswer.Token(objectValue, FromBoolean: false, value) { Comment = item.TryGetPropertyValue(SurveyJsPropertyNames.Comment) }
                 : null;
         }
 
@@ -422,5 +438,12 @@ internal sealed class SelectAnswer
     /// </summary>
     public JsonElement? SingleValueJson() => _single;
 
-    internal readonly record struct Token(string Value, bool FromBoolean, JsonElement? Element);
+    public JsonElement? CommentFor(string choiceValue) =>
+        _tokens.FirstOrDefault(token => token.Value == choiceValue.Trim()).Comment is { ValueKind: JsonValueKind.String } text
+            ? text : null;
+
+    internal readonly record struct Token(string Value, bool FromBoolean, JsonElement? Element)
+    {
+        public JsonElement? Comment { get; init; }
+    }
 }

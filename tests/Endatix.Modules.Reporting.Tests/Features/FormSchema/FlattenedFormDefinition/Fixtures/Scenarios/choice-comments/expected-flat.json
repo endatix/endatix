@@ -9,9 +9,22 @@
   "question2__item3": 0,
   "question2__other": 1,
   "question2__other_text": "Typed for question2",
+  "question2__item1__comment": null,
+  "question2__item2__comment": "Note on item2",
   "question3__item1": 0,
   "question3__item2": 1,
   "question3__item3": 0,
   "question3__other": 1,
-  "question3__other_text": "Typed for question3"
+  "question3__other_text": "Typed for question3",
+  "question3__item2__comment": null,
+  "radio": "yes",
+  "radio__yes__comment": "Radio note",
+  "radio__no__comment": null,
+  "dropdown": "no",
+  "dropdown__yes__comment": null,
+  "dropdown__no__comment": "Dropdown note",
+  "importedTags__east": 1,
+  "importedTags__west": 0,
+  "importedTags__east__comment": "Imported tag note",
+  "importedTags__west__comment": null
 }

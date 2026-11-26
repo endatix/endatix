@@ -26,6 +26,10 @@
       <Link>Fixtures\SpecialChoices\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Endatix.Modules.Reporting.Tests\Features\FormSchema\FlattenedFormDefinition\Fixtures\LegacyMatrix\*.json">
+      <Link>Fixtures\LegacyMatrix\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\Endatix.Modules.Reporting.Tests\Features\FormSchema\FlattenedFormDefinition\Fixtures\Scenarios\**\*">
       <Link>Fixtures\Scenarios\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

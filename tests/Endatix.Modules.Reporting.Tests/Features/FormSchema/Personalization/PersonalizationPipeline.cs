@@ -137,6 +137,7 @@ internal sealed class PersonalizationPipeline
         {
             SubmittedDefinition = response.SubmittedDefinition,
             SubmittedAnswers = response.AnswersJson,
+            SourceAnswersJson = response.AnswersJson,
         };
     }
 

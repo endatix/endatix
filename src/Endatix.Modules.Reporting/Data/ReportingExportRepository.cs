@@ -136,6 +136,8 @@ internal sealed class ReportingExportRepository(
         {
             SubmittedDefinition = versions?.GetValueOrDefault(submission.FormDefinitionId),
             SubmittedAnswers = versions is null ? null : submission.JsonData,
+            SourceAnswersJson = flattened.SourceRevision == submission.Revision &&
+                flattened.SourceModifiedAt == (submission.ModifiedAt ?? submission.CreatedAt) ? submission.JsonData : null,
         };
 
     private IQueryable<FlattenedSubmission> BuildExportableRowsQuery(

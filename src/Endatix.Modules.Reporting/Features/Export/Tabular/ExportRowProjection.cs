@@ -24,7 +24,7 @@ internal sealed class ExportRowProjection
         {
             using var book = JsonDocument.Parse(schema.Codebook);
             _catalog = new CrunchQuestions(book.RootElement, settings, map);
-            _crunch = row => new CrunchTabularValueProjector(_catalog, Submitted(row)).Project(row.DataJson, map);
+            _crunch = row => new CrunchTabularValueProjector(_catalog, Submitted(row)).Project(row, map);
         }
 
         if (settings is not null)

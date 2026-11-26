@@ -55,14 +55,68 @@ The examples use the native column names and values. An export format with the C
 
 ### Multi-select (checkbox, tag box)
 
-Each choice and each special item gets its own indicator column, in this order: the question's choices, then Other, then None, Refuse to answer, and Don't know. A question that copies its source's Other (see `otherFrom` below) lists that Other last, after its own None, Refuse to answer and Don't know. An indicator is `1` when chosen and `0` when not, except where the respondent may not have seen the choice: then the cell is empty (`null` in JSON).
+Each choice and each special item gets its own indicator column, in this order: the question's choices, then Other, then None, Refuse to answer, and Don't know. A question that copies its source's Other (see `otherFrom` below) lists that Other last, after its own None, Refuse to answer and Don't know.
 
-- **Conditional choices on a checkbox or tag box:** `choicesVisibleIf` applies to every regular choice; `visibleIf` on a choice applies only to that value. A conditional choice exports as `1` if picked and empty otherwise, even on an answered question. The export reads conditions from the form version the respondent answered, in the question’s own loop or at the root. Blank expressions do not hide choices. Removing a condition while keeping its choice allows an unpicked `0`. Removing the choice leaves its retained column empty when the merged catalog records that it was conditional. If the version, occurrence or choice is unavailable, the codebook’s `choiceCatalogs[<question>].conditionalChoices` supplies the values kept across merge compiles. Rows with a readable submitted version do not need a recompile. To rewrite stored indicators, an administrator with `forms.edit` runs a [forced backfill](/docs/guides/upgrading/v0-9-3#refresh-stored-rows) for each affected completion scope.
-- **An unanswered question with its own choices (0.9.3):** `0` for unconditional choices only in a completed submission and when nothing can hide it. It is empty in an incomplete submission, when the question or an enclosing panel, dynamic panel or page has a `visibleIf` or a static `visible: false`, and when the form uses its name twice. The codebook's `choiceCatalogs[<question>].canBeHidden` is `true` when any form version compiled since the last `replace=true` compile could hide it.
-- **A question that copies its choices** (`choicesFromQuestion`, or Hub carry forward): `0` only for a choice the respondent was shown. With mode `all`, `selected` or `unselected`, the shown choices are rebuilt from the source questions' answers in the same submission, or the same loop item first. A source can copy its choices too (0.9.3): under `selected` the copy shows what that source picked; under `all` or `unselected` it shows what the source was shown, which the source's own `shown` rule rebuilds. Anything else leaves every unpicked copied choice empty: `edxCarryForwardMaxChoices`, `choicesVisibleIf` or a choice's `visibleIf`, an unrecognized mode, a source that is a ranking or loads its choices from a data list or a URL, under `all` or `unselected` a source that copies its choices and is not a checkbox or tag box with a `shown` rule of its own, a source with no answer, a copy with no answer, a copy or source whose name the form uses twice (at the root and in a loop, or in two loops), a copy or source with its own `visibleIf` unless the submission is completed and the survey clears hidden answers on complete (`clearInvisibleValues` absent or `onComplete`), or a schema compiled before 0.9.2. For an answered copy whose `shown` rule holds, an unpicked Other is `0` if the submission's form version showed the copy's own Other or its source picked Other with text. Otherwise it is empty. An answered copy whose shown choices can be rebuilt writes `0` for its own unpicked None, Refuse to answer and Don't know even when a source has no answer; in an incomplete submission where the rule holds only for a completed one, they are empty too. The codebook's `choiceCatalogs[<question>].shown` (`mode`, `sources` with each source's `name` and `values`, and `whenComplete` when it holds only for a completed submission) is present only when the shown choices can be rebuilt.
-- **A loop item the respondent did not have:** every indicator of that item is empty.
+An indicator is `1` when chosen and `0` when not, except where the respondent may not have seen the choice: then the cell is empty (`null` in JSON). The rules below say when that is.
 
-An unanswered ranking writes an empty cell for every choice; an answered one writes the rank, and `0` for a choice left unranked. A ranking that copies its choices writes an empty cell, not `0`, for a choice left unranked.
+**Conditional choices.** `choicesVisibleIf` applies to every regular choice; `visibleIf` on a choice applies only to that value. A conditional choice exports as `1` if picked and empty otherwise, even on an answered question.
+
+- The export reads conditions from the form version the respondent answered, in the question's own loop or at the root. Blank expressions do not hide choices.
+- Removing a condition while keeping its choice allows an unpicked `0`. Removing the choice leaves its retained column empty when the merged catalog records that it was conditional.
+- If the version, occurrence or choice is unavailable, the codebook's `choiceCatalogs[<question>].conditionalChoices` supplies the values kept across merge compiles.
+- Rows with a readable submitted version do not need a recompile. To rewrite stored indicators, an administrator with `forms.edit` runs a [forced backfill](/docs/guides/upgrading/v0-9-3#refresh-stored-rows) for each affected completion scope.
+
+**An unanswered question with its own choices (0.9.3).** It writes `0` for unconditional choices only in a completed submission and when nothing can hide it. Every column is empty:
+
+- in an incomplete submission,
+- when the question or an enclosing panel, dynamic panel or page has a `visibleIf` or a static `visible: false`,
+- when the form uses its name for two questions,
+- when the submission's form version did not have the question, because it was added later or removed earlier.
+
+The codebook's `choiceCatalogs[<question>].canBeHidden` is `true` when any form version compiled since the last `replace=true` compile could hide it.
+
+**A question that copies its choices** (`choicesFromQuestion`, or Hub carry forward). It writes `0` only for a choice the respondent was shown. With mode `all`, `selected` or `unselected`, the copy's `shown` rule rebuilds the shown choices from the source questions' answers in the same submission, or the same loop item first.
+
+- A source can copy its choices too (0.9.3). Under `selected`, the copy shows what that source picked. Under `all` or `unselected`, it shows what the source was shown, which the source's own `shown` rule rebuilds.
+- The codebook's `choiceCatalogs[<question>].shown` holds the rule: `mode`, `sources` with each source's `name` and `values`, and `whenComplete`. It is present only when the shown choices can be rebuilt.
+- `whenComplete` is set when the copy or a source has a `visibleIf`, its own or an enclosing panel's, dynamic panel's or page's, or when, under `all` or `unselected`, a copied source's own rule has it. The rule then holds only for a completed submission.
+- In a row where the rule holds only for a completed submission and this one is incomplete, every unpicked copied choice is empty. When a source has no answer in the row, an unpicked choice that no other source showed is empty.
+- A copy with no answer is empty in every column.
+
+There is no `shown` rule, and every unpicked copied choice is empty, when any of these holds:
+
+- On the copy:
+  - an unrecognized mode,
+  - `edxCarryForwardMaxChoices` (Hub carry forward),
+  - `choicesVisibleIf`,
+  - a static `visible: false` on the copy or on an enclosing panel or page.
+- On a source:
+  - a ranking,
+  - choices loaded from a data list or a URL,
+  - `choicesVisibleIf` or a choice's `visibleIf`,
+  - a source that copies its choices through a chain that does not resolve, such as a cycle or a data list further up,
+  - under `all` or `unselected`, a source that copies its choices and is not a checkbox or tag box with a `shown` rule of its own.
+- On the form:
+  - a copy or source whose name the form uses twice (at the root and in a loop, or in two loops),
+  - a survey that keeps hidden answers (`clearInvisibleValues` set, and not to `onComplete`) with a `visibleIf` on any question, panel or page,
+  - a copy or source whose own `clearIfInvisible` keeps its answer while a `visibleIf` can hide it,
+  - a schema compiled before 0.9.2.
+
+**Other and the special items of a copy.** These apply to an answered copy.
+
+- An unpicked Other is `0` when the `shown` rule holds and either the submission's form version showed the copy's own Other or its source picked Other with text. Otherwise it is empty.
+- When the shown choices can be rebuilt, the copy's own unpicked None, Refuse to answer and Don't know are `0`, even when a source has no answer. In an incomplete submission where the rule holds only for a completed one, they are empty too.
+
+**Other copied from the source (`otherFrom`, 0.9.3).** A copy of the choices its source picked (`choicesFromQuestion` with `choicesFromQuestionMode: "selected"`) that shows no Other of its own gets the source's Other: SurveyJS adds it once the source picked it with a text.
+
+- The copy stores `other` with no text, so `__other_text` reads the copy's own non-empty text first, then the source's text, decoded with the submitted version's choices and storage settings.
+- Only if the submitted version is absent or unreadable does the export fall back to that source and its stored catalog. It does not assume the copy showed its own Other.
+- A merge keeps the latest recorded `otherFrom`, not a history of sources.
+- The indicator rules above still apply.
+
+**A loop item the respondent did not have.** Every indicator of that item is empty.
+
+**Rankings.** An unanswered ranking writes an empty cell for every choice; an answered one writes the rank, and `0` for a choice left unranked. A ranking that copies its choices writes an empty cell, not `0`, for a choice left unranked.
 
 For a checkbox `cb` with choices `a` and `b`, Other, None, Refuse to answer, and Don't know, a respondent who picks `a` and Other and types `typed` gets:
 
@@ -83,6 +137,14 @@ The question's column holds the stored value: a choice value, `other`, `none`, `
 | `"rg": { "value": "other", "comment": "x" }` | `other` | `x` |
 | `"rg": "none"` | `none` | |
 | `"rg": "refused"` | `refused` | |
+
+### Choice comments
+
+A checkbox, tag box, radio button group, or dropdown gets one text column per choice with `showCommentArea: true` (0.9.3): `brands__item2__comment` for choice `item2` of `brands`, `brands--item2--comment` in csv-shoji, where the Shoji codebook declares it a `text` variable. The cell holds the comment stored on that picked choice, and is empty for an unpicked choice or a pick without a comment. Other text keeps its own column. Hub tag boxes do not collect choice comments, so their cells stay empty unless an imported answer carries a `value` and a `comment`.
+
+The export reads the choice from the submitted form definition. When the definition cannot be read, or the answer could belong to another question type, the row is kept and the comment left blank; when it cannot be loaded, the backfill lists the submission in `failedSubmissionIds`.
+
+A comment whose header would collide with another column or a Shoji ranking array takes the first free suffix (`_2`, `_3`, …), and keeps that header once published. A compile that would give a published header a second meaning returns `409` with `errorCode: "ReportingSchemaAliasConflict"` and keeps the previous schema (`previousSchemaRetained: true`). The same code also refuses a merge that cannot match a legacy matrix codebook to a historical definition; `detail` says which. For a header clash, rename the question or choice named in `detail`, then compile again.
 
 ### Answers kept as stored
 
@@ -118,7 +180,7 @@ The **Codebook** format exports the form's codebook JSON. Its `choiceCatalogs` o
 | --- | --- |
 | `multiple` | `true` for checkbox and tag box, `false` for single-select questions. |
 | `otherStorage` | Where the Other text is: `comment` (a separate comment, the SurveyJS default) or `value` (the text replaces `other`: `storeOthersAsComment: false`, or a checkbox whose regular choice shows a comment box, which stores each checked item as an object such as `{"value": "x"}`). Only on questions with Other. |
-| `otherFrom` | On a question that copies the choices its source picked (`choicesFromQuestion` with `choicesFromQuestionMode: "selected"`) and shows no Other of its own, when the source shows Other (0.9.3): the source's name. SurveyJS adds the source's Other to the copy once the source picked it with a text, and the copy stores `other` with no text, so `__other_text` reads the copy's own non-empty text first, then the source decoded with the submitted version's choices and storage settings. A merge keeps the latest recorded `otherFrom`, not a history of sources. Only if the submitted version is absent or unreadable does the export fall back to that source and its stored catalog; it does not assume the copy showed its own Other. The indicator rules above still apply. |
+| `otherFrom` | The source's name, on a copy of the choices its source picked that shows no Other of its own, when the source shows Other (0.9.3). See [Other copied from the source](#multi-select-checkbox-tag-box). |
 | `id` | The choice's code. A merge compile keeps it when choices are added, removed, or reordered: a new item takes the next free id. A replace compile assigns IDs in current choice order. A form that removed a choice before this rule existed has its later choices renumbered once, in its next Shoji export. |
 | `kind` | `other`, `none`, `refused`, or `dontknow` for a special item. Absent for an ordinary choice. |
 | `exclusive` | `true` when choosing the item clears the other choices, including a custom `isExclusive` choice. |

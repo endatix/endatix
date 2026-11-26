@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "columns": [
+    {
+      "key": "scale__r",
+      "kind": "MatrixRow",
+      "label": "scale — r",
+      "dataType": "number",
+      "sourceQuestion": "scale",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "r",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "Low",
+        "High",
+        "na"
+      ],
+      "loopPath": null
+    },
+    {
+      "key": "scale__control",
+      "kind": "MatrixRow",
+      "label": "scale — control",
+      "dataType": "number",
+      "sourceQuestion": "scale",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "control",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "Low",
+        "High",
+        "na"
+      ],
+      "loopPath": null
+    },
+    {
+      "key": "collision__number",
+      "kind": "MatrixRow",
+      "label": "collision — number",
+      "dataType": "number",
+      "sourceQuestion": "collision",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "number",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "Two",
+        "skip"
+      ],
+      "loopPath": null
+    },
+    {
+      "key": "collision__string",
+      "kind": "MatrixRow",
+      "label": "collision — string",
+      "dataType": "number",
+      "sourceQuestion": "collision",
+      "choiceValue": null,
+      "panelName": null,
+      "panelIndex": null,
+      "matrixRowValue": "string",
+      "matrixColumnValue": null,
+      "matrixColumnChoices": [
+        "Two",
+        "skip"
+      ],
+      "loopPath": null
+    }
+  ]
+}

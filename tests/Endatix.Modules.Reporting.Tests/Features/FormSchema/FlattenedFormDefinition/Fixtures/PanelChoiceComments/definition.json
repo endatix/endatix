@@ -1,0 +1,14 @@
+{
+  "pages": [{"elements": [
+    {"type":"paneldynamic","name":"household","maxPanelCount":2,"templateElements":[
+      {"type":"radiogroup","name":"pick","choices":[{"value":"yes","showCommentArea":true}]}
+    ]},
+    {"type":"checkbox","name":"cars","valuePropertyName":"make","choices":["ford","bmw"]},
+    {"type":"paneldynamic","name":"details","valueName":"cars","templateElements":[
+      {"type":"checkbox","name":"seats","valuePropertyName":"position","choices":["front"]},
+      {"type":"paneldynamic","name":"seatDetails","valueName":"seats","templateElements":[
+        {"type":"dropdown","name":"pick","choices":[{"value":"yes","showCommentArea":true}]}
+      ]}
+    ]}
+  ]}]
+}

@@ -1,19 +1,19 @@
-using Endatix.Api.Infrastructure.Cors;
-using Microsoft.AspNetCore.Cors.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Endatix.Api.Builders;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
+using Endatix.Api.Configuration;
+using Endatix.Api.Infrastructure.Cors;
+using Endatix.Framework.Configuration;
+using Endatix.Framework.Hosting;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Routing;
-using Endatix.Framework.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Endatix.Api.Configuration;
-using Endatix.Framework.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Endatix.Api.Setup;
 
@@ -53,15 +53,50 @@ public static class ApiServiceCollectionExtensions
         services.AddTransient<IConfigureOptions<ApiOptions>>(provider =>
         {
             var config = provider.GetRequiredService<IOptions<ApiConfigurationOptions>>().Value;
-            return new ConfigureNamedOptions<ApiOptions>(Options.DefaultName, options =>
-            {
-                // Map properties from ApiConfigurationOptions to ApiOptions
-                options.UseSwagger = config.UseSwagger;
-                options.SwaggerPath = config.SwaggerPath;
-            });
+            var legacy = LegacyDocsKeys.Read(configuration);
+            return new ConfigureNamedOptions<ApiOptions>(
+                Options.DefaultName, options => MapApiOptions(config, legacy, options));
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Maps the docs settings: each nested <c>Docs</c> key wins over its legacy key, and a pair set to different values
+    /// is recorded, so the API docs warn about it at startup.
+    /// </summary>
+    private static void MapApiOptions(ApiConfigurationOptions config, LegacyDocsKeys legacy, ApiOptions options)
+    {
+        var docs = config.Docs;
+        options.Docs.Enabled = docs.Enabled ?? config.UseSwagger;
+        if (docs.Path is not null)
+        {
+            options.Docs.Path = docs.Path;
+        }
+        else if (legacy.SwaggerPath is not null)
+        {
+            options.SwaggerPath = legacy.SwaggerPath;
+        }
+
+        options.Docs.SetUiSetting(docs.Ui);
+        options.Docs.Conflicts = DocsConflicts(config, legacy);
+    }
+
+    private static List<ApiDocsSettingConflict> DocsConflicts(ApiConfigurationOptions config, LegacyDocsKeys legacy)
+    {
+        List<ApiDocsSettingConflict> conflicts = [];
+        if (legacy.UseSwaggerSet && config.Docs.Enabled is { } enabled && enabled != config.UseSwagger)
+        {
+            conflicts.Add(new("Endatix:Api:Docs:Enabled", enabled.ToString(), "Endatix:Api:UseSwagger", config.UseSwagger.ToString()));
+        }
+
+        if (config.Docs.Path is { } path && legacy.SwaggerPath is { } swaggerPath
+            && !string.Equals(path, swaggerPath, StringComparison.Ordinal))
+        {
+            conflicts.Add(new(ApiDocsOptions.PATH_SETTING, path, ApiDocsOptions.SWAGGER_PATH_SETTING, swaggerPath));
+        }
+
+        return conflicts;
     }
 
     /// <summary>
@@ -278,5 +313,21 @@ public static class ApiServiceCollectionExtensions
         public string EnvironmentName => _environment.EnvironmentName;
 
         public bool IsDevelopment() => _environment.EnvironmentName == "Development";
+    }
+
+    /// <summary>
+    /// Which legacy docs keys the configuration holds, and the raw <c>SwaggerPath</c>. Their properties keep their
+    /// shipped defaults (<c>true</c> and <c>"/api-docs"</c>), so only the raw keys tell a set value from the default.
+    /// An empty value counts as set, so <c>SwaggerPath: ""</c> still asks for the root.
+    /// </summary>
+    private sealed record LegacyDocsKeys(bool UseSwaggerSet, string? SwaggerPath)
+    {
+        public static LegacyDocsKeys Read(IConfiguration configuration)
+        {
+            var section = configuration.GetSection(EndatixOptionsBase.GetSectionName<ApiConfigurationOptions>());
+            return new(
+                section[nameof(ApiConfigurationOptions.UseSwagger)] is not null,
+                section[nameof(ApiConfigurationOptions.SwaggerPath)]);
+        }
     }
 }

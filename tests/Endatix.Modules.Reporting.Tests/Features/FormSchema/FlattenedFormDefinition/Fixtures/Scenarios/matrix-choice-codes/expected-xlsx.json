@@ -1,0 +1,44 @@
+{
+  "Submissions": [
+    [
+      "s:FormId",
+      "s:Id",
+      "s:IsComplete",
+      "s:CollectionStatus",
+      "s:CreatedAt",
+      "s:ModifiedAt",
+      "s:StartedAt",
+      "s:CompletedAt",
+      "s:DurationSeconds",
+      "s:SubmitterId",
+      "s:SubmitterDisplayId",
+      "s:scale__r",
+      "s:scale__control",
+      "s:collision__number",
+      "s:collision__string"
+    ],
+    [
+      "s:100",
+      "s:1",
+      "b:1",
+      "s:complete",
+      "n@1:46309.416666666664",
+      "n@1:46309.416666666664",
+      "s:N/A",
+      "s:N/A",
+      "s:N/A",
+      "s:N/A",
+      "s:N/A",
+      "n:10",
+      "n:3",
+      "n:2",
+      "n:2"
+    ]
+  ],
+  "styles": {
+    "1": {
+      "numFmtId": 164,
+      "formatCode": "yyyy-mm-dd hh:mm:ss"
+    }
+  }
+}

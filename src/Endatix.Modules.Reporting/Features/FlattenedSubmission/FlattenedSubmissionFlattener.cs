@@ -111,7 +111,7 @@ internal static class FlattenedSubmissionFlattener
     }
 
     private static bool IsChoiceColumn(FormSchemaColumn column, ChoiceCatalogs choices) =>
-        column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText ||
+        column.Kind is FormSchemaColumnKind.ChoiceIndicator or FormSchemaColumnKind.CheckboxOtherText or FormSchemaColumnKind.ChoiceComment ||
         (column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.LoopSource &&
          choices.IsSelect(column.SourceQuestion ?? column.Key));
 
@@ -124,14 +124,13 @@ internal static class FlattenedSubmissionFlattener
         }
 
         var question = column.SourceQuestion ?? column.Key;
-        if (column.Kind == FormSchemaColumnKind.ChoiceIndicator)
+        return column.Kind switch
         {
-            return choices.Indicator(scope, question, column.ChoiceValue!).ToJson();
-        }
-
-        return column.Kind == FormSchemaColumnKind.CheckboxOtherText
-            ? choices.OtherText(scope, question)
-            : choices.For(question).Read(scope.Own, question).SingleValueJson();
+            FormSchemaColumnKind.ChoiceIndicator => choices.Indicator(scope, question, column.ChoiceValue!).ToJson(),
+            FormSchemaColumnKind.CheckboxOtherText => choices.OtherText(scope, question),
+            FormSchemaColumnKind.ChoiceComment => CommentInScope(scope, column, choices),
+            _ => choices.For(question).Read(scope.Own, question).SingleValueJson(),
+        };
     }
 
     private static JsonElement? ExtractSimpleValue(JsonElement submission, FormSchemaColumn column)
@@ -143,6 +142,23 @@ internal static class FlattenedSubmissionFlattener
         }
 
         return answer;
+    }
+
+    private static JsonElement? CommentInScope(AnswerScope scope, FormSchemaColumn column, ChoiceCatalogs choices)
+    {
+        if (column.PanelIndex is null)
+        {
+            return choices.ChoiceComment(scope.Own, column);
+        }
+
+        if (column.PanelName is not { } name || choices.IndexedPanelKey(name) is not { Length: > 0 } key)
+        {
+            return null;
+        }
+
+        // The published name identifies the column; only the submitted panel key identifies its data and template.
+        var stored = column with { PanelName = key };
+        return PanelItem(scope.Own, stored) is { } item ? choices.ChoiceComment(item, stored) : null;
     }
 
     // A copied ranking's list depends on its sources, so an unranked choice may never have been on it: empty, not 0.
@@ -395,32 +411,12 @@ internal static class FlattenedSubmissionFlattener
     }
 
     private static JsonElement? TryGetPanelIndexValue(JsonElement submission, FormSchemaColumn column)
-    {
-        if (column.PanelIndex is null || column.SourceQuestion is null)
-        {
-            return null;
-        }
+        => column.SourceQuestion is { } question ? PanelItem(submission, column)?.TryGetPropertyValue(question) : null;
 
-        if (string.IsNullOrWhiteSpace(column.PanelName) ||
-            submission.TryGetPropertyValue(column.PanelName) is not JsonElement panelArray ||
-            panelArray.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-
-        var index = 0;
-        foreach (var panelItem in panelArray.EnumerateArray())
-        {
-            if (index == column.PanelIndex.Value)
-            {
-                return panelItem.TryGetPropertyValue(column.SourceQuestion);
-            }
-
-            index++;
-        }
-
-        return null;
-    }
+    private static JsonElement? PanelItem(JsonElement submission, FormSchemaColumn column) =>
+        column.PanelIndex is int index && index >= 0 && column.PanelName is { } panel &&
+        submission.TryGetPropertyValue(panel) is { ValueKind: JsonValueKind.Array } items && index < items.GetArrayLength()
+            ? items[index] : null;
 
     private static JsonElement? TryGetLoopContextValue(AnswerScope root, FormSchemaColumn column)
     {

@@ -23,6 +23,9 @@ internal sealed partial class BrandOverrideReader
     /// <summary>Unknown fields reported, at most; the rest are left out of the problem list.</summary>
     internal const int MAX_UNKNOWN_FIELDS = 10;
 
+    /// <summary>The fields an override may have at its root. The publish endpoint's OpenAPI body lists the same.</summary>
+    internal static readonly IReadOnlyList<string> ROOT_FIELDS = ["version", "assets", "tokens"];
+
     private static readonly string[] _rasterExtensions = [".png", ".webp"];
 
     /// <summary>The brand pack schema's <c>packFile</c> pattern: plain names, none empty or starting with '.', no "..".</summary>
@@ -53,7 +56,7 @@ internal sealed partial class BrandOverrideReader
 
     private void CheckRoot(JsonElement root)
     {
-        OnlyFields("", root, "version", "assets", "tokens");
+        OnlyFields("", root, ROOT_FIELDS);
         CheckVersion(root);
         if (Optional("/assets", root, "assets") is { } assets)
         {
@@ -220,7 +223,7 @@ internal sealed partial class BrandOverrideReader
         return false;
     }
 
-    private void OnlyFields(string path, JsonElement value, params string[] allowed)
+    private void OnlyFields(string path, JsonElement value, params IReadOnlyList<string> allowed)
     {
         var unknown = value.EnumerateObject().Where(property => !allowed.Contains(property.Name, StringComparer.Ordinal));
         foreach (var property in unknown.TakeWhile(_ => _unknownFields++ < MAX_UNKNOWN_FIELDS))

@@ -29,7 +29,7 @@ internal class FormSchemaCompiler(
     private readonly SubmitterProfileFields _submitterProfileFields = submitterProfileFields ?? SubmitterProfileFields.None;
 
     public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null) =>
-        Merge(FormDefinitionFlattener.Flatten(definition, _limits), existing);
+        Merge(FormDefinitionFlattener.Flatten(definition, _limits, existing), existing);
 
     public MergedFormSchema Compile(string definitionJson, MergedFormSchema? existing = null)
     {
@@ -49,27 +49,29 @@ internal class FormSchemaCompiler(
         string definitionJson,
         string? existingFlatteningMapJson = null,
         string? existingCodebookJson = null,
-        FormSchemaCompileMode mode = FormSchemaCompileMode.Merge)
+        FormSchemaCompileMode mode = FormSchemaCompileMode.Merge) =>
+        CompileCore(definitionJson, new(existingFlatteningMapJson, mode,
+            new CodebookSource(mode == FormSchemaCompileMode.Replace ? null : existingCodebookJson)));
+
+    internal FormSchemaCompileResult CompileLegacyMerge(string definitionJson, PersistedSchemaJson stored, LegacyMatrixHistory history) =>
+        CompileCore(definitionJson, new(stored.FlatteningMap, FormSchemaCompileMode.Merge, new CodebookSource(stored.Codebook, history)));
+
+    private sealed record CompilationBase(string? Map, FormSchemaCompileMode Mode, CodebookSource Codebook);
+
+    private FormSchemaCompileResult CompileCore(string definitionJson, CompilationBase previous)
     {
-        var flatteningMapJsonInput = mode == FormSchemaCompileMode.Replace
-            ? null
-            : existingFlatteningMapJson;
-        var codebookJsonInput = mode == FormSchemaCompileMode.Replace
-            ? null
-            : existingCodebookJson;
-
         using var definition = JsonDocument.Parse(definitionJson);
-        var existingFlatteningMap = string.IsNullOrWhiteSpace(flatteningMapJsonInput)
+        var existingFlatteningMap = string.IsNullOrWhiteSpace(previous.Map)
             ? null
-            : FormSchemaFlatteningMap.FromJson(flatteningMapJsonInput);
+            : FormSchemaFlatteningMap.FromJson(previous.Map);
 
-        var currentColumns = FormDefinitionFlattener.Flatten(definition.RootElement, _limits);
-        var merged = Merge(currentColumns, existingFlatteningMap);
+        var currentColumns = FormDefinitionFlattener.Flatten(definition.RootElement, _limits, existingFlatteningMap);
+        var merged = Merge(currentColumns, previous.Mode == FormSchemaCompileMode.Replace ? null : existingFlatteningMap);
         var flatteningMapJson = FormSchemaFlatteningMap.ToJson(merged);
         var codebookJson = FormSchemaCodebookBuilder.Build(
             definition.RootElement,
             merged.WithCurrentColumns(currentColumns),
-            codebookJsonInput);
+            previous.Codebook);
         var locales = SurveyJsLocalizationHelper.DiscoverLocales(definition.RootElement);
         var localesJson = JsonSerializer.Serialize(locales);
 
@@ -98,12 +100,32 @@ internal class FormSchemaCompiler(
     /// Whether a persisted flattening map already has every column the definition compiles to, so merging the
     /// definition into it would add none.
     /// </summary>
-    public bool HasColumnsFor(string flatteningMapJson, string definitionJson) =>
-        HasColumns(flatteningMapJson, Columns(definitionJson));
+    public bool HasColumnsFor(string flatteningMapJson, string definitionJson)
+    {
+        using var submitted = ReadHistoricalDefinition(definitionJson);
+        // An unreadable older definition cannot contribute columns. Flatten with the verified owner's stored map.
+        return submitted?.RootElement is not { ValueKind: JsonValueKind.Object } definition ||
+               HasColumns(flatteningMapJson, FormDefinitionFlattener.Flatten(definition, _limits));
+    }
+
+    internal static JsonDocument? ReadHistoricalDefinition(string json)
+    {
+        try
+        {
+            return JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>Whether a persisted flattening map already has a column with the key of every one in <paramref name="columns"/>.</summary>
-    public static bool HasColumns(string flatteningMapJson, IReadOnlyList<FormSchemaColumn> columns) =>
-        FormSchemaFlatteningMap.FromJson(flatteningMapJson).HasColumnsFor(columns);
+    public static bool HasColumns(string flatteningMapJson, IReadOnlyList<FormSchemaColumn> columns)
+    {
+        var published = FormSchemaFlatteningMap.FromJson(flatteningMapJson);
+        return published.HasColumnsFor(ChoiceCommentAliases.Assign(columns, published));
+    }
 
     /// <summary>The columns the definition compiles to, before any merge.</summary>
     public IReadOnlyList<FormSchemaColumn> Columns(string definitionJson)
