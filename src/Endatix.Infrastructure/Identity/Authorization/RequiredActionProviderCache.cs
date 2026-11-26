@@ -169,8 +169,11 @@ internal sealed class RequiredActionExecution(RequiredActionInvocations invocati
         {
             return slot.Success(report);
         }
-        logger.LogDebug("Required action provider {Registration} has no usable report ({Reason}); retry deferred.",
-            query.Index, actions is null ? "occupied" : "expired");
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDebug("Required action provider {Registration} has no usable report ({Reason}); retry deferred.",
+                query.Index, actions is null ? "occupied" : "expired");
+        }
         return slot.Failure(query.Policy, now);
     }
 }

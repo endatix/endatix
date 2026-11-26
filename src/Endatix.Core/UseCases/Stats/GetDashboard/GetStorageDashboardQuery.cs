@@ -4,6 +4,8 @@ using Endatix.Core.UseCases.Stats.Models;
 
 namespace Endatix.Core.UseCases.Stats.GetDashboard;
 
+/// <summary>Reads storage usage. Direct construction includes the physical-table breakdown.</summary>
+/// <param name="TenantId">The tenant for usage counts, or null for an aggregate direct query.</param>
 public record GetStorageDashboardQuery(long? TenantId) : IQuery<Result<StorageDashboardModel>>
 {
     internal bool TenantMetricsOnly { get; private init; }
