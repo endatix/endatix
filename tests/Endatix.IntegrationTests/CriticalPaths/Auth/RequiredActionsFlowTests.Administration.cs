@@ -5,7 +5,6 @@ using Endatix.Core;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Features.Email;
 using Endatix.Infrastructure.Identity;
-using Endatix.IntegrationTests.FeatureFlows.Identity;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -88,8 +87,27 @@ public sealed partial class RequiredActionsFlowTests
     }
 
     [Fact]
-    public async Task Admitted_invites_preserve_role_validation_and_a_notice_allows_invitation()
+    public async Task An_admitted_invite_still_validates_the_role_and_existing_membership()
     {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+
+        // Act
+        using var invalid = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test", roles = _adminInviteRoles }, ct);
+        using var existing = await admin.PostAsJsonAsync("/api/users", new { email = world.Tenants[0].Admin.Email }, ct);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, existing.StatusCode);
+        Assert.Contains("already belongs to this tenant", await existing.Content.ReadAsStringAsync(ct));
+    }
+
+    [Fact]
+    public async Task A_temporarily_unavailable_invite_sends_mail_only_after_recovery()
+    {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
         var conflict = new MutableProvider("conflict", "/other") { Pending = false };
         var mail = Substitute.For<IEmailSender>();
@@ -103,11 +121,7 @@ public sealed partial class RequiredActionsFlowTests
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var before = await IdentityStateAsync(world, ct);
-        using var invalid = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test", roles = _adminInviteRoles }, ct);
-        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
-        using var existing = await admin.PostAsJsonAsync("/api/users", new { email = world.Tenants[0].Admin.Email }, ct);
-        Assert.Equal(HttpStatusCode.BadRequest, existing.StatusCode);
-        Assert.Contains("already belongs to this tenant", await existing.Content.ReadAsStringAsync(ct));
+        // Act / Assert
         conflict.Pending = true;
         await InvalidateAsync(world, ct);
         using var retry = await admin.PostAsJsonAsync("/api/users", new { email = "next@example.test" }, ct);
@@ -148,7 +162,7 @@ public sealed partial class RequiredActionsFlowTests
             EnableStanding(services);
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant with { DefaultPassword = "Password123!" }, ct);
-        using var manager = await RoleGrantCeilingFlowTests.UserManagerClientAsync(world, ct);
+        using var manager = await world.UserManagerClientAsync(ct);
         var before = await IdentityStateAsync(world, ct);
         using var denied = await manager.DeleteAsync($"/api/users/{world.Tenants[0].Admin.Id}", ct);
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);

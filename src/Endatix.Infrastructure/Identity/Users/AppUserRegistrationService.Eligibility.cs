@@ -19,10 +19,10 @@ public sealed partial class AppUserRegistrationService
         var trimmed = email.Trim();
         var existing = await userManager.FindByEmailAsync(trimmed);
         var error = ExistingTargetError(existing, tenantId);
-        return new(trimmed, tenantId, existing, RegistrationRefusal(trimmed, error, isAnonymous));
+        return new(trimmed, tenantId, existing, IneligibleResult(trimmed, error, isAnonymous));
     }
 
-    private Result<User>? RegistrationRefusal(string email, string? error, bool isAnonymous)
+    private Result<User>? IneligibleResult(string email, string? error, bool isAnonymous)
     {
         if (error is null)
         {
@@ -44,5 +44,5 @@ public sealed partial class AppUserRegistrationService
         return user.TenantId == tenantId && user.EmailConfirmed ? USER_ALREADY_BELONGS_TO_TENANT_MESSAGE : null;
     }
 
-    private sealed record RegistrationTarget(string Email, long TenantId, AppUser? Existing, Result<User>? Refusal);
+    private sealed record RegistrationTarget(string Email, long TenantId, AppUser? Existing, Result<User>? Ineligible);
 }

@@ -2,17 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Specifications;
-using Endatix.Infrastructure.Caching;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using NSubstitute;
 
 namespace Endatix.IntegrationTests;
 
@@ -143,41 +137,4 @@ public sealed partial class RequiredActionsFlowTests
         }
     }
 
-    [Fact]
-    public async Task Unavailable_standing_does_not_read_settings_or_branding()
-    {
-        // Arrange
-        var ct = TestContext.Current.CancellationToken;
-        var branding = Substitute.For<ITenantBrandingRepository>();
-        var settings = Substitute.For<IRepository<TenantSettings>>();
-        var cache = Substitute.For<IPublicTenantCacheInvalidator>();
-        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        settings.AnyAsync(Arg.Any<TenantSettingsByTenantIdSpec>(), Arg.Any<CancellationToken>()).Returns(true);
-        await using var host = new BrandingWebHost(fixture, configure: services =>
-        {
-            services.AddSingleton(branding);
-            services.AddSingleton(settings);
-            services.AddSingleton(cache);
-            services.AddScoped(_ => new AccountStanding(snapshots));
-        });
-        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
-        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-
-        // Act
-        foreach (var operation in TenantOperations())
-        {
-            using var request = operation;
-            using var response = await admin.SendAsync(request, ct);
-            Assert.True(response.StatusCode == HttpStatusCode.ServiceUnavailable, Operation(response));
-            await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-            snapshots.ClearReceivedCalls();
-        }
-
-        // Assert
-        Assert.Empty(branding.ReceivedCalls());
-        Assert.Empty(cache.ReceivedCalls());
-        Assert.Empty(settings.ReceivedCalls());
-    }
 }

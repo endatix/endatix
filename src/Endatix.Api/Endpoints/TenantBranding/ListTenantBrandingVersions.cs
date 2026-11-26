@@ -32,8 +32,8 @@ public sealed class ListTenantBrandingVersions(IMediator mediator)
         {
             s.DescribeStandingProblems();
             s.Summary = "List the tenant's branding versions";
-            s.Description = "Lists number, createdAt, createdBy, source and restoredFromNumber, newest first. IDs and numbers are strings. " +
-                "The page is empty when the tenant's plan does not include branding.";
+            s.Description = "Lists number, createdAt, createdBy, source (publish, restore or reset) and restoredFromNumber, newest first. " +
+                "IDs and numbers are strings. A plan without branding receives an empty page, not a 403.";
             s.Responses[200] = "The versions.";
             s.Responses[400] = $"Page below 1, or page size outside 1..{PagedRequestLimits.MAX_PAGE_SIZE}.";
             s.Responses[404] = "White-labeling is not enabled on this deployment.";

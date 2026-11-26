@@ -1,5 +1,4 @@
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Identity.ExitAssume;
 using Endatix.Infrastructure.Identity.Authorization;
 using FastEndpoints;
@@ -43,11 +42,9 @@ public sealed class ExitAssume(IMediator mediator, IConfiguration configuration)
     /// <inheritdoc />
     public override async Task<Results<Ok<TenantSessionResponse>, ProblemHttpResult>> ExecuteAsync(CancellationToken ct)
     {
-        if (!MultiTenancyGate.IsEnabled(configuration))
+        if (MultiTenancyGate.Refusal(configuration) is { } refusal)
         {
-            return TypedResultsBuilder
-                .FromResult(Result<TenantSessionResponse>.NotFound(MultiTenancyGate.DISABLED_MESSAGE))
-                .SetTypedResults<Ok<TenantSessionResponse>, ProblemHttpResult>();
+            return refusal;
         }
 
         var result = await mediator.Send(new ExitAssumeCommand(), ct);

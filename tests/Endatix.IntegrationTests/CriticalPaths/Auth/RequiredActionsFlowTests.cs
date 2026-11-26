@@ -172,9 +172,12 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var ownForm = await CreateFormAsync(editor, ct);
         var hiddenForm = await CreateFormAsync(other, ct);
+        using var exporter = await RestrictedUserAsync(world, ct);
+        await AssertCompileResponseAsync(editor, hiddenForm, HttpStatusCode.NotFound);
+        await AssertCompileResponseAsync(exporter, ownForm, HttpStatusCode.Forbidden);
+        var admittedCalls = counter.Calls;
         provider.Pending = true;
         await InvalidateAsync(world, ct);
-        using var exporter = await RestrictedUserAsync(world, ct);
         await AssertChallengesAsync(host, ownForm, ct);
         using var client = host.CreateClient();
         client.DefaultRequestHeaders.Authorization = editor.DefaultRequestHeaders.Authorization;
@@ -187,13 +190,16 @@ public sealed partial class RequiredActionsFlowTests(EndatixIntegrationWebHostFi
         var me = await client.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
         await AssertStandingRefusalAsync(hidden, me, ct);
         Assert.Equal(HttpStatusCode.Forbidden, pending.StatusCode);
-        var problem = await pending.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Equal("required_action", problem.GetProperty("errorCode").GetString());
+        await AssertStandingRefusalAsync(pending, me, ct);
         await AssertStandingRefusalAsync(editDenied, me, ct);
-        Assert.Equal(HttpStatusCode.Forbidden, exportBlocked.StatusCode);
-        var refused = await exportBlocked.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.Equal("required_action", refused.GetProperty("errorCode").GetString());
-        Assert.Equal(0, counter.Calls);
+        await AssertStandingRefusalAsync(exportBlocked, me, ct);
+        Assert.Equal(admittedCalls, counter.Calls);
+    }
+
+    private static async Task AssertCompileResponseAsync(HttpClient actor, string form, HttpStatusCode expected)
+    {
+        using var result = await actor.PostAsJsonAsync($"/api/forms/{form}/reporting/compile-schema", new { replace = true }, TestContext.Current.CancellationToken);
+        Assert.Equal(expected, result.StatusCode);
     }
 
     private static async Task AssertChallengesAsync(ReportingWebHost host, string form, CancellationToken ct)

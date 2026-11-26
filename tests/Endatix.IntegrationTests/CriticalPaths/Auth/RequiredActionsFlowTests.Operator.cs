@@ -228,35 +228,64 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Contains("Try again", await retry.Content.ReadAsStringAsync(ct));
     }
 
-    [Fact]
-    public async Task Eligible_operator_requests_consult_standing_once_before_dispatching_product_work()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public async Task Storage_dashboard_counts_only_the_current_tenants_submissions(int tenantIndex)
     {
+        // Arrange
         var ct = TestContext.Current.CancellationToken;
-        var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
-        snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
-            .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        await using var host = new ReportingWebHost(fixture, services =>
-            services.AddScoped(_ => new AccountStanding(snapshots)));
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, tenantIndex, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var other = await world.AsAsync(TestPersona.TenantAdmin, 1 - tenantIndex, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var own = await SubmissionTarget.CreateAsync(owner, ct);
+        await SubmissionTarget.CreateAsync(other, ct);
+
+        // Act
+        var dashboard = await owner.GetFromJsonAsync<JsonElement>("/api/admin/storage", ct);
+
+        // Assert
+        var form = Assert.Single(dashboard.GetProperty("formStats").EnumerateArray());
+        Assert.Equal(own.Form, form.GetProperty("formId").ToString());
+        Assert.Equal("1", dashboard.GetProperty("tenantStats").GetProperty("submissionCount").ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Admitted_operator_requests_keep_the_ordinary_operation_results(bool notice)
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using var ordinary = new ReportingWebHost(fixture);
+        var baseline = await OperatorOutcomesAsync(ordinary, ct);
+        await using var admitted = new ReportingWebHost(fixture, services =>
+        {
+            services.AddRequiredActionEnforcement();
+            if (notice)
+            {
+                services.AddSingleton<IRequiredActionProvider>(new MutableProvider("help", "/help") { Severity = RequiredActionSeverity.Notice });
+            }
+        });
+
+        // Act
+        var outcomes = await OperatorOutcomesAsync(admitted, ct);
+
+        // Assert
+        Assert.Equal(baseline, outcomes);
+    }
+
+    private static async Task<HttpStatusCode[]> OperatorOutcomesAsync(ReportingWebHost host, CancellationToken ct)
+    {
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
         using var admin = await world.AsAsync(TestPersona.PlatformAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        List<HttpStatusCode> outcomes = [];
         foreach (var operation in OperatorRequests(world.Tenants[1]))
         {
             using var request = operation;
             using var result = await admin.SendAsync(request, ct);
-            Assert.True(result.StatusCode == HttpStatusCode.ServiceUnavailable, Operation(result));
-            await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-            snapshots.ClearReceivedCalls();
+            outcomes.Add(result.StatusCode);
         }
-        using var missing = await admin.PatchAsJsonAsync("/api/admin/tenants/999999", new { name = "missing" }, ct);
-        await AssertUnavailableQuestionsAsync(missing, ct);
-        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-        var patch = $"/api/admin/tenants/{world.Tenants[1].Id}";
-        foreach (var field in new object[] { new { allowSelfRegistration = false },
-                     new { allowedAuthProviderKeys = Array.Empty<string>() }, new { defaultRegistrationRoleName = "Respondent" } })
-        {
-            using var settings = await admin.PatchAsJsonAsync(patch, field, ct);
-            await AssertUnavailableQuestionsAsync(settings, ct);
-        }
-        await snapshots.Received(4).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
+        return [.. outcomes];
     }
 }

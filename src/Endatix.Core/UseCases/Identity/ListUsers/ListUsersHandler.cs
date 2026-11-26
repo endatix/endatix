@@ -12,21 +12,8 @@ public class ListUsersHandler(IUserService userService)
     : IQueryHandler<ListUsersQuery, Result<Paged<UserWithRoles>>>
 {
     /// <inheritdoc/>
-    public async Task<Result<Paged<UserWithRoles>>> Handle(
+    public Task<Result<Paged<UserWithRoles>>> Handle(
         ListUsersQuery request,
-        CancellationToken cancellationToken)
-    {
-        var result = await userService.ListUsersAsync(
-            request.Paging,
-            request.Criteria,
-            cancellationToken);
-
-        if (!result.IsSuccess)
-        {
-            return Result<Paged<UserWithRoles>>.Error(
-                new ErrorList(result.Errors ?? [], result.CorrelationId));
-        }
-
-        return Result.Success(result.Value);
-    }
+        CancellationToken cancellationToken) =>
+        userService.ListUsersAsync(request.Paging, request.Criteria, cancellationToken);
 }

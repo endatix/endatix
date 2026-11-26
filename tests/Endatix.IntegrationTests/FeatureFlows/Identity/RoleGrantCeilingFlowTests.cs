@@ -735,18 +735,8 @@ public sealed class RoleGrantCeilingFlowTests(EndatixIntegrationWebHostFixture f
     private static Task<HttpClient> ManagerClientAsync(IntegrationTestWorld world, CancellationToken ct) =>
         world.AsAsync(TestPersona.CustomRole(MANAGER_ROLE), userName: MANAGER_USER, cancellationToken: ct);
 
-    internal static async Task<HttpClient> UserManagerClientAsync(IntegrationTestWorld world, CancellationToken ct)
-    {
-        var tenantId = world.Tenants[0].Id;
-        const string userManagerRole = "UserManagerOnly";
-        const string userManagerUser = "user-manager";
-        await world.Seed.SeedRoleAsync(tenantId, userManagerRole, ct);
-        await world.Seed.SeedRolePermissionsAsync(
-            tenantId, userManagerRole, [Actions.Access.Hub, Actions.Tenant.ViewUsers, Actions.Tenant.ManageUsers], ct);
-        await world.Seed.SeedUserAsync(tenantId, userManagerUser, $"{userManagerUser}@test.local", password: SEED_PASSWORD, cancellationToken: ct);
-        await world.Seed.SeedUserRoleAssignmentAsync(tenantId, userManagerUser, userManagerRole, ct);
-        return await world.AsAsync(TestPersona.CustomRole(userManagerRole), userName: userManagerUser, cancellationToken: ct);
-    }
+    private static Task<HttpClient> UserManagerClientAsync(IntegrationTestWorld world, CancellationToken ct) =>
+        world.UserManagerClientAsync(ct);
 
     private static async Task<HttpClient> InviterClientAsync(IntegrationTestWorld world, CancellationToken ct)
     {
