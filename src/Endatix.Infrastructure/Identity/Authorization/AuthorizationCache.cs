@@ -1,5 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
@@ -17,7 +20,7 @@ namespace Endatix.Infrastructure.Identity.Authorization;
 /// in-flight writes in the backing cache. An entry lives at most 60 seconds and ends 10 seconds before its token (one
 /// second at least), and is never served past the earliest expiry of the role permissions it holds.
 /// </remarks>
-internal partial class AuthorizationCache(
+internal class AuthorizationCache(
     AuthorizationCacheStorage storage,
     IDateTimeProvider dateTimeProvider,
     AuthorizationTokenFingerprint tokenFingerprint,
@@ -120,57 +123,64 @@ internal partial class AuthorizationCache(
         CancellationToken cancellationToken)
     {
         var cached = await ReadCachedAsync(entry, cancellationToken);
-        GrantFill? fill = null;
-        if (cached is null)
+        if (cached is not null && cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime
+            && !cached.RequiredActionsUnavailable && !NeedsHydratedVersion(entry, cached))
         {
-            fill = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
-            cached = await storage.Entries.GetOrCreateAsync(entry.Key,
-                fill.BuildAsync,
-                entry.Options, entry.Tags, cancellationToken);
+            return cached.ExpiresAt > entry.Window.End ? cached with { ExpiresAt = entry.Window.End } : cached;
         }
-        return IsCurrent(entry, cached, fill?.Built) ? cached : await RebuildAsync(entry, dataFactory, cancellationToken);
+        var snapshot = await BuildAsync(entry, dataFactory, cancellationToken);
+        var current = await PublishAsync(entry, new(snapshot, cached), cancellationToken);
+        if (current is not null)
+        {
+            return current;
+        }
+        snapshot = await BuildAsync(entry, dataFactory, cancellationToken);
+        return snapshot.WithCurrentPermissions(dateTimeProvider.Now.UtcDateTime);
     }
 
     private ValueTask<AuthorizationData?> ReadCachedAsync(CacheEntry entry, CancellationToken ct) =>
         storage.Entries.GetOrCreateAsync(entry.Key, 0, static (_, _) => ValueTask.FromResult<AuthorizationData?>(null),
             CacheEntry.ReadOnly, entry.Tags, ct);
 
-    private bool IsCurrent(CacheEntry entry, AuthorizationData cached, AuthorizationData? built) =>
-        cached.ExpiresAt > dateTimeProvider.Now.UtcDateTime && (ReferenceEquals(cached, built)
-            || (!cached.RequiredActionsUnavailable && !NeedsHydratedVersion(entry, cached)));
+    private sealed record Publication(BuiltSnapshot Snapshot, AuthorizationData? Previous);
 
-    /// <summary>Replaces an entry whose data has lapsed with freshly built data.</summary>
-    private async Task<AuthorizationData> RebuildAsync(
-        CacheEntry entry,
-        Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
-        CancellationToken cancellationToken)
+    private async ValueTask<AuthorizationData?> PublishAsync(CacheEntry entry, Publication publication, CancellationToken ct)
     {
-        var fill = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
-        var refreshed = await fill.RefreshAsync(storage.Entries, cancellationToken);
-        if (refreshed is not null)
+        ct.ThrowIfCancellationRequested();
+        var snapshot = publication.Snapshot;
+        var current = snapshot.At(dateTimeProvider.Now.UtcDateTime);
+        if (current.ExpiresAt > dateTimeProvider.Now.UtcDateTime)
         {
-            return refreshed;
+            if (publication.Previous is null)
+            {
+                // Another cold reader may already have published. Offer only a completed value.
+                await storage.Entries.GetOrCreateAsync(entry.Key, _ => ValueTask.FromResult(current), entry.Options, entry.Tags, ct);
+            }
+            else
+            {
+                await storage.Entries.SetAsync(entry.Key, current, entry.Options, entry.Tags, ct);
+            }
         }
-        // The permission lapsed during publication. Re-read it without another write.
-        var fresh = await ReadGrantsAsync(dataFactory, entry, cancellationToken);
-        return await fresh.WithCurrentPermissionsAsync(storage.Entries, cancellationToken);
+        var now = dateTimeProvider.Now.UtcDateTime;
+        return snapshot.PermissionsExpired(now) ? null : current.ExpiresAt > now ? current : snapshot.At(now);
     }
 
-    private sealed record Grants(AuthorizationData Data, CacheEntry Entry, DateTime Started);
-
-    private async Task<GrantFill> ReadGrantsAsync(Func<CancellationToken, Task<Result<AuthorizationData>>> dataFactory,
-        CacheEntry entry, CancellationToken cancellationToken)
+    private async Task<BuiltSnapshot> BuildAsync(CacheEntry entry, Func<CancellationToken, Task<Result<AuthorizationData>>> factory,
+        CancellationToken ct)
     {
-        var now = dateTimeProvider.Now.UtcDateTime;
-        var result = await dataFactory(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
+        var started = dateTimeProvider.Now.UtcDateTime;
+        var result = await factory(ct);
+        ct.ThrowIfCancellationRequested();
         if (result is null || !result.IsSuccess)
         {
             throw new InvalidOperationException(result?.Errors.FirstOrDefault() ?? "Failed to get authorization data for user");
         }
-        var subjectEntry = NeedsHydratedVersion(entry, result.Value)
-            ? entry with { Versions = await accessVersionStore.ReadAsync(result.Value.TenantId, cancellationToken) } : entry;
-        return new(new(DetachGrants(result.Value), subjectEntry, now), actions, dateTimeProvider);
+        var data = DetachGrants(result.Value);
+        var subjectEntry = NeedsHydratedVersion(entry, data)
+            ? entry with { Versions = await accessVersionStore.ReadAsync(data.TenantId, ct) } : entry;
+        var project = await actions.EvaluateAsync(data, subjectEntry, ct);
+        ct.ThrowIfCancellationRequested();
+        return new(data.ExpiresAt, at => Stamp(project(at), started, entry.Window.End));
     }
 
     private static AuthorizationData DetachGrants(AuthorizationData data) => data with
@@ -255,4 +265,46 @@ internal partial class AuthorizationCache(
         return new(start.UtcDateTime, TimeSpan.FromTicks(Math.Clamp(timeUntilExpiry.Ticks, _minEntryLifetime.Ticks, _maxEntryLifetime.Ticks)));
     }
 
+    private const short ETAG_LENGTH = 12;
+
+    private static AuthorizationData Stamp(AuthorizationData data, DateTime builtAt, DateTime deadline)
+    {
+        var expiresAt = EarlierOf(deadline, data.ExpiresAt);
+        expiresAt = EarlierOf(expiresAt, RequiredActionEvaluation.NextTransition(data, builtAt));
+        return data.WithCacheMetadata(builtAt, expiresAt, GenerateETag(data));
+    }
+
+    /// <summary>The entry's end, or the earliest permission expiry the data carries when that comes first.</summary>
+    private static DateTime EarlierOf(DateTime entryEnd, DateTime permissionsExpireAt) =>
+        permissionsExpireAt != default && permissionsExpireAt < entryEnd ? permissionsExpireAt : entryEnd;
+
+    /// <summary>
+    /// Generates an ETag for authorization data based on its content.
+    /// Centralized ETag generation ensures consistency across all strategies.
+    /// </summary>
+    private static string GenerateETag(AuthorizationData data)
+    {
+        var sortedRoles = string.Join(",", data.Roles.OrderBy(r => r).ToArray());
+        var sortedPermissions = string.Join(",", data.Permissions.OrderBy(p => p).ToArray());
+        var content = $"{data.UserId}:{data.TenantId}:{sortedRoles}:{sortedPermissions}";
+        if (data.RequiredActionsUnavailable)
+        {
+            content += ":standing-unavailable";
+        }
+        if (data.RequiredActions.Count > 0)
+        {
+            content += ":" + JsonSerializer.Serialize(data.RequiredActions);
+        }
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+
+        var shortETag = Convert.ToBase64String(hash)[..ETAG_LENGTH];
+        return shortETag;
+    }
+
+    private sealed record BuiltSnapshot(DateTime PermissionExpiry, Func<DateTime, AuthorizationData> At)
+    {
+        internal bool PermissionsExpired(DateTime now) => PermissionExpiry != default && PermissionExpiry <= now;
+        internal AuthorizationData WithCurrentPermissions(DateTime now) => PermissionsExpired(now)
+            ? throw new InvalidOperationException("Fresh authorization data contains expired permissions.") : At(now);
+    }
 }

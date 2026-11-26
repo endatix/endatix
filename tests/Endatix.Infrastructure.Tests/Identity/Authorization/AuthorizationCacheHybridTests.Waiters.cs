@@ -121,13 +121,52 @@ public sealed partial class AuthorizationCacheHybridTests
         services.AddOptions<EndatixJwtOptions>().Configure(o => o.SigningKey = "test-signing-key-32-characters");
         services.AddScoped<AuthorizationTokenFingerprint>();
         services.AddSingleton(sp => new AuthorizationCacheStorage(remote.Observe(sp.GetRequiredService<HybridCache>()), sp.GetRequiredService<IMemoryCache>()));
-        services.AddSingleton<RequiredActionProviderCache>();
+        services.AddSingleton(sp => ActivatorUtilities.CreateInstance<RequiredActionProviderCache>(sp,
+            remote.Observe(sp.GetRequiredService<HybridCache>())));
         services.AddSingleton<RequiredActionExecution>();
         services.AddSingleton<RequiredActionInvocations>();
         services.AddScoped<RequiredActionEvaluation>();
         services.AddScoped<IRequiredActionProvider>(_ => new WaiterProvider(remote));
         services.AddScoped<AuthorizationCache>();
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GetOrCreateAsync_WaitersShareReports_EachKeepsItsOwnGrantsAndDeadline(bool expired)
+    {
+        var remote = new ProviderRead(expired);
+        await using var services = WaiterServices(remote);
+        using var scope = services.CreateScope();
+        var cache = scope.ServiceProvider.GetRequiredService<AuthorizationCache>();
+        Task<AuthorizationData> ReadAsync(string permission, int seconds)
+        {
+            var principal = CreatePrincipal();
+            principal.Identities.Single().AddClaim(new("exp", _start.AddSeconds(seconds).ToUnixTimeSeconds().ToString(
+                System.Globalization.CultureInfo.InvariantCulture)));
+            var data = CreateData(default) with { Permissions = [permission] };
+            return cache.GetOrCreateAsync("123", 42, principal, _ => Task.FromResult(Result.Success(data)), TestContext.Current.CancellationToken);
+        }
+        var longer = ReadAsync("forms.view", 38);
+        await AwaitAsync(remote.Started.Task);
+        var shorter = ReadAsync("forms.create", 25);
+        try
+        {
+            await AwaitAsync(remote.Joined.Task);
+        }
+        finally
+        {
+            remote.Finish.TrySetResult([]);
+        }
+        var first = await AwaitAsync(longer);
+        var second = await AwaitAsync(shorter);
+        first.Permissions.Should().Equal("forms.view");
+        second.Permissions.Should().Equal("forms.create");
+        first.Roles.Should().NotBeSameAs(second.Roles);
+        first.ExpiresAt.Should().Be(_start.AddSeconds(28).UtcDateTime);
+        second.ExpiresAt.Should().Be(_start.AddSeconds(15).UtcDateTime);
+        remote.Calls.Should().Be(1);
     }
 
     private sealed class ProviderRead(bool expired)
@@ -147,8 +186,8 @@ public sealed partial class AuthorizationCacheHybridTests
             forward.GetOrCreateAsync(Arg.Any<string>(), 0, Arg.Any<Func<int, CancellationToken, ValueTask<AuthorizationData?>>>(),
                 Arg.Any<HybridCacheEntryOptions>(), Arg.Any<string[]>(), Arg.Any<CancellationToken>())
                 .Returns(ValueTask.FromResult<AuthorizationData?>(expired ? CreateData(DateTime.UnixEpoch) : null));
-            ForwardReads<AuthorizationData>(forward, cache);
-            ForwardReads<AuthorizationCache.BuiltSnapshot>(forward, cache);
+            ForwardReads<Guid>(forward, cache);
+            ForwardReads<RequiredActionProviderCache.ProviderReports>(forward, cache);
             return forward;
         }
 
@@ -159,7 +198,7 @@ public sealed partial class AuthorizationCacheHybridTests
             {
                 var waiter = cache.GetOrCreateAsync(call.Arg<string>(), call.Arg<Func<CancellationToken, ValueTask<T>>>(),
                     call.Arg<HybridCacheEntryOptions>(), (IEnumerable<string>?)call[4], call.Arg<CancellationToken>());
-                if (Interlocked.Increment(ref _waiters) == 2)
+                if (typeof(T) == typeof(RequiredActionProviderCache.ProviderReports) && Interlocked.Increment(ref _waiters) == 2)
                 {
                     Joined.SetResult(true);
                 }

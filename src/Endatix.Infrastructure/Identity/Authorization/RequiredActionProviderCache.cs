@@ -109,6 +109,23 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
             entry.Tags, ct);
     }
 
+    // This batch is only shared in flight on one host. Each waiter projects it onto its own grants and deadlines.
+    [System.ComponentModel.ImmutableObject(true)]
+    internal sealed record ProviderReports(Query[] Queries, Report[] Results);
+
+    private static readonly HybridCacheEntryOptions _inFlightOnly = new()
+    {
+        Flags = HybridCacheEntryFlags.DisableLocalCache | HybridCacheEntryFlags.DisableDistributedCache
+    };
+
+    internal ValueTask<ProviderReports> ReadTogetherAsync(Guid epoch, Query[] queries, CancellationToken ct)
+    {
+        var key = $"standing:in-flight:{epoch:N}";
+        return epochs.GetOrCreateAsync(key,
+            async token => new ProviderReports(queries, await Task.WhenAll(queries.Select(q => ReadAsync(q, token)))),
+            _inFlightOnly, cancellationToken: ct);
+    }
+
     private Slot GetSlot(Query query)
     {
         lock (_creation)

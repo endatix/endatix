@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Endatix.Core.Abstractions.Authorization;
 using Microsoft.Extensions.Logging;
 using static Endatix.Infrastructure.Identity.Authorization.RequiredActionProviderCache;
@@ -28,15 +29,13 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
             return _ => data;
         }
 
-        var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles) { VerifiedAssumption = data.VerifiedAssumption };
+        var subject = new RequiredActionSubject(data.UserId, data.TenantId, data.Roles.ToImmutableHashSet(data.Roles.Comparer))
+        { VerifiedAssumption = data.VerifiedAssumption };
         var epoch = await reports.SubjectEpochAsync(subject, entry, ct);
         var queries = _configuration.Value.Policies.Select((policy, i) => new Query(epoch, i, subject, policy)).ToArray();
-        var results = await Task.WhenAll(queries.Select(q => reports.ReadAsync(q, ct)));
-        var evaluated = new ProviderReports(queries, results);
+        var evaluated = await reports.ReadTogetherAsync(epoch, queries, ct);
         return now => Combine(data, evaluated, now);
     }
-
-    private sealed record ProviderReports(Query[] Queries, Report[] Results);
 
     private AuthorizationData Combine(AuthorizationData data, ProviderReports providers, DateTime now)
     {
