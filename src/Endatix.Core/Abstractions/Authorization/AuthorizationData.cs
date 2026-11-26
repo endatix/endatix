@@ -47,6 +47,10 @@ public sealed record AuthorizationData
     /// <summary>Outstanding actions applicable to the user in the current tenant.</summary>
     [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0006")]
     public IReadOnlyList<RequiredAction> RequiredActions { get; init; } = [];
+    /// <summary>On auth/me, whether the serving host enforces blocking actions.</summary>
+    [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0006")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public bool RequiredActionsEnforced { get; init; }
     /// <summary>Server-derived standing could not be established. An empty action list is not clearance in this state.</summary>
     [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0006")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

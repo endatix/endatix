@@ -102,6 +102,10 @@ Tenant and system changes refresh affected users on their next request across ho
 
 `GET /api/auth/me` requires authentication. On success, `requiredActions` is an array ordered by key (`[]` if none). Each entry describes the caller's projected action, including `scope` (`user` or `tenant`), `severity` (`notice` or `blocking`), `resolvePath`, and `canResolve`. If standing is unavailable, `/api/auth/me` returns **503**, not a successful empty list.
 
+The top-level boolean `requiredActionsEnforced` tells clients whether this host enforces blocking actions. It is present even when `false` or when the list is empty. Redirect proactively only when it is `true` and the list contains a blocking action. A host can report the same blocker with enforcement off. The response's `eTag` distinguishes the two modes even when the actions match.
+
+Existing clients can ignore the new field. When reading an older API that omits it, do not infer enforcement from the list; handle a `403` with `errorCode: required_action` if a protected request returns one.
+
 Registering a provider changes what `/api/auth/me` reports. To also enforce blocking actions, opt in when configuring your host's services:
 
 ```csharp
