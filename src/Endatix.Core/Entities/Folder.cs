@@ -115,8 +115,5 @@ public sealed class Folder : TenantEntity, IAggregateRoot, IHasUrlSlug
     /// <param name="metadata">The metadata of the folder.</param>
     /// <returns>True if the folder can be modified, false otherwise.</returns>
     public bool CanModifyMutableState(string? name, string? slug, string? description, string? metadata) =>
-        !Immutable || !ChangesMutableFields((name, slug, description, metadata));
-
-    internal static bool ChangesMutableFields((string? Name, string? Slug, string? Description, string? Metadata) fields) =>
-        fields is not (null, null, null, null);
+        !Immutable || (name, slug, description, metadata) is (null, null, null, null);
 }

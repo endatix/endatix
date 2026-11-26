@@ -27,7 +27,7 @@ internal sealed class TenantFormParent(IRepository<Form> forms, ITenantContext t
             return Task.FromResult(false);
         }
         var parent = new FormSpecifications.ByIdForTenant(formId, id);
-        parent.Query.Where(form => form.FormDefinitions.Any(definition => definition.TenantId == id));
+        parent.Query.Where(form => !form.IsDeleted && form.FormDefinitions.Any(definition => definition.TenantId == id && !definition.IsDeleted));
         return forms.AnyAsync(parent, ct);
     }
 }

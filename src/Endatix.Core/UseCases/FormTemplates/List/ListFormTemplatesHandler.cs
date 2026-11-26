@@ -2,7 +2,6 @@ using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Messaging;
-using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
 using Endatix.Core.Specifications.Parameters;
@@ -26,20 +25,19 @@ public class ListFormTemplatesHandler(IRepository<FormTemplate> repository) : IQ
         }
 
         var filters = CreateFilterParameters(request.FilterExpressions, request.FolderId);
-        var count = new FormTemplatesListFilterSpec(filters, request.Created, request.Modified);
-        Selection.Apply(count);
-        var total = await repository.CountAsync(count, cancellationToken);
+        var total = await CountAsync(new FormTemplatesListFilterSpec(filters, request.Created, request.Modified), cancellationToken);
         var page = new PagingParameters(request.Page, request.PageSize).ForTotal(total);
-        var items = total == 0 ? [] : await ReadPageAsync(request, (page, filters), cancellationToken);
+        var spec = new FormTemplatesSpec(new PagingParameters(page), filters, request.SortBy,
+            request.SortDescending, request.Created, request.Modified);
+        Selection.Apply(spec);
+        var items = total == 0 ? [] : await repository.ListAsync(spec, cancellationToken);
         return Result.Success(page.ToPaged(items));
     }
 
-    private async Task<IReadOnlyList<FormTemplateDto>> ReadPageAsync(ListFormTemplatesQuery request, (ResolvedPage Window, FilterParameters Filters) page, CancellationToken ct)
+    private Task<int> CountAsync(FormTemplatesListFilterSpec count, CancellationToken ct)
     {
-        var spec = new FormTemplatesSpec(new PagingParameters(page.Window), page.Filters, request.SortBy,
-            request.SortDescending, request.Created, request.Modified);
-        Selection.Apply(spec);
-        return await repository.ListAsync(spec, ct);
+        Selection.Apply(count);
+        return repository.CountAsync(count, ct);
     }
 
     private static FilterParameters CreateFilterParameters(

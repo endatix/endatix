@@ -27,8 +27,4 @@ public sealed record ListDataListsQuery(
     bool SortDescending = true,
     UtcDateTimeRange Created = default,
     UtcDateTimeRange Modified = default)
-    : IQuery<Result<Paged<DataListDto>>>
-{
-    /// <summary>Tenant that owns the catalog. When omitted, use the current request scope.</summary>
-    public long? TenantId { get; init; }
-}
+    : IQuery<Result<Paged<DataListDto>>>;

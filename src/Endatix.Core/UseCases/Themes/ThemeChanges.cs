@@ -11,15 +11,18 @@ namespace Endatix.Core.UseCases.Themes;
 
 internal sealed class ThemeChanges(IRepository<Theme> themes, ContentQueryScope scope)
 {
-    internal async Task<Result<Edit>> PrepareEditAsync(ThemeChange change, CancellationToken ct)
+    internal async Task<Result<Edit>> PrepareEditAsync(EditRequest change, CancellationToken ct)
     {
-        var id = change.Id!.Value;
-        var target = await scope.FindAsync(themes, id, ct);
+        var target = await scope.FindAsync(themes, change.Id, ct);
         if (target is null)
         {
             return Result.NotFound("Theme not found");
         }
-        var data = await DataAsync(change, ct);
+        if (change.RequiresName)
+        {
+            RequireName(change.Name);
+        }
+        var data = await ValidateAsync(new Content(change.Name, change.Json), change.Id, ct);
         if (!data.IsSuccess)
         {
             return data.ToErrorResult<Edit>();
@@ -27,16 +30,16 @@ internal sealed class ThemeChanges(IRepository<Theme> themes, ContentQueryScope 
         return new Edit(target, data.Value);
     }
 
-    internal async Task<Result<ThemeJsonData?>> DataAsync(ThemeChange change, CancellationToken ct)
+    private static void RequireName(string? name) => Guard.Against.NullOrEmpty(name);
+
+    internal Task<Result<ThemeJsonData?>> PrepareCreateAsync(Content content, CancellationToken ct) =>
+        ValidateAsync(content, null, ct);
+
+    private async Task<Result<ThemeJsonData?>> ValidateAsync(Content change, long? id, CancellationToken ct)
     {
-        if (change.CheckName && await NameConflictAsync(change.Name!, change.Id, ct) is { } conflict)
+        if (!string.IsNullOrEmpty(change.Name) && await NameConflictAsync(change.Name, id, ct) is { } conflict)
         {
             return conflict.ToErrorResult<ThemeJsonData?>();
-        }
-        if (change.RequiresName)
-        {
-            var name = change.Name;
-            Guard.Against.NullOrEmpty(name);
         }
         var data = change.Json is null ? null : ThemeJsonData.Create(change.Json);
         if (data is { IsSuccess: false })
@@ -46,10 +49,10 @@ internal sealed class ThemeChanges(IRepository<Theme> themes, ContentQueryScope 
         return Result<ThemeJsonData?>.Success(data?.Value);
     }
 
-    internal sealed record ThemeChange(long? Id, string? Name, string? Json)
+    internal sealed record Content(string? Name, string? Json);
+    internal sealed record EditRequest(long Id, string? Name, string? Json)
     {
         internal bool RequiresName { get; init; }
-        internal bool CheckName => RequiresName || !string.IsNullOrEmpty(Name);
     }
     internal sealed record Edit(Theme Target, ThemeJsonData? Data);
 

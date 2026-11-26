@@ -1,6 +1,7 @@
 using Endatix.Api.Infrastructure;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.UseCases.Stats.GetDashboard;
 using Endatix.Core.UseCases.Stats.Models;
 using FastEndpoints;
@@ -31,11 +32,13 @@ public class GetDashboard(IMediator mediator, ITenantContext tenantContext) : En
     {
         var tenantId = tenantContext.TenantId;
 
-        var query = new GetStorageDashboardQuery(tenantId == 0 ? null : tenantId);
-        var result = await mediator.Send(query, ct);
+        if (tenantId <= 0)
+        {
+            return Result.Forbidden("Tenant context is required.").ToProblem();
+        }
 
-
+        var result = await mediator.Send(new GetStorageDashboardQuery(tenantId), ct);
         return TypedResultsBuilder.FromResult(result)
-        .SetTypedResults<Ok<StorageDashboardModel>, ProblemHttpResult>();
+            .SetTypedResults<Ok<StorageDashboardModel>, ProblemHttpResult>();
     }
 }

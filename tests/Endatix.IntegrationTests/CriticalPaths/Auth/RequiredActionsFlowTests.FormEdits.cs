@@ -7,6 +7,33 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    [Fact]
+    public async Task Form_assignment_uses_only_active_folders_of_the_current_tenant()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
+        using var owner = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        var own = await ManagedAsset.CreateAsync(owner, "folders", ct);
+        var foreign = await ManagedAsset.CreateAsync(other, "folders", ct);
+        using var deactivate = await owner.PatchAsJsonAsync(own.Detail, new { isActive = false }, ct);
+        deactivate.EnsureSuccessStatusCode();
+        var before = await owner.GetFromJsonAsync<JsonElement>("/api/forms", ct);
+
+        // Act
+        foreach (var id in new[] { own.Id, foreign.Id })
+        {
+            var body = new { name = "Assigned form", folderId = id, formDefinitionJsonData = """{"pages":[]}""" };
+            using var response = await owner.PostAsJsonAsync("/api/forms", body, ct);
+            Assert.False(response.IsSuccessStatusCode);
+        }
+
+        // Assert
+        var after = await owner.GetFromJsonAsync<JsonElement>("/api/forms", ct);
+        Assert.True(JsonElement.DeepEquals(before, after));
+    }
+
     [Theory]
     [InlineData("PUT")]
     [InlineData("PATCH")]

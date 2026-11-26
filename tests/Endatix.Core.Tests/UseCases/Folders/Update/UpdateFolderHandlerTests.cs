@@ -35,6 +35,28 @@ public sealed class UpdateFolderHandlerTests
         _handler = new UpdateFolderHandler(_repository, _mediator, _folderWritePolicy, _uniqueConstraintViolationChecker);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(0)]
+    public async Task Handle_ScopedUpdate_CannotEditAFolderOutsideTheCurrentTenant(long tenantId)
+    {
+        // Arrange
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(tenantId);
+        var foreign = new Folder(2L, "Original", "original", "ORIGINAL") { Id = 10L };
+        var policy = new FolderWritePolicy(_repository, _valueNormalizer, tenant);
+        var handler = new UpdateFolderHandler(_repository, _mediator, policy, _uniqueConstraintViolationChecker);
+        _repository.FirstOrDefaultAsync(Arg.Any<FolderSpecifications.FolderByIdSpec>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<FolderSpecifications.FolderByIdSpec>().IsSatisfiedBy(foreign) ? foreign : null);
+
+        // Act
+        var result = await handler.Handle(new UpdateFolderCommand(foreign.Id) { Name = "New" }, TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        foreign.Name.Should().Be("Original");
+    }
+
     [Fact]
     public async Task Handle_ImmutableFolder_RejectsNameChange()
     {

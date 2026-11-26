@@ -26,7 +26,7 @@ public class PartialUpdateThemeHandler(IRepository<Theme> themeRepository) : ICo
         Guard.Against.NegativeOrZero(request.ThemeId);
 
         var changes = new ThemeChanges(themeRepository, Selection);
-        var change = new ThemeChanges.ThemeChange(request.ThemeId, request.Name, request.ThemeData);
+        var change = new ThemeChanges.EditRequest(request.ThemeId, request.Name, request.ThemeData);
         var edit = await changes.PrepareEditAsync(change, cancellationToken);
         if (!edit.IsSuccess)
         {

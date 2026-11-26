@@ -69,23 +69,20 @@ public class GetDashboardTests
             Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task ExecuteAsync_WhenTenantIdZero_SendsQueryWithNullTenantId()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task ExecuteAsync_NonPositiveTenant_RefusesBeforeReadingStatistics(long tenantId)
     {
         // Arrange
-        _tenantContext.TenantId.Returns(0L);
-        var tenantStats = new TenantStorageStats(0, 200, 100, 2048);
-        var result = Result.Success(
-            new StorageDashboardModel(tenantStats, [], []));
-        _mediator.Send(Arg.Any<GetStorageDashboardQuery>(), Arg.Any<CancellationToken>()).Returns(result);
+        _tenantContext.TenantId.Returns(tenantId);
 
         // Act
-        await _endpoint.ExecuteAsync(CancellationToken.None);
+        var response = await _endpoint.ExecuteAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        await _mediator.Received(1).Send(
-            Arg.Is<GetStorageDashboardQuery>(q => q.TenantId == null),
-            Arg.Any<CancellationToken>());
+        response.Result.Should().BeOfType<ProblemHttpResult>().Which.StatusCode.Should().Be(403);
+        _mediator.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

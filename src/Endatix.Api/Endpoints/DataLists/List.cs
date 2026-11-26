@@ -1,7 +1,6 @@
 using Endatix.Api.Common;
 using Endatix.Api.Endpoints.Common;
 using Endatix.Api.Infrastructure;
-using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Paging;
 using Endatix.Core.Infrastructure.Result;
@@ -11,21 +10,15 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Endatix.Api.Endpoints.DataLists;
 
 /// <summary>
 /// Endpoint to list data lists.
 /// </summary>
-[method: ActivatorUtilitiesConstructor]
-public sealed class List(
-    IMediator mediator, ITenantContext? tenant)
+public sealed class List(IMediator mediator)
     : Endpoint<DataListsListRequest, Results<Ok<Paged<DataListModel>>, ProblemHttpResult>>
 {
-    /// <summary>Leaves tenant resolution to the scoped handler when constructed directly.</summary>
-    public List(IMediator mediator) : this(mediator, null) { }
-
     /// <summary>
     /// Configures the endpoint settings.
     /// </summary>
@@ -93,12 +86,11 @@ public sealed class List(
         return TypedResults.Ok(mapped);
     }
 
-    private ListDataListsQuery ToQuery(DataListsListRequest request)
+    private static ListDataListsQuery ToQuery(DataListsListRequest request)
     {
         var sort = request.ToSortRequest(DataListListSortBy.CreatedAt, SortDirection.Desc);
         return new(request.Page, request.PageSize, request.HasLocale, request.Search, sort.Field, sort.IsDescending,
-            request.ToCreatedRange(), request.ToModifiedRange())
-        { TenantId = tenant?.TenantId };
+            request.ToCreatedRange(), request.ToModifiedRange());
     }
 }
 

@@ -1,8 +1,10 @@
 using Ardalis.Specification;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Entities;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Specifications;
+using Endatix.Core.UseCases;
 using Endatix.Core.UseCases.Submissions;
 using Endatix.Core.UseCases.Submissions.ListByFormId;
 
@@ -19,6 +21,43 @@ public class ListByFormIdHandlerTests
         _submissionsRepository = Substitute.For<IRepository<Submission>>();
         _formDefinitionsRepository = Substitute.For<IRepository<FormDefinition>>();
         _handler = new ListByFormIdHandler(_submissionsRepository, _formDefinitionsRepository);
+    }
+
+    [Fact]
+    public async Task Handle_RegisteredListWithoutTenant_ReturnsNotFoundBeforeReadingRows()
+    {
+        // Arrange
+        var tenant = Substitute.For<ITenantContext>();
+        var forms = Substitute.For<IRepository<Form>>();
+        var handler = new ListByFormIdHandler.Registered(_submissionsRepository, new TenantFormParent(forms, tenant), new ContentQueryScope(tenant));
+
+        // Act
+        var result = await handler.Handle(new ListByFormIdQuery(1, 1, 10), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        forms.ReceivedCalls().Should().BeEmpty();
+        _submissionsRepository.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Handle_RegisteredListWithoutDefinitions_DoesNotReadSubmissions()
+    {
+        // Arrange
+        var tenant = Substitute.For<ITenantContext>();
+        tenant.TenantId.Returns(1L);
+        var empty = Form.Create(5, new FormCreateArgs(1, "Empty"));
+        var forms = Substitute.For<IRepository<Form>>();
+        forms.AnyAsync(Arg.Any<ISpecification<Form>>(), Arg.Any<CancellationToken>())
+            .Returns(call => call.Arg<ISpecification<Form>>().IsSatisfiedBy(empty));
+        var handler = new ListByFormIdHandler.Registered(_submissionsRepository, new TenantFormParent(forms, tenant), new ContentQueryScope(tenant));
+
+        // Act
+        var result = await handler.Handle(new ListByFormIdQuery(empty.Id, 1, 10), TestContext.Current.CancellationToken);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.NotFound);
+        _submissionsRepository.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

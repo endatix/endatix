@@ -2,8 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.Entities;
-using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Infrastructure.Result;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +11,28 @@ namespace Endatix.IntegrationTests;
 
 public sealed partial class RequiredActionsFlowTests
 {
+    [Fact]
+    public async Task Ordinary_question_creation_still_requires_permission_and_valid_input()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
+        using var anonymous = world.AnonymousClient();
+        using var reader = await RestrictedUserAsync(world, ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
+        const string route = "/api/questions";
+
+        // Act
+        using var challenge = await anonymous.PostAsJsonAsync(route, new { }, ct);
+        using var denied = await reader.PostAsJsonAsync(route, new { }, ct);
+        using var invalid = await admin.PostAsJsonAsync(route, new { }, ct);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, challenge.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+    }
+
     [Fact]
     public async Task Two_tenants_can_each_create_a_custom_question_with_the_same_name()
     {
@@ -61,12 +81,7 @@ public sealed partial class RequiredActionsFlowTests
         var snapshots = Substitute.For<ICurrentUserAuthorizationService>();
         snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>())
             .Returns(Result.Success(new AuthorizationData { RequiredActionsUnavailable = true }));
-        var questions = Substitute.For<IRepository<CustomQuestion>>();
-        await using var host = new ReportingWebHost(fixture, services =>
-        {
-            services.AddScoped(_ => new AccountStanding(snapshots));
-            services.AddSingleton(questions);
-        });
+        await using var host = new ReportingWebHost(fixture, services => services.AddScoped(_ => new AccountStanding(snapshots)));
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         using var anonymous = host.CreateClient();
@@ -80,19 +95,11 @@ public sealed partial class RequiredActionsFlowTests
         await AssertUnavailableQuestionsAsync(invalid, ct);
         using var invalidPage = await admin.GetAsync($"{route}?pageSize=0", ct);
         await AssertUnavailableQuestionsAsync(invalidPage, ct);
-        await snapshots.Received(2).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-        snapshots.ClearReceivedCalls();
-        Assert.Empty(questions.ReceivedCalls());
-
-        using var list = await admin.GetAsync(route, ct);
-        await AssertUnavailableQuestionsAsync(list, ct);
-        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-        Assert.Empty(questions.ReceivedCalls());
-        snapshots.ClearReceivedCalls();
         using var create = await admin.PostAsJsonAsync(route, new { name = "Example", jsonData = """{"type":"text"}""" }, ct);
         await AssertUnavailableQuestionsAsync(create, ct);
-        await snapshots.Received(1).GetAuthorizationDataAsync(Arg.Any<CancellationToken>());
-        Assert.Empty(questions.ReceivedCalls());
+        snapshots.GetAuthorizationDataAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(AdmittedSnapshot()));
+        var page = await admin.GetFromJsonAsync<JsonElement>(route, ct);
+        Assert.Empty(page.GetProperty("items").EnumerateArray());
     }
 
     private static async Task AssertUnavailableQuestionsAsync(HttpResponseMessage response, CancellationToken ct)
@@ -134,6 +141,8 @@ public sealed partial class RequiredActionsFlowTests
         await AssertStandingRefusalAsync(blockedRead, me, ct);
         using var blockedWrite = await admin.PostAsJsonAsync(route, another, ct);
         await AssertStandingRefusalAsync(blockedWrite, me, ct);
+        using var blockedDuplicate = await admin.PostAsJsonAsync(route, original, ct);
+        await AssertStandingRefusalAsync(blockedDuplicate, me, ct);
 
         provider.Pending = false;
         await InvalidateAsync(world, ct);

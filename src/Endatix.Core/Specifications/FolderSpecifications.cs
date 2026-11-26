@@ -8,6 +8,18 @@ namespace Endatix.Core.Specifications;
 /// </summary>
 public static class FolderSpecifications
 {
+    internal sealed class LockedFolder : Specification<Folder>
+    {
+        internal LockedFolder(long id, long tenant) =>
+            Query.Where(folder => tenant > 0 && folder.Id == id && folder.TenantId == tenant && folder.Immutable);
+    }
+
+    internal sealed class FolderActive : SingleResultSpecification<Folder, bool?>
+    {
+        internal FolderActive(long id, long tenant) => Query.Where(folder => tenant > 0 && folder.Id == id && folder.TenantId == tenant)
+            .Select(folder => (bool?)folder.IsActive);
+    }
+
     /// <summary>
     /// Specification to get a folder by ID
     /// </summary>
