@@ -118,8 +118,9 @@ public sealed partial class AuthorizationCacheHybridTests
         // Arrange
         var mandatory = Substitute.For<IRequiredActionProvider>();
         mandatory.FailClosed.Returns(true);
-        mandatory.CacheFor.Returns(TimeSpan.FromSeconds(10));
-        mandatory.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);
+        mandatory.CacheFor.Returns(TimeSpan.FromMinutes(1));
+        mandatory.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>())
+            .Returns(new RequiredActionReport([], _start.AddSeconds(10)));
         var remote = Substitute.For<IRequiredActionProvider>();
         remote.CacheFor.Returns(TimeSpan.FromSeconds(5));
         remote.GetPendingAsync(Arg.Any<RequiredActionSubject>(), Arg.Any<CancellationToken>()).Returns([]);

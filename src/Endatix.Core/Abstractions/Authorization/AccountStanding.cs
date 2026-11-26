@@ -8,13 +8,18 @@ namespace Endatix.Core.Abstractions.Authorization;
 public sealed class AccountStanding
 {
     private readonly ICurrentUserAuthorizationService? _authorization;
-    private bool _admitted;
+    private readonly IDateTimeProvider? _clock;
+    private DateTime _admittedUntil;
     private const string UNAVAILABLE_MESSAGE = "Required action status is unavailable. Try again.";
 
     /// <summary>Creates the default decision, which does not enforce required actions.</summary>
     public AccountStanding() { }
 
-    internal AccountStanding(ICurrentUserAuthorizationService authorization) => _authorization = authorization;
+    internal AccountStanding(ICurrentUserAuthorizationService authorization, IDateTimeProvider? clock = null)
+    {
+        _authorization = authorization;
+        _clock = clock;
+    }
 
     /// <summary>Whether an operation needs its standing preflight.</summary>
     public bool IsEnforced => _authorization is not null;
@@ -27,14 +32,18 @@ public sealed class AccountStanding
         }
 
         // The gate and operation share this scoped decision for the lifetime of the request.
-        _admitted = !snapshot.RequiredActions.Any(action => action.Severity == RequiredActionSeverity.Blocking);
-        return _admitted ? null : new RequiredActionRefusal<T>(snapshot.RequiredActions);
+        if (snapshot.RequiredActions.Any(action => action.Severity == RequiredActionSeverity.Blocking))
+        {
+            return new RequiredActionRefusal<T>(snapshot.RequiredActions);
+        }
+        _admittedUntil = snapshot.ExpiresAt == default ? DateTime.MaxValue : snapshot.ExpiresAt;
+        return null;
     }
 
     /// <summary>Reads the hydrated account snapshot when the operation does not already hold it.</summary>
     public async Task<Result<T>?> RefusalAsync<T>(CancellationToken cancellationToken)
     {
-        if (_authorization is null || _admitted)
+        if (_authorization is null || _admittedUntil > (_clock?.Now.UtcDateTime ?? DateTime.UtcNow))
         {
             return null;
         }

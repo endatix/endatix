@@ -22,19 +22,22 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
     private readonly ITenantContext _tenantContext;
     private readonly IEnumerable<IAuthorizationStrategy> _authorizationStrategies;
     private readonly ILogger<CurrentUserAuthorizationService> _logger;
+    private readonly IDateTimeProvider _clock;
 
     public CurrentUserAuthorizationService(
         IHttpContextAccessor httpContextAccessor,
         IAuthorizationCache authorizationCache,
         IEnumerable<IAuthorizationStrategy> authorizationStrategies,
         ITenantContext tenantContext,
-        ILogger<CurrentUserAuthorizationService> logger)
+        ILogger<CurrentUserAuthorizationService> logger,
+        IDateTimeProvider clock)
     {
         _httpContextAccessor = httpContextAccessor;
         _authorizationCache = authorizationCache;
         _authorizationStrategies = authorizationStrategies;
         _tenantContext = tenantContext;
         _logger = logger;
+        _clock = clock;
     }
 
     /// <inheritdoc />
@@ -52,41 +55,54 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
             return Result.Success(AuthorizationData.ForAnonymousUser(_tenantContext.TenantId));
         }
 
-        if (currentPrincipal.IsHydrated())
+        try
         {
-            try
+            if (currentPrincipal.IsHydrated())
             {
-                return Result.Success(GetAuthorizationDataFromClaims(currentPrincipal));
+                var snapshot = GetAuthorizationDataFromClaims(currentPrincipal);
+                // Refresh from the original token identity, before any local user/tenant mapping.
+                return snapshot.ExpiresAt == default || snapshot.ExpiresAt > _clock.Now.UtcDateTime
+                    ? Result.Success(snapshot)
+                    : await ReadForPrincipalAsync(new ClaimsPrincipal(currentPrincipal.Identities.Where(i => i is not AuthorizedIdentity)), cancellationToken);
             }
-            catch (InvalidAuthorizedIdentityException ex)
-            {
-                _logger.LogWarning(ex, "Invalid authorized identity encountered for user {UserId}", userId);
-                return Result.Error("Invalid authorized identity encountered");
-            }
+            return await ReadForPrincipalAsync(currentPrincipal, cancellationToken);
         }
+        catch (InvalidAuthorizedIdentityException ex)
+        {
+            _logger.LogWarning(ex, "Invalid authorized identity encountered for user {UserId}", userId);
+            return Result.Error("Invalid authorized identity encountered");
+        }
+    }
 
+    private async Task<Result<AuthorizationData>> ReadForPrincipalAsync(ClaimsPrincipal currentPrincipal, CancellationToken cancellationToken)
+    {
         var authorizationStrategy = _authorizationStrategies
              .FirstOrDefault(strategy => strategy.CanHandle(currentPrincipal));
         if (authorizationStrategy is null)
         {
             _logger.LogWarning("No authorization strategy found for user {UserId} and issuer {Issuer}",
-                userId,
+                currentPrincipal.GetUserId(),
                 currentPrincipal.GetIssuer() ?? "unknown");
             return Result.Error("No authorization provider found for the current user");
         }
 
+        return await ReadSnapshotAsync(currentPrincipal, authorizationStrategy, cancellationToken);
+    }
+
+    private async Task<Result<AuthorizationData>> ReadSnapshotAsync(ClaimsPrincipal currentPrincipal, IAuthorizationStrategy authorizationStrategy, CancellationToken cancellationToken)
+    {
         try
         {
             var authorizationData = await _authorizationCache.GetOrCreateAsync(
                 currentPrincipal,
-                async _ => await authorizationStrategy.GetAuthorizationDataAsync(currentPrincipal, cancellationToken),
+                token => authorizationStrategy.GetAuthorizationDataAsync(currentPrincipal, token),
                 cancellationToken);
 
             return Result.Success(authorizationData);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting authorization data for user {UserId}", userId);
+            _logger.LogError(ex, "Error getting authorization data for user {UserId}", currentPrincipal.GetUserId());
             return Result.Error("Failed to retrieve user role information");
         }
     }

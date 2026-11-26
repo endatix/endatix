@@ -14,7 +14,16 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
     private readonly Lock _creation = new();
 
     internal sealed record Query(Guid Epoch, int Index, RequiredActionSubject Subject, Policy Policy);
-    internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, DateTime UsableUntil, bool Unavailable = false);
+    internal sealed record Report(IReadOnlyList<RequiredAction> Actions, DateTime Until, DateTime UsableUntil, bool Unavailable = false)
+    {
+        internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
+        {
+            var deadline = actions is RequiredActionReport report ? report.ValidUntil.UtcDateTime : DateTime.MaxValue;
+            return new(actions, Earlier(now + policy.CacheFor, deadline), Earlier(now.AddMinutes(1), deadline));
+        }
+
+        private static DateTime Earlier(DateTime left, DateTime right) => left < right ? left : right;
+    }
     internal sealed record Policy(TimeSpan CacheFor, TimeSpan Timeout, bool FailClosed)
     {
         internal static Policy For(IRequiredActionProvider provider) => new(
@@ -112,8 +121,8 @@ internal sealed class RequiredActionExecution(RequiredActionInvocations invocati
             var actions = await invocations.TryReadAsync(query, ct);
             ct.ThrowIfCancellationRequested();
             var now = Now;
-            return actions is null ? slot.Failure(query.Policy, now)
-                : slot.Success(new(actions, now + query.Policy.CacheFor, now.AddMinutes(1)));
+            var report = actions is null ? null : RequiredActionProviderCache.Report.From(actions, query.Policy, now);
+            return report is not null && now < report.Until ? slot.Success(report) : slot.Failure(query.Policy, now);
         }
         catch (Exception error)
         {

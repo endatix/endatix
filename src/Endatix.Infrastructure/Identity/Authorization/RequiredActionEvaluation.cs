@@ -29,7 +29,7 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
           .ThenBy(p => p.Revision, StringComparer.Ordinal)
           .ThenBy(p => p.Policy.FailClosed).ThenBy(p => p.Policy.Timeout).ThenBy(p => p.Policy.CacheFor);
         // Do not reuse snapshots built without the provider's freshness or failure policy.
-        return "standing-v3:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
+        return "standing-v4:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(revisions)));
     }
 
     internal async Task<Func<DateTime, AuthorizationData>> EvaluateAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)

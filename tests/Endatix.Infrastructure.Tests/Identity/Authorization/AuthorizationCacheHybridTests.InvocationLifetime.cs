@@ -88,6 +88,7 @@ public sealed partial class AuthorizationCacheHybridTests
 
     private sealed class DrainProbe
     {
+        internal DateTimeOffset? ValidUntil { get; init; }
         internal int Calls { get; set; }
         internal TaskCompletionSource InCallback { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource AllowCallbackToFinish { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -108,10 +109,11 @@ public sealed partial class AuthorizationCacheHybridTests
             _lifetime = cancellationToken;
             _lifetime.Register(EndInvocation);
             var key = ++probe.Calls == 1 ? "first" : "next";
-            return Task.FromResult<IReadOnlyList<RequiredAction>>([new()
+            IReadOnlyList<RequiredAction> actions = [new()
             {
                 Key = key, ResolvePath = "/profile", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Blocking
-            }]);
+            }];
+            return Task.FromResult(probe.ValidUntil is { } deadline ? new RequiredActionReport(actions, deadline) : actions);
         }
 
         private void EndInvocation()
