@@ -149,14 +149,30 @@ public sealed class ExportNameCollisionsTests
             [new ExportNameMeaning($"s{separator}min", ExportNameKind.Ordinary), new ExportNameMeaning("s", ExportNameKind.Bound)]);
     }
 
+    [Fact]
+    public void Find_TwoChoicesOfOneCheckboxOnOneHeader_ReturnsBothColumns()
+    {
+        // Arrange
+        var schema = Schema("""{"type":"checkbox","name":"q","choices":["a__b","a--b"]}""");
+
+        // Act
+        var collisions = ExportNameCollisions.Find(new(schema, _uncoded, ExportNameFile.Tabular));
+
+        // Assert
+        var collision = collisions.Should().ContainSingle().Subject;
+        collision.Name.Should().Be("q--a--b");
+        new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
+            [new ExportNameMeaning("q", ExportNameKind.Subvariable, "q__a__b"), new ExportNameMeaning("q", ExportNameKind.Subvariable, "q__a--b")]);
+    }
+
     [Theory]
-    [InlineData("""{"type":"ranking","name":"rk","choices":["a","b"]},{"type":"text","name":"rk--a"}""", "rk--a", "rk")]
-    [InlineData("""{"type":"matrix","name":"m","rows":["r"],"columns":[1,2]},{"type":"text","name":"m--r"}""", "m--r", "m")]
+    [InlineData("""{"type":"ranking","name":"rk","choices":["a","b"]},{"type":"text","name":"rk--a"}""", "rk--a", "rk", "rk__a")]
+    [InlineData("""{"type":"matrix","name":"m","rows":["r"],"columns":[1,2]},{"type":"text","name":"m--r"}""", "m--r", "m", "m__r")]
     [InlineData("""{"type":"paneldynamic","name":"lp","maxPanelCount":1,"templateElements":[{"type":"checkbox","name":"c","choices":["x"]}]},{"type":"text","name":"lp--0--c"}""",
-        "lp--0--c", "c")]
+        "lp--0--c", "c", "lp__0__c")]
     [InlineData("""{"type":"paneldynamic","name":"lr","maxPanelCount":1,"templateElements":[{"type":"ranking","name":"r","choices":["a","b"]}]},{"type":"text","name":"lr--0--r"}""",
-        "lr--0--r", "r")]
-    public void Find_QuestionNamedLikeAGeneratedColumn_ReturnsIt(string elements, string name, string owner)
+        "lr--0--r", "r", "lr__0__r")]
+    public void Find_QuestionNamedLikeAGeneratedColumn_ReturnsIt(string elements, string name, string owner, string column)
     {
         // Arrange
         var schema = Schema(elements);
@@ -168,7 +184,7 @@ public sealed class ExportNameCollisionsTests
         var collision = collisions.Should().ContainSingle().Subject;
         (collision.Name, collision.Rename).Should().Be((name, name));
         new[] { collision.First, collision.Second }.Should().BeEquivalentTo(
-            [new ExportNameMeaning(name, ExportNameKind.Ordinary), new ExportNameMeaning(owner, ExportNameKind.Subvariable)]);
+            [new ExportNameMeaning(name, ExportNameKind.Ordinary), new ExportNameMeaning(owner, ExportNameKind.Subvariable, column)]);
     }
 
     [Fact]

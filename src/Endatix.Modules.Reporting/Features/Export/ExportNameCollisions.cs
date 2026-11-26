@@ -9,7 +9,10 @@ using FormSchemaEntity = Endatix.Modules.Reporting.Domain.FormSchema;
 
 namespace Endatix.Modules.Reporting.Features.Export;
 
-/// <summary>What an export name stands for: the question it comes from, and whether the export generated it.</summary>
+/// <summary>
+/// What an export name stands for: the question it comes from, whether the export generated it and, for a column
+/// built from the question, which one.
+/// </summary>
 internal enum ExportNameKind
 {
     Ordinary,
@@ -19,7 +22,7 @@ internal enum ExportNameKind
     Bound,
 }
 
-internal sealed record ExportNameMeaning(string Question, ExportNameKind Kind)
+internal sealed record ExportNameMeaning(string Question, ExportNameKind Kind, string? Column = null)
 {
     public bool IsGenerated => Kind is not ExportNameKind.Ordinary;
 
@@ -27,15 +30,16 @@ internal sealed record ExportNameMeaning(string Question, ExportNameKind Kind)
     {
         ExportNameKind.Companion => $"the Other text of question '{Question}'",
         ExportNameKind.GroupParent => $"the variable that groups question '{Question}'",
-        ExportNameKind.Subvariable => $"a column of question '{Question}'",
+        ExportNameKind.Subvariable => Column is null ? $"a column of question '{Question}'" : $"column '{Column}' of question '{Question}'",
         ExportNameKind.Bound => $"a min or max column of range question '{Question}'",
         _ => $"question '{Question}'",
     };
 
-    // One question can own several names of different kinds (a tagbox's text column and its group); a companion never
-    // shares its name with anything.
+    // One question can own several names of different kinds (a tagbox's text column and its group), but not two of one
+    // kind (two choices that land on one header); a companion never shares its name with anything.
     public bool Contests(ExportNameMeaning other) =>
-        this != other && (Question != other.Question || Kind is ExportNameKind.Companion || other.Kind is ExportNameKind.Companion);
+        this != other && (Question != other.Question || Kind == other.Kind ||
+            Kind is ExportNameKind.Companion || other.Kind is ExportNameKind.Companion);
 }
 
 /// <summary>One export name that two meanings would share under one naming profile and key separator.</summary>
@@ -136,7 +140,9 @@ internal static class ExportNameCollisions
             if (_columns.TryGetValue(canonicalKey, out var column))
             {
                 // Only a question's own column carries its name; a choice, row, item or panel-iteration column is built from it.
-                return new(Question(column), column.Key == Question(column) ? ExportNameKind.Ordinary : ExportNameKind.Subvariable);
+                return column.Key == Question(column)
+                    ? new(Question(column), ExportNameKind.Ordinary)
+                    : new(Question(column), ExportNameKind.Subvariable, column.Key);
             }
 
             // A range slider's min and max columns are generated from its own key.
