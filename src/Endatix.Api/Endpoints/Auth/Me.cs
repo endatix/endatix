@@ -47,6 +47,17 @@ public class Me(ICurrentUserAuthorizationService authorizationService)
             return Result.Unavailable("Required action status is unavailable. Try again.").ToProblem();
         }
 
-        return TypedResults.Ok(authorizationDataResult.Value);
+        return TypedResults.Ok(ForServingHost(authorizationDataResult.Value));
+    }
+
+    private AuthorizationData ForServingHost(AuthorizationData snapshot)
+    {
+        var enforced = TryResolve<AccountStanding>()?.IsEnforced == true;
+        // The cached snapshot can be shared by hosts with different standing gates.
+        return snapshot with
+        {
+            RequiredActionsEnforced = enforced,
+            ETag = $"{snapshot.ETag}.{(enforced ? 1 : 0)}"
+        };
     }
 }
