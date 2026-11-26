@@ -48,7 +48,12 @@ public sealed class ExitAssumeHandler(
             return Result.Invalid(new ValidationError("Not in an assumed tenant session."));
         }
 
-        if (actor is null || actorId != actor.Id || _verifier is null)
+        return actor is null || actorId != actor.Id ? Result.Forbidden() : await ExitVerifiedAsync(actor, cancellationToken);
+    }
+
+    private async Task<Result<AuthTokensDto>> ExitVerifiedAsync(User actor, CancellationToken cancellationToken)
+    {
+        if (_verifier is null)
         {
             return Result.Forbidden();
         }

@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
-using Endatix.Core.UseCases.Identity.ExitAssume;
 using Endatix.Infrastructure.Identity.Authentication.Providers;
 using Endatix.Infrastructure.Identity.Authorization;
 using Microsoft.AspNetCore.Authentication;
@@ -28,7 +27,9 @@ internal sealed class ClaimsTransformer(
             return principal!;
         }
 
-        if (principal.IsHydrated())
+        var http = context?.HttpContext;
+        var isReturnHome = ReturnHomeAuthorization.Applies(http);
+        if (principal.IsHydrated() && !isReturnHome)
         {
             return principal;
         }
@@ -65,10 +66,10 @@ internal sealed class ClaimsTransformer(
 
         try
         {
-            if (context?.HttpContext?.GetEndpoint()?.Metadata.GetMetadata<ReturnHomeSessionMetadata>() is not null)
+            var http = context?.HttpContext;
+            if (ReturnHomeAuthorization.Applies(http))
             {
-                var grants = await authorizationStrategy.GetAuthorizationDataAsync(principal, cancellationToken);
-                return grants.IsSuccess ? grants.Value with { RequiredActionsUnavailable = true, RequiredActions = [] } : null;
+                return await ReturnHomeAuthorization.ReadGrantsAsync(http!, principal, authorizationStrategy);
             }
             return await authorizationCache.ReadAsync(principal, authorizationStrategy, cancellationToken);
         }

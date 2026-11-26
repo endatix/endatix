@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Identity.ExitAssume;
 using Endatix.Infrastructure.Identity;
 using Endatix.Infrastructure.Identity.Authorization;
 using Endatix.Infrastructure.Identity.Authorization.Handlers;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authorization.Handlers;
 
@@ -31,6 +33,21 @@ public sealed class PlatformAdminHandlerTests
         // Assert
         context.HasSucceeded.Should().BeFalse();
         context.HasFailed.Should().BeFalse();
+        await _authorizationService.DidNotReceive().IsPlatformAdminAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleRequirementAsync_ReturnHomeWithoutFreshGrant_DoesNotRetryCachedAuthorization()
+    {
+        var http = new DefaultHttpContext();
+        http.SetEndpoint(new Endpoint(null, new EndpointMetadataCollection(new ReturnHomeSessionMetadata()), "return home"));
+        var user = CreateClaimsPrincipal("123", false, false)!;
+        _authorizationService.IsPlatformAdminAsync(Arg.Any<CancellationToken>()).Returns(Result.Success(true));
+        var context = new AuthorizationHandlerContext([new PlatformAdminRequirement()], user, http);
+
+        await _handler.HandleAsync(context);
+
+        context.HasSucceeded.Should().BeFalse();
         await _authorizationService.DidNotReceive().IsPlatformAdminAsync(Arg.Any<CancellationToken>());
     }
 
@@ -161,4 +178,3 @@ public sealed class PlatformAdminHandlerTests
 
     #endregion
 }
-
