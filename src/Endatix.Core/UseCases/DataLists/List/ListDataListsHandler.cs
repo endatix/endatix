@@ -25,14 +25,15 @@ public sealed class ListDataListsHandler(IRepository<DataList> repository)
     /// <inheritdoc />
     public async Task<Result<Paged<DataListDto>>> Handle(ListDataListsQuery request, CancellationToken cancellationToken)
     {
-        var tenantId = _tenant?.TenantId;
-        if (tenantId <= 0)
+        var tenantId = _tenant?.TenantId ?? request.TenantId;
+        if (tenantId <= 0 || (request.TenantId.HasValue && request.TenantId != tenantId))
         {
             return Result.Unauthorized("Tenant context is required.");
         }
         PagingParameters pagingParams = new(request.Page, request.PageSize);
         var filter = new DataListsSpecifications.ListFilter(request.HasLocale, request.Search, request.SortBy,
-            request.SortDescending, request.Created, request.Modified) { TenantId = tenantId };
+            request.SortDescending, request.Created, request.Modified)
+        { TenantId = tenantId };
         var listSpec = new DataListsSpecifications.ListSpec(filter);
         var totalRecords = await repository.CountAsync(listSpec, cancellationToken);
         var resolved = pagingParams.ForTotal(totalRecords);

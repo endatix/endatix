@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Authorization;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -20,9 +21,11 @@ public sealed partial class RequiredActionsFlowTests
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var provider = new RecoveringProvider(mandatory);
+        var clock = new ReportClock();
         await using var host = new ReportingWebHost(fixture, services =>
         {
             services.AddSingleton<IRequiredActionProvider>(provider);
+            services.AddSingleton<IDateTimeProvider>(clock);
             services.AddRequiredActionEnforcement();
         });
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, ct);
@@ -32,7 +35,7 @@ public sealed partial class RequiredActionsFlowTests
         using var me = await owner.GetAsync("/api/auth/me", ct);
         using var operation = await owner.GetAsync("/api/system/version", ct);
         provider.Online = true;
-        await InvalidateAsync(world, ct);
+        clock.Now = clock.Now.AddSeconds(16);
         var recovered = await owner.GetFromJsonAsync<JsonElement>("/api/auth/me", ct);
 
         // Assert
@@ -40,6 +43,7 @@ public sealed partial class RequiredActionsFlowTests
         Assert.Equal(expected, operation.StatusCode);
         Assert.NotEmpty(recovered.GetProperty("roles").EnumerateArray());
         Assert.True(recovered.GetProperty("requiredActionsEnforced").GetBoolean());
+        Assert.Equal("recovered", Assert.Single(recovered.GetProperty("requiredActions").EnumerateArray()).GetProperty("key").GetString());
     }
 
     private sealed class RecoveringProvider(bool mandatory) : IRequiredActionProvider
@@ -48,7 +52,10 @@ public sealed partial class RequiredActionsFlowTests
         public bool FailClosed => mandatory;
         public string CacheConfigurationKey => "recovery";
         public Task<IReadOnlyList<RequiredAction>> GetPendingAsync(RequiredActionSubject subject, CancellationToken cancellationToken) =>
-            Online ? Task.FromResult<IReadOnlyList<RequiredAction>>([]) : throw new HttpRequestException("Provider unavailable.");
+            Online ? Task.FromResult<IReadOnlyList<RequiredAction>>([new()
+            {
+                Key = "recovered", ResolvePath = "/help", Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Notice
+            }]) : throw new HttpRequestException("Provider unavailable.");
     }
 
     [Fact]

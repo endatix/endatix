@@ -22,7 +22,7 @@ internal sealed class RequiredActionProviderCache(IMemoryCache cache, HybridCach
 
         internal static Report From(IReadOnlyList<RequiredAction> actions, Policy policy, DateTime now)
         {
-            if (actions.Any(action => string.IsNullOrWhiteSpace(action.Key) || !IsLocalPath(action.ResolvePath)))
+            if (actions.Any(action => action is null || string.IsNullOrWhiteSpace(action.Key) || !IsLocalPath(action.ResolvePath) || action.ResolverRoles is null))
             {
                 throw new InvalidOperationException("Required action reports must supply a key and an application-relative resolver path.");
             }

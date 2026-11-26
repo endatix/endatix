@@ -10,6 +10,15 @@ namespace Endatix.IntegrationTests;
 
 public sealed class RegisteredOperationsTests
 {
+    [Theory]
+    [InlineData(null, "authenticated")]
+    [InlineData("BackOffice", "account")]
+    public void Minimal_routes_distinguish_default_authentication_from_named_grants(string? policy, string expected)
+    {
+        var route = ExampleRoute(new AuthorizeAttribute { Policy = policy }, new HttpMethodMetadata(["GET"]));
+        Assert.Equal([$"{expected} GET /inventory-example"], Operations([route]));
+    }
+
     [Fact]
     public void A_default_authenticated_operation_does_not_match_a_permission_protected_registration()
     {

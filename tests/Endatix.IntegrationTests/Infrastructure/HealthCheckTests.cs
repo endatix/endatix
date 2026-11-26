@@ -137,11 +137,13 @@ public sealed class HealthCheckTests
         // Act
         var custom = await client.GetAsync(new Uri("/custom-health", UriKind.Relative), cancellationToken);
         var detail = await client.GetAsync(new Uri("/custom-health/detail", UriKind.Relative), cancellationToken);
+        using var ui = await client.GetAsync(new Uri("/custom-health/ui", UriKind.Relative), cancellationToken);
         var standard = await client.GetAsync(new Uri("/health", UriKind.Relative), cancellationToken);
 
         // Assert
         custom.StatusCode.Should().Be(HttpStatusCode.OK);
         detail.StatusCode.Should().Be(HttpStatusCode.OK, "the detail view follows the configured base path");
+        ui.StatusCode.Should().Be(HttpStatusCode.OK, "the UI follows the configured base path");
         standard.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 

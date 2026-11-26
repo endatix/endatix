@@ -34,6 +34,15 @@ public class ListDataListsHandlerTests
     }
 
     [Fact]
+    public async Task Handle_QueryOutsideTheManagedTenant_RefusesBeforeCounting()
+    {
+        var query = new ListDataListsQuery(1, 10) { TenantId = SampleData.TENANT_ID + 1 };
+        var result = await _sut.Handle(query, TestContext.Current.CancellationToken);
+        result.Status.Should().Be(ResultStatus.Unauthorized);
+        _repository.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Handle_ManagedCatalog_CountAndPageSelectOnlyTheCurrentTenant()
     {
         // Arrange

@@ -129,9 +129,11 @@ public class ListUsersHandlerTests
             .Returns(errorResult);
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var result = await new ListUsersHandler.Registered(_userService).Handle(query, TestContext.Current.CancellationToken);
+        var direct = await _handler.Handle(query, TestContext.Current.CancellationToken);
 
         // Assert
+        direct.Status.Should().Be(ResultStatus.Error);
         result.Status.Should().Be(ResultStatus.Unavailable);
         result.Errors.Should().Contain("Try again.");
     }

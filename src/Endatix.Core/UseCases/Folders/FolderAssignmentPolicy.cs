@@ -39,10 +39,6 @@ public sealed class FolderAssignmentPolicy(
         long? requestedFolderId,
         CancellationToken cancellationToken)
     {
-        if (TenantId <= 0)
-        {
-            return Result.Forbidden();
-        }
         // No-op moves are allowed only for existing folder assignments.
         // For create flows (null -> null), tenant "RequireFolderAssignment" must still be enforced.
         if (currentFolderId.HasValue &&
@@ -52,6 +48,10 @@ public sealed class FolderAssignmentPolicy(
             return Result.Success();
         }
 
+        if (TenantId <= 0)
+        {
+            return Result.Forbidden();
+        }
         if (currentFolderId is > 0 && await folderRepository.AnyAsync(new LockedFolder(currentFolderId.Value, TenantId), cancellationToken))
         {
             return Result.Conflict(IMMUTABLE_FOLDER_MOVE_ERROR);

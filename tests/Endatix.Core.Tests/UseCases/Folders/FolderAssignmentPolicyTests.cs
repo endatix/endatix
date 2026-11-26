@@ -25,13 +25,13 @@ public class FolderAssignmentPolicyTests
     }
 
     [Fact]
-    public async Task EnsureFolderMoveValidAsync_NoTenant_DeniesEvenAnUnchangedAssignment()
+    public async Task EnsureFolderMoveValidAsync_NoTenant_DeniesAssignmentBeforeLookup()
     {
         // Arrange
         _tenantContext.TenantId.Returns(0L);
 
         // Act
-        var result = await _helper.EnsureFolderMoveValidAsync(10, 10, TestContext.Current.CancellationToken);
+        var result = await _helper.EnsureFolderMoveValidAsync(10, 11, TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(ResultStatus.Forbidden);

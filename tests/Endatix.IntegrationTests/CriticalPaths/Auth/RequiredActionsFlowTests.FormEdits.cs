@@ -17,6 +17,9 @@ public sealed partial class RequiredActionsFlowTests
         using var other = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         var own = await ManagedAsset.CreateAsync(owner, "folders", ct);
         var foreign = await ManagedAsset.CreateAsync(other, "folders", ct);
+        var valid = new { name = "Assigned form", isEnabled = true, folderId = own.Id, formDefinitionJsonData = """{"pages":[]}""" };
+        using var created = await owner.PostAsJsonAsync("/api/forms", valid, ct);
+        created.EnsureSuccessStatusCode();
         using var deactivate = await owner.PatchAsJsonAsync(own.Detail, new { isActive = false }, ct);
         deactivate.EnsureSuccessStatusCode();
         var before = await owner.GetFromJsonAsync<JsonElement>("/api/forms", ct);
@@ -24,7 +27,7 @@ public sealed partial class RequiredActionsFlowTests
         // Act
         foreach (var id in new[] { own.Id, foreign.Id })
         {
-            var body = new { name = "Assigned form", folderId = id, formDefinitionJsonData = """{"pages":[]}""" };
+            var body = valid with { name = "Rejected assignment", folderId = id };
             using var response = await owner.PostAsJsonAsync("/api/forms", body, ct);
             Assert.False(response.IsSuccessStatusCode);
         }

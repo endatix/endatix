@@ -118,10 +118,10 @@ internal static class RegisteredOperations
     private static bool HasAccountGrant(EndpointMetadataCollection metadata, IReadOnlyList<IAuthorizeData> policies)
     {
         var definition = metadata.GetMetadata<EndpointDefinition>();
-        return definition is null || definition.AllowedPermissions is { Count: > 0 } ||
-            definition.AllowedRoles is { Count: > 0 } || definition.AllowedClaimTypes is { Count: > 0 } ||
-            definition.AllowedScopes is { Count: > 0 } ||
-            policies.Any(p => !string.IsNullOrEmpty(p.Policy) && p.Policy != definition.SecurityPolicyName);
+        return definition?.AllowedPermissions is { Count: > 0 } || definition?.AllowedRoles is { Count: > 0 } ||
+            definition?.AllowedClaimTypes is { Count: > 0 } || definition?.AllowedScopes is { Count: > 0 } ||
+            policies.Any(p => !string.IsNullOrWhiteSpace(p.Roles) ||
+                (!string.IsNullOrEmpty(p.Policy) && p.Policy != definition?.SecurityPolicyName));
     }
 
     private static string RespondentAccess(IReadOnlyList<IAuthorizeData> policies, EndpointMetadataCollection metadata)

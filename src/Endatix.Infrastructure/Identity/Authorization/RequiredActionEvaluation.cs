@@ -9,8 +9,7 @@ internal sealed class RequiredActionEvaluation(IEnumerable<IRequiredActionProvid
 {
     private readonly IRequiredActionProvider[] _providers = registrations.ToArray();
     internal bool HasProviders => _providers.Length > 0;
-    private string? _configurationKey;
-    internal string ConfigurationKey => _configurationKey ??= HasProviders ? reports.Configuration.Key(_providers) : "none";
+    internal string ConfigurationKey => field ??= HasProviders ? reports.Configuration.Key(_providers) : "none";
 
     internal async Task<Func<DateTime, AuthorizationData>> EvaluateAsync(AuthorizationData data, AuthorizationCache.CacheEntry entry, CancellationToken ct)
     {

@@ -25,6 +25,16 @@ public sealed class TenantSettingsAccessTests
     }
 
     [Fact]
+    public async Task Handle_MissingTenant_RegisteredReadReportsInvalidContextBeforeLookup()
+    {
+        var settings = Substitute.For<IRepository<Settings>>();
+        var read = new GetTenantSettingsHandler.Registered(settings, Substitute.For<ITenantContext>());
+        var result = await read.Handle(new GetTenantSettingsQuery(), TestContext.Current.CancellationToken);
+        Assert.Equal(ResultStatus.Invalid, result.Status);
+        Assert.Empty(settings.ReceivedCalls());
+    }
+
+    [Fact]
     public async Task Handle_MissingTenant_UpdateReturnsNotFoundWithoutLookup()
     {
         // Arrange

@@ -33,6 +33,6 @@ internal sealed class RequiredActionConfiguration
             .ThenBy(p => p.RevisionKey, StringComparer.Ordinal).ThenBy(p => p.Policy.FailClosed)
             .ThenBy(p => p.Policy.Timeout).ThenBy(p => p.Policy.CacheFor)
             .Select(p => new { p.Assembly, p.Type, Revision = p.RevisionKey, p.Policy });
-        return "standing-v5:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(ordered)));
+        return "standing-v6:" + Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(ordered)));
     }
 }

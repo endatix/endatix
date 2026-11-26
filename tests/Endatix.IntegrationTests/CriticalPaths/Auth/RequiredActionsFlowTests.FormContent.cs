@@ -74,16 +74,16 @@ public sealed partial class RequiredActionsFlowTests
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.MultiTenant, ct);
         using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
         using var owner = await world.AsAsync(TestPersona.TenantAdmin, 1, IntegrationAuthMode.SyntheticJwt, cancellationToken: ct);
-        var target = await ContentTargetAsync(owner, ct);
-        var definitions = await owner.GetFromJsonAsync<JsonElement>($"{target.Route}/definitions", ct);
-        var settings = await owner.GetFromJsonAsync<JsonElement>($"{target.Route}/settings", ct);
+        var (route, definition) = await ContentTargetAsync(owner, ct);
+        var definitions = await owner.GetFromJsonAsync<JsonElement>($"{route}/definitions", ct);
+        var settings = await owner.GetFromJsonAsync<JsonElement>($"{route}/settings", ct);
 
         // Act
-        await AssertContentStatusAsync(admin, ContentRequests(target.Route, target.Definition), HttpStatusCode.NotFound);
+        await AssertContentStatusAsync(admin, ContentRequests(route, definition), HttpStatusCode.NotFound);
 
         // Assert
-        Assert.True(JsonElement.DeepEquals(definitions, await owner.GetFromJsonAsync<JsonElement>($"{target.Route}/definitions", ct)));
-        Assert.True(JsonElement.DeepEquals(settings, await owner.GetFromJsonAsync<JsonElement>($"{target.Route}/settings", ct)));
+        Assert.True(JsonElement.DeepEquals(definitions, await owner.GetFromJsonAsync<JsonElement>($"{route}/definitions", ct)));
+        Assert.True(JsonElement.DeepEquals(settings, await owner.GetFromJsonAsync<JsonElement>($"{route}/settings", ct)));
     }
 
     [Fact]

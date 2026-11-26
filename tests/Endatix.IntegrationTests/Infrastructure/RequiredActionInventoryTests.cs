@@ -16,6 +16,7 @@ public sealed partial class RequiredActionInventoryTests(EndatixIntegrationWebHo
     [InlineData("audience")]
     [InlineData("reporting")]
     [InlineData("dashboard-read")]
+    [InlineData("dashboard-write")]
     public async Task Registered_operations_match_the_reviewed_inventory(string profile)
     {
         // Arrange

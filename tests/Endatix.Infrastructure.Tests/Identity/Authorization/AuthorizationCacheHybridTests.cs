@@ -226,7 +226,10 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
         // Arrange
         var provider = ReportProvider(new RequiredAction
         {
-            Key = key, ResolvePath = path, Scope = RequiredActionScope.User, Severity = RequiredActionSeverity.Notice
+            Key = key,
+            ResolvePath = path,
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Notice
         });
         provider.FailClosed.Returns(mandatory);
         var original = CreateData(default);
@@ -277,6 +280,29 @@ public sealed partial class AuthorizationCacheHybridTests : IDisposable
             Calls++;
             throw new HttpRequestException("Offline");
         }
+    }
+
+    [Fact]
+    public async Task GetOrCreateAsync_IncompleteOptionalReport_PreservesAnotherProvidersNotice()
+    {
+        // Arrange
+        var notice = new RequiredAction
+        {
+            Key = "help",
+            ResolvePath = "/help",
+            Scope = RequiredActionScope.User,
+            Severity = RequiredActionSeverity.Notice
+        };
+        var malformed = ReportProvider(notice with { Key = "incomplete", ResolverRoles = null! });
+        var cache = CreateInstance(false, ReportProvider(notice), malformed);
+
+        // Act
+        var snapshot = await cache.GetOrCreateAsync(CreatePrincipal(), _ => Task.FromResult(Result.Success(CreateData(default))),
+            TestContext.Current.CancellationToken);
+
+        // Assert
+        snapshot.RequiredActionsUnavailable.Should().BeFalse();
+        snapshot.RequiredActions.Should().ContainSingle().Which.Key.Should().Be("help");
     }
 
     private sealed class ConfiguredProvider(string revision) : IRequiredActionProvider
