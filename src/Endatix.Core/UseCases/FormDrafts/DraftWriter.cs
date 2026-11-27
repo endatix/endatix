@@ -45,32 +45,35 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
 
     private async Task<Result<DraftResponse>> SaveAsync(WriteDraft request, DraftState state, CancellationToken ct)
     {
-        List<FormDraftOperation> rows;
-        try
+        var changed = await ChangeAsync(request, state, ct);
+        if (!changed.IsSuccess)
         {
-            rows = await ChangeAsync(request, state, ct);
+            return changed.ToErrorResult<DraftResponse>();
         }
-        catch (JsonException)
-        {
-            return Result.Invalid(new ValidationError("Provide a survey JSON object without duplicate properties.") { Identifier = "jsonData" });
-        }
-        if (rows.Count != 0 && !await drafts.SaveOrConcedeAsync(state.Head, rows, ct))
+        if (changed.Value.Count != 0 && !await drafts.SaveOrConcedeAsync(state.Head, changed.Value, ct))
         {
             return Result.Conflict("The draft changed while it was being saved.");
         }
         return await ResponseAsync(state, ct);
     }
 
-    private async Task<List<FormDraftOperation>> ChangeAsync(WriteDraft request, DraftState state, CancellationToken ct)
+    private async Task<Result<List<FormDraftOperation>>> ChangeAsync(WriteDraft request, DraftState state, CancellationToken ct)
     {
         var write = new DraftWrite(actor.Current, "api", clock.UtcNow.UtcDateTime);
-        return request switch
+        try
         {
-            ReplaceDraft replace => state.Head.Replace(replace.JsonData, write),
-            DiscardDraft => state.Head.Discard(state.PublishedJson, write),
-            AppendDraft append => state.Head.Append(append.Batch, write, await drafts.LatestSnapshotVersionAsync(request.FormId, ct)),
-            _ => throw new ArgumentOutOfRangeException(nameof(request))
-        };
+            return request switch
+            {
+                ReplaceDraft replace => state.Head.Replace(replace.JsonData, write),
+                DiscardDraft => state.Head.Discard(state.PublishedJson, write),
+                AppendDraft append => state.Head.Append(append.Batch, write, await SnapshotVersionAsync(state.Head, ct)),
+                _ => throw new ArgumentOutOfRangeException(nameof(request))
+            };
+        }
+        catch (JsonException)
+        {
+            return Result.Invalid(new ValidationError("Provide a survey JSON object without duplicate properties.") { Identifier = "jsonData" });
+        }
     }
 
     private async Task<DraftState?> LoadAsync(long id, CancellationToken ct)
@@ -89,9 +92,13 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
     {
         var head = state.Head;
         var lastActor = await drafts.LastActorAsync(head.FormId, head.Version, ct);
+        var count = checked((int)(head.Version - await SnapshotVersionAsync(head, ct)));
         return new(head.Version, head.JsonData, head.ContentHash, await drafts.ActiveNumberAsync(state.Form, ct),
-            head.ContentHash != CanonicalSurveyJson.PublishedHash(state.PublishedJson), head.ModifiedAt, lastActor);
+            head.ContentHash != CanonicalSurveyJson.PublishedHash(state.PublishedJson), head.ModifiedAt, lastActor, count);
     }
+
+    private Task<long> SnapshotVersionAsync(FormDraft head, CancellationToken ct) =>
+        drafts.LatestSnapshotVersionAsync(head.FormId, head.Version, ct);
 
     private sealed record DraftState(FormDraft Head, Form Form, string PublishedJson);
 }

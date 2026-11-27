@@ -6,10 +6,12 @@ using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.UseCases.FormDrafts;
 
-/// <summary>The editable survey, its current precondition, and how it relates to the live form.</summary>
+/// <summary>The editable survey, its current precondition, and how it relates to the live form.
+/// RecordsSinceSnapshot is the number of journal emissions after the last snapshot through Version;
+/// it is zero before the first write and immediately after a snapshot.</summary>
 [Experimental("ENDATIX0007")]
 public sealed record DraftResponse(long Version, string JsonData, string ContentHash, int? ActiveNumber,
-    bool HasUnpublishedChanges, DateTime? LastModifiedAt, Actor? LastModifiedBy);
+    bool HasUnpublishedChanges, DateTime? LastModifiedAt, Actor? LastModifiedBy, int RecordsSinceSnapshot);
 
 /// <summary>Read the draft or the unsaved projection of the active survey.</summary>
 [Experimental("ENDATIX0007")]

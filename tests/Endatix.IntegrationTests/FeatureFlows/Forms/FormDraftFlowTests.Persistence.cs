@@ -61,7 +61,7 @@ public sealed partial class FormDraftFlowTests
         failure.Release();
 
         // Act
-        using var refused = await AppendBatchAsync(editor, form, "after");
+        using var refused = await editor.PatchAsJsonAsync($"{form}/draft", CheckpointBatch(401, [198, 398]), Cancellation);
 
         // Assert
         failure.Reached.IsCompletedSuccessfully.Should().BeTrue("the database writes ran before commit was refused");

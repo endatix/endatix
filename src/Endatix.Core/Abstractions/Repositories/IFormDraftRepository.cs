@@ -15,7 +15,7 @@ public interface IFormDraftRepository
     /// <summary>Reads the actor at the requested version without reading its payload.</summary>
     Task<Actor?> LastActorAsync(long formId, long version, CancellationToken cancellationToken);
     /// <summary>Reads the most recent snapshot position for the periodic snapshot interval.</summary>
-    Task<long> LatestSnapshotVersionAsync(long formId, CancellationToken cancellationToken);
+    Task<long> LatestSnapshotVersionAsync(long formId, long throughVersion, CancellationToken cancellationToken);
     /// <summary>Commits the head and every row together, returning false when another writer won.</summary>
     Task<bool> SaveOrConcedeAsync(FormDraft head, IReadOnlyList<FormDraftOperation> rows, CancellationToken cancellationToken);
 }

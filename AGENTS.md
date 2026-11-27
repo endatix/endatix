@@ -16,7 +16,7 @@ Rules of record for .NET code in this repo; the SaaS workspace follows them too.
   | `ENDATIX0003` | Deployment brand | `DeploymentBrand`, `BrandPackException`, `AddDeploymentBrand` |
   | `ENDATIX0004` | Email sender and variables | `EmailVariables`, `DeploymentSender`, `EmailSenderSettings`, `EmailWithBody.FromName`, `EmailTemplateRenderer.ProviderTemplateData` |
   | `ENDATIX0005` | Form settings | `FormSettings`, `PdfSettings`, `FormSettingsChange`, `IFormSettingsRepository`, `AppDbContext.FormSettings`, `GetFormSettingsQuery`, `PartialUpdateFormSettingsCommand`, `FormSettingsDto`, `SubmissionFormTheme`, `FormSettingsModel`, `PdfSettingsModel`, the `FormSettings` endpoints |
-  | `ENDATIX0007` | Form drafts | `FormDraft`, `FormDraftOperation`, `IFormDraftRepository`, `Actor`, `IActorAccessor`, `IInsertOnly`, the draft commands, responses, endpoints and request models |
+  | `ENDATIX0007` | Form drafts | `FormDraft`, `FormDraftOperation`, `DraftJournalBatch`, `DraftCheckpoint`, `IFormDraftRepository`, `Actor`, `IActorAccessor`, `IInsertOnly`, the draft commands, responses, endpoints and request models |
 
   Next free ID: `ENDATIX0008`.
 - `is null` / `is not null`. `var`, unless an explicit type reads better (`Foo bar = new();`). Records for immutable data.

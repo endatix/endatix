@@ -15,12 +15,12 @@ public sealed class FormDraftTests
         var draft = FormDraft.For(Form.Create(42, new FormCreateArgs(1, "Survey")), "{}");
         var write = DraftWrite.System(DateTime.UtcNow);
         var batch = new DraftJournalBatch(1, "session", Enumerable.Repeat("{}", interval - 1).ToArray(), json, new string('f', 64));
-        var first = draft.Append(batch, write, 0);
+        var first = draft.Append(batch, write, 0).Value;
         first.Should().ContainSingle(row => row.Kind == "snapshot" && row.Reason == "seed");
         first.Should().NotContain(row => row.Reason == "periodic");
 
         // Act
-        var next = draft.Append(batch with { Records = ["{}"] }, write, first[0].Version);
+        var next = draft.Append(batch with { Records = ["{}"] }, write, first[0].Version).Value;
 
         // Assert
         next.Should().HaveCount(2);

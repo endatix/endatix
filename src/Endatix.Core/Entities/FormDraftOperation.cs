@@ -44,4 +44,12 @@ internal sealed record DraftWrite(Actor Actor, string Channel, DateTime At)
 
 /// <summary>One autosave: ordered journal emissions and the complete resulting survey.</summary>
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
-public sealed record DraftJournalBatch(int SaveNo, string ClientSessionId, IReadOnlyList<string> Records, string JsonData, string ContentHash);
+public sealed record DraftJournalBatch(int SaveNo, string ClientSessionId, IReadOnlyList<string> Records, string JsonData, string ContentHash)
+{
+    /// <summary>Interior snapshots in ascending order. The terminal survey is already in JsonData.</summary>
+    public IReadOnlyList<DraftCheckpoint> Checkpoints { get; init; } = [];
+}
+
+/// <summary>The survey as it stood after AfterRecord emissions in this batch (one-based, not the client seq).</summary>
+[System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
+public sealed record DraftCheckpoint(int AfterRecord, string JsonData);

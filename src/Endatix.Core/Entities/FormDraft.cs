@@ -1,6 +1,6 @@
-using System.Text;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Infrastructure.Result;
 using Endatix.Core.Versioning;
 
 namespace Endatix.Core.Entities;
@@ -39,29 +39,41 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
     internal List<FormDraftOperation> Discard(string json, DraftWrite write) =>
         WriteSnapshot(json, CanonicalSurveyJson.PublishedHash(json), ("discard", write));
 
-    internal List<FormDraftOperation> Append(DraftJournalBatch batch, DraftWrite write, long latestSnapshotVersion)
+    internal Result<List<FormDraftOperation>> Append(DraftJournalBatch batch, DraftWrite write, long latestSnapshotVersion)
     {
-        var hash = CanonicalSurveyJson.Hash(batch.JsonData);
+        var prepared = DraftBatchCheckpoints.Prepare(batch, Version - latestSnapshotVersion);
+        if (!prepared.IsSuccess)
+        {
+            return prepared.ToErrorResult<List<FormDraftOperation>>();
+        }
+        return AppendPrepared(batch, prepared.Value, write);
+    }
+
+    private List<FormDraftOperation> AppendPrepared(DraftJournalBatch batch, DraftBatchCheckpoints plan, DraftWrite write)
+    {
         var rows = SeedIfNeeded(write.At);
-        latestSnapshotVersion = rows.Count == 0 ? latestSnapshotVersion : Version;
+        if (plan.SnapshotHead)
+        {
+            rows.Add(Snapshot("periodic", DraftWrite.System(write.At)));
+        }
         for (var index = 0; index < batch.Records.Count; index++)
         {
             rows.Add(JournalRow(batch, index, write));
+            if (plan.Documents.TryGetValue(index + 1, out var document))
+            {
+                SetContent(document);
+                rows.Add(Snapshot("periodic", write));
+            }
         }
-        JsonData = batch.JsonData;
-        ContentHash = hash;
+        SetContent(plan.Terminal);
         ModifiedAt = write.At;
-        if (SnapshotIsDue(latestSnapshotVersion))
-        {
-            rows.Add(Snapshot("periodic", write));
-        }
         return rows;
     }
 
-    private bool SnapshotIsDue(long latestSnapshotVersion)
+    private void SetContent(DraftDocument document)
     {
-        var interval = Encoding.UTF8.GetByteCount(JsonData) > 500_000 ? 100 : 200;
-        return Version - latestSnapshotVersion >= interval;
+        JsonData = document.Json;
+        ContentHash = document.Hash;
     }
 
     private FormDraftOperation JournalRow(DraftJournalBatch batch, int index, DraftWrite write) => new()
