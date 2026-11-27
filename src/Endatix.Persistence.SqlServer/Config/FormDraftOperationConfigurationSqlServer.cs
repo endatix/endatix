@@ -9,6 +9,10 @@ namespace Endatix.Persistence.SqlServer.Config;
 [ApplyConfigurationFor<AppDbContext>]
 internal sealed class FormDraftOperationConfigurationSqlServer : IEntityTypeConfiguration<FormDraftOperation>
 {
-    public void Configure(EntityTypeBuilder<FormDraftOperation> builder) =>
-        builder.Property(row => row.Payload).HasColumnType("json");
+    public void Configure(EntityTypeBuilder<FormDraftOperation> builder)
+    {
+        // Native json can rewrite number tokens. Validate the lexical document without converting it.
+        builder.Property(row => row.Payload).HasColumnType("nvarchar(max)");
+        builder.ToTable(table => table.HasCheckConstraint("CK_FormDraftOperations_Payload_Json", "ISJSON([Payload], VALUE) = 1"));
+    }
 }

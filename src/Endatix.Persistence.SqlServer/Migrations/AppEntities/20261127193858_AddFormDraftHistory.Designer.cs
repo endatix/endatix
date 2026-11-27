@@ -540,7 +540,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("Payload")
                         .IsRequired()
-                        .HasColumnType("json");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Reason")
                         .HasColumnType("nvarchar(max)");
@@ -553,7 +553,10 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.HasKey("FormId", "Version");
 
-                    b.ToTable("FormDraftOperations", (string)null);
+                    b.ToTable("FormDraftOperations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_FormDraftOperations_Payload_Json", "ISJSON([Payload], VALUE) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>

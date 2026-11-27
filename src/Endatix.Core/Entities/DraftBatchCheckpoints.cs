@@ -30,7 +30,7 @@ internal sealed class DraftBatchCheckpoints(DraftDocument terminal, bool snapsho
             }
             if (!plan.AddDocument(checkpoint))
             {
-                return Invalid($"The checkpoint after record {next} must contain a survey JSON object without duplicate properties.");
+                return Invalid($"The checkpoint after record {next} must contain a survey JSON object with valid Unicode and no duplicate properties.");
             }
             next += interval;
         }

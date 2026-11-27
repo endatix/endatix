@@ -72,7 +72,7 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
         }
         catch (JsonException)
         {
-            return Result.Invalid(new ValidationError("Provide a survey JSON object without duplicate properties.") { Identifier = "jsonData" });
+            return Result.Invalid(new ValidationError("Provide a survey JSON object with valid Unicode and no duplicate properties.") { Identifier = "jsonData" });
         }
     }
 

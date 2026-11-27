@@ -14,7 +14,7 @@ internal static class CanonicalSurveyJson
 
     internal static string Hash(string json)
     {
-        using var document = JsonDocument.Parse(json, CanonicalJson.Options);
+        using var document = JsonDocument.Parse(DraftJsonEncoding.ToUtf8(json), CanonicalJson.Options);
         if (document.RootElement.ValueKind != JsonValueKind.Object)
         {
             throw new JsonException("A survey must be a JSON object.");
@@ -22,4 +22,5 @@ internal static class CanonicalSurveyJson
 
         return CanonicalContentHash.Of(CanonicalJson.Write(document.RootElement));
     }
+
 }

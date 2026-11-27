@@ -7,6 +7,53 @@ namespace Endatix.Core.Tests.Entities;
 
 public sealed class DraftCheckpointTests
 {
+    [Fact]
+    public void Append_RecordWithInvalidUnicode_CannotEnterTheTextBackedJournal()
+    {
+        // Arrange
+        var draft = NewDraft();
+        var batch = Batch(1, "{}") with { Records = ["""{"value":"\uD800"}"""] };
+
+        // Act
+        var result = draft.Append(batch, DraftWrite.System(DateTime.UtcNow), 0);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        result.ValidationErrors.Should().ContainSingle().Which.Identifier.Should().Be("records");
+        draft.Version.Should().Be(0);
+    }
+
+    [Fact]
+    public void Append_UnpairedUtf16CodeUnitInCheckpoint_ReturnsValidationBeforeSeeding()
+    {
+        // Arrange
+        var draft = NewDraft();
+        var batch = Batch(201, "{}") with { Checkpoints = [new(200, "{\"title\":\"\uD800\"}")] };
+
+        // Act
+        var result = draft.Append(batch, DraftWrite.System(DateTime.UtcNow), 0);
+
+        // Assert
+        result.Status.Should().Be(ResultStatus.Invalid);
+        draft.Version.Should().Be(0);
+    }
+
+    [Fact]
+    public void Append_ValidSurrogatePairAndLiteralEscape_PreservesTheCheckpointDocument()
+    {
+        // Arrange
+        const string json = """{"\uD83D\uDE03":["\\uD800","\uD83D\uDE03"]}""";
+        var batch = Batch(201, "{}") with { Checkpoints = [new(200, json)] };
+        var draft = NewDraft();
+
+        // Act
+        var result = draft.Append(batch, DraftWrite.System(DateTime.UtcNow), 0);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().ContainSingle(row => row.Reason == "periodic").Which.Payload.Should().Be(json);
+    }
+
     [Theory]
     [InlineData("400,200", "{}")]
     [InlineData("200,200", "{}")]

@@ -41,6 +41,10 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
 
     internal Result<List<FormDraftOperation>> Append(DraftJournalBatch batch, DraftWrite write, long latestSnapshotVersion)
     {
+        if (!batch.Records.All(DraftJsonEncoding.HasValidStrings))
+        {
+            return Result.Invalid(new ValidationError("Journal records must contain valid Unicode.") { Identifier = "records" });
+        }
         var prepared = DraftBatchCheckpoints.Prepare(batch, Version - latestSnapshotVersion);
         if (!prepared.IsSuccess)
         {

@@ -41,7 +41,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     Version = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Kind = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Payload = table.Column<string>(type: "json", nullable: false),
+                    Payload = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ContentHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
                     Reason = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Label = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -56,6 +56,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_FormDraftOperations", x => new { x.FormId, x.Version });
+                    table.CheckConstraint("CK_FormDraftOperations_Payload_Json", "ISJSON([Payload], VALUE) = 1");
                     table.ForeignKey(
                         name: "FK_FormDraftOperations_FormDrafts_FormId",
                         column: x => x.FormId,

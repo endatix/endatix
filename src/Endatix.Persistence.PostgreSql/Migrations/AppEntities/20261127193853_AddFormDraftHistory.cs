@@ -41,7 +41,7 @@ namespace Endatix.Persistence.PostgreSql.Migrations.AppEntities
                     Version = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     Kind = table.Column<string>(type: "text", nullable: false),
-                    Payload = table.Column<string>(type: "jsonb", nullable: false),
+                    Payload = table.Column<string>(type: "json", nullable: false),
                     ContentHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     Reason = table.Column<string>(type: "text", nullable: true),
                     Label = table.Column<string>(type: "text", nullable: true),
