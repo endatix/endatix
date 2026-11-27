@@ -38,9 +38,9 @@ internal class AuthorizationCache(
 
     private const short ETAG_LENGTH = 12;
 
-    // Cache key prefixes
-    private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth";
-    private const string USER_AUTH_DATA_CACHE_KEY_PREFIX = "usr_auth";
+    // Older entries do not distinguish an unmapped subject from a missing local-account field.
+    private const string JWT_AUTH_DATA_CACHE_KEY_PREFIX = "jwt_auth:v2";
+    private const string USER_AUTH_DATA_CACHE_KEY_PREFIX = "usr_auth:v2";
 
     // Cache tags
     private const string ALL_AUTH_DATA_TAG = "auth_data:all";

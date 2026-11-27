@@ -27,7 +27,7 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
         FormId = form.Id,
         TenantId = form.TenantId,
         JsonData = publishedJson,
-        ContentHash = CanonicalSurveyJson.Hash(publishedJson)
+        ContentHash = CanonicalSurveyJson.PublishedHash(publishedJson)
     };
 
     internal List<FormDraftOperation> Replace(string json, DraftWrite write)
@@ -37,7 +37,7 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
     }
 
     internal List<FormDraftOperation> Discard(string json, DraftWrite write) =>
-        WriteSnapshot(json, CanonicalSurveyJson.Hash(json), ("discard", write));
+        WriteSnapshot(json, CanonicalSurveyJson.PublishedHash(json), ("discard", write));
 
     internal List<FormDraftOperation> Append(DraftJournalBatch batch, DraftWrite write, long latestSnapshotVersion)
     {

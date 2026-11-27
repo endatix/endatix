@@ -63,7 +63,7 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
 
     private async Task<List<FormDraftOperation>> ChangeAsync(WriteDraft request, DraftState state, CancellationToken ct)
     {
-        var write = new DraftWrite(actor.Current, request is AppendDraft ? "hub" : "api", clock.UtcNow.UtcDateTime);
+        var write = new DraftWrite(actor.Current, "api", clock.UtcNow.UtcDateTime);
         return request switch
         {
             ReplaceDraft replace => state.Head.Replace(replace.JsonData, write),
@@ -90,7 +90,7 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
         var head = state.Head;
         var lastActor = await drafts.LastActorAsync(head.FormId, head.Version, ct);
         return new(head.Version, head.JsonData, head.ContentHash, await drafts.ActiveNumberAsync(state.Form, ct),
-            head.ContentHash != CanonicalSurveyJson.Hash(state.PublishedJson), head.ModifiedAt, lastActor);
+            head.ContentHash != CanonicalSurveyJson.PublishedHash(state.PublishedJson), head.ModifiedAt, lastActor);
     }
 
     private sealed record DraftState(FormDraft Head, Form Form, string PublishedJson);

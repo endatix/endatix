@@ -28,9 +28,6 @@ public sealed class CommandPause(Regex statement, AppCommandGate gate, Exception
         Release();
     }
 
-    /// <summary>What the paused command fails with once released, if anything.</summary>
-    internal Exception? Fault => fault;
-
     internal bool Matches(string commandText) => statement.IsMatch(commandText);
 
     /// <summary>How many matching commands run before the one this pause catches.</summary>
@@ -47,5 +44,12 @@ public sealed class CommandPause(Regex statement, AppCommandGate gate, Exception
     /// <summary>Catches this match, once the <see cref="Skip"/> matches before it have run.</summary>
     internal bool TryCatch() => Interlocked.Increment(ref _matches) > Skip && _reached.TrySetResult();
 
-    internal Task WaitForReleaseAsync(CancellationToken cancellationToken) => _released.Task.WaitAsync(cancellationToken);
+    internal async Task WaitForReleaseAsync(CancellationToken cancellationToken)
+    {
+        await _released.Task.WaitAsync(cancellationToken);
+        if (fault is not null)
+        {
+            throw fault;
+        }
+    }
 }

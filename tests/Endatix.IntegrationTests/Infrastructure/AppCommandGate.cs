@@ -34,10 +34,11 @@ public sealed class AppCommandGate : DbCommandInterceptor, IDbTransactionInterce
     /// <summary>
     /// Pauses the commit of the first transaction that runs a command matching <paramref name="statement"/>, until the
     /// pause is released: its writes have run, uncommitted, and its locks are held.
+    /// An optional fault refuses that commit after release, so the request must roll back.
     /// </summary>
-    public CommandPause PauseAtCommitAfter(Regex statement)
+    public CommandPause PauseAtCommitAfter(Regex statement, Exception? fault = null)
     {
-        var pause = new CommandPause(statement, this) { AtCommit = true };
+        var pause = new CommandPause(statement, this, fault) { AtCommit = true };
         Volatile.Write(ref _armed, pause);
         return pause;
     }
@@ -118,10 +119,6 @@ public sealed class AppCommandGate : DbCommandInterceptor, IDbTransactionInterce
         {
             Disarm(pause);
             await pause.WaitForReleaseAsync(cancellationToken);
-            if (pause.Fault is { } fault)
-            {
-                throw fault;
-            }
         }
     }
 }

@@ -12,7 +12,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
-public sealed class AuthorizationCacheTests
+public sealed partial class AuthorizationCacheTests
 {
     private readonly HybridCache _hybridCache;
     private readonly IDateTimeProvider _dateTimeProvider;
@@ -270,8 +270,8 @@ public sealed class AuthorizationCacheTests
 
         // Assert
         capturedKeys.Should().HaveCount(2);
-        capturedKeys[0].Should().StartWith($"{_deployment:N}:jwt_auth:11111111111111111111111111111111{_tenantVersion:N}:");
-        capturedKeys[1].Should().StartWith($"{_deployment:N}:jwt_auth:22222222222222222222222222222222{_tenantVersion:N}:");
+        capturedKeys[0].Should().StartWith($"{_deployment:N}:jwt_auth:v2:11111111111111111111111111111111{_tenantVersion:N}:");
+        capturedKeys[1].Should().StartWith($"{_deployment:N}:jwt_auth:v2:22222222222222222222222222222222{_tenantVersion:N}:");
     }
 
     [Fact]
@@ -291,7 +291,7 @@ public sealed class AuthorizationCacheTests
         await _cache.GetOrCreateAsync("123", 42, null, _ => Task.FromResult(Result.Success(CreateAuthorizationData("123"))), CancellationToken.None);
 
         // Assert
-        capturedKey.Should().Be($"{_deployment:N}:usr_auth:11111111111111111111111111111111{_tenantVersion:N}:123:42");
+        capturedKey.Should().Be($"{_deployment:N}:usr_auth:v2:11111111111111111111111111111111{_tenantVersion:N}:123:42");
         _versionStore.ReadTenants.Should().Equal(42);
     }
 

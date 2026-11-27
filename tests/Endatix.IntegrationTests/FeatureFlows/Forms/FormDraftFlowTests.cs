@@ -11,7 +11,7 @@ namespace Endatix.IntegrationTests.FeatureFlows.Forms;
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "FeatureFlow")]
 [Trait("Priority", "P1")]
-public sealed class FormDraftFlowTests(EndatixIntegrationWebHostFixture fixture)
+public sealed partial class FormDraftFlowTests(EndatixIntegrationWebHostFixture fixture)
 {
     private const string PUBLISHED = """{"title":"Live","pages":[]}""";
     private const string EDITED = """{"title":"Edited","pages":[]}""";
@@ -59,15 +59,12 @@ public sealed class FormDraftFlowTests(EndatixIntegrationWebHostFixture fixture)
         using var read = await editor.GetAsync($"{form}/draft", Cancellation);
         read.Headers.ETag!.Tag.Should().Be("\"3\"");
 
-        Task<HttpResponseMessage> AppendAsync(string title) =>
-            editor.PatchAsJsonAsync($"{form}/draft", new
-            {
-                saveNo = 1,
-                clientSessionId = title,
-                jsonData = JsonSerializer.Serialize(new { title }),
-                contentHash = new string('f', 64),
-                records = new[] { new { seq = 1 }, new { seq = 2 } }
-            }, Cancellation);
+        var winner = first.IsSuccessStatusCode ? "left" : "right";
+        var json = await read.Content.ReadFromJsonAsync<JsonElement>(Cancellation);
+        json.GetProperty("jsonData").GetString().Should().Be(JsonSerializer.Serialize(new { title = winner }));
+        await AssertWinningHistoryAsync(form, winner);
+
+        Task<HttpResponseMessage> AppendAsync(string title) => AppendBatchAsync(editor, form, title);
     }
 
     [Fact]
@@ -135,10 +132,10 @@ public sealed class FormDraftFlowTests(EndatixIntegrationWebHostFixture fixture)
         return await world.AsAsync(TestPersona.Creator, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: Cancellation);
     }
 
-    private static async Task<string> CreateFormAsync(HttpClient client)
+    private static async Task<string> CreateFormAsync(HttpClient client, string definition = PUBLISHED)
     {
         using var created = await client.PostAsJsonAsync("/api/forms",
-            new { name = $"draft-{Guid.NewGuid():N}", isEnabled = true, formDefinitionJsonData = PUBLISHED }, Cancellation);
+            new { name = $"draft-{Guid.NewGuid():N}", isEnabled = true, formDefinitionJsonData = definition }, Cancellation);
         created.EnsureSuccessStatusCode();
         var body = await created.Content.ReadFromJsonAsync<JsonElement>(Cancellation);
         return $"/api/forms/{body.GetProperty("id").GetString()}";
