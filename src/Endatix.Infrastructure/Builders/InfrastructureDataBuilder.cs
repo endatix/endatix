@@ -66,6 +66,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IDataListRepository, DataListRepository>();
         Services.AddScoped<ITenantBrandingRepository, TenantBrandingRepository>();
         Services.AddScoped<IFormSettingsRepository, FormSettingsRepository>();
+        Services.AddScoped<IFormDraftRepository, FormDraftRepository>();
         Services.AddSingleton<DataSeeder>();
 
         // Add exporters

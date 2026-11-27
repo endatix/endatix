@@ -82,6 +82,7 @@ public static class IdentityServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, AppUserService>();
         services.AddScoped<IUserContext, UserContext>();
+        services.AddScoped<IActorAccessor, ActorAccessor>();
         services.AddSubmitterResolution(configuration);
 
         // Register security related domain services

@@ -473,6 +473,85 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.ToTable("FormDependencies", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraft", b =>
+                {
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("FormId");
+
+                    b.ToTable("FormDrafts", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraftOperation", b =>
+                {
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientSessionId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Label")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("TargetVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("FormId", "Version");
+
+                    b.ToTable("FormDraftOperations", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>
                 {
                     b.Property<long>("FormId")
@@ -1193,6 +1272,51 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Navigation("Form");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraft", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Form", null)
+                        .WithOne()
+                        .HasForeignKey("Endatix.Core.Entities.FormDraft", "FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraftOperation", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.FormDraft", null)
+                        .WithMany()
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("Endatix.Core.Abstractions.Actor", "Actor", b1 =>
+                        {
+                            b1.Property<long>("FormDraftOperationFormId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<long>("FormDraftOperationVersion")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("character varying(32)");
+
+                            b1.Property<long?>("UserId")
+                                .HasColumnType("bigint");
+
+                            b1.HasKey("FormDraftOperationFormId", "FormDraftOperationVersion");
+
+                            b1.ToTable("FormDraftOperations");
+
+                            b1.WithOwner()
+                                .HasForeignKey("FormDraftOperationFormId", "FormDraftOperationVersion");
+                        });
+
+                    b.Navigation("Actor")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>

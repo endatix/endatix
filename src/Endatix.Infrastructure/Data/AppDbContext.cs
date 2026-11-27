@@ -42,6 +42,18 @@ public class AppDbContext : DbContext, ITenantDbContext
 
     public DbSet<Form> Forms { get; set; }
 
+    /// <summary>Tenant-scoped form drafts, keyed by form ID.</summary>
+    [Experimental("ENDATIX0007")]
+    public DbSet<FormDraft> FormDrafts { get; set; }
+
+    /// <summary>Tenant-scoped edit and snapshot history.</summary>
+    [Experimental("ENDATIX0007")]
+    public DbSet<FormDraftOperation> FormDraftOperations { get; set; }
+
+    /// <inheritdoc/>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
+        optionsBuilder.AddInterceptors(InsertOnlyInterceptor.Instance);
+
     public DbSet<Folder> Folders { get; set; }
 
     public DbSet<FormDefinition> FormDefinitions { get; set; }

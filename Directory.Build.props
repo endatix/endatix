@@ -74,7 +74,7 @@
          so their C# signatures may change between releases (ID table: AGENTS.md, C# conventions). Endatix's own
          projects and tests use them freely; a consumer of the packages opts in per ID. -->
     <PropertyGroup>
-        <EndatixExperimentalIds>ENDATIX0001;ENDATIX0002;ENDATIX0003;ENDATIX0004;ENDATIX0005</EndatixExperimentalIds>
+        <EndatixExperimentalIds>ENDATIX0001;ENDATIX0002;ENDATIX0003;ENDATIX0004;ENDATIX0005;ENDATIX0007</EndatixExperimentalIds>
         <NoWarn>$(NoWarn);$(EndatixExperimentalIds)</NoWarn>
     </PropertyGroup>
 

@@ -474,6 +474,85 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.ToTable("FormDependencies", (string)null);
                 });
 
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraft", b =>
+                {
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("JsonData")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("FormId");
+
+                    b.ToTable("FormDrafts", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraftOperation", b =>
+                {
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ClientSessionId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Label")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("TargetVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("FormId", "Version");
+
+                    b.ToTable("FormDraftOperations", (string)null);
+                });
+
             modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>
                 {
                     b.Property<long>("FormId")
@@ -1188,6 +1267,51 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Navigation("Form");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraft", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.Form", null)
+                        .WithOne()
+                        .HasForeignKey("Endatix.Core.Entities.FormDraft", "FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Endatix.Core.Entities.FormDraftOperation", b =>
+                {
+                    b.HasOne("Endatix.Core.Entities.FormDraft", null)
+                        .WithMany()
+                        .HasForeignKey("FormId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("Endatix.Core.Abstractions.Actor", "Actor", b1 =>
+                        {
+                            b1.Property<long>("FormDraftOperationFormId")
+                                .HasColumnType("bigint");
+
+                            b1.Property<long>("FormDraftOperationVersion")
+                                .HasColumnType("bigint");
+
+                            b1.Property<string>("Kind")
+                                .IsRequired()
+                                .HasMaxLength(32)
+                                .HasColumnType("nvarchar(32)");
+
+                            b1.Property<long?>("UserId")
+                                .HasColumnType("bigint");
+
+                            b1.HasKey("FormDraftOperationFormId", "FormDraftOperationVersion");
+
+                            b1.ToTable("FormDraftOperations");
+
+                            b1.WithOwner()
+                                .HasForeignKey("FormDraftOperationFormId", "FormDraftOperationVersion");
+                        });
+
+                    b.Navigation("Actor")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.FormSettings", b =>

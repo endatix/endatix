@@ -62,7 +62,7 @@ internal sealed class BrandOverride
             var problems = BrandOverrideReader.Check(document.RootElement, tenantId);
             return problems.Count > 0
                 ? Result<BrandOverride>.Invalid(problems)
-                : Result<BrandOverride>.Success(new BrandOverride(tenantId, CanonicalBrandJson.Write(document.RootElement)));
+                : Result<BrandOverride>.Success(new BrandOverride(tenantId, Versioning.CanonicalJson.Write(document.RootElement)));
         }
     }
 
@@ -77,7 +77,7 @@ internal sealed class BrandOverride
         JsonDocument? document = null;
         try
         {
-            document = JsonDocument.Parse(json, CanonicalBrandJson.Options);
+            document = JsonDocument.Parse(json, Versioning.CanonicalJson.Options);
             ReadEveryString(document.RootElement);
             return (document, null);
         }

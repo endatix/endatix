@@ -1,11 +1,11 @@
 using System.Text.Json;
 
-namespace Endatix.Core.Branding;
+namespace Endatix.Core.Versioning;
 
 /// <summary>
 /// Writes JSON with every object's keys in ordinal order and no whitespace, so two texts of the same value compare equal.
 /// </summary>
-internal static class CanonicalBrandJson
+internal static class CanonicalJson
 {
     /// <summary>
     /// Duplicate keys are refused: a reader would check one copy while the database or the Hub keeps another.

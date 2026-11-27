@@ -139,13 +139,13 @@ public sealed class TenantBranding : IAggregateRoot, ITenantOwned, IHasVersion
 
         return expectedVersion != Version
             ? StaleVersion()
-            : Append(new(CanonicalBrandJson.Write(source.Json), source.ContentHash, RestoreSource(source.ContentHash), source.Number), stamp);
+            : Append(new(CanonicalJson.Write(source.Json), source.ContentHash, RestoreSource(source.ContentHash), source.Number), stamp);
     }
 
     // The cache may come back with its keys reordered (jsonb), so its hash is taken in canonical form. With no cache the
     // deployment brand is live, before the first publish as after a reset.
     private bool IsLive(string contentHash) => contentHash ==
-        (PublishedJson is null ? _deploymentBrandHash : CanonicalContentHash.Of(CanonicalBrandJson.Write(PublishedJson)));
+        (PublishedJson is null ? _deploymentBrandHash : CanonicalContentHash.Of(CanonicalJson.Write(PublishedJson)));
 
     // A copy of a reset is a reset, so the history says which versions show the deployment brand.
     private static string RestoreSource(string contentHash) =>
