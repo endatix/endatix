@@ -24,7 +24,7 @@ internal sealed class FormDraftRepository(AppDbContext db, IUniqueConstraintViol
         }
 
         return await db.FormDefinitions.CountAsync(row => row.FormId == form.Id && (!row.IsDraft || row.Id == active.Id || row.Submissions.Any())
-            && (row.CreatedAt < active.CreatedAt || row.CreatedAt == active.CreatedAt && row.Id <= active.Id), cancellationToken);
+            && (row.CreatedAt < active.CreatedAt || (row.CreatedAt == active.CreatedAt && row.Id <= active.Id)), cancellationToken);
     }
 
     public Task<Actor?> LastActorAsync(long formId, long version, CancellationToken cancellationToken) =>

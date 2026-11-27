@@ -1,16 +1,16 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using Microsoft.EntityFrameworkCore;
-using Endatix.Core.Entities;
-using Endatix.Core.Abstractions;
 using Ardalis.GuardClauses;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Endatix.Infrastructure.Data.Abstractions;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
+using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Core.Exceptions;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Infrastructure.Data.Abstractions;
 using Endatix.Infrastructure.Features.Outbox;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Endatix.Infrastructure.Data;
 

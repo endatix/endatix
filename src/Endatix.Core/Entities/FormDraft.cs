@@ -1,7 +1,7 @@
+using System.Text;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Infrastructure.Domain;
 using Endatix.Core.Versioning;
-using System.Text;
 
 namespace Endatix.Core.Entities;
 

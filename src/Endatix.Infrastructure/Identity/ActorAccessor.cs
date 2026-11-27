@@ -1,21 +1,26 @@
 using Endatix.Core.Abstractions;
+using Microsoft.AspNetCore.Http;
 
 namespace Endatix.Infrastructure.Identity;
 
-internal sealed class ActorAccessor(IUserContext users) : IActorAccessor
+internal sealed class ActorAccessor(IHttpContextAccessor http) : IActorAccessor
 {
     public Actor Current
     {
         get
         {
-            if (!users.IsAuthenticated)
+            if (http.HttpContext is not { } context)
             {
                 return Actor.System;
             }
 
-            var userId = users.GetActorUserId() ??
-                (long.TryParse(users.GetCurrentUserId(), out var id) ? id : (long?)null);
-            return new Actor("user", userId);
+            if (context.User.Identity?.IsAuthenticated != true)
+            {
+                throw new InvalidOperationException("An author must be authenticated to write a draft.");
+            }
+
+            var identity = context.User.Identities.OfType<AuthorizedIdentity>().FirstOrDefault();
+            return new Actor("user", identity?.LocalUserId);
         }
     }
 }

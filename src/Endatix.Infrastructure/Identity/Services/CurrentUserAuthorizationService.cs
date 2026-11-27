@@ -223,7 +223,8 @@ internal sealed class CurrentUserAuthorizationService : ICurrentUserAuthorizatio
          permissions: endatixIdentity.Permissions.Distinct().ToArray(),
          cachedAt: endatixIdentity.CachedAt,
          expiresAt: endatixIdentity.CacheExpiresIn,
-         eTag: endatixIdentity.ETag);
+         eTag: endatixIdentity.ETag) with
+        { LocalUserId = endatixIdentity.LocalUserId };
 
         if (authorizationData.IsAdmin != endatixIdentity.IsAdmin)
         {

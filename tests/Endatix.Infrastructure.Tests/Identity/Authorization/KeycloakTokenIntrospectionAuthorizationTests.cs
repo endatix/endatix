@@ -21,7 +21,7 @@ using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace Endatix.Infrastructure.Tests.Identity.Authorization;
 
-public sealed class KeycloakTokenIntrospectionAuthorizationTests
+public sealed partial class KeycloakTokenIntrospectionAuthorizationTests
 {
     private const string TEST_ISSUER = "https://keycloak.test";
 
@@ -702,4 +702,3 @@ public sealed class KeycloakTokenIntrospectionAuthorizationTests
         field!.SetValue(provider, issuer);
     }
 }
-

@@ -192,7 +192,8 @@ internal sealed class KeycloakTokenIntrospectionAuthorization(
             userId: mapped.UserId,
             tenantId: mapped.TenantId,
             roles: filteredAuthorization.Roles,
-            permissions: filteredAuthorization.Permissions));
+            permissions: filteredAuthorization.Permissions) with
+        { LocalUserId = mapped.ProvisionedUserId });
     }
 
     private readonly record struct MappedAuthorization(

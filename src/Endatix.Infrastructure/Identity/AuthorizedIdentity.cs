@@ -16,8 +16,11 @@ public sealed class AuthorizedIdentity : ClaimsIdentity
     public AuthorizedIdentity(AuthorizationData authData)
             : base(BuildAuthorizationClaims(authData), AuthType)
     {
+        LocalUserId = authData?.LocalUserId;
     }
 
+    /// <summary>The local account confirmed by this identity's authorization provider.</summary>
+    internal long? LocalUserId { get; }
 
     /// <summary>
     /// Checks if this identity has been hydrated with RBAC data.

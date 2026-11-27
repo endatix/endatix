@@ -95,7 +95,7 @@ internal sealed class DefaultAuthorizationDataProvider(
                     expiresAt: EarliestPermissionExpiry(userRoles)
             );
 
-            return Result.Success(authorizationData);
+            return Result.Success(authorizationData with { LocalUserId = user.Id });
         }
         catch (Exception ex)
         {
@@ -149,4 +149,3 @@ internal sealed class DefaultAuthorizationDataProvider(
                 cancellationToken);
     }
 }
-
