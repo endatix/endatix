@@ -30,6 +30,22 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion, IHasD
         ContentHash = CanonicalSurveyJson.PublishedHash(publishedJson)
     };
 
+    /// <summary>Preserves both the previous live document and the adopted legacy edit in replay order.</summary>
+    public static FormDraft Adopt(Form form, FormDefinition stray, ICollection<FormDraftOperation> operations)
+    {
+        if (stray.FormId != form.Id || stray.TenantId != form.TenantId || !stray.IsDraft)
+        {
+            throw new InvalidOperationException("A stray draft must belong to the form being upgraded.");
+        }
+        var draft = For(form, form.ActiveDefinition?.JsonData ?? FormDefinitionDefaults.Json);
+        var write = DraftWrite.System(stray.ModifiedAt ?? stray.CreatedAt);
+        foreach (var row in draft.WriteSnapshot(stray.JsonData, stray.ContentHash, ("adopt", write)))
+        {
+            operations.Add(row);
+        }
+        return draft;
+    }
+
     internal List<FormDraftOperation> Replace(string json, DraftWrite write)
     {
         var hash = CanonicalSurveyJson.Hash(json);

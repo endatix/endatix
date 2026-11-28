@@ -23,8 +23,16 @@ internal sealed class FormDraftRepository(AppDbContext db, IUniqueConstraintViol
             return null;
         }
 
-        return await db.FormDefinitions.CountAsync(row => row.FormId == form.Id && (!row.IsDraft || row.Id == active.Id || row.Submissions.Any())
+        if (active.Number is long number)
+        {
+            return checked((int)number);
+        }
+
+        var definitions = db.FormDefinitions.Where(row => row.FormId == form.Id);
+        var lastNumber = await definitions.MaxAsync(row => row.Number, cancellationToken) ?? 0;
+        var offset = await definitions.CountAsync(row => row.Number == null && (!row.IsDraft || row.Id == active.Id || row.Submissions.Any())
             && (row.CreatedAt < active.CreatedAt || (row.CreatedAt == active.CreatedAt && row.Id <= active.Id)), cancellationToken);
+        return checked((int)lastNumber + offset);
     }
 
     public Task<Actor?> LastActorAsync(long formId, long version, CancellationToken cancellationToken) =>

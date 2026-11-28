@@ -51,8 +51,11 @@ public class AppDbContext : DbContext, ITenantDbContext
     public DbSet<FormDraftOperation> FormDraftOperations { get; set; }
 
     /// <inheritdoc/>
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
         optionsBuilder.AddInterceptors(InsertOnlyInterceptor.Instance);
+        LegacyDraftUpgradeSeeder.Configure(optionsBuilder);
+    }
 
     public DbSet<Folder> Folders { get; set; }
 
@@ -108,7 +111,7 @@ public class AppDbContext : DbContext, ITenantDbContext
         modelBuilder.Ignore<DomainEventBase>();
         modelBuilder.Ignore<CollectionStatus>();
 
-        modelBuilder.ApplyEndatixQueryFilters(this);
+        ApplyQueryFilters(modelBuilder);
 
         // Apply base configurations from Infrastructure assembly
         modelBuilder.ApplyConfigurationsFor<AppDbContext>(AssemblyReference.Assembly);
@@ -131,6 +134,14 @@ public class AppDbContext : DbContext, ITenantDbContext
         modelBuilder.ApplySnowflakeIdValueGenerators(Database);
 
         PrefixTableNames(modelBuilder);
+    }
+
+    private void ApplyQueryFilters(ModelBuilder modelBuilder)
+    {
+        modelBuilder.ApplyEndatixQueryFilters(this);
+        // A form's soft delete hides its immutable versions without changing their rows.
+        modelBuilder.Entity<FormDefinition>().HasQueryFilter(EndatixQueryFilterNames.SoftDelete,
+            row => !row.IsDeleted && (row.PublishedFromDraftVersion == null || Forms.Any(form => form.Id == row.FormId && !form.IsDeleted)));
     }
 
     public long GetTenantId() => _tenantContext?.TenantId ?? 0;

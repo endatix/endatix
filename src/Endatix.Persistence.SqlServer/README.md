@@ -19,6 +19,12 @@ For detailed installation instructions, please visit [Endatix Installation Guide
 
 Run the commands from the `oss` folder.
 
+### Upgrading existing form definitions
+
+`NumberFormDefinitions` numbers existing definitions without changing the live definition ID. EF's migration seeder then adopts newer legacy drafts and requests Reporting schema compilation for active definitions previously marked as drafts. It uses the same C# canonical hash as the editor.
+
+If you deploy a generated SQL script instead of running EF migrations, finish the upgrade with `dotnet ef database update --context AppDbContext --project src/Endatix.Persistence.SqlServer --startup-project src/Endatix.WebHost` against the same database. A script alone leaves legacy drafts queued. Verify that `[LegacyDraftUpgrades]` is empty before enabling draft editing.
+
 > [!NOTE]
 > Always use `Endatix.WebHost` as startup project, and this provider-specific persistence project as migrations project.
 
@@ -102,4 +108,3 @@ dotnet ef database update \
 "DefaultConnection": "Server=localhost;Initial Catalog=endatix-db; User ID=sa; Password=admin@2admin; TrustServerCertificate=True",
 "DefaultConnection_DbProvider": "SqlServer" // Config first db provider setter. Not required if you configure the DB Provider via c# code.
 ```
-

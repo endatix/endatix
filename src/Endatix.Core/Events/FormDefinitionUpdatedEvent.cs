@@ -7,9 +7,10 @@ namespace Endatix.Core.Events;
 /// Raised when a form definition's schema JSON changes or a new active definition is published.
 /// Captured to the outbox for durable reporting schema compilation.
 /// </summary>
-public sealed class FormDefinitionUpdatedEvent(Form form, FormDefinition formDefinition)
+public sealed class FormDefinitionUpdatedEvent(Form form, FormDefinition formDefinition, string? note)
     : DomainEventBase, IIntegrationEvent
 {
+    public FormDefinitionUpdatedEvent(Form form, FormDefinition formDefinition) : this(form, formDefinition, null) { }
     public const string EventTypeName = "form.definition.updated";
 
     public Form Form { get; } = form;
@@ -21,7 +22,14 @@ public sealed class FormDefinitionUpdatedEvent(Form form, FormDefinition formDef
 
     public string EventType => EventTypeName;
 
-    public object GetPayload() => new
+    public object GetPayload() => FormDefinition.PublishedFromDraftVersion.HasValue ? new
+    {
+        formId = Form.Id,
+        tenantId = Form.TenantId,
+        formDefinitionId = FormDefinition.Id,
+        revision = _revision,
+        note
+    } : new
     {
         formId = Form.Id,
         tenantId = Form.TenantId,

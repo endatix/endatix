@@ -1,9 +1,10 @@
 using Ardalis.GuardClauses;
 using Endatix.Core.Infrastructure.Domain;
+using Endatix.Core.Versioning;
 
 namespace Endatix.Core.Entities;
 
-public partial class FormDefinition : TenantEntity, IAggregateRoot
+public partial class FormDefinition : TenantEntity, IAggregateRoot, IContentVersion
 {
     private readonly List<Submission> _submissions = [];
 
@@ -23,8 +24,10 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     public static FormDefinition Create(long id, long tenantId, bool isDraft = false, string? jsonData = null)
     {
         Guard.Against.NegativeOrZero(id);
-        FormDefinition definition = new(tenantId, isDraft, jsonData);
-        definition.Id = id;
+        FormDefinition definition = new(tenantId, isDraft, jsonData)
+        {
+            Id = id
+        };
         return definition;
     }
 
@@ -32,14 +35,14 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
 
     public bool IsDraft { get; private set; }
 
-    /// <summary>
-    /// Survey JSON for this definition. Callers that omit it get <see cref="FormDefinitionDefaults.Json"/>.
-    /// </summary>
-    public string JsonData { get; private set; } = FormDefinitionDefaults.Json;
+    /// <summary>Survey JSON as published, or the editable legacy document.</summary>
+    public string JsonData
+    {
+        get => _publishedJson ?? field;
+        private set;
+    } = FormDefinitionDefaults.Json;
 
-#pragma warning disable S1144 // EF Core sets it when it loads the definition, and FormDefinitionFactory in the tests.
     public long FormId { get; private set; }
-#pragma warning restore S1144
 
     /// <summary>
     /// Updates the form definition's JSON data with the provided value, or keeps the current data if null is provided.
@@ -47,6 +50,7 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     /// <param name="jsonData">The new JSON data for the form definition, or null to keep the current data.</param>
     public void UpdateSchema(string? jsonData)
     {
+        EnsureEditable();
         JsonData = jsonData ?? JsonData;
     }
 
@@ -56,6 +60,7 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     /// <param name="isDraft">The new draft status for the form definition, or null to keep the current status.</param>
     public void UpdateDraftStatus(bool? isDraft)
     {
+        EnsureEditable();
         IsDraft = isDraft ?? IsDraft;
     }
 
@@ -65,6 +70,7 @@ public partial class FormDefinition : TenantEntity, IAggregateRoot
     /// </summary>
     public override void Delete()
     {
+        EnsureEditable();
         if (!IsDeleted)
         {
             // Only the submissions loaded with the definition.

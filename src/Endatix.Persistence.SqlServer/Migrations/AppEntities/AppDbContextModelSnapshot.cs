@@ -382,6 +382,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
@@ -401,8 +404,36 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<long?>("Number")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PublishedFromDraftVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("RestoredFromNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("publish");
+
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("ContentHash")
+                        .IsFixedLength();
+
+                    b.Property<string>("_publishedJson")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("PublishedJson");
 
                     b.HasKey("Id");
 
@@ -1166,6 +1197,19 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("TenantId");
 
                     b.ToTable("Themes", (string)null);
+                });
+
+            modelBuilder.Entity("Endatix.Infrastructure.Data.LegacyDraftUpgrade", b =>
+                {
+                    b.Property<long>("FormId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("DefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("FormId", "DefinitionId");
+
+                    b.ToTable("LegacyDraftUpgrades", (string)null);
                 });
 
             modelBuilder.Entity("Endatix.Core.Entities.CustomQuestion", b =>

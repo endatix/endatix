@@ -155,6 +155,21 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         }
     }
 
+    /// <summary>Activates a freshly published definition without loading the previous versions.</summary>
+    public void Publish(FormDefinition published, string? note)
+    {
+        Guard.Against.Null(published);
+        if (published.FormId != Id || published.TenantId != TenantId ||
+            published.PublishedFromDraftVersion is null || published.Id != 0 || _formDefinitions.Contains(published))
+        {
+            throw new InvalidOperationException("Publication requires a new version of this form.");
+        }
+
+        _formDefinitions.Add(published);
+        ActiveDefinition = published;
+        RegisterRevisedDomainEvent(() => new FormDefinitionUpdatedEvent(this, published, note));
+    }
+
     /// <inheritdoc />
     public bool CanMoveToFolder(long? folderId) => !IsDeleted;
 
@@ -293,7 +308,7 @@ public partial class Form : TenantEntity, IAggregateRoot, IHasFolder, IHasRevisi
         if (!IsDeleted)
         {
             // Only the definitions loaded with the form.
-            foreach (var definition in _formDefinitions)
+            foreach (var definition in _formDefinitions.Where(row => row.PublishedFromDraftVersion is null))
             {
                 definition.Delete();
             }
