@@ -75,7 +75,6 @@ public sealed record DraftJournalBatch(int SaveNo, string ClientSessionId, IRead
             ? $"Provide an editing session identifier of up to {FormDraftOperation.EDITOR_SESSION_ID_MAX_LENGTH} UTF-16 code units with valid Unicode and no NUL."
             : null;
 
-    /// <summary>Rejects input a fixed-length ASCII SHA-256 column cannot store exactly.</summary>
     private static bool IsContentHash(string? hash) =>
         hash is { Length: CanonicalContentHash.LENGTH } && hash.All(char.IsAsciiHexDigit);
 
