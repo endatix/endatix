@@ -1,11 +1,20 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 
 namespace Endatix.Core.Abstractions.Repositories;
+
+/// <summary>The draft head and live definition as observed at the same point in time.</summary>
+[System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
+public sealed record DraftComparison(long Version, int? PublishedNumber, string? PublishedJson, string? DraftJson);
 
 /// <summary>Loads a tenant's form and saves its draft head and history together.</summary>
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
 public interface IFormDraftRepository
 {
+    /// <summary>Reads the tenant's form unless its draft is awaiting adoption.</summary>
+    Task<Result<Form>> FindReadableFormAsync(long tenantId, long formId, CancellationToken cancellationToken);
+    /// <summary>Reads admission, the active document and its ordinal, and the head in one consistent view.</summary>
+    Task<Result<DraftComparison>> ReadComparisonAsync(long tenantId, long formId, CancellationToken cancellationToken);
     /// <summary>Reads the owning form and its active definition in the specified tenant.</summary>
     Task<Form?> FindFormAsync(long tenantId, long formId, CancellationToken cancellationToken);
     /// <summary>Whether the upgrade still needs to adopt this form's legacy draft.</summary>

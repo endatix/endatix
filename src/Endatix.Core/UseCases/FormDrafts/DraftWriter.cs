@@ -26,22 +26,21 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
 
     public async Task<Result<DraftDiffResponse>> Handle(ReadDraftDiff request, CancellationToken cancellationToken)
     {
-        var state = await LoadAsync(request.FormId, cancellationToken);
+        var state = await drafts.ReadComparisonAsync(tenant.TenantId, request.FormId, cancellationToken);
         if (!state.IsSuccess)
         {
             return state.ToErrorResult<DraftDiffResponse>();
         }
-        var (head, form, publishedJson) = state.Value;
-        var number = await drafts.ActiveNumberAsync(form, cancellationToken);
-        if (number is null)
+        var (version, number, publishedJson, draftJson) = state.Value;
+        if (publishedJson is null || draftJson is null)
         {
-            return new DraftDiffResponse(head.Version, null, []);
+            return new DraftDiffResponse(version, number, []);
         }
         var published = CanonicalSurveyJson.WritePublished(publishedJson);
-        var draft = CanonicalSurveyJson.WritePublished(head.JsonData);
+        var draft = CanonicalSurveyJson.WritePublished(draftJson);
         var changes = SurveyDiff.Compare(published, draft);
-        return changes.Count == 0 ? new DraftDiffResponse(head.Version, number, changes)
-            : new DraftDiffResponse(head.Version, number, changes, published, draft);
+        return changes.Count == 0 ? new DraftDiffResponse(version, number, changes)
+            : new DraftDiffResponse(version, number, changes, published, draft);
     }
 
     public Task<Result<DraftResponse>> Handle(AppendDraft request, CancellationToken cancellationToken) =>
@@ -99,15 +98,12 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
 
     private async Task<Result<DraftState>> LoadAsync(long id, CancellationToken ct)
     {
-        var form = tenant.TenantId > 0 ? await drafts.FindFormAsync(tenant.TenantId, id, ct) : null;
-        if (form is null)
+        var result = await drafts.FindReadableFormAsync(tenant.TenantId, id, ct);
+        if (!result.IsSuccess)
         {
-            return Result.NotFound("Form not found.");
+            return result.ToErrorResult<DraftState>();
         }
-        if (await drafts.IsUpgradePendingAsync(id, ct))
-        {
-            return Result.Unavailable("This form's draft upgrade is pending. Retry after the upgrade finishes.");
-        }
+        var form = result.Value;
         var published = form.ActiveDefinition?.JsonData ?? FormDefinitionDefaults.Json;
         var head = await drafts.FindHeadAsync(id, ct) ?? FormDraft.For(form, published);
         return new DraftState(head, form, published);

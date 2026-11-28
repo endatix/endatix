@@ -38,7 +38,23 @@ internal static class SurveyArrayIdentity
         {
             return null;
         }
-        return value.ValueKind is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False
-            ? $"value:{value.GetRawText()}" : null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => NumberKey(value.GetDouble()),
+            JsonValueKind.String or JsonValueKind.True or JsonValueKind.False => $"value:{value.GetRawText()}",
+            _ => null
+        };
+    }
+
+    // A JSON consumer in JavaScript addresses numbers as binary64. Integers outside its safe
+    // range (and overflow) cannot serve as reliable IDs, even when the source text is distinct.
+    private static string? NumberKey(double number)
+    {
+        if (Math.Abs(number) > 9_007_199_254_740_991d)
+        {
+            return null;
+        }
+        var normalized = number == 0 ? 0d : number;
+        return $"value:{JsonSerializer.Serialize(normalized)}";
     }
 }

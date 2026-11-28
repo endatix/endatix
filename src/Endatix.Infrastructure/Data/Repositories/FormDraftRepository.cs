@@ -1,7 +1,9 @@
+using System.Data;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.Data;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
 using Microsoft.EntityFrameworkCore;
 
 namespace Endatix.Infrastructure.Data.Repositories;
@@ -9,6 +11,42 @@ namespace Endatix.Infrastructure.Data.Repositories;
 internal sealed class FormDraftRepository(AppDbContext db, IUniqueConstraintViolationChecker unique)
     : IFormDraftRepository
 {
+    public async Task<Result<Form>> FindReadableFormAsync(long tenantId, long formId, CancellationToken cancellationToken)
+    {
+        var form = tenantId > 0 ? await FindFormAsync(tenantId, formId, cancellationToken) : null;
+        if (form is null)
+        {
+            return Result.NotFound("Form not found.");
+        }
+        if (await IsUpgradePendingAsync(formId, cancellationToken))
+        {
+            return Result.Unavailable("This form's draft upgrade is pending. Retry after the upgrade finishes.");
+        }
+        return form;
+    }
+
+    public Task<Result<DraftComparison>> ReadComparisonAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
+        db.Database.CreateExecutionStrategy().ExecuteAsync(async ct =>
+        {
+            // Protect the missing-head, pending-queue and legacy ordinal ranges as well as the
+            // rows we found. SQL Server need not have database snapshot isolation enabled.
+            var isolation = db.Database.IsNpgsql() ? IsolationLevel.RepeatableRead : IsolationLevel.Serializable;
+            await using var transaction = await db.Database.BeginTransactionAsync(isolation, ct);
+            var form = await FindReadableFormAsync(tenantId, formId, ct);
+            var comparison = form.IsSuccess ? await ReadDocumentsAsync(form.Value, ct) : form.ToErrorResult<DraftComparison>();
+            await transaction.CommitAsync(ct);
+            return comparison;
+        }, cancellationToken);
+
+    private async Task<Result<DraftComparison>> ReadDocumentsAsync(Form form, CancellationToken ct)
+    {
+        var head = await db.FormDrafts.Where(row => row.TenantId == form.TenantId && row.FormId == form.Id)
+            .Select(row => new { row.Version, row.JsonData }).SingleOrDefaultAsync(ct);
+        var number = await ActiveNumberAsync(form, ct);
+        var published = form.ActiveDefinition?.JsonData;
+        return new DraftComparison(head?.Version ?? 0, number, published, head?.JsonData);
+    }
+
     public Task<Form?> FindFormAsync(long tenantId, long formId, CancellationToken cancellationToken) =>
         db.Forms.AsNoTracking().Include(form => form.ActiveDefinition)
             .SingleOrDefaultAsync(form => form.TenantId == tenantId && form.Id == formId, cancellationToken);

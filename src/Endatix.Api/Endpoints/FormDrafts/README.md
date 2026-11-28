@@ -14,7 +14,9 @@ canonical JSON **strings**. Use these for a unified JSON view and to resolve pag
 and question titles for the summary. They are omitted for empty change lists.
 The strong `ETag` is the current **draft** version, including `"0"` before the
 first edit. Refetch when opening Review: the published definition may have
-changed independently. The response is `Cache-Control: no-store`.
+changed independently. The response is `Cache-Control: no-store`. The API reads
+the live pointer, resolved number, draft, and pending-upgrade state in the same
+database view and releases it before computing the diff.
 
 ```json
 {
@@ -37,8 +39,11 @@ then unescape `~1` to `/` and `~0` to `~` in each segment. An object segment is
 a literal property name. In an array:
 
 - `name:<name>` identifies a page, element, template element or named matrix column, case-sensitive.
-- `value:<JSON scalar>` identifies a choice, row, rating or value-based matrix column. For example
-  `value:1` and `value:"1"` identify different items.
+- `value:<JSON scalar>` identifies a choice, row, rating or value-based matrix column. Parse the
+  selector payload with `JSON.parse` and compare scalar values by type and value.
+  `value:1` and `value:"1"` identify different items; `1` and `1.0` denote the same number.
+  If two values coincide as JavaScript numbers, or a number is outside the safe integer range,
+  the collection uses positional selectors. Canonical documents retain the original numeric tokens.
 - `index:<zero-based index>` addresses other ordered arrays, and the entire collection when either side has missing or duplicate identities.
 
 For findings or page grouping, `pages/name:p/elements/name:q/choices/value:"yes"`
@@ -50,7 +55,9 @@ carries both, including literal JSON nulls. `moved` changes the position of a
 keyed array member. For keyed insertions, removals and moves, `predecessorBefore`
 and `predecessorAfter` identify the preceding sibling on the relevant side at
 that step (unescaped selector, null or absent for the first position).
-Renaming a uniquely named element yields a removal and an addition.
+Renaming a uniquely named element yields a removal and an addition. A reorder
+keeps a longest subsequence of common siblings in place, so moving a single
+question from the beginning to the end produces one `moved` change for that question.
 
 An invalid target or form ID returns 400; a missing or inaccessible tenant form
 returns 404 after authorization. A pending legacy draft upgrade returns 503,

@@ -89,7 +89,7 @@ internal sealed class SurveyDiff
             CompareByIndex(path, pair.Before.EnumerateArray().ToArray(), pair.After.EnumerateArray().ToArray());
             return;
         }
-        var order = new SurveySiblingOrder(before.Keys);
+        var order = new SurveySiblingOrder(before.Keys, after.Keys);
         foreach (var key in before.Keys.Except(after.Keys))
         {
             _changes.Add(new("removed", Child(path, key), before[key], PredecessorBefore: order.Remove(key)));

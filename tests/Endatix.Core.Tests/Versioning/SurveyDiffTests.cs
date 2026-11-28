@@ -79,6 +79,74 @@ public sealed class SurveyDiffTests
         return CanonicalJson.Write(JsonSerializer.Serialize(new { pages, count = random.Next(4) }));
     }
 
+    [Theory]
+    [InlineData(0, 8)]
+    [InlineData(8, 0)]
+    [InlineData(2, 6)]
+    public void Compare_SingleRelocation_CreditsOnlyTheMovedQuestion(int from, int to)
+    {
+        // Arrange
+        var questions = Enumerable.Range(0, 9).Select(i => new { name = $"q{i}" }).ToList();
+        var published = JsonSerializer.Serialize(new { elements = questions });
+        var moved = questions[from];
+        questions.RemoveAt(from);
+        questions.Insert(to, moved);
+        var draft = JsonSerializer.Serialize(new { elements = questions });
+
+        // Act
+        var changes = SurveyDiff.Compare(published, draft);
+
+        // Assert
+        var change = changes.Should().ContainSingle().Subject;
+        (change.Kind, change.Path).Should().Be(("moved", $"/elements/name:{moved.name}"));
+        AssertRoundTrip(published, draft, changes);
+    }
+
+    [Theory]
+    [InlineData("1", "1.0")]
+    [InlineData("0", "-0")]
+    [InlineData("9007199254740992", "9007199254740993")]
+    [InlineData("0.1", "0.10000000000000001")]
+    public void Compare_ChoicesIndistinguishableInJavaScript_AddressesTheEditedLabelByIndex(string first, string second)
+    {
+        // Arrange
+        var published = $$"""{"choices":[{"value":{{first}},"text":"A"},{"value":{{second}},"text":"B"}]}""";
+        var draft = published.Replace("\"B\"", "\"Edited\"");
+
+        // Act
+        var changes = SurveyDiff.Compare(published, draft);
+
+        // Assert
+        var change = changes.Should().ContainSingle().Subject;
+        (change.Kind, change.Path).Should().Be(("changed", "/choices/index:1/text"));
+        AssertRoundTrip(published, draft, changes);
+    }
+
+    private static void AssertRoundTrip(string published, string draft, IReadOnlyList<SurveyChange> changes)
+    {
+        var forward = Apply(JsonNode.Parse(published), changes);
+        var inverse = Apply(JsonNode.Parse(draft), changes.Reverse().Select(Invert));
+        forward!.ToJsonString().Should().Be(draft);
+        inverse!.ToJsonString().Should().Be(published);
+    }
+
+    [Fact]
+    public void Compare_AlternateSpellingOfOneUniqueNumericChoice_IsAnEditToTheSameChoice()
+    {
+        // Arrange
+        const string published = """{"choices":[1,"1"]}""";
+        const string draft = """{"choices":[1.0,"1"]}""";
+
+        // Act
+        var changes = SurveyDiff.Compare(published, draft);
+
+        // Assert
+        var change = changes.Should().ContainSingle().Subject;
+        (change.Kind, change.Path).Should().Be(("changed", "/choices/value:1"));
+        CanonicalSurveyJson.PublishedHash(draft).Should().NotBe(CanonicalSurveyJson.PublishedHash(published));
+        AssertRoundTrip(published, draft, changes);
+    }
+
     private static object?[] Choices(Random random)
     {
         object?[] possible = ["1", 1, "1", new { value = true, text = "Yes" }, null, false];
@@ -156,7 +224,15 @@ public sealed class SurveyDiffTests
         return Enumerable.Range(0, array.Count).Single(i => Matches(array[i], key));
     }
 
-    private static bool Matches(JsonNode? item, string key) => key.StartsWith("name:", StringComparison.Ordinal)
-        ? item is JsonObject named && named["name"]?.GetValue<string>() == key[5..]
-        : (item is JsonObject choice ? choice["value"] : item)?.ToJsonString() == key[6..];
+    private static bool Matches(JsonNode? item, string key)
+    {
+        if (key.StartsWith("name:", StringComparison.Ordinal))
+        {
+            return item is JsonObject named && named["name"]?.GetValue<string>() == key[5..];
+        }
+        var value = item is JsonObject choice ? choice["value"] : item;
+        var selector = JsonNode.Parse(key[6..])!;
+        return value?.GetValueKind() == JsonValueKind.Number && selector.GetValueKind() == JsonValueKind.Number
+            ? value.GetValue<double>() == selector.GetValue<double>() : JsonNode.DeepEquals(value, selector);
+    }
 }
