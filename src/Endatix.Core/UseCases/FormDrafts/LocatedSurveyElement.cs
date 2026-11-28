@@ -30,12 +30,8 @@ public sealed record LocatedSurveyElement(JsonElement Node, FindingPath Path)
     private static IEnumerable<LocatedSurveyElement> Members(JsonElement array, string property, Location location)
     {
         var parent = SurveyDiff.Child(location.Path, property);
-        var selectors = SurveyArrayIdentity.Index(array, property)?.Keys.ToArray();
-        var index = 0;
-        foreach (var node in array.EnumerateArray())
+        foreach (var (node, address) in SurveyArrayIdentity.Members(array, property, parent))
         {
-            var address = selectors is null ? SurveyDiff.IndexPath(parent, index) : SurveyDiff.Child(parent, selectors[index]);
-            index++;
             var currentPage = property == "pages" ? address : location.Page;
             if (property != "pages")
             {

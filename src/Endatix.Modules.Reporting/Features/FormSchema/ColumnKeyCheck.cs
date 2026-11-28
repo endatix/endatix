@@ -16,12 +16,17 @@ internal sealed class ColumnKeyCheck(IOptions<ReportingOptions> options) : IForm
     {
         cancellationToken.ThrowIfCancellationRequested();
         var limits = SchemaCompilationLimits.Default with { MaxQuestions = options.Value.GetMaxQuestions(input.TenantId) };
-        var result = FormDefinitionFlattener.Check(input.Definition, limits);
+        return Task.FromResult(Inspect(input.Definition, limits));
+    }
+
+    internal IReadOnlyList<FormCheckFinding> Inspect(JsonElement definition, SchemaCompilationLimits limits)
+    {
+        var result = FormDefinitionFlattener.Check(definition, limits);
         var findings = result.DuplicateKeys.Select(Duplicate).ToList();
         AddLimit(findings, SchemaCompilationLimitKind.MaxQuestions, (result.QuestionCount, limits.MaxQuestions));
         AddLimit(findings, SchemaCompilationLimitKind.MaxColumns, (result.ColumnCount, limits.MaxColumns));
-        AddIncomplete(findings, input.Definition, result);
-        return Task.FromResult<IReadOnlyList<FormCheckFinding>>(findings);
+        AddIncomplete(findings, definition, result);
+        return findings;
     }
 
     private static void AddIncomplete(List<FormCheckFinding> findings, JsonElement definition, FormDefinitionFlattener.ColumnCheck result)

@@ -69,7 +69,7 @@ internal static partial class FormDefinitionFlattener
         {
             // Direct keys cost at most one per input question. Bound generated expansions
             // separately so exhausting the budget cannot hide a later direct sibling.
-            if (column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.Calculated or FormSchemaColumnKind.FileUpload)
+            if (column.LoopPath is null && column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.Calculated or FormSchemaColumnKind.FileUpload)
             {
                 return;
             }

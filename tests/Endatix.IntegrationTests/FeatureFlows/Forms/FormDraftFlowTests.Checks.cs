@@ -98,6 +98,9 @@ public sealed partial class FormDraftFlowTests
         using var client = custom.CreateClient();
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var id = FormId(form);
+        await db.FormDefinitions.Where(row => row.FormId == id)
+            .ExecuteUpdateAsync(update => update.SetProperty(row => row.JsonData, "[]"), Cancellation);
 
         // Act
         var (Status, Detail) = await ReadCheckProblemAsync(client, form);
@@ -105,7 +108,6 @@ public sealed partial class FormDraftFlowTests
         var hidden = await ReadCheckProblemAsync(client, form);
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
         var unavailable = await ReadCheckProblemAsync(client, form);
-        var id = FormId(form);
         var active = await db.FormDefinitions.Where(row => row.FormId == id).Select(row => row.Id).SingleAsync(Cancellation);
         db.Add(new LegacyDraftUpgrade(id, active));
         await db.SaveChangesAsync(Cancellation);

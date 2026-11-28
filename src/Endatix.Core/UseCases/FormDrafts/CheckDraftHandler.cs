@@ -40,8 +40,15 @@ internal sealed class CheckFormDefinitionHandler(IEnumerable<IFormDefinitionChec
         {
             return Result.Unavailable(unavailable);
         }
-        var input = request.Input;
-        List<FormCheckFinding> findings = [.. await new UnknownElementTypeCheck(questions).RunAsync(input, cancellationToken)];
+        return await RunChecks(request, selected, cancellationToken);
+    }
+
+    private async Task<FormCheckReport> RunChecks(CheckFormDefinition request, IFormDefinitionCheck[] selected, CancellationToken cancellationToken)
+    {
+        var shape = new SurveyCheckShape();
+        var input = request.Input with { Definition = shape.Inspect(request.Input.Definition) };
+        var findings = shape.Findings;
+        findings.AddRange(await new UnknownElementTypeCheck(questions).RunAsync(input, cancellationToken));
         foreach (var check in selected)
         {
             findings.AddRange(await check.RunAsync(input, cancellationToken));

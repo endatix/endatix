@@ -43,7 +43,7 @@ internal static partial class FormDefinitionFlattener
         IReadOnlyList<string> LoopPath,
         IReadOnlyList<string> PanelNames,
         IReadOnlyList<IReadOnlyList<string>> DriverChoicesByLevel,
-        JsonElement[] TemplateElements);
+        List<JsonElement> RemainingTemplates);
 
     public static IReadOnlyList<FormSchemaColumn> Flatten(
         JsonElement definition,
@@ -330,7 +330,7 @@ internal static partial class FormDefinitionFlattener
         IReadOnlyList<DynamicPanelNode> dynamicPanels,
         SchemaCompilationLimits limits)
     {
-        var panelsByElement = dynamicPanels.ToDictionary(panel => panel.Element);
+        var findPanel = PanelLookup(dynamicPanels, limits);
 
         List<PanelPath> paths = [];
         var roots = dynamicPanels.Where(panel => panel.ParentValueName is null);
@@ -342,12 +342,24 @@ internal static partial class FormDefinitionFlattener
                 loopPath: [],
                 propertyPath: [],
                 choicesPath: [],
-                panelsByElement,
+                findPanel,
                 paths,
                 limits));
         }
 
         return paths;
+    }
+
+    private static Func<JsonElement, DynamicPanelNode?> PanelLookup(IReadOnlyList<DynamicPanelNode> panels, SchemaCompilationLimits limits)
+    {
+        if (limits.OnIncomplete is null)
+        {
+            // Compilation requires a unique driven panel for each value name.
+            var byName = panels.ToDictionary(panel => panel.ValueName, StringComparer.Ordinal);
+            return node => node.GetSurveyJsValueName() is { } name ? byName.GetValueOrDefault(name) : null;
+        }
+        var byElement = panels.ToDictionary(panel => panel.Element);
+        return node => byElement.GetValueOrDefault(node);
     }
 
     private static void CheckLoopDepth(int depth, string name, SchemaCompilationLimits limits)
@@ -358,12 +370,20 @@ internal static partial class FormDefinitionFlattener
         }
     }
 
+    private static void CheckSourceLoopDepth(int depth, string name, SchemaCompilationLimits limits)
+    {
+        if (limits.OnIncomplete is not null)
+        {
+            CheckLoopDepth(depth, name, limits);
+        }
+    }
+
     private static void BuildPanelPathsRecursive(
         DynamicPanelNode panel,
         IReadOnlyList<string> loopPath,
         IReadOnlyList<string> propertyPath,
         IReadOnlyList<JsonElement> choicesPath,
-        IReadOnlyDictionary<JsonElement, DynamicPanelNode> panelsByElement,
+        Func<JsonElement, DynamicPanelNode?> findPanel,
         List<PanelPath> paths,
         SchemaCompilationLimits limits)
     {
@@ -375,7 +395,7 @@ internal static partial class FormDefinitionFlattener
 
         var childPanel = panel.TemplateElements
             .Where(template => SurveyJsElementType.PanelDynamic.Matches(template.GetSurveyJsType()))
-            .Select(template => panelsByElement.GetValueOrDefault(template))
+            .Select(findPanel)
             .FirstOrDefault(match => match is not null);
 
         if (childPanel is not null &&
@@ -386,7 +406,7 @@ internal static partial class FormDefinitionFlattener
                 nextLoopPath,
                 nextPropertyPath,
                 nextChoicesPath,
-                panelsByElement,
+                findPanel,
                 paths,
                 limits);
             return;
@@ -1058,6 +1078,10 @@ internal static partial class FormDefinitionFlattener
         foreach (var choices in EnumerateLoopSourceDriverCombinations(path.DriverChoicesByLevel, context.Limits))
         {
             EmitLoopSourceColumnsForPath(path, choices, context);
+            if (path.RemainingTemplates.Count == 0)
+            {
+                break;
+            }
         }
     }
 
@@ -1072,7 +1096,7 @@ internal static partial class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var panelName = panel.Name!;
-        CheckLoopDepth(loopPath.Count, panelName, limits);
+        CheckSourceLoopDepth(loopPath.Count, panelName, limits);
         var loopPathSegment = panel.Element.GetSurveyJsValueName() ?? panelName;
         List<string> nextLoopPath = [.. loopPath, loopPathSegment];
         List<string> nextPanelNames = [.. panelNames, panelName];
@@ -1108,7 +1132,7 @@ internal static partial class FormDefinitionFlattener
         if (leafTemplates.Count > 0)
         {
             leafPaths.Add(new LoopSourceLeafPath(panel.Element, nextLoopPath, nextPanelNames,
-                nextDriverChoicesByLevel, leafTemplates.ToArray()));
+                nextDriverChoicesByLevel, leafTemplates));
         }
 
         foreach (var childLoopPanel in childLoopPanels)
@@ -1229,10 +1253,8 @@ internal static partial class FormDefinitionFlattener
                 driverChoices[i]));
         }
 
-        foreach (var template in leafPath.TemplateElements)
-        {
-            context.Limits.RunBranch(template, () => EmitLoopSourceTemplateColumns(keyPanelName, driverChoices, loopSegments, template, context));
-        }
+        leafPath.RemainingTemplates.RemoveAll(template => !context.Limits.RunBranch(template,
+            () => EmitLoopSourceTemplateColumns(keyPanelName, driverChoices, loopSegments, template, context)));
     }
 
     private static void EmitLoopSourceTemplateColumns(

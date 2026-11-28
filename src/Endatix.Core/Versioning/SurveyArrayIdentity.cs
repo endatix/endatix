@@ -4,6 +4,17 @@ namespace Endatix.Core.Versioning;
 
 internal static class SurveyArrayIdentity
 {
+    internal static IEnumerable<(JsonElement Node, string Address)> Members(JsonElement array, string property, string parent)
+    {
+        var selectors = Index(array, property)?.Keys.ToArray();
+        var index = 0;
+        foreach (var node in array.EnumerateArray())
+        {
+            yield return (node, selectors is null ? SurveyDiff.IndexPath(parent, index) : SurveyDiff.Child(parent, selectors[index]));
+            index++;
+        }
+    }
+
     internal static Dictionary<string, JsonElement>? Index(JsonElement array, string property)
     {
         var items = new Dictionary<string, JsonElement>(StringComparer.Ordinal);

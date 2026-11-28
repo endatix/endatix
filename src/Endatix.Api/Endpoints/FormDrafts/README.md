@@ -12,6 +12,9 @@ Missing or inaccessible forms return 404. Pending upgrades and missing mandatory
 question limit is a warning only when exceeded. Checking continues past that limit.
 When a hard expansion guard prevents checking one element, `column/check-incomplete`
 blocks publication and points to that element. Other branches are still checked.
+`definition/invalid-shape` identifies unsupported survey structure, including a legacy
+non-object root. It is a blocking content finding in a 200 response. Valid sibling
+elements keep their original addresses; the checked document is not rewritten.
 Acknowledging warnings never clears a blocking finding. Use `findings[].key` unchanged for
 acknowledgement, `blocking` to disable publication, and `requiresAck` for the warning
 checkbox. `export/not-checked` is informational: opening the dialog does not check export names.
