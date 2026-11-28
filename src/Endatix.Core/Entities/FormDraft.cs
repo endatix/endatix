@@ -30,20 +30,20 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion, IHasD
         ContentHash = CanonicalSurveyJson.PublishedHash(publishedJson)
     };
 
-    /// <summary>Preserves both the previous live document and the adopted legacy edit in replay order.</summary>
-    public static FormDraft Adopt(Form form, FormDefinition stray, ICollection<FormDraftOperation> operations)
+    /// <summary>Starts the upgrade from the live survey, or the default for a form without a live pointer.</summary>
+    public static FormDraft ForLegacyUpgrade(Form form) => For(form, form.ActiveDefinition?.JsonData ?? FormDefinitionDefaults.Json);
+
+    /// <summary>Appends an adoption without losing the exact head of a draft already initialized during expansion.</summary>
+    public List<FormDraftOperation> Adopt(FormDefinition stray)
     {
-        if (stray.FormId != form.Id || stray.TenantId != form.TenantId || !stray.IsDraft)
+        if (stray.FormId != FormId || stray.TenantId != TenantId || !stray.IsDraft)
         {
             throw new InvalidOperationException("A stray draft must belong to the form being upgraded.");
         }
-        var draft = For(form, form.ActiveDefinition?.JsonData ?? FormDefinitionDefaults.Json);
-        var write = DraftWrite.System(stray.ModifiedAt ?? stray.CreatedAt);
-        foreach (var row in draft.WriteSnapshot(stray.JsonData, stray.ContentHash, ("adopt", write)))
-        {
-            operations.Add(row);
-        }
-        return draft;
+        var write = DraftWrite.System(DateTime.UtcNow);
+        List<FormDraftOperation> rows = Version == 0 ? [] : [Snapshot(DraftSnapshotReasons.PERIODIC, write)];
+        rows.AddRange(WriteSnapshot(stray.JsonData, stray.ContentHash, ("adopt", write)));
+        return rows;
     }
 
     internal List<FormDraftOperation> Replace(string json, DraftWrite write)

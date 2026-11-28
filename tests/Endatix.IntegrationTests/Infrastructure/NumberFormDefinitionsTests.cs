@@ -18,6 +18,34 @@ public sealed class NumberFormDefinitionsTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task Adoption_appends_to_existing_tape_without_rewriting_an_editor_checkpoint()
+    {
+        await using var host = await OwnDatabaseWebHost.StartAsync();
+        var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, Ct);
+        using var admin = await world.AsAsync(TestPersona.TenantAdmin, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: Ct);
+        var form = await CreateFormAsync(admin);
+        using var scope = host.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var active = (await db.Forms.SingleAsync(row => row.Id == form, Ct)).ActiveDefinitionId!.Value;
+        const string edited = """{"n":1e+02}""";
+        admin.DefaultRequestHeaders.IfMatch.ParseAdd("\"0\"");
+        using var saved = await admin.PutAsJsonAsync($"/api/forms/{form}/draft", new { jsonData = edited }, Ct);
+        saved.EnsureSuccessStatusCode();
+        var migrations = db.Database.GetMigrations().ToList();
+        await db.GetService<IMigrator>().MigrateAsync(migrations.Single(id => id.EndsWith("_AddFormDraftHistory", StringComparison.Ordinal)), Ct);
+        await SeedLegacyAsync(db, active);
+
+        await db.Database.MigrateAsync(Ct);
+
+        var rows = await db.FormDraftOperations.AsNoTracking().Where(row => row.FormId == form).OrderBy(row => row.Version).ToListAsync(Ct);
+        rows.Select(row => row.Reason).Should().Equal("seed", "whole_json", "periodic", "adopt");
+        rows[1].Payload.Should().Be(edited);
+        rows[2].Payload.Should().Be(edited);
+        rows[1].ContentHash.Should().Be(rows[2].ContentHash);
+        (await db.FormDrafts.SingleAsync(head => head.FormId == form, Ct)).ContentHash.Should().Be(rows[3].ContentHash);
+    }
+
+    [Fact]
     public async Task Upgrade_preserves_the_live_id_and_adopts_the_last_stray_before_cleanup()
     {
         await using var host = await OwnDatabaseWebHost.StartAsync();

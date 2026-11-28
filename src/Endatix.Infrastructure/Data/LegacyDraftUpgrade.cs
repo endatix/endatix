@@ -82,13 +82,14 @@ internal sealed partial class LegacyDraftUpgradeSeeder(AppDbContext db)
         {
             return;
         }
-        if (await db.FormDrafts.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant]).AnyAsync(head => head.FormId == form.Id, ct))
+        var head = await db.FormDrafts.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
+            .SingleOrDefaultAsync(row => row.FormId == form.Id, ct);
+        if (head is null)
         {
-            return;
+            head = FormDraft.ForLegacyUpgrade(form);
+            db.FormDrafts.Add(head);
         }
-        List<FormDraftOperation> rows = [];
-        db.FormDrafts.Add(FormDraft.Adopt(form, stray, rows));
-        db.FormDraftOperations.AddRange(rows);
+        db.FormDraftOperations.AddRange(head.Adopt(stray));
     }
 
     private async Task CleanAsync(Form form, List<FormDefinition> drafts, CancellationToken ct)
