@@ -1464,7 +1464,7 @@
           "Forms"
         ],
         "summary": "Get a single submission by token",
-        "description": "Gets a single submission based on its token and its respective formId",
+        "description": "Gets a submission and its bound form definition by submission token and form ID.",
         "operationId": "EndatixApiEndpointsSubmissionsGetByToken",
         "parameters": [
           {
@@ -1493,7 +1493,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubmissionModel"
+                  "$ref": "#/components/schemas/SubmissionDetailsModel"
                 }
               }
             }
