@@ -175,8 +175,7 @@ internal static class QuartzRegistration
         var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
             ?? new BackgroundJobsOptions();
         var database = JobStoreDatabase.From(configuration, options);
-        var schedules = RecurringJobSchedule.Declared(services).ToArray();
-        var sizing = new JobsSchedulerSizing(schedules.Length);
+        var sizing = new JobsSchedulerSizing();
 
         services.AddSingleton(database);
         services.AddSingleton(sizing);
@@ -185,7 +184,8 @@ internal static class QuartzRegistration
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
-        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, new SchedulerRecipe(options, database, sizing, schedules)));
+        services.AddSingleton<RecurringSchedules>();
+        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, new SchedulerRecipe(options, database, sizing)));
         ReadCommittedSnapshotGatedSchedulerFactory.Register(services);
 
         return services;
@@ -208,22 +208,20 @@ internal static class QuartzRegistration
     }
 
     // What the scheduler's recipe is built from; the recipe is replayed whenever the scheduler is rebuilt.
-    private sealed record SchedulerRecipe(BackgroundJobsOptions Options, JobStoreDatabase Database, JobsSchedulerSizing Sizing,
-        RecurringJobSchedule[] Schedules);
+    private sealed record SchedulerRecipe(BackgroundJobsOptions Options, JobStoreDatabase Database, JobsSchedulerSizing Sizing);
 
     private static void ConfigureQuartz(IQuartzBuilder quartz, SchedulerRecipe recipe)
     {
-        var (options, database, sizing, schedules) = recipe;
+        var (options, database, sizing) = recipe;
 
         // The one clock of the jobs module, at the scheduler's key: the scheduler, its store and the runtime ceiling
         // read it. A test replaces it there to step time; the host's other services keep their own clock.
         quartz.UseTimeProvider(TimeProvider.System);
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         SizeToRegisteredJobTypes(quartz, sizing);
-        RecurringJobSchedule.RegisterAll(quartz, options.Retention?.Cron, schedules);
         quartz.AddTriggerListener<JobTriggerListener>();
         quartz.AddTriggerListener<JobMisfireListener>();
-        quartz.UseExecutionLimits((provider, limits) => ConfigureExecutionLimits(provider, limits, schedules));
+        quartz.UseExecutionLimits(ConfigureExecutionLimits);
         UseThreadPool(quartz, options);
         UseShutdownGuardedStore(quartz);
         quartz.UsePersistentStore(store => ConfigureStore(store, options, database));
@@ -276,8 +274,7 @@ internal static class QuartzRegistration
 
     // Each registered job type's group is capped at its own concurrency, and every other group at zero, so this node
     // never acquires a job it has no handler for.
-    private static void ConfigureExecutionLimits(IServiceProvider provider, ExecutionLimitsBuilder limits,
-        RecurringJobSchedule[] schedules)
+    private static void ConfigureExecutionLimits(IServiceProvider provider, ExecutionLimitsBuilder limits)
     {
         var plan = Build(
             provider.GetRequiredService<JobHandlerRegistry>().JobTypes,
@@ -287,10 +284,9 @@ internal static class QuartzRegistration
             limits.ForGroup(group, cap);
         }
 
-        limits.ForGroup(JobRetentionJob.Group, JobsSchedulerSizing.MaintenanceThreads);
-        foreach (var schedule in schedules)
+        foreach (var group in provider.GetRequiredService<RecurringSchedules>().Groups)
         {
-            limits.ForGroup(schedule.Group, 1);
+            limits.ForGroup(group, 1);
         }
         limits.ForOtherGroups(0);
     }

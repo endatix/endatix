@@ -1,9 +1,12 @@
-using Endatix.Core.Entities;
 using Endatix.Core.Abstractions;
+using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
+using Endatix.Infrastructure.Data.Locking;
 using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Features.Outbox;
 using Endatix.IntegrationTests.Shared;
+using Endatix.Persistence.PostgreSql.Locking;
+using Endatix.Persistence.SqlServer.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -26,7 +29,9 @@ public sealed class FormDraftPersistenceTests(DbIntegrationFixture fixture)
         var neighbour = await SaveJournalAsync(second);
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(new DateTimeOffset(_at.AddDays(1)));
-        var scan = new IdleDraftCheckpoints(first, Repository(first), clock);
+        var formLock = new FormSubmissionsLock(first,
+            first.Database.IsNpgsql() ? new PostgreSqlTransactionLock() : new SqlServerTransactionLock());
+        var scan = new IdleDraftCheckpoints(new IdleDraftStore(first, Repository(first), formLock), clock);
 
         // Act
         await scan.RunAsync(Cancellation);

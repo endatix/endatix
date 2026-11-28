@@ -2,8 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.Abstractions;
-using Endatix.Core.Abstractions.Repositories;
-using Endatix.Infrastructure.Data;
+using Endatix.Core.Abstractions.Forms;
 using Endatix.Infrastructure.Data.Repositories;
 using Endatix.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,18 +19,20 @@ public sealed partial class FormDraftFlowTests
         var form = await CreateFormAsync(editor);
         using var saved = await FirstBatchAsync(editor, form);
         var before = await ReadHeadAsync(editor, form);
-        var due = before.GetProperty("lastModifiedAt").GetDateTimeOffset().AddDays(1);
+        var due = DueAt(before);
         var live = await editor.GetStringAsync($"{form}/definition", Cancellation);
 
         // Act
         await ScanAsync(due.AddMilliseconds(-1));
         using var early = await editor.GetAsync($"{form}/draft", Cancellation);
         await ScanAsync(due);
+        using var exact = await editor.GetAsync($"{form}/draft", Cancellation);
         await ScanAsync(due.AddDays(1));
         using var stale = await AppendBatchAsync(editor, form, "another edit");
 
         // Assert
         early.Headers.ETag.Should().Be(saved.Headers.ETag);
+        exact.Headers.ETag!.Tag.Should().Be("\"4\"");
         stale.StatusCode.Should().Be(HttpStatusCode.PreconditionFailed);
         stale.Headers.ETag!.Tag.Should().Be("\"4\"");
         var problem = await stale.Content.ReadFromJsonAsync<JsonElement>(Cancellation);
@@ -63,7 +64,7 @@ public sealed partial class FormDraftFlowTests
         var before = await ReadHeadAsync(editor, form);
 
         // Act
-        await ScanAsync(before.GetProperty("lastModifiedAt").GetDateTimeOffset().AddDays(2));
+        await ScanAsync(DueAt(before).AddDays(1));
 
         // Assert
         using var read = await editor.GetAsync($"{form}/draft", Cancellation);
@@ -81,7 +82,7 @@ public sealed partial class FormDraftFlowTests
         var form = await CreateFormAsync(editor);
         using var saved = await FirstBatchAsync(editor, form);
         var before = await ReadHeadAsync(editor, form);
-        var due = before.GetProperty("lastModifiedAt").GetDateTimeOffset().AddDays(1);
+        var due = DueAt(before);
         using var pause = fixture.Factory.Services.GetRequiredService<AppCommandGate>().PauseAt(DraftHeadUpdate());
         var scanning = ScanAsync(due);
         await pause.Reached.WaitAsync(TimeSpan.FromSeconds(15), Cancellation);
@@ -116,15 +117,40 @@ public sealed partial class FormDraftFlowTests
         return saved;
     }
 
+    [Fact]
+    public async Task A_form_being_deleted_is_skipped_for_this_run()
+    {
+        // Arrange
+        using var editor = await EditorAsync();
+        var form = await CreateFormAsync(editor);
+        using var saved = await FirstBatchAsync(editor, form);
+        var before = await ReadHeadAsync(editor, form);
+        using var scope = fixture.Factory.Services.CreateScope();
+        var formLock = scope.ServiceProvider.GetRequiredService<IFormSubmissionsLock>();
+        var formId = long.Parse(form.Split('/')[^1], System.Globalization.CultureInfo.InvariantCulture);
+        var deletion = await formLock.BeginDeletingAsync(formId, Cancellation);
+        await using var deleting = deletion.Value;
+
+        // Act
+        await ScanAsync(DueAt(before));
+
+        // Assert
+        using var read = await editor.GetAsync($"{form}/draft", Cancellation);
+        read.Headers.ETag.Should().Be(saved.Headers.ETag);
+    }
+
     private static Task<JsonElement> ReadHeadAsync(HttpClient editor, string form) =>
         editor.GetFromJsonAsync<JsonElement>($"{form}/draft", Cancellation);
+
+    // SQL Server returns the writer's UTC datetime2 without an offset.
+    private static DateTimeOffset DueAt(JsonElement head) =>
+        DateTime.SpecifyKind(head.GetProperty("lastModifiedAt").GetDateTime(), DateTimeKind.Utc).AddDays(1);
 
     private async Task ScanAsync(DateTimeOffset at)
     {
         using var scope = fixture.Factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var drafts = scope.ServiceProvider.GetRequiredService<IFormDraftRepository>();
-        await new IdleDraftCheckpoints(db, drafts, new FixedClock(at)).RunAsync(Cancellation);
+        var store = scope.ServiceProvider.GetRequiredService<IdleDraftStore>();
+        await new IdleDraftCheckpoints(store, new FixedClock(at)).RunAsync(Cancellation);
     }
 
     private sealed record FixedClock(DateTimeOffset Now) : IDateTimeProvider;

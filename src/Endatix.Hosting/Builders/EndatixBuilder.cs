@@ -4,7 +4,6 @@ using Endatix.Api.Infrastructure;
 using Endatix.Framework.Hosting;
 using Endatix.Framework.Modules;
 using Endatix.Hosting.Builders.Logging;
-using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Identity;
 using Endatix.Modules.Audience;
 using Endatix.Modules.Jobs;
@@ -159,18 +158,12 @@ public class EndatixBuilder : IBuilderRoot
         // UseModule honours the module's feature flag, and wires its endpoints and FastEndpoints
         // configuration (Reporting serializers and endpoint metadata) via IHasFastEndpoints only
         // when the module actually registers.
-        UseDefaultModules();
-
-        _logger.LogConfigurationCompleted();
-        return this;
-    }
-
-    private void UseDefaultModules()
-    {
-        Services.AddRecurringJob<IdleDraftCheckpoints>("IdleDraftCheckpoint", "0 0 2 * * ?");
         UseModule(JobsModule.Instance);
         UseModule(AudienceModule.Instance);
         UseModule(ReportingModule.Instance);
+
+        _logger.LogConfigurationCompleted();
+        return this;
     }
 
     /// <summary>

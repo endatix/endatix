@@ -146,6 +146,8 @@ public sealed partial class JobsSchedulerStartupTests
             .AddSingleton(runtime)
             .AddSingleton(lifetime)
             .AddSingleton(new JobsSchedulerSizing())
+            .AddSingleton(new RecurringSchedules([], Options.Create(new BackgroundJobsOptions())))
+            .AddKeyedSingleton(QuartzRegistration.SchedulerName, TimeProvider.System)
             .AddSingleton(JobHandlerRegistry.Build([]))
             .AddSingleton(new JobTypePolicies(Options.Create(new BackgroundJobsOptions()), new JobTypeDefaults([])))
             .BuildServiceProvider();

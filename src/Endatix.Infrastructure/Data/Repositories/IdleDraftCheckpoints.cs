@@ -1,5 +1,6 @@
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -7,31 +8,36 @@ using Microsoft.EntityFrameworkCore;
 namespace Endatix.Infrastructure.Data.Repositories;
 
 /// <summary>Checkpoints idle draft heads visible in the maintenance scope.</summary>
-[System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
-public sealed class IdleDraftCheckpoints(AppDbContext db, IFormDraftRepository drafts, IDateTimeProvider clock) : IRecurringJob
+internal sealed class IdleDraftCheckpoints(IdleDraftStore store, IDateTimeProvider clock) : IRecurringJob
 {
-    private sealed record Candidate(long FormId, long TenantId, long Version);
-
     /// <summary>Scans keys in bounded pages. Only one candidate's document is tracked at a time.</summary>
-    public async Task RunAsync(CancellationToken ct)
+    public async Task RunAsync(CancellationToken cancellationToken)
     {
         var now = clock.UtcNow.UtcDateTime;
         long after = 0;
         while (true)
         {
-            var page = await Eligible(now).Where(head => head.FormId > after).OrderBy(head => head.FormId)
-                .Select(head => new Candidate(head.FormId, head.TenantId, head.Version)).Take(100).ToListAsync(ct);
+            var page = await store.ReadPageAsync(after, now, cancellationToken);
             if (page.Count == 0)
             {
                 return;
             }
             foreach (var candidate in page)
             {
-                await CheckpointAsync(candidate, now, ct);
+                await store.CheckpointAsync(candidate, now, cancellationToken);
             }
             after = page[^1].FormId;
         }
     }
+}
+
+internal sealed class IdleDraftStore(AppDbContext db, IFormDraftRepository drafts, IFormSubmissionsLock formLock)
+{
+    internal sealed record Candidate(long FormId, long TenantId, long Version);
+
+    internal Task<List<Candidate>> ReadPageAsync(long after, DateTime now, CancellationToken ct) =>
+        Eligible(now).Where(head => head.FormId > after).OrderBy(head => head.FormId)
+            .Select(head => new Candidate(head.FormId, head.TenantId, head.Version)).Take(100).ToListAsync(ct);
 
     private IQueryable<FormDraft> Eligible(DateTime now)
     {
@@ -43,20 +49,31 @@ public sealed class IdleDraftCheckpoints(AppDbContext db, IFormDraftRepository d
                 && row.Version == head.Version && row.Kind == FormDraftOperationKinds.JOURNAL));
     }
 
-    private async Task CheckpointAsync(Candidate candidate, DateTime now, CancellationToken ct)
+    internal async Task CheckpointAsync(Candidate candidate, DateTime now, CancellationToken ct)
+    {
+        // Form deletion takes the exclusive side. This shared section still lets draft writers race normally.
+        var locked = await formLock.BeginAddingAsync(candidate.FormId, ct);
+        if (!locked.IsSuccess)
+        {
+            return;
+        }
+        await using var section = locked.Value;
+        if (await SaveEligibleAsync(candidate, now, ct))
+        {
+            await section.CommitAsync(ct);
+            db.ChangeTracker.Clear();
+        }
+    }
+
+    private async Task<bool> SaveEligibleAsync(Candidate candidate, DateTime now, CancellationToken ct)
     {
         var head = await Eligible(now).SingleOrDefaultAsync(row => row.FormId == candidate.FormId
             && row.TenantId == candidate.TenantId && row.Version == candidate.Version, ct);
         if (head is null)
         {
-            return;
+            return false;
         }
         var latest = await drafts.LatestSnapshotVersionAsync(head.FormId, head.Version, ct);
-        if (head.CheckpointIdle(now, latest) is { } snapshot)
-        {
-            // An edit or another scanner after the read wins through the same version check as PATCH.
-            await drafts.SaveOrConcedeAsync(head, [snapshot], ct);
-        }
-        db.ChangeTracker.Clear();
+        return head.CheckpointIdle(now, latest) is { } snapshot && await drafts.SaveOrConcedeAsync(head, [snapshot], ct);
     }
 }

@@ -1,4 +1,5 @@
 using Endatix.Core.Abstractions.BackgroundJobs;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.IntegrationTests.Infrastructure.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,12 +20,15 @@ public sealed partial class JobsSchedulerStartupTests
         await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
         await MigrateAsync(database, ct);
         var invocations = new ProbeInvocations();
+        var recurring = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var logs = new CapturingLoggerProvider();
         await using var node = await NodeWhoseFirstBuildFailedAsync(
             database,
             services =>
             {
                 services.AddProbe(invocations);
+                services.AddSingleton(recurring);
+                services.AddRecurringJob<RecurringProbe>("StartupProbe", "0/1 * * * * ?");
                 services.AddSingleton<ILoggerProvider>(logs);
             },
             ct);
@@ -35,7 +39,44 @@ public sealed partial class JobsSchedulerStartupTests
 
         // Assert — the node rebuilt its scheduler, started it, and runs jobs, with nothing left for a restart to fix.
         ran.Should().BeTrue();
+        await recurring.Task.WaitAsync(Recovery, ct);
         logs.Entries.Should().NotContain(entry => entry.Level == LogLevel.Critical);
+    }
+
+    private sealed class RecurringProbe(TaskCompletionSource signal) : IRecurringJob
+    {
+        public Task RunAsync(CancellationToken cancellationToken)
+        {
+            signal.TrySetResult();
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task A_second_schedule_only_node_preserves_a_pending_cron_firing()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+        await using var database = await JobsTestDatabase.CreateAsync(fixture, ct);
+        var settings = new Dictionary<string, string?> { ["Endatix:BackgroundJobs:RunInProcess"] = "false" };
+        await using var first = await JobsTestNode.Create(database, settings, Register).StartedAsync(ct);
+        const string trigger = "TRIGGER_NAME = 'recurring.Billing'";
+        var pending = DateTime.UtcNow.AddHours(-1).Ticks;
+        await database.ExecuteAsync($"UPDATE jobs.qrtz_TRIGGERS SET NEXT_FIRE_TIME = {pending} WHERE {trigger}", ct);
+
+        // Act
+        await using var second = await JobsTestNode.Create(database, settings, Register).StartedAsync(ct);
+
+        // Assert
+        var next = await database.QueryAsync($"SELECT NEXT_FIRE_TIME FROM jobs.qrtz_TRIGGERS WHERE {trigger}", reader => reader.GetInt64(0), ct);
+        next.Should().ContainSingle().Which.Should().Be(pending);
+    }
+
+    private static void Register(IServiceCollection services)
+    {
+        services.AddSingleton(new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+        services.AddRecurringJob<RecurringProbe>("Billing", "0 0 2 * * ?");
+        services.AddScoped<IBackgroundJobHandler>(_ => new NamedProbeHandler("recurring.Billing", new NamedProbeRuns()));
     }
 
     [Fact]

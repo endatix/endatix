@@ -13,6 +13,7 @@ using Endatix.Infrastructure.Exporting;
 using Endatix.Infrastructure.Exporting.DataSources;
 using Endatix.Infrastructure.Exporting.Exporters.Dynamic;
 using Endatix.Infrastructure.Exporting.Exporters.Submissions;
+using Endatix.Infrastructure.Features.BackgroundJobs;
 using Endatix.Infrastructure.Features.Forms;
 using Endatix.Infrastructure.Features.Submissions;
 using Endatix.Infrastructure.Repositories;
@@ -41,6 +42,13 @@ public class InfrastructureDataBuilder
 
     internal IServiceCollection Services => _parentBuilder.Services;
 
+    private void AddFormDrafts()
+    {
+        Services.AddScoped<IFormDraftRepository, FormDraftRepository>();
+        Services.AddScoped<IdleDraftStore>();
+        Services.AddRecurringJob<IdleDraftCheckpoints>("IdleDraftCheckpoint", "0 0 2 * * ?");
+    }
+
     /// <summary>
     /// Configures data infrastructure with default settings.
     /// </summary>
@@ -66,7 +74,7 @@ public class InfrastructureDataBuilder
         Services.AddScoped<IDataListRepository, DataListRepository>();
         Services.AddScoped<ITenantBrandingRepository, TenantBrandingRepository>();
         Services.AddScoped<IFormSettingsRepository, FormSettingsRepository>();
-        Services.AddScoped<IFormDraftRepository, FormDraftRepository>();
+        AddFormDrafts();
         Services.AddSingleton<DataSeeder>();
 
         // Add exporters

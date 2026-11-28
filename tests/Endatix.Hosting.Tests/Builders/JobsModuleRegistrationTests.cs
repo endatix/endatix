@@ -33,7 +33,9 @@ public class JobsModuleRegistrationTests
 
         // Assert
         builder.Services.Any(descriptor => descriptor.ServiceType == typeof(IRecurringJob)
-            && Equals(descriptor.ServiceKey, "recurring.IdleDraftCheckpoint")).Should().Be(enabled);
+            && Equals(descriptor.ServiceKey, "IdleDraftCheckpoint")).Should().BeTrue();
+        builder.Services.Any(descriptor => descriptor.ServiceType == typeof(Quartz.ISchedulerFactory)
+            && Equals(descriptor.ServiceKey, "endatix-jobs")).Should().Be(enabled);
     }
 
     private const string PostgreSqlConnectionString =

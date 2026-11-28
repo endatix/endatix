@@ -208,7 +208,10 @@ internal sealed class ReadCommittedSnapshotGatedSchedulerFactory(
     {
         try
         {
-            return _buildFailed ? await RebuildAsync(cancellationToken) : await shipped.GetScheduler(cancellationToken);
+            var scheduler = _buildFailed ? await RebuildAsync(cancellationToken) : await shipped.GetScheduler(cancellationToken);
+            await services.GetRequiredService<RecurringSchedules>().StoreAsync(scheduler,
+                services.GetRequiredKeyedService<TimeProvider>(QuartzRegistration.SchedulerName), cancellationToken);
+            return scheduler;
         }
         catch
         {

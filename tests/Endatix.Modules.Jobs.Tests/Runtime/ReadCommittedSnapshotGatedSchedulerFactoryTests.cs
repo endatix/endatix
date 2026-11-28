@@ -368,6 +368,8 @@ public sealed class ReadCommittedSnapshotGatedSchedulerFactoryTests : IDisposabl
             .AddSingleton(Lifetime())
             .AddSingleton(_logger)
             .AddSingleton(_sizing)
+            .AddSingleton(new RecurringSchedules([], Options.Create(new BackgroundJobsOptions())))
+            .AddKeyedSingleton(QuartzRegistration.SchedulerName, TimeProvider.System)
             .AddSingleton(JobHandlerRegistry.Build([]))
             .AddSingleton(new JobTypePolicies(Options.Create(new BackgroundJobsOptions()), DeclaredDefaults.None))
             .BuildServiceProvider();

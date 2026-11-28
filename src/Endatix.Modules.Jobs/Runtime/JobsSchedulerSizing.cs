@@ -12,12 +12,8 @@ namespace Endatix.Modules.Jobs.Runtime;
 /// application's container worked out. <see cref="ReadCommittedSnapshotGatedSchedulerFactory"/> works it out before it
 /// asks for a rebuild.
 /// </remarks>
-internal sealed class JobsSchedulerSizing(int recurringJobs = 0)
+internal sealed class JobsSchedulerSizing
 {
-    // One thread beyond the job types' caps, for retention, so it never waits behind them and never takes their
-    // slots.
-    public const int MaintenanceThreads = 1;
-
     private int? _threadCount;
 
     /// <exception cref="InvalidOperationException">
@@ -33,7 +29,7 @@ internal sealed class JobsSchedulerSizing(int recurringJobs = 0)
         var registry = services.GetService<JobHandlerRegistry>() ?? throw new InvalidOperationException(
             "The jobs scheduler is being built where the application's job handlers cannot be resolved, before its size was worked out from them.");
         var count = QuartzRegistration.Build(registry.JobTypes, services.GetRequiredService<JobTypePolicies>()).PoolSize
-            + MaintenanceThreads + recurringJobs;
+            + services.GetRequiredService<RecurringSchedules>().Groups.Count();
         _threadCount = count;
         return count;
     }
