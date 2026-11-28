@@ -1,12 +1,12 @@
+using Endatix.Api.Endpoints.Submissions;
+using Endatix.Core.Abstractions.Submissions;
+using Endatix.Core.Entities;
+using Endatix.Core.Infrastructure.Result;
+using Endatix.Core.UseCases.Submissions.GetByToken;
 using FastEndpoints;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Endatix.Core.Infrastructure.Result;
-using Endatix.Core.Entities;
-using Endatix.Api.Endpoints.Submissions;
-using Endatix.Core.UseCases.Submissions.GetByToken;
-using Endatix.Core.Abstractions.Submissions;
 
 namespace Endatix.Api.Tests.Endpoints.Submissions;
 
