@@ -105,15 +105,18 @@ public sealed class FormDraftPersistenceTests(DbIntegrationFixture fixture)
     [Fact]
     public async Task LatestSnapshot_IndexCanServeTheBoundedVersionLookup()
     {
-        // Arrange: one snapshot followed by a full tail of uncheckpointed edits.
+        // Arrange: enough edit history for an index read to be cheaper than a scan of a few pages.
         using var capture = new SnapshotLookupPlan();
         await using var db = await OpenAsync(capture);
         var form = await CreateFormAsync(db);
         var head = FormDraft.For(form, "{}");
-        var batch = new DraftJournalBatch(1, "editor", Enumerable.Repeat("{}", 199).ToArray(), "{}", new string('a', 64));
+        var batch = new DraftJournalBatch(1, "editor", Enumerable.Repeat("{}", 200).ToArray(), "{}", new string('a', 64));
         var repo = new FormDraftRepository(db, new UniqueConstraintViolationChecker());
-        await repo.SaveOrConcedeAsync(head, head.Append(batch, DraftWrite.System(_at), 0).Value, Cancellation);
-        await repo.SaveOrConcedeAsync(head, head.Replace("""{"new":true}""", DraftWrite.System(_at)), Cancellation);
+        for (var batchNo = 0; batchNo < 20; batchNo++)
+        {
+            var rows = head.Append(batch, DraftWrite.System(_at), head.Version).Value;
+            await repo.SaveOrConcedeAsync(head, rows, Cancellation);
+        }
 
         // Act
         await db.Database.OpenConnectionAsync(Cancellation);

@@ -11,8 +11,8 @@ namespace Endatix.Infrastructure.Data;
 /// </summary>
 public static class ChangeTrackerExtensions
 {
-    private const string CreatedAtPropertyName = "CreatedAt";
-    private const string ModifiedAtPropertyName = "ModifiedAt";
+    private const string CREATED_AT_PROPERTY_NAME = "CreatedAt";
+    private const string MODIFIED_AT_PROPERTY_NAME = "ModifiedAt";
 
     /// <summary>
     /// <c>CreatedAt</c> on insert, <c>ModifiedAt</c> on update. Ids come from OnAdd snowflake.
@@ -39,19 +39,19 @@ public static class ChangeTrackerExtensions
             switch (entry.State)
             {
                 case EntityState.Added:
-                    if (properties.Any(property => property.Name == CreatedAtPropertyName) &&
-                        entry.CurrentValues[CreatedAtPropertyName] is DateTime createdAt &&
+                    if (properties.Any(property => property.Name == CREATED_AT_PROPERTY_NAME) &&
+                        entry.CurrentValues[CREATED_AT_PROPERTY_NAME] is DateTime createdAt &&
                         createdAt == default)
                     {
-                        entry.CurrentValues[CreatedAtPropertyName] = utcNow;
+                        entry.CurrentValues[CREATED_AT_PROPERTY_NAME] = utcNow;
                     }
 
                     break;
 
                 case EntityState.Modified when entry.Entity is not IHasDomainModificationTime:
-                    if (properties.Any(property => property.Name == ModifiedAtPropertyName))
+                    if (properties.Any(property => property.Name == MODIFIED_AT_PROPERTY_NAME))
                     {
-                        entry.CurrentValues[ModifiedAtPropertyName] = utcNow;
+                        entry.CurrentValues[MODIFIED_AT_PROPERTY_NAME] = utcNow;
                     }
 
                     break;

@@ -8,6 +8,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
     /// <inheritdoc />
     public partial class AddFormDraftHistory : Migration
     {
+        private static readonly string[] _snapshotKey = ["FormId", "Version"];
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -68,7 +70,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
             migrationBuilder.CreateIndex(
                 name: "IX_FormDraftOperations_FormId_Version",
                 table: "FormDraftOperations",
-                columns: new[] { "FormId", "Version" },
+                columns: _snapshotKey,
                 filter: "[Kind] = N'snapshot'");
         }
 
