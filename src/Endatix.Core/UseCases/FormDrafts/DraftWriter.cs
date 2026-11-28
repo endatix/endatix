@@ -10,6 +10,7 @@ namespace Endatix.Core.UseCases.FormDrafts;
 
 internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext tenant, IActorAccessor actor, IDateTimeProvider clock) :
     IQueryHandler<ReadDraft, Result<DraftResponse>>,
+    IQueryHandler<ReadDraftDiff, Result<DraftDiffResponse>>,
     ICommandHandler<ReplaceDraft, Result<DraftResponse>>,
     ICommandHandler<AppendDraft, Result<DraftResponse>>,
     ICommandHandler<DiscardDraft, Result<DraftResponse>>
@@ -22,6 +23,26 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
 
     public Task<Result<DraftResponse>> Handle(ReplaceDraft request, CancellationToken cancellationToken) =>
         WriteAsync(request, cancellationToken);
+
+    public async Task<Result<DraftDiffResponse>> Handle(ReadDraftDiff request, CancellationToken cancellationToken)
+    {
+        var state = await LoadAsync(request.FormId, cancellationToken);
+        if (!state.IsSuccess)
+        {
+            return state.ToErrorResult<DraftDiffResponse>();
+        }
+        var (head, form, publishedJson) = state.Value;
+        var number = await drafts.ActiveNumberAsync(form, cancellationToken);
+        if (number is null)
+        {
+            return new DraftDiffResponse(head.Version, null, []);
+        }
+        var published = CanonicalSurveyJson.WritePublished(publishedJson);
+        var draft = CanonicalSurveyJson.WritePublished(head.JsonData);
+        var changes = SurveyDiff.Compare(published, draft);
+        return changes.Count == 0 ? new DraftDiffResponse(head.Version, number, changes)
+            : new DraftDiffResponse(head.Version, number, changes, published, draft);
+    }
 
     public Task<Result<DraftResponse>> Handle(AppendDraft request, CancellationToken cancellationToken) =>
         WriteAsync(request, cancellationToken);
