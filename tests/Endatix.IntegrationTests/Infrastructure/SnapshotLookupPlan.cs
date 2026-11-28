@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -10,8 +11,7 @@ internal sealed class SnapshotLookupPlan : DbCommandInterceptor, IDisposable
     private DbCommand? _lookup;
     internal bool CaptureNextRead { get; set; }
 
-    public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
-        CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+    public override DbCommand CommandInitialized(CommandEndEventData eventData, DbCommand command)
     {
         if (CaptureNextRead)
         {
@@ -23,7 +23,7 @@ internal sealed class SnapshotLookupPlan : DbCommandInterceptor, IDisposable
             }
             CaptureNextRead = false;
         }
-        return ValueTask.FromResult(result);
+        return command;
     }
 
     internal async Task<string> ExplainAsync(DatabaseFacade database, CancellationToken ct)
@@ -33,7 +33,10 @@ internal sealed class SnapshotLookupPlan : DbCommandInterceptor, IDisposable
             await database.ExecuteSqlRawAsync("SET SHOWPLAN_XML ON", ct);
             try
             {
-                return (string)(await _lookup!.ExecuteScalarAsync(ct))!;
+                var xml = (string)(await _lookup!.ExecuteScalarAsync(ct))!;
+                var plan = XDocument.Parse(xml);
+                var objects = plan.Descendants(plan.Root!.Name.Namespace + "Object");
+                return string.Join(", ", objects.Select(access => (string?)access.Attribute("Index")));
             }
             finally
             {

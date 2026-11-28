@@ -11,6 +11,29 @@ namespace Endatix.IntegrationTests.FeatureFlows.Forms;
 
 public sealed partial class FormDraftFlowTests
 {
+    [Theory]
+    [InlineData("", "NotEmptyValidator")]
+    [InlineData("session", "RegularExpressionValidator")]
+    public async Task Invalid_batch_metadata_keeps_its_existing_validation_code(string clientSessionId, string code)
+    {
+        using var editor = await EditorAsync();
+        var form = await CreateFormAsync(editor);
+        editor.DefaultRequestHeaders.IfMatch.ParseAdd("\"0\"");
+        var batch = new
+        {
+            clientSessionId,
+            contentHash = clientSessionId.Length == 0 ? new string('a', 64) : "not hex",
+            jsonData = "{}",
+            records = new[] { new { seq = 1 } }
+        };
+
+        using var refused = await editor.PatchAsJsonAsync($"{form}/draft", batch, Cancellation);
+
+        refused.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problem = await refused.Content.ReadFromJsonAsync<JsonElement>(Cancellation);
+        problem.GetProperty("errorCode").GetString().Should().Be(code);
+    }
+
     [Fact]
     public async Task Editor_session_labels_round_trip_at_the_limit_and_longer_labels_leave_history_untouched()
     {
