@@ -20,16 +20,35 @@ internal sealed class ColumnKeyCheck(IOptions<ReportingOptions> options) : IForm
         var findings = result.DuplicateKeys.Select(Duplicate).ToList();
         AddLimit(findings, SchemaCompilationLimitKind.MaxQuestions, (result.QuestionCount, limits.MaxQuestions));
         AddLimit(findings, SchemaCompilationLimitKind.MaxColumns, (result.ColumnCount, limits.MaxColumns));
-        if (result.ExpansionLimit is { } stopped)
-        {
-            findings.Add(Limit(stopped.LimitKind, (stopped.Actual, stopped.Limit),
-                "Reporting cannot expand this survey. Duplicate key checking is incomplete."));
-        }
+        AddIncomplete(findings, input.Definition, result);
         return Task.FromResult<IReadOnlyList<FormCheckFinding>>(findings);
+    }
+
+    private static void AddIncomplete(List<FormCheckFinding> findings, JsonElement definition, FormDefinitionFlattener.ColumnCheck result)
+    {
+        if (result.Incomplete.Count == 0)
+        {
+            return;
+        }
+        foreach (var element in LocatedSurveyElement.In(definition))
+        {
+            if (result.Incomplete.TryGetValue(element.Node, out var stopped))
+            {
+                findings.Add(Incomplete(element.Path, stopped));
+            }
+        }
     }
 
     private FormCheckFinding Duplicate(string key) => new($"{Code}:{key}", Code, "error", true, false,
         $"Multiple answers generate the column key '{key}'.", new(), JsonSerializer.SerializeToElement(new { columnKey = key }));
+
+    private static FormCheckFinding Incomplete(FindingPath path, SchemaCompilationLimitExceededException limit)
+    {
+        const string code = "column/check-incomplete";
+        return new($"{code}:{path.Element}", code, "error", true, false,
+            $"Column keys could not all be checked here ({limit.LimitKind}: {limit.Limit}). Reduce the choices, rows or nested panels in this element, then check again.",
+            path, JsonSerializer.SerializeToElement(new { kind = limit.LimitKind.ToString(), limit = limit.Limit }));
+    }
 
     private static void AddLimit(List<FormCheckFinding> findings, SchemaCompilationLimitKind kind, (int Actual, int Limit) count)
     {

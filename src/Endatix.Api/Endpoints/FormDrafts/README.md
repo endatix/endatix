@@ -9,7 +9,10 @@ Missing or inaccessible forms return 404. Pending upgrades and missing mandatory
 
 `outcome` is `block` for duplicate generated column keys or unknown element types,
 `warn` when a warning requires acknowledgement, otherwise `pass`. An inclusive tenant
-reporting limit is a warning only when exceeded. Use `findings[].key` unchanged for
+question limit is a warning only when exceeded. Checking continues past that limit.
+When a hard expansion guard prevents checking one element, `column/check-incomplete`
+blocks publication and points to that element. Other branches are still checked.
+Acknowledging warnings never clears a blocking finding. Use `findings[].key` unchanged for
 acknowledgement, `blocking` to disable publication, and `requiresAck` for the warning
 checkbox. `export/not-checked` is informational: opening the dialog does not check export names.
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Endatix.Modules.Reporting.Configuration;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
@@ -22,4 +23,19 @@ internal sealed record SchemaCompilationLimits
     public int MaxLoopCombinations { get; init; } = 10_000;
 
     public static SchemaCompilationLimits Default { get; } = new();
+
+    // Only the check supplies a collector. The compiler still fails at the first limit.
+    internal Action<JsonElement, SchemaCompilationLimitExceededException>? OnIncomplete { get; init; }
+
+    internal void RunBranch(JsonElement element, Action emit)
+    {
+        try
+        {
+            emit();
+        }
+        catch (SchemaCompilationLimitExceededException limit) when (OnIncomplete is not null)
+        {
+            OnIncomplete(element, limit);
+        }
+    }
 }

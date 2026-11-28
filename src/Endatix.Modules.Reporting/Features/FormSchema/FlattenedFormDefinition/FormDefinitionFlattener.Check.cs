@@ -7,18 +7,11 @@ internal static partial class FormDefinitionFlattener
 {
     internal static ColumnCheck Check(JsonElement definition, SchemaCompilationLimits limits)
     {
-        var check = new ColumnCheck();
-        try
-        {
-            var elements = CollectElements(definition, limits);
-            check.QuestionCount = CountQuestions(elements, definition);
-            EmitColumns(definition, elements, new(check, limits, ChoiceSourcesOf(elements)));
-        }
-        catch (SchemaCompilationLimitExceededException limit)
-        {
-            // A bounded expansion can end early. Preserve everything observed before it.
-            check.ExpansionLimit = limit;
-        }
+        var check = new ColumnCheck(limits.MaxColumns);
+        limits = limits with { OnIncomplete = check.RecordIncomplete };
+        var elements = CollectElements(definition, limits);
+        check.QuestionCount = CountQuestions(elements, definition);
+        EmitColumns(definition, elements, new(check, limits, ChoiceSourcesOf(elements)));
         return check;
     }
 
@@ -28,6 +21,7 @@ internal static partial class FormDefinitionFlattener
 
         public void Add(FormSchemaColumn column)
         {
+            CheckCapacity(column);
             // Choice-comment keys are candidates; the compiler assigns free aliases afterwards.
             if (column.Kind != FormSchemaColumnKind.ChoiceComment && !_ordinaryKeys.Add(column.Key))
             {
@@ -38,6 +32,7 @@ internal static partial class FormDefinitionFlattener
 
         protected abstract void Duplicate(string key);
         protected abstract void Accept(FormSchemaColumn column);
+        protected virtual void CheckCapacity(FormSchemaColumn column) { }
     }
 
     private sealed class CompiledColumns(int maxColumns) : ColumnOutput
@@ -57,14 +52,32 @@ internal static partial class FormDefinitionFlattener
         }
     }
 
-    internal sealed class ColumnCheck : ColumnOutput
+    internal sealed class ColumnCheck(int maxColumns) : ColumnOutput
     {
+        private int _expandedColumns;
         public HashSet<string> DuplicateKeys { get; } = new(StringComparer.Ordinal);
         public int QuestionCount { get; internal set; }
         public int ColumnCount { get; private set; }
-        public SchemaCompilationLimitExceededException? ExpansionLimit { get; internal set; }
+        public Dictionary<JsonElement, SchemaCompilationLimitExceededException> Incomplete { get; } = [];
+        internal void RecordIncomplete(JsonElement element, SchemaCompilationLimitExceededException limit) =>
+            Incomplete.TryAdd(element, limit);
 
         protected override void Duplicate(string key) => DuplicateKeys.Add(key);
         protected override void Accept(FormSchemaColumn column) => ColumnCount++;
+
+        protected override void CheckCapacity(FormSchemaColumn column)
+        {
+            // Direct keys cost at most one per input question. Bound generated expansions
+            // separately so exhausting the budget cannot hide a later direct sibling.
+            if (column.Kind is FormSchemaColumnKind.Simple or FormSchemaColumnKind.Calculated or FormSchemaColumnKind.FileUpload)
+            {
+                return;
+            }
+            if (_expandedColumns >= maxColumns)
+            {
+                ThrowLimitExceeded(SchemaCompilationLimitKind.MaxColumns, maxColumns, _expandedColumns + 1);
+            }
+            _expandedColumns++;
+        }
     }
 }

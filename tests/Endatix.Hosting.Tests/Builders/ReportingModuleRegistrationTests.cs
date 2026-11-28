@@ -15,8 +15,8 @@ namespace Endatix.Hosting.Tests.Builders;
 /// </summary>
 public class ReportingModuleRegistrationTests
 {
-    private const string PostgreSqlConnectionString = "Host=localhost;Database=endatix;Username=endatix;Password=endatix";
-    private const string SqlServerConnectionString = "Server=localhost;Database=endatix;User Id=sa;Password=endatix;TrustServerCertificate=True";
+    private const string POSTGRESQL_CONNECTION_STRING = "Host=localhost;Database=endatix;Username=endatix;Password=endatix";
+    private const string SQLSERVER_CONNECTION_STRING = "Server=localhost;Database=endatix;User Id=sa;Password=endatix;TrustServerCertificate=True";
 
     [Theory]
     [InlineData(false)]
@@ -117,7 +117,7 @@ public class ReportingModuleRegistrationTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] =
-                    provider == "sqlserver" ? SqlServerConnectionString : PostgreSqlConnectionString,
+                    provider == "sqlserver" ? SQLSERVER_CONNECTION_STRING : POSTGRESQL_CONNECTION_STRING,
                 ["ConnectionStrings:DefaultConnection_DbProvider"] = provider,
             })
             .Build();

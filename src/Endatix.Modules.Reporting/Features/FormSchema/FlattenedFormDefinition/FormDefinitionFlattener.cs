@@ -24,6 +24,7 @@ internal static partial class FormDefinitionFlattener
         string? Name);
 
     private sealed record DynamicPanelNode(
+        JsonElement Element,
         string PanelName,
         string ValueName,
         string ValuePropertyName,
@@ -38,6 +39,7 @@ internal static partial class FormDefinitionFlattener
         JsonElement[] TemplateElements);
 
     private sealed record LoopSourceLeafPath(
+        JsonElement Panel,
         IReadOnlyList<string> LoopPath,
         IReadOnlyList<string> PanelNames,
         IReadOnlyList<IReadOnlyList<string>> DriverChoicesByLevel,
@@ -69,7 +71,7 @@ internal static partial class FormDefinitionFlattener
         var dynamicPanels = BuildDynamicPanelNodes(allElements, drivingCheckboxNames);
         var panelPaths = BuildPanelPaths(dynamicPanels, context.Limits);
 
-        EmitRootElementColumns(rootElements, drivingCheckboxNames, context);
+        EmitRootColumns(rootElements, drivingCheckboxNames, context);
         AddLoopSourceColumns(allElements, context);
         AddNestedLoopColumns(panelPaths, drivingCheckboxNames, context);
         AddCalculatedValueColumns(definition, context.Output);
@@ -237,7 +239,7 @@ internal static partial class FormDefinitionFlattener
 
         var panelValueName = element.GetSurveyJsValueName();
 
-        CollectElementList(templateElements, depth + 1, panelValueName, elements, limits);
+        limits.RunBranch(element, () => CollectElementList(templateElements, depth + 1, panelValueName, elements, limits));
     }
 
     private static List<DynamicPanelNode> BuildDynamicPanelNodes(
@@ -274,7 +276,7 @@ internal static partial class FormDefinitionFlattener
                 ? templateProp.EnumerateArray().ToArray()
                 : [];
 
-            nodes.Add(new DynamicPanelNode(
+            nodes.Add(new DynamicPanelNode(collected.Element,
                 collected.Name ?? valueName!,
                 valueName!,
                 valuePropertyName,
@@ -328,26 +330,32 @@ internal static partial class FormDefinitionFlattener
         IReadOnlyList<DynamicPanelNode> dynamicPanels,
         SchemaCompilationLimits limits)
     {
-        var panelsByValueName = dynamicPanels.ToDictionary(
-            panel => panel.ValueName,
-            StringComparer.Ordinal);
+        var panelsByElement = dynamicPanels.ToDictionary(panel => panel.Element);
 
         List<PanelPath> paths = [];
         var roots = dynamicPanels.Where(panel => panel.ParentValueName is null);
 
         foreach (var root in roots)
         {
-            BuildPanelPathsRecursive(
+            limits.RunBranch(root.Element, () => BuildPanelPathsRecursive(
                 root,
                 loopPath: [],
                 propertyPath: [],
                 choicesPath: [],
-                panelsByValueName,
+                panelsByElement,
                 paths,
-                limits);
+                limits));
         }
 
         return paths;
+    }
+
+    private static void CheckLoopDepth(int depth, string name, SchemaCompilationLimits limits)
+    {
+        if (depth >= limits.MaxNestingDepth)
+        {
+            ThrowLimitExceeded(SchemaCompilationLimitKind.MaxNestingDepth, limits.MaxNestingDepth, depth + 1, name);
+        }
     }
 
     private static void BuildPanelPathsRecursive(
@@ -355,18 +363,11 @@ internal static partial class FormDefinitionFlattener
         IReadOnlyList<string> loopPath,
         IReadOnlyList<string> propertyPath,
         IReadOnlyList<JsonElement> choicesPath,
-        IReadOnlyDictionary<string, DynamicPanelNode> panelsByValueName,
+        IReadOnlyDictionary<JsonElement, DynamicPanelNode> panelsByElement,
         List<PanelPath> paths,
         SchemaCompilationLimits limits)
     {
-        if (loopPath.Count >= limits.MaxNestingDepth)
-        {
-            ThrowLimitExceeded(
-                SchemaCompilationLimitKind.MaxNestingDepth,
-                limits.MaxNestingDepth,
-                actual: loopPath.Count + 1,
-                context: panel.ValueName);
-        }
+        CheckLoopDepth(loopPath.Count, panel.ValueName, limits);
 
         List<string> nextLoopPath = [.. loopPath, panel.ValueName];
         List<string> nextPropertyPath = [.. propertyPath, panel.ValuePropertyName];
@@ -374,17 +375,7 @@ internal static partial class FormDefinitionFlattener
 
         var childPanel = panel.TemplateElements
             .Where(template => SurveyJsElementType.PanelDynamic.Matches(template.GetSurveyJsType()))
-            .Select(template =>
-            {
-                var childValueName = template.GetSurveyJsValueName();
-
-                if (childValueName is not null && panelsByValueName.TryGetValue(childValueName, out var child))
-                {
-                    return child;
-                }
-
-                return null;
-            })
+            .Select(template => panelsByElement.GetValueOrDefault(template))
             .FirstOrDefault(match => match is not null);
 
         if (childPanel is not null &&
@@ -395,7 +386,7 @@ internal static partial class FormDefinitionFlattener
                 nextLoopPath,
                 nextPropertyPath,
                 nextChoicesPath,
-                panelsByValueName,
+                panelsByElement,
                 paths,
                 limits);
             return;
@@ -435,53 +426,58 @@ internal static partial class FormDefinitionFlattener
         }
     }
 
-    private static void EmitRootElementColumns(
+    private static void EmitRootColumns(
         IReadOnlyList<CollectedElement> rootElements,
         HashSet<string> drivingCheckboxNames,
         FlattenContext context)
     {
-        var (output, limits, _) = context;
         foreach (var collected in rootElements)
         {
-            if (string.IsNullOrWhiteSpace(collected.Name) ||
-                SurveyJsElementType.IsNonData(collected.Type))
-            {
-                continue;
-            }
-
-            switch (collected.Element.ResolveSurveyJsFlattening())
-            {
-                case SurveyJsFlattening.None:
-                    break;
-                case SurveyJsFlattening.ChoiceIndicators:
-                    EmitChoiceIndicatorColumns(collected, drivingCheckboxNames, context);
-                    break;
-                case SurveyJsFlattening.Ranking:
-                    EmitRankingColumns(collected, context);
-                    break;
-                case SurveyJsFlattening.Matrix:
-                    EmitMatrixColumns(collected, output, limits);
-                    break;
-                case SurveyJsFlattening.MultipleText:
-                    EmitMultipleTextColumns(collected, output, limits);
-                    break;
-                case SurveyJsFlattening.File:
-                    EmitFileColumn(collected, output);
-                    break;
-                case SurveyJsFlattening.PanelDynamic:
-                    if (!HasLoopSource(collected.Element))
-                    {
-                        EmitStandalonePanelDynamicColumns(collected, drivingCheckboxNames, context);
-                    }
-
-                    break;
-                case SurveyJsFlattening.Simple:
-                    EmitSimpleColumn(collected, drivingCheckboxNames, context);
-                    break;
-            }
-
-            context.Add(ChoiceCommentColumns.For(collected.Element, collected.Name));
+            context.Limits.RunBranch(collected.Element, () => EmitRootElementColumns(collected, drivingCheckboxNames, context));
         }
+    }
+
+    private static void EmitRootElementColumns(CollectedElement collected, HashSet<string> drivingCheckboxNames, FlattenContext context)
+    {
+        var (output, limits, _) = context;
+        if (string.IsNullOrWhiteSpace(collected.Name) ||
+            SurveyJsElementType.IsNonData(collected.Type))
+        {
+            return;
+        }
+
+        switch (collected.Element.ResolveSurveyJsFlattening())
+        {
+            case SurveyJsFlattening.None:
+                break;
+            case SurveyJsFlattening.ChoiceIndicators:
+                EmitChoiceIndicatorColumns(collected, drivingCheckboxNames, context);
+                break;
+            case SurveyJsFlattening.Ranking:
+                EmitRankingColumns(collected, context);
+                break;
+            case SurveyJsFlattening.Matrix:
+                EmitMatrixColumns(collected, output, limits);
+                break;
+            case SurveyJsFlattening.MultipleText:
+                EmitMultipleTextColumns(collected, output, limits);
+                break;
+            case SurveyJsFlattening.File:
+                EmitFileColumn(collected, output);
+                break;
+            case SurveyJsFlattening.PanelDynamic:
+                if (!HasLoopSource(collected.Element))
+                {
+                    EmitStandalonePanelDynamicColumns(collected, drivingCheckboxNames, context);
+                }
+
+                break;
+            case SurveyJsFlattening.Simple:
+                EmitSimpleColumn(collected, drivingCheckboxNames, context);
+                break;
+        }
+
+        context.Add(ChoiceCommentColumns.For(collected.Element, collected.Name));
     }
 
     private static void EmitSimpleColumn(
@@ -1040,7 +1036,7 @@ internal static partial class FormDefinitionFlattener
                 continue;
             }
 
-            BuildLoopSourceLeafPaths(
+            limits.RunBranch(panel.Element, () => BuildLoopSourceLeafPaths(
                 panel,
                 loopPath: [],
                 panelNames: [],
@@ -1048,15 +1044,20 @@ internal static partial class FormDefinitionFlattener
                 loopPanels.LoopPanelsByName,
                 sources,
                 leafPaths,
-                limits);
+                limits));
         }
 
         foreach (var leafPath in leafPaths)
         {
-            foreach (var driverChoices in EnumerateLoopSourceDriverCombinations(leafPath.DriverChoicesByLevel, limits))
-            {
-                EmitLoopSourceColumnsForPath(leafPath, driverChoices, context);
-            }
+            limits.RunBranch(leafPath.Panel, () => EmitLeafColumns(leafPath, context));
+        }
+    }
+
+    private static void EmitLeafColumns(LoopSourceLeafPath path, FlattenContext context)
+    {
+        foreach (var choices in EnumerateLoopSourceDriverCombinations(path.DriverChoicesByLevel, context.Limits))
+        {
+            EmitLoopSourceColumnsForPath(path, choices, context);
         }
     }
 
@@ -1071,6 +1072,7 @@ internal static partial class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var panelName = panel.Name!;
+        CheckLoopDepth(loopPath.Count, panelName, limits);
         var loopPathSegment = panel.Element.GetSurveyJsValueName() ?? panelName;
         List<string> nextLoopPath = [.. loopPath, loopPathSegment];
         List<string> nextPanelNames = [.. panelNames, panelName];
@@ -1105,16 +1107,13 @@ internal static partial class FormDefinitionFlattener
 
         if (leafTemplates.Count > 0)
         {
-            leafPaths.Add(new LoopSourceLeafPath(
-                nextLoopPath,
-                nextPanelNames,
-                nextDriverChoicesByLevel,
-                leafTemplates.ToArray()));
+            leafPaths.Add(new LoopSourceLeafPath(panel.Element, nextLoopPath, nextPanelNames,
+                nextDriverChoicesByLevel, leafTemplates.ToArray()));
         }
 
         foreach (var childLoopPanel in childLoopPanels)
         {
-            BuildLoopSourceLeafPaths(
+            limits.RunBranch(childLoopPanel.Element, () => BuildLoopSourceLeafPaths(
                 childLoopPanel,
                 nextLoopPath,
                 nextPanelNames,
@@ -1122,7 +1121,7 @@ internal static partial class FormDefinitionFlattener
                 loopPanelsByName,
                 sources,
                 leafPaths,
-                limits);
+                limits));
         }
     }
 
@@ -1232,7 +1231,7 @@ internal static partial class FormDefinitionFlattener
 
         foreach (var template in leafPath.TemplateElements)
         {
-            EmitLoopSourceTemplateColumns(keyPanelName, driverChoices, loopSegments, template, context);
+            context.Limits.RunBranch(template, () => EmitLoopSourceTemplateColumns(keyPanelName, driverChoices, loopSegments, template, context));
         }
     }
 
@@ -1496,27 +1495,27 @@ internal static partial class FormDefinitionFlattener
                     continue;
                 }
 
-                foreach (var choiceValues in EnumerateChoiceCombinations(panelPath, context.Limits))
-                {
-                    List<LoopSegment> loopSegments = new(panelPath.LoopPath.Count);
-                    for (var i = 0; i < panelPath.LoopPath.Count; i++)
-                    {
-                        loopSegments.Add(new LoopSegment(
-                            panelPath.LoopPath[i],
-                            panelPath.PropertyPath[i],
-                            choiceValues[i]));
-                    }
-
-                    var key = ExportPathBuilder.NestedLoopKey(choiceValues.AsSpan(), childName);
-                    context.AddPanelAnswer(template, new FormSchemaColumn(
-                        key,
-                        FormSchemaColumnKind.NestedLoop,
-                        $"{template.GetSurveyJsTitle(childName)} ({string.Join(" / ", choiceValues)})",
-                        MapDataType(template, childType),
-                        SourceQuestion: childName,
-                        LoopPath: loopSegments));
-                }
+                context.Limits.RunBranch(template, () => EmitNestedColumns(panelPath, template, context));
             }
+        }
+    }
+
+    private static void EmitNestedColumns(PanelPath panelPath, JsonElement template, FlattenContext context)
+    {
+        var childName = template.GetSurveyJsName()!;
+        var childType = template.GetSurveyJsType();
+        foreach (var choiceValues in EnumerateChoiceCombinations(panelPath, context.Limits))
+        {
+            var loopSegments = panelPath.LoopPath.Select((name, i) =>
+                new LoopSegment(name, panelPath.PropertyPath[i], choiceValues[i])).ToList();
+            var key = ExportPathBuilder.NestedLoopKey(choiceValues.AsSpan(), childName);
+            context.AddPanelAnswer(template, new FormSchemaColumn(
+                key,
+                FormSchemaColumnKind.NestedLoop,
+                $"{template.GetSurveyJsTitle(childName)} ({string.Join(" / ", choiceValues)})",
+                MapDataType(template, childType),
+                SourceQuestion: childName,
+                LoopPath: loopSegments));
         }
     }
 
