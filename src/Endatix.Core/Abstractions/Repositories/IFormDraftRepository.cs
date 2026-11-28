@@ -5,7 +5,10 @@ namespace Endatix.Core.Abstractions.Repositories;
 
 /// <summary>The draft head and live definition as observed at the same point in time.</summary>
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
-public sealed record DraftComparison(long Version, int? PublishedNumber, string? PublishedJson, string? DraftJson);
+public sealed record DraftComparison(long Version, int? PublishedNumber, string? PublishedJson, string? DraftJson)
+{
+    public string? DraftHash { get; init; }
+}
 
 /// <summary>Loads a tenant's form and saves its draft head and history together.</summary>
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]

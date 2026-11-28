@@ -135,6 +135,6 @@ internal sealed class SurveyDiff
         }
     }
 
-    private static string IndexPath(string path, int index) => $"{path}/index:{index.ToString(CultureInfo.InvariantCulture)}";
-    private static string Child(string path, string segment) => $"{path}/{segment.Replace("~", "~0").Replace("/", "~1")}";
+    internal static string IndexPath(string path, int index) => $"{path}/index:{index.ToString(CultureInfo.InvariantCulture)}";
+    internal static string Child(string path, string segment) => $"{path}/{segment.Replace("~", "~0").Replace("/", "~1")}";
 }

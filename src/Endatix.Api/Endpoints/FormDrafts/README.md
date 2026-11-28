@@ -1,5 +1,25 @@
 # Comparing a draft with the published form
 
+## Check before publication
+
+`POST /api/forms/{formId}/draft/checks` with `{}` requires `forms.view`.
+It reads the same admitted draft as the comparison and does not save anything.
+`draftVersion` is a decimal string; `contentHash` identifies its survey. Recheck after editing.
+Missing or inaccessible forms return 404. Pending upgrades and missing mandatory check services return 503 Problem Details.
+
+`outcome` is `block` for duplicate generated column keys or unknown element types,
+`warn` when a warning requires acknowledgement, otherwise `pass`. An inclusive tenant
+reporting limit is a warning only when exceeded. Use `findings[].key` unchanged for
+acknowledgement, `blocking` to disable publication, and `requiresAck` for the warning
+checkbox. `export/not-checked` is informational: opening the dialog does not check export names.
+
+For publication, send `CheckFormDefinition` with `Publication` and the frozen tenant,
+form, version, content hash and document. An unavailable result is an infrastructure
+failure, never a content refusal or permission to commit. The export-name detector is
+required before publication checking can return a complete report.
+
+## Compare with the published form
+
 `GET /api/forms/{formId}/draft/diff?against=published` requires `forms.view`.
 The response describes changes **from published to draft**. It is display-only.
 

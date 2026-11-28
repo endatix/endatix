@@ -89,8 +89,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
     private static void AddFormSchemaCompiler(EndatixModuleBuilder builder)
     {
         var services = builder.Services;
-        builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
-        services.AddSingleton<IValidateOptions<ReportingOptions>, ReportingQuestionLimitValidator>();
+        ReportingDraftChecks.Register(builder);
         services.AddSingleton(sp =>
             SubmitterProfileFields.From(sp.GetRequiredService<IOptions<ReportingOptions>>().Value));
         services.AddSingleton(sp =>

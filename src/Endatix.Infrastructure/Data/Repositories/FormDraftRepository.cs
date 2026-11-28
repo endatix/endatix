@@ -41,10 +41,10 @@ internal sealed class FormDraftRepository(AppDbContext db, IUniqueConstraintViol
     private async Task<Result<DraftComparison>> ReadDocumentsAsync(Form form, CancellationToken ct)
     {
         var head = await db.FormDrafts.Where(row => row.TenantId == form.TenantId && row.FormId == form.Id)
-            .Select(row => new { row.Version, row.JsonData }).SingleOrDefaultAsync(ct);
+            .Select(row => new { row.Version, row.JsonData, row.ContentHash }).SingleOrDefaultAsync(ct);
         var number = await ActiveNumberAsync(form, ct);
         var published = form.ActiveDefinition?.JsonData;
-        return new DraftComparison(head?.Version ?? 0, number, published, head?.JsonData);
+        return new DraftComparison(head?.Version ?? 0, number, published, head?.JsonData) { DraftHash = head?.ContentHash };
     }
 
     public Task<Form?> FindFormAsync(long tenantId, long formId, CancellationToken cancellationToken) =>

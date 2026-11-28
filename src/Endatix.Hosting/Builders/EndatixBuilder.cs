@@ -155,9 +155,8 @@ public class EndatixBuilder : IBuilderRoot
         // calls Telemetry.Build(), so it stays a no-op unless an OTLP endpoint is configured.
         Telemetry.UseDefaults();
 
-        // UseModule honours the module's feature flag, and wires its endpoints and FastEndpoints
-        // configuration (Reporting serializers and endpoint metadata) via IHasFastEndpoints only
-        // when the module actually registers.
+        // Mandatory draft checks do not require the optional reporting read model.
+        ReportingDraftChecks.Register(new(Services, Configuration));
         UseModule(JobsModule.Instance);
         UseModule(AudienceModule.Instance);
         UseModule(ReportingModule.Instance);

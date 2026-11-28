@@ -7,8 +7,7 @@ namespace Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 internal static partial class FormDefinitionFlattener
 {
     private sealed record FlattenContext(
-        List<FormSchemaColumn> Columns,
-        HashSet<string> SeenKeys,
+        ColumnOutput Output,
         SchemaCompilationLimits Limits,
         ChoiceSources Sources)
     {
@@ -16,13 +15,13 @@ internal static partial class FormDefinitionFlattener
         {
             foreach (var column in additions)
             {
-                AddColumn(Columns, SeenKeys, Limits, column);
+                Output.Add(column);
             }
         }
 
         public void AddPanelAnswer(JsonElement template, FormSchemaColumn answer)
         {
-            AddColumn(Columns, SeenKeys, Limits, answer);
+            Output.Add(answer);
             Add(ChoiceCommentColumns.For(template, answer.Key, answer.LoopPath)
                 .Select(comment => comment with { PanelName = answer.PanelName, PanelIndex = answer.PanelIndex }));
         }

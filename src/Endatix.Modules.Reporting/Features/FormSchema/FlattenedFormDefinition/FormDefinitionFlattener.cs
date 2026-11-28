@@ -49,8 +49,15 @@ internal static partial class FormDefinitionFlattener
         MergedFormSchema? published = null)
     {
         var effectiveLimits = limits ?? SchemaCompilationLimits.Default;
-        var allElements = CollectElements(definition, effectiveLimits);
-        EnforceMaxQuestions(allElements, definition, effectiveLimits);
+        var elements = CollectElements(definition, effectiveLimits);
+        EnforceMaxQuestions(CountQuestions(elements, definition), effectiveLimits);
+        var output = new CompiledColumns(effectiveLimits.MaxColumns);
+        EmitColumns(definition, elements, new(output, effectiveLimits, ChoiceSourcesOf(elements)));
+        return ChoiceCommentAliases.Assign(output.Columns, published);
+    }
+
+    private static void EmitColumns(JsonElement definition, List<CollectedElement> allElements, FlattenContext context)
+    {
         var drivingCheckboxNames = allElements.Where(item => IsDrivingCheckbox(item.Element, item.Type, item.Name))
             .Select(item => item.Name!)
             .ToHashSet(StringComparer.Ordinal);
@@ -60,17 +67,12 @@ internal static partial class FormDefinitionFlattener
             .ToList();
 
         var dynamicPanels = BuildDynamicPanelNodes(allElements, drivingCheckboxNames);
-        var panelPaths = BuildPanelPaths(dynamicPanels, effectiveLimits);
-
-        FlattenContext context = new([], new(StringComparer.Ordinal), effectiveLimits, ChoiceSourcesOf(allElements));
-        var (columns, seenKeys, _, _) = context;
+        var panelPaths = BuildPanelPaths(dynamicPanels, context.Limits);
 
         EmitRootElementColumns(rootElements, drivingCheckboxNames, context);
         AddLoopSourceColumns(allElements, context);
         AddNestedLoopColumns(panelPaths, drivingCheckboxNames, context);
-        AddCalculatedValueColumns(definition, columns, seenKeys, effectiveLimits);
-
-        return ChoiceCommentAliases.Assign(columns, published);
+        AddCalculatedValueColumns(definition, context.Output);
     }
 
     private static List<CollectedElement> CollectElements(JsonElement definition, SchemaCompilationLimits limits)
@@ -80,12 +82,8 @@ internal static partial class FormDefinitionFlattener
         return elements;
     }
 
-    private static void EnforceMaxQuestions(
-        IReadOnlyList<CollectedElement> allElements,
-        JsonElement definition,
-        SchemaCompilationLimits limits)
+    private static void EnforceMaxQuestions(int questionCount, SchemaCompilationLimits limits)
     {
-        var questionCount = CountQuestions(allElements, definition);
         if (questionCount > limits.MaxQuestions)
         {
             ThrowLimitExceeded(
@@ -408,9 +406,7 @@ internal static partial class FormDefinitionFlattener
 
     private static void AddCalculatedValueColumns(
         JsonElement definition,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        ColumnOutput output)
     {
         if (!definition.TryGetCalculatedValues(out var calculatedValues))
         {
@@ -431,7 +427,7 @@ internal static partial class FormDefinitionFlattener
                 continue;
             }
 
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            output.Add(new FormSchemaColumn(
                 name,
                 FormSchemaColumnKind.Calculated,
                 name,
@@ -444,7 +440,7 @@ internal static partial class FormDefinitionFlattener
         HashSet<string> drivingCheckboxNames,
         FlattenContext context)
     {
-        var (columns, seenKeys, limits, _) = context;
+        var (output, limits, _) = context;
         foreach (var collected in rootElements)
         {
             if (string.IsNullOrWhiteSpace(collected.Name) ||
@@ -464,13 +460,13 @@ internal static partial class FormDefinitionFlattener
                     EmitRankingColumns(collected, context);
                     break;
                 case SurveyJsFlattening.Matrix:
-                    EmitMatrixColumns(collected, columns, seenKeys, limits);
+                    EmitMatrixColumns(collected, output, limits);
                     break;
                 case SurveyJsFlattening.MultipleText:
-                    EmitMultipleTextColumns(collected, columns, seenKeys, limits);
+                    EmitMultipleTextColumns(collected, output, limits);
                     break;
                 case SurveyJsFlattening.File:
-                    EmitFileColumn(collected, columns, seenKeys, limits);
+                    EmitFileColumn(collected, output);
                     break;
                 case SurveyJsFlattening.PanelDynamic:
                     if (!HasLoopSource(collected.Element))
@@ -493,7 +489,7 @@ internal static partial class FormDefinitionFlattener
         HashSet<string> drivingCheckboxNames,
         FlattenContext context)
     {
-        var (columns, seenKeys, limits, _) = context;
+        var (output, _, _) = context;
         var type = collected.Type;
         var name = collected.Name!;
 
@@ -509,7 +505,7 @@ internal static partial class FormDefinitionFlattener
             return;
         }
 
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        output.Add(new FormSchemaColumn(
             name,
             FormSchemaColumnKind.Simple,
             collected.Element.GetSurveyJsTitle(name),
@@ -519,12 +515,12 @@ internal static partial class FormDefinitionFlattener
     // A copy that offers its source's Other has an Other text column too (ChoiceSources.Offered).
     private static void EmitSingleSelectColumn(CollectedElement collected, FlattenContext context)
     {
-        var (columns, seenKeys, limits, sources) = context;
+        var (output, _, sources) = context;
         var name = collected.Name!;
 
         // Neutral shape: one string column with the original SurveyJS choice value.
         // Crunch category-id projection happens in the export plan / Shoji path.
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        output.Add(new FormSchemaColumn(
             name,
             FormSchemaColumnKind.Simple,
             collected.Element.GetSurveyJsTitle(name),
@@ -533,17 +529,15 @@ internal static partial class FormDefinitionFlattener
 
         if (ChoiceSet.Read(collected.Element, choices: sources.Resolve(collected.Element))?.HasOther == true)
         {
-            AddOtherTextColumn(collected, name, columns, seenKeys, limits);
+            AddOtherTextColumn(collected, name, output);
         }
     }
 
     private static void AddOtherTextColumn(
         CollectedElement collected,
         string name,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits) =>
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        ColumnOutput output) =>
+        output.Add(new FormSchemaColumn(
             ExportPathBuilder.ChoiceOtherTextKey(name),
             FormSchemaColumnKind.CheckboxOtherText,
             $"{collected.Element.GetSurveyJsTitle(name)} — Other text",
@@ -579,14 +573,14 @@ internal static partial class FormDefinitionFlattener
             return;
         }
 
-        var (columns, seenKeys, limits, sources) = context;
+        var (output, limits, sources) = context;
         var choices = ChoiceSet.Read(collected.Element, choices: sources.Resolve(collected.Element))!;
 
         // A data list, a lazy multi-select or a copy whose source cannot be read has no choices on the form. One
         // column keeps the selected values (including "other" and special items) instead of dropping them.
         if (!choices.HasIndicatorChoices)
         {
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            output.Add(new FormSchemaColumn(
                 name,
                 FormSchemaColumnKind.Simple,
                 collected.Element.GetSurveyJsTitle(name),
@@ -595,7 +589,7 @@ internal static partial class FormDefinitionFlattener
 
             if (choices.HasOther)
             {
-                AddOtherTextColumn(collected, name, columns, seenKeys, limits);
+                AddOtherTextColumn(collected, name, output);
             }
 
             return;
@@ -604,10 +598,10 @@ internal static partial class FormDefinitionFlattener
         CountChoices(name, choices, limits);
         foreach (var item in choices.Items)
         {
-            AddChoiceIndicatorColumn(collected, name, item.Value, item.FallbackLabel, columns, seenKeys, limits);
+            AddChoiceIndicatorColumn(collected, name, item.Value, item.FallbackLabel, output);
             if (item.Kind == ChoiceKind.Other)
             {
-                AddOtherTextColumn(collected, name, columns, seenKeys, limits);
+                AddOtherTextColumn(collected, name, output);
             }
         }
     }
@@ -617,12 +611,10 @@ internal static partial class FormDefinitionFlattener
         string name,
         string choiceValue,
         string choiceLabel,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        ColumnOutput output)
     {
         var key = ExportPathBuilder.ChoiceIndicatorKey(name, choiceValue);
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        output.Add(new FormSchemaColumn(
             key,
             FormSchemaColumnKind.ChoiceIndicator,
             $"{collected.Element.GetSurveyJsTitle(name)} — {choiceLabel}",
@@ -667,7 +659,7 @@ internal static partial class FormDefinitionFlattener
         EnsureWithinChoiceLimit(name, choices.Count, context.Limits);
         foreach (var choice in choices)
         {
-            AddColumn(context.Columns, context.SeenKeys, context.Limits, new FormSchemaColumn(
+            context.Output.Add(new FormSchemaColumn(
                 keyOf(choice.Value),
                 FormSchemaColumnKind.RankingChoice,
                 $"{ranking.GetSurveyJsTitle(name)} — {choice.Text}",
@@ -680,29 +672,27 @@ internal static partial class FormDefinitionFlattener
 
     private static void EmitMatrixColumns(
         CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
+        ColumnOutput output,
         SchemaCompilationLimits limits)
     {
         if (SurveyJsElementType.MatrixDropdown.Matches(collected.Type))
         {
-            EmitMatrixDropdownColumns(collected, columns, seenKeys, limits);
+            EmitMatrixDropdownColumns(collected, output, limits);
             return;
         }
 
         if (SurveyJsElementType.MatrixDynamic.Matches(collected.Type))
         {
-            EmitMatrixDynamicColumns(collected, columns, seenKeys, limits);
+            EmitMatrixDynamicColumns(collected, output, limits);
             return;
         }
 
-        EmitPlainMatrixColumns(collected, columns, seenKeys, limits);
+        EmitPlainMatrixColumns(collected, output, limits);
     }
 
     private static void EmitPlainMatrixColumns(
         CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
+        ColumnOutput output,
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
@@ -721,7 +711,7 @@ internal static partial class FormDefinitionFlattener
             }
 
             var key = ExportPathBuilder.MatrixRowKey(name, value);
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            output.Add(new FormSchemaColumn(
                 key,
                 FormSchemaColumnKind.MatrixRow,
                 $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
@@ -745,8 +735,7 @@ internal static partial class FormDefinitionFlattener
 
     private static void EmitMatrixDropdownColumns(
         CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
+        ColumnOutput output,
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
@@ -766,7 +755,7 @@ internal static partial class FormDefinitionFlattener
                 }
 
                 var key = ExportPathBuilder.MatrixCellKey(name, rowValue, columnValue);
-                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                output.Add(new FormSchemaColumn(
                     key,
                     FormSchemaColumnKind.MatrixCell,
                     $"{collected.Element.GetSurveyJsTitle(name)} — {rowText} — {columnText}",
@@ -780,8 +769,7 @@ internal static partial class FormDefinitionFlattener
 
     private static void EmitMatrixDynamicColumns(
         CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
+        ColumnOutput output,
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
@@ -804,7 +792,7 @@ internal static partial class FormDefinitionFlattener
                 }
 
                 var key = ExportPathBuilder.MatrixCellKey(name, rowSegment, columnValue);
-                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                output.Add(new FormSchemaColumn(
                     key,
                     FormSchemaColumnKind.MatrixCell,
                     $"{collected.Element.GetSurveyJsTitle(name)} — #{rowIndex + 1} — {columnText}",
@@ -860,8 +848,7 @@ internal static partial class FormDefinitionFlattener
 
     private static void EmitMultipleTextColumns(
         CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
+        ColumnOutput output,
         SchemaCompilationLimits limits)
     {
         var name = collected.Name!;
@@ -879,7 +866,7 @@ internal static partial class FormDefinitionFlattener
             }
 
             var key = ExportPathBuilder.MultipleTextItemKey(name, value);
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            output.Add(new FormSchemaColumn(
                 key,
                 FormSchemaColumnKind.MultipleTextItem,
                 $"{collected.Element.GetSurveyJsTitle(name)} — {text}",
@@ -891,13 +878,11 @@ internal static partial class FormDefinitionFlattener
 
     private static void EmitFileColumn(
         CollectedElement collected,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        ColumnOutput output)
     {
         var name = collected.Name!;
 
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        output.Add(new FormSchemaColumn(
             name,
             FormSchemaColumnKind.FileUpload,
             collected.Element.GetSurveyJsTitle(name),
@@ -1046,7 +1031,7 @@ internal static partial class FormDefinitionFlattener
 
     private static void EmitLoopSourceColumnsFromLoopPanels(LoopPanelDiscovery loopPanels, FlattenContext context)
     {
-        var (_, _, limits, sources) = context;
+        var (_, limits, sources) = context;
         List<LoopSourceLeafPath> leafPaths = [];
         foreach (var panel in loopPanels.LoopPanelsByName.Values)
         {
@@ -1258,7 +1243,7 @@ internal static partial class FormDefinitionFlattener
         JsonElement template,
         FlattenContext context)
     {
-        var (columns, seenKeys, limits, _) = context;
+        var (output, limits, _) = context;
         var childName = template.GetSurveyJsName();
         var childType = template.GetSurveyJsType();
 
@@ -1279,7 +1264,7 @@ internal static partial class FormDefinitionFlattener
                 EmitLoopSourceSingleSelectColumn(template, childName, keyPrefix, loopPath, context);
                 break;
             case SurveyJsFlattening.Simple:
-                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                output.Add(new FormSchemaColumn(
                     ExportPathBuilder.Join([.. keyPrefix, childName]),
                     FormSchemaColumnKind.LoopSource,
                     template.GetSurveyJsTitle(childName),
@@ -1291,13 +1276,13 @@ internal static partial class FormDefinitionFlattener
                 EmitLoopSourceRankingColumns(template, childName, keyPrefix, loopPath, context);
                 break;
             case SurveyJsFlattening.Matrix:
-                EmitLoopSourceMatrixColumns(template, childName, childType, keyPrefix, loopPath, columns, seenKeys, limits);
+                EmitLoopSourceMatrixColumns(template, childName, childType, keyPrefix, loopPath, output, limits);
                 break;
             case SurveyJsFlattening.MultipleText:
-                EmitLoopSourceMultipleTextColumns(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+                EmitLoopSourceMultipleTextColumns(template, childName, keyPrefix, loopPath, output);
                 break;
             case SurveyJsFlattening.File:
-                AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                output.Add(new FormSchemaColumn(
                     ExportPathBuilder.Join([.. keyPrefix, childName]),
                     FormSchemaColumnKind.FileUpload,
                     template.GetSurveyJsTitle(childName),
@@ -1317,8 +1302,8 @@ internal static partial class FormDefinitionFlattener
         IReadOnlyList<LoopSegment> loopPath,
         FlattenContext context)
     {
-        var (columns, seenKeys, limits, sources) = context;
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        var (output, _, sources) = context;
+        output.Add(new FormSchemaColumn(
             ExportPathBuilder.Join([.. keyPrefix, childName]),
             FormSchemaColumnKind.LoopSource,
             template.GetSurveyJsTitle(childName),
@@ -1328,7 +1313,7 @@ internal static partial class FormDefinitionFlattener
 
         if (ChoiceSet.Read(template, choices: sources.Resolve(template))?.HasOther == true)
         {
-            AddLoopSourceOtherTextColumn(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+            AddLoopSourceOtherTextColumn(template, childName, keyPrefix, loopPath, output);
         }
     }
 
@@ -1337,10 +1322,8 @@ internal static partial class FormDefinitionFlattener
         string childName,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits) =>
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        ColumnOutput output) =>
+        output.Add(new FormSchemaColumn(
             ExportPathBuilder.Join([.. keyPrefix, childName, "other_text"]),
             FormSchemaColumnKind.CheckboxOtherText,
             $"{template.GetSurveyJsTitle(childName)} — Other text",
@@ -1355,7 +1338,7 @@ internal static partial class FormDefinitionFlattener
         IReadOnlyList<LoopSegment> loopPath,
         FlattenContext context)
     {
-        var (columns, seenKeys, limits, sources) = context;
+        var (output, limits, sources) = context;
         var choices = ChoiceSet.Read(template, choices: sources.Resolve(template))!;
         if (!choices.HasIndicatorChoices)
         {
@@ -1367,10 +1350,10 @@ internal static partial class FormDefinitionFlattener
         foreach (var item in choices.Items)
         {
             AddLoopSourceChoiceIndicatorColumn(
-                template, childName, item.Value, item.FallbackLabel, keyPrefix, loopPath, columns, seenKeys, limits);
+                template, childName, item.Value, item.FallbackLabel, keyPrefix, loopPath, output);
             if (item.Kind == ChoiceKind.Other)
             {
-                AddLoopSourceOtherTextColumn(template, childName, keyPrefix, loopPath, columns, seenKeys, limits);
+                AddLoopSourceOtherTextColumn(template, childName, keyPrefix, loopPath, output);
             }
         }
     }
@@ -1382,11 +1365,9 @@ internal static partial class FormDefinitionFlattener
         string choiceLabel,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        ColumnOutput output)
     {
-        AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+        output.Add(new FormSchemaColumn(
             ExportPathBuilder.Join([.. keyPrefix, childName, choiceValue]),
             FormSchemaColumnKind.ChoiceIndicator,
             $"{template.GetSurveyJsTitle(childName)} — {choiceLabel}",
@@ -1402,8 +1383,7 @@ internal static partial class FormDefinitionFlattener
         string? childType,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
+        ColumnOutput output,
         SchemaCompilationLimits limits)
     {
         if (SurveyJsElementType.MatrixDropdown.Matches(childType))
@@ -1412,7 +1392,7 @@ internal static partial class FormDefinitionFlattener
             {
                 foreach ((var columnValue, var columnText, var columnElement) in SurveyJsChoiceHelper.EnumerateMatrixColumns(template))
                 {
-                    AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    output.Add(new FormSchemaColumn(
                         ExportPathBuilder.Join([.. keyPrefix, childName, rowValue, columnValue]),
                         FormSchemaColumnKind.MatrixCell,
                         $"{template.GetSurveyJsTitle(childName)} — {rowText} — {columnText}",
@@ -1447,7 +1427,7 @@ internal static partial class FormDefinitionFlattener
                             context: childName);
                     }
 
-                    AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+                    output.Add(new FormSchemaColumn(
                         ExportPathBuilder.Join([.. keyPrefix, childName, rowSegment, columnValue]),
                         FormSchemaColumnKind.MatrixCell,
                         $"{template.GetSurveyJsTitle(childName)} — #{rowIndex + 1} — {columnText}",
@@ -1464,7 +1444,7 @@ internal static partial class FormDefinitionFlattener
 
         foreach ((var rowValue, var rowText) in SurveyJsChoiceHelper.EnumerateMatrixRows(template))
         {
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            output.Add(new FormSchemaColumn(
                 ExportPathBuilder.Join([.. keyPrefix, childName, rowValue]),
                 FormSchemaColumnKind.MatrixRow,
                 $"{template.GetSurveyJsTitle(childName)} — {rowText}",
@@ -1481,13 +1461,11 @@ internal static partial class FormDefinitionFlattener
         string childName,
         IReadOnlyList<string> keyPrefix,
         IReadOnlyList<LoopSegment> loopPath,
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits)
+        ColumnOutput output)
     {
         foreach ((var value, var text) in SurveyJsChoiceHelper.EnumerateMultipleTextItems(template))
         {
-            AddColumn(columns, seenKeys, limits, new FormSchemaColumn(
+            output.Add(new FormSchemaColumn(
                 ExportPathBuilder.Join([.. keyPrefix, childName, value]),
                 FormSchemaColumnKind.MultipleTextItem,
                 $"{template.GetSurveyJsTitle(childName)} — {text}",
@@ -1587,36 +1565,6 @@ internal static partial class FormDefinitionFlattener
         SurveyJsElementType.IsDrivingChoiceType(type) &&
         !string.IsNullOrWhiteSpace(element.GetStringProperty(SurveyJsPropertyNames.ValuePropertyName)) &&
         !string.IsNullOrWhiteSpace(name);
-
-    private static void AddColumn(
-        List<FormSchemaColumn> columns,
-        HashSet<string> seenKeys,
-        SchemaCompilationLimits limits,
-        FormSchemaColumn column)
-    {
-        if (!ReserveOrdinaryKey(seenKeys, column))
-        {
-            throw new SchemaCompilationLimitExceededException(
-                SchemaCompilationLimitKind.DuplicateColumnKey,
-                limit: 1,
-                message: $"Duplicate form schema column key '{column.Key}'.",
-                context: column.Key);
-        }
-
-        if (columns.Count >= limits.MaxColumns)
-        {
-            ThrowLimitExceeded(
-                SchemaCompilationLimitKind.MaxColumns,
-                limits.MaxColumns,
-                actual: columns.Count + 1);
-        }
-
-        columns.Add(column);
-    }
-
-    // Comment keys are candidates until every ordinary column is known.
-    private static bool ReserveOrdinaryKey(HashSet<string> seenKeys, FormSchemaColumn column) =>
-        column.Kind == FormSchemaColumnKind.ChoiceComment || seenKeys.Add(column.Key);
 
     private static void ThrowLimitExceeded(
         SchemaCompilationLimitKind limitKind,
