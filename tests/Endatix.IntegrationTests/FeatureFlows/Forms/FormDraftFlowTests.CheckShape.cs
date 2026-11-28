@@ -8,18 +8,26 @@ namespace Endatix.IntegrationTests.FeatureFlows.Forms;
 
 public sealed partial class FormDraftFlowTests
 {
-    [Theory]
-    [InlineData("[]")]
-    [InlineData("null")]
-    public async Task Unsupported_legacy_root_returns_a_blocking_report_without_creating_a_head(string json)
+    [Fact]
+    public Task Unsupported_legacy_array_root_returns_a_blocking_report_without_creating_a_head() =>
+        AssertStoredRootBlockedAsync("[]");
+
+    // PostgreSQL jsonb can store a JSON null; SQL Server's json column rejects it before the endpoint runs.
+    [Fact]
+    [Trait("DbSpecific", "PostgreSql")]
+    public Task Stored_json_null_returns_a_blocking_report_without_creating_a_head() =>
+        AssertStoredRootBlockedAsync("null");
+
+    private async Task AssertStoredRootBlockedAsync(string json)
     {
         using var editor = await EditorAsync();
         var form = await CreateFormAsync(editor);
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var id = FormId(form);
-        await db.FormDefinitions.Where(row => row.FormId == id)
-            .ExecuteUpdateAsync(update => update.SetProperty(row => row.JsonData, json), Cancellation);
+        var definitions = db.FormDefinitions.Where(row => row.FormId == id);
+        await definitions.ExecuteUpdateAsync(update => update.SetProperty(row => row.JsonData, json), Cancellation);
+        (await definitions.Select(row => row.JsonData).SingleAsync(Cancellation)).Should().Be(json);
 
         var report = await CheckAsync(editor, form);
 
