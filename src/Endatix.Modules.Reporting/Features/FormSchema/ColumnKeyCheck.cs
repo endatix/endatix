@@ -25,13 +25,13 @@ internal sealed class ColumnKeyCheck(IOptions<ReportingOptions> options) : IForm
         var findings = result.DuplicateKeys.Select(Duplicate).ToList();
         AddLimit(findings, SchemaCompilationLimitKind.MaxQuestions, (result.QuestionCount, limits.MaxQuestions));
         AddLimit(findings, SchemaCompilationLimitKind.MaxColumns, (result.ColumnCount, limits.MaxColumns));
-        AddIncomplete(findings, definition, result);
+        AddLocatedFindings(findings, definition, result);
         return findings;
     }
 
-    private static void AddIncomplete(List<FormCheckFinding> findings, JsonElement definition, FormDefinitionFlattener.ColumnCheck result)
+    private static void AddLocatedFindings(List<FormCheckFinding> findings, JsonElement definition, FormDefinitionFlattener.ColumnCheck result)
     {
-        if (result.Incomplete.Count == 0)
+        if (result.Incomplete.Count == 0 && result.ConflictingPanelValues.Count == 0)
         {
             return;
         }
@@ -41,7 +41,19 @@ internal sealed class ColumnKeyCheck(IOptions<ReportingOptions> options) : IForm
             {
                 findings.Add(Incomplete(element.Path, stopped));
             }
+            if (result.ConflictingPanelValues.TryGetValue(element.Node, out var valueName))
+            {
+                findings.Add(ConflictingPanel(element.Path, valueName));
+            }
         }
+    }
+
+    private static FormCheckFinding ConflictingPanel(FindingPath path, string valueName)
+    {
+        const string code = "panel/duplicate-value-name";
+        return new($"{code}:{path.Element}/valueName", code, "error", true, false,
+            $"Multiple driven panels use the value name '{valueName}'. Give each panel its own driver.",
+            path with { Property = "valueName" }, JsonSerializer.SerializeToElement(new { valueName }));
     }
 
     private FormCheckFinding Duplicate(string key) => new($"{Code}:{key}", Code, "error", true, false,

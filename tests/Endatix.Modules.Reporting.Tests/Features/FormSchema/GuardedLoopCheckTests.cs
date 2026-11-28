@@ -60,6 +60,36 @@ public sealed class GuardedLoopCheckTests
         var compile = () => FormDefinitionFlattener.Flatten(survey);
 
         compile.Should().Throw<ArgumentException>();
-        FormDefinitionFlattener.Check(survey, SchemaCompilationLimits.Default).DuplicateKeys.Should().BeEmpty();
+        var check = new ColumnKeyCheck(Options.Create(new ReportingOptions()));
+        var findings = check.Inspect(survey, SchemaCompilationLimits.Default);
+        findings.Select(f => f.Key).Should().BeEquivalentTo([
+            "panel/duplicate-value-name:/elements/name:first/valueName",
+            "panel/duplicate-value-name:/elements/name:second/valueName"]);
+        findings.Should().OnlyContain(f => f.Blocking && !f.RequiresAck && f.Path.Property == "valueName");
+    }
+
+    [Fact]
+    public void Flatten_SourceLoopPaths_EnforcesDepthAcrossNamedPanelsAndAllowsSiblingReuse()
+    {
+        var survey = JsonSerializer.Deserialize<JsonElement>("""
+            {"elements":[{"type":"radiogroup","name":"s1","choices":["a"]},{"type":"radiogroup","name":"s2","choices":["b"]},
+             {"type":"paneldynamic","name":"left","loopSource":["s1"],"templateElements":[{"name":"shared","type":"text"}]},
+             {"type":"paneldynamic","name":"right","loopSource":["s2"],"templateElements":[{"name":"shared","type":"text"}]},
+             {"type":"paneldynamic","name":"shared","loopSource":["s1"],"templateElements":[{"name":"q","type":"text"}]}]}
+            """);
+        var limit = new SchemaCompilationLimits { MaxNestingDepth = 1 };
+
+        var compile = () => FormDefinitionFlattener.Flatten(survey, limit);
+
+        var stopped = compile.Should().Throw<SchemaCompilationLimitExceededException>().Which;
+        stopped.LimitKind.Should().Be(SchemaCompilationLimitKind.MaxNestingDepth);
+        stopped.Actual.Should().Be(2);
+        stopped.Context.Should().Be("shared");
+        var checkedSurvey = FormDefinitionFlattener.Check(survey, limit);
+        checkedSurvey.Incomplete.Values.Should().ContainSingle().Which.Context.Should().Be("shared");
+        var admitted = limit with { MaxNestingDepth = 2 };
+        FormDefinitionFlattener.Flatten(survey, admitted).Select(c => c.Key)
+            .Should().Contain(["shared__a__a__q", "shared__b__a__q"]);
+        FormDefinitionFlattener.Check(survey, admitted).Incomplete.Should().BeEmpty();
     }
 }

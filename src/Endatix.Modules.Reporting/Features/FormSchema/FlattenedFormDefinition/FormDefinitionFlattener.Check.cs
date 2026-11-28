@@ -59,6 +59,7 @@ internal static partial class FormDefinitionFlattener
         public int QuestionCount { get; internal set; }
         public int ColumnCount { get; private set; }
         public Dictionary<JsonElement, SchemaCompilationLimitExceededException> Incomplete { get; } = [];
+        public Dictionary<JsonElement, string> ConflictingPanelValues { get; } = [];
         internal void RecordIncomplete(JsonElement element, SchemaCompilationLimitExceededException limit) =>
             Incomplete.TryAdd(element, limit);
 

@@ -15,6 +15,9 @@ blocks publication and points to that element. Other branches are still checked.
 `definition/invalid-shape` identifies unsupported survey structure, including a legacy
 non-object root. It is a blocking content finding in a 200 response. Valid sibling
 elements keep their original addresses; the checked document is not rewritten.
+`panel/duplicate-value-name` blocks at each driven panel that shares its `valueName`
+with another driven panel. This is a conflict between panel drivers, even when all
+generated column keys are distinct. Other elements are still checked.
 Acknowledging warnings never clears a blocking finding. Use `findings[].key` unchanged for
 acknowledgement, `blocking` to disable publication, and `requiresAck` for the warning
 checkbox. `export/not-checked` is informational: opening the dialog does not check export names.

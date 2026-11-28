@@ -69,7 +69,7 @@ internal static partial class FormDefinitionFlattener
             .ToList();
 
         var dynamicPanels = BuildDynamicPanelNodes(allElements, drivingCheckboxNames);
-        var panelPaths = BuildPanelPaths(dynamicPanels, context.Limits);
+        var panelPaths = BuildPanelPaths(dynamicPanels, context);
 
         EmitRootColumns(rootElements, drivingCheckboxNames, context);
         AddLoopSourceColumns(allElements, context);
@@ -328,9 +328,10 @@ internal static partial class FormDefinitionFlattener
 
     private static List<PanelPath> BuildPanelPaths(
         IReadOnlyList<DynamicPanelNode> dynamicPanels,
-        SchemaCompilationLimits limits)
+        FlattenContext context)
     {
-        var findPanel = PanelLookup(dynamicPanels, limits);
+        var limits = context.Limits;
+        var findPanel = PanelLookup(dynamicPanels, context.Output);
 
         List<PanelPath> paths = [];
         var roots = dynamicPanels.Where(panel => panel.ParentValueName is null);
@@ -350,13 +351,20 @@ internal static partial class FormDefinitionFlattener
         return paths;
     }
 
-    private static Func<JsonElement, DynamicPanelNode?> PanelLookup(IReadOnlyList<DynamicPanelNode> panels, SchemaCompilationLimits limits)
+    private static Func<JsonElement, DynamicPanelNode?> PanelLookup(IReadOnlyList<DynamicPanelNode> panels, ColumnOutput output)
     {
-        if (limits.OnIncomplete is null)
+        if (output is not ColumnCheck check)
         {
             // Compilation requires a unique driven panel for each value name.
             var byName = panels.ToDictionary(panel => panel.ValueName, StringComparer.Ordinal);
             return node => node.GetSurveyJsValueName() is { } name ? byName.GetValueOrDefault(name) : null;
+        }
+        foreach (var group in panels.GroupBy(panel => panel.ValueName, StringComparer.Ordinal).Where(group => group.Count() > 1))
+        {
+            foreach (var panel in group)
+            {
+                check.ConflictingPanelValues.Add(panel.Element, group.Key);
+            }
         }
         var byElement = panels.ToDictionary(panel => panel.Element);
         return node => byElement.GetValueOrDefault(node);
@@ -367,14 +375,6 @@ internal static partial class FormDefinitionFlattener
         if (depth >= limits.MaxNestingDepth)
         {
             ThrowLimitExceeded(SchemaCompilationLimitKind.MaxNestingDepth, limits.MaxNestingDepth, depth + 1, name);
-        }
-    }
-
-    private static void CheckSourceLoopDepth(int depth, string name, SchemaCompilationLimits limits)
-    {
-        if (limits.OnIncomplete is not null)
-        {
-            CheckLoopDepth(depth, name, limits);
         }
     }
 
@@ -1096,7 +1096,7 @@ internal static partial class FormDefinitionFlattener
         SchemaCompilationLimits limits)
     {
         var panelName = panel.Name!;
-        CheckSourceLoopDepth(loopPath.Count, panelName, limits);
+        CheckLoopDepth(loopPath.Count, panelName, limits);
         var loopPathSegment = panel.Element.GetSurveyJsValueName() ?? panelName;
         List<string> nextLoopPath = [.. loopPath, loopPathSegment];
         List<string> nextPanelNames = [.. panelNames, panelName];
