@@ -12,6 +12,28 @@ namespace Endatix.IntegrationTests.FeatureFlows.Forms;
 public sealed partial class FormDraftFlowTests
 {
     [Fact]
+    public async Task Editor_session_labels_round_trip_at_the_limit_and_longer_labels_leave_history_untouched()
+    {
+        // Arrange
+        using var editor = await EditorAsync();
+        var form = await CreateFormAsync(editor);
+        var label = new string('é', 128);
+        editor.DefaultRequestHeaders.IfMatch.ParseAdd("\"0\"");
+
+        // Act
+        using var refused = await AppendBatchAsync(editor, form, label + "x");
+        using var saved = await AppendBatchAsync(editor, form, label);
+
+        // Assert
+        refused.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problem = await refused.Content.ReadFromJsonAsync<JsonElement>(Cancellation);
+        problem.GetProperty("fields").EnumerateObject().Should().Contain(field =>
+            field.Name.Equals("clientSessionId", StringComparison.OrdinalIgnoreCase));
+        saved.EnsureSuccessStatusCode();
+        await AssertWinningHistoryAsync(form, label);
+    }
+
+    [Fact]
     public async Task An_editor_can_repair_a_published_array_without_changing_the_live_document()
     {
         // Arrange
@@ -95,7 +117,7 @@ public sealed partial class FormDraftFlowTests
         foreach (var row in rows.Skip(1))
         {
             using var payload = JsonDocument.Parse(row.Payload);
-            row.ClientSessionId.Should().Be(winner);
+            row.EditorSessionId.Should().Be(winner);
             row.Channel.Should().Be("api");
             payload.RootElement.GetProperty("title").GetString().Should().Be(winner);
             payload.RootElement.GetProperty("seq").GetInt32().Should().Be((int)row.Version - 1);

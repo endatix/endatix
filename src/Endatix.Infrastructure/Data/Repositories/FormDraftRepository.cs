@@ -34,7 +34,7 @@ internal sealed class FormDraftRepository(AppDbContext db, IUniqueConstraintViol
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task<long> LatestSnapshotVersionAsync(long formId, long throughVersion, CancellationToken cancellationToken) =>
-        await db.FormDraftOperations.Where(row => row.FormId == formId && row.Version <= throughVersion && row.Kind == "snapshot")
+        await db.FormDraftOperations.Where(row => row.FormId == formId && row.Version <= throughVersion && row.Kind == FormDraftOperationKinds.SNAPSHOT)
             .MaxAsync(row => (long?)row.Version, cancellationToken) ?? 0;
 
     public async Task<bool> SaveOrConcedeAsync(FormDraft head, IReadOnlyList<FormDraftOperation> rows, CancellationToken cancellationToken)

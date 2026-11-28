@@ -1,3 +1,4 @@
+using Endatix.Core.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -47,7 +48,7 @@ public static class ChangeTrackerExtensions
 
                     break;
 
-                case EntityState.Modified:
+                case EntityState.Modified when entry.Entity is not IHasDomainModificationTime:
                     if (properties.Any(property => property.Name == ModifiedAtPropertyName))
                     {
                         entry.CurrentValues[ModifiedAtPropertyName] = utcNow;

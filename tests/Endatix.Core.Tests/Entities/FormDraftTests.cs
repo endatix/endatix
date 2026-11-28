@@ -6,6 +6,25 @@ namespace Endatix.Core.Tests.Entities;
 public sealed class FormDraftTests
 {
     [Theory]
+    [InlineData("clientSessionId")]
+    [InlineData("contentHash")]
+    public void Append_InvalidMetadata_LeavesUnsavedDraftUnchanged(string field)
+    {
+        // Arrange
+        var draft = FormDraft.For(Form.Create(42, new FormCreateArgs(1, "Survey")), "{}");
+        var hash = new string('f', 64);
+        var batch = new DraftJournalBatch(1, field == "clientSessionId" ? "a\0b" : "session",
+            ["{}"], "{}", field == "contentHash" ? hash + "\n" : hash);
+
+        // Act
+        var result = draft.Append(batch, DraftWrite.System(DateTime.UtcNow), 0);
+
+        // Assert
+        result.ValidationErrors.Should().ContainSingle(error => error.Identifier == field);
+        draft.Version.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(64, 200)]
     [InlineData(500_001, 100)]
     public void Append_CrossingSnapshotInterval_AddsOneSnapshotOfTheBatchHead(int titleLength, int interval)

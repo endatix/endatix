@@ -7,7 +7,7 @@ namespace Endatix.Core.Entities;
 
 /// <summary>The current editable survey, separate from the definition shown to respondents.</summary>
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
-public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
+public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion, IHasDomainModificationTime
 {
     /// <summary>The form whose draft this is.</summary>
     public long FormId { get; private init; }
@@ -33,14 +33,22 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
     internal List<FormDraftOperation> Replace(string json, DraftWrite write)
     {
         var hash = CanonicalSurveyJson.Hash(json);
-        return hash == ContentHash ? [] : WriteSnapshot(json, hash, ("whole_json", write));
+        return hash == ContentHash ? [] : WriteSnapshot(json, hash, (DraftSnapshotReasons.WHOLE_JSON, write));
     }
 
     internal List<FormDraftOperation> Discard(string json, DraftWrite write) =>
-        WriteSnapshot(json, CanonicalSurveyJson.PublishedHash(json), ("discard", write));
+        WriteSnapshot(json, CanonicalSurveyJson.PublishedHash(json), (DraftSnapshotReasons.DISCARD, write));
 
     internal Result<List<FormDraftOperation>> Append(DraftJournalBatch batch, DraftWrite write, long latestSnapshotVersion)
     {
+        if (DraftJournalBatch.EditorSessionIdError(batch.ClientSessionId) is { } error)
+        {
+            return Result.Invalid(new ValidationError(error) { Identifier = "clientSessionId" });
+        }
+        if (!DraftJournalBatch.IsContentHash(batch.ContentHash))
+        {
+            return Result.Invalid(new ValidationError("Provide a SHA-256 hash in hexadecimal.") { Identifier = "contentHash" });
+        }
         if (!batch.Records.All(DraftJsonEncoding.HasValidStrings))
         {
             return Result.Invalid(new ValidationError("Journal records must contain valid Unicode.") { Identifier = "records" });
@@ -58,7 +66,7 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
         var rows = SeedIfNeeded(write.At);
         if (plan.SnapshotHead)
         {
-            rows.Add(Snapshot("periodic", DraftWrite.System(write.At)));
+            rows.Add(Snapshot(DraftSnapshotReasons.PERIODIC, DraftWrite.System(write.At)));
         }
         for (var index = 0; index < batch.Records.Count; index++)
         {
@@ -66,7 +74,7 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
             if (plan.Documents.TryGetValue(index + 1, out var document))
             {
                 SetContent(document);
-                rows.Add(Snapshot("periodic", write));
+                rows.Add(Snapshot(DraftSnapshotReasons.PERIODIC, write));
             }
         }
         SetContent(plan.Terminal);
@@ -85,9 +93,9 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
         FormId = FormId,
         TenantId = TenantId,
         Version = ++Version,
-        Kind = "journal",
+        Kind = FormDraftOperationKinds.JOURNAL,
         Payload = batch.Records[index],
-        ClientSessionId = batch.ClientSessionId,
+        EditorSessionId = batch.ClientSessionId,
         ContentHash = index == batch.Records.Count - 1 ? batch.ContentHash : null,
         Actor = write.Actor with { },
         Channel = write.Channel,
@@ -104,7 +112,7 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
     }
 
     private List<FormDraftOperation> SeedIfNeeded(DateTime at) =>
-        Version == 0 ? [Snapshot("seed", DraftWrite.System(at))] : [];
+        Version == 0 ? [Snapshot(DraftSnapshotReasons.SEED, DraftWrite.System(at))] : [];
 
     private FormDraftOperation Snapshot(string reason, DraftWrite write)
     {
@@ -114,7 +122,7 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion
             FormId = FormId,
             TenantId = TenantId,
             Version = ++Version,
-            Kind = "snapshot",
+            Kind = FormDraftOperationKinds.SNAPSHOT,
             Reason = reason,
             Payload = JsonData,
             ContentHash = ContentHash,

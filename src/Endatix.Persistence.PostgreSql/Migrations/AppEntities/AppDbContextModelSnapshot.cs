@@ -481,7 +481,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                     b.Property<string>("ContentHash")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .IsUnicode(false)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
 
                     b.Property<string>("JsonData")
                         .IsRequired()
@@ -512,24 +514,30 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<string>("Channel")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ClientSessionId")
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ContentHash")
                         .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .IsUnicode(false)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("EditorSessionId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("Kind")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("Label")
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Note")
                         .HasColumnType("text");
@@ -539,7 +547,8 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("json");
 
                     b.Property<string>("Reason")
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<long?>("TargetVersion")
                         .HasColumnType("bigint");
@@ -548,6 +557,9 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("bigint");
 
                     b.HasKey("FormId", "Version");
+
+                    b.HasIndex("FormId", "Version")
+                        .HasFilter("\"Kind\" = 'snapshot'");
 
                     b.ToTable("FormDraftOperations", (string)null);
                 });

@@ -14,7 +14,7 @@ public sealed class AppendRequest : DraftRequest
 {
     /// <summary>The client's save sequence, echoed in the response.</summary>
     public int SaveNo { get; set; }
-    /// <summary>Client-supplied editing session identifier.</summary>
+    /// <summary>Client-supplied editing session identifier, up to 128 UTF-16 code units.</summary>
     public string ClientSessionId { get; set; } = "";
     /// <summary>Journal emissions in their original order, including repeated sequence numbers.</summary>
     public JsonElement[] Records { get; set; } = [];
@@ -44,8 +44,9 @@ public sealed class AppendValidator : Validator<AppendRequest>
         RuleFor(x => x.Records).NotEmpty();
         RuleFor(x => x.Checkpoints).NotNull();
         RuleForEach(x => x.Records).Must(record => record.ValueKind == JsonValueKind.Object);
-        RuleFor(x => x.ClientSessionId).NotEmpty();
-        RuleFor(x => x.ContentHash).Matches("^[a-fA-F0-9]{64}$").NotEmpty();
+        RuleFor(x => x.ClientSessionId).Must(id => DraftJournalBatch.EditorSessionIdError(id) is null)
+            .WithMessage(request => DraftJournalBatch.EditorSessionIdError(request.ClientSessionId)!);
+        RuleFor(x => x.ContentHash).Must(DraftJournalBatch.IsContentHash).WithMessage("Provide a SHA-256 hash in hexadecimal.");
         RuleFor(x => x.SaveNo).GreaterThanOrEqualTo(0);
     }
 }

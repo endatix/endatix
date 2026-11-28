@@ -485,7 +485,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.Property<string>("ContentHash")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
 
                     b.Property<string>("JsonData")
                         .IsRequired()
@@ -516,24 +518,30 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<string>("Channel")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClientSessionId")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("ContentHash")
                         .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("EditorSessionId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<string>("Kind")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("Label")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Note")
                         .HasColumnType("nvarchar(max)");
@@ -543,7 +551,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Reason")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
 
                     b.Property<long?>("TargetVersion")
                         .HasColumnType("bigint");
@@ -552,6 +561,9 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bigint");
 
                     b.HasKey("FormId", "Version");
+
+                    b.HasIndex("FormId", "Version")
+                        .HasFilter("[Kind] = N'snapshot'");
 
                     b.ToTable("FormDraftOperations", null, t =>
                         {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -18,7 +18,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     FormId = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
                     JsonData = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ContentHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                    ContentHash = table.Column<string>(type: "char(64)", unicode: false, fixedLength: true, maxLength: 64, nullable: false),
                     Version = table.Column<long>(type: "bigint", nullable: false),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
@@ -40,17 +40,17 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     FormId = table.Column<long>(type: "bigint", nullable: false),
                     Version = table.Column<long>(type: "bigint", nullable: false),
                     TenantId = table.Column<long>(type: "bigint", nullable: false),
-                    Kind = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Kind = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     Payload = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ContentHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Label = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ContentHash = table.Column<string>(type: "char(64)", unicode: false, fixedLength: true, maxLength: 64, nullable: true),
+                    Reason = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: true),
+                    Label = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Note = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     TargetVersion = table.Column<long>(type: "bigint", nullable: true),
                     Actor_Kind = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
                     Actor_UserId = table.Column<long>(type: "bigint", nullable: true),
-                    Channel = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ClientSessionId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Channel = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    EditorSessionId = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
@@ -64,6 +64,12 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         principalColumn: "FormId",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FormDraftOperations_FormId_Version",
+                table: "FormDraftOperations",
+                columns: new[] { "FormId", "Version" },
+                filter: "[Kind] = N'snapshot'");
         }
 
         /// <inheritdoc />

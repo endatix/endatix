@@ -9,7 +9,11 @@ namespace Endatix.Persistence.PostgreSql.Config;
 [ApplyConfigurationFor<AppDbContext>]
 internal sealed class FormDraftOperationConfigurationPostgreSql : IEntityTypeConfiguration<FormDraftOperation>
 {
-    public void Configure(EntityTypeBuilder<FormDraftOperation> builder) =>
+    public void Configure(EntityTypeBuilder<FormDraftOperation> builder)
+    {
         // json validates the document but retains the number tokens that the snapshot hash covers.
         builder.Property(row => row.Payload).HasColumnType("json");
+        builder.HasIndex(row => new { row.FormId, row.Version })
+            .HasFilter($"\"Kind\" = '{FormDraftOperationKinds.SNAPSHOT}'");
+    }
 }

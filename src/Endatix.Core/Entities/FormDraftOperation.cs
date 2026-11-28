@@ -7,6 +7,11 @@ namespace Endatix.Core.Entities;
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
 public sealed class FormDraftOperation : ITenantOwned, IInsertOnly
 {
+    /// <summary>Room for a UUID or an editor-prefixed session token. Opaque labels need not be UUIDs.</summary>
+    public const int EDITOR_SESSION_ID_MAX_LENGTH = 128;
+    /// <summary>A named snapshot has a display title, like a data list item label.</summary>
+    public const int LABEL_MAX_LENGTH = 100;
+
     /// <summary>The owning form.</summary>
     public long FormId { get; internal init; }
     /// <summary>Server-assigned position within this draft.</summary>
@@ -23,7 +28,7 @@ public sealed class FormDraftOperation : ITenantOwned, IInsertOnly
     public string? Reason { get; internal init; }
     /// <summary>Title of a named snapshot.</summary>
     public string? Label { get; internal init; }
-    /// <summary>Optional author note for a named snapshot.</summary>
+    /// <summary>Optional free-form changelog text for a named snapshot; deliberately unbounded.</summary>
     public string? Note { get; internal init; }
     /// <summary>The historical version selected for a restore or repair.</summary>
     public long? TargetVersion { get; internal init; }
@@ -32,20 +37,30 @@ public sealed class FormDraftOperation : ITenantOwned, IInsertOnly
     /// <summary>Writer channel assigned by the server.</summary>
     public string Channel { get; internal init; } = null!;
     /// <summary>Client-supplied grouping label for an editing session.</summary>
-    public string? ClientSessionId { get; internal init; }
+    public string? EditorSessionId { get; internal init; }
     /// <summary>UTC time of the batch or snapshot.</summary>
     public DateTime CreatedAt { get; internal init; }
 }
 
 internal sealed record DraftWrite(Actor Actor, string Channel, DateTime At)
 {
-    internal static DraftWrite System(DateTime at) => new(Actor.System, "system", at);
+    internal static DraftWrite System(DateTime at) => new(Actor.System, DraftChannels.SYSTEM, at);
 }
 
 /// <summary>One autosave: ordered journal emissions and the complete resulting survey.</summary>
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
 public sealed record DraftJournalBatch(int SaveNo, string ClientSessionId, IReadOnlyList<string> Records, string JsonData, string ContentHash)
 {
+    /// <summary>Validates the self-reported session label in UTF-16 code units on either provider.</summary>
+    public static string? EditorSessionIdError(string? sessionId) =>
+        string.IsNullOrWhiteSpace(sessionId) || sessionId.Length > FormDraftOperation.EDITOR_SESSION_ID_MAX_LENGTH || sessionId.Contains('\0')
+            ? $"Provide an editing session identifier of up to {FormDraftOperation.EDITOR_SESSION_ID_MAX_LENGTH} characters without NUL."
+            : null;
+
+    /// <summary>Rejects input a fixed-length ASCII SHA-256 column cannot store exactly.</summary>
+    public static bool IsContentHash(string? hash) =>
+        hash is { Length: Versioning.CanonicalContentHash.LENGTH } && hash.All(char.IsAsciiHexDigit);
+
     /// <summary>Interior snapshots in ascending order. The terminal survey is already in JsonData.</summary>
     public IReadOnlyList<DraftCheckpoint> Checkpoints { get; init; } = [];
 }

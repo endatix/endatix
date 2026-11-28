@@ -17,7 +17,7 @@ namespace Endatix.Core.Entities;
 /// names, so a retried request is a no-op.
 /// </remarks>
 [Experimental("ENDATIX0005")]
-public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion
+public sealed class FormSettings : IAggregateRoot, ITenantOwned, IHasVersion, IHasDomainModificationTime
 {
     /// <summary>The <see cref="Version"/> a write names when the form has no settings row yet.</summary>
     public const long UNSAVED_VERSION = 0;

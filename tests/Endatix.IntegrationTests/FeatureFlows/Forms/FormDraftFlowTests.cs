@@ -17,8 +17,10 @@ public sealed partial class FormDraftFlowTests(EndatixIntegrationWebHostFixture 
     private const string EDITED = """{"title":"Edited","pages":[]}""";
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
 
-    [Fact]
-    public async Task A_stored_draft_operation_cannot_be_changed()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_stored_draft_operation_cannot_be_changed_or_deleted(bool delete)
     {
         // Arrange
         var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, Cancellation);
@@ -30,7 +32,14 @@ public sealed partial class FormDraftFlowTests(EndatixIntegrationWebHostFixture 
         using var scope = world.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var operation = await db.FormDraftOperations.SingleAsync(row => row.Version == 2, Cancellation);
-        db.Entry(operation).Property(row => row.Payload).CurrentValue = "{}";
+        if (delete)
+        {
+            db.Remove(operation);
+        }
+        else
+        {
+            db.Entry(operation).Property(row => row.Payload).CurrentValue = "{}";
+        }
 
         // Act
         var changeHistory = () => db.SaveChangesAsync(Cancellation);
