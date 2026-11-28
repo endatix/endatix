@@ -7,6 +7,19 @@ internal static class DraftJsonEncoding
 {
     private static readonly UTF8Encoding _strictUtf8 = new(false, true);
 
+    internal static bool IsValidUnicode(string text)
+    {
+        try
+        {
+            _strictUtf8.GetByteCount(text);
+            return true;
+        }
+        catch (EncoderFallbackException)
+        {
+            return false;
+        }
+    }
+
     internal static byte[] ToUtf8(string json)
     {
         byte[] utf8;

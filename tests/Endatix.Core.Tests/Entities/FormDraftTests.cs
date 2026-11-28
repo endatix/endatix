@@ -24,6 +24,23 @@ public sealed class FormDraftTests
         draft.Version.Should().Be(0);
     }
 
+    [Fact]
+    public void EditorSessionIdError_UnpairedSurrogate_RefusesUnstorableLabel()
+    {
+        DraftJournalBatch.EditorSessionIdError(new string('\uD800', 1)).Should().NotBeNull();
+    }
+
+    [Fact]
+    public void Label_LengthLimit_StoresTheFullTitleOrRejectsIt()
+    {
+        var title = new string('a', 100);
+        var row = new FormDraftOperation { Label = title };
+        var tooLong = () => new FormDraftOperation { Label = title + "x" };
+
+        row.Label.Should().Be(title);
+        tooLong.Should().Throw<ArgumentException>();
+    }
+
     [Theory]
     [InlineData(64, 200)]
     [InlineData(500_001, 100)]

@@ -44,9 +44,10 @@ public sealed class AppendValidator : Validator<AppendRequest>
         RuleFor(x => x.Records).NotEmpty();
         RuleFor(x => x.Checkpoints).NotNull();
         RuleForEach(x => x.Records).Must(record => record.ValueKind == JsonValueKind.Object);
-        RuleFor(x => x.ClientSessionId).Must(id => DraftJournalBatch.EditorSessionIdError(id) is null)
+        RuleFor(x => x.ClientSessionId).Cascade(CascadeMode.Stop).NotEmpty()
+            .Must(id => DraftJournalBatch.EditorSessionIdError(id) is null)
             .WithMessage(request => DraftJournalBatch.EditorSessionIdError(request.ClientSessionId)!);
-        RuleFor(x => x.ContentHash).Must(DraftJournalBatch.IsContentHash).WithMessage("Provide a SHA-256 hash in hexadecimal.");
+        RuleFor(x => x.ContentHash).Matches(@"\A[a-fA-F0-9]{64}\z").NotEmpty();
         RuleFor(x => x.SaveNo).GreaterThanOrEqualTo(0);
     }
 }

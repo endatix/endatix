@@ -17,7 +17,7 @@ public sealed partial class FormDraftFlowTests
         // Arrange
         using var editor = await EditorAsync();
         var form = await CreateFormAsync(editor);
-        var label = new string('é', 128);
+        var label = new string('é', 126) + "🌱";
         editor.DefaultRequestHeaders.IfMatch.ParseAdd("\"0\"");
 
         // Act

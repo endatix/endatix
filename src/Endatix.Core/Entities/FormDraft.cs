@@ -41,17 +41,9 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion, IHasD
 
     internal Result<List<FormDraftOperation>> Append(DraftJournalBatch batch, DraftWrite write, long latestSnapshotVersion)
     {
-        if (DraftJournalBatch.EditorSessionIdError(batch.ClientSessionId) is { } error)
+        if (batch.ValidationError() is { } error)
         {
-            return Result.Invalid(new ValidationError(error) { Identifier = "clientSessionId" });
-        }
-        if (!DraftJournalBatch.IsContentHash(batch.ContentHash))
-        {
-            return Result.Invalid(new ValidationError("Provide a SHA-256 hash in hexadecimal.") { Identifier = "contentHash" });
-        }
-        if (!batch.Records.All(DraftJsonEncoding.HasValidStrings))
-        {
-            return Result.Invalid(new ValidationError("Journal records must contain valid Unicode.") { Identifier = "records" });
+            return Result.Invalid(error);
         }
         var prepared = DraftBatchCheckpoints.Prepare(batch, Version - latestSnapshotVersion);
         if (!prepared.IsSuccess)

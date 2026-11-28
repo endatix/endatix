@@ -2,16 +2,35 @@ using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Features.Outbox;
+using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Endatix.IntegrationTests;
 
-[Collection(nameof(EndatixIntegrationTestCollection))]
+[Collection(nameof(DbIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
-public sealed class FormDraftPersistenceTests(EndatixIntegrationWebHostFixture fixture)
+public sealed class FormDraftPersistenceTests(DbIntegrationFixture fixture)
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static readonly DateTime _at = new(2024, 3, 2, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public async Task SaveChanges_ExistingSettings_PreservesWriterClock()
+    {
+        await using var db = await OpenAsync();
+        var settings = FormSettings.For(await CreateFormAsync(db));
+        settings.Apply(new() { Pdf = new() { UsesFormTheme = true } }, 0, _at);
+        db.FormSettings.Add(settings);
+        await db.SaveChangesAsync(Cancellation);
+
+        settings.Apply(new() { Pdf = new() }, 1, _at);
+        await db.SaveChangesAsync(Cancellation);
+        await db.Entry(settings).ReloadAsync(Cancellation);
+
+        settings.Version.Should().Be(2);
+        settings.ModifiedAt.Should().Be(_at);
+    }
 
     [Theory]
     [InlineData(0)]
@@ -29,11 +48,14 @@ public sealed class FormDraftPersistenceTests(EndatixIntegrationWebHostFixture f
         var updatedAt = _at.AddDays(daysLater);
 
         // Act
-        await repo.SaveOrConcedeAsync(existing, existing.Replace("{}", DraftWrite.System(updatedAt)), Cancellation);
+        var journal = new DraftJournalBatch(1, "editor", ["{}"], "{}", new string('f', 64));
+        var saved = await repo.SaveOrConcedeAsync(existing, existing.Append(journal, DraftWrite.System(updatedAt), 2).Value, Cancellation);
         db.ChangeTracker.Clear();
 
         // Assert
         var stored = await repo.FindHeadAsync(form.Id, Cancellation);
+        saved.Should().BeTrue();
+        stored!.Version.Should().Be(3);
         stored!.ModifiedAt.Should().Be(updatedAt);
         var operation = await db.FormDraftOperations.SingleAsync(row => row.Version == stored.Version, Cancellation);
         operation.CreatedAt.Should().Be(updatedAt);
@@ -84,46 +106,46 @@ public sealed class FormDraftPersistenceTests(EndatixIntegrationWebHostFixture f
     public async Task LatestSnapshot_IndexCanServeTheBoundedVersionLookup()
     {
         // Arrange: one snapshot followed by a full tail of uncheckpointed edits.
-        await using var db = await OpenAsync();
+        using var capture = new SnapshotLookupPlan();
+        await using var db = await OpenAsync(capture);
         var form = await CreateFormAsync(db);
         var head = FormDraft.For(form, "{}");
         var batch = new DraftJournalBatch(1, "editor", Enumerable.Repeat("{}", 199).ToArray(), "{}", new string('a', 64));
         var repo = new FormDraftRepository(db, new UniqueConstraintViolationChecker());
         await repo.SaveOrConcedeAsync(head, head.Append(batch, DraftWrite.System(_at), 0).Value, Cancellation);
+        await repo.SaveOrConcedeAsync(head, head.Replace("""{"new":true}""", DraftWrite.System(_at)), Cancellation);
 
         // Act
+        await db.Database.OpenConnectionAsync(Cancellation);
+        capture.CaptureNextRead = true;
         var version = await repo.LatestSnapshotVersionAsync(form.Id, 200, Cancellation);
 
-        // Assert: ask each engine to plan the lookup against its filtered index. This tests eligibility,
-        // not a cost estimate, which would depend on the size and statistics of the test database.
+        // Assert: inspect the command with the tenant filter and the same bound parameters.
         version.Should().Be(1);
-        await db.Database.OpenConnectionAsync(Cancellation);
-        if (db.Database.IsSqlServer())
-        {
-            var indexed = await db.Database.SqlQuery<long>($"""
-                SELECT MAX([Version]) AS [Value] FROM [FormDraftOperations] WITH (INDEX(IX_FormDraftOperations_FormId_Version))
-                WHERE [FormId] = {form.Id} AND [Version] <= {200L} AND [Kind] = N'snapshot'
-                """).SingleAsync(Cancellation);
-            indexed.Should().Be(version);
-        }
-        else
-        {
-            await using var transaction = await db.Database.BeginTransactionAsync(Cancellation);
-            await db.Database.ExecuteSqlRawAsync("SET LOCAL enable_seqscan = off", Cancellation);
-            await db.Database.ExecuteSqlRawAsync("ANALYZE \"FormDraftOperations\"", Cancellation);
-            var plan = await db.Database.SqlQuery<string>($"""
-                EXPLAIN SELECT MAX("Version") FROM "FormDraftOperations"
-                WHERE "FormId" = {form.Id} AND "Version" <= {200L} AND "Kind" = 'snapshot'
-                """).ToListAsync(Cancellation);
-            plan.Should().Contain(line => line.Contains("IX_FormDraftOperations_FormId_Version"));
-        }
+        var plan = await capture.ExplainAsync(db.Database, Cancellation);
+        plan.Should().Contain("IX_FormDraftOperations_FormId_Version");
     }
 
-    private async Task<AppDbContext> OpenAsync()
+    [Fact]
+    public async Task Remove_TrackedParentWithHistory_RefusesClientCascade()
+    {
+        await using var db = await OpenAsync();
+        var draft = FormDraft.For(await CreateFormAsync(db), "{}");
+        await new FormDraftRepository(db, new UniqueConstraintViolationChecker())
+            .SaveOrConcedeAsync(draft, draft.Replace("""{"n":1}""", DraftWrite.System(_at)), Cancellation);
+
+        db.Remove(draft);
+
+        var save = () => db.SaveChangesAsync(Cancellation);
+        await save.Should().ThrowAsync<InvalidOperationException>().WithMessage("*insert-only*");
+    }
+
+    private async Task<AppDbContext> OpenAsync(params IInterceptor[] interceptors)
     {
         var tenantId = await IntegrationTenants.InsertAsync(fixture.Database, Cancellation);
         DbContextOptionsBuilder<AppDbContext> options = new();
         IntegrationAppDbContextFactory.ConfigureOptions(options, fixture.Database.ConnectionString, fixture.Database.Provider);
+        options.AddInterceptors(interceptors);
         return new(options.Options, new IntegrationTenantContext(tenantId), new OutboxIntegrationEventDispatcher());
     }
 
