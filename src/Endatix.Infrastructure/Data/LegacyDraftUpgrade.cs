@@ -108,7 +108,11 @@ internal sealed partial class LegacyDraftUpgradeSeeder(AppDbContext db)
         if (row.Id == form.ActiveDefinitionId)
         {
             form.UpdateActiveDefinitionSchema(null, false);
-            LogActive(db.GetService<ILoggerFactory>().CreateLogger(nameof(LegacyDraftUpgrade)), form.Id, row.Id);
+            var logger = db.GetService<ILoggerFactory>().CreateLogger(nameof(LegacyDraftUpgrade));
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                LogActive(logger, form.Id, row.Id);
+            }
         }
         else if (bound.Contains(row.Id))
         {

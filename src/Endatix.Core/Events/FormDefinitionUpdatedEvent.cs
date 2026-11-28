@@ -10,6 +10,7 @@ namespace Endatix.Core.Events;
 public sealed class FormDefinitionUpdatedEvent(Form form, FormDefinition formDefinition, string? note)
     : DomainEventBase, IIntegrationEvent
 {
+    /// <summary>An existing definition changed through a legacy writer.</summary>
     public FormDefinitionUpdatedEvent(Form form, FormDefinition formDefinition) : this(form, formDefinition, null) { }
     public const string EventTypeName = "form.definition.updated";
 
@@ -22,6 +23,7 @@ public sealed class FormDefinitionUpdatedEvent(Form form, FormDefinition formDef
 
     public string EventType => EventTypeName;
 
+    /// <inheritdoc/>
     public object GetPayload() => FormDefinition.PublishedFromDraftVersion.HasValue ? new
     {
         formId = Form.Id,

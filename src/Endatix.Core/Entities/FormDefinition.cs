@@ -4,6 +4,7 @@ using Endatix.Core.Versioning;
 
 namespace Endatix.Core.Entities;
 
+/// <summary>A form's survey document, referenced by each submission using that definition.</summary>
 public partial class FormDefinition : TenantEntity, IAggregateRoot, IContentVersion
 {
     private readonly List<Submission> _submissions = [];

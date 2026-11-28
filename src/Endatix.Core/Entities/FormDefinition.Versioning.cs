@@ -11,11 +11,15 @@ public partial class FormDefinition
     public long? Number { get; private set; }
     /// <summary>The draft version frozen at publication. Legacy rows have no publish provenance.</summary>
     public long? PublishedFromDraftVersion { get; private set; }
+    /// <inheritdoc/>
     public long? CreatedBy { get; private set; }
+    /// <inheritdoc/>
     public string Source { get; private set; } = ContentVersionSources.PUBLISH;
+    /// <inheritdoc/>
     public long? RestoredFromNumber { get; internal init; }
 
     // Old hosts can still edit legacy JSON without updating a cached hash. Hash its actual content.
+    /// <inheritdoc/>
     public string ContentHash { get => field ?? CanonicalSurveyJson.PublishedHash(JsonData); private set; }
 
     // Native JSON columns support existing SQL exports, but can normalize numeric tokens.
