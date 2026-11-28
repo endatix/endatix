@@ -378,6 +378,13 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
                         .HasColumnType("bigint")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.None);
 
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("ContentHash")
+                        .IsFixedLength();
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -422,13 +429,6 @@ namespace Endatix.Persistence.PostgreSQL.Migrations.AppEntities
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
-
-                    b.Property<string>("ContentHash")
-                        .HasMaxLength(64)
-                        .IsUnicode(false)
-                        .HasColumnType("character(64)")
-                        .HasColumnName("ContentHash")
-                        .IsFixedLength();
 
                     b.Property<string>("_publishedJson")
                         .HasColumnType("text")

@@ -379,6 +379,13 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                         .HasColumnType("bigint")
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.None);
 
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("ContentHash")
+                        .IsFixedLength();
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -423,13 +430,6 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
 
                     b.Property<long>("TenantId")
                         .HasColumnType("bigint");
-
-                    b.Property<string>("ContentHash")
-                        .HasMaxLength(64)
-                        .IsUnicode(false)
-                        .HasColumnType("char(64)")
-                        .HasColumnName("ContentHash")
-                        .IsFixedLength();
 
                     b.Property<string>("_publishedJson")
                         .HasColumnType("nvarchar(max)")
