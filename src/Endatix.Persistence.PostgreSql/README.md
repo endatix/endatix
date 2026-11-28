@@ -25,9 +25,10 @@ Run the commands from the `oss` folder.
 
 For a generated-SQL deployment with auto-migrations off:
 
-1. Apply the generated AppDbContext migration script. Pending forms return HTTP 503 on draft reads and writes. Legacy definition routes and unaffected forms remain available.
-2. Run `dotnet ef database update --context AppDbContext --project src/Endatix.Persistence.PostgreSql --startup-project src/Endatix.WebHost` from the deployed release against the same database. This explicitly runs the EF seeder even if the migration history already contains `NumberFormDefinitions`. On interruption, rerun the command: adoption, the Reporting event and queue removal commit together.
-3. Verify the migration is present **and** the following count is zero. A missing table or a nonzero count means the upgrade is incomplete.
+1. Before deployment, rehearse on a representative database copy. Record the queued form and definition counts and the time to finish the whole queue. Compare that time with your request and database command timeouts; schedule a maintenance window that allows the run and, if interrupted, a full retry.
+2. Apply the generated AppDbContext migration script. Draft reads and writes return HTTP 503 for queued forms. Legacy definitions remain addressable by ID, but a write to a locked row can wait for the entire queue to commit or time out.
+3. Run `dotnet ef database update --context AppDbContext --project src/Endatix.Persistence.PostgreSql --startup-project src/Endatix.WebHost` from the deployed release against the same database. The EF seeder drains the queue in one transaction. It retains locks for every processed form until commit. If interrupted before commit, the whole transaction rolls back, including adoption, Reporting events and queue removals. Rerun the same command.
+4. Verify the migration is present **and** the queue is empty:
 
    ```sql
    SELECT count(*) FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261128073201_NumberFormDefinitions'; -- expect 1
