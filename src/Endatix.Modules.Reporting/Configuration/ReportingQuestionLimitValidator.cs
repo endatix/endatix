@@ -16,14 +16,22 @@ internal sealed class ReportingQuestionLimitValidator(IConfiguration configurati
         }
 
         var overrides = reporting.GetSection(nameof(options.MaxQuestionsByTenant));
-        if (overrides.Value is not null || options.MaxQuestionsByTenant is null)
+        return ValidateOverrides(overrides, options.MaxQuestionsByTenant);
+    }
+
+    private static ValidateOptionsResult ValidateOverrides(IConfigurationSection overrides, Dictionary<long, int>? effective)
+    {
+        if (overrides.Value is not null || effective is null)
         {
             return ValidateOptionsResult.Fail($"{overrides.Path} must map tenant IDs to positive integer limits.");
         }
 
         // The configuration binder skips dictionary entries it cannot convert.
-        var failures = overrides.GetChildren().Where(entry => !IsValid(entry))
-            .Select(entry => $"{entry.Path} must name a positive tenant ID and have a positive integer limit.").ToList();
+        var invalidEntries = overrides.GetChildren().Where(entry => !IsValid(entry)).Select(entry => entry.Path);
+        var invalidOverrides = effective.Where(pair => pair.Key <= 0 || pair.Value <= 0)
+            .Select(pair => $"{overrides.Path}:{pair.Key}");
+        var failures = invalidEntries.Union(invalidOverrides)
+            .Select(path => $"{path} must name a positive tenant ID and have a positive integer limit.").ToList();
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 

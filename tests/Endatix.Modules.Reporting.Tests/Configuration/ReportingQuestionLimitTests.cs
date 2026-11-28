@@ -29,7 +29,10 @@ public class ReportingQuestionLimitTests
         options.ApplyMigrationsAtStartup.Should().BeFalse();
     }
 
-    private static ServiceProvider Configure(params (string Key, string Value)[] settings)
+    private static ServiceProvider Configure(params (string Key, string Value)[] settings) =>
+        ModuleServices(settings).BuildServiceProvider();
+
+    private static ServiceCollection ModuleServices(params (string Key, string Value)[] settings)
     {
         var values = settings.ToDictionary(setting => $"{ReportingOptions.SECTION_NAME}:{setting.Key}",
             setting => (string?)setting.Value);
@@ -39,7 +42,7 @@ public class ReportingQuestionLimitTests
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(configuration);
         ReportingModule.Instance.ConfigureServices(new EndatixModuleBuilder(services, configuration));
-        return services.BuildServiceProvider();
+        return services;
     }
 
     [Theory]
@@ -66,6 +69,59 @@ public class ReportingQuestionLimitTests
         var options = host.GetRequiredService<IOptions<ReportingOptions>>().Value;
 
         options.GetMaxQuestions(52).Should().Be(1500);
+    }
+
+    [Theory]
+    [InlineData(0, 2)]
+    [InlineData(52, 0)]
+    public void Validate_ConfigureAddsInvalidOverride_RejectsEffectiveSetting(long tenantId, int limit)
+    {
+        var services = ModuleServices();
+        services.Configure<ReportingOptions>(options => options.MaxQuestionsByTenant[tenantId] = limit);
+        using var host = services.BuildServiceProvider();
+
+        var validate = () => host.GetRequiredService<IStartupValidator>().Validate();
+
+        validate.Should().Throw<OptionsValidationException>().WithMessage($"*MaxQuestionsByTenant:{tenantId}*");
+    }
+
+    [Fact]
+    public void Validate_PostConfigureReplacesValidBoundOverride_RejectsEffectiveLimit()
+    {
+        var services = ModuleServices(("MaxQuestionsByTenant:52", "3"));
+        services.PostConfigure<ReportingOptions>(options => options.MaxQuestionsByTenant[52] = -1);
+        using var host = services.BuildServiceProvider();
+
+        var validate = () => host.GetRequiredService<IStartupValidator>().Validate();
+
+        validate.Should().Throw<OptionsValidationException>().WithMessage("*MaxQuestionsByTenant:52*");
+    }
+
+    [Fact]
+    public void ForTenant_ReselectAcrossTenants_PreservesEachCompilerAndProfileFields()
+    {
+        var services = ModuleServices(("MaxQuestions", "2"), ("SubmitterProfileFields:0", "division"));
+        services.PostConfigure<ReportingOptions>(options => options.MaxQuestionsByTenant[52] = 3);
+        using var host = services.BuildServiceProvider();
+        host.GetRequiredService<IStartupValidator>().Validate();
+        var root = host.GetRequiredService<FormSchemaCompiler>();
+
+        var tenantA = root.ForTenant(52);
+        var tenantB = tenantA.ForTenant(53);
+        var backToA = tenantB.ForTenant(52);
+
+        AssertCompilerLimit(tenantB, 2);
+        AssertCompilerLimit(backToA, 3);
+        AssertCompilerLimit(root, 2);
+        AssertCompilerLimit(tenantA, 3);
+    }
+
+    private static void AssertCompilerLimit(FormSchemaCompiler compiler, int limit)
+    {
+        compiler.CompilePersisted(Survey(limit)).FlatteningMap.Columns.Should().HaveCount(limit);
+        var overLimit = () => compiler.CompilePersisted(Survey(limit + 1));
+        overLimit.Should().Throw<SchemaCompilationLimitExceededException>().Which.Limit.Should().Be(limit);
+        compiler.SubmitterProfileColumns.Select(column => column.Key).Should().Equal("submitter_division");
     }
 
     [Theory]

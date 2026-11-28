@@ -33,10 +33,13 @@ internal class FormSchemaCompiler(
     public FormSchemaCompiler(ReportingOptions options, SubmitterProfileFields fields)
         : this(new SchemaCompilationLimits { MaxQuestions = options.MaxQuestions }, fields) => _options = options;
 
+    private FormSchemaCompiler(FormSchemaCompiler source, int maxQuestions)
+        : this(source._limits with { MaxQuestions = maxQuestions }, source._submitterProfileFields) => _options = source._options;
+
     internal FormSchemaCompiler ForTenant(long tenantId)
     {
         var limit = _options?.GetMaxQuestions(tenantId) ?? _limits.MaxQuestions;
-        return limit == _limits.MaxQuestions ? this : new(_limits with { MaxQuestions = limit }, _submitterProfileFields);
+        return limit == _limits.MaxQuestions ? this : new(this, limit);
     }
 
     public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null) =>
