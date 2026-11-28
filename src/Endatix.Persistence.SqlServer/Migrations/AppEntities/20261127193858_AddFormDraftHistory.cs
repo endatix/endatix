@@ -9,6 +9,7 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
     public partial class AddFormDraftHistory : Migration
     {
         private static readonly string[] _snapshotKey = ["FormId", "Version"];
+        private static readonly string[] _snapshotIncludes = ["TenantId"];
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -71,7 +72,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 name: "IX_FormDraftOperations_FormId_Version",
                 table: "FormDraftOperations",
                 columns: _snapshotKey,
-                filter: "[Kind] = N'snapshot'");
+                filter: "[Kind] = N'snapshot'")
+                .Annotation("SqlServer:Include", _snapshotIncludes);
         }
 
         /// <inheritdoc />

@@ -30,22 +30,24 @@ internal sealed class SnapshotLookupPlan : DbCommandInterceptor, IDisposable
     {
         if (database.IsSqlServer())
         {
-            await database.ExecuteSqlRawAsync("SET SHOWPLAN_XML ON", ct);
-            try
-            {
-                var xml = (string)(await _lookup!.ExecuteScalarAsync(ct))!;
-                var plan = XDocument.Parse(xml);
-                var objects = plan.Descendants(plan.Root!.Name.Namespace + "Object");
-                return string.Join(", ", objects.Select(access => (string?)access.Attribute("Index")));
-            }
-            finally
-            {
-                await database.ExecuteSqlRawAsync("SET SHOWPLAN_XML OFF", ct);
-            }
+            await database.ExecuteSqlRawAsync("UPDATE STATISTICS [FormDraftOperations] WITH FULLSCAN", ct);
+            return await SqlServerAccessIndexesAsync(ct);
         }
         await database.ExecuteSqlRawAsync("""ANALYZE "FormDraftOperations" """, ct);
         _lookup!.CommandText = "EXPLAIN (FORMAT JSON) " + _lookup.CommandText;
         return (string)(await _lookup.ExecuteScalarAsync(ct))!;
+    }
+
+    private async Task<string> SqlServerAccessIndexesAsync(CancellationToken ct)
+    {
+        // STATISTICS XML returns the executed query's plan as the result set after its scalar.
+        _lookup!.CommandText = $"SET STATISTICS XML ON;\n{_lookup.CommandText};\nSET STATISTICS XML OFF;";
+        await using var reader = await _lookup.ExecuteReaderAsync(ct);
+        (await reader.NextResultAsync(ct)).Should().BeTrue();
+        (await reader.ReadAsync(ct)).Should().BeTrue();
+        var plan = XDocument.Parse(reader.GetString(0));
+        var objects = plan.Descendants(plan.Root!.Name.Namespace + "Object");
+        return string.Join(", ", objects.Select(access => (string?)access.Attribute("Index")));
     }
 
     public void Dispose() => _lookup?.Dispose();

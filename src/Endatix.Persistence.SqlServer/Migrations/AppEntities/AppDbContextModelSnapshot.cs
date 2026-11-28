@@ -562,6 +562,8 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                     b.HasIndex("FormId", "Version")
                         .HasFilter("[Kind] = N'snapshot'");
 
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("FormId", "Version"), new[] { "TenantId" });
+
                     b.ToTable("FormDraftOperations", null, t =>
                         {
                             t.HasCheckConstraint("CK_FormDraftOperations_Payload_Json", "ISJSON([Payload], VALUE) = 1");

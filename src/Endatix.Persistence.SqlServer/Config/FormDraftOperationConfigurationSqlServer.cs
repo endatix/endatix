@@ -13,8 +13,9 @@ internal sealed class FormDraftOperationConfigurationSqlServer : IEntityTypeConf
     {
         // Native json can rewrite number tokens. Validate the lexical document without converting it.
         builder.Property(row => row.Payload).HasColumnType("nvarchar(max)");
-        builder.HasIndex(row => new { row.FormId, row.Version })
+        var snapshots = builder.HasIndex(row => new { row.FormId, row.Version })
             .HasFilter($"[Kind] = N'{FormDraftOperationKinds.SNAPSHOT}'");
+        SqlServerIndexBuilderExtensions.IncludeProperties(snapshots, row => row.TenantId);
         builder.ToTable(table => table.HasCheckConstraint("CK_FormDraftOperations_Payload_Json", "ISJSON([Payload], VALUE) = 1"));
     }
 }
