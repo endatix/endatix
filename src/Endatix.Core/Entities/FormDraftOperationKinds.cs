@@ -24,6 +24,7 @@ public static class DraftSnapshotReasons
     internal const string WHOLE_JSON = "whole_json";
     internal const string DISCARD = "discard";
     internal const string PERIODIC = "periodic";
+    internal const string IDLE = "idle";
 }
 
 /// <summary>Persisted writer channels assigned by the server. These values must not change.</summary>

@@ -8,6 +8,34 @@ namespace Endatix.Core.Tests.Entities;
 public sealed class DraftCheckpointTests
 {
     [Fact]
+    public void CheckpointIdle_ExactDayWithJournalTail_AppendsOneSystemSnapshot()
+    {
+        // Arrange
+        var draft = NewDraft();
+        var edit = DateTime.UnixEpoch;
+        var rows = draft.Append(Batch(2, """{"a":1}"""), DraftWrite.System(edit), 0).Value;
+        var latest = rows[0].Version;
+        var hash = draft.ContentHash;
+        var due = edit.AddDays(1);
+
+        // Act
+        draft.CheckpointIdle(due.AddTicks(-1), latest).Should().BeNull();
+        var checkpoint = draft.CheckpointIdle(due, latest);
+
+        // Assert
+        checkpoint!.Version.Should().Be(4);
+        checkpoint.Payload.Should().Be("""{"a":1}""");
+        checkpoint.ContentHash.Should().Be(hash);
+        checkpoint.Actor.Kind.Should().Be("system");
+        checkpoint.Actor.UserId.Should().BeNull();
+        checkpoint.Channel.Should().Be("system");
+        checkpoint.Reason.Should().Be("idle");
+        checkpoint.CreatedAt.Should().Be(due);
+        draft.CheckpointIdle(due.AddDays(2), checkpoint.Version).Should().BeNull();
+        draft.Version.Should().Be(4);
+    }
+
+    [Fact]
     public void Append_RecordWithInvalidUnicode_CannotEnterTheTextBackedJournal()
     {
         // Arrange

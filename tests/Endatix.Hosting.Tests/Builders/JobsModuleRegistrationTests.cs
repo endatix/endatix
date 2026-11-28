@@ -17,6 +17,25 @@ namespace Endatix.Hosting.Tests.Builders;
 /// </summary>
 public class JobsModuleRegistrationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UseDefaults_IdleDraftSchedule_FollowsTheJobsFlag(bool enabled)
+    {
+        // Arrange
+        var builder = CreateBuilder(enabled, isPostgreSql: true);
+        builder.Configuration["Endatix:Auth:Providers:EndatixJwt:Enabled"] = "true";
+        builder.Configuration["Endatix:Auth:Providers:EndatixJwt:SigningKey"] = Guid.NewGuid().ToString("N");
+
+        // Act
+        builder.UseDefaults();
+        builder.FinalizeConfiguration();
+
+        // Assert
+        builder.Services.Any(descriptor => descriptor.ServiceType == typeof(IRecurringJob)
+            && Equals(descriptor.ServiceKey, "recurring.IdleDraftCheckpoint")).Should().Be(enabled);
+    }
+
     private const string PostgreSqlConnectionString =
         "Host=localhost;Database=endatix;Username=endatix;Password=endatix";
 

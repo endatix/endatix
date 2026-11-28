@@ -1,4 +1,5 @@
 using Endatix.Core.Entities;
+using Endatix.Core.Abstractions;
 using Endatix.Infrastructure.Data;
 using Endatix.Infrastructure.Data.Repositories;
 using Endatix.Infrastructure.Features.Outbox;
@@ -14,6 +15,42 @@ public sealed class FormDraftPersistenceTests(DbIntegrationFixture fixture)
 {
     private static CancellationToken Cancellation => TestContext.Current.CancellationToken;
     private static readonly DateTime _at = new(2024, 3, 2, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public async Task RunAsync_TenantScope_LeavesAnotherTenantsEligibleTailUntouched()
+    {
+        // Arrange
+        await using var first = await OpenAsync();
+        await using var second = await OpenAsync();
+        var local = await SaveJournalAsync(first);
+        var neighbour = await SaveJournalAsync(second);
+        var clock = Substitute.For<IDateTimeProvider>();
+        clock.UtcNow.Returns(new DateTimeOffset(_at.AddDays(1)));
+        var scan = new IdleDraftCheckpoints(first, Repository(first), clock);
+
+        // Act
+        await scan.RunAsync(Cancellation);
+
+        // Assert
+        var stored = await first.FormDraftOperations.SingleAsync(row => row.Reason == "idle", Cancellation);
+        stored.TenantId.Should().Be(first.GetTenantId());
+        stored.FormId.Should().Be(local.FormId);
+        stored.EditorSessionId.Should().BeNull();
+        stored.ContentHash.Should().Be(local.ContentHash);
+        (await second.FormDraftOperations.CountAsync(Cancellation)).Should().Be(2);
+        (await second.FormDrafts.AsNoTracking().SingleAsync(Cancellation)).Version.Should().Be(neighbour.Version);
+    }
+
+    private static FormDraftRepository Repository(AppDbContext db) => new(db, new UniqueConstraintViolationChecker());
+
+    private static async Task<FormDraft> SaveJournalAsync(AppDbContext db)
+    {
+        var head = FormDraft.For(await CreateFormAsync(db), "{}");
+        var batch = new DraftJournalBatch(1, "session", ["{}"], """{"n":1}""", new string('f', 64));
+        await Repository(db).SaveOrConcedeAsync(head, head.Append(batch, DraftWrite.System(_at), 0).Value, Cancellation);
+        db.ChangeTracker.Clear();
+        return head;
+    }
 
     [Fact]
     public async Task SaveChanges_ExistingSettings_PreservesWriterClock()

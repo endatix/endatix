@@ -175,7 +175,8 @@ internal static class QuartzRegistration
         var options = configuration.GetSection(BackgroundJobsOptions.SectionName).Get<BackgroundJobsOptions>()
             ?? new BackgroundJobsOptions();
         var database = JobStoreDatabase.From(configuration, options);
-        var sizing = new JobsSchedulerSizing();
+        var schedules = RecurringJobSchedule.Declared(services).ToArray();
+        var sizing = new JobsSchedulerSizing(schedules.Length);
 
         services.AddSingleton(database);
         services.AddSingleton(sizing);
@@ -184,7 +185,7 @@ internal static class QuartzRegistration
         services.AddScoped<IJobTriggerScheduler, QuartzJobTriggerScheduler>();
         services.AddScoped<IBackgroundJobStateRepository, BackgroundJobStateRepository>();
         services.AddScoped<JobRetentionJob>();
-        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, new SchedulerRecipe(options, database, sizing)));
+        services.AddQuartz(SchedulerName, quartz => ConfigureQuartz(quartz, new SchedulerRecipe(options, database, sizing, schedules)));
         ReadCommittedSnapshotGatedSchedulerFactory.Register(services);
 
         return services;
@@ -207,21 +208,22 @@ internal static class QuartzRegistration
     }
 
     // What the scheduler's recipe is built from; the recipe is replayed whenever the scheduler is rebuilt.
-    private sealed record SchedulerRecipe(BackgroundJobsOptions Options, JobStoreDatabase Database, JobsSchedulerSizing Sizing);
+    private sealed record SchedulerRecipe(BackgroundJobsOptions Options, JobStoreDatabase Database, JobsSchedulerSizing Sizing,
+        RecurringJobSchedule[] Schedules);
 
     private static void ConfigureQuartz(IQuartzBuilder quartz, SchedulerRecipe recipe)
     {
-        var (options, database, sizing) = recipe;
+        var (options, database, sizing, schedules) = recipe;
 
         // The one clock of the jobs module, at the scheduler's key: the scheduler, its store and the runtime ceiling
         // read it. A test replaces it there to step time; the host's other services keep their own clock.
         quartz.UseTimeProvider(TimeProvider.System);
         quartz.ConfigureScheduler(scheduler => ConfigureScheduler(scheduler, options));
         SizeToRegisteredJobTypes(quartz, sizing);
-        AddRetentionJob(quartz, options.Retention);
+        RecurringJobSchedule.RegisterAll(quartz, options.Retention?.Cron, schedules);
         quartz.AddTriggerListener<JobTriggerListener>();
         quartz.AddTriggerListener<JobMisfireListener>();
-        quartz.UseExecutionLimits(ConfigureExecutionLimits);
+        quartz.UseExecutionLimits((provider, limits) => ConfigureExecutionLimits(provider, limits, schedules));
         UseThreadPool(quartz, options);
         UseShutdownGuardedStore(quartz);
         quartz.UsePersistentStore(store => ConfigureStore(store, options, database));
@@ -274,7 +276,8 @@ internal static class QuartzRegistration
 
     // Each registered job type's group is capped at its own concurrency, and every other group at zero, so this node
     // never acquires a job it has no handler for.
-    private static void ConfigureExecutionLimits(IServiceProvider provider, ExecutionLimitsBuilder limits)
+    private static void ConfigureExecutionLimits(IServiceProvider provider, ExecutionLimitsBuilder limits,
+        RecurringJobSchedule[] schedules)
     {
         var plan = Build(
             provider.GetRequiredService<JobHandlerRegistry>().JobTypes,
@@ -285,26 +288,11 @@ internal static class QuartzRegistration
         }
 
         limits.ForGroup(JobRetentionJob.Group, JobsSchedulerSizing.MaintenanceThreads);
-        limits.ForOtherGroups(0);
-    }
-
-    // Retention runs on one node at a time, in a group of its own so no job type's backlog delays it.
-    private static void AddRetentionJob(IQuartzBuilder quartz, BackgroundJobsRetentionOptions? retention)
-    {
-        quartz.AddJob<JobRetentionJob>(job => job.WithIdentity(JobRetentionJob.Group, MaintenanceJobGroup).StoreDurably());
-
-        // Parsing an invalid expression here would throw before the options validator can say which key is wrong;
-        // without the trigger, the validator fails startup with that message instead.
-        if (retention?.Cron is not { } cron || !CronExpression.TryParse(cron, out _))
+        foreach (var schedule in schedules)
         {
-            return;
+            limits.ForGroup(schedule.Group, 1);
         }
-
-        quartz.AddTrigger(trigger => trigger
-            .WithIdentity(JobRetentionJob.Group, MaintenanceJobGroup)
-            .ForJob(JobRetentionJob.Group, MaintenanceJobGroup)
-            .WithExecutionGroup(JobRetentionJob.Group)
-            .WithCronSchedule(cron));
+        limits.ForOtherGroups(0);
     }
 
     private static void ConfigureStore(IPersistentStoreBuilder store, BackgroundJobsOptions options, JobStoreDatabase database)

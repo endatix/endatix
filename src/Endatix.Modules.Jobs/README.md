@@ -387,6 +387,19 @@ group of its own with one thread beyond the job types' caps. Each run deletes fi
 deletes a row that is not finished. Every terminal write sets `ExpiresAt` to its time plus the job
 type's `RetentionDays` when the row has none. Quartz deletes its own finished triggers.
 
+### Recurring maintenance
+
+Implement `IRecurringJob.RunAsync(CancellationToken)` and call
+`services.AddRecurringJob<MyJob>("MyJob", "0 0 2 * * ?")` before the host finalizes its
+modules. The schedule uses UTC. Use the same name and schedule across workers; `recurring.`
+is reserved for their execution groups. Each schedule has one worker slot and a firing gets
+its own service scope. A schedule-only host registers the trigger without executing it.
+
+The default host checkpoints idle form drafts at 02:00 UTC when Jobs is enabled. A draft
+must have journal entries after its last snapshot and have been idle for at least 24 hours.
+A checkpoint advances the draft ETag once, resets `recordsSinceSnapshot` to zero, and
+attributes the new snapshot to the system. It leaves the published form unchanged.
+
 ### Execution
 
 `BackgroundJobExecution` is the only Quartz job class. It only orchestrates each firing, through

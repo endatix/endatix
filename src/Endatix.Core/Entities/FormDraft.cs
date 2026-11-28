@@ -55,6 +55,12 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion, IHasD
     internal List<FormDraftOperation> Discard(string json, DraftWrite write) =>
         WriteSnapshot(json, CanonicalSurveyJson.PublishedHash(json), (DraftSnapshotReasons.DISCARD, write));
 
+    /// <summary>Checkpoints the current journal tail after a day without edits.</summary>
+    public FormDraftOperation? CheckpointIdle(DateTime now, long latestSnapshotVersion) =>
+        Version > latestSnapshotVersion && ModifiedAt <= now.AddDays(-1)
+            ? Snapshot(DraftSnapshotReasons.IDLE, DraftWrite.System(now))
+            : null;
+
     internal Result<List<FormDraftOperation>> Append(DraftJournalBatch batch, DraftWrite write, long latestSnapshotVersion)
     {
         if (batch.ValidationError() is { } error)

@@ -136,6 +136,7 @@ internal sealed class JobHandlerRegistry
 
     private static bool IsReservedExecutionGroupName(string jobType) =>
         jobType.Trim() is "*" or "_" ||
+        jobType.StartsWith(RecurringJobSchedule.Prefix, StringComparison.OrdinalIgnoreCase) ||
         jobType.Trim().Equals("null", StringComparison.OrdinalIgnoreCase) ||
         jobType.Trim().Equals(JobRetentionJob.Group, StringComparison.OrdinalIgnoreCase);
 
