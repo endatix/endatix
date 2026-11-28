@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Endatix.Modules.Reporting.Configuration;
 
 /// <summary>
@@ -6,6 +8,17 @@ namespace Endatix.Modules.Reporting.Configuration;
 public sealed class ReportingOptions
 {
     public const string SECTION_NAME = "Customizations:Reporting";
+    internal const int DEFAULT_MAX_QUESTIONS = 1_500;
+
+    /// <summary>The largest question count reporting will compile when there is no tenant override.</summary>
+    [Range(1, int.MaxValue)]
+    public int MaxQuestions { get; set; } = DEFAULT_MAX_QUESTIONS;
+
+    /// <summary>Operator-configured question limits keyed by tenant ID.</summary>
+    public Dictionary<long, int> MaxQuestionsByTenant { get; set; } = [];
+
+    /// <summary>Returns the inclusive limit for the tenant that owns the definition.</summary>
+    public int GetMaxQuestions(long tenantId) => MaxQuestionsByTenant.GetValueOrDefault(tenantId, MaxQuestions);
 
     /// <summary>
     /// When true, applies the active provider's EF migrations for <see cref="Persistence.ReportingDbContextBase"/>

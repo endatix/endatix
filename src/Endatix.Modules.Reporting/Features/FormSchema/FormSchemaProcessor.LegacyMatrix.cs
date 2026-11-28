@@ -26,7 +26,7 @@ internal sealed partial class FormSchemaProcessor
             }
 
             PersistedSchemaJson stored = new(existing.FlatteningMap, existing.Codebook);
-            return Compiling(rebuild.Target, () => compiler.CompileLegacyMerge(rebuild.Definition.Json, stored, history));
+            return Compiling(rebuild.Target, () => rebuild.Definition.Compiler.CompileLegacyMerge(rebuild.Definition.Json, stored, history));
         }
     }
 

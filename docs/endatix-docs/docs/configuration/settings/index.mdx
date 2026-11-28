@@ -7,7 +7,7 @@ import DocCardList from '@theme/DocCardList';
 
 # Application Settings
 
-These pages are **Endatix API** settings: the `Endatix` object in `appsettings.json` (or environment variables bound the ASP.NET Core way). Per-environment files work like `appsettings.Production.json`.
+These pages cover **Endatix API** settings in `appsettings.json` or ASP.NET Core environment variables. Most settings live under `Endatix`; reporting uses `Customizations:Reporting`. Per-environment files work like `appsettings.Production.json`.
 
 Endatix settings live in **three places**. Use the matching docs so operators do not hunt in the wrong file.
 
@@ -33,5 +33,24 @@ Hub does not read `appsettings.json`. The [API Hub URL](/docs/configuration/sett
 ```
 
 Shipped samples live in `src/Endatix.WebHost` (`appsettings.json`, `appsettings.Development.json`). Keep production secrets out of git.
+
+## Reporting question limit
+
+Reporting compiles up to **1,500 questions per form definition** by default. Set `Customizations:Reporting:MaxQuestions` on the API host to change the default, or set `MaxQuestionsByTenant` to raise or lower it for specific tenants. For example, this allows tenant `42` to compile a 1,510-question form while other tenants can compile up to 1,200:
+
+```json
+{
+  "Customizations": {
+    "Reporting": {
+      "MaxQuestions": 1200,
+      "MaxQuestionsByTenant": { "42": 1510 }
+    }
+  }
+}
+```
+
+The equivalent environment variable for this tenant is `Customizations__Reporting__MaxQuestionsByTenant__42=1510`. Use positive integer limits and the tenant's numeric ID. Restart the API after changing the settings. Invalid limits prevent the enabled Reporting module from starting.
+
+The limit is inclusive. Above it, manual and background reporting compilation fail and the previous reporting schema, if any, is retained. The limit does not restrict response collection or change the other reporting limits.
 
 <DocCardList />

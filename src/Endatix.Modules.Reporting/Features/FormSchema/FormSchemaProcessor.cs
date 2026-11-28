@@ -95,8 +95,9 @@ internal sealed partial class FormSchemaProcessor(
             return null;
         }
 
-        var columns = Compiling(target, () => compiler.Columns(definitionJson));
-        return new SchemaRebuild(target, trigger, new DefinitionSource(definitionJson, columns));
+        var tenantCompiler = compiler.ForTenant(target.TenantId);
+        var columns = Compiling(target, () => tenantCompiler.Columns(definitionJson));
+        return new SchemaRebuild(target, trigger, new DefinitionSource(definitionJson, columns, tenantCompiler));
     }
 
     private async Task<string?> ReadDefinitionJsonAsync(CompileTarget target, CancellationToken cancellationToken)
@@ -190,7 +191,7 @@ internal sealed partial class FormSchemaProcessor(
     // only a later flatten carrying the same variables would bring the columns back.
     private FormSchemaCompileResult Compile(SchemaRebuild rebuild, FormSchemaEntity? existing, FormSchemaCompileMode mode)
     {
-        var compiled = compiler.CompilePersisted(rebuild.Definition.Json, existing?.FlatteningMap, existing?.Codebook, mode);
+        var compiled = rebuild.Definition.Compiler.CompilePersisted(rebuild.Definition.Json, existing?.FlatteningMap, existing?.Codebook, mode);
         var kept = mode == FormSchemaCompileMode.Replace && !rebuild.ClearsFlattenedRows && existing is not null
             ? PersonalizationColumns.In(existing.FlatteningMap)
             : [];
@@ -206,7 +207,7 @@ internal sealed partial class FormSchemaProcessor(
     {
         try
         {
-            return compiler.IncludePersonalization(
+            return rebuild.Definition.Compiler.IncludePersonalization(
                 rebuild.Definition.Json,
                 new PersistedSchemaJson(compiled.FlatteningMapJson, compiled.CodebookJson),
                 kept);
@@ -335,7 +336,7 @@ internal sealed partial class FormSchemaProcessor(
 
     private sealed record SavedSchema(FormSchemaCompileMode Mode);
 
-    private sealed record DefinitionSource(string Json, IReadOnlyList<FormSchemaColumn> Columns);
+    private sealed record DefinitionSource(string Json, IReadOnlyList<FormSchemaColumn> Columns, FormSchemaCompiler Compiler);
 
     private enum RebuildTrigger
     {

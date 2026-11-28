@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Endatix.Modules.Reporting.Configuration;
 using Endatix.Modules.Reporting.Features.FormSchema.Codebook;
 using Endatix.Modules.Reporting.Features.FormSchema.FlattenedFormDefinition;
 using Endatix.Modules.Reporting.Features.FormSchema.Personalization;
@@ -27,6 +28,16 @@ internal class FormSchemaCompiler(
 {
     private readonly SchemaCompilationLimits _limits = limits ?? SchemaCompilationLimits.Default;
     private readonly SubmitterProfileFields _submitterProfileFields = submitterProfileFields ?? SubmitterProfileFields.None;
+    private readonly ReportingOptions? _options;
+
+    public FormSchemaCompiler(ReportingOptions options, SubmitterProfileFields fields)
+        : this(new SchemaCompilationLimits { MaxQuestions = options.MaxQuestions }, fields) => _options = options;
+
+    internal FormSchemaCompiler ForTenant(long tenantId)
+    {
+        var limit = _options?.GetMaxQuestions(tenantId) ?? _limits.MaxQuestions;
+        return limit == _limits.MaxQuestions ? this : new(_limits with { MaxQuestions = limit }, _submitterProfileFields);
+    }
 
     public MergedFormSchema Compile(JsonElement definition, MergedFormSchema? existing = null) =>
         Merge(FormDefinitionFlattener.Flatten(definition, _limits, existing), existing);

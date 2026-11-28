@@ -1,6 +1,8 @@
+using Endatix.Modules.Reporting.Configuration;
+
 namespace Endatix.Modules.Reporting.Features.FormSchema.FormSchema;
 
-internal sealed class SchemaCompilationLimits
+internal sealed record SchemaCompilationLimits
 {
     public int MaxNestingDepth { get; init; } = 5;
 
@@ -8,7 +10,7 @@ internal sealed class SchemaCompilationLimits
 
     public int MaxMatrixRowCount { get; init; } = 10;
 
-    public int MaxQuestions { get; init; } = 1_500;
+    public int MaxQuestions { get; init; } = ReportingOptions.DEFAULT_MAX_QUESTIONS;
 
     public int MaxChoicesPerQuestion { get; init; } = 2_500;
 
@@ -21,4 +23,3 @@ internal sealed class SchemaCompilationLimits
 
     public static SchemaCompilationLimits Default { get; } = new();
 }
-

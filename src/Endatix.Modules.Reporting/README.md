@@ -57,6 +57,8 @@ Flattens of one submission can run out of order, as retries or as jobs, so each 
 
 ### FormSchema compile modes
 
+Manual and background compilation use the form tenant's question limit: `Customizations:Reporting:MaxQuestionsByTenant:<tenantId>`, then `Customizations:Reporting:MaxQuestions`, then 1,500. Definitions at the limit can compile; above it the compile fails before saving the schema. [Host configuration example](../../docs/endatix-docs/docs/configuration/settings/index.mdx#reporting-question-limit).
+
 `POST forms/{formId}/reporting/compile-schema` and `POST forms/{formId}/submissions/backfill` accept `submissions.export` or `forms.edit`, so a user who may export can prepare a form for it. `replace=true` on compile and `force=true` on backfill clear or overwrite flattened rows, so they also need `forms.edit`; without it the endpoint returns 403 before it sends the command.
 
 On every compile path (outbox `form.definition.updated`, manual `POST .../reporting/compile-schema`):

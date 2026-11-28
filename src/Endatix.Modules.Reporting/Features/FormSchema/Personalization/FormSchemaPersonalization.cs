@@ -121,7 +121,7 @@ internal sealed class FormSchemaPersonalization(
 
     private void ApplyColumns(FormSchemaEntity existing, string definitionJson, IReadOnlyList<FormSchemaColumn> columns)
     {
-        var compiled = compiler.IncludePersonalization(
+        var compiled = compiler.ForTenant(existing.TenantId).IncludePersonalization(
             definitionJson,
             new PersistedSchemaJson(existing.FlatteningMap, existing.Codebook),
             columns);

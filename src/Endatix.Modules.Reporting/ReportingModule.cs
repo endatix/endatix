@@ -62,7 +62,7 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ListSubmissionGridRows>();
         builder.Services.AddScoped<SubmissionGridAnswerSearch>();
         AddExports(builder.Services);
-        AddFormSchemaCompiler(builder.Services);
+        AddFormSchemaCompiler(builder);
         builder.Services.AddScoped<SearchCopyRebuilder>();
         builder.Services.AddScoped<SearchCopyRebuildRequests>();
         builder.Services.AddScoped<FormSearchCopy>();
@@ -74,7 +74,6 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         builder.Services.AddScoped<ISubmissionFlatteningProcessor, SubmissionFlatteningProcessor>();
         builder.Services.AddScoped<ISubmissionBackfillProcessor, SubmissionBackfillProcessor>();
         builder.Services.AddReportingOutboxWork();
-        builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
     }
 
     private static void AddRepositories(IServiceCollection services)
@@ -87,13 +86,16 @@ public sealed class ReportingModule : IEndatixModule, IHasFeatureFlag, IHasDbMig
         services.AddScoped<SubmissionViewReader>();
     }
 
-    // The configured submitter profile fields; the flatten appends their columns, and copies only those fields.
-    private static void AddFormSchemaCompiler(IServiceCollection services)
+    private static void AddFormSchemaCompiler(EndatixModuleBuilder builder)
     {
+        var services = builder.Services;
+        builder.AddOptions<ReportingOptions>(ReportingOptions.SECTION_NAME);
+        services.AddSingleton<IValidateOptions<ReportingOptions>, ReportingQuestionLimitValidator>();
         services.AddSingleton(sp =>
             SubmitterProfileFields.From(sp.GetRequiredService<IOptions<ReportingOptions>>().Value));
         services.AddSingleton(sp =>
-            new FormSchemaCompiler(submitterProfileFields: sp.GetRequiredService<SubmitterProfileFields>()));
+            new FormSchemaCompiler(sp.GetRequiredService<IOptions<ReportingOptions>>().Value,
+                sp.GetRequiredService<SubmitterProfileFields>()));
     }
 
     private static void AddExports(IServiceCollection services)

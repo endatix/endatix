@@ -43,7 +43,7 @@ internal sealed class FormSchemaCoverage(IFormsRepository formsRepository, FormS
     {
         try
         {
-            return compiler.HasColumnsFor(schema.FlatteningMap, definitionJson);
+            return compiler.ForTenant(schema.TenantId).HasColumnsFor(schema.FlatteningMap, definitionJson);
         }
         catch (SchemaCompilationLimitExceededException ex)
         {
