@@ -22,7 +22,15 @@ public static class RecurringJobServiceCollectionExtensions
         {
             throw new ArgumentException("Provide a trimmed schedule name of up to 100 characters.", nameof(name));
         }
-        services.AddSingleton(new RecurringJobSchedule(name, cron));
+        var declaration = new RecurringJobSchedule(name, cron);
+        var existing = services.FirstOrDefault(service => service.ServiceType == typeof(IRecurringJob)
+            && Equals(service.ServiceKey, name));
+        if (existing is not null && existing.KeyedImplementationType == typeof(T)
+            && services.Any(service => !service.IsKeyedService && Equals(service.ImplementationInstance, declaration)))
+        {
+            return services;
+        }
+        services.AddSingleton(declaration);
         return services.AddKeyedScoped<IRecurringJob, T>(name);
     }
 }
