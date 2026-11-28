@@ -66,7 +66,7 @@ public class GetByTokenTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_ValidRequest_ReturnsOkWithSubmission()
+    public async Task ExecuteAsync_ValidRequest_ReturnsSubmissionWithItsBoundDefinition()
     {
         // Arrange
         var formId = 1L;
@@ -80,6 +80,8 @@ public class GetByTokenTests
             FormDefinitionId: formDefinitionId,
             JsonData: "{}"));
         submission.UpdateToken(new Token(1));
+        var boundDefinition = FormDefinition.Create(formDefinitionId, SampleData.TENANT_ID, jsonData: """{"title":"Original questions"}""");
+        typeof(Submission).GetProperty(nameof(Submission.FormDefinition))!.SetValue(submission, boundDefinition);
         var result = Result.Success(submission);
 
         _mediator.Send(Arg.Any<GetByTokenQuery>(), Arg.Any<CancellationToken>())
@@ -89,12 +91,14 @@ public class GetByTokenTests
         var response = await _endpoint.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
         // Assert
-        var okResult = response.Result as Ok<SubmissionModel>;
+        var okResult = response.Result as Ok<SubmissionDetailsModel>;
         okResult.Should().NotBeNull();
         okResult!.Value.Should().NotBeNull();
         okResult!.Value!.Id.Should().Be("1");
         okResult!.Value!.Token.Should().NotBeNull();
         okResult!.Value!.Token!.Should().Be(submission.Token!.Value);
+        okResult.Value.FormDefinition!.Id.Should().Be(formDefinitionId.ToString());
+        okResult.Value.FormDefinition.JsonData.Should().Be(boundDefinition.JsonData);
     }
 
     [Fact]
