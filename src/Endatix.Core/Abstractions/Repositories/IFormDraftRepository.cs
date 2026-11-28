@@ -8,6 +8,8 @@ public interface IFormDraftRepository
 {
     /// <summary>Reads the owning form and its active definition in the specified tenant.</summary>
     Task<Form?> FindFormAsync(long tenantId, long formId, CancellationToken cancellationToken);
+    /// <summary>Whether the upgrade still needs to adopt this form's legacy draft.</summary>
+    Task<bool> IsUpgradePendingAsync(long formId, CancellationToken cancellationToken);
     /// <summary>Reads the head tracked for a conditional save.</summary>
     Task<FormDraft?> FindHeadAsync(long formId, CancellationToken cancellationToken);
     /// <summary>Reads the ordinal of the current published definition, if one exists.</summary>

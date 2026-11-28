@@ -75,13 +75,15 @@ namespace Endatix.Persistence.SqlServer.Migrations.AppEntities
                 JOIN Forms f ON f.Id = d.FormId AND f.TenantId = d.TenantId
                 WHERE d.IsDraft = 1 AND d.IsDeleted = 0 AND f.IsDeleted = 0;
 
-                WITH numbered AS (
+                -- In a generated SQL script this batch can be compiled before ALTER TABLE
+                -- adds Number. Compile the backfill only after the column exists.
+                EXEC(N'WITH numbered AS (
                     SELECT d.Id, ROW_NUMBER() OVER (PARTITION BY d.FormId ORDER BY d.CreatedAt, d.Id) AS n
                     FROM FormDefinitions d JOIN Forms f ON f.Id = d.FormId AND f.TenantId = d.TenantId
                     WHERE d.IsDeleted = 0 AND (d.IsDraft = 0 OR d.Id = f.ActiveDefinitionId OR
                         EXISTS (SELECT 1 FROM Submissions s WHERE s.FormDefinitionId = d.Id))
                 )
-                UPDATE d SET Number = numbered.n FROM FormDefinitions d JOIN numbered ON numbered.Id = d.Id;
+                UPDATE d SET Number = numbered.n FROM FormDefinitions d JOIN numbered ON numbered.Id = d.Id;');
                 """);
         }
 

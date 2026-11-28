@@ -41,8 +41,9 @@ public sealed class Get(IMediator mediator) : Endpoint<DraftRequest, Results<Ok<
             s.Responses[200] = "The draft and its ETag.";
             s.Responses[400] = "Invalid form ID.";
             s.Responses[404] = "Form not found.";
+            s.Responses[503] = "This form's draft upgrade is pending.";
         });
-        Description(b => b.Produces<DraftResponse>().ProducesProblem(400).ProducesProblem(404));
+        Description(b => b.Produces<DraftResponse>().ProducesProblem(400).ProducesProblem(404).ProducesProblem(503));
     }
 
     /// <inheritdoc/>

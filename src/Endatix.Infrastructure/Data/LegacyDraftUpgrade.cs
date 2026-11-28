@@ -57,6 +57,7 @@ internal sealed partial class LegacyDraftUpgradeSeeder(AppDbContext db)
 
     private async Task UpgradeFormAsync(long id, CancellationToken ct)
     {
+        await LockLegacyRowsAsync(id, ct);
         var form = await db.Forms.IgnoreQueryFilters([EndatixQueryFilterNames.Tenant])
             .Include(row => row.ActiveDefinition).SingleOrDefaultAsync(row => row.Id == id, ct);
         if (form is null)
@@ -72,6 +73,28 @@ internal sealed partial class LegacyDraftUpgradeSeeder(AppDbContext db)
         await CleanAsync(form, drafts, ct);
         await db.SaveChangesAsync(ct);
         db.ChangeTracker.Clear();
+    }
+
+    // The EF migrator holds its transaction through seeding. Lock the actual parent and
+    // definition rows: a previous binary changes them without taking any application lock.
+    private async Task LockLegacyRowsAsync(long id, CancellationToken ct)
+    {
+        var command = db.Database.IsSqlServer()
+            ? (FormattableString)$"""
+              SELECT Id FROM Forms WITH (UPDLOCK, INDEX(PK_Forms)) WHERE Id = {id};
+              SELECT d.Id FROM FormDefinitions d WITH (UPDLOCK, FORCESEEK, INDEX(PK_FormDefinitions))
+              JOIN (SELECT DefinitionId FROM LegacyDraftUpgrades WHERE FormId = {id}
+                    UNION SELECT ActiveDefinitionId FROM Forms WHERE Id = {id}) targets ON targets.DefinitionId = d.Id
+              WHERE d.FormId = {id};
+              """
+            : $"""
+              SELECT "Id" FROM "Forms" WHERE "Id" = {id} FOR UPDATE;
+              SELECT d."Id" FROM "FormDefinitions" d
+              WHERE d."FormId" = {id} AND (d."Id" = (SELECT "ActiveDefinitionId" FROM "Forms" WHERE "Id" = {id})
+                  OR EXISTS (SELECT 1 FROM "LegacyDraftUpgrades" u WHERE u."FormId" = {id} AND u."DefinitionId" = d."Id"))
+              FOR UPDATE;
+              """;
+        await db.Database.ExecuteSqlInterpolatedAsync(command, ct);
     }
 
     private async Task AdoptAsync(Form form, List<FormDefinition> drafts, CancellationToken ct)
@@ -119,10 +142,8 @@ internal sealed partial class LegacyDraftUpgradeSeeder(AppDbContext db)
         {
             row.UpdateDraftStatus(false);
         }
-        else
-        {
-            row.Delete();
-        }
+        // Keep unbound strays addressable. A by-ID writer can have read this row before
+        // these locks were taken and commit its edit after they are released.
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Promoted active legacy draft {DefinitionId} for form {FormId}; requested schema compilation.")]

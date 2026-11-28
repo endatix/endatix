@@ -45,9 +45,12 @@ public sealed class EndatixWebApplicationFactory : WebApplicationFactory<Endatix
     /// <summary>How the host hashes passwords and refresh tokens. Read when the host starts.</summary>
     public PasswordHashing PasswordHashing { get; init; } = PasswordHashing.Fast;
 
+    internal bool AutoMigrate { get; init; } = true;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         EndatixWebApplicationFactoryConfiguration.ConfigureCommon(builder, _connectionString, _provider, _outboxPolling);
+        builder.UseSetting("Endatix:Data:EnableAutoMigrations", AutoMigrate.ToString());
         if (PasswordHashing == PasswordHashing.Fast)
         {
             builder.ConfigureTestServices(services => services.UseFastPasswordHashing());

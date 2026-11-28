@@ -26,11 +26,11 @@ internal sealed class OwnDatabaseWebHost : IIntegrationTestHostFixture, IAsyncDi
     public IntegrationSeedBuilder Seed { get; }
 
     /// <summary>Creates a database from the template and starts a host on it.</summary>
-    public static async Task<OwnDatabaseWebHost> StartAsync()
+    public static async Task<OwnDatabaseWebHost> StartAsync(bool autoMigrate = true)
     {
         var database = new DatabaseInfrastructureFixture();
         await database.InitializeAsync();
-        var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider);
+        var factory = new EndatixWebApplicationFactory(database.ConnectionString, database.Provider) { AutoMigrate = autoMigrate };
 
         // Reading the services starts the host; a start that fails disposes the factory and drops the database.
         return await FailedHostStart.DisposeOnFailureAsync(

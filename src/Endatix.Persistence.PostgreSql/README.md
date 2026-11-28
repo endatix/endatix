@@ -23,7 +23,18 @@ Run the commands from the `oss` folder.
 
 `NumberFormDefinitions` numbers existing definitions without changing the live definition ID. EF's migration seeder then adopts newer legacy drafts and requests Reporting schema compilation for active definitions previously marked as drafts. It uses the same C# canonical hash as the editor.
 
-If you deploy a generated SQL script instead of running EF migrations, finish the upgrade with `dotnet ef database update --context AppDbContext --project src/Endatix.Persistence.PostgreSql --startup-project src/Endatix.WebHost` against the same database. A script alone leaves legacy drafts queued. Verify that `"LegacyDraftUpgrades"` is empty before enabling draft editing.
+For a generated-SQL deployment with auto-migrations off:
+
+1. Apply the generated AppDbContext migration script. Pending forms return HTTP 503 on draft reads and writes. Legacy definition routes and unaffected forms remain available.
+2. Run `dotnet ef database update --context AppDbContext --project src/Endatix.Persistence.PostgreSql --startup-project src/Endatix.WebHost` from the deployed release against the same database. This explicitly runs the EF seeder even if the migration history already contains `NumberFormDefinitions`. On interruption, rerun the command: adoption, the Reporting event and queue removal commit together.
+3. Verify the migration is present **and** the following count is zero. A missing table or a nonzero count means the upgrade is incomplete.
+
+   ```sql
+   SELECT count(*) FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261128073201_NumberFormDefinitions'; -- expect 1
+   SELECT count(*) FROM "LegacyDraftUpgrades"; -- expect 0
+   ```
+
+Expansion leaves unbound stray definitions visible by ID: an older editor may already have read one and save after adoption. At the later cutover, first drain incompatible writers, then re-read the latest content, pointer and submission bindings. Reconcile later acknowledged edits with the current draft before hiding any stray. Queue completion alone does not enable production publishing.
 
 > [!NOTE]
 > Always use `Endatix.WebHost` as startup project, and this provider-specific persistence project as migrations project.

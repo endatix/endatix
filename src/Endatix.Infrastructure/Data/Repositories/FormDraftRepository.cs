@@ -16,6 +16,9 @@ internal sealed class FormDraftRepository(AppDbContext db, IUniqueConstraintViol
     public Task<FormDraft?> FindHeadAsync(long formId, CancellationToken cancellationToken) =>
         db.FormDrafts.SingleOrDefaultAsync(head => head.FormId == formId, cancellationToken);
 
+    public Task<bool> IsUpgradePendingAsync(long formId, CancellationToken cancellationToken) =>
+        db.Set<LegacyDraftUpgrade>().AnyAsync(row => row.FormId == formId, cancellationToken);
+
     public async Task<int?> ActiveNumberAsync(Form form, CancellationToken cancellationToken)
     {
         if (form.ActiveDefinition is not { } active)

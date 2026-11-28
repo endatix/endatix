@@ -13,7 +13,7 @@ namespace Endatix.IntegrationTests;
 
 [Collection(nameof(EndatixIntegrationTestCollection))]
 [Trait("Category", "Infrastructure")]
-public sealed class NumberFormDefinitionsTests
+public sealed partial class NumberFormDefinitionsTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -46,7 +46,7 @@ public sealed class NumberFormDefinitionsTests
     }
 
     [Fact]
-    public async Task Upgrade_preserves_the_live_id_and_adopts_the_last_stray_before_cleanup()
+    public async Task Upgrade_preserves_the_live_id_and_adopts_the_last_stray_without_hiding_legacy_rows()
     {
         await using var host = await OwnDatabaseWebHost.StartAsync();
         var world = await host.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, Ct);
@@ -112,8 +112,8 @@ public sealed class NumberFormDefinitionsTests
         definitions[active].IsDraft.Should().BeFalse();
         definitions[101].Number.Should().Be(2);
         definitions[101].IsDraft.Should().BeFalse();
-        definitions[102].IsDeleted.Should().BeTrue();
-        definitions[103].IsDeleted.Should().BeTrue();
+        definitions[102].IsDeleted.Should().BeFalse();
+        definitions[103].IsDeleted.Should().BeFalse();
         (await db.Forms.SingleAsync(row => row.Id == form, Ct)).ActiveDefinitionId.Should().Be(active);
         var head = await db.FormDrafts.SingleAsync(row => row.FormId == form, Ct);
         const string expectedHash = "99168216144c7fed5d4c54916cf98d9c66096280c04a499822a99b6658bd177a";

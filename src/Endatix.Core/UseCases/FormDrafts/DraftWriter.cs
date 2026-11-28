@@ -17,7 +17,7 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
     public async Task<Result<DraftResponse>> Handle(ReadDraft request, CancellationToken cancellationToken)
     {
         var state = await LoadAsync(request.FormId, cancellationToken);
-        return state is null ? Result.NotFound("Form not found.") : await ResponseAsync(state, cancellationToken);
+        return state.IsSuccess ? await ResponseAsync(state.Value, cancellationToken) : state.ToErrorResult<DraftResponse>();
     }
 
     public Task<Result<DraftResponse>> Handle(ReplaceDraft request, CancellationToken cancellationToken) =>
@@ -32,15 +32,15 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
     private async Task<Result<DraftResponse>> WriteAsync(WriteDraft request, CancellationToken ct)
     {
         var state = await LoadAsync(request.FormId, ct);
-        if (state is null)
+        if (!state.IsSuccess)
         {
-            return Result.NotFound("Form not found.");
+            return state.ToErrorResult<DraftResponse>();
         }
-        if (request.ExpectedVersion != state.Head.Version)
+        if (request.ExpectedVersion != state.Value.Head.Version)
         {
             return Result.Conflict("The draft changed since it was read.");
         }
-        return await SaveAsync(request, state, ct);
+        return await SaveAsync(request, state.Value, ct);
     }
 
     private async Task<Result<DraftResponse>> SaveAsync(WriteDraft request, DraftState state, CancellationToken ct)
@@ -76,16 +76,20 @@ internal sealed class DraftWriter(IFormDraftRepository drafts, ITenantContext te
         }
     }
 
-    private async Task<DraftState?> LoadAsync(long id, CancellationToken ct)
+    private async Task<Result<DraftState>> LoadAsync(long id, CancellationToken ct)
     {
         var form = tenant.TenantId > 0 ? await drafts.FindFormAsync(tenant.TenantId, id, ct) : null;
         if (form is null)
         {
-            return null;
+            return Result.NotFound("Form not found.");
+        }
+        if (await drafts.IsUpgradePendingAsync(id, ct))
+        {
+            return Result.Unavailable("This form's draft upgrade is pending. Retry after the upgrade finishes.");
         }
         var published = form.ActiveDefinition?.JsonData ?? FormDefinitionDefaults.Json;
         var head = await drafts.FindHeadAsync(id, ct) ?? FormDraft.For(form, published);
-        return new(head, form, published);
+        return new DraftState(head, form, published);
     }
 
     private async Task<DraftResponse> ResponseAsync(DraftState state, CancellationToken ct)

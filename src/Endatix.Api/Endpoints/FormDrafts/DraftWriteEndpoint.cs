@@ -37,9 +37,10 @@ public abstract class DraftWriteEndpoint<TRequest, TResponse>(IMediator mediator
             s.Responses[404] = "Form not found.";
             s.Responses[412] = "The form changed elsewhere. The response includes the current draft and ETag.";
             s.Responses[428] = "Send If-Match with the ETag from the last draft read.";
+            s.Responses[503] = "This form's draft upgrade is pending.";
         });
         Description(b => b.Produces<TResponse>().ProducesProblem(400).ProducesProblem(404)
-            .ProducesProblem(412).ProducesProblem(428));
+            .ProducesProblem(412).ProducesProblem(428).ProducesProblem(503));
     }
 
     /// <inheritdoc/>
