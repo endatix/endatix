@@ -93,11 +93,11 @@ public sealed class JobTypeDefaultsTests(DbIntegrationFixture fixture)
         var threads = host.Services.GetRequiredService<IOptionsMonitor<ThreadPoolOptions>>()
             .Get(QuartzRegistration.SchedulerName).MaxConcurrency;
 
-        // Assert — the pool holds every cap the execution limits apply, plus the retention thread.
+        // Assert — retention and idle draft checkpoints each reserve one thread in addition to the queue job caps.
         policies.For(ReportingFlatten).Should().Be(TunedReporting);
         plan.GroupCaps[WebHook].Should().Be(4);
         plan.GroupCaps[ReportingFlatten].Should().Be(2);
-        threads.Should().Be(plan.PoolSize + 1);
+        threads.Should().Be(plan.PoolSize + 2);
     }
 
     [Fact]

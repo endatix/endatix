@@ -6,6 +6,7 @@ using Endatix.Core.Abstractions.Forms;
 using Endatix.Infrastructure.Data.Repositories;
 using Endatix.IntegrationTests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Endatix.IntegrationTests.FeatureFlows.Forms;
 
@@ -150,7 +151,8 @@ public sealed partial class FormDraftFlowTests
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IdleDraftStore>();
-        await new IdleDraftCheckpoints(store, new FixedClock(at)).RunAsync(Cancellation);
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<IdleDraftCheckpoints>>();
+        await new IdleDraftCheckpoints(store, new FixedClock(at), logger).RunAsync(Cancellation);
     }
 
     private sealed record FixedClock(DateTimeOffset Now) : IDateTimeProvider;

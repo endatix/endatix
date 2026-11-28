@@ -9,6 +9,7 @@ using Endatix.Persistence.PostgreSql.Locking;
 using Endatix.Persistence.SqlServer.Locking;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Endatix.IntegrationTests;
 
@@ -31,7 +32,7 @@ public sealed class FormDraftPersistenceTests(DbIntegrationFixture fixture)
         clock.UtcNow.Returns(new DateTimeOffset(_at.AddDays(1)));
         var formLock = new FormSubmissionsLock(first,
             first.Database.IsNpgsql() ? new PostgreSqlTransactionLock() : new SqlServerTransactionLock());
-        var scan = new IdleDraftCheckpoints(new IdleDraftStore(first, Repository(first), formLock), clock);
+        var scan = new IdleDraftCheckpoints(new IdleDraftStore(first, Repository(first), formLock), clock, NullLogger<IdleDraftCheckpoints>.Instance);
 
         // Act
         await scan.RunAsync(Cancellation);

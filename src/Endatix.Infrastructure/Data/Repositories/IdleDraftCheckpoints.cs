@@ -1,14 +1,18 @@
+using System.Collections.Frozen;
 using Endatix.Core.Abstractions;
 using Endatix.Core.Abstractions.BackgroundJobs;
 using Endatix.Core.Abstractions.Forms;
 using Endatix.Core.Abstractions.Repositories;
 using Endatix.Core.Entities;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace Endatix.Infrastructure.Data.Repositories;
 
 /// <summary>Checkpoints idle draft heads visible in the maintenance scope.</summary>
-internal sealed class IdleDraftCheckpoints(IdleDraftStore store, IDateTimeProvider clock) : IRecurringJob
+internal sealed class IdleDraftCheckpoints(IdleDraftStore store, IDateTimeProvider clock, ILogger<IdleDraftCheckpoints> logger) : IRecurringJob
 {
     /// <summary>Scans keys in bounded pages. Only one candidate's document is tracked at a time.</summary>
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -24,9 +28,19 @@ internal sealed class IdleDraftCheckpoints(IdleDraftStore store, IDateTimeProvid
             }
             foreach (var candidate in page)
             {
-                await store.CheckpointAsync(candidate, now, cancellationToken);
+                await CheckpointOrLogAsync(candidate, now, cancellationToken);
             }
             after = page[^1].FormId;
+        }
+    }
+
+    private async Task CheckpointOrLogAsync(IdleDraftStore.Candidate candidate, DateTime now, CancellationToken ct)
+    {
+        if (await store.TryCheckpointAsync(candidate, now, ct) is { } code)
+        {
+            // Provider messages may quote the rejected row. Log only its identity and diagnostic code.
+            logger.LogError("Idle checkpoint rejected for tenant {TenantId}, form {FormId}, version {Version} (database code {Code})",
+                candidate.TenantId, candidate.FormId, candidate.Version, code);
         }
     }
 }
@@ -49,7 +63,38 @@ internal sealed class IdleDraftStore(AppDbContext db, IFormDraftRepository draft
                 && row.Version == head.Version && row.Kind == FormDraftOperationKinds.JOURNAL));
     }
 
-    internal async Task CheckpointAsync(Candidate candidate, DateTime now, CancellationToken ct)
+    internal async Task<string?> TryCheckpointAsync(Candidate candidate, DateTime now, CancellationToken ct)
+    {
+        try
+        {
+            await CheckpointAsync(candidate, now, ct);
+            return null;
+        }
+        catch (Exception error) when (RowRejectionCode(error) is { } code)
+        {
+            ct.ThrowIfCancellationRequested();
+            return code;
+        }
+    }
+
+    private static readonly FrozenSet<string> _postgresRowErrors = [
+        PostgresErrorCodes.CheckViolation, PostgresErrorCodes.ForeignKeyViolation, PostgresErrorCodes.NotNullViolation,
+        PostgresErrorCodes.StringDataRightTruncation, PostgresErrorCodes.InvalidTextRepresentation, PostgresErrorCodes.NumericValueOutOfRange
+    ];
+
+    // Constraint, NULL, truncated text, malformed JSON, or numeric overflow in the candidate write.
+    private static readonly FrozenSet<int> _sqlServerRowErrors = [547, 515, 2628, 8152, 13609, 8115];
+
+    private static string? RowRejectionCode(Exception? cause) => cause switch
+    {
+        DbUpdateException update => RowRejectionCode(update.InnerException),
+        PostgresException pg when _postgresRowErrors.Contains(pg.SqlState) => pg.SqlState,
+        SqlException sql when _sqlServerRowErrors.Contains(sql.Number) =>
+            sql.Number.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        _ => null
+    };
+
+    private async Task CheckpointAsync(Candidate candidate, DateTime now, CancellationToken ct)
     {
         // Form deletion takes the exclusive side. This shared section still lets draft writers race normally.
         var locked = await formLock.BeginAddingAsync(candidate.FormId, ct);
@@ -73,7 +118,6 @@ internal sealed class IdleDraftStore(AppDbContext db, IFormDraftRepository draft
         {
             return false;
         }
-        var latest = await drafts.LatestSnapshotVersionAsync(head.FormId, head.Version, ct);
-        return head.CheckpointIdle(now, latest) is { } snapshot && await drafts.SaveOrConcedeAsync(head, [snapshot], ct);
+        return head.CheckpointIdleJournalTail(now) is { } snapshot && await drafts.SaveOrConcedeAsync(head, [snapshot], ct);
     }
 }

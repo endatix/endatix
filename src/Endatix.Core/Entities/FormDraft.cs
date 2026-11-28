@@ -55,9 +55,9 @@ public sealed class FormDraft : IAggregateRoot, ITenantOwned, IHasVersion, IHasD
     internal List<FormDraftOperation> Discard(string json, DraftWrite write) =>
         WriteSnapshot(json, CanonicalSurveyJson.PublishedHash(json), (DraftSnapshotReasons.DISCARD, write));
 
-    /// <summary>Checkpoints the current journal tail after a day without edits.</summary>
-    public FormDraftOperation? CheckpointIdle(DateTime now, long latestSnapshotVersion) =>
-        Version > latestSnapshotVersion && ModifiedAt <= now.AddDays(-1)
+    /// <summary>Checkpoints a persisted head whose current operation the caller has verified is a journal record.</summary>
+    public FormDraftOperation? CheckpointIdleJournalTail(DateTime now) =>
+        ModifiedAt <= now.AddDays(-1)
             ? Snapshot(DraftSnapshotReasons.IDLE, DraftWrite.System(now))
             : null;
 

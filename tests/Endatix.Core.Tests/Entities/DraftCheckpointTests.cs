@@ -13,14 +13,13 @@ public sealed class DraftCheckpointTests
         // Arrange
         var draft = NewDraft();
         var edit = DateTime.UnixEpoch;
-        var rows = draft.Append(Batch(2, """{"a":1}"""), DraftWrite.System(edit), 0).Value;
-        var latest = rows[0].Version;
+        draft.Append(Batch(2, """{"a":1}"""), DraftWrite.System(edit), 0);
         var hash = draft.ContentHash;
         var due = edit.AddDays(1);
 
         // Act
-        draft.CheckpointIdle(due.AddTicks(-1), latest).Should().BeNull();
-        var checkpoint = draft.CheckpointIdle(due, latest);
+        draft.CheckpointIdleJournalTail(due.AddTicks(-1)).Should().BeNull();
+        var checkpoint = draft.CheckpointIdleJournalTail(due);
 
         // Assert
         checkpoint!.Version.Should().Be(4);
@@ -31,7 +30,6 @@ public sealed class DraftCheckpointTests
         checkpoint.Channel.Should().Be("system");
         checkpoint.Reason.Should().Be("idle");
         checkpoint.CreatedAt.Should().Be(due);
-        draft.CheckpointIdle(due.AddDays(2), checkpoint.Version).Should().BeNull();
         draft.Version.Should().Be(4);
     }
 

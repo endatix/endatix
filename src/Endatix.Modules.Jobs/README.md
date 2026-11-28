@@ -399,6 +399,9 @@ The default host checkpoints idle form drafts at 02:00 UTC when Jobs is enabled.
 must have journal entries after its last snapshot and have been idle for at least 24 hours.
 A checkpoint advances the draft ETag once, resets `recordsSinceSnapshot` to zero, and
 attributes the new snapshot to the system. It leaves the published form unchanged.
+If the database rejects one draft's data, that write rolls back. The worker logs the tenant,
+form, version, and database error code and continues with the next draft. The rejected
+draft is eligible again on a later run. Cancellation or a storage outage stops the scan.
 
 ### Execution
 
