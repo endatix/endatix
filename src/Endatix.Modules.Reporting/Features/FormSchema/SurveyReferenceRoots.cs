@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Endatix.Modules.Reporting.Features.FormSchema;
 
-internal sealed partial class SurveyReferenceRoots
+internal sealed class SurveyReferenceRoots
 {
     private readonly Dictionary<string, int> _references = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _known = new(StringComparer.OrdinalIgnoreCase)
@@ -87,7 +87,7 @@ internal sealed partial class SurveyReferenceRoots
         else if (value.ValueKind == JsonValueKind.String)
         {
             var text = value.GetString()!;
-            var matches = (expression ? ExpressionTokens() : PipedTokens()).Matches(text);
+            var matches = (expression ? _expressionTokens : _pipedTokens).Matches(text);
             foreach (var root in matches.Select(match => match.Groups["root"]).Where(group => group.Success))
             {
                 Count(root.Value);
@@ -103,9 +103,6 @@ internal sealed partial class SurveyReferenceRoots
 
     private const string REFERENCE = @"\{(?<root>[\p{L}\p{N}_$][^{}\[\].\r\n]*)(?:[.\[][^{}]*)?\}";
 
-    [GeneratedRegex(REFERENCE, RegexOptions.NonBacktracking)]
-    private static partial Regex PipedTokens();
-
-    [GeneratedRegex("""'(?:''|[^'])*'|"(?:""|[^"])*"|""" + REFERENCE, RegexOptions.NonBacktracking)]
-    private static partial Regex ExpressionTokens();
+    private static readonly Regex _pipedTokens = new(REFERENCE, RegexOptions.NonBacktracking);
+    private static readonly Regex _expressionTokens = new("""'(?:''|[^'])*'|"(?:""|[^"])*"|""" + REFERENCE, RegexOptions.NonBacktracking);
 }

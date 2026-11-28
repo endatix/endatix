@@ -19,14 +19,23 @@ public sealed record FormCheckInput(long TenantId, long FormId, long DraftVersio
 
 /// <summary>Publication checking includes the checks run when opening the dialog.</summary>
 [Experimental("ENDATIX0007")]
-public enum FormCheckStage { Draft, Publication }
+public enum FormCheckStage
+{
+    /// <summary>Checks available immediately in the editor.</summary>
+    Draft,
+    /// <summary>Additional checks before committing the frozen survey.</summary>
+    Publication
+}
 
 /// <summary>A server check and the earliest stage at which it runs.</summary>
 [Experimental("ENDATIX0007")]
 public interface IFormDefinitionCheck
 {
+    /// <summary>Stable capability identifier.</summary>
     string Code { get; }
+    /// <summary>First stage where this check applies.</summary>
     FormCheckStage Stage { get; }
+    /// <summary>Inspect the supplied document without modifying the draft or published survey.</summary>
     Task<IReadOnlyList<FormCheckFinding>> RunAsync(FormCheckInput input, CancellationToken cancellationToken);
 }
 
@@ -39,6 +48,7 @@ public sealed record FormCheckReport(string DraftVersion, string ContentHash, st
 public sealed record FormCheckFinding(string Key, string Code, string Severity, bool Blocking, bool RequiresAck,
     string Message, FindingPath Path, JsonElement? Data = null)
 {
+    /// <summary>Distinguishes API findings from checks run by the editor.</summary>
     public string Origin { get; init; } = "server";
 }
 

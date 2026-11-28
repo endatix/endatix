@@ -12,6 +12,7 @@ namespace Endatix.Modules.Reporting;
 [Experimental("ENDATIX0007")]
 public static class ReportingDraftChecks
 {
+    /// <summary>Register once in both full and read-only reporting hosts.</summary>
     public static void Register(EndatixModuleBuilder builder)
     {
         if (builder.Services.Any(d => d.ImplementationType == typeof(ColumnKeyCheck)))

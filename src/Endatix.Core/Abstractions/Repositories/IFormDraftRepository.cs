@@ -7,6 +7,7 @@ namespace Endatix.Core.Abstractions.Repositories;
 [System.Diagnostics.CodeAnalysis.Experimental("ENDATIX0007")]
 public sealed record DraftComparison(long Version, int? PublishedNumber, string? PublishedJson, string? DraftJson)
 {
+    /// <summary>The stored hash, absent when the head has not been created.</summary>
     public string? DraftHash { get; init; }
 }
 

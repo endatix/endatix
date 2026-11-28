@@ -13,6 +13,7 @@ namespace Endatix.Api.Endpoints.FormDrafts;
 [Experimental("ENDATIX0007")]
 public sealed class Checks(IMediator mediator) : Endpoint<DraftRequest, Results<Ok<FormCheckReport>, ProblemHttpResult>>
 {
+    /// <inheritdoc/>
     public override void Configure()
     {
         Post("forms/{formId}/draft/checks");
@@ -28,6 +29,7 @@ public sealed class Checks(IMediator mediator) : Endpoint<DraftRequest, Results<
         Description(b => b.Produces<FormCheckReport>().ProducesProblem(400).ProducesProblem(404).ProducesProblem(503));
     }
 
+    /// <inheritdoc/>
     public override async Task<Results<Ok<FormCheckReport>, ProblemHttpResult>> ExecuteAsync(DraftRequest req, CancellationToken ct)
     {
         HttpContext.Response.Headers.CacheControl = "no-store";

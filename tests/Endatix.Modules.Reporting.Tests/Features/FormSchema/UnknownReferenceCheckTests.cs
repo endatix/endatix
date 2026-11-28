@@ -27,8 +27,8 @@ public sealed class UnknownReferenceCheckTests
 
         // Assert
         check.Stage.Should().Be(FormCheckStage.Publication);
-        findings.Select(f => f.Key).Should().BeEquivalentTo(declared
-            ? ["reference/unknown:host"] : new[] { "reference/unknown:host", "reference/unknown:division" });
+        findings.Count.Should().Be(declared ? 1 : 2);
+        findings.Any(f => f.Key == "reference/unknown:division").Should().Be(!declared);
         var root = findings.Single(f => f.Key == "reference/unknown:host");
         root.Data!.Value.GetProperty("count").GetInt32().Should().Be(3);
         root.Severity.Should().Be(severity);

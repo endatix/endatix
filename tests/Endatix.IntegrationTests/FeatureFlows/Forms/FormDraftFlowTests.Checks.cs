@@ -1,5 +1,5 @@
-using System.Net.Http.Json;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Endatix.Core.UseCases.FormDrafts;
 using Endatix.Infrastructure.Data;
@@ -100,7 +100,7 @@ public sealed partial class FormDraftFlowTests
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         // Act
-        var anonymous = await ReadCheckProblemAsync(client, form);
+        var (Status, Detail) = await ReadCheckProblemAsync(client, form);
         client.DefaultRequestHeaders.Authorization = other.DefaultRequestHeaders.Authorization;
         var hidden = await ReadCheckProblemAsync(client, form);
         client.DefaultRequestHeaders.Authorization = owner.DefaultRequestHeaders.Authorization;
@@ -112,7 +112,7 @@ public sealed partial class FormDraftFlowTests
         var pending = await ReadCheckProblemAsync(client, form);
 
         // Assert
-        anonymous.Status.Should().Be(HttpStatusCode.Unauthorized);
+        Status.Should().Be(HttpStatusCode.Unauthorized);
         hidden.Status.Should().Be(HttpStatusCode.NotFound);
         unavailable.Should().Be((HttpStatusCode.ServiceUnavailable, "Required draft checks are unavailable. Retry after the host configuration is restored."));
         pending.Status.Should().Be(HttpStatusCode.ServiceUnavailable);
