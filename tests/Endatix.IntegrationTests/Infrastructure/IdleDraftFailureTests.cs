@@ -44,9 +44,9 @@ public sealed partial class IdleDraftFailureTests
         // Assert
         await AssertVersionAsync(db, first, 2);
         await AssertVersionAsync(db, second, 3);
-        var warning = logs.Entries.Should().ContainSingle(entry => entry.Message.StartsWith("Idle checkpoint rejected")).Which;
-        warning.Level.Should().Be(LogLevel.Error);
-        warning.Message.Should().Contain($"tenant {first.TenantId}, form {first.FormId}, version 2")
+        var (level, message) = logs.Entries.Should().ContainSingle(entry => entry.Message.StartsWith("Idle checkpoint rejected")).Which;
+        level.Should().Be(LogLevel.Error);
+        message.Should().Contain($"tenant {first.TenantId}, form {first.FormId}, version 2")
             .And.NotContain("private draft").And.NotContain("CK_RejectIdleTest");
         await db.Database.ExecuteSqlRawAsync("""ALTER TABLE "FormDrafts" DROP CONSTRAINT "CK_RejectIdleTest" """, Ct);
         await job.RunAsync(Ct);
