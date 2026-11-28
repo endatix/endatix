@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Endatix.Core.Entities;
 using Endatix.Infrastructure.Data;
 using Endatix.IntegrationTests.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -18,13 +19,14 @@ public sealed partial class FormDraftFlowTests
     public async Task First_publication_has_no_comparison_even_after_a_draft_edit(bool edited)
     {
         // Arrange
-        using var editor = await EditorAsync();
-        var form = await CreateFormAsync(editor);
+        var world = await fixture.PrepareWorldAsync(IntegrationWorldOptions.SingleTenant, Cancellation);
+        using var editor = await world.AsAsync(TestPersona.Creator, mode: IntegrationAuthMode.SyntheticJwt, cancellationToken: Cancellation);
         using var scope = fixture.Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var owner = await db.Forms.SingleAsync(x => x.Id == FormId(form), Cancellation);
-        db.Entry(owner).Property(x => x.ActiveDefinitionId).CurrentValue = null;
+        var owner = Form.Create(new FormCreateArgs(TenantId: world.Tenants[0].Id, Name: "First version"));
+        db.Forms.Add(owner);
         await db.SaveChangesAsync(Cancellation);
+        var form = $"/api/forms/{owner.Id}";
         if (edited)
         {
             await EditDraftAsync(editor, form);
